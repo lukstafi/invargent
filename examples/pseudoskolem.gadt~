@@ -1,0 +1,19 @@
+newtype Bar
+newcons Foo : Bar
+
+newtype Count
+newtype List : nat
+
+newcons One : Count
+newcons Two : Count
+newcons Three : Count
+newcons LNil : List 0
+newcons LCons : for all (n) : Bar * List(n) ⟶ List(n+1)
+
+external zip : for all (n) : List(n) -> List(n) -> List(n)
+
+let rec this_shouldnt_typecheck =
+  let afoo = function One -> LCons (Foo, LNil)
+    | Two -> LCons (Foo, LCons (Foo, LNil))
+    | Three -> LCons (Foo, LCons (Foo, LCons (Foo, LNil)))
+  in zip (afoo Two) (afoo Three)

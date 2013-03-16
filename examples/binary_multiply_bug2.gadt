@@ -1,0 +1,12 @@
+newtype Binary : nat
+
+newcons Zero : Binary 0
+newcons PZero : ∀n. Binary(n) ⟶ Binary(n+n)
+newcons POne : ∀n. Binary(n) ⟶ Binary(n+n+1)
+
+external plus : ∀n,m. Binary(n) → Binary(m) → Binary(n+m)
+
+let rec mult =
+  function Zero -> (fun b -> POne Zero)
+    | PZero a1 -> (fun b -> PZero (mult a1 b))
+    | POne a1 -> (fun b -> plus b (PZero (mult a1 b)))

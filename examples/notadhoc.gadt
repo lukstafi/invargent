@@ -1,0 +1,9 @@
+newtype Bar
+newcons Foo : Bar
+newtype Bool
+newcons True : Bool
+newcons False : Bool
+
+let rec this_doesnt_typecheck =
+  function Foo -> Foo
+  | True -> False

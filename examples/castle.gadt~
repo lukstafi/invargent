@@ -1,0 +1,15 @@
+newtype Room
+newtype Yard
+newtype Outside
+
+newtype Placement : type
+newcons Room : Room ⟶ Placement Room
+newcons Yard : Yard ⟶ Placement Yard
+newcons Outside : Outside ⟶ Placement Outside
+
+external leave : ∀a. Room → Placement a
+external enter : Yard → Room
+
+let rec escape = function Outside x -> x
+  | Room x -> escape (leave x)
+  | Yard x -> escape (leave (enter x))

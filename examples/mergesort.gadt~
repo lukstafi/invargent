@@ -1,0 +1,49 @@
+newtype Ordered : lattice * lattice
+newtype OList : lattice * nat
+newtype Nat : nat
+
+newcons Leq : for all (a, b) with a <= b: Ordered (a, b)
+newcons Geq : for all (a, b) with b <= a: Ordered (a, b)
+
+external compare : for all (c, d) with c <= d : Nat(c) -> Nat(d) -> Ordered (c, d)
+
+newcons ONil : OList(bottom, 0)
+newcons OCons :
+  for all (n, a, b) with b <= a: Nat(a) * OList(b, n) ⟶ OList(a, n+1)
+
+newtype List : nat
+newtype EList : nat
+newtype Impossible
+
+newcons LNil : List(0)
+newcons LCons : for all (n, a): Nat(a) * List(n) ⟶ List(n+1)
+
+newcons Ex : for all (n, a) : OList(a,n) ⟶ EList(n)
+
+newcons Impossible : with false: Impossible
+
+let rec mergesort =
+  function LNil -> Ex (ONil)
+    | LCons (x0, l0) as main ->
+	let rec split =
+	  function LNil -> LNil, LNil
+	    | LCons (x, LNil) as y -> y, LNil
+	    | LCons (x, LCons (y, z)) ->
+		match split z with (l1, l2) ->
+		  LCons (x, l1), LCons (y, l2) in
+	let rec merge =
+	  function ONil -> (fun l -> l)
+	    | OCons (a, l1) as l ->
+		function ONil -> l
+		  | OCons (b, l3) as l2 ->
+		      match compare a b with
+			  Leq -> OCons (a, merge l1 l2)
+			| Geq -> OCons (b, merge l l3) in
+	match split main with
+	    LNil, LNil -> Impossible
+	  | LCons (x, LNil), LNil -> Ex (OCons (x, ONil))
+	  | LNil, LCons (x, LNil) -> Ex (OCons (x, ONil))
+	  | l1, l2 ->
+	      match mergesort l1 with Ex ol1 ->
+		match mergesort l2 with Ex ol2 ->
+		  Ex (merge ol1 ol2)

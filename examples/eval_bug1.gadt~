@@ -1,0 +1,24 @@
+newtype Term : type
+newtype Int
+newtype Bool
+
+external plus : Int -> Int -> Int
+external is_zero : Int -> Bool
+external if : for all a : Bool -> a -> a -> a
+
+newcons Lit : Int ⟶ Term Int
+newcons Plus : Term Int * Term Int ⟶ Term Int
+newcons IsZero : Term Int ⟶ Term Bool
+newcons If : for all a : Term Bool * Term a * Term a ⟶ Term a
+newcons Pair : for all (a, b) : Term a * Term b ⟶ Term (a, b)
+newcons Fst : for all (a, b) : Term (a, b) ⟶ Term a
+newcons Snd : for all (a, b) : Term (a, b) ⟶ Term b
+
+let rec eval = function
+  | Lit i -> i
+  | IsZero x -> is_zero (eval x)
+  | Plus (x, y) -> plus (eval x) (eval y)
+  | If (b, t, e) -> if (eval t) (eval b) (eval e)
+  | Pair (x, y) -> eval x, eval y
+  | Fst p -> (match eval p with x, y -> x)
+  | Snd p -> (match eval p with x, y -> y)

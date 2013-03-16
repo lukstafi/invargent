@@ -1,0 +1,19 @@
+newtype Bar
+newtype List : nat
+
+newcons LNil : List 0
+newcons LCons : for all (n) : Bar * List(n) ⟶ List(n+1)
+
+newtype Boolean
+
+external compare : Bar -> Bar -> Boolean
+external if : for all a : Boolean -> a -> a -> a
+
+let rec merge =
+  function
+    | LNil, l -> l
+    | l, LNil -> l
+    | LCons (a, l1), LCons (b, l2) ->
+      if (compare a b)
+	(LCons (a, merge (l1, (LCons (b, l2)))))
+	(LCons (b, merge ((LCons (a, l1)), l2)))

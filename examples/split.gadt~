@@ -1,0 +1,12 @@
+newtype Bar
+newtype List : nat
+
+newcons LNil : List 0
+newcons LCons : for all (n) : Bar * List(n) ⟶ List(n+1)
+
+let rec split =
+  function LNil -> LNil, LNil
+    | LCons (x, LNil) as y -> y, LNil
+    | LCons (x, LCons (y, z)) ->
+	match split z with (l1, l2) ->
+	  LCons (x, l1), LCons (y, l2)

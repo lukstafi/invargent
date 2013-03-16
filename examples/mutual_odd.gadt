@@ -1,0 +1,17 @@
+newtype Bool
+newcons True : Bool
+newcons False : Bool
+
+external not : Bool → Bool
+
+newtype Nat : nat
+newcons O : Nat 0
+newcons S : ∀n. Nat n ⟶ Nat (n+1)
+
+let rec even = function
+| O -> True
+| S n -> not (odd n)
+and odd = function
+     O -> False
+ | S O -> True
+ | S n -> not (even n)

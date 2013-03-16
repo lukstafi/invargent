@@ -1,0 +1,20 @@
+newtype Boolean
+newtype List : type * nat
+
+newcons B_true : Boolean
+newcons B_false : Boolean
+
+newcons LNil : for all a: List(a, 0)
+newcons LCons : ∀n, a. a * List(a, n) ⟶ List(a, n+1)
+
+newtype Bar
+external f : Bar → Boolean
+
+external filter :
+  ∀n, a. List (a, n) → exists k with k <= n: List (a, k)
+
+let rec filter =
+  function LNil -> LNil
+    | LCons (x, l) -> match f x with
+          B_true -> LCons (x, filter l)
+	| B_false -> filter l

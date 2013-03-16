@@ -1,0 +1,29 @@
+newtype Term : type * type
+newtype Int
+newtype EmptyEnv
+newtype Brujin : type * type
+newtype Env : type
+
+newcons Pick : for all (a, b) : Brujin (a, (a, b))
+newcons Drop : for all (a, b, c) : Brujin (c, b) ⟶ Brujin (c, (a, b))
+
+newcons Cons : for all (a, b) : a * Env b ⟶ Env (a, b)
+newcons Empty : Env EmptyEnv
+
+external plus : Int -> Int -> Int
+external find : for all (a, b) : Brujin (a, b) -> Env b -> a
+
+newcons Const : for all a : Int ⟶ Term (Int, a)
+newcons Add : for all a : Term (Int, a) * Term (Int, a) ⟶ Term (Int, a)
+
+newcons Var : for all (a, b) : Brujin (a, b) ⟶ Term (a, b)
+newcons Abs : for all (a, b, c) : Term (b, (a, c)) ⟶ Term ((a -> b), c)
+newcons App : for all (a, b, c)
+  : Term (a, c) * Term ((a -> b), c) ⟶ Term (b, c)
+
+let rec eval = fun env -> function
+  | Const i -> i
+  | Add (x, y) -> plus (eval env x) (eval env y)
+  | Var v -> find v env
+  | Abs e -> (fun v -> eval (Cons (v, env)) e)
+  | App (x, y) -> eval env y (eval env x)

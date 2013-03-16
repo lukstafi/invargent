@@ -1,0 +1,22 @@
+newtype Ordered : nat * nat
+newtype OList : nat * nat
+newtype Nat : nat
+
+newcons Leq : for all (a, b) with a <= b: Ordered (a, b)
+newcons Geq : for all (a, b) with b <= a: Ordered (a, b)
+
+external compare : for all (c, d) : Nat(c) -> Nat(d) -> Ordered (c, d)
+
+newcons ONil : OList(0, 0)
+newcons OCons :
+  for all (n, a, b) with b <= a: Nat(a) * OList(n, b) ⟶ OList(n+1, a)
+
+
+let rec merge =
+  function ONil -> (fun l -> l)
+    | OCons (a, l1) as l ->
+	function ONil -> l
+	  | OCons (b, l3) as l2 ->
+	      match compare a b with
+		  Leq -> OCons (a, merge l1 l2)
+		| Geq -> OCons (b, merge l l3)
