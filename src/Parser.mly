@@ -81,9 +81,9 @@ expr:
   | LET LIDENT EQUAL expr IN expr
       { Letin ($2, rhs_loc 2, $4, $6, get_loc ()) }
   | LET REC EQUAL expr IN expr
-      { syntax_error "lacking let-binding identifier" 3 }
+      { syntax_error "lacking let-rec-binding identifier" 3 }
   | LET EQUAL expr IN expr
-      { syntax_error "lacking let-rec-binding identifier" 2 }
+      { syntax_error "lacking let-binding identifier" 2 }
   | LET REC LIDENT EQUAL expr error
       { unclosed "let" 1 "in" 6 }
   | LET LIDENT EQUAL expr error
@@ -237,7 +237,7 @@ simple_typ:
       { ty_add $1 $3 }
   | LIDENT   { TVar (Undefined_sort, $1) }
   | UIDENT   { TCons ($1, []) }
-  | NUM      { NCst $1 }
+  | INT      { NCst $1 }
   | LPAREN typ RPAREN
       { $2 }
   | LPAREN typ error
@@ -255,9 +255,9 @@ formula:
   | formula_logand_list %prec below_LOGAND
       { List.rev $1 }
   | typ LESSEQUAL typ
-      { [`Leq ($1, $3, get_loc ())] }
+      { [Leq ($1, $3, get_loc ())] }
   | typ EQUAL typ
-      { [`Eqty ($1, $3, get_loc ())] }
+      { [Eqty ($1, $3, get_loc ())] }
   | FALSE    { [`CFalse (get_loc ())] }
 ;
 

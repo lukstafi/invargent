@@ -4,9 +4,9 @@ newcons False : Bool
 
 external not : Bool → Bool
 
-newtype Nat : nat
-newcons O : Nat 0
-newcons S : ∀n. Nat n ⟶ Nat (n+1)
+newtype Num : num
+newcons O : Num 0
+newcons S : ∀n. Num n ⟶ Num (n+1)
 
 let rec even = function
 | O -> True

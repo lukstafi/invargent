@@ -1,13 +1,13 @@
 newtype Boolean
-newtype List : type * nat
+newtype List : type * num
 
 newcons B_true : Boolean
 newcons B_false : Boolean
 
-newcons LNil : for all a: List(a, 0)
+newcons LNil : all a. List(a, 0)
 newcons LCons : ∀n, a. a * List(a, n) ⟶ List(a, n+1)
 
-newtype ShortList : type * nat
+newtype ShortList : type * num
 newcons Shorter : ∀k, n, a) with k <= n:
   List(a, k) ⟶ Shorter(a, n)
 

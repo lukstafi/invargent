@@ -2,7 +2,7 @@ newtype Bar
 newcons Foo : Bar
 
 newtype Count
-newtype List : nat
+newtype List : num
 
 newcons One : Count
 newcons Two : Count

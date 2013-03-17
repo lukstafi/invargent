@@ -1,4 +1,4 @@
-newtype Num : nat
+newtype Num : num
 newtype Count
 
 newcons One : Count

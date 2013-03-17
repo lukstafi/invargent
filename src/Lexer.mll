@@ -16,7 +16,7 @@ rule token = parse
   | [' ' '\t']	{ token lexbuf }
   | '\n'	{ incr_lineno lexbuf; token lexbuf }
   | digit+ as num
-		{ NUM (int_of_string num) }
+		{ INT (int_of_string num) }
   | '+'		{ PLUS }
   | '*'		{ MULTIPLY }
   | '('		{ LPAREN }

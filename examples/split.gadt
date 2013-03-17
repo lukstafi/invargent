@@ -1,5 +1,5 @@
 newtype Bar
-newtype List : nat
+newtype List : num
 
 newcons LNil : List 0
 newcons LCons : ∀n. Bar * List(n) ⟶ List(n+1)

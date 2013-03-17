@@ -16,8 +16,7 @@ assert lattice ClientsEurope <: Clients
 newcons ClientsEurope : Level(ClientsEurope)
 
 newtype ClientInfo
-newcons AccountBalance : for all l
-  with l <: Clients: Int(l) * Level(l) ⟶ ClientInfo
+newcons AccountBalance : all l [l <: Clients]. Int(l) * Level(l) ⟶ ClientInfo
 
 external sum : ∀a, b, c)
   with a <: c && b <: c: Int(a) -> Int(b) -> Int(c)

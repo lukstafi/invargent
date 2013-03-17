@@ -1,4 +1,4 @@
-newtype List : type * nat
+newtype List : type * num
 newtype Foo
 newtype Bar
 

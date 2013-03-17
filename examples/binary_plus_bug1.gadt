@@ -1,5 +1,5 @@
-newtype Binary : nat
-newtype Carry : nat
+newtype Binary : num
+newtype Carry : num
 
 newcons Zero : Binary 0
 newcons PZero : ∀n. Binary(n) ⟶ Binary(n+n)

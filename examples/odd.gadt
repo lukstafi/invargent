@@ -1,10 +1,10 @@
 newtype Bar
-newtype List : nat
+newtype List : num
 
 newcons LNil : List 0
 newcons LCons : ∀n. Bar * List(n) ⟶ List(n+1)
 
-newtype Bool : nat
+newtype Bool : num
 newcons True : Bool(1)
 newcons False : Bool(0)
 

@@ -1,22 +1,22 @@
 newtype Ordered : lattice * lattice
-newtype OList : lattice * nat
-newtype Nat : nat
+newtype OList : lattice * num
+newtype Num : num
 
 newcons Leq : ∀a, b) with a <= b: Ordered (a, b)
 newcons Geq : ∀a, b) with b <= a: Ordered (a, b)
 
-external compare : ∀c, d) with c <= d : Nat(c) → Nat(d) → Ordered (c, d)
+external compare : ∀c, d) with c <= d : Num(c) → Num(d) → Ordered (c, d)
 
 newcons ONil : OList(bottom, 0)
 newcons OCons :
-  ∀n, a, b) with b <= a: Nat(a) * OList(b, n) ⟶ OList(a, n+1)
+  ∀n, a, b) with b <= a: Num(a) * OList(b, n) ⟶ OList(a, n+1)
 
-newtype List : nat
-newtype EList : nat
+newtype List : num
+newtype EList : num
 newtype Impossible
 
 newcons LNil : List(0)
-newcons LCons : ∀n, a. Nat(a) * List(n) ⟶ List(n+1)
+newcons LCons : ∀n, a. Num(a) * List(n) ⟶ List(n+1)
 
 newcons Ex : ∀n, a. OList(a,n) ⟶ EList(n)
 

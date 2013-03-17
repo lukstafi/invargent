@@ -1,4 +1,4 @@
-newtype Binary : nat
+newtype Binary : num
 
 newcons Zero : Binary 0
 newcons PZero : ∀n. Binary(n) ⟶ Binary(n+n)
