@@ -30,6 +30,7 @@ rule token = parse
   | "function"  { FUNCTION }
   | "fun"       { FUN }
   | "match"     { MATCH }
+  | "ematch"    { EMATCH }
   | "with"      { WITH }
   | "num"       { NUM }
   | "type"      { TYPE }

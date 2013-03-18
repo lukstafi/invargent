@@ -7,7 +7,7 @@
 */
 
 %{
-open Infer
+open Terms
 open Lexing
 
 let get_loc () =
@@ -36,14 +36,14 @@ let parse_error s =
 %}
 
 /* Ocamlyacc Declarations */
-%token LPAREN RPAREN COMMA DOT COLON EQUAL SEMICOLON AND
+%token LPAREN RPAREN LBRACKET RBRACKET COMMA DOT COLON EQUAL SEMICOLON AND
 %token UNDERSCORE EXCLAMATION LOGAND
 %token LET REC IN ALL EX
 %token <string> UIDENT
 %token <string> LIDENT
-%token <int> NUM
+%token <int> INT
 %token PLUS MULTIPLY ARROW BAR AS
-%token FUNCTION FUN MATCH WITH
+%token FUNCTION FUN MATCH EMATCH WITH
 %token NUM TYPE
 %token LESSEQUAL
 %token FALSE
@@ -65,28 +65,28 @@ let parse_error s =
 %left PLUS
 %nonassoc MULTIPLY
 %nonassoc prec_constr_appl              /* above AS BAR COLONCOLON COMMA */
-%nonassoc LPAREN
+%nonassoc LPAREN LBRACKET
 
 %start program
-%type <Infer.struct_item list> program
-%type <Infer.typ> simple_typ
+%type <Terms.struct_item list> program
+%type <Terms.typ> simple_typ
 
 /* Grammar follows */
 %%
 expr:
-  | LET REC LIDENT EQUAL expr more_recdefs IN expr
-      { Letrec (($3, $5) :: List.rev $6,
+  | LET REC LIDENT EQUAL expr IN expr
+      { Letrec ($3, $5,
 	       (* {beg_pos = rhs_start_pos 2; FIXME: body loc
-		  end_pos = rhs_end_pos 5}, *) $8, get_loc ()) }
-  | LET LIDENT EQUAL expr IN expr
-      { Letin ($2, rhs_loc 2, $4, $6, get_loc ()) }
+		  end_pos = rhs_end_pos 5}, *) $7, get_loc ()) }
+  | LET pattern EQUAL expr IN expr
+      { Letin ($2, (* rhs_loc 3, *) $4, $6, get_loc ()) }
   | LET REC EQUAL expr IN expr
       { syntax_error "lacking let-rec-binding identifier" 3 }
   | LET EQUAL expr IN expr
-      { syntax_error "lacking let-binding identifier" 2 }
+      { syntax_error "lacking let-binding pattern" 2 }
   | LET REC LIDENT EQUAL expr error
       { unclosed "let" 1 "in" 6 }
-  | LET LIDENT EQUAL expr error
+  | LET pattern EQUAL expr error
       { unclosed "let" 1 "in" 5 }
   | FUNCTION opt_bar match_cases %prec below_WITH
       { incr extype_id; ExLam (!extype_id, List.rev $3, get_loc ()) }
@@ -96,12 +96,18 @@ expr:
       { List.fold_right (fun p e -> Lam ([p, e], get_loc ()))
 	  (List.rev $2) $3 }
   | MATCH expr WITH opt_bar match_cases %prec below_WITH
+      { App (Lam (List.rev $5,
+                  {beg_pos = rhs_start_pos 3; end_pos = rhs_end_pos 5}),
+             $2, get_loc ()) }
+  | EMATCH expr WITH opt_bar match_cases %prec below_WITH
       { incr extype_id;
-        App (Lam (List.rev $5,
+        App (ExLam (!extype_id, List.rev $5,
                   {beg_pos = rhs_start_pos 3; end_pos = rhs_end_pos 5}),
              $2, get_loc ()) }
   | MATCH expr error
       { unclosed "match" 1 "with" 3 }
+  | EMATCH expr error
+      { unclosed "ematch" 1 "with" 3 }
   | expr COMMA expr_comma_list %prec below_COMMA
       { Cons ("Tuple", ($1 :: List.rev $3), get_loc ()) }
   | simple_expr
@@ -127,7 +133,7 @@ simple_expr:
       { Var ($1, get_loc ()) }
   | UIDENT
       { Cons ($1, [], get_loc ()) }
-  | NUM
+  | INT
       { Num ($1, get_loc ()) }
   | LPAREN expr RPAREN
       { $2 }
@@ -146,11 +152,6 @@ expr_comma_list:
   | expr
       { [ $1 ] }
 ;
-more_recdefs:
-  | /* empty */
-      { [] }
-  | more_recdefs AND LIDENT EQUAL expr
-      { ($3, $5)::$1 }
 
 match_cases:
   |  pattern match_action
@@ -179,8 +180,6 @@ pattern:
       { PAnd ($1, $3, get_loc ()) }
   | pattern_comma_list  %prec below_COMMA
       { PCons ("Tuple", List.rev $1, get_loc ()) }
-  | pattern BAR pattern
-      { POr($1, $3, get_loc ()) }
 ;
 pattern_comma_list:
   | pattern COMMA pattern
@@ -207,9 +206,13 @@ simple_pattern_list:
 
 typ:
   | EX lident_list DOT typ
-      { incr extype_id; TExCons (!extype_id, $2, [], $4) }
+      { incr extype_id;
+        extype_env := (!extype_id, (List.rev $2, [], $4)) :: !extype_env;
+        TExCons (!extype_id) }
   | EX lident_list LBRACKET formula RBRACKET DOT typ
-      { incr extype_id; TExCons (!extype_id, $2, $4, $7) }
+      { incr extype_id;
+        extype_env := (!extype_id, (List.rev $2, $4, $7)) :: !extype_env;
+        TExCons (!extype_id) }
   | simple_typ
       { $1 }
   | typ ARROW typ
@@ -258,7 +261,7 @@ formula:
       { [Leq ($1, $3, get_loc ())] }
   | typ EQUAL typ
       { [Eqty ($1, $3, get_loc ())] }
-  | FALSE    { [`CFalse (get_loc ())] }
+  | FALSE    { [CFalse (get_loc ())] }
 ;
 
 formula_logand_list:
@@ -289,25 +292,24 @@ opt_constr_intro:
 
 lident_list:
   | LIDENT
-      { [ $1 ] }
+      { [ Undefined_sort, $1 ] }
   | lident_list LIDENT
-      { $3 :: $1 }
+      { (Undefined_sort, $2) :: $1 }
   | lident_list COMMA LIDENT
-      { $3 :: $1 }
+      { (Undefined_sort, $3) :: $1 }
 ;
 
 structure_item:
   | NEWCONS UIDENT COLON opt_constr_intro typ_star_list LONGARROW typ
-      { ValConstr ($2, (get_loc ()), (fst $4), (snd $4), $7,
-	(List.rev $5)) }
+      { ValConstr ($2, (* get_loc (), *) (fst $4), (snd $4),
+	(List.rev $5), $7) }
   | NEWCONS UIDENT COLON opt_constr_intro typ_star_list error
       { unclosed "newcons" 1 "-->" 6 }
   | NEWCONS UIDENT COLON opt_constr_intro LONGARROW
       { syntax_error
 	  "do not use --> for constructors without arguments" 5 }
   | NEWCONS UIDENT COLON opt_constr_intro typ
-      { ValConstr ($2, (get_loc ()), (fst $4), (snd $4), $5,
-	[]) }
+      { ValConstr ($2, (* get_loc (), *) (fst $4), (snd $4), [], $5) }
   | NEWCONS UIDENT COLON opt_constr_intro typ_star_list LONGARROW error
       { syntax_error ("inside the constructor value type") 4 }
   | NEWCONS UIDENT COLON opt_constr_intro error
@@ -321,21 +323,19 @@ structure_item:
   | NEWCONS UIDENT error
       { unclosed "newcons" 1 ":" 3 }
   | NEWTYPE UIDENT COLON sort_star_list
-      { TypConstr ($2, prepare_type_constr
-	(List.rev $4)) }
+      { TypConstr ($2, List.rev $4) }
   | NEWTYPE COLON
       { syntax_error
 	  "lacking type identifier" 2 }
   | NEWTYPE UIDENT
-      { TypConstr ($2, prepare_type_constr
-	[] ) }
+      { TypConstr ($2, [] ) }
   | EXTERNAL LIDENT COLON opt_constr_intro typ
-      { PrimVal ($2, (get_loc ()), (fst $4), (snd $4), $5) }
+      { PrimVal ($2, (* get_loc (), *) (fst $4, snd $4, $5)) }
   | EXTERNAL COLON
       { syntax_error
 	  "lacking external binding identifier" 2 }
-  | LET REC LIDENT EQUAL expr more_recdefs
-      { LetRecVal (($3, $5) :: List.rev $6, get_loc ()) }
+  | LET REC LIDENT EQUAL expr
+      { LetRecVal ($3, $5, get_loc ()) }
   | LET REC LIDENT EQUAL error
       { syntax_error "error in the body of toplevel definition" 5 }
   | LET REC EQUAL
