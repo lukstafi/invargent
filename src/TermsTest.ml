@@ -75,5 +75,23 @@ let rec eval =
    | Pair (x, y) -> eval x, eval y | Fst p -> let x, y = eval p in x
    | Snd p -> let x, y = eval p in y";
     );
+
+  "sort inference" >::
+    (fun () ->
+      let prog = Parser.program Lexer.token
+	(Lexing.from_string
+"newtype N : num
+newtype T : type
+external test : ∀a,b. T a → N b → a") in
+      assert_equal ~msg:"a in ∀a,b. T a → N b → a" ~printer:sort_str
+        (match List.rev prog with
+        | PrimVal (_, ([s1,_;s2,_], _, _), _) :: _ -> s1
+        | _ -> assert false) Type_sort;
+      assert_equal ~msg:"b in ∀a,b. T a → N b → a" ~printer:sort_str
+        (match List.rev prog with
+        | PrimVal (_, ([s1,_;s2,_], _, _), _) :: _ -> s2
+        | _ -> assert false) Num_sort;
+    );
+
 ]
 

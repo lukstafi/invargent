@@ -120,7 +120,7 @@ expr:
 	      (match f, a with
 		| Cons (x, [], _), Cons ("Tuple", args, _)
 		    (* syntax... *)
-		    (* when not (unary_constr loc cstrenv x) *) ->
+		    when not (unary_val_constr x) ->
 		    Cons (x, args, loc)
 		| Cons (x, [], _), _ -> Cons (x, [ a ], loc)
 		| _ -> App(f, a, loc))
@@ -173,7 +173,7 @@ pattern:
       { match $2 with
 	| PCons ("Tuple", args, _)
 	    (* syntax... *)
-	    (* when not (unary_type_constr (get_loc ()) $1) *) ->
+	    when not (unary_val_constr $1) ->
 	    PCons ($1, args, get_loc ())
 	| _ -> PCons ($1, [ $2 ], get_loc ()) }
   | pattern AS pattern
@@ -207,11 +207,11 @@ simple_pattern_list:
 typ:
   | EX lident_list DOT typ
       { incr extype_id;
-        extype_env := (!extype_id, (List.rev $2, [], $4)) :: !extype_env;
+        Hashtbl.add extype_env !extype_id (List.rev $2, [], $4);
         TExCons (!extype_id) }
   | EX lident_list LBRACKET formula RBRACKET DOT typ
       { incr extype_id;
-        extype_env := (!extype_id, (List.rev $2, $4, $7)) :: !extype_env;
+        Hashtbl.add extype_env !extype_id (List.rev $2, $4, $7);
         TExCons (!extype_id) }
   | simple_typ
       { $1 }
@@ -223,7 +223,7 @@ typ:
       { match $2 with
 	| TCons ("Tuple", args)
 	    (* syntax... *)
-	    (* when not (unary_type_constr (get_loc ()) $1) *) ->
+	    when not (unary_type_constr $1) ->
 	    TCons ($1, args)
 	| _ -> TCons ($1, [ $2 ]) }
 ;
@@ -299,17 +299,17 @@ lident_list:
       { (Undefined_sort, $3) :: $1 }
 ;
 
-structure_item:
+structure_item_raw:
   | NEWCONS UIDENT COLON opt_constr_intro typ_star_list LONGARROW typ
-      { ValConstr ($2, (* get_loc (), *) (fst $4), (snd $4),
-	(List.rev $5), $7) }
+      { ValConstr ($2, (fst $4), (snd $4),
+	(List.rev $5), $7, get_loc ()) }
   | NEWCONS UIDENT COLON opt_constr_intro typ_star_list error
       { unclosed "newcons" 1 "-->" 6 }
   | NEWCONS UIDENT COLON opt_constr_intro LONGARROW
       { syntax_error
 	  "do not use --> for constructors without arguments" 5 }
   | NEWCONS UIDENT COLON opt_constr_intro typ
-      { ValConstr ($2, (* get_loc (), *) (fst $4), (snd $4), [], $5) }
+      { ValConstr ($2, (fst $4), (snd $4), [], $5, get_loc ()) }
   | NEWCONS UIDENT COLON opt_constr_intro typ_star_list LONGARROW error
       { syntax_error ("inside the constructor value type") 4 }
   | NEWCONS UIDENT COLON opt_constr_intro error
@@ -323,14 +323,14 @@ structure_item:
   | NEWCONS UIDENT error
       { unclosed "newcons" 1 ":" 3 }
   | NEWTYPE UIDENT COLON sort_star_list
-      { TypConstr ($2, List.rev $4) }
+      { TypConstr ($2, List.rev $4, get_loc ()) }
   | NEWTYPE COLON
       { syntax_error
 	  "lacking type identifier" 2 }
   | NEWTYPE UIDENT
-      { TypConstr ($2, [] ) }
+      { TypConstr ($2, [], get_loc ()) }
   | EXTERNAL LIDENT COLON opt_constr_intro typ
-      { PrimVal ($2, (* get_loc (), *) (fst $4, snd $4, $5)) }
+      { PrimVal ($2, (fst $4, snd $4, $5), get_loc ()) }
   | EXTERNAL COLON
       { syntax_error
 	  "lacking external binding identifier" 2 }
@@ -349,6 +349,9 @@ structure_item:
       { syntax_error
 	  "lacking global let-binding identifier" 3 }
 ;
+structure_item:
+  | structure_item_raw
+      { infer_sorts $1 }
 
 typ_star_list:
   | typ

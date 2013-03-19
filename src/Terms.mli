@@ -62,12 +62,13 @@ type formula = atom list
 type typ_scheme = var_name list * formula * typ
 
 val extype_id : int ref
-val extype_env : (int * typ_scheme) list ref
+val extype_env : (int, typ_scheme) Hashtbl.t
+val newtype_env : (string, sort list) Hashtbl.t
 
 type struct_item =
-    TypConstr of string * sort list
-  | ValConstr of string * var_name list * formula * typ list * typ
-  | PrimVal of string * typ_scheme
+    TypConstr of string * sort list * loc
+  | ValConstr of string * var_name list * formula * typ list * typ * loc
+  | PrimVal of string * typ_scheme * loc
   | LetRecVal of string * expr * loc
   | LetVal of string * expr * loc
 type program = struct_item list
@@ -88,8 +89,15 @@ val collect_lambdas : expr -> pat list * expr
     application: turn [((a b) c) d] into [a; b; c; d] etc. *)
 val collect_apps : expr -> expr list
 
+(** {2 Sort inference} *)
+
+val unary_type_constr : string -> bool
+val unary_val_constr : string -> bool
+val infer_sorts : struct_item -> struct_item
+
 (** {2 Printing} *)
 
+val sort_str : sort -> string
 val pr_loc_short : Format.formatter -> loc -> unit
 val pr_loc_long : Format.formatter -> loc -> unit
 val pr_loc_emb : Format.formatter -> loc -> unit
