@@ -2,12 +2,12 @@
 
     Released under the GNU General Public Licence (version 2 or
     higher), NO WARRANTY of correctness etc. (C) Lukasz Stafiniak 2013
-    @author Lukasz Stafiniak <lukstafi@gmail.com>
+    @author Lukasz Stafiniak lukstafi (AT) gmail.com
     @since Mar 2013
 *)
 (** {2 Definitions} *)
 
-let debug = false
+let debug = ref false
 
 open Lexing
 
@@ -218,15 +218,17 @@ and pr_one_pat ppf = function
   | p -> fprintf ppf "(%a)" (pr_pat false) p
 
 
-let rec collect_lambdas pats = function
-  | Lam ([pat, exp], _) ->
-      collect_lambdas (pat::pats) exp
-  | expr -> List.rev pats, expr
+let collect_lambdas e =
+  let rec aux pats = function
+    | Lam ([pat, exp], _) -> aux (pat::pats) exp
+    | expr -> List.rev pats, expr in
+  aux [] e
 
-let rec collect_apps args = function
-  | App (f, arg, _) ->
-      collect_apps (arg::args) f
-  | expr -> expr::args
+let rec collect_apps e =
+  let rec aux args = function
+    | App (f, arg, _) -> aux (arg::args) f
+    | expr -> expr::args in
+  aux [] e
 
 let pr_tyvar ppf (_,v) = pp_print_string ppf v
 
@@ -248,7 +250,7 @@ let rec pr_expr comma ppf = function
       fprintf ppf "@[<2>%s@ (%a)@]" x
 	(pr_more_sep_list "," (pr_expr true)) exps
   | Lam ([_], _) as exp ->
-      let pats, expr = collect_lambdas [] exp in
+      let pats, expr = collect_lambdas exp in
       fprintf ppf "@[<2>fun@ %a@ ->@ %a@]"
 	(pr_more_sep_list "" pr_one_pat) pats
 	(pr_expr false) expr
@@ -262,7 +264,7 @@ let rec pr_expr comma ppf = function
       fprintf ppf "@[<0>let@ @[<4>%a@] =@ @[<2>%a@]@ in@ @[<0>%a@]@]"
 	(pr_more_pat false) v (pr_expr false) def (pr_expr false) body
   | App _ as exp ->
-      let fargs = collect_apps [] exp in
+      let fargs = collect_apps exp in
       fprintf ppf "@[<2>%a@]"
 	(pr_more_sep_list "" pr_one_expr) fargs
   | Letrec (x, exp, range, _) ->
@@ -283,10 +285,12 @@ and pr_one_expr ppf exp = match exp with
   | _ ->
       fprintf ppf "(%a)" (pr_expr false) exp
 
-let rec collect_argtys args = function
-  | Fun (arg, res) ->
-      collect_argtys (arg::args) res
-  | res -> res::args
+let collect_argtys ty =
+  let rec aux args = function
+    | Fun (arg, res) -> aux (arg::args) res
+    | res -> res::args in
+  List.rev (aux [] ty)
+
 
 let rec pr_atom ppf = function
   | Eqty (t1, t2, _) ->
@@ -320,7 +324,7 @@ and pr_ty comma ppf = function
     fprintf ppf "@[<2>%a@]"
       (pr_more_sep_list " +" (pr_ty true)) tys
   | Fun _ as ty ->
-    let tys = List.rev (collect_argtys [] ty) in
+    let tys = collect_argtys ty in
     fprintf ppf "@[<2>%a@]"
       (pr_more_sep_list " →" pr_fun_ty) tys
   | TExCons k ->
