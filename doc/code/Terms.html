@@ -15,6 +15,7 @@
 <link title="Abduction" rel="Chapter" href="Abduction.html">
 <link title="DisjElim" rel="Chapter" href="DisjElim.html">
 <link title="Invariants" rel="Chapter" href="Invariants.html"><link title="Definitions" rel="Section" href="#2_Definitions">
+<link title="Sort inference" rel="Section" href="#2_Sortinference">
 <link title="Printing" rel="Section" href="#2_Printing">
 <title>Terms</title>
 </head>
@@ -181,11 +182,44 @@ The location with smaller span.<br>
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
 <code><span class="constructor">Undefined_sort</span></code></td>
+<td class="typefieldcomment" align="left" valign="top" ><code>(*</code></td><td class="typefieldcomment" align="left" valign="top" >Type variables (and constants) remember their sort. Sort
+    inference is performed on user-supplied types and constraints.</td><td class="typefieldcomment" align="left" valign="bottom" ><code>*)</code></td>
+</tr></table>
+
+
+<br><code><span id="TYPEvar_name"><span class="keyword">type</span> <code class="type"></code>var_name</span> = </code><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span class="constructor">VNam</span> <span class="keyword">of</span> <code class="type"><a href="Terms.html#TYPEsort">sort</a> * string</code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span class="constructor">VId</span> <span class="keyword">of</span> <code class="type"><a href="Terms.html#TYPEsort">sort</a> * int</code></code></td>
 
 </tr></table>
 
 
-<pre><span id="TYPEvar_name"><span class="keyword">type</span> <code class="type"></code>var_name</span> = <code class="type"><a href="Terms.html#TYPEsort">sort</a> * string</code> </pre>
+<br><code><span id="TYPEcns_name"><span class="keyword">type</span> <code class="type"></code>cns_name</span> = </code><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span class="constructor">CNam</span> <span class="keyword">of</span> <code class="type">string</code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span class="constructor">Extype</span> <span class="keyword">of</span> <code class="type">int</code></code></td>
+
+</tr></table>
+
 
 <br><code><span id="TYPEtyp"><span class="keyword">type</span> <code class="type"></code>typ</span> = </code><table class="typetable">
 <tr>
@@ -199,7 +233,7 @@ The location with smaller span.<br>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span class="constructor">TCons</span> <span class="keyword">of</span> <code class="type">string * <a href="Terms.html#TYPEtyp">typ</a> list</code></code></td>
+<code><span class="constructor">TCons</span> <span class="keyword">of</span> <code class="type"><a href="Terms.html#TYPEcns_name">cns_name</a> * <a href="Terms.html#TYPEtyp">typ</a> list</code></code></td>
 
 </tr>
 <tr>
@@ -221,13 +255,6 @@ The location with smaller span.<br>
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
 <code><span class="constructor">Nadd</span> <span class="keyword">of</span> <code class="type"><a href="Terms.html#TYPEtyp">typ</a> list</code></code></td>
-
-</tr>
-<tr>
-<td align="left" valign="top" >
-<code><span class="keyword">|</span></code></td>
-<td align="left" valign="top" >
-<code><span class="constructor">TExCons</span> <span class="keyword">of</span> <code class="type">int</code></code></td>
 
 </tr></table>
 
@@ -253,6 +280,13 @@ The location with smaller span.<br>
 <td align="left" valign="top" >
 <code><span class="constructor">CFalse</span> <span class="keyword">of</span> <code class="type"><a href="Terms.html#TYPEloc">loc</a></code></code></td>
 
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span class="constructor">PredVar</span> <span class="keyword">of</span> <code class="type">int * <a href="Terms.html#TYPEtyp">typ</a></code></code></td>
+
 </tr></table>
 
 
@@ -260,26 +294,29 @@ The location with smaller span.<br>
 
 <pre><span id="TYPEtyp_scheme"><span class="keyword">type</span> <code class="type"></code>typ_scheme</span> = <code class="type"><a href="Terms.html#TYPEvar_name">var_name</a> list * <a href="Terms.html#TYPEformula">formula</a> * <a href="Terms.html#TYPEtyp">typ</a></code> </pre>
 
-<pre><span id="VALextype_id"><span class="keyword">val</span> extype_id</span> : <code class="type">int Pervasives.ref</code></pre><pre><span id="VALextype_env"><span class="keyword">val</span> extype_env</span> : <code class="type">(int * <a href="Terms.html#TYPEtyp_scheme">typ_scheme</a>) list Pervasives.ref</code></pre><br><code><span id="TYPEstruct_item"><span class="keyword">type</span> <code class="type"></code>struct_item</span> = </code><table class="typetable">
+<pre><span id="VALvar_sort"><span class="keyword">val</span> var_sort</span> : <code class="type"><a href="Terms.html#TYPEvar_name">var_name</a> -> <a href="Terms.html#TYPEsort">sort</a></code></pre><pre><span id="VALvar_str"><span class="keyword">val</span> var_str</span> : <code class="type"><a href="Terms.html#TYPEvar_name">var_name</a> -> string</code></pre><pre><span id="VALextype_id"><span class="keyword">val</span> extype_id</span> : <code class="type">int Pervasives.ref</code></pre><pre><span id="VALpredvar_id"><span class="keyword">val</span> predvar_id</span> : <code class="type">int Pervasives.ref</code></pre><pre><span id="VALreset_processing"><span class="keyword">val</span> reset_processing</span> : <code class="type">unit -> unit</code></pre><div class="info">
+Set <code class="code">extype_id</code> and <code class="code">predvar_id</code> to <code class="code">0</code>.<br>
+</div>
+<br><code><span id="TYPEstruct_item"><span class="keyword">type</span> <code class="type"></code>struct_item</span> = </code><table class="typetable">
 <tr>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span class="constructor">TypConstr</span> <span class="keyword">of</span> <code class="type">string * <a href="Terms.html#TYPEsort">sort</a> list</code></code></td>
+<code><span class="constructor">TypConstr</span> <span class="keyword">of</span> <code class="type"><a href="Terms.html#TYPEcns_name">cns_name</a> * <a href="Terms.html#TYPEsort">sort</a> list * <a href="Terms.html#TYPEloc">loc</a></code></code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span class="constructor">ValConstr</span> <span class="keyword">of</span> <code class="type">string * <a href="Terms.html#TYPEvar_name">var_name</a> list * <a href="Terms.html#TYPEformula">formula</a> * <a href="Terms.html#TYPEtyp">typ</a> list * <a href="Terms.html#TYPEtyp">typ</a></code></code></td>
+<code><span class="constructor">ValConstr</span> <span class="keyword">of</span> <code class="type"><a href="Terms.html#TYPEcns_name">cns_name</a> * <a href="Terms.html#TYPEvar_name">var_name</a> list * <a href="Terms.html#TYPEformula">formula</a> * <a href="Terms.html#TYPEtyp">typ</a> list<br>        * <a href="Terms.html#TYPEtyp">typ</a> * <a href="Terms.html#TYPEloc">loc</a></code></code></td>
 
 </tr>
 <tr>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span class="constructor">PrimVal</span> <span class="keyword">of</span> <code class="type">string * <a href="Terms.html#TYPEtyp_scheme">typ_scheme</a></code></code></td>
+<code><span class="constructor">PrimVal</span> <span class="keyword">of</span> <code class="type">string * <a href="Terms.html#TYPEtyp_scheme">typ_scheme</a> * <a href="Terms.html#TYPEloc">loc</a></code></code></td>
 
 </tr>
 <tr>
@@ -300,7 +337,7 @@ The location with smaller span.<br>
 
 <pre><span id="TYPEprogram"><span class="keyword">type</span> <code class="type"></code>program</span> = <code class="type"><a href="Terms.html#TYPEstruct_item">struct_item</a> list</code> </pre>
 
-<pre><span id="VALenc_funtype"><span class="keyword">val</span> enc_funtype</span> : <code class="type"><a href="Terms.html#TYPEtyp">typ</a> -> <a href="Terms.html#TYPEtyp">typ</a> list -> <a href="Terms.html#TYPEtyp">typ</a></code></pre><pre><span id="VALty_add"><span class="keyword">val</span> ty_add</span> : <code class="type"><a href="Terms.html#TYPEtyp">typ</a> -> <a href="Terms.html#TYPEtyp">typ</a> -> <a href="Terms.html#TYPEtyp">typ</a></code></pre><pre><span id="VALtyp_scheme_of_item"><span class="keyword">val</span> typ_scheme_of_item</span> : <code class="type">?env:(string * <a href="Terms.html#TYPEtyp_scheme">typ_scheme</a>) list -><br>       <a href="Terms.html#TYPEstruct_item">struct_item</a> -> <a href="Terms.html#TYPEtyp_scheme">typ_scheme</a></code></pre><pre><span id="VALcurrent_file_name"><span class="keyword">val</span> current_file_name</span> : <code class="type">string Pervasives.ref</code></pre><pre><span id="VALcollect_argtys"><span class="keyword">val</span> collect_argtys</span> : <code class="type"><a href="Terms.html#TYPEtyp">typ</a> -> <a href="Terms.html#TYPEtyp">typ</a> list</code></pre><div class="info">
+<pre><span class="keyword">module</span> <a href="Terms.VarSet.html">VarSet</a>: <code class="type">Set.S</code><code class="type">  with type elt = var_name</code></pre><pre><span id="VALfvs_typ"><span class="keyword">val</span> fvs_typ</span> : <code class="type"><a href="Terms.html#TYPEtyp">typ</a> -> VarSet.t</code></pre><pre><span id="VALfvs_atom"><span class="keyword">val</span> fvs_atom</span> : <code class="type"><a href="Terms.html#TYPEatom">atom</a> -> VarSet.t</code></pre><pre><span id="VALfvs_formula"><span class="keyword">val</span> fvs_formula</span> : <code class="type"><a href="Terms.html#TYPEformula">formula</a> -> VarSet.t</code></pre><pre><span id="VALvars_of_list"><span class="keyword">val</span> vars_of_list</span> : <code class="type"><a href="Terms.html#TYPEvar_name">var_name</a> list -> VarSet.t</code></pre><pre><span id="VALenc_funtype"><span class="keyword">val</span> enc_funtype</span> : <code class="type"><a href="Terms.html#TYPEtyp">typ</a> -> <a href="Terms.html#TYPEtyp">typ</a> list -> <a href="Terms.html#TYPEtyp">typ</a></code></pre><pre><span id="VALty_add"><span class="keyword">val</span> ty_add</span> : <code class="type"><a href="Terms.html#TYPEtyp">typ</a> -> <a href="Terms.html#TYPEtyp">typ</a> -> <a href="Terms.html#TYPEtyp">typ</a></code></pre><pre><span id="VALtyp_scheme_of_item"><span class="keyword">val</span> typ_scheme_of_item</span> : <code class="type">?env:(string * <a href="Terms.html#TYPEtyp_scheme">typ_scheme</a>) list -><br>       <a href="Terms.html#TYPEstruct_item">struct_item</a> -> <a href="Terms.html#TYPEtyp_scheme">typ_scheme</a></code></pre><pre><span id="VALcurrent_file_name"><span class="keyword">val</span> current_file_name</span> : <code class="type">string Pervasives.ref</code></pre><pre><span id="VALcollect_argtys"><span class="keyword">val</span> collect_argtys</span> : <code class="type"><a href="Terms.html#TYPEtyp">typ</a> -> <a href="Terms.html#TYPEtyp">typ</a> list</code></pre><div class="info">
 Turn <code class="code">a -&gt; b -&gt; c -&gt; d</code> into <code class="code">[a; b; c; d]</code> etc. and a
     non-function type into a singleton list.
 <p>
@@ -312,5 +349,7 @@ Arguments and the resulting function in reverse order of
     application: turn <code class="code">((a b) c) d</code> into <code class="code">a; b; c; d</code> etc.<br>
 </div>
 <pre><span id="VALcollect_apps"><span class="keyword">val</span> collect_apps</span> : <code class="type"><a href="Terms.html#TYPEexpr">expr</a> -> <a href="Terms.html#TYPEexpr">expr</a> list</code></pre><br>
+<span id="2_Sortinference"><h2>Sort inference</h2></span><br>
+<pre><span id="VALinfer_sorts_item"><span class="keyword">val</span> infer_sorts_item</span> : <code class="type"><a href="Terms.html#TYPEstruct_item">struct_item</a> -> <a href="Terms.html#TYPEstruct_item">struct_item</a> list</code></pre><pre><span id="VALinfer_sorts"><span class="keyword">val</span> infer_sorts</span> : <code class="type"><a href="Terms.html#TYPEprogram">program</a> -> <a href="Terms.html#TYPEprogram">program</a></code></pre><br>
 <span id="2_Printing"><h2>Printing</h2></span><br>
-<pre><span id="VALpr_loc_short"><span class="keyword">val</span> pr_loc_short</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEloc">loc</a> -> unit</code></pre><pre><span id="VALpr_loc_long"><span class="keyword">val</span> pr_loc_long</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEloc">loc</a> -> unit</code></pre><pre><span id="VALpr_loc_emb"><span class="keyword">val</span> pr_loc_emb</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEloc">loc</a> -> unit</code></pre><pre><span id="VALpr_loc"><span class="keyword">val</span> pr_loc</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEloc">loc</a> -> unit</code></pre><pre><span id="VALpr_sep_list"><span class="keyword">val</span> pr_sep_list</span> : <code class="type">string -><br>       (Format.formatter -> 'a -> unit) -><br>       (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list -> unit</code></pre><pre><span id="VALpr_more_sep_list"><span class="keyword">val</span> pr_more_sep_list</span> : <code class="type">string -><br>       (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list -> unit</code></pre><pre><span id="VALpr_pre_sep_list"><span class="keyword">val</span> pr_pre_sep_list</span> : <code class="type">string -><br>       (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list -> unit</code></pre><pre><span id="VALpr_line_list"><span class="keyword">val</span> pr_line_list</span> : <code class="type">string -><br>       (Format.formatter -> 'a -> unit) -><br>       (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list -> unit</code></pre><pre><span id="VALpr_more_line_list"><span class="keyword">val</span> pr_more_line_list</span> : <code class="type">string -><br>       (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list -> unit</code></pre><pre><span id="VALpr_pat"><span class="keyword">val</span> pr_pat</span> : <code class="type">bool -> Format.formatter -> <a href="Terms.html#TYPEpat">pat</a> -> unit</code></pre><pre><span id="VALpr_tyvar"><span class="keyword">val</span> pr_tyvar</span> : <code class="type">Format.formatter -> 'a * string -> unit</code></pre><pre><span id="VALpr_expr"><span class="keyword">val</span> pr_expr</span> : <code class="type">bool -> Format.formatter -> <a href="Terms.html#TYPEexpr">expr</a> -> unit</code></pre><pre><span id="VALpr_clause"><span class="keyword">val</span> pr_clause</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEclause">clause</a> -> unit</code></pre><pre><span id="VALpr_atom"><span class="keyword">val</span> pr_atom</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEatom">atom</a> -> unit</code></pre><pre><span id="VALpr_formula"><span class="keyword">val</span> pr_formula</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEformula">formula</a> -> unit</code></pre><pre><span id="VALpr_ty"><span class="keyword">val</span> pr_ty</span> : <code class="type">bool -> Format.formatter -> <a href="Terms.html#TYPEtyp">typ</a> -> unit</code></pre><pre><span id="VALpr_sort"><span class="keyword">val</span> pr_sort</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEsort">sort</a> -> unit</code></pre><pre><span id="VALpr_typscheme"><span class="keyword">val</span> pr_typscheme</span> : <code class="type">Format.formatter -> ('a * string) list * <a href="Terms.html#TYPEformula">formula</a> * <a href="Terms.html#TYPEtyp">typ</a> -> unit</code></pre><pre><span id="VALpr_struct_item"><span class="keyword">val</span> pr_struct_item</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEstruct_item">struct_item</a> -> unit</code></pre><pre><span id="VALpr_program"><span class="keyword">val</span> pr_program</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEstruct_item">struct_item</a> list -> unit</code></pre></body></html>
+<pre><span id="VALsort_str"><span class="keyword">val</span> sort_str</span> : <code class="type"><a href="Terms.html#TYPEsort">sort</a> -> string</code></pre><pre><span id="VALpr_loc_short"><span class="keyword">val</span> pr_loc_short</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEloc">loc</a> -> unit</code></pre><pre><span id="VALpr_loc_long"><span class="keyword">val</span> pr_loc_long</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEloc">loc</a> -> unit</code></pre><pre><span id="VALpr_loc_emb"><span class="keyword">val</span> pr_loc_emb</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEloc">loc</a> -> unit</code></pre><pre><span id="VALpr_loc"><span class="keyword">val</span> pr_loc</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEloc">loc</a> -> unit</code></pre><pre><span id="VALpr_sep_list"><span class="keyword">val</span> pr_sep_list</span> : <code class="type">string -><br>       (Format.formatter -> 'a -> unit) -><br>       (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list -> unit</code></pre><pre><span id="VALpr_more_sep_list"><span class="keyword">val</span> pr_more_sep_list</span> : <code class="type">string -><br>       (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list -> unit</code></pre><pre><span id="VALpr_pre_sep_list"><span class="keyword">val</span> pr_pre_sep_list</span> : <code class="type">string -><br>       (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list -> unit</code></pre><pre><span id="VALpr_line_list"><span class="keyword">val</span> pr_line_list</span> : <code class="type">string -><br>       (Format.formatter -> 'a -> unit) -><br>       (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list -> unit</code></pre><pre><span id="VALpr_more_line_list"><span class="keyword">val</span> pr_more_line_list</span> : <code class="type">string -><br>       (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list -> unit</code></pre><pre><span id="VALpr_pat"><span class="keyword">val</span> pr_pat</span> : <code class="type">bool -> Format.formatter -> <a href="Terms.html#TYPEpat">pat</a> -> unit</code></pre><pre><span id="VALpr_tyvar"><span class="keyword">val</span> pr_tyvar</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEvar_name">var_name</a> -> unit</code></pre><pre><span id="VALpr_expr"><span class="keyword">val</span> pr_expr</span> : <code class="type">bool -> Format.formatter -> <a href="Terms.html#TYPEexpr">expr</a> -> unit</code></pre><pre><span id="VALpr_clause"><span class="keyword">val</span> pr_clause</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEclause">clause</a> -> unit</code></pre><pre><span id="VALpr_atom"><span class="keyword">val</span> pr_atom</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEatom">atom</a> -> unit</code></pre><pre><span id="VALpr_formula"><span class="keyword">val</span> pr_formula</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEformula">formula</a> -> unit</code></pre><pre><span id="VALpr_ty"><span class="keyword">val</span> pr_ty</span> : <code class="type">bool -> Format.formatter -> <a href="Terms.html#TYPEtyp">typ</a> -> unit</code></pre><pre><span id="VALpr_sort"><span class="keyword">val</span> pr_sort</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEsort">sort</a> -> unit</code></pre><pre><span id="VALpr_typscheme"><span class="keyword">val</span> pr_typscheme</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEtyp_scheme">typ_scheme</a> -> unit</code></pre><pre><span id="VALpr_struct_item"><span class="keyword">val</span> pr_struct_item</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEstruct_item">struct_item</a> -> unit</code></pre><pre><span id="VALpr_program"><span class="keyword">val</span> pr_program</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEstruct_item">struct_item</a> list -> unit</code></pre></body></html>

@@ -7,7 +7,7 @@ test:
 
 docs:
 	ocamlbuild src/InvarGenT.docdir/index.html
-	rm -f doc/code
+	rm -f -R doc/code
 	mv _build/src/InvarGenT.docdir doc/code
 	texmacs -c doc/invargent.tm doc/invargent.pdf -q
 
