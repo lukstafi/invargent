@@ -16,3 +16,10 @@ let fold_map f acc l =
 
 let rec list_make_n e n =
   if n <= 0 then [] else e :: list_make_n e (n-1)
+
+let concat_map f l =
+  let rec cmap_f accu = function
+    | [] -> accu
+    | a::l -> cmap_f (List.rev_append (f a) accu) l
+  in
+  List.rev (cmap_f [] l)

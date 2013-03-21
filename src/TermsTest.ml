@@ -11,32 +11,7 @@ open Terms
 let tests = "Terms" >::: [
   "parsing and printing" >::
     (fun () ->
-      let prog = Parser.program Lexer.token
-	(Lexing.from_string
-"newtype List : type * num
-newcons LNil : all a. List(a, 0)
-newcons LCons : ∀n, a. a * List(a, n) ⟶ List(a, n+1)
-external filter : ∀n, a. List (a, n) → ∃k [k≤n]. List (a, k)") in
-      ignore (Format.flush_str_formatter ());
-      pr_program Format.str_formatter prog;
-
-      assert_equal ~printer:(fun x -> x)
-"newtype List : type * num
-
-newcons LNil : ∀a. List (a, 0)
-
-newcons LCons : ∀n, a.a * List (a, n) ⟶ List (a, n + 1)
-
-newtype Ex1 : type * num
-
-newcons Ex1 : ∀a, k, n[k ≤ n].List (a, k) ⟶ Ex1 (a, n)
-
-external filter : ∀n * a. List (a, n) → Ex1 (a, n)"
-        (Format.flush_str_formatter ());
-    );
-
-  "parsing existentials" >::
-    (fun () ->
+      extype_id := 0;
       let prog = Parser.program Lexer.token
 	(Lexing.from_string
 "newtype Term : type
@@ -102,6 +77,34 @@ let rec eval =
         (Format.flush_str_formatter ());
     );
 
+  "parsing existentials" >::
+    (fun () ->
+      extype_id := 0;
+      let prog = Parser.program Lexer.token
+	(Lexing.from_string
+"newtype List : type * num
+newcons LNil : all a. List(a, 0)
+newcons LCons : ∀n, a. a * List(a, n) ⟶ List(a, n+1)
+external filter : ∀n, a. List (a, n) → ∃k [k≤n]. List (a, k)") in
+      let prog = infer_sorts prog in
+      ignore (Format.flush_str_formatter ());
+      pr_program Format.str_formatter prog;
+
+      assert_equal ~printer:(fun x -> x)
+"newtype List : type * num
+
+newcons LNil : ∀a. List (a, 0)
+
+newcons LCons : ∀n, a.a * List (a, n) ⟶ List (a, n + 1)
+
+newtype Ex1 : type * num
+
+newcons Ex1 : ∀a, k, n[k ≤ n].List (a, k) ⟶ Ex1 (a, n)
+
+external filter : ∀n * a. List (a, n) → Ex1 (a, n)"
+        (Format.flush_str_formatter ());
+    );
+
   "sort inference" >::
     (fun () ->
       let prog = Parser.program Lexer.token
@@ -109,7 +112,7 @@ let rec eval =
 "newtype N : num
 newtype T : type
 external test : ∀a,b. T a → N b → a") in
-      let prog = List.map infer_sorts prog in
+      let prog = infer_sorts prog in
       assert_equal ~msg:"a in ∀a,b. T a → N b → a" ~printer:sort_str
         Type_sort (match List.rev prog with
         | PrimVal (_, ([v1;v2], _, _), _) :: _ -> var_sort v1

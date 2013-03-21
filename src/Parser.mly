@@ -37,12 +37,11 @@ let more_items = ref []
 let existential evs phi ty loc =
   incr extype_id;
   let n = Extype !extype_id in
-  let vs = fvs_typ ty in
-  let fvs = VarSet.diff vs (vars_of_list evs) in
-  let sorts = Aux.list_make_n Type_sort (VarSet.cardinal fvs) in
+  let vs = VarSet.union (fvs_typ ty) (fvs_formula phi) in
+  let fvs = VarSet.elements (VarSet.diff vs (vars_of_list evs)) in
+  let sorts = List.map var_sort fvs in
   let vs = VarSet.elements vs in
-  let exty =
-    TCons (n, List.map (fun v->TVar v) (VarSet.elements fvs)) in
+  let exty = TCons (n, List.map (fun v->TVar v) fvs) in
   let excns = ValConstr (n, vs, phi, [ty], exty, loc) in
   more_items := TypConstr (n, sorts, loc) :: excns :: !more_items;
   exty

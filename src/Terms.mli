@@ -75,6 +75,10 @@ val var_sort : var_name -> sort
 val var_str : var_name -> string
 
 val extype_id : int ref
+val predvar_id : int ref
+
+(** Set [extype_id] and [predvar_id] to [0]. *)
+val reset_processing : unit -> unit
 
 type struct_item =
 | TypConstr of cns_name * sort list * loc
@@ -108,7 +112,8 @@ val collect_apps : expr -> expr list
 
 (** {2 Sort inference} *)
 
-val infer_sorts : struct_item -> struct_item
+val infer_sorts_item : struct_item -> struct_item list
+val infer_sorts : program -> program
 
 (** {2 Printing} *)
 
