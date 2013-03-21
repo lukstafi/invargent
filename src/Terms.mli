@@ -48,30 +48,47 @@ val expr_loc : expr -> loc
 val clause_loc : clause -> loc
 
 type sort = Num_sort | Type_sort | Undefined_sort
-type var_name = sort * string
+(** Type variables (and constants) remember their sort. Sort
+    inference is performed on user-supplied types and constraints. *)
+type var_name =
+| VNam of sort * string
+| VId of sort * int
+type cns_name =
+| CNam of string
+| Extype of int
+
 type typ =
-    TVar of var_name
-  | TCons of string * typ list
-  | Fun of typ * typ
-  | NCst of int
-  | Nadd of typ list
-  | TExCons of int
+| TVar of var_name
+| TCons of cns_name * typ list
+| Fun of typ * typ
+| NCst of int
+| Nadd of typ list
 type atom =
-  Eqty of typ * typ * loc | Leq of typ * typ * loc | CFalse of loc
+| Eqty of typ * typ * loc
+| Leq of typ * typ * loc
+| CFalse of loc
+| PredVar of int * typ
 type formula = atom list
 type typ_scheme = var_name list * formula * typ
 
+val var_sort : var_name -> sort
+val var_str : var_name -> string
+
 val extype_id : int ref
-val extype_env : (int, typ_scheme) Hashtbl.t
-val newtype_env : (string, sort list) Hashtbl.t
 
 type struct_item =
-    TypConstr of string * sort list * loc
-  | ValConstr of string * var_name list * formula * typ list * typ * loc
-  | PrimVal of string * typ_scheme * loc
-  | LetRecVal of string * expr * loc
-  | LetVal of string * expr * loc
+| TypConstr of cns_name * sort list * loc
+| ValConstr of cns_name * var_name list * formula * typ list * typ * loc
+| PrimVal of string * typ_scheme * loc
+| LetRecVal of string * expr * loc
+| LetVal of string * expr * loc
 type program = struct_item list
+
+module VarSet : (Set.S with type elt = var_name)
+val fvs_typ : typ -> VarSet.t
+val fvs_atom : atom -> VarSet.t
+val fvs_formula : formula -> VarSet.t
+val vars_of_list : var_name list -> VarSet.t
 
 val enc_funtype : typ -> typ list -> typ
 val ty_add : typ -> typ -> typ
@@ -91,8 +108,6 @@ val collect_apps : expr -> expr list
 
 (** {2 Sort inference} *)
 
-val unary_type_constr : string -> bool
-val unary_val_constr : string -> bool
 val infer_sorts : struct_item -> struct_item
 
 (** {2 Printing} *)
@@ -120,7 +135,7 @@ val pr_more_line_list :
   string ->
   (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list -> unit
 val pr_pat : bool -> Format.formatter -> pat -> unit
-val pr_tyvar : Format.formatter -> 'a * string -> unit
+val pr_tyvar : Format.formatter -> var_name -> unit
 val pr_expr : bool -> Format.formatter -> expr -> unit
 val pr_clause : Format.formatter -> clause -> unit
 val pr_atom : Format.formatter -> atom -> unit
@@ -128,6 +143,6 @@ val pr_formula : Format.formatter -> formula -> unit
 val pr_ty : bool -> Format.formatter -> typ -> unit
 val pr_sort : Format.formatter -> sort -> unit
 val pr_typscheme :
-  Format.formatter -> ('a * string) list * formula * typ -> unit
+  Format.formatter -> typ_scheme -> unit
 val pr_struct_item : Format.formatter -> struct_item -> unit
 val pr_program : Format.formatter -> struct_item list -> unit

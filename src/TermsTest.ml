@@ -13,6 +13,32 @@ let tests = "Terms" >::: [
     (fun () ->
       let prog = Parser.program Lexer.token
 	(Lexing.from_string
+"newtype List : type * num
+newcons LNil : all a. List(a, 0)
+newcons LCons : ∀n, a. a * List(a, n) ⟶ List(a, n+1)
+external filter : ∀n, a. List (a, n) → ∃k [k≤n]. List (a, k)") in
+      ignore (Format.flush_str_formatter ());
+      pr_program Format.str_formatter prog;
+
+      assert_equal ~printer:(fun x -> x)
+"newtype List : type * num
+
+newcons LNil : ∀a. List (a, 0)
+
+newcons LCons : ∀n, a.a * List (a, n) ⟶ List (a, n + 1)
+
+newtype Ex1 : type * num
+
+newcons Ex1 : ∀a, k, n[k ≤ n].List (a, k) ⟶ Ex1 (a, n)
+
+external filter : ∀n * a. List (a, n) → Ex1 (a, n)"
+        (Format.flush_str_formatter ());
+    );
+
+  "parsing existentials" >::
+    (fun () ->
+      let prog = Parser.program Lexer.token
+	(Lexing.from_string
 "newtype Term : type
 newtype Int
 newtype Bool
@@ -41,7 +67,6 @@ let rec eval = function
       pr_program Format.str_formatter prog;
 
       assert_equal ~printer:(fun x -> x)
-        (Format.flush_str_formatter ())
 "newtype Term : type
 
 newtype Int
@@ -73,7 +98,8 @@ let rec eval =
    | Plus (x, y) -> plus (eval x) (eval y)
    | If (b, t, e) -> if (eval b) (eval t) (eval e)
    | Pair (x, y) -> eval x, eval y | Fst p -> let x, y = eval p in x
-   | Snd p -> let x, y = eval p in y";
+   | Snd p -> let x, y = eval p in y"
+        (Format.flush_str_formatter ());
     );
 
   "sort inference" >::
@@ -83,14 +109,15 @@ let rec eval =
 "newtype N : num
 newtype T : type
 external test : ∀a,b. T a → N b → a") in
+      let prog = List.map infer_sorts prog in
       assert_equal ~msg:"a in ∀a,b. T a → N b → a" ~printer:sort_str
-        (match List.rev prog with
-        | PrimVal (_, ([s1,_;s2,_], _, _), _) :: _ -> s1
-        | _ -> assert false) Type_sort;
+        Type_sort (match List.rev prog with
+        | PrimVal (_, ([v1;v2], _, _), _) :: _ -> var_sort v1
+        | _ -> assert false);
       assert_equal ~msg:"b in ∀a,b. T a → N b → a" ~printer:sort_str
-        (match List.rev prog with
-        | PrimVal (_, ([s1,_;s2,_], _, _), _) :: _ -> s2
-        | _ -> assert false) Num_sort;
+        Num_sort (match List.rev prog with
+        | PrimVal (_, ([v1;v2], _, _), _) :: _ -> var_sort v2
+        | _ -> assert false);
     );
 
 ]

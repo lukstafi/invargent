@@ -81,35 +81,68 @@ let sort_str = function
 
 (** Type variables (and constants) remember their sort. Sort
     inference is performed on user-supplied types and constraints. *)
-type var_name = sort * string
+type var_name =
+| VNam of sort * string
+| VId of sort * int
+
+type cns_name =
+| CNam of string
+| Extype of int
+
+let var_sort = function VNam (s,_) -> s | VId (s,_) -> s
+let var_str = function
+  | VNam (_,v) -> v
+  | VId (_,i) -> string_of_int i
+let cns_str = function
+  | CNam c -> c
+  | Extype i -> "Ex"^string_of_int i
 
 type typ =
 | TVar of var_name
-| TCons of string * typ list
+| TCons of cns_name * typ list
 | Fun of typ * typ
 | NCst of int
 | Nadd of typ list
-| TExCons of int
+
+module VarSet =
+    Set.Make (struct type t = var_name let compare = Pervasives.compare end)
+let vars_of_list l =
+  List.fold_right VarSet.add l VarSet.empty
+
+let rec fvs_typ = function
+  | TVar v -> VarSet.singleton v
+  | TCons (_, args) ->
+    List.fold_left VarSet.union VarSet.empty (List.map fvs_typ args)
+  | Fun (t1, t2) -> VarSet.union (fvs_typ t1) (fvs_typ t2)
+  | NCst _ -> VarSet.empty
+  | Nadd ts ->
+    List.fold_left VarSet.union VarSet.empty (List.map fvs_typ ts)
 
 type atom =
 | Eqty of typ * typ * loc
 | Leq of typ * typ * loc
 | CFalse of loc
+| PredVar of int * typ
+
+let fvs_atom = function
+  | Eqty (t1, t2, _) | Leq (t1, t2, _) ->
+    VarSet.union (fvs_typ t1) (fvs_typ t2)
+  | CFalse _ -> VarSet.empty
+  | PredVar (_, t) -> fvs_typ t
 
 type formula = atom list
+
+let fvs_formula phi =
+  List.fold_left VarSet.union VarSet.empty (List.map fvs_atom phi)
 
 type typ_scheme = var_name list * formula * typ
 
 let extype_id = ref 0
-let extype_env : (int, typ_scheme) Hashtbl.t = Hashtbl.create 511
-let newtype_env : (string, sort list) Hashtbl.t  = Hashtbl.create 31
-let newcons_env :
-    (string, var_name list * formula * typ list * typ) Hashtbl.t  =
-  Hashtbl.create 31
+let predvar_id = ref 0
 
 type struct_item =
-| TypConstr of string * sort list * loc
-| ValConstr of string * var_name list * formula * typ list * typ * loc
+| TypConstr of cns_name * sort list * loc
+| ValConstr of cns_name * var_name list * formula * typ list * typ * loc
 | PrimVal of string * typ_scheme * loc
 | LetRecVal of string * expr * loc
 | LetVal of string * expr * loc
@@ -134,41 +167,37 @@ let typ_scheme_of_item ?(env=[]) = function
 | LetRecVal (name, _, _) | LetVal (name, _, _) -> List.assoc name env
 
 (** {2 Sort inference} *)
-let unary_type_constr n =
-  try match Hashtbl.find newtype_env n with [_] -> true | _ -> false
-  with Not_found -> false
-let unary_val_constr n =
-  try match Hashtbl.find newcons_env n with
-  | _, _, [_], _ -> true | _ -> false
-  with Not_found -> false
+let newtype_env = Hashtbl.create 15
 
 let infer_sorts item =
   let sorts = Hashtbl.create 15 in
-  let walk_var (s,v as tv) =
-    try Hashtbl.find sorts v, v with Not_found -> tv in
+  let walk_var = function
+    | VId (_,id) as tv -> tv
+    | VNam (s,v) as tv ->
+      try VNam (Hashtbl.find sorts v, v) with Not_found -> tv in
   let rec walk_typ cur_loc s = function
-    | TVar (_,v) ->
-      (try let s' = Hashtbl.find sorts v in
+    | TVar v ->
+      (try let s' = Hashtbl.find sorts (var_str v) in
            if s' <> Undefined_sort && s <> s' then raise
-             (Report_toplevel ("Sort mismatch for type variable "^v^
-                                  ": sorts "^sort_str s^" and " ^
+             (Report_toplevel ("Sort mismatch for type variable "^
+                                  var_str v^": sorts "^sort_str s^" and " ^
                                   sort_str s', Some cur_loc))
-           else TVar (s,v)
+           else TVar (VNam (s, var_str v))
        with Not_found ->
-         if s <> Undefined_sort then Hashtbl.add sorts v s;
-         TVar (s,v)) 
-    | TCons ("Tuple" as n, args) ->
+         if s <> Undefined_sort then Hashtbl.add sorts (var_str v) s;
+         TVar (VNam (s,var_str v))) 
+    | TCons (CNam "Tuple" as n, args) ->
       TCons (n, List.map (walk_typ cur_loc Type_sort) args)
     | TCons (n, args) ->
       (try let argsorts = Hashtbl.find newtype_env n in
            TCons (n, List.map2 (walk_typ cur_loc) argsorts args)
        with
        | Not_found -> raise
-         (Report_toplevel ("Undefined type constructor "^n,
+         (Report_toplevel ("Undefined type constructor "^cns_str n,
                            Some cur_loc))
        | Invalid_argument _ -> raise
-         (Report_toplevel ("Arity mismatch for type constructor "^n,
-                           Some cur_loc)))
+         (Report_toplevel ("Arity mismatch for type constructor "^
+                              cns_str n, Some cur_loc)))
     | Fun (t1, t2) ->
       if s <> Type_sort then raise
         (Report_toplevel ("Expected sort "^sort_str s^
@@ -181,23 +210,14 @@ let infer_sorts item =
       ty
     | Nadd args ->
       Nadd (List.map (walk_typ cur_loc Num_sort) args)
-    | TExCons id as item ->
-      (try let vs, phi, ty = Hashtbl.find extype_env id in
-           let ty = walk_typ cur_loc s ty in
-           let phi = List.map walk_atom phi in
-           let vs = List.map walk_var vs in
-           Hashtbl.replace extype_env id (vs, phi, ty);
-           item           
-       with Not_found -> raise
-         (Report_toplevel ("Internal error with existential type",
-                           Some cur_loc)))
   and walk_atom = function
     | Eqty (t1, t2, loc) ->
       Eqty (walk_typ loc Undefined_sort t1,
             walk_typ loc Undefined_sort t2, loc)
     | Leq (t1, t2, loc) ->
       Leq (walk_typ loc Num_sort t1, walk_typ loc Num_sort t2, loc)
-    | CFalse _ as a -> a in
+    | CFalse _ as a -> a
+    | PredVar (id,ty) -> PredVar (id, walk_typ dummy_loc Type_sort ty) in
   match item with
   | TypConstr (name, sorts, _) as item ->
     Hashtbl.add newtype_env name sorts; item
@@ -206,7 +226,6 @@ let infer_sorts item =
     let args = List.map (walk_typ loc Type_sort) args in
     let phi = List.map walk_atom phi in
     let vs = List.map walk_var vs in
-    Hashtbl.replace newcons_env name (vs, phi, args, res);
     ValConstr (name, vs, phi, args, res, loc)
   | PrimVal (n, (vs, phi, ty), loc) ->
     let ty = walk_typ loc Type_sort ty in
@@ -321,7 +340,7 @@ let rec collect_apps e =
     | expr -> expr::args in
   aux [] e
 
-let pr_tyvar ppf (_,v) = pp_print_string ppf v
+let pr_tyvar ppf v = pp_print_string ppf (var_str v)
 
 let rec pr_expr comma ppf = function
   | Var (s, _) -> fprintf ppf "%s" s
@@ -389,15 +408,16 @@ let rec pr_atom ppf = function
   | Leq (t1, t2, _) ->
     fprintf ppf "@[<2>%a@ ≤@ %a@]" pr_one_ty t1 pr_one_ty t2
   | CFalse _ -> pp_print_string ppf "FALSE"
+  | PredVar (i,ty) -> fprintf ppf "@[<2>𝛘%d(%a)@]" i (pr_ty false) ty
 
 and pr_formula ppf atoms =
   pr_more_sep_list "∧" pr_atom ppf atoms
 
 and pr_ty comma ppf = function
-  | TVar (_,v) -> fprintf ppf "%s" v
+  | TVar v -> fprintf ppf "%s" (var_str v)
   | NCst i -> fprintf ppf "%d" i
-  | TCons (x, []) -> fprintf ppf "%s" x
-  | TCons ("Tuple", exps) ->
+  | TCons (x, []) -> fprintf ppf "%s" (cns_str x)
+  | TCons (CNam "Tuple", exps) ->
     if comma then
       fprintf ppf "@[<2>(%a)@]"
 	(pr_more_sep_list "," (pr_ty true)) exps
@@ -405,9 +425,9 @@ and pr_ty comma ppf = function
       fprintf ppf "@[<2>%a@]"
 	(pr_more_sep_list "," (pr_ty true)) exps
   | TCons (x, [ty]) ->
-    fprintf ppf "@[<2>%s@ %a@]" x pr_one_ty ty
+    fprintf ppf "@[<2>%s@ %a@]" (cns_str x) pr_one_ty ty
   | TCons (x, exps) ->
-    fprintf ppf "@[<2>%s@ (%a)@]" x
+    fprintf ppf "@[<2>%s@ (%a)@]" (cns_str x)
       (pr_more_sep_list "," (pr_ty true)) exps
   | Nadd []  -> fprintf ppf "0"
   | Nadd [ty] -> pr_ty comma ppf ty
@@ -418,11 +438,6 @@ and pr_ty comma ppf = function
     let tys = collect_argtys ty in
     fprintf ppf "@[<2>%a@]"
       (pr_more_sep_list " →" pr_fun_ty) tys
-  | TExCons k ->
-    let vs, phi, ty = Hashtbl.find extype_env k in
-    fprintf ppf "@[<2>∃%a[%a].@ %a@]"
-      (pr_more_sep_list " *" pr_tyvar) vs
-      pr_formula phi (pr_ty true) ty
     
     
 and pr_one_ty ppf ty = match ty with
@@ -453,30 +468,30 @@ let pr_typscheme ppf = function
   
 let pr_struct_item ppf = function
   | TypConstr (name, [], _) ->
-    fprintf ppf "@[<2>newtype@ %s@]" name
+    fprintf ppf "@[<2>newtype@ %s@]" (cns_str name)
   | TypConstr (name, sorts, _) ->
-    fprintf ppf "@[<2>newtype@ %s@ :@ %a@]" name
+    fprintf ppf "@[<2>newtype@ %s@ :@ %a@]" (cns_str name)
       (pr_more_sep_list " *" pr_sort) sorts
   | ValConstr (name, [], [], [], res, _) ->
-    fprintf ppf "@[<2>newcons@ %s@ :@ %a@]" name
+    fprintf ppf "@[<2>newcons@ %s@ :@ %a@]" (cns_str name)
       (pr_ty false) res
   | ValConstr (name, [], [], args, res, _) ->
-    fprintf ppf "@[<2>newcons@ %s@ :@ %a@ ⟶@ %a@]" name
+    fprintf ppf "@[<2>newcons@ %s@ :@ %a@ ⟶@ %a@]" (cns_str name)
       (pr_more_sep_list " *" (pr_ty true)) args (pr_ty false) res
   | ValConstr (name, vs, [], [], res, _) ->
-    fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a.@ %a@]" name
+    fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a.@ %a@]" (cns_str name)
       (pr_more_sep_list "," pr_tyvar) vs
       (pr_ty false) res
   | ValConstr (name, vs, phi, [], res, _) ->
-    fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a[%a].@ %a@]" name
+    fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a[%a].@ %a@]" (cns_str name)
       (pr_more_sep_list "," pr_tyvar) vs
       pr_formula phi (pr_ty false) res
   | ValConstr (name, vs, [], args, res, _) ->
-    fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a.%a@ ⟶@ %a@]" name
+    fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a.%a@ ⟶@ %a@]" (cns_str name)
       (pr_more_sep_list "," pr_tyvar) vs
       (pr_more_sep_list " *" (pr_ty true)) args (pr_ty false) res
   | ValConstr (name, vs, phi, args, res, _) ->
-    fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a[%a].%a@ ⟶@ %a@]" name
+    fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a[%a].%a@ ⟶@ %a@]" (cns_str name)
       (pr_more_sep_list "," pr_tyvar) vs
       pr_formula phi
       (pr_more_sep_list " *" (pr_ty true)) args (pr_ty false) res

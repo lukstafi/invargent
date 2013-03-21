@@ -32,10 +32,26 @@ let syntax_error what where =
 let parse_error s =
   Format.printf
     "@[<2>%s@ %a@]@." s pr_loc (get_loc ())
-    
+  
+let more_items = ref []
+let existential evs phi ty loc =
+  incr extype_id;
+  let n = Extype !extype_id in
+  let vs = fvs_typ ty in
+  let fvs = VarSet.diff vs (vars_of_list evs) in
+  let sorts = Aux.list_make_n Type_sort (VarSet.cardinal fvs) in
+  let vs = VarSet.elements vs in
+  let exty =
+    TCons (n, List.map (fun v->TVar v) (VarSet.elements fvs)) in
+  let excns = ValConstr (n, vs, phi, [ty], exty, loc) in
+  more_items := TypConstr (n, sorts, loc) :: excns :: !more_items;
+  exty
+
+let unary_typs = Hashtbl.create 15
+let unary_vals = Hashtbl.create 31
 %}
 
-/* Ocamlyacc Declarations */
+      /* Ocamlyacc Declarations */
 %token LPAREN RPAREN LBRACKET RBRACKET COMMA DOT COLON EQUAL SEMICOLON AND
 %token UNDERSCORE EXCLAMATION LOGAND
 %token LET REC IN ALL EX
@@ -120,7 +136,7 @@ expr:
 	      (match f, a with
 		| Cons (x, [], _), Cons ("Tuple", args, _)
 		    (* syntax... *)
-		    when not (unary_val_constr x) ->
+		    when not (Hashtbl.mem unary_vals x) ->
 		    Cons (x, args, loc)
 		| Cons (x, [], _), _ -> Cons (x, [ a ], loc)
 		| _ -> App(f, a, loc))
@@ -173,7 +189,7 @@ pattern:
       { match $2 with
 	| PCons ("Tuple", args, _)
 	    (* syntax... *)
-	    when not (unary_val_constr $1) ->
+	    when not (Hashtbl.mem unary_vals $1) ->
 	    PCons ($1, args, get_loc ())
 	| _ -> PCons ($1, [ $2 ], get_loc ()) }
   | pattern AS pattern
@@ -206,26 +222,22 @@ simple_pattern_list:
 
 typ:
   | EX lident_list DOT typ
-      { incr extype_id;
-        Hashtbl.add extype_env !extype_id (List.rev $2, [], $4);
-        TExCons (!extype_id) }
+      { existential $2 [] $4 (get_loc ()) }
   | EX lident_list LBRACKET formula RBRACKET DOT typ
-      { incr extype_id;
-        Hashtbl.add extype_env !extype_id (List.rev $2, $4, $7);
-        TExCons (!extype_id) }
+      { existential $2 $4 $7 (get_loc ()) }
   | simple_typ
       { $1 }
   | typ ARROW typ
       { Fun ($1, $3) }
   | typ_comma_list %prec below_COMMA
-      { TCons ("Tuple", List.rev $1) }
+      { TCons (CNam "Tuple", List.rev $1) }
   | UIDENT simple_typ
       { match $2 with
-	| TCons ("Tuple", args)
+	| TCons (CNam "Tuple", args)
 	    (* syntax... *)
-	    when not (unary_type_constr $1) ->
-	    TCons ($1, args)
-	| _ -> TCons ($1, [ $2 ]) }
+	    when not (Hashtbl.mem unary_typs $1) ->
+	    TCons (CNam $1, args)
+	| _ -> TCons (CNam $1, [ $2 ]) }
 ;
 
 typ_comma_list:
@@ -238,8 +250,8 @@ typ_comma_list:
 simple_typ:
   | simple_typ PLUS simple_typ
       { ty_add $1 $3 }
-  | LIDENT   { TVar (Undefined_sort, $1) }
-  | UIDENT   { TCons ($1, []) }
+  | LIDENT   { TVar (VNam (Undefined_sort, $1)) }
+  | UIDENT   { TCons (CNam $1, []) }
   | INT      { NCst $1 }
   | LPAREN typ RPAREN
       { $2 }
@@ -292,24 +304,25 @@ opt_constr_intro:
 
 lident_list:
   | LIDENT
-      { [ Undefined_sort, $1 ] }
+      { [ VNam (Undefined_sort, $1) ] }
   | lident_list LIDENT
-      { (Undefined_sort, $2) :: $1 }
+      { VNam (Undefined_sort, $2) :: $1 }
   | lident_list COMMA LIDENT
-      { (Undefined_sort, $3) :: $1 }
+      { VNam (Undefined_sort, $3) :: $1 }
 ;
 
 structure_item_raw:
   | NEWCONS UIDENT COLON opt_constr_intro typ_star_list LONGARROW typ
-      { ValConstr ($2, (fst $4), (snd $4),
-	(List.rev $5), $7, get_loc ()) }
+      { if List.length $5 = 1 then Hashtbl.add unary_vals $2 ();
+        ValConstr (CNam $2, (fst $4), (snd $4),
+	           (List.rev $5), $7, get_loc ()) }
   | NEWCONS UIDENT COLON opt_constr_intro typ_star_list error
       { unclosed "newcons" 1 "-->" 6 }
   | NEWCONS UIDENT COLON opt_constr_intro LONGARROW
       { syntax_error
 	  "do not use --> for constructors without arguments" 5 }
   | NEWCONS UIDENT COLON opt_constr_intro typ
-      { ValConstr ($2, (fst $4), (snd $4), [], $5, get_loc ()) }
+      { ValConstr (CNam $2, (fst $4), (snd $4), [], $5, get_loc ()) }
   | NEWCONS UIDENT COLON opt_constr_intro typ_star_list LONGARROW error
       { syntax_error ("inside the constructor value type") 4 }
   | NEWCONS UIDENT COLON opt_constr_intro error
@@ -323,12 +336,13 @@ structure_item_raw:
   | NEWCONS UIDENT error
       { unclosed "newcons" 1 ":" 3 }
   | NEWTYPE UIDENT COLON sort_star_list
-      { TypConstr ($2, List.rev $4, get_loc ()) }
+      { if List.length $4 = 1 then Hashtbl.add unary_typs $2 ();
+        TypConstr (CNam $2, List.rev $4, get_loc ()) }
   | NEWTYPE COLON
       { syntax_error
 	  "lacking type identifier" 2 }
   | NEWTYPE UIDENT
-      { TypConstr ($2, [], get_loc ()) }
+      { TypConstr (CNam $2, [], get_loc ()) }
   | EXTERNAL LIDENT COLON opt_constr_intro typ
       { PrimVal ($2, (fst $4, snd $4, $5), get_loc ()) }
   | EXTERNAL COLON
@@ -351,7 +365,7 @@ structure_item_raw:
 ;
 structure_item:
   | structure_item_raw
-      { infer_sorts $1 }
+      { let res = !more_items @ [ $1 ] in more_items := []; res }
 
 typ_star_list:
   | typ
@@ -380,6 +394,6 @@ structure_item_list:
 
 program:
   | EOF              { [] }
-  | structure_item_list { List.rev $1 }
+  | structure_item_list EOF { List.concat (List.rev $1) }
 ;
 

@@ -93,17 +93,20 @@
   expressions above. Existential type construct introduces a fresh identifier
   for <math|K>. The abstract syntax of types is not sort-safe, but type
   variables carry sorts which are inferred after parsing. Existential type
-  occurrence in user code introduces a fresh identifier and an entry in
-  global <em|existential constructor environment> <verbatim|extype_env>.
+  occurrence in user code introduces a fresh identifier, a new type
+  constructor in global environment <verbatim|newtype_env>, and a new value
+  constructor in global environment <verbatim|newcons_env> -- the value
+  constructor purpose is to store the content of the existential type, it is
+  not used in the program.
 
   <block|<tformat|<cwith|1|1|2|2|cell-halign|c>|<cwith|1|1|1|1|cell-halign|l>|<table|<row|<cell|type
   variable>|<cell|<math|x>>|<cell|<verbatim|x>>|<cell|>|<cell|<verbatim|TVar>>>|<row|<cell|type
-  constructor>|<cell|<math|List>>|<cell|<verbatim|List>>|<cell|>|<cell|<verbatim|TCons>>>|<row|<cell|number
+  constructor>|<cell|<math|List>>|<cell|<verbatim|List>>|<cell|>|<cell|<verbatim|TCons(CNamed>...<verbatim|)>>>|<row|<cell|number
   (type)>|<cell|<math|7>>|<cell|<verbatim|7>>|<cell|>|<cell|<verbatim|NCst>>>|<row|<cell|numeral
   (expr.)>|<cell|<math|7>>|<cell|<verbatim|7>>|<cell|>|<cell|<verbatim|Num>>>|<row|<cell|numerical
   sum (type)>|<cell|<math|a+b>>|<cell|<verbatim|a+b>>|<cell|>|<cell|<verbatim|Nadd>>>|<row|<cell|existential
   type>|<cell|<math|\<exists\>\<alpha\>\<beta\><around*|[|a\<leqslant\>\<beta\>|]>.\<tau\>>>|<cell|<verbatim|ex
-  a b [a\<less\>=b].t>>|<cell|<verbatim|<math|\<exists\>>a,b[a<math|\<leq\>>b].t>>|<cell|<verbatim|TExCons>>>|<row|<cell|type
+  a b [a\<less\>=b].t>>|<cell|<verbatim|<math|\<exists\>>a,b[a<math|\<leq\>>b].t>>|<cell|<verbatim|TCons(Extype>...<verbatim|)>>>|<row|<cell|type
   sort>|<cell|<math|s<rsub|ty>>>|<cell|<verbatim|type>>|<cell|>|<cell|<verbatim|Type_sort>>>|<row|<cell|number
   sort>|<cell|<math|s<rsub|R>>>|<cell|<verbatim|num>>|<cell|>|<cell|<verbatim|Num_sort>>>|<row|<cell|function
   type>|<cell|<math|\<tau\><rsub|1>\<rightarrow\>\<tau\><rsub|2>>>|<cell|<verbatim|t1
@@ -137,7 +140,18 @@
 
   <section|Generating and Normalizing Formulas>
 
-  Test doc automation. Test 2.
+  We inject the existential type and value constructors during parsing for
+  user-provided existential types, and during constraint generation for
+  inferred existential types, into the list of toplevel items, which allows
+  to follow <cite|systemTechRep> despite removing <verbatim|extype> construct
+  from the language. It also faciliates exporting inference results as OCaml
+  source code.
+
+  Functions <verbatim|constr_gen_pat> and <verbatim|envfrag_gen_pat> compute
+  formulas according to table 2 in <cite|systemTechRep>, and
+  <verbatim|constr_gen_expr> computes table 3. We preserve the FOL language
+  presentation in the type <verbatim|cnstrnt>, only limiting the expressivity
+  in ways not requiring any preprocessing.
 
   <\bibliography|bib|tm-plain|biblio.bib>
     <\bib-list|1>
@@ -184,6 +198,10 @@
 <\auxiliary>
   <\collection>
     <\associate|bib>
+      systemTechRep
+
+      systemTechRep
+
       systemTechRep
     </associate>
     <\associate|toc>
