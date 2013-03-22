@@ -8,3 +8,11 @@
 
 (** Shortcut for deriving [false]. *)
 exception Contradiction of string * (Terms.typ * Terms.typ) option * Terms.loc
+
+type cnstrnt =
+| And of cnstrnt list
+| Or of atom list
+| Impl of atom list * cnstrnt list
+| All of var_name list * cnstrnt
+| Ex of var_name list * cnstrnt
+
