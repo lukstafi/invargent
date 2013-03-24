@@ -77,6 +77,32 @@ val var_str : var_name -> string
 val extype_id : int ref
 val predvar_id : int ref
 
+(** Mapping and folding over types. *)
+type typ_map = {
+  map_tvar : var_name -> typ;
+  map_tcons : cns_name -> typ list -> typ;
+  map_fun : typ -> typ -> typ;
+  map_ncst : int -> typ;
+  map_nadd : typ list -> typ
+}
+
+type 'a typ_fold = {
+  fold_tvar : var_name -> 'a;
+  fold_tcons : cns_name -> 'a list -> 'a;
+  fold_fun : 'a -> 'a -> 'a;
+  fold_ncst : int -> 'a;
+  fold_nadd : 'a list -> 'a
+}
+
+val typ_id_map : typ_map
+
+val typ_make_fold : ('a -> 'a -> 'a) -> 'a -> 'a typ_fold
+
+val typ_map : typ_map -> typ -> typ
+
+val typ_fold : 'a typ_fold -> typ -> 'a
+
+
 (** Set [extype_id] and [predvar_id] to [0]. *)
 val reset_processing : unit -> unit
 
@@ -93,6 +119,8 @@ val fvs_typ : typ -> VarSet.t
 val fvs_atom : atom -> VarSet.t
 val fvs_formula : formula -> VarSet.t
 val vars_of_list : var_name list -> VarSet.t
+
+val subst_typ : (var_name * typ) list -> typ -> typ
 
 val enc_funtype : typ -> typ list -> typ
 val ty_add : typ -> typ -> typ

@@ -109,26 +109,79 @@ module VarSet =
 let vars_of_list l =
   List.fold_right VarSet.add l VarSet.empty
 
-let rec fvs_typ = function
-  | TVar v -> VarSet.singleton v
-  | TCons (_, args) ->
-    List.fold_left VarSet.union VarSet.empty (List.map fvs_typ args)
-  | Fun (t1, t2) -> VarSet.union (fvs_typ t1) (fvs_typ t2)
-  | NCst _ -> VarSet.empty
-  | Nadd ts ->
-    List.fold_left VarSet.union VarSet.empty (List.map fvs_typ ts)
+type typ_map = {
+  map_tvar : var_name -> typ;
+  map_tcons : cns_name -> typ list -> typ;
+  map_fun : typ -> typ -> typ;
+  map_ncst : int -> typ;
+  map_nadd : typ list -> typ
+}
+
+type 'a typ_fold = {
+  fold_tvar : var_name -> 'a;
+  fold_tcons : cns_name -> 'a list -> 'a;
+  fold_fun : 'a -> 'a -> 'a;
+  fold_ncst : int -> 'a;
+  fold_nadd : 'a list -> 'a
+}
+
+let typ_id_map = {
+  map_tvar = (fun v -> TVar v);
+  map_tcons = (fun n tys -> TCons (n, tys));
+  map_fun = (fun t1 t2 -> Fun (t1, t2));
+  map_ncst = (fun i -> NCst i);
+  map_nadd = (fun tys -> Nadd tys)
+}
+
+let typ_make_fold op base = {
+  fold_tvar = (fun _ -> base);
+  fold_tcons = (fun _ tys -> List.fold_left op base tys);
+  fold_fun = (fun t1 t2 -> op t1 t2);
+  fold_ncst = (fun _ -> base);
+  fold_nadd = (fun tys -> List.fold_left op base tys)
+}
+
+let typ_map tmap t =
+  let rec aux = function
+    | TVar v -> tmap.map_tvar v
+    | TCons (n, tys) -> tmap.map_tcons n (List.map aux tys)
+    | Fun (t1, t2) -> tmap.map_fun (aux t1) (aux t2)
+    | NCst i -> tmap.map_ncst i
+    | Nadd tys -> tmap.map_nadd (List.map aux tys) in
+  aux t
+
+let typ_fold tfold t =
+  let rec aux = function
+    | TVar v -> tfold.fold_tvar v
+    | TCons (n, tys) -> tfold.fold_tcons n (List.map aux tys)
+    | Fun (t1, t2) -> tfold.fold_fun (aux t1) (aux t2)
+    | NCst i -> tfold.fold_ncst i
+    | Nadd tys -> tfold.fold_nadd (List.map aux tys) in
+  aux t
+
+let fvs_typ =
+  typ_fold {(typ_make_fold VarSet.union VarSet.empty)
+            with fold_tvar = fun v -> VarSet.singleton v}
+
+let subst_typ sb =
+  typ_map {typ_id_map with map_tvar =
+      fun v -> try List.assoc v sb with Not_found -> TVar v}
 
 type atom =
 | Eqty of typ * typ * loc
 | Leq of typ * typ * loc
 | CFalse of loc
-| PredVar of int * typ
+| PredVarU of int * typ
+| PredVarB of int * typ * typ
 
 let fvs_atom = function
   | Eqty (t1, t2, _) | Leq (t1, t2, _) ->
     VarSet.union (fvs_typ t1) (fvs_typ t2)
   | CFalse _ -> VarSet.empty
-  | PredVar (_, t) -> fvs_typ t
+  | PredVarU (_, t) -> fvs_typ t
+  | PredVarB (_, t1, t2) ->
+    VarSet.union (fvs_typ t1) (fvs_typ t2)
+
 
 type formula = atom list
 
