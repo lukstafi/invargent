@@ -67,7 +67,8 @@ type atom =
 | Eqty of typ * typ * loc
 | Leq of typ * typ * loc
 | CFalse of loc
-| PredVar of int * typ
+| PredVarU of int * typ
+| PredVarB of int * typ * typ
 type formula = atom list
 type typ_scheme = var_name list * formula * typ
 

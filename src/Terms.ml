@@ -282,7 +282,10 @@ let infer_sorts_item item =
     | Leq (t1, t2, loc) ->
       Leq (walk_typ loc Num_sort t1, walk_typ loc Num_sort t2, loc)
     | CFalse _ as a -> a
-    | PredVar (id,ty) -> PredVar (id, walk_typ dummy_loc Type_sort ty) in
+    | PredVarU (id,ty) -> PredVarU (id, walk_typ dummy_loc Type_sort ty)
+    | PredVarB (id,t1, t2) ->
+      PredVarB (id, walk_typ dummy_loc Type_sort t1,
+                walk_typ dummy_loc Type_sort t2) in
   match item with
   | TypConstr (CNam _ as name, sorts, _) as item ->
     Hashtbl.add newtype_env name sorts; [item]
@@ -490,7 +493,9 @@ let rec pr_atom ppf = function
   | Leq (t1, t2, _) ->
     fprintf ppf "@[<2>%a@ ≤@ %a@]" pr_one_ty t1 pr_one_ty t2
   | CFalse _ -> pp_print_string ppf "FALSE"
-  | PredVar (i,ty) -> fprintf ppf "@[<2>𝛘%d(%a)@]" i (pr_ty false) ty
+  | PredVarU (i,ty) -> fprintf ppf "@[<2>𝛘%d(%a)@]" i (pr_ty false) ty
+  | PredVarB (i,t1,t2) ->
+    fprintf ppf "@[<2>𝛘%d(%a,@ %a)@]" i (pr_ty true) t1 (pr_ty true) t2
 
 and pr_formula ppf atoms =
   pr_more_sep_list "∧" pr_atom ppf atoms
