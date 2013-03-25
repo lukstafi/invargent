@@ -151,7 +151,33 @@
   formulas according to table 2 in <cite|systemTechRep>, and
   <verbatim|constr_gen_expr> computes table 3. We preserve the FOL language
   presentation in the type <verbatim|cnstrnt>, only limiting the expressivity
-  in ways not requiring any preprocessing.
+  in ways not requiring any preprocessing. The toplevel definitions (from
+  type <verbatim|struct_item>) <verbatim|LetRecVal> and <verbatim|LetVal> are
+  processed by <verbatim|constr_gen_letrec> and <verbatim|constr_gen_let>
+  respectively. They are analogous to <verbatim|Letrec> and <verbatim|Letin>
+  or a <verbatim|Lam> clause. We do not cover toplevel definitions in our
+  formalism (without even a rudimentary module system, the toplevel is a
+  matter of pragmatics rather than semantics).
+
+  Toplevel definitions (and in future, structure items) are intended as
+  boundaries for constraint solving. This way the programmer can decompose
+  functions that could be too complex for the solver. <verbatim|LetRecVal>
+  only binds a single identifier, while <verbatim|LetVal> binds variables in
+  a pattern. To preserve the flexibility of expression-level pattern
+  matching, <verbatim|LetVal> has to pack the constraints
+  <math|<around*|\<llbracket\>|\<Sigma\>\<vdash\>p\<uparrow\>\<alpha\>|\<rrbracket\>>>
+  which the pattern makes available, into existential types. Each pattern
+  variable is a separate entry to the global environment, therefore the
+  connection between them is lost.
+
+  The formalism (in interests of parsimony) requires that only values of
+  existential types be bound using <verbatim|Letin> syntax. The
+  implementation is enhanced in this regard: if the normalization step cannot
+  determine which existential type is being eliminated, the constraint is
+  replaced by one that would be generated for a pattern matching branch. This
+  recovers the common use of the <verbatim|let>...<verbatim|in> syntax, with
+  exception of polymorphic <verbatim|let>, where <verbatim|let rec> still
+  needs to be used.
 
   <\bibliography|bib|tm-plain|biblio.bib>
     <\bib-list|1>

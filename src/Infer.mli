@@ -5,14 +5,21 @@
     @author Lukasz Stafiniak lukstafi (AT) gmail.com
     @since Mar 2013
 *)
-
-(** Shortcut for deriving [false]. *)
-exception Contradiction of string * (Terms.typ * Terms.typ) option * Terms.loc
-
+exception Contradiction of string * (Terms.typ * Terms.typ) option *
+            Terms.loc
 type cnstrnt =
-| And of cnstrnt list
-| Or of atom list
-| Impl of atom list * cnstrnt list
-| All of var_name list * cnstrnt
-| Ex of var_name list * cnstrnt
-
+    A of Terms.atom list
+  | And of cnstrnt list
+  | Or1 of Terms.atom list
+  | Impl of Terms.atom list * cnstrnt
+  | ImplOr2 of (Terms.atom * Terms.atom) list * cnstrnt
+  | All of Terms.VarSet.t * cnstrnt
+  | Ex of Terms.VarSet.t * cnstrnt
+val typ_to_sch : 'a * 'b -> 'a * ('c list * 'd list * 'b)
+val constr_gen_expr :
+  (string * Terms.typ_scheme) list ->
+  (string, 
+   Terms.var_name list * Terms.atom list * Terms.typ list * Terms.typ)
+  Hashtbl.t -> Terms.expr -> Terms.typ -> cnstrnt
+val nicevars_cnstrnt : cnstrnt -> cnstrnt
+val pr_cnstrnt : Format.formatter -> cnstrnt -> unit
