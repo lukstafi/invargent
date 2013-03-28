@@ -1,4 +1,4 @@
-all:
+main:
 	ocamlbuild src/InvarGenT.native
 	cp _build/src/InvarGenT.native InvarGenT
 
