@@ -14,7 +14,7 @@ type cnstrnt =
 | And of cnstrnt list
 | Or1 of atom list
 | Impl of atom list * cnstrnt
-| ImplOr2 of (atom * atom) list * cnstrnt
+| ImplOr2 of atom list list * cnstrnt
 | All of VarSet.t * cnstrnt
 | Ex of VarSet.t * cnstrnt
 
@@ -140,7 +140,8 @@ let constr_gen_expr gamma sigma ex_types e t =
       let ety_cn = Extype ety_id in
       let ety = TCons (ety_cn, [t2]) in
       incr fresh_chi_id;
-      ex_types := (ety_cn, !fresh_chi_id) :: !ex_types;
+      let ex_phi t2 t3 = [PredVarB (!fresh_chi_id, t2, t3)] in
+      ex_types := (ety_cn, ex_phi) :: !ex_types;
       let cn = List.fold_left cn_and
         (A [Eqty (Fun (t1, ety), t, loc)])
         (List.map (aux_ex_cl gamma !fresh_chi_id t1 t2) cls) in
@@ -164,14 +165,14 @@ let constr_gen_expr gamma sigma ex_types e t =
       let a2 = fresh_typ_var () in
       let t2 = TVar a2 in
       let disj = List.map
-        (fun (ety_cn, chi) -> Eqty (TCons (ety_cn, [t2]), t0, loc))
+        (fun (ety_cn, phi) -> Eqty (TCons (ety_cn, [t2]), t0, loc))
         !ex_types in
       let cn0 = aux gamma t0 e1 in
       let a3 = fresh_typ_var () in
       let t3 = TVar a3 in
       let disj_prem = List.map
-        (fun (ety_cn, chi) ->
-          Eqty (TCons (ety_cn, [t2]), t0, loc), PredVarB (chi, t2, t3))
+        (fun (ety_cn, phi) ->
+          Eqty (TCons (ety_cn, [t2]), t0, loc), phi t2 t3)
         !ex_types in
       let concl = aux_cl gamma t3 t (p, e2) in
       Ex (vars_of_list [a0; a2],
@@ -195,42 +196,142 @@ let constr_gen_expr gamma sigma ex_types e t =
   
   aux gamma t e
 
-let constr_gen_letrec gamma sigma ex_types x e t =
+let constr_gen_letrec gamma sigma ex_types x e sig_cn tb =
   let a = fresh_typ_var () in
-  let b = fresh_typ_var () in
-  incr fresh_chi_id;
-  let tb = TVar b in
-  let chi_b = PredVarU (!fresh_chi_id, tb) in
-  let chi_a = PredVarU (!fresh_chi_id, TVar a) in
-  let def_typ = [b], [chi_b], tb in
+  let chi_id = incr fresh_chi_id; !fresh_chi_id in
+  let chi_b = PredVarU (chi_id, tb) in
+  let chi_a = PredVarU (chi_id, TVar a) in
+  let bvs = fvs_typ tb in
+  let def_typ = VarSet.elements bvs, [chi_b], tb in
   let gamma = (x, def_typ)::gamma in
   let def_cn =
-    All (vars_of_list [b],
-         Impl ([chi_b], aux gamma tb e1)) in
-  def_typ,
+    All (bvs, Impl (chi_b::sig_cn, aux gamma tb e1)) in
+  chi_id, def_typ,
   cn_and def_cn (Ex (vars_of_list [a], A [chi_a]))
-(*
-let constr_gen_let gamma sigma ex_types p e =
-  let a = fresh_typ_var () in
-  let ta = TVar a in
+
+let constr_gen_let gamma sigma ex_types p e ta =
   let pcns = constr_gen_pat sigma p ta in
-  let bs, prem, env = envfrag_gen_pat sigma p ta in
+  let bs, exphi, env = envfrag_gen_pat sigma p ta in
   let cn = constr_gen_expr gamma sigma ex_types e ta in
-  env, cn_and pcns cn
+  bs, exphi, env, cn_and pcns cn
 
 let infer_prog solver prog =
   let gamma = ref [] in
   let sigma = Hashtbl.create 127 in
   let ex_types = ref [] in
-
-  List.map (function
-  | TypConstr () of cns_name * sort list * loc
-  | ValConstr of cns_name * var_name list * formula * typ list * typ * loc
-  | PrimVal of string * typ_scheme * loc
-  | LetRecVal of string * expr * loc
-  | LetVal of string * expr * loc
+  let update_new_ex_types old_ex_types sb sb_chi =
+    let more_items = ref [] in
+    ex_types := Aux.map_upto old_ex_types
+      (fun (ety_cn, phi) ->
+        let a2 = fresh_typ_var () in
+        let t2 = TVar a2 in
+        let a3 = fresh_typ_var () in
+        let t3 = TVar a3 in
+        match phi t2 t3 with
+        | [PredVarB (chi_id, vt2, vt3)] when vt2=t2 && vt3=t3 ->
+          let more_sb, cond = List.assoc chi_id sb_chi a2 a3 in
+          let sb = compose_sb more_sb sb in
+          let res = try List.assoc a2 sb with Not_found -> t2 in
+          let arg = try List.assoc a3 sb with Not_found -> t3 in
+          let resvs = fvs_typ res in
+          let vs = VarSet.union resvs
+            (VarSet.union (fvs_formula cond) (fvs_typ arg)) in
+          let resvs = VarSet.elements resvs in
+          let targs = List.map (fun v -> TVar v) resvs in
+          let ety = TCons ("Tuple", targs) in
+          let sorts = List.map var_sort resvs in
+          let extydec =
+            TypConstr (ety_cn, sorts, loc) in
+          let extydef =
+            ValConstr (ety_cn, vs, cond, [arg], ety) in
+          more_items := extydec :: extydef :: !more_items;
+          let ex_phi t2 t3 =
+            Eqty (t3, arg) :: Eqty (t2, ety) :: cond in
+          ety_cn, ex_phi
+        | _ -> assert false
+      )
+      !ex_types;
+    !more_items in
+  Aux.concat_map (function
+  | TypConstr _ as item -> [item]
+  | ValConstr (CNam x, vs, phi, args, res, loc) as item ->
+    Hashtbl.add sigma x (vs, phi, args, res);
+    [item]
+  | ValConstr (Extype _ as n, vs, phi, [arg],
+               TCons (Extype _, targs), loc) as item ->
+    let ex_phi t2 t3 =
+      Eqty (t3, arg) :: Eqty (t2, TCons ("Tuple", targs)) :: phi in
+    ex_types := (n, ex_phi) :: !ex_types;
+    [item]
+  | ValConstr (Extype _, _, _, _, _, _) -> assert false
+  | PrimVal (x, tsch, loc) as item ->
+    Hashtbl.add gamma x tsch;
+    [item]
+  | LetRecVal (x, e, defsig, loc) ->
+    let old_ex_types = !ex_types in
+    let bvs, sig_cn, t = match defsig with
+      | None ->
+        let b = fresh_typ_var () in
+        let tb = TVar b in
+        [b], [], tb
+      | Some (vs, phi, t) -> vs, phi, t in
+    let chi_id, _, cn =
+      constr_gen_letrec gamma sigma ex_types x e sig_cn t in
+    let (sb_res, phi_res), sb_chiU, sb_chiB = solver cn in
+    let more_sb, phi = List.assoc chi_id sb_chiU t in
+    let sb = compose_sb more_sb sb_res in
+    let phi = subst_formula sb (phi_res @ phi) in
+    let res = List.assoc b sb in
+    let gvs = VarSet.union (fvs_formula phi) (fvs_typ res) in
+    let typ_sch = VarSet.elements gvs, phi, res in
+    gamma := (x, typ_sch) :: gamma;
+    let ex_items = update_new_ex_types old_ex_types sb sb_chiB in
+    ex_items @ [LetRecVal (x, e, Some typ_sch, loc)]
+  | LetVal (p, e, defsig, loc) ->
+    let old_ex_types = !ex_types in
+    let avs, sig_vs, sig_cn, t = match defsig with
+      | None ->
+        let a = fresh_typ_var () in
+        let ta = TVar a in
+        VarSet.singleton a, [], [], ta
+      | Some (vs, phi, t) -> VarSet.empty, vs, phi, t in
+    let bs, exphi, env, cn =
+      constr_gen_let gamma sigma ex_types p e t in
+    let cn =
+      match sib_vs, sig_cn with
+      | [], [] -> Ex (avs, cn)
+      | _, [] -> All (vars_of_list vs, cn)
+      | _ -> All (vars_of_list vs, Impl (sig_cn, cn)) in
+    let (sb, phi), sb_chiU, sb_chiB = solver cn in
+    let ex_items = update_new_ex_types old_ex_types sb sb_chiB in
+    let res = subst_typ sb t in
+    let gvs = VarSet.union (fvs_formula phi) (fvs_typ res) in
+    let gvs = VarSet.elements gvs in
+    let typ_sch = gvs, phi, res in
+    let more_items = ref [] in
+    let typ_sch_ex =
+      match bs, exphi with
+      | [], [] -> fun (x, res) -> x, (gvs, phi, res)
+      | _ -> fun (x, res) ->
+        let vs = VarSet.union (fvs_formula exphi) (fvs_typ res) in
+        let resvs = VarSet.diff vs (vars_of_list bs) in
+        let vs = VarSet.elements vs in
+        let targs = List.map (fun v -> TVar v) resvs in
+        let ety = TCons ("Tuple", targs) in
+        let sorts = List.map var_sort resvs in
+        let extydec =
+          TypConstr (ety_cn, sorts, loc) in
+        let extydef =
+          ValConstr (ety_cn, vs, exphi, [res], ety) in
+        more_items := extydec :: extydef :: !more_items;
+        let ex_phi t2 t3 =
+          Eqty (t3, res) :: Eqty (t2, ety) :: exphi in
+        ex_types := (ety_cn, ex_phi) :: !ex_types;
+        x, (gvs, phi, ety) in
+    gamma := Aux.map_append typ_sch_ex env !gamma;
+    ex_items @ !more_items @ [LetVal (p, e, Some typ_sch, loc)]
   ) prog
-*)
+
 (** {2 Postprocessing and printing} *)
 
 type nicevars_env = {

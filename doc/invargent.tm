@@ -176,8 +176,77 @@
   determine which existential type is being eliminated, the constraint is
   replaced by one that would be generated for a pattern matching branch. This
   recovers the common use of the <verbatim|let>...<verbatim|in> syntax, with
-  exception of polymorphic <verbatim|let>, where <verbatim|let rec> still
-  needs to be used.
+  exception of polymorphic <verbatim|let> cases, where <verbatim|let rec>
+  still needs to be used.
+
+  In the formalism, we use <math|\<cal-E\>=<around*|{|\<varepsilon\><rsub|K>,\<chi\><rsub|K><mid|\|>K\<colons\>\<forall\>\<alpha\>\<gamma\><around|[|\<chi\><rsub|K><around*|(|\<alpha\>,\<gamma\>|)>|]>.\<gamma\>\<rightarrow\>\<varepsilon\><rsub|K><around*|(|\<alpha\>|)>\<in\>\<Sigma\>|}>>
+  for brevity, as if all existential types
+  <math|\<varepsilon\><rsub|K><around*|(|\<alpha\>|)>> were related with a
+  predicate variable <math|\<chi\><rsub|K><around*|(|\<alpha\>,\<gamma\>|)>\<nosymbol\>>.
+  In the implementation, we have user-defined existential types with explicit
+  constraints in addition to inferred existential types. We keep track of
+  existential types in cell <verbatim|ex_types>, storing arbitrary
+  constraints. For <verbatim|LetVal>, we form existential types after solving
+  the generated constraint, to have less intermediate variables in them. The
+  first argument of the predicate variable
+  <math|\<chi\><rsub|K><around*|(|\<alpha\>,\<gamma\>|)>\<nosymbol\>>
+  provides an ``escape route'' for free variables, e.g. precondition
+  variables used in postcondition. It is used for convenience in the
+  formalism. In the implementation, after the constraints are solved, we
+  expand it to pass each free variable as a separate parameter, to increase
+  readability of exported OCaml code.
+
+  For simplicity, only toplevel definitions accept type and invariant
+  annotations from the user. The constraints are modified according to the
+  <math|<around*|\<llbracket\>|\<Gamma\>,\<Sigma\>\<vdash\>ce:\<forall\><wide|\<alpha\>|\<bar\>><around|[|D|]>.\<tau\>|\<rrbracket\>>>
+  rule. Where <verbatim|Letrec> uses a fresh variable <math|\<beta\>>,
+  <verbatim|LetRecVal> incorporates the type from the annotation. The
+  annotation is considered partial, <math|D> becomes part of the constraint
+  generated for the recursive function but more constraints will be added if
+  needed. The polymorphism of <math|\<forall\><wide|\<alpha\>|\<bar\>>>
+  variables from the annotation is preserved since they are universally
+  quantified in the generated constraint.
+
+  The constraints solver returns three components: the <em|residue>, which
+  implies the constraint when the predicate variables are instantiated, and
+  the solutions to unary and binary predicate variables. The residue and the
+  predicate variable solutions are separated into <em|solved variables> part,
+  which is a substitution, and remaining constraints (which are currently
+  limited to linear inequalities). To get a predicate variable solution we
+  look for the predicate variable identifier association and apply it to one
+  or two type variable identifiers, which will instantiate the parameters of
+  the predicate variable. We considered several ways to deal with multiple
+  solutions:
+
+  <\enumerate>
+    <item>report a failure to the user;
+
+    <item>ask the user for decision;
+
+    <item>perform backtracking search for the first solution that satisfies
+    the subsequent program.
+  </enumerate>
+
+  We use an enhanced variant of approach 1 as it is closest to traditional
+  type inference workflow. Upon ``multiple solutions'' failure the user can
+  add <verbatim|assert> clauses (e.g. <verbatim|assert false> stating that a
+  program branch is impossible), and <verbatim|test> clauses. The
+  <verbatim|test> clauses are boolean expressions with operational semantics
+  of run-time tests: the test clauses are executed right after the definition
+  is executed, and run-time error is reported when a clause returns
+  <verbatim|false>. The constraints from test clauses are included in the
+  constraint for the toplevel definition, thus propagate more efficiently
+  than backtracking would. The <verbatim|assert> clauses are:
+  <verbatim|assert = type e1 e2> which translates as equality of types of
+  <verbatim|e1> and <verbatim|e2>, <verbatim|assert false> which translates
+  as <verbatim|CFalse>, and <verbatim|assert e1 \<less\>= e2>, which
+  translates as inequality <math|n<rsub|1>\<leqslant\>n<rsub|2>> assuming
+  that <verbatim|e1> has type <verbatim|Num n1> and <verbatim|e2> has type
+  <verbatim|Num n2>.
+
+  [TODO: implement the <verbatim|assert> and <verbatim|test> clauses!]
+
+  \;
 
   <\bibliography|bib|tm-plain|biblio.bib>
     <\bib-list|1>
@@ -202,8 +271,8 @@
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1>>
-    <associate|auto-2|<tuple|2|1>>
-    <associate|auto-3|<tuple|2|2>>
+    <associate|auto-2|<tuple|2|2>>
+    <associate|auto-3|<tuple|3|2>>
     <associate|auto-4|<tuple|1.3|2>>
     <associate|auto-5|<tuple|2|2>>
     <associate|auto-6|<tuple|3|4>>
@@ -217,7 +286,7 @@
     <associate|bib-jcaqpTechRep|<tuple|8|4>>
     <associate|bib-jcaqpUNIF|<tuple|7|4>>
     <associate|bib-simonet-pottier-hmg-toplas|<tuple|6|4>>
-    <associate|bib-systemTechRep|<tuple|1|?>>
+    <associate|bib-systemTechRep|<tuple|1|2>>
   </collection>
 </references>
 
