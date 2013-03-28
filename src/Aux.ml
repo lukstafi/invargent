@@ -55,3 +55,9 @@ let partition_map f l =
 let map_choice f g = function
   | Left e -> Left (f e)
   | Right e -> Right (g e)
+
+(** {2 Lazy lists} *)
+
+type 'a lazy_list = 'a lazy_list_ Lazy.t
+and 'a lazy_list_ = LNil | LCons of 'a * 'a lazy_list
+
