@@ -13,7 +13,7 @@ make clean  # remove the executable and intermediate files
 ```
 
 Milestones:
-- [ ] Setup project. Parse and pretty-print.
+- [x] Setup project. Parse and pretty-print.
 - [ ] Generate constraints.
 - [ ] Normalize constraints.
 - [ ] Abduction for terms.
