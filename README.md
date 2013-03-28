@@ -12,14 +12,14 @@ make test   # build and perform the tests
 make clean  # remove the executable and intermediate files
 ```
 
-Milestones:
+Milestones: [x] - completed, [#] - finishing, [+] - in the middle, [-] - just started, [_] - not started.
 - [x] Setup project. Parse and pretty-print.
-- [ ] Generate constraints.
-- [ ] Normalize constraints.
-- [ ] Abduction for terms.
-- [ ] Abduction for linear systems.
-- [ ] Disjunction elimination for terms.
-- [ ] Disjunction elimination for linear systems.
-- [ ] Solve for predicate variables. Iterate till fixpoint.
-- [ ] Export (print) OCaml source. Optimize, perhaps write web interface.
-- [ ] Collect examples, test, write user documentation.
+- [#] Generate constraints.
+- [_] Normalize constraints.
+- [_] Abduction for terms.
+- [_] Abduction for linear systems.
+- [_] Disjunction elimination for terms.
+- [_] Disjunction elimination for linear systems.
+- [_] Solve for predicate variables. Iterate till fixpoint.
+- [_] Export (print) OCaml source. Optimize, perhaps write web interface.
+- [_] Collect examples, test, write user documentation.
