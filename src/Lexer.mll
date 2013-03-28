@@ -37,13 +37,15 @@ rule token = parse
   | "<="        { LESSEQUAL }
   | "≤"         { LESSEQUAL }
   | ';'         { SEMICOLON }
+  | "assert"    { ASSERT }
   | "false"     { FALSE }
+  | "test"      { TEST }
   | "and"       { AND }
   | "&&"        { LOGAND }
   | "∧"         { LOGAND }
   | "ex"        { EX }
   | "\\E"       { EX }
-  | "exists"     { EX }
+  | "exists"    { EX }
   | "∃"         { EX }
   | "all"       { ALL }
   | "\\A"       { ALL }

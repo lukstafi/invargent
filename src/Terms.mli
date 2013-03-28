@@ -34,14 +34,18 @@ type pat =
 val pat_loc : pat -> loc
 
 type expr =
-    Var of string * loc
-  | Num of int * loc
-  | Cons of string * expr list * loc
-  | App of expr * expr * loc
-  | Lam of clause list * loc
-  | ExLam of int * clause list * loc
-  | Letrec of string * expr * expr * loc
-  | Letin of pat * expr * expr * loc
+| Var of string * loc
+| Num of int * loc
+| Cons of string * expr list * loc
+| App of expr * expr * loc
+| Lam of clause list * loc
+| ExLam of int * clause list * loc
+| Letrec of string * expr * expr * loc
+| Letin of pat * expr * expr * loc
+| AssertFalse of loc
+| AssertLeq of expr * expr * expr * loc
+| AssertEqty of expr * expr * expr * loc
+
 and clause = pat * expr
 
 val expr_loc : expr -> loc

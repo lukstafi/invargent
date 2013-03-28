@@ -61,7 +61,7 @@ let unary_vals = Hashtbl.create 31
 %token FUNCTION FUN MATCH EMATCH WITH
 %token NUM TYPE
 %token LESSEQUAL
-%token FALSE
+%token ASSERT FALSE TEST
 %token NEWCONS NEWTYPE EXTERNAL LONGARROW
 %token EOF
 
@@ -72,6 +72,7 @@ let unary_vals = Hashtbl.create 31
 %right ARROW
 %nonassoc AS
 %nonassoc BAR
+%left SEMICOLON
 %right BARBAR
 %nonassoc below_LOGAND
 %nonassoc LOGAND
@@ -123,6 +124,12 @@ expr:
       { unclosed "match" 1 "with" 3 }
   | EMATCH expr error
       { unclosed "ematch" 1 "with" 3 }
+  | ASSERT FALSE
+      { AssertFalse (get_loc ()) }
+  | ASSERT expr LESSEQUAL expr SEMICOLON expr
+      { AssertLeq ($2, $4, $6, get_loc ()) }
+  | ASSERT EQUAL TYPE expr expr SEMICOLON expr
+      { AssertEqty ($4, $5, $7, get_loc ()) }
   | expr COMMA expr_comma_list %prec below_COMMA
       { Cons ("Tuple", ($1 :: List.rev $3), get_loc ()) }
   | simple_expr

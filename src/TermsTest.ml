@@ -111,7 +111,7 @@ external filter : ∀n * a. List (a, n) → Ex1 (a, n)"
 	(Lexing.from_string
 "newtype N : num
 newtype T : type
-external test : ∀a,b. T a → N b → a") in
+external foo : ∀a,b. T a → N b → a") in
       let prog = infer_sorts prog in
       assert_equal ~msg:"a in ∀a,b. T a → N b → a" ~printer:sort_str
         Type_sort (match List.rev prog with

@@ -56,6 +56,9 @@ type expr =
 | ExLam of int * clause list * loc
 | Letrec of string * expr * expr * loc
 | Letin of pat * expr * expr * loc
+| AssertFalse of loc
+| AssertLeq of expr * expr * expr * loc
+| AssertEqty of expr * expr * expr * loc
 
 and clause = pat * expr
 
@@ -67,7 +70,11 @@ let expr_loc = function
   | Lam (_, loc)
   | ExLam (_, _, loc)
   | Letrec (_, _, _, loc)
-  | Letin (_, _, _, loc) -> loc
+  | Letin (_, _, _, loc)
+  | AssertFalse loc
+  | AssertLeq (_, _, _, loc)
+  | AssertEqty (_, _, _, loc)
+    -> loc
 
 let clause_loc (pat, exp) =
   loc_union (pat_loc pat) (expr_loc exp)
@@ -470,6 +477,13 @@ let rec pr_expr comma ppf = function
   | Letin (pat, exp, range, _) ->
       fprintf ppf "@[<0>let %a =@ @[<2>%a@] in@ @[<0>%a@]@]"
 	(pr_pat false) pat (pr_expr false) exp (pr_expr false) range
+  | AssertFalse _ -> fprintf ppf "assert false"
+  | AssertLeq (e1, e2, range, _) ->
+      fprintf ppf "@[<0>assert@[<2>@ %a@ ≤@ %a@];@ %a@]"
+	(pr_expr false) e1 (pr_expr false) e2 (pr_expr false) range
+  | AssertEqty (e1, e2, range, _) ->
+      fprintf ppf "@[<0>assert@ = type@[<2>@ %a@ %a@];@ %a@]"
+	(pr_expr false) e1 (pr_expr false) e2 (pr_expr false) range
 
 and pr_clause ppf (pat, exp) =
   fprintf ppf "@[<2>%a@ ->@ %a@]"

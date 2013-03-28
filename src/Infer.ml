@@ -146,6 +146,33 @@ let constr_gen_expr gamma sigma ex_types e t =
         (A [Eqty (Fun (t1, ety), t, loc)])
         (List.map (aux_ex_cl gamma !fresh_chi_id t1 t2) cls) in
       Ex (vars_of_list [a1; a2], cn)      
+    | AssertFalse loc -> A [CFalse loc]
+    | AssertLeq (e1, e2, e3, loc) ->
+      let a1 = fresh_typ_var () in
+      let t1 = TVar a1 in
+      let a2 = fresh_typ_var () in
+      let t2 = TVar a2 in
+      let a3 = fresh_typ_var () in
+      let t3 = TVar a3 in
+      let nt1 = TCons (CNam "Num", [t1]) in
+      let nt2 = TCons (CNam "Num", [t2]) in
+      let cn =
+        cn_and (A [Leq (t1, t2, loc)])
+          (cn_and (aux gamma nt1 e1)
+             (cn_and (aux gamma nt2 e2) (aux gamma t3 e3))) in
+      Ex (vars_of_list [a1; a2; a3], cn)
+    | AssertEqty (e1, e2, e3, loc) ->
+      let a1 = fresh_typ_var () in
+      let t1 = TVar a1 in
+      let a2 = fresh_typ_var () in
+      let t2 = TVar a2 in
+      let a3 = fresh_typ_var () in
+      let t3 = TVar a3 in
+      let cn =
+        cn_and (A [Eqty (t1, t2, loc)])
+          (cn_and (aux gamma t1 e1)
+             (cn_and (aux gamma t2 e2) (aux gamma t3 e3))) in
+      Ex (vars_of_list [a1; a2; a3], cn)
     | Letrec (x, e1, e2, loc) ->
       let a = fresh_typ_var () in
       let b = fresh_typ_var () in
