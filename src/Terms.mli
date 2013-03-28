@@ -115,8 +115,8 @@ type struct_item =
 | TypConstr of cns_name * sort list * loc
 | ValConstr of cns_name * var_name list * formula * typ list * typ * loc
 | PrimVal of string * typ_scheme * loc
-| LetRecVal of string * expr * typ_scheme option * loc
-| LetVal of pat * expr * typ_scheme option * loc
+| LetRecVal of string * expr * typ_scheme option * expr list * loc
+| LetVal of pat * expr * typ_scheme option * expr list * loc
 type program = struct_item list
 
 module VarSet : (Set.S with type elt = var_name)

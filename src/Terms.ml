@@ -206,8 +206,8 @@ type struct_item =
 | TypConstr of cns_name * sort list * loc
 | ValConstr of cns_name * var_name list * formula * typ list * typ * loc
 | PrimVal of string * typ_scheme * loc
-| LetRecVal of string * expr * typ_scheme option * loc
-| LetVal of pat * expr * typ_scheme option * loc
+| LetRecVal of string * expr * typ_scheme option * expr list * loc
+| LetVal of pat * expr * typ_scheme option * expr list * loc
 
 type program = struct_item list
 
@@ -226,8 +226,8 @@ let typ_scheme_of_item ?(env=[]) = function
 | ValConstr (_, vs, phi, args, res, _) ->
   vs, phi, enc_funtype res args
 | PrimVal (_, t, _) -> t
-| LetRecVal (name, _, _, _)
-| LetVal (PVar (name, _), _, _, _) -> List.assoc name env
+| LetRecVal (name, _, _, _, _)
+| LetVal (PVar (name, _), _, _, _, _) -> List.assoc name env
 | LetVal _ -> raise Not_found
 
 (** {2 Sort inference} *)
@@ -569,6 +569,16 @@ let pr_typscheme ppf = function
       (pr_more_sep_list " *" pr_tyvar) vs
       pr_formula phi (pr_ty false) ty
   
+let pr_opt_sig_tysch ppf = function
+  | None -> ()
+  | Some tysch -> fprintf ppf "@ :@ %a" pr_typscheme tysch
+
+let pr_opt_tests ppf = function
+  | [] -> ()
+  | tests ->
+    fprintf ppf "@\n@[<2>test@ %a@]"
+      (pr_more_sep_list ";" (pr_expr false)) tests
+
 let pr_struct_item ppf = function
   | TypConstr (name, [], _) ->
     fprintf ppf "@[<2>newtype@ %s@]" (cns_str name)
@@ -600,17 +610,12 @@ let pr_struct_item ppf = function
       (pr_more_sep_list " *" (pr_ty true)) args (pr_ty false) res
   | PrimVal (name, tysch, _) ->
     fprintf ppf "@[<2>external@ %s@ :@ %a@]" name pr_typscheme tysch
-  | LetRecVal (name, expr, Some tysch, _) ->
-    fprintf ppf "@[<2>let rec@ %s@ :@ %a@ =@ %a@]" name
-      pr_typscheme tysch (pr_expr false) expr
-  | LetRecVal (name, expr, None, _) ->
-    fprintf ppf "@[<2>let rec@ %s@ =@ %a@]" name (pr_expr false) expr
-  | LetVal (pat, expr, Some tysch, _) ->
-    fprintf ppf "@[<2>let@ %a@ :@ %a@ =@ %a@]" (pr_pat false) pat
-      pr_typscheme tysch (pr_expr false) expr
-  | LetVal (pat, expr, None, _) ->
-    fprintf ppf "@[<2>let@ %a@ =@ %a@]" (pr_pat false) pat
-      (pr_expr false) expr
+  | LetRecVal (name, expr, tysch, tests, _) ->
+    fprintf ppf "@[<2>let rec@ %s%a@ =@ %a@]%a" name
+      pr_opt_sig_tysch tysch (pr_expr false) expr pr_opt_tests tests
+  | LetVal (pat, expr, tysch, tests, _) ->
+    fprintf ppf "@[<2>let@ %a@%a@ =@ %a@]%a" (pr_pat false) pat
+      pr_opt_sig_tysch tysch (pr_expr false) expr pr_opt_tests tests
 
 let pr_program ppf p =
   pr_more_line_list "\n" pr_struct_item ppf p

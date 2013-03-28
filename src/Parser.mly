@@ -174,6 +174,12 @@ expr_comma_list:
   | expr
       { [ $1 ] }
 ;
+expr_semicolon_list:
+  | expr_semicolon_list SEMICOLON expr
+      { $3 :: $1 }
+  | expr
+      { [ $1 ] }
+;
 
 match_cases:
   |  pattern match_action
@@ -354,24 +360,28 @@ structure_item_raw:
   | EXTERNAL COLON
       { syntax_error
 	  "lacking external binding identifier" 2 }
-  | LET REC LIDENT COLON opt_constr_intro typ EQUAL expr
-      { LetRecVal ($3, $8, Some (fst $5, snd $5, $6), get_loc ()) }
-  | LET REC LIDENT EQUAL expr
-      { LetRecVal ($3, $5, None, get_loc ()) }
-  | LET REC LIDENT EQUAL error
-      { syntax_error "error in the body of toplevel definition" 5 }
+  | LET REC LIDENT opt_sig_typ_scheme EQUAL expr opt_tests
+      { LetRecVal ($3, $6, $4, $7, get_loc ()) }
   | LET REC EQUAL
       { syntax_error
 	  "lacking global let-rec-binding identifier" 3 }
-  | LET pattern COLON opt_constr_intro typ EQUAL expr
-      { LetVal ($2, $7, Some (fst $4, snd $4, $5), get_loc ()) }
-  | LET pattern EQUAL expr
-      { LetVal ($2, $4, None, get_loc ()) }
-  | LET pattern EQUAL error
-      { syntax_error "error in the body of toplevel definition" 4 }
+  | LET pattern opt_sig_typ_scheme EQUAL expr opt_tests
+      { LetVal ($2, $5, $3, $6, get_loc ()) }
   | LET EQUAL
       { syntax_error
 	  "lacking global let-binding identifier" 3 }
+;
+opt_sig_typ_scheme:
+  | /* empty */
+      { None }
+  | COLON opt_constr_intro typ
+      { Some (fst $2, snd $2, $3) }
+;
+opt_tests:
+  | /* empty */
+      { [] }
+  | TEST expr_semicolon_list
+      { List.rev $2 }
 ;
 structure_item:
   | structure_item_raw

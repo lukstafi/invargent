@@ -223,18 +223,26 @@ let constr_gen_expr gamma sigma ex_types e t =
   
   aux gamma t e
 
-let constr_gen_letrec gamma sigma ex_types x e sig_cn tb =
+let constr_gen_tests gamma sigma ex_types tests =
+  let cns = List.map
+    (fun e -> constr_gen_expr gamma sigma ex_types e (TCons ("Bool", [])))
+    tests in
+  List.fold_left cn_and (And []) cns
+
+let constr_gen_letrec gamma sigma ex_types x e sig_cn tb tests =
   let a = fresh_typ_var () in
   let chi_id = incr fresh_chi_id; !fresh_chi_id in
   let chi_b = PredVarU (chi_id, tb) in
   let chi_a = PredVarU (chi_id, TVar a) in
-  let bvs = fvs_typ tb in
+  let bvs = VarSet.union (fvs_typ tb) (fvs_formula sig_cn) in
   let def_typ = VarSet.elements bvs, [chi_b], tb in
   let gamma = (x, def_typ)::gamma in
   let def_cn =
     All (bvs, Impl (chi_b::sig_cn, aux gamma tb e1)) in
+  let test_cn =
+    constr_gen_tests gamma sigma ex_types tests in
   chi_id, def_typ,
-  cn_and def_cn (Ex (vars_of_list [a], A [chi_a]))
+  cn_and def_cn (cn_and (Ex (vars_of_list [a], A [chi_a])) test_cn)
 
 let constr_gen_let gamma sigma ex_types p e ta =
   let pcns = constr_gen_pat sigma p ta in
@@ -294,7 +302,7 @@ let infer_prog solver prog =
   | PrimVal (x, tsch, loc) as item ->
     Hashtbl.add gamma x tsch;
     [item]
-  | LetRecVal (x, e, defsig, loc) ->
+  | LetRecVal (x, e, defsig, tests, loc) ->
     let old_ex_types = !ex_types in
     let bvs, sig_cn, t = match defsig with
       | None ->
@@ -303,7 +311,7 @@ let infer_prog solver prog =
         [b], [], tb
       | Some (vs, phi, t) -> vs, phi, t in
     let chi_id, _, cn =
-      constr_gen_letrec gamma sigma ex_types x e sig_cn t in
+      constr_gen_letrec gamma sigma ex_types x e sig_cn t tests in
     let (sb_res, phi_res), sb_chiU, sb_chiB = solver cn in
     let more_sb, phi = List.assoc chi_id sb_chiU t in
     let sb = compose_sb more_sb sb_res in
@@ -313,8 +321,8 @@ let infer_prog solver prog =
     let typ_sch = VarSet.elements gvs, phi, res in
     gamma := (x, typ_sch) :: gamma;
     let ex_items = update_new_ex_types old_ex_types sb sb_chiB in
-    ex_items @ [LetRecVal (x, e, Some typ_sch, loc)]
-  | LetVal (p, e, defsig, loc) ->
+    ex_items @ [LetRecVal (x, e, Some typ_sch, tests, loc)]
+  | LetVal (p, e, defsig, tests, loc) ->
     let old_ex_types = !ex_types in
     let avs, sig_vs, sig_cn, t = match defsig with
       | None ->
@@ -325,10 +333,18 @@ let infer_prog solver prog =
     let bs, exphi, env, cn =
       constr_gen_let gamma sigma ex_types p e t in
     let cn =
-      match sib_vs, sig_cn with
+      match sig_vs, sig_cn with
       | [], [] -> Ex (avs, cn)
       | _, [] -> All (vars_of_list vs, cn)
       | _ -> All (vars_of_list vs, Impl (sig_cn, cn)) in
+    let test_cn = constr_gen_tests gamma sigma ex_types tests in
+    let test_cn =
+      if exphi <> [] && test_cn <> And []
+      then Impl (exphi, test_cn) else test_cn in
+    let test_cn =
+      if bs <> [] && test_cn <> And []
+      then All (vars_of_list bs, test_cn) else test_cn in
+    let cn = cn_and cn test_cn in
     let (sb, phi), sb_chiU, sb_chiB = solver cn in
     let ex_items = update_new_ex_types old_ex_types sb sb_chiB in
     let res = subst_typ sb t in
@@ -356,7 +372,7 @@ let infer_prog solver prog =
         ex_types := (ety_cn, ex_phi) :: !ex_types;
         x, (gvs, phi, ety) in
     gamma := Aux.map_append typ_sch_ex env !gamma;
-    ex_items @ !more_items @ [LetVal (p, e, Some typ_sch, loc)]
+    ex_items @ !more_items @ [LetVal (p, e, Some typ_sch, tests, loc)]
   ) prog
 
 (** {2 Postprocessing and printing} *)
