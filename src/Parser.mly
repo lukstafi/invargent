@@ -347,16 +347,20 @@ structure_item_raw:
   | EXTERNAL COLON
       { syntax_error
 	  "lacking external binding identifier" 2 }
+  | LET REC LIDENT COLON opt_constr_intro typ EQUAL expr
+      { LetRecVal ($3, $8, Some (fst $5, snd $5, $6), get_loc ()) }
   | LET REC LIDENT EQUAL expr
-      { LetRecVal ($3, $5, get_loc ()) }
+      { LetRecVal ($3, $5, None, get_loc ()) }
   | LET REC LIDENT EQUAL error
       { syntax_error "error in the body of toplevel definition" 5 }
   | LET REC EQUAL
       { syntax_error
 	  "lacking global let-rec-binding identifier" 3 }
-  | LET LIDENT EQUAL expr
-      { LetVal ($2, $4, get_loc ()) }
-  | LET LIDENT EQUAL error
+  | LET pattern COLON opt_constr_intro typ EQUAL expr
+      { LetVal ($2, $7, Some (fst $4, snd $4, $5), get_loc ()) }
+  | LET pattern EQUAL expr
+      { LetVal ($2, $4, None, get_loc ()) }
+  | LET pattern EQUAL error
       { syntax_error "error in the body of toplevel definition" 4 }
   | LET EQUAL
       { syntax_error

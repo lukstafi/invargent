@@ -199,8 +199,8 @@ type struct_item =
 | TypConstr of cns_name * sort list * loc
 | ValConstr of cns_name * var_name list * formula * typ list * typ * loc
 | PrimVal of string * typ_scheme * loc
-| LetRecVal of string * expr * loc
-| LetVal of string * expr * loc
+| LetRecVal of string * expr * typ_scheme option * loc
+| LetVal of pat * expr * typ_scheme option * loc
 
 type program = struct_item list
 
@@ -219,7 +219,9 @@ let typ_scheme_of_item ?(env=[]) = function
 | ValConstr (_, vs, phi, args, res, _) ->
   vs, phi, enc_funtype res args
 | PrimVal (_, t, _) -> t
-| LetRecVal (name, _, _) | LetVal (name, _, _) -> List.assoc name env
+| LetRecVal (name, _, _, _)
+| LetVal (PVar (name, _), _, _, _) -> List.assoc name env
+| LetVal _ -> raise Not_found
 
 (** {2 Sort inference} *)
 let newtype_env = Hashtbl.create 15
@@ -584,10 +586,17 @@ let pr_struct_item ppf = function
       (pr_more_sep_list " *" (pr_ty true)) args (pr_ty false) res
   | PrimVal (name, tysch, _) ->
     fprintf ppf "@[<2>external@ %s@ :@ %a@]" name pr_typscheme tysch
-  | LetRecVal (name, expr, _) ->
+  | LetRecVal (name, expr, Some tysch, _) ->
+    fprintf ppf "@[<2>let rec@ %s@ :@ %a@ =@ %a@]" name
+      pr_typscheme tysch (pr_expr false) expr
+  | LetRecVal (name, expr, None, _) ->
     fprintf ppf "@[<2>let rec@ %s@ =@ %a@]" name (pr_expr false) expr
-  | LetVal (name, expr, _) ->
-    fprintf ppf "@[<2>let@ %s@ =@ %a@]" name (pr_expr false) expr
+  | LetVal (pat, expr, Some tysch, _) ->
+    fprintf ppf "@[<2>let@ %a@ :@ %a@ =@ %a@]" (pr_pat false) pat
+      pr_typscheme tysch (pr_expr false) expr
+  | LetVal (pat, expr, None, _) ->
+    fprintf ppf "@[<2>let@ %a@ =@ %a@]" (pr_pat false) pat
+      (pr_expr false) expr
 
 let pr_program ppf p =
   pr_more_line_list "\n" pr_struct_item ppf p
