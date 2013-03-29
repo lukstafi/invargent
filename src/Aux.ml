@@ -32,6 +32,20 @@ let map_some f l =
   in
   List.rev (maps_f [] l)
 
+let map_upto postfix f l =
+  let rec aux = function
+    | [] -> []
+    | l when l == postfix -> l
+    | a::l -> f a :: aux l in
+  aux l
+
+let map_append f l postfix =
+  let rec aux = function
+    | [] -> postfix
+    | a::l -> f a :: aux l in
+  aux l
+  
+
 (** {2 Choice, aka. either type}  *)
 
 type ('a,'b) choice = Left of 'a | Right of 'b
