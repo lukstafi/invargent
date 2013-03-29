@@ -466,8 +466,43 @@ let nicevars_cnstrnt c =
       Ex (vars_of_list vs, aux env cn) in
   aux {nvs_env = []; last_typ = 0; last_num = 0} c
 
-let nicevars_struct_item i =
-  i
+let nicevars_vs vs =
+  let vs' = Aux.map_some
+    (function VNam _ -> None | VId (s,id) -> Some (s,id)) vs in
+  let env = List.fold_left (fun env ->
+    function Num_sort,id -> next_num env id
+    | Type_sort,id -> next_typ env id
+    | Undefined_sort,_ -> assert false) nicevars_empty vs' in
+  let vs = List.map
+    (function VNam _ as v -> v
+    | VId (s, id) -> VNam (s, List.assoc id env.nvs_env)) vs in
+  env, vs
+
+let nicevars_struct_item = function
+  | TypConstr _ as i -> i
+  | ValConstr (n, vs, phi, tys, ty, loc) ->
+    let env, vs = nicevars_vs vs in
+    let phi = List.map (nicevars_atom env) phi in
+    let tys = List.map (nicevars_typ env) tys in
+    let ty = nicevars_typ env ty in
+    ValConstr (n, vs, phi, tys, ty, loc)
+  | PrimVal (x, (vs, phi, ty), loc) ->
+    let env, vs = nicevars_vs vs in
+    let phi = List.map (nicevars_atom env) phi in
+    let ty = nicevars_typ env ty in
+    PrimVal (x, (vs, phi, ty), loc)    
+  | LetRecVal (_, _, None, _, _) as i -> i
+  | LetRecVal (x, e, Some (vs, phi, ty), tests, loc) ->
+    let env, vs = nicevars_vs vs in
+    let phi = List.map (nicevars_atom env) phi in
+    let ty = nicevars_typ env ty in
+    LetRecVal (x, e, Some (vs, phi, ty), tests, loc)
+  | LetVal (_, _, None, _, _) as i -> i
+  | LetVal (p, e, Some (vs, phi, ty), tests, loc) ->
+    let env, vs = nicevars_vs vs in
+    let phi = List.map (nicevars_atom env) phi in
+    let ty = nicevars_typ env ty in
+    LetVal (p, e, Some (vs, phi, ty), tests, loc)  
 
 open Format
 
