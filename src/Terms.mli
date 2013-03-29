@@ -125,7 +125,11 @@ val fvs_atom : atom -> VarSet.t
 val fvs_formula : formula -> VarSet.t
 val vars_of_list : var_name list -> VarSet.t
 
-val subst_typ : (var_name * typ) list -> typ -> typ
+type subst = (var_name * typ) list
+val subst_typ : subst -> typ -> typ
+val update_sb : more_sb:subst -> subst -> subst
+val subst_atom : subst -> atom -> atom
+val subst_formula : subst -> formula -> formula
 
 val enc_funtype : typ -> typ list -> typ
 val ty_add : typ -> typ -> typ

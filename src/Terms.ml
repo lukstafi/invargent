@@ -170,9 +170,15 @@ let fvs_typ =
   typ_fold {(typ_make_fold VarSet.union VarSet.empty)
             with fold_tvar = fun v -> VarSet.singleton v}
 
+type subst = (var_name * typ) list
+
 let subst_typ sb =
   typ_map {typ_id_map with map_tvar =
       fun v -> try List.assoc v sb with Not_found -> TVar v}
+
+let update_sb ~more_sb sb =
+  Aux.map_append (fun (v,t) -> v, subst_typ more_sb t) sb
+    more_sb
 
 type atom =
 | Eqty of typ * typ * loc
@@ -189,11 +195,19 @@ let fvs_atom = function
   | PredVarB (_, t1, t2) ->
     VarSet.union (fvs_typ t1) (fvs_typ t2)
 
+let subst_atom sb = function
+  | Eqty (t1, t2, loc) -> Eqty (subst_typ sb t1, subst_typ sb t2, loc)
+  | Leq (t1, t2, loc) -> Leq (subst_typ sb t1, subst_typ sb t2, loc)
+  | CFalse _ as a -> a
+  | PredVarU (n, t) -> PredVarU (n, subst_typ sb t)
+  | PredVarB (n, t1, t2) -> PredVarB (n, subst_typ sb t1, subst_typ sb t2)
 
 type formula = atom list
 
 let fvs_formula phi =
   List.fold_left VarSet.union VarSet.empty (List.map fvs_atom phi)
+
+let subst_formula sb phi = List.map (subst_atom sb) phi
 
 type typ_scheme = var_name list * formula * typ
 
