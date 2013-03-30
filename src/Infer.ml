@@ -20,11 +20,12 @@ type cnstrnt =
 
 (** {2 Constraint inference} *)
 
-let cn_and cn1 cn2 =
-  match cn1, cn2 with
-  | And cns1, And cns2 -> And (cns1 @ cns2)
-  | And cns, cn | cn, And cns -> And (cn::cns)
-  | _ -> And [cn1; cn2]
+let rec flat_and = function
+  | And cns -> Aux.concat_map flat_and cns
+  | A cns -> List.map (fun cn -> A [cn]) cns
+  | cn -> [cn]
+
+let cn_and cn1 cn2 = And (flat_and cn1 @ flat_and cn2)
 
 (* Global state for fresh variable guarantees: not re-entrant. *)
 let fresh_var_id = ref 0
@@ -91,8 +92,10 @@ let constr_gen_pat sigma p tau =
       let argphi =
         List.fold_left cn_and (And [])
           (List.map2 aux argtys args) in
-      Ex (avs, And [A [Eqty (res, tau, loc)];
-                   All (bvs, Impl (phi, argphi))]) in
+      let cn =
+        if phi=[] || argphi=And [] then argphi else Impl (phi, argphi) in
+      let cn = if VarSet.is_empty bvs then cn else All (bvs, cn) in
+      Ex (avs, And [A [Eqty (res, tau, loc)]; cn]) in
   aux tau p
   
 type envfrag = VarSet.t * formula * (string * typ) list
@@ -237,7 +240,10 @@ let constr_gen_expr gamma sigma ex_types e t =
     let pcns = constr_gen_pat sigma p t1 in
     let bs, prem, env = envfrag_gen_pat sigma p t1 in
     let concl = aux (List.map typ_to_sch env @ gamma) t2 e in
-    cn_and pcns (All (bs, Impl (prem, concl)))
+    let cn =
+      if prem=[] || concl=And [] then concl else Impl (prem, concl) in
+    let cn = if VarSet.is_empty bs then cn else All (bs, cn) in
+    cn_and pcns cn
 
   and aux_ex_cl gamma chi_id t1 t2 (p, e) =
     let pcns = constr_gen_pat sigma p t1 in
@@ -245,8 +251,11 @@ let constr_gen_expr gamma sigma ex_types e t =
     let a3 = fresh_typ_var () in
     let t3 = TVar a3 in
     let concl = aux (List.map typ_to_sch env @ gamma) t3 e in
-    let chi = PredVarB (chi_id, t2, t3) in
-    cn_and pcns (All (bs, Impl (prem, cn_and (A [chi]) concl))) in
+    let cn = cn_and (A [PredVarB (chi_id, t2, t3)]) concl in
+    let cn =
+      if prem=[] || concl=And [] then cn else Impl (prem, cn) in
+    let cn = if VarSet.is_empty bs then cn else All (bs, cn) in
+    cn_and pcns cn in
   
   aux gamma t e
 
@@ -326,13 +335,13 @@ let infer_prog_mockup prog =
       let bs, exphi, env, cn =
         constr_gen_let !gamma sigma ex_types p e t in
       let cn =
-        if sig_cn <> [] then Impl (sig_cn, cn) else cn in
+        if sig_cn=[] || cn=And [] then cn else Impl (sig_cn, cn) in
       let cn =
         if sig_vs <> [] then All (vars_of_list sig_vs, cn) else cn in
       let test_cn = constr_gen_tests !gamma sigma ex_types tests in
       let test_cn =
-        if exphi <> [] && test_cn <> And []
-        then Impl (exphi, test_cn) else test_cn in
+        if exphi=[] || test_cn=And [] then test_cn
+        else Impl (exphi, test_cn) in
       let test_cn =
         if not (VarSet.is_empty bs) && test_cn <> And []
         then All (bs, test_cn) else test_cn in
@@ -442,13 +451,13 @@ let infer_prog solver prog =
     let bs, exphi, env, cn =
       constr_gen_let !gamma sigma ex_types p e t in
     let cn =
-      if sig_cn <> [] then Impl (sig_cn, cn) else cn in
+      if sig_cn=[] || cn=And [] then cn else Impl (sig_cn, cn) in
     let cn =
       if sig_vs <> [] then All (vars_of_list sig_vs, cn) else cn in
     let test_cn = constr_gen_tests !gamma sigma ex_types tests in
     let test_cn =
-      if exphi <> [] && test_cn <> And []
-      then Impl (exphi, test_cn) else test_cn in
+      if exphi=[] || test_cn=And [] then test_cn
+      else Impl (exphi, test_cn) in
     let test_cn =
       if not (VarSet.is_empty bs) && test_cn <> And []
       then All (bs, test_cn) else test_cn in
@@ -613,18 +622,18 @@ open Format
 
 let rec pr_cnstrnt ppf = function
   | A atoms -> pr_formula ppf atoms
-  | And cns -> fprintf ppf "@[<2>";
-    pr_more_sep_list "∧" pr_cnstrnt ppf cns; fprintf ppf "@]"
-  | Or1 disjs -> fprintf ppf "@[<2>";
-    pr_more_sep_list "∨" pr_atom ppf disjs; fprintf ppf "@]"
+  | And cns -> fprintf ppf "@[<0>";
+    pr_sep_list " ∧" pr_cnstrnt ppf cns; fprintf ppf "@]"
+  | Or1 disjs -> fprintf ppf "@[<0>";
+    pr_sep_list " ∨" pr_atom ppf disjs; fprintf ppf "@]"
   | Impl (prem,concl) -> fprintf ppf "@[<2>";
     pr_formula ppf prem; fprintf ppf "@ ⟹@ %a@]" pr_cnstrnt concl
   | ImplOr2 (disjs, concl) -> fprintf ppf "@[<2>";
-    pr_more_sep_list "∨" pr_formula ppf disjs;
+    pr_sep_list " ∨" pr_formula ppf disjs;
     fprintf ppf "@ ⟹@ %a@]" pr_cnstrnt concl
-  | All (vs, cn) -> fprintf ppf "@[<2>";
-    fprintf ppf "@[<2>∀%a.@ %a@]"
-      (pr_more_sep_list "," pr_tyvar) (VarSet.elements vs) pr_cnstrnt cn
-  | Ex (vs, cn) -> fprintf ppf "@[<2>";
-    fprintf ppf "@[<2>∃%a.@ %a@]"
-      (pr_more_sep_list "," pr_tyvar) (VarSet.elements vs) pr_cnstrnt cn
+  | All (vs, cn) ->
+    fprintf ppf "@[<0>∀%a.@ %a@]"
+      (pr_sep_list "," pr_tyvar) (VarSet.elements vs) pr_cnstrnt cn
+  | Ex (vs, cn) ->
+    fprintf ppf "@[<0>∃%a.@ %a@]"
+      (pr_sep_list "," pr_tyvar) (VarSet.elements vs) pr_cnstrnt cn

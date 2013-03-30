@@ -161,10 +161,7 @@ val pr_loc_emb : Format.formatter -> loc -> unit
 val pr_loc : Format.formatter -> loc -> unit
 val pr_sep_list :
   string ->
-  (Format.formatter -> 'a -> unit) ->
-  (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list -> unit
-val pr_more_sep_list :
-  string ->
+  ?pr_hd:(Format.formatter -> 'a -> unit) ->
   (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list -> unit
 val pr_pre_sep_list :
   string ->

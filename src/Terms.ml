@@ -99,7 +99,7 @@ type cns_name =
 let var_sort = function VNam (s,_) -> s | VId (s,_) -> s
 let var_str = function
   | VNam (_,v) -> v
-  | VId (_,i) -> string_of_int i
+  | VId (_,i) -> "'"^string_of_int i
 let cns_str = function
   | CNam c -> c
   | Extype i -> "Ex"^string_of_int i
@@ -368,17 +368,20 @@ let pr_loc_emb ppf loc =
 
 let pr_loc ppf loc = pr_loc_long ppf loc
 
-let rec pr_sep_list sep pr_hd pr_tl ppf = function
-  | [] -> ()
-  | [hd] -> pr_hd ppf hd
-  | hd::tl ->
-      fprintf ppf "%a%s@ %a" pr_hd hd sep (pr_more_sep_list sep pr_tl) tl
-
-and pr_more_sep_list sep pr_a ppf = function
-  | [] -> ()
-  | [hd] -> pr_a ppf hd
-  | hd::tl ->
-      fprintf ppf "%a%s@ %a" pr_a hd sep (pr_more_sep_list sep pr_a) tl
+let pr_sep_list sep ?pr_hd pr_tl ppf l =
+  let pr_hd = match pr_hd with
+    | None -> pr_tl | Some pr_a -> pr_a in
+  let rec aux = function
+    | [] -> ()
+    | [hd] -> pr_hd ppf hd
+    | hd::tl ->
+      fprintf ppf "%a%s@ %a" pr_hd hd sep more_aux tl
+  and more_aux ppf = function
+    | [] -> ()
+    | [hd] -> pr_tl ppf hd
+    | hd::tl ->
+      fprintf ppf "%a%s@ %a" pr_tl hd sep more_aux tl in
+  aux l
 
 let rec pr_pre_sep_list sep pr_a ppf = function
   | [] -> ()
@@ -408,11 +411,11 @@ let rec pr_pat comma ppf = function
   | PCons ("Tuple", pats, _) ->
       if comma then
 	fprintf ppf "@[<2>(%a)@]"
-	  (pr_sep_list "," (pr_pat true)
+	  (pr_sep_list "," ~pr_hd:(pr_pat true)
 	      (pr_more_pat true)) pats
       else
 	fprintf ppf "@[<2>%a@]"
-	  (pr_sep_list "," (pr_pat true)
+	  (pr_sep_list "," ~pr_hd:(pr_pat true)
 	      (pr_more_pat true)) pats
   | PCons (x, [], _) ->
       fprintf ppf "%s" x
@@ -420,7 +423,7 @@ let rec pr_pat comma ppf = function
       fprintf ppf "@[<2>%s@ %a@]" x pr_one_pat pat
   | PCons (x, pats, _) ->
       fprintf ppf "@[<2>%s@ (%a)@]" x
-	(pr_sep_list "," (pr_pat true) (pr_more_pat true)) pats
+	(pr_sep_list "," ~pr_hd:(pr_pat true) (pr_more_pat true)) pats
 
 and pr_more_pat comma ppf = function
   | PAnd _ as p ->
@@ -456,21 +459,21 @@ let rec pr_expr comma ppf = function
   | Cons ("Tuple", exps, _) ->
       if comma then
 	fprintf ppf "@[<2>(%a)@]"
-	  (pr_more_sep_list "," (pr_expr true)) exps
+	  (pr_sep_list "," (pr_expr true)) exps
       else
 	fprintf ppf "@[<2>%a@]"
-	  (pr_more_sep_list "," (pr_expr true)) exps
+	  (pr_sep_list "," (pr_expr true)) exps
   | Cons (x, [], _) ->
       fprintf ppf "%s" x
   | Cons (x, [exp], _) ->
       fprintf ppf "@[<2>%s@ %a@]" x pr_one_expr exp
   | Cons (x, exps, _) ->
       fprintf ppf "@[<2>%s@ (%a)@]" x
-	(pr_more_sep_list "," (pr_expr true)) exps
+	(pr_sep_list "," (pr_expr true)) exps
   | Lam ([_], _) as exp ->
       let pats, expr = collect_lambdas exp in
       fprintf ppf "@[<2>fun@ %a@ ->@ %a@]"
-	(pr_more_sep_list "" pr_one_pat) pats
+	(pr_sep_list "" pr_one_pat) pats
 	(pr_expr false) expr
   | Lam (cs, _) ->
       fprintf ppf "@[<2>fun x ->@ match x with@ %a@]"
@@ -484,7 +487,7 @@ let rec pr_expr comma ppf = function
   | App _ as exp ->
       let fargs = collect_apps exp in
       fprintf ppf "@[<2>%a@]"
-	(pr_more_sep_list "" pr_one_expr) fargs
+	(pr_sep_list "" pr_one_expr) fargs
   | Letrec (x, exp, range, _) ->
       fprintf ppf "@[<0>let rec %s =@ @[<2>%a@] in@ @[<0>%a@]@]"
 	x (pr_expr false) exp (pr_expr false) range
@@ -528,7 +531,7 @@ let rec pr_atom ppf = function
     fprintf ppf "@[<2>𝛘%d(%a,@ %a)@]" i (pr_ty true) t1 (pr_ty true) t2
 
 and pr_formula ppf atoms =
-  pr_more_sep_list "∧" pr_atom ppf atoms
+  pr_sep_list "∧" pr_atom ppf atoms
 
 and pr_ty comma ppf = function
   | TVar v -> fprintf ppf "%s" (var_str v)
@@ -537,24 +540,24 @@ and pr_ty comma ppf = function
   | TCons (CNam "Tuple", exps) ->
     if comma then
       fprintf ppf "@[<2>(%a)@]"
-	(pr_more_sep_list "," (pr_ty true)) exps
+	(pr_sep_list "," (pr_ty true)) exps
     else
       fprintf ppf "@[<2>%a@]"
-	(pr_more_sep_list "," (pr_ty true)) exps
+	(pr_sep_list "," (pr_ty true)) exps
   | TCons (x, [ty]) ->
     fprintf ppf "@[<2>%s@ %a@]" (cns_str x) pr_one_ty ty
   | TCons (x, exps) ->
     fprintf ppf "@[<2>%s@ (%a)@]" (cns_str x)
-      (pr_more_sep_list "," (pr_ty true)) exps
+      (pr_sep_list "," (pr_ty true)) exps
   | Nadd []  -> fprintf ppf "0"
   | Nadd [ty] -> pr_ty comma ppf ty
   | Nadd (tys) ->
     fprintf ppf "@[<2>%a@]"
-      (pr_more_sep_list " +" (pr_ty true)) tys
+      (pr_sep_list " +" (pr_ty true)) tys
   | Fun _ as ty ->
     let tys = collect_argtys ty in
     fprintf ppf "@[<2>%a@]"
-      (pr_more_sep_list " →" pr_fun_ty) tys
+      (pr_sep_list " →" pr_fun_ty) tys
     
     
 and pr_one_ty ppf ty = match ty with
@@ -576,11 +579,11 @@ let pr_sort ppf = function
 let pr_typscheme ppf = function
   | [], [], ty -> pr_ty false ppf ty
   | vs, [], ty ->
-    fprintf ppf "@[<2>∀%a.@ %a@]"
-      (pr_more_sep_list " *" pr_tyvar) vs (pr_ty false) ty
+    fprintf ppf "@[<0>∀%a.@ %a@]"
+      (pr_sep_list " *" pr_tyvar) vs (pr_ty false) ty
   | vs, phi, ty ->
-    fprintf ppf "@[<2>∀%a[%a].@ %a@]"
-      (pr_more_sep_list " *" pr_tyvar) vs
+    fprintf ppf "@[<0>∀%a[%a].@ %a@]"
+      (pr_sep_list " *" pr_tyvar) vs
       pr_formula phi (pr_ty false) ty
   
 let pr_opt_sig_tysch ppf = function
@@ -591,37 +594,37 @@ let pr_opt_tests ppf = function
   | [] -> ()
   | tests ->
     fprintf ppf "@\n@[<2>test@ %a@]"
-      (pr_more_sep_list ";" (pr_expr false)) tests
+      (pr_sep_list ";" (pr_expr false)) tests
 
 let pr_struct_item ppf = function
   | TypConstr (name, [], _) ->
     fprintf ppf "@[<2>newtype@ %s@]" (cns_str name)
   | TypConstr (name, sorts, _) ->
     fprintf ppf "@[<2>newtype@ %s@ :@ %a@]" (cns_str name)
-      (pr_more_sep_list " *" pr_sort) sorts
+      (pr_sep_list " *" pr_sort) sorts
   | ValConstr (name, [], [], [], res, _) ->
     fprintf ppf "@[<2>newcons@ %s@ :@ %a@]" (cns_str name)
       (pr_ty false) res
   | ValConstr (name, [], [], args, res, _) ->
     fprintf ppf "@[<2>newcons@ %s@ :@ %a@ ⟶@ %a@]" (cns_str name)
-      (pr_more_sep_list " *" (pr_ty true)) args (pr_ty false) res
+      (pr_sep_list " *" (pr_ty true)) args (pr_ty false) res
   | ValConstr (name, vs, [], [], res, _) ->
     fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a.@ %a@]" (cns_str name)
-      (pr_more_sep_list "," pr_tyvar) vs
+      (pr_sep_list "," pr_tyvar) vs
       (pr_ty false) res
   | ValConstr (name, vs, phi, [], res, _) ->
     fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a[%a].@ %a@]" (cns_str name)
-      (pr_more_sep_list "," pr_tyvar) vs
+      (pr_sep_list "," pr_tyvar) vs
       pr_formula phi (pr_ty false) res
   | ValConstr (name, vs, [], args, res, _) ->
     fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a.%a@ ⟶@ %a@]" (cns_str name)
-      (pr_more_sep_list "," pr_tyvar) vs
-      (pr_more_sep_list " *" (pr_ty true)) args (pr_ty false) res
+      (pr_sep_list "," pr_tyvar) vs
+      (pr_sep_list " *" (pr_ty true)) args (pr_ty false) res
   | ValConstr (name, vs, phi, args, res, _) ->
     fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a[%a].%a@ ⟶@ %a@]" (cns_str name)
-      (pr_more_sep_list "," pr_tyvar) vs
+      (pr_sep_list "," pr_tyvar) vs
       pr_formula phi
-      (pr_more_sep_list " *" (pr_ty true)) args (pr_ty false) res
+      (pr_sep_list " *" (pr_ty true)) args (pr_ty false) res
   | PrimVal (name, tysch, _) ->
     fprintf ppf "@[<2>external@ %s@ :@ %a@]" name pr_typscheme tysch
   | LetRecVal (name, expr, tysch, tests, _) ->
