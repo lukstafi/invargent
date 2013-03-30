@@ -21,7 +21,7 @@ val cn_and : cnstrnt -> cnstrnt -> cnstrnt
 val freshen_cns_scheme :
   Terms.var_name list * Terms.atom list * Terms.typ list * Terms.typ ->
   Terms.var_name list * Terms.atom list * Terms.typ list * Terms.typ
-val freshen_val_scheme : typ_scheme -> typ_scheme
+val freshen_val_scheme : Terms.typ_scheme -> Terms.typ_scheme
 type sigma =
   (string,
    Terms.var_name list * Terms.atom list * Terms.typ list * Terms.typ)
@@ -39,6 +39,7 @@ type solution =
     (int * (Terms.typ -> Terms.subst * Terms.atom list)) list *
     (int * (Terms.var_name -> Terms.var_name -> Terms.subst * Terms.formula))
     list
+val infer_prog_mockup : Terms.struct_item list -> cnstrnt
 val infer_prog :
   (cnstrnt -> solution) -> Terms.struct_item list -> Terms.struct_item list
 (*
@@ -50,5 +51,5 @@ val nicevars_typ : nicevars_env -> Terms.typ -> Terms.typ
 val nicevars_atom : nicevars_env -> Terms.atom -> Terms.atom
 *)
 val nicevars_cnstrnt : cnstrnt -> cnstrnt
-val nicevars_struct_item : struct_item -> struct_item
+val nicevars_struct_item : Terms.struct_item -> Terms.struct_item
 val pr_cnstrnt : Format.formatter -> cnstrnt -> unit
