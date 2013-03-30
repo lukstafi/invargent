@@ -12,7 +12,7 @@ type cnstrnt =
 | And of cnstrnt list
 | Or1 of Terms.atom list
 | Impl of Terms.atom list * cnstrnt
-| ImplOr2 of Terms.atom list list * cnstrnt
+| ImplOr2 of Terms.atom list list * cnstrnt * cnstrnt
 | All of Terms.VarSet.t * cnstrnt
 | Ex of Terms.VarSet.t * cnstrnt
 

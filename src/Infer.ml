@@ -14,7 +14,7 @@ type cnstrnt =
 | And of cnstrnt list
 | Or1 of atom list
 | Impl of atom list * cnstrnt
-| ImplOr2 of atom list list * cnstrnt
+| ImplOr2 of atom list list * cnstrnt * cnstrnt
 | All of VarSet.t * cnstrnt
 | Ex of VarSet.t * cnstrnt
 
@@ -232,9 +232,10 @@ let constr_gen_expr gamma sigma ex_types e t =
           Eqty (TCons (ety_cn, [t2]), t0, loc) :: phi t2 t3)
         !ex_types in
       let concl = aux_cl gamma t3 t (p, e2) in
+      let altcn = aux gamma t (App (Lam ([p,e2],loc),e1,loc)) in
       Ex (vars_of_list [a0; a2],
           cn_and (cn_and (A disj) cn0)
-            (All (vars_of_list [a3], ImplOr2 (disj_prem, concl))))
+            (All (vars_of_list [a3], ImplOr2 (disj_prem, concl, altcn))))
 
   and aux_cl gamma t1 t2 (p, e) =
     let pcns = constr_gen_pat sigma p t1 in
@@ -560,8 +561,9 @@ let nicevars_cnstrnt c =
     | A atoms -> A (List.map (nicevars_atom env) atoms)
     | And cns -> And (List.map (aux env) cns)
     | Or1 disjs -> Or1 (List.map (nicevars_atom env) disjs)
-    | ImplOr2 (disjs, concl) -> ImplOr2
-      (List.map (List.map (nicevars_atom env)) disjs, aux env concl)
+    | ImplOr2 (disjs, concl, altcn) -> ImplOr2
+      (List.map (List.map (nicevars_atom env)) disjs,
+       aux env concl, aux env altcn)
     | Impl (prem, concl) ->
       Impl (List.map (nicevars_atom env) prem, aux env concl)
     | All (vs, cn) ->
@@ -636,13 +638,14 @@ let rec pr_cnstrnt ppf = function
   | A atoms -> pr_formula ppf atoms
   | And cns -> fprintf ppf "@[<0>";
     pr_sep_list " ∧" pr_cnstrnt ppf cns; fprintf ppf "@]"
-  | Or1 disjs -> fprintf ppf "@[<0>";
-    pr_sep_list " ∨" pr_atom ppf disjs; fprintf ppf "@]"
+  | Or1 disjs -> fprintf ppf "@[<0>[";
+    pr_sep_list " ∨" pr_atom ppf disjs; fprintf ppf "]@]"
   | Impl (prem,concl) -> fprintf ppf "@[<2>";
     pr_formula ppf prem; fprintf ppf "@ ⟹@ %a@]" pr_cnstrnt concl
-  | ImplOr2 (disjs, concl) -> fprintf ppf "@[<2>";
+  | ImplOr2 (disjs, concl, altcn) -> fprintf ppf "@[<2>[";
     pr_sep_list " ∨" pr_formula ppf disjs;
-    fprintf ppf "@ ⟹@ %a@]" pr_cnstrnt concl
+    fprintf ppf "]@ ⟹@ %a@]@[<2>[or@ %a]@]"
+      pr_cnstrnt concl pr_cnstrnt altcn
   | All (vs, cn) ->
     fprintf ppf "@[<0>∀%a.@ %a@]"
       (pr_sep_list "," pr_tyvar) (VarSet.elements vs) pr_cnstrnt cn
