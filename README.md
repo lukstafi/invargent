@@ -14,8 +14,8 @@ make clean  # remove the executable and intermediate files
 
 Milestones: [x] - completed, [#] - finishing, [+] - in the middle, [-] - just started, [_] - not started.
 - [x] Setup project. Parse and pretty-print.
-- [#] Generate constraints.
-- [_] Normalize constraints.
+- [x] Generate constraints.
+- [-] Normalize constraints.
 - [_] Abduction for terms.
 - [_] Abduction for linear systems.
 - [_] Disjunction elimination for terms.

@@ -494,6 +494,18 @@ let infer_prog solver prog =
     ex_items @ !more_items @ [LetVal (p, e, Some typ_sch, tests, loc)]
   ) prog
 
+(** {2 Normalization} *)
+
+type var_scope =
+| Upstream | Downstream | Not_in_scope
+
+let normalize cn =
+  let quants = Hashtbl.create 2047 in
+  let cmp_vars v1 v2 =
+    try Hashtbl.find quants (v1, v2) with Not_found -> Not_in_scope in
+  cmp_vars, []
+  
+
 (** {2 Postprocessing and printing} *)
 
 type nicevars_env = {

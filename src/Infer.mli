@@ -18,6 +18,8 @@ type cnstrnt =
 
 val cn_and : cnstrnt -> cnstrnt -> cnstrnt
 
+(** {2 Constraint inference} *)
+
 val freshen_cns_scheme :
   Terms.var_name list * Terms.atom list * Terms.typ list * Terms.typ ->
   Terms.var_name list * Terms.atom list * Terms.typ list * Terms.typ
@@ -42,6 +44,17 @@ type solution =
 val infer_prog_mockup : Terms.struct_item list -> cnstrnt
 val infer_prog :
   (cnstrnt -> solution) -> Terms.struct_item list -> Terms.struct_item list
+
+(** {2 Normalization} *)
+
+type var_scope =
+| Upstream | Downstream | Not_in_scope
+
+val normalize : cnstrnt ->
+  (Terms.var_name -> Terms.var_name -> var_scope) *
+    (Terms.formula * Terms.formula) list
+
+(** {2 Postprocessing and printing} *)
 (*
 type nicevars_env
 val nicevars_empty : nicevars_env
