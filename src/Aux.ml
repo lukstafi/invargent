@@ -44,7 +44,12 @@ let map_append f l postfix =
     | [] -> postfix
     | a::l -> f a :: aux l in
   aux l
-  
+
+let split3 l =
+  let rec aux l1 l2 l3 = function
+    | [] -> List.rev l1, List.rev l2, List.rev l3
+    | (e1,e2,e3)::tl -> aux (e1::l1) (e2::l2) (e3::l3) tl in
+  aux [] [] [] l
 
 (** {2 Choice, aka. either type}  *)
 
