@@ -20,21 +20,7 @@ let () =
 	(Lexing.from_channel (open_in !current_file_name)) in
       pr_program Format.std_formatter prog
     (* *)
-    with
-    | Report_toplevel (what, None) ->
-      Printf.printf "%!\n%s\n%!" what; exit (2)
-    | Report_toplevel (what, Some where) ->
-      pr_loc_long Format.std_formatter where;
-      Printf.printf "%!\n%s\n%!" what;
-      exit (2)
-    | Infer.Contradiction (what, None, where) ->
-      pr_loc_long Format.std_formatter where;
-      Printf.printf "%!\n%s\n%!" what;
-      exit (2)
-    | Infer.Contradiction (what, Some (ty1, ty2), where) ->
-      pr_loc_long Format.std_formatter where;
-      Format.printf "%!\n%s\ntypes involved:\n%a\n%a\n%!"
-        what (pr_ty false) ty1 (pr_ty false) ty2;
-      exit (2)
+    with (Report_toplevel _ | Contradiction _) as exn ->
+      pr_exception Format.std_formatter exn; exit 2
   (* *)
   )

@@ -99,7 +99,7 @@ type cns_name =
 let var_sort = function VNam (s,_) -> s | VId (s,_) -> s
 let var_str = function
   | VNam (_,v) -> v
-  | VId (_,i) -> "'"^string_of_int i
+  | VId (s,i) -> Char.escaped (sort_str s).[0]^string_of_int i
 let cns_str = function
   | CNam c -> c
   | Extype i -> "Ex"^string_of_int i
@@ -613,7 +613,7 @@ let rec pr_atom ppf = function
     fprintf ppf "@[<2>𝛘%d(%a,@ %a)@]" i (pr_ty true) t1 (pr_ty true) t2
 
 and pr_formula ppf atoms =
-  pr_sep_list "∧" pr_atom ppf atoms
+  pr_sep_list " ∧" pr_atom ppf atoms
 
 and pr_ty comma ppf = function
   | TVar v -> fprintf ppf "%s" (var_str v)
@@ -718,3 +718,18 @@ let pr_struct_item ppf = function
 
 let pr_program ppf p =
   pr_line_list "\n" pr_struct_item ppf p
+
+let pr_exception ppf = function
+  | Report_toplevel (what, None) ->
+    Format.fprintf ppf "%!\n%s\n%!" what
+  | Report_toplevel (what, Some where) ->
+    pr_loc_long ppf where;
+    Format.fprintf ppf "%!\n%s\n%!" what
+  | Contradiction (what, None, where) ->
+    pr_loc_long ppf where;
+    Format.fprintf ppf "%!\n%s\n%!" what
+  | Contradiction (what, Some (ty1, ty2), where) ->
+    pr_loc_long ppf where;
+    Format.fprintf ppf "%!\n%s\ntypes involved:\n%a\n%a\n%!"
+      what (pr_ty false) ty1 (pr_ty false) ty2
+  | exn -> raise exn

@@ -198,3 +198,4 @@ val pr_typscheme :
   Format.formatter -> typ_scheme -> unit
 val pr_struct_item : Format.formatter -> struct_item -> unit
 val pr_program : Format.formatter -> struct_item list -> unit
+val pr_exception : Format.formatter -> exn -> unit
