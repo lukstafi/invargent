@@ -166,19 +166,23 @@ let typ_fold tfold t =
     | Nadd tys -> tfold.fold_nadd (List.map aux tys) in
   aux t
 
+(** {2 Substitutions and unification} *)
+
 let fvs_typ =
   typ_fold {(typ_make_fold VarSet.union VarSet.empty)
             with fold_tvar = fun v -> VarSet.singleton v}
 
-type subst = (var_name * typ) list
+type subst = (var_name * (typ * loc)) list
 
 let subst_typ sb =
   typ_map {typ_id_map with map_tvar =
-      fun v -> try List.assoc v sb with Not_found -> TVar v}
+      fun v -> try fst (List.assoc v sb) with Not_found -> TVar v}
 
 let update_sb ~more_sb sb =
-  Aux.map_append (fun (v,t) -> v, subst_typ more_sb t) sb
+  Aux.map_append (fun (v,(t,loc)) -> v, (subst_typ more_sb t, loc)) sb
     more_sb
+
+(** {3 Formulas} *)
 
 type atom =
 | Eqty of typ * typ * loc
@@ -243,6 +247,78 @@ let typ_scheme_of_item ?(env=[]) = function
 | LetRecVal (name, _, _, _, _)
 | LetVal (PVar (name, _), _, _, _, _) -> List.assoc name env
 | LetVal _ -> raise Not_found
+
+(** {3 Unification} *)
+
+type var_scope =
+| Upstream | Same_quant | Downstream | Not_in_scope
+
+exception Contradiction of string * (typ * typ) option * loc
+
+(** Separate type sort and number sort constraints,  *)
+let unify cmp_v uni_v cnj =
+  let cnj_typ, more_cnj = Aux.partition_map
+    (function
+    | Eqty ((TCons _ | Fun _ |
+        TVar (VNam (Type_sort, _) | VId (Type_sort, _))) as t1,
+            ((TCons _ | Fun _ |
+                TVar (VNam (Type_sort, _) | VId (Type_sort, _))) as t2), loc) ->
+      Aux.Left (t1, t2, loc)
+    | Eqty ((NCst _ | Nadd _ |
+        TVar (VNam (Num_sort, _) | VId (Num_sort, _))),
+            ((NCst _ | Nadd _ |
+                TVar (VNam (Num_sort, _) | VId (Num_sort, _)))), _) as a ->
+      Aux.Right (Aux.Left a)
+    | Leq _ as a -> Aux.Right (Aux.Left a)
+    | (CFalse _ | PredVarU _ | PredVarB _) as a ->
+      Aux.Right (Aux.Right a)
+    | Eqty (t1, t2, loc) -> raise
+      (Contradiction ("Type sort mismatch", Some (t1, t2), loc))
+    )
+    cnj in
+  let cnj_num, cnj_so = Aux.partition_choice more_cnj in
+  let rec aux sb = function
+    | [] -> sb
+    | (t1, t2, loc)::cnj when t1 = t2 -> aux sb cnj
+    | (TVar v1, (TVar v2 as t), loc)::cnj
+      when not (uni_v v1) && List.mem (cmp_v v1 v2) [Downstream; Same_quant] ->
+      aux ((v1, (t, loc))::sb) cnj
+    | ((TVar v2 as t), TVar v1, loc)::cnj
+      when not (uni_v v1) && List.mem (cmp_v v1 v2) [Downstream; Same_quant] ->
+      aux ((v1, (t, loc))::sb) cnj
+    | (TVar v as tv, t, loc | t, (TVar v as tv), loc)::cnj
+        when VarSet.mem v (fvs_typ t) ->
+      raise (Contradiction ("Occurs check fail", Some (tv, t), loc))
+    | (TVar v1, t, loc)::cnj
+      when not (uni_v v1) &&
+        VarSet.for_all (fun v2 ->
+          List.mem (cmp_v v1 v2) [Downstream; Same_quant]) (fvs_typ t) ->
+      aux ((v1, (t, loc))::sb) cnj
+    | (t, (TVar v1), loc)::cnj
+      when not (uni_v v1) &&
+        VarSet.for_all (fun v2 ->
+          List.mem (cmp_v v1 v2) [Downstream; Same_quant]) (fvs_typ t) ->
+      aux ((v1, (t, loc))::sb) cnj
+    | (TVar v as tv, t, loc | t, (TVar v as tv), loc)::_ ->
+      raise (Contradiction ("Quantifier violation", Some (tv, t), loc))
+    | (TCons (f, f_args) as t1,
+      (TCons (g, g_args) as t2), loc)::cnj when f=g ->
+      let more_cnj =
+        try List.combine f_args g_args
+        with Invalid_argument _ -> raise
+          (Contradiction ("Type arity mismatch", Some (t1, t2), loc)) in
+      aux sb (List.map (fun (t1,t2)->t1,t2,loc) more_cnj @ cnj)
+    | (t1, t2, loc)::_ -> raise
+      (Contradiction ("Type mismatch", Some (t1, t2), loc)) in
+  aux [] cnj_typ, cnj_num, cnj_so
+
+let combine_sbs cmp_v uni_v ?(more_phi=[]) sbs =
+  let cnj_typ, cnj_num, cnj_so =
+    unify cmp_v uni_v
+      (more_phi @ Aux.concat_map
+         (List.map (fun (v,(t,loc)) -> Eqty (TVar v, t, loc))) sbs) in
+  assert (cnj_so = []);
+  cnj_typ, cnj_num
 
 (** {2 Sort inference} *)
 let newtype_env = Hashtbl.create 15
@@ -389,17 +465,11 @@ let rec pr_pre_sep_list sep pr_a ppf = function
   | hd::tl ->
       fprintf ppf "%a@ %s%a" pr_a hd sep (pr_pre_sep_list sep pr_a) tl
 
-let rec pr_line_list sep pr_hd pr_tl ppf = function
-  | [] -> ()
-  | [hd] -> pr_hd ppf hd
-  | hd::tl ->
-      fprintf ppf "%a@\n%s%a" pr_hd hd sep (pr_more_line_list sep pr_tl) tl
-
-and pr_more_line_list sep pr_a ppf = function
+let rec pr_line_list sep pr_a ppf = function
   | [] -> ()
   | [hd] -> pr_a ppf hd
   | hd::tl ->
-      fprintf ppf "%a@\n%s%a" pr_a hd sep (pr_more_line_list sep pr_a) tl
+      fprintf ppf "%a@\n%s%a" pr_a hd sep (pr_line_list sep pr_a) tl
 
 let rec pr_pat comma ppf = function
   | Zero -> fprintf ppf "%s" "!"
@@ -635,4 +705,4 @@ let pr_struct_item ppf = function
       pr_opt_sig_tysch tysch (pr_expr false) expr pr_opt_tests tests
 
 let pr_program ppf p =
-  pr_more_line_list "\n" pr_struct_item ppf p
+  pr_line_list "\n" pr_struct_item ppf p

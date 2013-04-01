@@ -40,7 +40,8 @@ let rec eval = function
   | Snd p -> (match eval p with x, y -> y)") in
       ignore (Format.flush_str_formatter ());
       let cn = infer_prog_mockup prog in
-      pr_cnstrnt Format.str_formatter cn;
+      let cmp_v, uni_v, brs = normalize cn in
+      pr_brs Format.str_formatter brs;
 
       assert_equal ~printer:(fun x -> x)
 ""

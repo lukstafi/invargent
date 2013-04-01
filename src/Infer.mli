@@ -5,8 +5,6 @@
     @author Lukasz Stafiniak lukstafi (AT) gmail.com
     @since Mar 2013
 *)
-exception Contradiction of string * (Terms.typ * Terms.typ) option *
-            Terms.loc
 type cnstrnt =
 | A of Terms.atom list
 | And of cnstrnt list
@@ -46,13 +44,13 @@ val infer_prog :
   (cnstrnt -> solution) -> Terms.struct_item list -> Terms.struct_item list
 
 (** {2 Normalization} *)
-
-type var_scope =
-| Upstream | Downstream | Not_in_scope
+type branch =
+  Terms.formula * (Terms.subst * Terms.formula * Terms.formula)
 
 val normalize : cnstrnt ->
-  (Terms.var_name -> Terms.var_name -> var_scope) *
-    (Terms.formula * Terms.formula) list
+  (Terms.var_name -> Terms.var_name -> Terms.var_scope) *
+    (Terms.var_name, bool) Hashtbl.t *
+    branch list
 
 (** {2 Postprocessing and printing} *)
 (*
@@ -66,3 +64,5 @@ val nicevars_atom : nicevars_env -> Terms.atom -> Terms.atom
 val nicevars_cnstrnt : cnstrnt -> cnstrnt
 val nicevars_struct_item : Terms.struct_item -> Terms.struct_item
 val pr_cnstrnt : Format.formatter -> cnstrnt -> unit
+val pr_brs : Format.formatter ->
+  branch list -> unit

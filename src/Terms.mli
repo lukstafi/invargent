@@ -125,9 +125,10 @@ val fvs_atom : atom -> VarSet.t
 val fvs_formula : formula -> VarSet.t
 val vars_of_list : var_name list -> VarSet.t
 
-type subst = (var_name * typ) list
-val subst_typ : subst -> typ -> typ
-val update_sb : more_sb:subst -> subst -> subst
+(** {3 Formulas} *)
+
+type subst = (var_name * (typ * loc)) list
+
 val subst_atom : subst -> atom -> atom
 val subst_formula : subst -> formula -> formula
 
@@ -146,6 +147,22 @@ val collect_lambdas : expr -> pat list * expr
 (** Arguments and the resulting function in reverse order of
     application: turn [((a b) c) d] into [a; b; c; d] etc. *)
 val collect_apps : expr -> expr list
+
+(** {2 Substitutions and unification} *)
+
+type var_scope =
+| Upstream | Same_quant | Downstream | Not_in_scope
+
+exception Contradiction of string * (typ * typ) option * loc
+
+val subst_typ : subst -> typ -> typ
+val update_sb : more_sb:subst -> subst -> subst
+val unify :
+  (var_name -> var_name -> var_scope) -> (var_name -> bool) ->
+  atom list -> subst * atom list * atom list
+val combine_sbs :
+  (var_name -> var_name -> var_scope) -> (var_name -> bool) ->
+  ?more_phi:atom list -> subst list -> subst * atom list
 
 (** {2 Sort inference} *)
 
@@ -167,10 +184,6 @@ val pr_pre_sep_list :
   string ->
   (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list -> unit
 val pr_line_list :
-  string ->
-  (Format.formatter -> 'a -> unit) ->
-  (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list -> unit
-val pr_more_line_list :
   string ->
   (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list -> unit
 val pr_pat : bool -> Format.formatter -> pat -> unit
