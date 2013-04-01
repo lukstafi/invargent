@@ -498,14 +498,92 @@ let infer_prog solver prog =
 (** {2 Normalization} *)
 
 type var_scope =
-| Upstream | Downstream | Not_in_scope
+| Upstream | Same_quant | Downstream | Not_in_scope
 
 let normalize cn =
   let quants = Hashtbl.create 2047 in
+  let univars = Hashtbl.create 127 in
   let cmp_vars v1 v2 =
     try Hashtbl.find quants (v1, v2) with Not_found -> Not_in_scope in
-  cmp_vars, []
-  
+  let add_var_rels up_vars same_vars vs =
+    VarSet.iter (fun uv ->
+      VarSet.iter (fun dv ->
+        Hashtbl.add quants (uv,dv) Upstream;
+        Hashtbl.add quants (dv,uv) Downstream) vs) up_vars;
+    VarSet.iter (fun av ->
+      VarSet.iter (fun bv ->
+        Hashtbl.add quants (av,bv) Same_quant;
+        Hashtbl.add quants (bv,av) Same_quant) vs) same_vars;
+    VarSet.iter (fun av ->
+      VarSet.iter (fun bv ->
+        Hashtbl.add quants (av,bv) Same_quant) vs) vs in
+  let rec flatten up_vars same_vars at_uni = function
+    | A cns -> cns, ([], []), []
+    | And cns ->
+      let cnj, impls, dsj_impls =
+        Aux.split3 (List.map (flatten up_vars same_vars at_uni) cns) in
+      let cnj = List.concat cnj
+      and impls = List.concat impls
+      and dsj_impls = List.concat dsj_impls in
+      cnj, impls, dsj_impls
+    | Or1 dsj -> [], [], []
+    | Impl (prem, concl) ->
+      [], [up_vars, same_vars, at_uni, prem, concl], []
+    | ImplOr2 (prem,concl,alt) ->
+      [], [], [up_vars, same_vars, at_uni, prem, concl, alt]
+    | All (vs, cn) ->
+      if at_uni
+      then add_var_rels up_vars same_vars vs
+      else add_var_rels (VarSet.union up_vars same_vars) VarSet.empty vs;
+      VarSet.iter (fun v->Hashtbl.add univars v true) vs;
+      if at_uni
+      then flatten up_vars (VarSet.union vs same_vars) true cn
+      else flatten (VarSet.union up_vars same_vars) vs true cn
+    | Ex (vs, cn) ->
+      if not at_uni
+      then add_var_rels up_vars same_vars vs
+      else add_var_rels (VarSet.union up_vars same_vars) VarSet.empty vs;
+      VarSet.iter (fun v->Hashtbl.add univars v false) vs;
+      if not at_uni
+      then flatten up_vars (VarSet.union vs same_vars) false cn
+      else flatten (VarSet.union up_vars same_vars) vs false cn in
+  let rec aux up_vars same_vars at_uni more_prem more_cnj_typ cn =
+    let cnj, impls, dsj_impls = flatten cn in
+    let cnj_typ, cnj_num = split_sorts cnj in
+    let cnj_typ = unify cnj_typ in
+    let more_impls, more_cns = Aux.partition_map
+      (fun (up_vars, same_vars, at_uni, prems, concl, alt) ->
+        try
+          let prem = List.find
+            (function eq_ex::_ ->
+              try ignore (unify (eq_ex::cnj_typ@more_cnj_typ)); true
+              with Contradiction _ -> false)
+            prems in
+          Aux.Left (up_vars, same_vars, at_uni, prem, concl)
+        with Not_found -> Aux.Right (up_vars, same_vars, at_uni, alt)
+      ) dsj_impls in
+    let impls = more_impls @ impls in
+    let more_brs = Aux.concat_map
+      (fun (up_vars, same_vars, at_uni, cn) ->
+        aux up_vars same_vars at_uni more_prem
+          (cnj_typ @ more_cnj_typ) cn)
+      more_cns in
+    let more_br1, brs3 = List.split more_brs in
+    let more_cnj_typ, more_cnj_num =
+      List.split (List.map snd more_br1) in
+    let cnj_typ = combine_sbs (cnj_typ::more_cnj_typ) in
+    let cnj_num = List.concat (cnj_num::more_cnj_num) in
+    let br1 = more_prem, (cnj_typ, cnj_num) in
+    let brs2 = Aux.concat_map
+      (fun (up_vars, same_vars, at_uni, prem, concl) ->
+        let br2, brs2 =
+          aux up_vars same_vars at_uni (prem @ more_prem)
+            (cnj_typ @ more_cnj_typ) concl in
+        br2::brs2)
+      impls in
+    br1, brs2 @ brs3 in
+  cmp_vars, univars, 
+  aux VarSet.empty VarSet.empty false [] [] cn  
 
 (** {2 Postprocessing and printing} *)
 

@@ -244,7 +244,28 @@
   that <verbatim|e1> has type <verbatim|Num n1> and <verbatim|e2> has type
   <verbatim|Num n2>.
 
-  [TODO: implement the <verbatim|assert> and <verbatim|test> clauses!]
+  <subsection|Normalization>
+
+  Rather than reducing to prenex-normal form as in our formalization, we
+  preserve the scope relations and return a <verbatim|var_scope>-producing
+  variable comparison function. Also, since we use
+  <verbatim|let>-<verbatim|in> syntax to both eliminate existential types and
+  for traditional (but not polymorphic) binding, we drop the <verbatim|Or1>
+  constraints (in the formalism they ensure that <verbatim|let>-<verbatim|in>
+  binds an existential type). During normalization, we compute unifiers of
+  the type sort part of premises and conclusions. This faciliates solving of
+  the disjunctions in <verbatim|ImplOr2> constraints.
+
+  Releasing constraints \ from under <verbatim|ImplOr2>, when the
+  corresponding <verbatim|let>-<verbatim|in> is interpreted as standard
+  binding (instead of eliminating existential type), violates
+  declarativeness. We cannot include all the released constraints in
+  determining whether non-nested <verbatim|ImplOr2> constraints should be
+  interpreted as eliminating existential types. While we could be more
+  ``aggresive'' (we can modify the implementation to release the constraints
+  one-by-one), it shouldn't be problematic, because nesting of
+  <verbatim|ImplOr2> corresponds to nesting of <verbatim|let>-<verbatim|in>
+  definitions.
 
   \;
 
@@ -272,8 +293,8 @@
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1>>
     <associate|auto-2|<tuple|2|2>>
-    <associate|auto-3|<tuple|3|2>>
-    <associate|auto-4|<tuple|1.3|2>>
+    <associate|auto-3|<tuple|2.1|3>>
+    <associate|auto-4|<tuple|2.1|3>>
     <associate|auto-5|<tuple|2|2>>
     <associate|auto-6|<tuple|3|4>>
     <associate|auto-7|<tuple|3|4>>
@@ -286,7 +307,7 @@
     <associate|bib-jcaqpTechRep|<tuple|8|4>>
     <associate|bib-jcaqpUNIF|<tuple|7|4>>
     <associate|bib-simonet-pottier-hmg-toplas|<tuple|6|4>>
-    <associate|bib-systemTechRep|<tuple|1|2>>
+    <associate|bib-systemTechRep|<tuple|1|3>>
   </collection>
 </references>
 
@@ -308,9 +329,13 @@
       and Normalizing Formulas> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-2><vspace|0.5fn>
 
+      <with|par-left|<quote|1.5fn>|2.1<space|2spc>Normalization
+      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-3>>
+
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-3><vspace|0.5fn>
+      <no-break><pageref|auto-4><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>
