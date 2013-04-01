@@ -157,10 +157,10 @@ exception Contradiction of string * (typ * typ) option * loc
 
 val subst_typ : subst -> typ -> typ
 val update_sb : more_sb:subst -> subst -> subst
-val unify :
+val unify : use_quants:bool ->
   (var_name -> var_name -> var_scope) -> (var_name -> bool) ->
   atom list -> subst * atom list * atom list
-val combine_sbs :
+val combine_sbs : use_quants:bool ->
   (var_name -> var_name -> var_scope) -> (var_name -> bool) ->
   ?more_phi:atom list -> subst list -> subst * atom list
 

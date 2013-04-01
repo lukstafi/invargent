@@ -256,18 +256,24 @@ type var_scope =
 exception Contradiction of string * (typ * typ) option * loc
 
 (** Separate type sort and number sort constraints,  *)
-let unify cmp_v uni_v cnj =
+let unify ~use_quants cmp_v uni_v cnj =
   let cnj_typ, more_cnj = Aux.partition_map
     (function
     | Eqty ((TCons _ | Fun _ |
-        TVar (VNam (Type_sort, _) | VId (Type_sort, _))) as t1,
+        TVar (VNam ((Type_sort | Undefined_sort), _)
+                 | VId ((Type_sort | Undefined_sort), _))) as t1,
             ((TCons _ | Fun _ |
-                TVar (VNam (Type_sort, _) | VId (Type_sort, _))) as t2), loc) ->
+                TVar (VNam ((Type_sort | Undefined_sort), _)
+                         | VId ((Type_sort | Undefined_sort), _)))
+                as t2), loc) ->
       Aux.Left (t1, t2, loc)
     | Eqty ((NCst _ | Nadd _ |
-        TVar (VNam (Num_sort, _) | VId (Num_sort, _))),
+        TVar (VNam ((Num_sort | Undefined_sort), _)
+                 | VId ((Num_sort | Undefined_sort), _))),
             ((NCst _ | Nadd _ |
-                TVar (VNam (Num_sort, _) | VId (Num_sort, _)))), _) as a ->
+                TVar (VNam ((Num_sort | Undefined_sort), _)
+                         | VId ((Num_sort | Undefined_sort), _)))),
+            _) as a ->
       Aux.Right (Aux.Left a)
     | Leq _ as a -> Aux.Right (Aux.Left a)
     | (CFalse _ | PredVarU _ | PredVarB _) as a ->
@@ -299,8 +305,11 @@ let unify cmp_v uni_v cnj =
         VarSet.for_all (fun v2 ->
           List.mem (cmp_v v1 v2) [Downstream; Same_quant]) (fvs_typ t) ->
       aux ((v1, (t, loc))::sb) cnj
-    | (TVar v as tv, t, loc | t, (TVar v as tv), loc)::_ ->
-      raise (Contradiction ("Quantifier violation", Some (tv, t), loc))
+    | (TVar v as tv, t, loc | t, (TVar v as tv), loc)::cnj ->
+      if use_quants
+      then raise
+        (Contradiction ("Quantifier violation", Some (tv, t), loc))
+      else aux ((v, (t, loc))::sb) cnj
     | (TCons (f, f_args) as t1,
       (TCons (g, g_args) as t2), loc)::cnj when f=g ->
       let more_cnj =
@@ -308,13 +317,16 @@ let unify cmp_v uni_v cnj =
         with Invalid_argument _ -> raise
           (Contradiction ("Type arity mismatch", Some (t1, t2), loc)) in
       aux sb (List.map (fun (t1,t2)->t1,t2,loc) more_cnj @ cnj)
+    | (Fun (f1, a1), Fun (f2, a2), loc)::cnj ->
+      let more_cnj = [f1, f2, loc; a1, a2, loc] in
+      aux sb (more_cnj @ cnj)
     | (t1, t2, loc)::_ -> raise
       (Contradiction ("Type mismatch", Some (t1, t2), loc)) in
   aux [] cnj_typ, cnj_num, cnj_so
 
-let combine_sbs cmp_v uni_v ?(more_phi=[]) sbs =
+let combine_sbs ~use_quants cmp_v uni_v ?(more_phi=[]) sbs =
   let cnj_typ, cnj_num, cnj_so =
-    unify cmp_v uni_v
+    unify ~use_quants cmp_v uni_v
       (more_phi @ Aux.concat_map
          (List.map (fun (v,(t,loc)) -> Eqty (TVar v, t, loc))) sbs) in
   assert (cnj_so = []);
