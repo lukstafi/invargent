@@ -84,7 +84,8 @@ let constr_gen_pat sigma p tau =
     | PCons (k, args, loc) ->
       let abvs, phi, argtys, res =
         try freshen_cns_scheme (Hashtbl.find sigma k)
-        with Not_found -> failwith ("constr_gen_pat: not found "^k) in
+        with Not_found -> raise
+          (Report_toplevel ("Undefined constructor "^k, Some loc)) in
       let avs = fvs_typ res in
       let bvs = VarSet.diff (vars_of_list abvs) avs in
       let argphi =
@@ -118,7 +119,8 @@ let rec envfrag_gen_pat sigma p t =
     | PCons (k, ps, loc) ->
       let vs, phi, args, res =
         try freshen_cns_scheme (Hashtbl.find sigma k)
-        with Not_found -> failwith ("envfrag_gen_pat: not found "^k) in
+        with Not_found -> raise
+          (Report_toplevel ("Undefined constructor "^k, Some loc)) in
       let ef0 = vars_of_list vs, Eqty (res, t, loc)::phi, [] in
       List.fold_left envfrag_x ef0 (List.map2 aux args ps) in
   aux t p
@@ -141,9 +143,7 @@ let constr_gen_expr gamma sigma ex_types e t =
       raise (Report_toplevel ("Undefined constructor "^k, Some loc))
     | Cons (k, args, loc)->
       let vs, phi, argtys, res =
-        try freshen_cns_scheme (Hashtbl.find sigma k)
-        with Not_found -> failwith ("constr_gen_expr: not found "^k)
-      in
+        freshen_cns_scheme (Hashtbl.find sigma k) in
       let cn = List.fold_left cn_and (A (Eqty (res, t, loc)::phi))
         (List.map2 (aux gamma) argtys args) in
       Ex (vars_of_list vs, cn)
@@ -379,7 +379,9 @@ let infer_prog solver prog =
         let t3 = TVar a3 in
         match phi t2 t3 with
         | [PredVarB (chi_id, vt2, vt3)] when vt2=t2 && vt3=t3 ->
-          let more_sb, cond = List.assoc chi_id sb_chi a2 a3 in
+          let more_sb, cond =
+            try List.assoc chi_id sb_chi a2 a3
+            with Not_found -> assert false in
           let sb = update_sb ~more_sb sb in
           let res = try fst (List.assoc a2 sb) with Not_found -> t2 in
           let arg = try fst (List.assoc a3 sb) with Not_found -> t3 in
@@ -430,7 +432,9 @@ let infer_prog solver prog =
     let chi_id, _, cn =
       constr_gen_letrec !gamma sigma ex_types x e sig_cn t tests in
     let (sb_res, phi_res), sb_chiU, sb_chiB = solver cn in
-    let more_sb, phi = List.assoc chi_id sb_chiU t in
+    let more_sb, phi =
+      try List.assoc chi_id sb_chiU t
+      with Not_found -> assert false in
     let sb = update_sb ~more_sb sb_res in
     let phi = subst_formula sb (phi_res @ phi) in
     let res = subst_typ sb t in
