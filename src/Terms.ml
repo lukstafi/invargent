@@ -178,6 +178,13 @@ let subst_typ sb =
   typ_map {typ_id_map with map_tvar =
       fun v -> try fst (List.assoc v sb) with Not_found -> TVar v}
 
+let subst_one v s =
+  typ_map {typ_id_map with map_tvar =
+      fun v' -> if v = v' then s else TVar v}
+
+let subst_one_sb v s =
+  List.map (fun (v,(t,loc)) -> v, (subst_one v s t, loc))
+
 let update_sb ~more_sb sb =
   Aux.map_append (fun (v,(t,loc)) -> v, (subst_typ more_sb t, loc)) sb
     more_sb
@@ -255,74 +262,85 @@ type var_scope =
 
 exception Contradiction of string * (typ * typ) option * loc
 
+let typ_sort_typ = function
+  | TVar (VNam (Undefined_sort, _) | VId (Undefined_sort, _)) ->
+    assert false
+  | TCons _ | Fun _ |
+      TVar (VNam (Type_sort, _) | VId (Type_sort, _)) -> true
+  | _ -> false
+
+let num_sort_typ = function
+  | TVar (VNam (Undefined_sort, _) | VId (Undefined_sort, _)) ->
+    assert false
+  | NCst _ | Nadd _ |
+      TVar (VNam (Num_sort, _)
+                 | VId (Num_sort, _)) -> true
+  | _ -> false
+
 (** Separate type sort and number sort constraints,  *)
 let unify ~use_quants cmp_v uni_v cnj =
   let cnj_typ, more_cnj = Aux.partition_map
     (function
-    | Eqty ((TCons _ | Fun _ |
-        TVar (VNam ((Type_sort | Undefined_sort), _)
-                 | VId ((Type_sort | Undefined_sort), _))) as t1,
-            ((TCons _ | Fun _ |
-                TVar (VNam ((Type_sort | Undefined_sort), _)
-                         | VId ((Type_sort | Undefined_sort), _)))
-                as t2), loc) ->
+    | Eqty (t1, t2, loc) when typ_sort_typ t1 && typ_sort_typ t2 ->
       Aux.Left (t1, t2, loc)
-    | Eqty ((NCst _ | Nadd _ |
-        TVar (VNam ((Num_sort | Undefined_sort), _)
-                 | VId ((Num_sort | Undefined_sort), _))),
-            ((NCst _ | Nadd _ |
-                TVar (VNam ((Num_sort | Undefined_sort), _)
-                         | VId ((Num_sort | Undefined_sort), _)))),
-            _) as a ->
+    | Eqty (t1, t2, loc) as a when num_sort_typ t1 && num_sort_typ t2 ->
       Aux.Right (Aux.Left a)
     | Leq _ as a -> Aux.Right (Aux.Left a)
     | (CFalse _ | PredVarU _ | PredVarB _) as a ->
       Aux.Right (Aux.Right a)
     | Eqty (t1, t2, loc) -> raise
-      (Contradiction ("Type sort mismatch", Some (t1, t2), loc))
-    )
+      (Contradiction ("Type sort mismatch", Some (t1, t2), loc)))
     cnj in
   let cnj_num, cnj_so = Aux.partition_choice more_cnj in
-  let rec aux sb = function
-    | [] -> sb
-    | (t1, t2, loc)::cnj when t1 = t2 -> aux sb cnj
-    | (TVar v1, (TVar v2 as t), loc)::cnj
-      when not (uni_v v1) && List.mem (cmp_v v1 v2) [Downstream; Same_quant] ->
-      aux ((v1, (t, loc))::sb) cnj
-    | ((TVar v2 as t), TVar v1, loc)::cnj
-      when not (uni_v v1) && List.mem (cmp_v v1 v2) [Downstream; Same_quant] ->
-      aux ((v1, (t, loc))::sb) cnj
-    | (TVar v as tv, t, loc | t, (TVar v as tv), loc)::cnj
-        when VarSet.mem v (fvs_typ t) ->
-      raise (Contradiction ("Occurs check fail", Some (tv, t), loc))
-    | (TVar v1, t, loc)::cnj
-      when not (uni_v v1) &&
-        VarSet.for_all (fun v2 ->
-          List.mem (cmp_v v1 v2) [Downstream; Same_quant]) (fvs_typ t) ->
-      aux ((v1, (t, loc))::sb) cnj
-    | (t, (TVar v1), loc)::cnj
-      when not (uni_v v1) &&
-        VarSet.for_all (fun v2 ->
-          List.mem (cmp_v v1 v2) [Downstream; Same_quant]) (fvs_typ t) ->
-      aux ((v1, (t, loc))::sb) cnj
-    | (TVar v as tv, t, loc | t, (TVar v as tv), loc)::cnj ->
-      if use_quants
-      then raise
-        (Contradiction ("Quantifier violation", Some (tv, t), loc))
-      else aux ((v, (t, loc))::sb) cnj
-    | (TCons (f, f_args) as t1,
-      (TCons (g, g_args) as t2), loc)::cnj when f=g ->
-      let more_cnj =
-        try List.combine f_args g_args
-        with Invalid_argument _ -> raise
-          (Contradiction ("Type arity mismatch", Some (t1, t2), loc)) in
-      aux sb (List.map (fun (t1,t2)->t1,t2,loc) more_cnj @ cnj)
-    | (Fun (f1, a1), Fun (f2, a2), loc)::cnj ->
-      let more_cnj = [f1, f2, loc; a1, a2, loc] in
-      aux sb (more_cnj @ cnj)
-    | (t1, t2, loc)::_ -> raise
-      (Contradiction ("Type mismatch", Some (t1, t2), loc)) in
-  aux [] cnj_typ, cnj_num, cnj_so
+  let rec aux sb num_cn = function
+    | [] -> sb, num_cn
+    | (t1, t2, loc)::cnj when t1 = t2 -> aux sb num_cn cnj
+    | (t1, t2, loc)::cnj -> match subst_typ sb t1, subst_typ sb t2 with
+      | t1, t2 when t1 = t2 -> aux sb num_cn cnj
+      | t1, t2 when num_sort_typ t1 && num_sort_typ t2 ->
+        aux sb (Eqty (t1, t2, loc)::num_cn) cnj
+      | t1, t2 when num_sort_typ t1 || num_sort_typ t2 -> raise
+        (Contradiction ("Type sort mismatch", Some (t1, t2), loc))
+      | TVar v1, (TVar v2 as t)
+        when not (uni_v v1)
+          && List.mem (cmp_v v1 v2) [Downstream; Same_quant] ->
+        aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
+      | (TVar v2 as t), TVar v1
+          when not (uni_v v1)
+            && List.mem (cmp_v v1 v2) [Downstream; Same_quant] ->
+        aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
+      | (TVar v as tv, t | t, (TVar v as tv))
+          when VarSet.mem v (fvs_typ t) ->
+        raise (Contradiction ("Occurs check fail", Some (tv, t), loc))
+      | TVar v1, t
+          when not (uni_v v1) &&
+            VarSet.for_all (fun v2 ->
+              List.mem (cmp_v v1 v2) [Downstream; Same_quant]) (fvs_typ t) ->
+        aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
+      | t, TVar v1
+          when not (uni_v v1) &&
+            VarSet.for_all (fun v2 ->
+              List.mem (cmp_v v1 v2) [Downstream; Same_quant]) (fvs_typ t) ->
+        aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
+      | (TVar v as tv, t | t, (TVar v as tv)) ->
+        if use_quants
+        then raise
+          (Contradiction ("Quantifier violation", Some (tv, t), loc))
+        else aux ((v, (t, loc))::subst_one_sb v t sb) num_cn cnj
+      | (TCons (f, f_args) as t1,
+         (TCons (g, g_args) as t2)) when f=g ->
+        let more_cnj =
+          try List.combine f_args g_args
+          with Invalid_argument _ -> raise
+            (Contradiction ("Type arity mismatch", Some (t1, t2), loc)) in
+        aux sb num_cn (List.map (fun (t1,t2)->t1,t2,loc) more_cnj @ cnj)
+      | Fun (f1, a1), Fun (f2, a2) ->
+        let more_cnj = [f1, f2, loc; a1, a2, loc] in
+        aux sb num_cn (more_cnj @ cnj)
+      | t1, t2 -> raise
+        (Contradiction ("Type mismatch", Some (t1, t2), loc)) in
+  let cnj_typ, cnj_num = aux [] cnj_num cnj_typ in
+  cnj_typ, cnj_num, cnj_so
 
 let combine_sbs ~use_quants cmp_v uni_v ?(more_phi=[]) sbs =
   let cnj_typ, cnj_num, cnj_so =
