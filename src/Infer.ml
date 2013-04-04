@@ -587,9 +587,17 @@ let normalize cn =
     let br1 = more_prem, (cnj_typ, cnj_num, cnj_so) in
     let brs2 = Aux.concat_map
       (fun (up_vars, same_vars, at_uni, prem, concl) ->
-        let br2, brs2 =
-          aux up_vars same_vars at_uni (prem @ more_prem) cnj_typ concl in
-        br2::brs2)
+        try
+          let br2, brs2 =
+            aux up_vars same_vars at_uni (prem @ more_prem) cnj_typ concl in
+          br2::brs2
+        with Contradiction _ as exn ->
+          let false_impl =
+            List.exists (function CFalse _ -> true | _ -> false)
+              (prem @ more_prem) ||
+              try ignore (unify (prem @ more_prem)); true
+              with Contradiction _ -> false in
+          if false_impl then raise exn else [])
       impls in
     br1, brs2 @ brs3 in
   let br, brs = aux VarSet.empty VarSet.empty false [] [] cn in

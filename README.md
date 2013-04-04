@@ -16,7 +16,7 @@ Milestones: [x] - completed, [#] - finishing, [+] - in the middle, [-] - just st
 - [x] Setup project. Parse and pretty-print.
 - [x] Generate constraints.
 - [x] Normalize constraints.
-- [_] Abduction for terms. Multisort abduction part 1.
+- [-] Abduction for terms. Multisort abduction part 1.
 - [_] Abduction for linear systems. Multisort abduction part 2.
 - [_] Multisort disjunction elimination (includes anti-unification).
 - [_] Disjunction elimination for linear systems.

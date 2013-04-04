@@ -253,8 +253,11 @@
   for traditional (but not polymorphic) binding, we drop the <verbatim|Or1>
   constraints (in the formalism they ensure that <verbatim|let>-<verbatim|in>
   binds an existential type). During normalization, we compute unifiers of
-  the type sort part of premises and conclusions. This faciliates solving of
-  the disjunctions in <verbatim|ImplOr2> constraints.
+  the type sort part of conclusions. This faciliates solving of the
+  disjunctions in <verbatim|ImplOr2> constraints. We monitor for
+  contradiction in conclusions, so that we can stop the
+  <verbatim|Contradiction> exception and remove an implication in case the
+  premise is also contradictory.
 
   Releasing constraints \ from under <verbatim|ImplOr2>, when the
   corresponding <verbatim|let>-<verbatim|in> is interpreted as standard
@@ -266,6 +269,15 @@
   one-by-one), it shouldn't be problematic, because nesting of
   <verbatim|ImplOr2> corresponds to nesting of <verbatim|let>-<verbatim|in>
   definitions.
+
+  <section|Abduction>
+
+  The formal specification of abduction at <cite|jcaqpUNIF> provides a scheme
+  for combining sorts that substitutes number sort subterms from type sort
+  terms with variables, so that a single-sort term abduction algorithm can be
+  called. Since we implement term abduction over the two-sorted datatype
+  <verbatim|typ>, we keep these <em|alien subterms> in terms passed to term
+  abduction.
 
   \;
 
@@ -294,8 +306,8 @@
     <associate|auto-1|<tuple|1|1>>
     <associate|auto-2|<tuple|2|2>>
     <associate|auto-3|<tuple|2.1|3>>
-    <associate|auto-4|<tuple|2.1|3>>
-    <associate|auto-5|<tuple|2|2>>
+    <associate|auto-4|<tuple|3|3>>
+    <associate|auto-5|<tuple|3|2>>
     <associate|auto-6|<tuple|3|4>>
     <associate|auto-7|<tuple|3|4>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
@@ -333,9 +345,13 @@
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-3>>
 
-      <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
+      <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|3<space|2spc>Abduction>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-4><vspace|0.5fn>
+
+      <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
+      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-5><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>
