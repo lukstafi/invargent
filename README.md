@@ -23,3 +23,14 @@ Milestones: [x] - completed, [#] - finishing, [+] - in the middle, [-] - just st
 - [_] Solve for predicate variables. Iterate till fixpoint.
 - [_] Export (print) OCaml source. Optimize, perhaps write web interface.
 - [_] Collect examples, test, write user documentation.
+
+There are also post-release or near-release tasks:
+- [_] Improve joint constraint abduction for terms.
+- [_] Improve convergence-enforcing heuristics for numeric constraints.
+
+And version 2.0 goals:
+- [_] Factorize implementation to have plug-in architecture for sorts.
+- [_] Add sorts: integer numbers,
+- [_] finite partial orders,
+- [_] atomless lattices,
+- [_] ring of polynomials.
