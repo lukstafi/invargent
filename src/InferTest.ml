@@ -39,6 +39,7 @@ let rec eval = function
   | Fst p -> (match eval p with x, y -> x)
   | Snd p -> (match eval p with x, y -> y)") in
       try
+        let prog = Terms.infer_sorts prog in
         let cn = infer_prog_mockup prog in
         let cmp_v, uni_v, brs = normalize cn in
         ignore (Format.flush_str_formatter ());
@@ -98,6 +99,7 @@ let rec filter =
           True -> LCons (x, filter l)
 	| False -> filter l") in
       try
+        let prog = Terms.infer_sorts prog in
         let cn = infer_prog_mockup prog in
         let cmp_v, uni_v, brs = normalize cn in
         ignore (Format.flush_str_formatter ());
@@ -133,7 +135,7 @@ let rec filter =
 newtype Int
 newtype List : type
 newcons Zero : Int
-newcons Nil : List
+newcons Nil : ∀a. List a
 newcons TInt : Ty Int
 newcons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
 newcons TList : ∀a. Ty a ⟶ Ty (List a)
@@ -158,6 +160,7 @@ let rec equal = function
   | _ -> False
 test b_not (equal (TInt, TList TInt) Zero Nil)") in
       try
+        let prog = Terms.infer_sorts prog in
         let cn = infer_prog_mockup prog in
         let cmp_v, uni_v, brs = normalize cn in
         ignore (Format.flush_str_formatter ());

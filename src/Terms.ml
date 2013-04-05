@@ -355,29 +355,58 @@ let newtype_env = Hashtbl.create 15
 
 let infer_sorts_item item =
   let sorts = Hashtbl.create 15 in
+  let fresh_proxy = ref 0 in
+  let new_proxy () = incr fresh_proxy; Aux.Left !fresh_proxy in
+  let rec find v =
+    try
+      match Hashtbl.find sorts v with
+      | Aux.Left v' -> find (Aux.Left v')
+      | Aux.Right s -> s
+    with Not_found -> assert false in
+  let rec add loc msg v s =
+    try
+      match Hashtbl.find sorts v with
+      | Aux.Left s'l -> add loc msg (Aux.Left s'l) s
+      | Aux.Right s'r as s' ->
+        if s'r = Undefined_sort
+        then Hashtbl.replace sorts v s
+        else if s' <> s
+        then match s with
+        | Aux.Left sl ->
+          add loc msg (Aux.Left sl) s'
+        | Aux.Right sr -> raise
+          (Report_toplevel ("Sort mismatch for type variable "^
+                               msg^": sorts "^sort_str sr^" and " ^
+                               sort_str s'r, Some loc))
+    with Not_found -> Hashtbl.add sorts v s in
+  let find_v v = find (Aux.Right v) in
+  let find_s = function
+    | Aux.Right s -> s
+    | Aux.Left sl -> find (Aux.Left sl) in
+  let add_v loc v s =
+    if s <> Aux.Right Undefined_sort
+    then add loc (var_str v) (Aux.Right v) s in
   let walk_var = function
-    | VId (_,id) as tv -> tv
-    | VNam (s,v) as tv ->
-      try VNam (Hashtbl.find sorts v, v) with Not_found -> tv in
-  let rec walk_typ cur_loc s = function
-    | TVar (VNam (_,v)) ->
-      (try let s' = Hashtbl.find sorts v in
-           if s <> Undefined_sort && s' <> Undefined_sort && s <> s'
-           then raise
-             (Report_toplevel ("Sort mismatch for type variable "^
-                                  v^": sorts "^sort_str s^" and " ^
-                                  sort_str s', Some cur_loc))
-           else if s <> Undefined_sort then TVar (VNam (s, v))
-           else TVar (VNam (s', v))
-       with Not_found ->
-         if s <> Undefined_sort then Hashtbl.add sorts v s;
-         TVar (VNam (s,v))) 
-    | TVar (VId _) -> assert false
-    | TCons (CNam "Tuple" as n, args) ->
-      TCons (n, List.map (walk_typ cur_loc Type_sort) args)
+    | VId (_,id) as tv -> VId (find_v tv, id)
+    | VNam (_,v) as tv -> VNam (find_v tv, v) in
+  let walk_typ =
+    typ_map {typ_id_map with map_tvar =
+        fun tv -> TVar (walk_var tv)} in
+  let walk_atom = function
+    | Eqty (t1, t2, loc) ->
+      Eqty (walk_typ t1, walk_typ t2, loc)
+    | Leq (t1, t2, loc) -> Leq (walk_typ t1, walk_typ t2, loc)
+    | CFalse _ as a -> a
+    | PredVarU (id,ty) -> PredVarU (id, walk_typ ty)
+    | PredVarB (id,t1,t2) -> PredVarB (id, walk_typ t1, walk_typ t2) in
+  let rec infer_typ cur_loc s = function
+    | TVar tv -> add_v cur_loc tv s 
+    | TCons (CNam "Tuple", args) ->
+      List.iter (infer_typ cur_loc (Aux.Right Type_sort)) args
     | TCons (CNam _ as n, args) ->
-      (try let argsorts = Hashtbl.find newtype_env n in
-           TCons (n, List.map2 (walk_typ cur_loc) argsorts args)
+      (try let argsorts = List.map
+             (fun s -> Aux.Right s) (Hashtbl.find newtype_env n) in
+           List.iter2 (infer_typ cur_loc) argsorts args
        with
        | Not_found -> raise
          (Report_toplevel ("Undefined type constructor "^cns_str n,
@@ -386,60 +415,78 @@ let infer_sorts_item item =
          (Report_toplevel ("Arity mismatch for type constructor "^
                               cns_str n, Some cur_loc)))
     | TCons (Extype _ as n, args) ->
-      (try let argsorts = Hashtbl.find newtype_env n in
-           TCons (n, List.map2 (walk_typ cur_loc) argsorts args)
+      (try let argsorts = List.map
+             (fun s -> Aux.Right s) (Hashtbl.find newtype_env n) in
+           List.iter2 (infer_typ cur_loc) argsorts args
        with
        | Not_found ->
-         TCons (n, List.map (walk_typ cur_loc Undefined_sort) args)
+         List.iter (infer_typ cur_loc (Aux.Right Undefined_sort)) args
        | Invalid_argument _ -> assert false)
     | Fun (t1, t2) ->
-      if s <> Type_sort then raise
+      let s = find_s s in
+      if s <> Undefined_sort && s <> Type_sort then raise
         (Report_toplevel ("Expected sort "^sort_str s^
-                             " but found sort type", Some cur_loc));
-        Fun (walk_typ cur_loc Type_sort t1, walk_typ cur_loc Type_sort t2)
-    | NCst _ as ty ->
+                             " but found sort type (function)", Some cur_loc));
+      infer_typ cur_loc (Aux.Right Type_sort) t1;
+      infer_typ cur_loc (Aux.Right Type_sort) t2
+    | NCst _ ->
+      let s = find_s s in
       if s <> Undefined_sort && s <> Num_sort then raise
         (Report_toplevel ("Expected sort "^sort_str s^
-                             " but found sort num", Some cur_loc));
-      ty
+                             " but found sort num (constant)", Some cur_loc));
+      ()
     | Nadd args ->
-      Nadd (List.map (walk_typ cur_loc Num_sort) args)
-  and walk_atom = function
+      let s = find_s s in
+      if s <> Undefined_sort && s <> Num_sort then raise
+        (Report_toplevel ("Expected sort "^sort_str s^
+                             " but found sort num (addition)", Some cur_loc));
+      List.iter (infer_typ cur_loc (Aux.Right Num_sort)) args
+  and infer_atom = function
     | Eqty (t1, t2, loc) ->
-      Eqty (walk_typ loc Undefined_sort t1,
-            walk_typ loc Undefined_sort t2, loc)
+      let s = new_proxy () in
+      infer_typ loc s t1; infer_typ loc s t2
     | Leq (t1, t2, loc) ->
-      Leq (walk_typ loc Num_sort t1, walk_typ loc Num_sort t2, loc)
-    | CFalse _ as a -> a
-    | PredVarU (id,ty) -> PredVarU (id, walk_typ dummy_loc Type_sort ty)
+      infer_typ loc (Aux.Right Num_sort) t1;
+      infer_typ loc (Aux.Right Num_sort) t2
+    | CFalse _ -> ()
+    | PredVarU (id,ty) ->
+      infer_typ dummy_loc (Aux.Right Type_sort) ty
     | PredVarB (id,t1, t2) ->
-      PredVarB (id, walk_typ dummy_loc Type_sort t1,
-                walk_typ dummy_loc Type_sort t2) in
+      infer_typ dummy_loc (Aux.Right Type_sort) t1;
+      infer_typ dummy_loc (Aux.Right Type_sort) t2 in
   match item with
   | TypConstr (CNam _ as name, sorts, _) as item ->
     Hashtbl.add newtype_env name sorts; [item]
   | TypConstr (Extype _, _, _) ->
     []                                  (* will be reintroduced *)
   | ValConstr (CNam _ as name, vs, phi, args, res, loc) ->
-    let res = walk_typ loc Type_sort res in
-    let args = List.map (walk_typ loc Type_sort) args in
+    infer_typ loc (Aux.Right Type_sort) res;
+    List.iter (infer_typ loc (Aux.Right Type_sort)) args;
+    List.iter infer_atom phi;
+    let res = walk_typ res in
+    let args = List.map walk_typ args in
     let phi = List.map walk_atom phi in
     let vs = List.map walk_var vs in
     [ValConstr (name, vs, phi, args, res, loc)]
-  | ValConstr (Extype _ as name, vs, phi, args, res, loc) ->
-    let args = List.map (walk_typ loc Type_sort) args in
+  | ValConstr (Extype _ as name, vs, phi, args,
+               (TCons (n2, targs) as res), loc) when name = n2 ->
+    List.iter (infer_typ loc (Aux.Right Type_sort)) args;
+    List.iter infer_atom phi;
+    infer_typ loc (Aux.Right Type_sort) res;
+    let sorts = List.map
+      (function TVar v -> find_v v
+      | _ -> assert false)
+      targs in
+    let args = List.map walk_typ args in
     let phi = List.map walk_atom phi in
     let vs = List.map walk_var vs in
-    let res = walk_typ loc Type_sort res in
-    let sorts =
-      match res with
-      | TCons (tn, targs) when tn = name ->
-        List.map (function TVar v -> var_sort v | _ -> assert false) targs
-      | _ -> assert false in
-    Hashtbl.add newtype_env name sorts;
+    let res = walk_typ res in
     [TypConstr (name, sorts, loc); ValConstr (name, vs, phi, args, res, loc)]
+  | ValConstr (Extype _, _, _, _, _, _) -> assert false
   | PrimVal (n, (vs, phi, ty), loc) ->
-    let ty = walk_typ loc Type_sort ty in
+    infer_typ loc (Aux.Right Type_sort) ty;
+    List.iter infer_atom phi;
+    let ty = walk_typ ty in
     let phi = List.map walk_atom phi in
     let vs = List.map walk_var vs in
     [PrimVal (n, (vs, phi, ty), loc)]
