@@ -19,12 +19,15 @@ val cn_and : cnstrnt -> cnstrnt -> cnstrnt
 (** {2 Constraint inference} *)
 
 val freshen_cns_scheme :
-  Terms.var_name list * Terms.atom list * Terms.typ list * Terms.typ ->
-  Terms.var_name list * Terms.atom list * Terms.typ list * Terms.typ
+  Terms.var_name list * Terms.atom list * Terms.typ list *
+  Terms.cns_name * Terms.var_name list ->
+  Terms.var_name list * Terms.atom list * Terms.typ list *
+  Terms.cns_name * Terms.var_name list
 val freshen_val_scheme : Terms.typ_scheme -> Terms.typ_scheme
 type sigma =
   (string,
-   Terms.var_name list * Terms.atom list * Terms.typ list * Terms.typ)
+   Terms.var_name list * Terms.atom list * Terms.typ list
+   * Terms.cns_name * Terms.var_name list)
     Hashtbl.t
 val constr_gen_pat :
   sigma -> Terms.pat -> Terms.typ -> cnstrnt

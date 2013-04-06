@@ -54,15 +54,15 @@ external is_zero : Int → Bool
 
 external if : ∀a. Bool → a → a → a
 
-newcons Lit : Int ⟶ Term Int
+newcons Lit : ∀a[Int = a].Int ⟶ Term a
 
-newcons Plus : Term Int * Term Int ⟶ Term Int
+newcons Plus : ∀a[Int = a].Term Int * Term Int ⟶ Term a
 
-newcons IsZero : Term Int ⟶ Term Bool
+newcons IsZero : ∀a[Bool = a].Term Int ⟶ Term a
 
 newcons If : ∀a.Term Bool * Term a * Term a ⟶ Term a
 
-newcons Pair : ∀a, b.Term a * Term b ⟶ Term (a, b)
+newcons Pair : ∀a, a, b[(a, b) = a].Term a * Term b ⟶ Term a
 
 newcons Fst : ∀a, b.Term (a, b) ⟶ Term a
 

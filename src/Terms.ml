@@ -229,7 +229,8 @@ let reset_processing () =
 
 type struct_item =
 | TypConstr of cns_name * sort list * loc
-| ValConstr of cns_name * var_name list * formula * typ list * typ * loc
+| ValConstr of cns_name * var_name list * formula * typ list
+  * cns_name * var_name list * loc
 | PrimVal of string * typ_scheme * loc
 | LetRecVal of string * expr * typ_scheme option * expr list * loc
 | LetVal of pat * expr * typ_scheme option * expr list * loc
@@ -248,8 +249,8 @@ let ty_add t1 t2 =
 
 let typ_scheme_of_item ?(env=[]) = function
 | TypConstr _ -> raise Not_found
-| ValConstr (_, vs, phi, args, res, _) ->
-  vs, phi, enc_funtype res args
+| ValConstr (_, vs, phi, args, c_n, c_args, _) ->
+  vs, phi, enc_funtype (TCons (c_n, List.map (fun v->TVar v) c_args)) args
 | PrimVal (_, t, _) -> t
 | LetRecVal (name, _, _, _, _)
 | LetVal (PVar (name, _), _, _, _, _) -> List.assoc name env
@@ -459,30 +460,30 @@ let infer_sorts_item item =
     Hashtbl.add newtype_env name sorts; [item]
   | TypConstr (Extype _, _, _) ->
     []                                  (* will be reintroduced *)
-  | ValConstr (CNam _ as name, vs, phi, args, res, loc) ->
+  | ValConstr (CNam _ as name, vs, phi, args, c_n, c_args, loc) ->
+    let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
     infer_typ loc (Aux.Right Type_sort) res;
     List.iter (infer_typ loc (Aux.Right Type_sort)) args;
     List.iter infer_atom phi;
-    let res = walk_typ res in
     let args = List.map walk_typ args in
     let phi = List.map walk_atom phi in
     let vs = List.map walk_var vs in
-    [ValConstr (name, vs, phi, args, res, loc)]
+    let c_args = List.map walk_var c_args in
+    [ValConstr (name, vs, phi, args, c_n, c_args, loc)]
   | ValConstr (Extype _ as name, vs, phi, args,
-               (TCons (n2, targs) as res), loc) when name = n2 ->
+               c_n, c_args, loc) when name = c_n ->
+    let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
     List.iter (infer_typ loc (Aux.Right Type_sort)) args;
     List.iter infer_atom phi;
     infer_typ loc (Aux.Right Type_sort) res;
-    let sorts = List.map
-      (function TVar v -> find_v v
-      | _ -> assert false)
-      targs in
+    let sorts = List.map (fun v -> find_v v) c_args in
     let args = List.map walk_typ args in
     let phi = List.map walk_atom phi in
     let vs = List.map walk_var vs in
-    let res = walk_typ res in
-    [TypConstr (name, sorts, loc); ValConstr (name, vs, phi, args, res, loc)]
-  | ValConstr (Extype _, _, _, _, _, _) -> assert false
+    let c_args = List.map walk_var c_args in
+    [TypConstr (name, sorts, loc);
+     ValConstr (name, vs, phi, args, c_n, c_args, loc)]
+  | ValConstr (Extype _, _, _, _, _, _, _) -> assert false
   | PrimVal (n, (vs, phi, ty), loc) ->
     infer_typ loc (Aux.Right Type_sort) ty;
     List.iter infer_atom phi;
@@ -749,25 +750,31 @@ let pr_struct_item ppf = function
   | TypConstr (name, sorts, _) ->
     fprintf ppf "@[<2>newtype@ %s@ :@ %a@]" (cns_str name)
       (pr_sep_list " *" pr_sort) sorts
-  | ValConstr (name, [], [], [], res, _) ->
+  | ValConstr (name, [], [], [], c_n, c_args, _) ->
+    let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ %a@]" (cns_str name)
       (pr_ty false) res
-  | ValConstr (name, [], [], args, res, _) ->
+  | ValConstr (name, [], [], args, c_n, c_args, _) ->
+    let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ %a@ ⟶@ %a@]" (cns_str name)
       (pr_sep_list " *" (pr_ty true)) args (pr_ty false) res
-  | ValConstr (name, vs, [], [], res, _) ->
+  | ValConstr (name, vs, [], [], c_n, c_args, _) ->
+    let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a.@ %a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
       (pr_ty false) res
-  | ValConstr (name, vs, phi, [], res, _) ->
+  | ValConstr (name, vs, phi, [], c_n, c_args, _) ->
+    let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a[%a].@ %a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
       pr_formula phi (pr_ty false) res
-  | ValConstr (name, vs, [], args, res, _) ->
+  | ValConstr (name, vs, [], args, c_n, c_args, _) ->
+    let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a.%a@ ⟶@ %a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
       (pr_sep_list " *" (pr_ty true)) args (pr_ty false) res
-  | ValConstr (name, vs, phi, args, res, _) ->
+  | ValConstr (name, vs, phi, args, c_n, c_args, _) ->
+    let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a[%a].%a@ ⟶@ %a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
       pr_formula phi

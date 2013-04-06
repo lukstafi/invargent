@@ -113,7 +113,8 @@ val reset_processing : unit -> unit
 
 type struct_item =
 | TypConstr of cns_name * sort list * loc
-| ValConstr of cns_name * var_name list * formula * typ list * typ * loc
+| ValConstr of cns_name * var_name list * formula * typ list
+  * cns_name * var_name list * loc
 | PrimVal of string * typ_scheme * loc
 | LetRecVal of string * expr * typ_scheme option * expr list * loc
 | LetVal of pat * expr * typ_scheme option * expr list * loc
@@ -157,6 +158,8 @@ exception Contradiction of string * (typ * typ) option * loc
 
 val subst_typ : subst -> typ -> typ
 val update_sb : more_sb:subst -> subst -> subst
+val typ_sort_typ : typ -> bool
+val num_sort_typ : typ -> bool
 val unify : use_quants:bool ->
   (var_name -> var_name -> var_scope) -> (var_name -> bool) ->
   atom list -> subst * atom list * atom list

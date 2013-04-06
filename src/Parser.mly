@@ -42,12 +42,44 @@ let existential evs phi ty loc =
   let sorts = List.map var_sort fvs in
   let vs = VarSet.elements vs in
   let exty = TCons (n, List.map (fun v->TVar v) fvs) in
-  let excns = ValConstr (n, vs, phi, [ty], exty, loc) in
+  let excns = ValConstr (n, vs, phi, [ty], n, fvs, loc) in
   more_items := TypConstr (n, sorts, loc) :: excns :: !more_items;
   exty
 
 let unary_typs = Hashtbl.create 15
 let unary_vals = Hashtbl.create 31
+
+let typvars = "abcdefghorstuvw"
+let numvars = "nkijmlpqxyz"
+let typvars_n = String.length typvars
+let numvars_n = String.length numvars
+let last_typ = ref 0
+let last_num = ref 0
+let rec next_typ i fvs =
+  let ch, n = i mod typvars_n, i / typvars_n in
+  let v = VNam (Type_sort,
+                Char.escaped typvars.[ch] ^
+                  (if n>0 then string_of_int n else "")) in
+  if VarSet.mem v fvs then next_typ (i+1) fvs else v
+let rec next_num i fvs =
+  let ch, n = i mod numvars_n, i / numvars_n in
+  let v = VNam (Num_sort,
+                Char.escaped numvars.[ch] ^
+                  (if n>0 then string_of_int n else "")) in
+  if VarSet.mem v fvs then next_num (i+1) fvs else v
+
+let extract_datatyp allvs loc = function
+  | TCons (n, args) ->
+    let phi, args = Aux.fold_map
+      (fun phi -> function
+      | TVar v -> phi, v
+      | t ->
+        let v =
+          if typ_sort_typ t then next_typ 0 allvs else next_num 0 allvs in
+        Eqty (t, TVar v, loc)::phi, v) [] args in
+    n, args, phi
+  | _ -> raise (Report_toplevel ("Syntax error: expected datatype",
+			         Some loc))
 %}
 
       /* Ocamlyacc Declarations */
@@ -326,15 +358,35 @@ lident_list:
 structure_item_raw:
   | NEWCONS UIDENT COLON opt_constr_intro typ_star_list LONGARROW typ
       { if List.length $5 = 1 then Hashtbl.add unary_vals $2 ();
-        ValConstr (CNam $2, (fst $4), (snd $4),
-	           (List.rev $5), $7, get_loc ()) }
+        let n = CNam $2 in
+        let vs, phi = $4 in
+        let args = List.rev $5 in
+        let res = $7 in
+        let allvs = VarSet.union (vars_of_list vs)
+          (VarSet.union (fvs_formula phi)
+             (List.fold_left VarSet.union (fvs_typ res)
+                (List.map fvs_typ args))) in
+        let c_n, c_args, more_phi =
+          extract_datatyp allvs (rhs_loc 7) res in
+        ValConstr (n, Aux.unique_sorted (c_args @ vs),
+                   (more_phi @ phi),
+	           args, c_n, c_args, get_loc ()) }
   | NEWCONS UIDENT COLON opt_constr_intro typ_star_list error
       { unclosed "newcons" 1 "-->" 6 }
   | NEWCONS UIDENT COLON opt_constr_intro LONGARROW
       { syntax_error
 	  "do not use --> for constructors without arguments" 5 }
   | NEWCONS UIDENT COLON opt_constr_intro typ
-      { ValConstr (CNam $2, (fst $4), (snd $4), [], $5, get_loc ()) }
+      { let n = CNam $2 in
+        let vs, phi = $4 in
+        let res = $5 in
+        let allvs = VarSet.union (vars_of_list vs)
+          (VarSet.union (fvs_formula phi) (fvs_typ res)) in
+        let c_n, c_args, more_phi =
+          extract_datatyp allvs (rhs_loc 5) res in
+        ValConstr (n, Aux.unique_sorted (c_args @ vs),
+                   (more_phi @ phi),
+	           [], c_n, c_args, get_loc ()) }
   | NEWCONS UIDENT COLON opt_constr_intro typ_star_list LONGARROW error
       { syntax_error ("inside the constructor value type") 4 }
   | NEWCONS UIDENT COLON opt_constr_intro error

@@ -54,21 +54,25 @@ let freshen_atom env = function
   | PredVarB (i, t1, t2) ->
     PredVarB (i, freshen_typ env t1, freshen_typ env t2)
 
-let freshen_cns_scheme (vs, phi, argtys, res) =
+let freshen_cns_scheme (vs, phi, argtys, c_n, c_args) =
   let env = List.map (fun v->v, freshen_var v) vs in
-  let res = freshen_typ env res in
   let argtys = List.map (freshen_typ env) argtys in
   let phi = List.map (freshen_atom env) phi in
   let vs = List.map snd env in
-  vs, phi, argtys, res
+  let c_args = List.map (Aux.flip List.assoc env) c_args in
+  vs, phi, argtys, c_n, c_args
 
 let freshen_val_scheme (vs, phi, res) =
-  let vs, phi, _, res = freshen_cns_scheme (vs, phi, [], res) in
+  let env = List.map (fun v->v, freshen_var v) vs in
+  let res = freshen_typ env res in
+  let phi = List.map (freshen_atom env) phi in
+  let vs = List.map snd env in
   vs, phi, res
 
 type sigma =
   (string,
-   Terms.var_name list * Terms.atom list * Terms.typ list * Terms.typ)
+   Terms.var_name list * Terms.atom list * Terms.typ list
+   * Terms.cns_name * Terms.var_name list)
     Hashtbl.t
 
 let constr_gen_pat sigma p tau =
@@ -82,11 +86,12 @@ let constr_gen_pat sigma p tau =
       let tupt = TCons (CNam "Tuple", argtys) in
       Ex (vars_of_list argvs, And (A [Eqty (tupt, tau, loc)]::cns))
     | PCons (k, args, loc) ->
-      let abvs, phi, argtys, res =
+      let abvs, phi, argtys, c_n, c_args =
         try freshen_cns_scheme (Hashtbl.find sigma k)
         with Not_found -> raise
           (Report_toplevel ("Undefined constructor "^k, Some loc)) in
-      let avs = fvs_typ res in
+      let avs = vars_of_list c_args in
+      let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
       let bvs = VarSet.diff (vars_of_list abvs) avs in
       let argphi =
         List.fold_left cn_and (And [])
@@ -117,10 +122,11 @@ let rec envfrag_gen_pat sigma p t =
       let ef0 = vars_of_list argvs, [Eqty (res, t, loc)], [] in
       List.fold_left envfrag_x ef0 (List.map2 aux argtys ps)
     | PCons (k, ps, loc) ->
-      let vs, phi, args, res =
+      let vs, phi, args, c_n, c_args =
         try freshen_cns_scheme (Hashtbl.find sigma k)
         with Not_found -> raise
           (Report_toplevel ("Undefined constructor "^k, Some loc)) in
+      let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
       let ef0 = vars_of_list vs, Eqty (res, t, loc)::phi, [] in
       List.fold_left envfrag_x ef0 (List.map2 aux args ps) in
   aux t p
@@ -142,8 +148,9 @@ let constr_gen_expr gamma sigma ex_types e t =
     | Cons (k, args, loc) when not (Hashtbl.mem sigma k)->
       raise (Report_toplevel ("Undefined constructor "^k, Some loc))
     | Cons (k, args, loc)->
-      let vs, phi, argtys, res =
+      let vs, phi, argtys, c_n, c_args =
         freshen_cns_scheme (Hashtbl.find sigma k) in
+      let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
       let cn = List.fold_left cn_and (A (Eqty (res, t, loc)::phi))
         (List.map2 (aux gamma) argtys args) in
       Ex (vars_of_list vs, cn)
@@ -299,17 +306,18 @@ let infer_prog_mockup prog =
   let ex_types = ref [] in
   let cns = List.map (function
     | TypConstr _ -> And []
-    | ValConstr (CNam x, vs, phi, args, res, loc) ->
-      Hashtbl.add sigma x (vs, phi, args, res);
+    | ValConstr (CNam x, vs, phi, args, c_n, c_args, loc) ->
+      Hashtbl.add sigma x (vs, phi, args, c_n, c_args);
       And []
     | ValConstr (Extype _ as n, vs, phi, [arg],
-                 TCons (Extype _, targs), loc) ->
+                 Extype _, c_args, loc) ->
+      let tres = TCons (CNam "Tuple", List.map (fun v->TVar v) c_args) in
       let ex_phi t2 t3 =
         Eqty (t3, arg, loc) ::
-          Eqty (t2, TCons (CNam "Tuple", targs), loc) :: phi in
+          Eqty (t2, tres, loc) :: phi in
       ex_types := (n, ex_phi, loc) :: !ex_types;
       And []
-    | ValConstr (Extype _, _, _, _, _, _) -> assert false
+    | ValConstr (Extype _, _, _, _, _, _, _) -> assert false
     | PrimVal (x, tsch, loc) ->
       gamma := (x, tsch) :: !gamma;
       And []
@@ -390,13 +398,12 @@ let infer_prog solver prog =
             (VarSet.union resvs
                (VarSet.union (fvs_formula cond) (fvs_typ arg))) in
           let resvs = VarSet.elements resvs in
-          let targs = List.map (fun v -> TVar v) resvs in
-          let ety = TCons (ety_cn, targs) in
+          let ety = TCons (ety_cn, List.map (fun v -> TVar v) resvs) in
           let sorts = List.map var_sort resvs in
           let extydec =
             TypConstr (ety_cn, sorts, loc) in
           let extydef =
-            ValConstr (ety_cn, vs, cond, [arg], ety, loc) in
+            ValConstr (ety_cn, vs, cond, [arg], ety_cn, resvs, loc) in
           more_items := extydec :: extydef :: !more_items;
           let ex_phi t2 t3 =
             Eqty (t3, arg, loc) :: Eqty (t2, ety, loc) :: cond in
@@ -407,17 +414,18 @@ let infer_prog solver prog =
     !more_items in
   Aux.concat_map (function
   | TypConstr _ as item -> [item]
-  | ValConstr (CNam x, vs, phi, args, res, loc) as item ->
-    Hashtbl.add sigma x (vs, phi, args, res);
+  | ValConstr (CNam x, vs, phi, args, c_n, c_args, loc) as item ->
+    Hashtbl.add sigma x (vs, phi, args, c_n, c_args);
     [item]
   | ValConstr (Extype _ as n, vs, phi, [arg],
-               TCons (Extype _, targs), loc) as item ->
+               Extype _, c_args, loc) as item ->
+    let tres = TCons (CNam "Tuple", List.map (fun v -> TVar v) c_args) in
     let ex_phi t2 t3 =
-      Eqty (t3, arg, loc) ::
-        Eqty (t2, TCons (CNam "Tuple", targs), loc) :: phi in
+      Eqty (t3, arg, loc) :: Eqty (t2, tres, loc) :: phi in
+    (* FIXME: what about freshening or clash of variables? *)
     ex_types := (n, ex_phi, loc) :: !ex_types;
     [item]
-  | ValConstr (Extype _, _, _, _, _, _) -> assert false
+  | ValConstr (Extype _, _, _, _, _, _, _) -> assert false
   | PrimVal (x, tsch, loc) as item ->
     gamma := (x, tsch) :: !gamma;
     [item]
@@ -487,8 +495,9 @@ let infer_prog solver prog =
         let extydec =
           TypConstr (ety_cn, sorts, loc) in
         let extydef =
-          ValConstr (ety_cn, vs, exphi, [res], ety, loc) in
+          ValConstr (ety_cn, vs, exphi, [res], ety_cn, resvs, loc) in
         more_items := extydec :: extydef :: !more_items;
+        (* FIXME: ex_phi problem *)
         let ex_phi t2 t3 =
           Eqty (t3, res, loc) :: Eqty (t2, ety, loc) :: exphi in
         ex_types := (ety_cn, ex_phi, loc) :: !ex_types;
@@ -556,6 +565,8 @@ let normalize cn =
   let rec aux up_vars same_vars at_uni more_prem more_cnj_typ cn =
     let cnj, impls, dsj_impls =
       flatten up_vars same_vars at_uni cn in
+    Format.printf "Prems:@ %a@\ncnj:@ %a@\n"
+      pr_formula more_prem pr_formula cnj;
     let cnj_typ, cnj_num, cnj_so = unify cnj in
     let more_impls, more_cns = Aux.partition_map
       (fun (up_vars, same_vars, at_uni, prems, concl, alt) ->
@@ -618,6 +629,7 @@ let numvars_n = String.length numvars
 let nicevars_empty = {nvs_env = []; last_typ = 0; last_num = 0}
 
 let next_typ env id =
+  (* FIXME: conflicts with named variables? *)
   let ch, n = env.last_typ mod typvars_n, env.last_typ / typvars_n in
   let v =
     Char.escaped typvars.[ch] ^ (if n>0 then string_of_int n else "") in
@@ -630,6 +642,12 @@ let next_num env id =
     Char.escaped numvars.[ch] ^ (if n>0 then string_of_int n else "") in
   {nvs_env = (id, v)::env.nvs_env;
    last_typ = env.last_typ+1; last_num = env.last_num}
+
+let nicevars_v env = function
+  | VNam _ as v -> v
+  | VId (s, id) as v ->
+    try VNam (s, List.assoc id env.nvs_env)
+    with Not_found -> v
 
 let nicevars_typ env t =
   let rec aux = function
@@ -705,12 +723,12 @@ let nicevars_vs vs =
 
 let nicevars_struct_item = function
   | TypConstr _ as i -> i
-  | ValConstr (n, vs, phi, tys, ty, loc) ->
+  | ValConstr (n, vs, phi, tys, c_n, c_args, loc) ->
     let env, vs = nicevars_vs vs in
     let phi = List.map (nicevars_atom env) phi in
     let tys = List.map (nicevars_typ env) tys in
-    let ty = nicevars_typ env ty in
-    ValConstr (n, vs, phi, tys, ty, loc)
+    let c_args = List.map (nicevars_v env) c_args in
+    ValConstr (n, vs, phi, tys, c_n, c_args, loc)
   | PrimVal (x, (vs, phi, ty), loc) ->
     let env, vs = nicevars_vs vs in
     let phi = List.map (nicevars_atom env) phi in

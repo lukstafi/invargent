@@ -149,23 +149,25 @@
 
   Functions <verbatim|constr_gen_pat> and <verbatim|envfrag_gen_pat> compute
   formulas according to table 2 in <cite|systemTechRep>, and
-  <verbatim|constr_gen_expr> computes table 3. We preserve the FOL language
-  presentation in the type <verbatim|cnstrnt>, only limiting the expressivity
-  in ways not requiring any preprocessing. The toplevel definitions (from
-  type <verbatim|struct_item>) <verbatim|LetRecVal> and <verbatim|LetVal> are
+  <verbatim|constr_gen_expr> computes table 3. Due to the presentation of the
+  type system, we ensure in <verbatim|ValConstr> that bounds on type
+  parameters are introduced in the formula rather than being substituted into
+  the result type. We preserve the FOL language presentation in the type
+  <verbatim|cnstrnt>, only limiting the expressivity in ways not requiring
+  any preprocessing. The toplevel definitions (from type
+  <verbatim|struct_item>) <verbatim|LetRecVal> and <verbatim|LetVal> are
   processed by <verbatim|constr_gen_letrec> and <verbatim|constr_gen_let>
   respectively. They are analogous to <verbatim|Letrec> and <verbatim|Letin>
   or a <verbatim|Lam> clause. We do not cover toplevel definitions in our
   formalism (without even a rudimentary module system, the toplevel is a
   matter of pragmatics rather than semantics).
 
-  Toplevel definitions (and in future, structure items) are intended as
-  boundaries for constraint solving. This way the programmer can decompose
-  functions that could be too complex for the solver. <verbatim|LetRecVal>
-  only binds a single identifier, while <verbatim|LetVal> binds variables in
-  a pattern. To preserve the flexibility of expression-level pattern
-  matching, <verbatim|LetVal> has to pack the constraints
-  <math|<around*|\<llbracket\>|\<Sigma\>\<vdash\>p\<uparrow\>\<alpha\>|\<rrbracket\>>>
+  Toplevel definitions are intended as boundaries for constraint solving.
+  This way the programmer can decompose functions that could be too complex
+  for the solver. <verbatim|LetRecVal> only binds a single identifier, while
+  <verbatim|LetVal> binds variables in a pattern. To preserve the flexibility
+  of expression-level pattern matching, <verbatim|LetVal> has to pack the
+  constraints <math|<around*|\<llbracket\>|\<Sigma\>\<vdash\>p\<uparrow\>\<alpha\>|\<rrbracket\>>>
   which the pattern makes available, into existential types. Each pattern
   variable is a separate entry to the global environment, therefore the
   connection between them is lost.
@@ -331,6 +333,8 @@
       systemTechRep
 
       systemTechRep
+
+      jcaqpUNIF
     </associate>
     <\associate|toc>
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|1<space|2spc>Data
