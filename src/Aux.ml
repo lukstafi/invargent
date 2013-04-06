@@ -5,6 +5,14 @@
     @author Lukasz Stafiniak lukstafi (AT) gmail.com
     @since Mar 2013
 *)
+let flip f a b = f b a
+
+let unique_sorted ?(cmp = Pervasives.compare) l =
+  let rec idemp acc = function
+    | e1::(e2::_ as tl) when cmp e1 e2 = 0 -> idemp acc tl
+    | e::tl -> idemp (e::acc) tl
+    | [] -> acc in
+  idemp [] (List.sort (fun x y -> - (cmp x y)) l)
 
 let fold_map f acc l =
   let rec aux acc res =
