@@ -62,7 +62,7 @@ newcons IsZero : ∀a[Bool = a].Term Int ⟶ Term a
 
 newcons If : ∀a.Term Bool * Term a * Term a ⟶ Term a
 
-newcons Pair : ∀a, a, b[(a, b) = a].Term a * Term b ⟶ Term a
+newcons Pair : ∀c, a, b[(a, b) = c].Term a * Term b ⟶ Term c
 
 newcons Fst : ∀a, b.Term (a, b) ⟶ Term a
 
@@ -93,9 +93,9 @@ external filter : ∀n, a. List (a, n) → ∃k [k≤n]. List (a, k)") in
       assert_equal ~printer:(fun x -> x)
 "newtype List : type * num
 
-newcons LNil : ∀a. List (a, 0)
+newcons LNil : ∀n, a[0 = n]. List (a, n)
 
-newcons LCons : ∀n, a.a * List (a, n) ⟶ List (a, n + 1)
+newcons LCons : ∀k, a, n[(n + 1) = k].a * List (a, n) ⟶ List (a, k)
 
 newtype Ex1 : type * num
 

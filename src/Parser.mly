@@ -57,16 +57,20 @@ let last_typ = ref 0
 let last_num = ref 0
 let rec next_typ i fvs =
   let ch, n = i mod typvars_n, i / typvars_n in
-  let v = VNam (Type_sort,
+  let v s = VNam (s,
                 Char.escaped typvars.[ch] ^
                   (if n>0 then string_of_int n else "")) in
-  if VarSet.mem v fvs then next_typ (i+1) fvs else v
+  if VarSet.mem (v Num_sort) fvs || VarSet.mem (v Type_sort) fvs ||
+    VarSet.mem (v Undefined_sort) fvs
+  then next_typ (i+1) fvs else v Type_sort
 let rec next_num i fvs =
   let ch, n = i mod numvars_n, i / numvars_n in
-  let v = VNam (Num_sort,
+  let v s = VNam (s,
                 Char.escaped numvars.[ch] ^
                   (if n>0 then string_of_int n else "")) in
-  if VarSet.mem v fvs then next_num (i+1) fvs else v
+  if VarSet.mem (v Num_sort) fvs || VarSet.mem (v Type_sort) fvs ||
+    VarSet.mem (v Undefined_sort) fvs
+  then next_num (i+1) fvs else v Num_sort
 
 let extract_datatyp allvs loc = function
   | TCons (n, args) ->
