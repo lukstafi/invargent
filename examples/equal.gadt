@@ -23,6 +23,6 @@ let rec equal = function
   | TList t, TList u -> forall2 (equal (t, u))
   | TInt, TList l ->
     (function Nil -> assert false
-    | Zero -> False)
+    | _ -> fun _ -> False)
   | _ -> False
 test b_not (equal (TInt, TList TInt) Zero Nil)

@@ -9,6 +9,7 @@ open OUnit
 open Infer
 
 let tests = "Infer" >::: [
+
   "constraints: eval" >::
     (fun () ->
       Terms.reset_counters ();
@@ -80,6 +81,7 @@ let rec eval = function
         Terms.pr_exception Format.str_formatter exn;
         assert_failure (Format.flush_str_formatter ())
     );
+
   "constraints: filter" >::
     (fun () ->
       Terms.reset_counters ();
@@ -161,7 +163,7 @@ let rec equal = function
   | TList t, TList u -> forall2 (equal (t, u))
   | TInt, TList l ->
     (function Nil -> assert false
-    | Zero -> False)
+    | _ -> fun _ -> False)
   | _ -> False
 test b_not (equal (TInt, TList TInt) Zero Nil)") in
       try
@@ -171,47 +173,50 @@ test b_not (equal (TInt, TList TInt) Zero Nil)") in
         ignore (Format.flush_str_formatter ());
         pr_brs Format.str_formatter brs;
         assert_equal ~printer:(fun x -> x)
-" ⟹ t174 = Bool ∧ t181 = (t177 → t176 → t175 → t174) ∧
-  t177 = (t178, t179) ∧ t178 = (Ty Int) ∧ t179 = (Ty (List u180)) ∧
-  u180 = Int ∧ t176 = Int ∧ t175 = List ∧ 𝛘5(t93) ∧ 𝛘5(t181)
-| 𝛘5(t92) ⟹ t92 = (t94 → Ex2 t95) ∧ t94 = (t96, t97) ∧
-    t96 = (Ty Int) ∧ t97 = (Ty Int) ∧ t94 = (t107, t108) ∧
-    t107 = (Ty (u109, u110)) ∧ t108 = (Ty (u111, u112)) ∧
-    t94 = (t146, t147) ∧ t146 = (Ty (List u148)) ∧
-    t147 = (Ty (List u149)) ∧ t94 = (t162, t163) ∧ t162 = (Ty Int) ∧
-    t163 = (Ty (List u164)) ∧ t173 = Bool ∧ 𝛘6(t95, t173)
-| (t98, t99) = t94 ∧ (Ty Int) = t98 ∧ (Ty Int) = t99 ∧ 𝛘5(t92) ⟹
-    t100 = (t101 → t102) ∧ t102 = (t103 → t104) ∧ t106 = Int ∧
-    t105 = Int ∧ t104 = Bool ∧ t101 = t106 ∧ t103 = t105 ∧
-    𝛘6(t95, t100)
-| (t113, t114) = t94 ∧ (Ty (u115, u116)) = t113 ∧
-    (Ty (u117, u118)) = t114 ∧ 𝛘5(t92) ⟹ t119 = (t120 → t121) ∧
-    t120 = (t122, t123) ∧ 𝛘6(t95, t119)
-| (t124, t125) = t120 ∧ (t113, t114) = t94 ∧ (Ty (u115, u116)) = t113 ∧
-    (Ty (u117, u118)) = t114 ∧ 𝛘5(t92) ⟹ t121 = (t126 → t127) ∧
-    t126 = (t128, t129)
-| (t130, t131) = t126 ∧ (t124, t125) = t120 ∧ (t113, t114) = t94 ∧
-    (Ty (u115, u116)) = t113 ∧ (Ty (u117, u118)) = t114 ∧ 𝛘5(t92) ⟹
-    t139 = Bool ∧ t132 = Bool ∧ t127 = Bool ∧
-    t145 = (t142 → t141 → t140 → t139) ∧ t142 = (t143, t144) ∧
-    t143 = (Ty u115) ∧ t144 = (Ty u117) ∧ t141 = t124 ∧ t140 = t130 ∧
-    t138 = (t135 → t134 → t133 → t132) ∧ t135 = (t136, t137) ∧
-    t136 = (Ty u116) ∧ t137 = (Ty u118) ∧ t134 = t125 ∧ t133 = t131 ∧
-    𝛘5(t145) ∧ 𝛘5(t138)
-| (t150, t151) = t94 ∧ (Ty (List u152)) = t150 ∧
-    (Ty (List u153)) = t151 ∧ 𝛘5(t92) ⟹
-    t155 = (u160 → u161 → Bool) ∧
-    t154 = (List u160 → List u161 → Bool) ∧ t159 = (t156 → t155) ∧
-    t156 = (t157, t158) ∧ t157 = (Ty u152) ∧ t158 = (Ty u153) ∧
-    𝛘6(t95, t154) ∧ 𝛘5(t159)
-| (t165, t166) = t94 ∧ (Ty Int) = t165 ∧ (Ty (List u167)) = t166 ∧
-    𝛘5(t92) ⟹ t168 = (t169 → Ex1 t170) ∧ t169 = List ∧
-    t169 = Int ∧ 𝛘6(t95, t168)
-| List = t169 ∧ (t165, t166) = t94 ∧ (Ty Int) = t165 ∧
-    (Ty (List u167)) = t166 ∧ 𝛘5(t92) ⟹ 𝛘7(t170, t171) ∧ FALSE
-| Int = t169 ∧ (t165, t166) = t94 ∧ (Ty Int) = t165 ∧
-    (Ty (List u167)) = t166 ∧ 𝛘5(t92) ⟹ t172 = Bool ∧
-    𝛘7(t170, t172)"
+" ⟹ t103 = Bool ∧
+  t114 = (Ty Int, Ty (List Int) → Int → List t105 → Bool) ∧
+  t107 = (Ty Int, Ty (List Int)) ∧ t108 = (Ty Int) ∧ t110 = Int ∧
+  t109 = (Ty (List Int)) ∧ t111 = (List Int) ∧ t113 = Int ∧
+  t112 = Int ∧ t106 = Int ∧ t104 = (List t105) ∧ 𝛘1(t2) ∧
+  𝛘1(t114)
+| 𝛘1(t1) ⟹ t1 = (Ty t7, Ty t8 → Ex2 t4) ∧ t3 = (Ty t7, Ty t8) ∧
+    t5 = (Ty t7) ∧ t6 = (Ty t8) ∧ t20 = (Ty t7) ∧ t21 = (Ty t8) ∧
+    t22 = t7 ∧ t25 = t8 ∧ t63 = (Ty t7) ∧ t64 = (Ty t8) ∧
+    t65 = t7 ∧ t67 = t8 ∧ t83 = (Ty t7) ∧ t84 = (Ty t8) ∧
+    t85 = t7 ∧ t86 = t8 ∧ t102 = Bool ∧ 𝛘2(t4, t102)
+| (t9, t10) = t3 ∧ (Ty t11) = t9 ∧ Int = t11 ∧ (Ty t12) = t10 ∧
+    Int = t12 ∧ 𝛘1(t1) ⟹ t13 = (Int → Int → Bool) ∧
+    t15 = (Int → Bool) ∧ t19 = Int ∧ t18 = Int ∧ t17 = Bool ∧
+    t14 = Int ∧ t16 = Int ∧ 𝛘2(t4, t13)
+| (t28, t29) = t3 ∧ (Ty t30) = t28 ∧ (t31, t32) = t30 ∧
+    (Ty t33) = t29 ∧ (t34, t35) = t33 ∧ 𝛘1(t1) ⟹
+    t36 = (t39, t40 → t38) ∧ t37 = (t39, t40) ∧ 𝛘2(t4, t36)
+| (t41, t42) = t37 ∧ (t28, t29) = t3 ∧ (Ty t30) = t28 ∧
+    (t31, t32) = t30 ∧ (Ty t33) = t29 ∧ (t34, t35) = t33 ∧ 𝛘1(t1)
+    ⟹ t38 = (t45, t46 → t44) ∧ t43 = (t45, t46)
+| (t47, t48) = t43 ∧ (t41, t42) = t37 ∧ (t28, t29) = t3 ∧
+    (Ty t30) = t28 ∧ (t31, t32) = t30 ∧ (Ty t33) = t29 ∧
+    (t34, t35) = t33 ∧ 𝛘1(t1) ⟹ t56 = Bool ∧ t49 = Bool ∧
+    t44 = Bool ∧ t62 = (Ty t31, Ty t34 → t41 → t47 → Bool) ∧
+    t59 = (Ty t31, Ty t34) ∧ t60 = (Ty t31) ∧ t61 = (Ty t34) ∧
+    t58 = t41 ∧ t57 = t47 ∧
+    t55 = (Ty t32, Ty t35 → t42 → t48 → Bool) ∧
+    t52 = (Ty t32, Ty t35) ∧ t53 = (Ty t32) ∧ t54 = (Ty t35) ∧
+    t51 = t42 ∧ t50 = t48 ∧ 𝛘1(t62) ∧ 𝛘1(t55)
+| (t69, t70) = t3 ∧ (Ty t71) = t69 ∧ (List t72) = t71 ∧
+    (Ty t73) = t70 ∧ (List t74) = t73 ∧ 𝛘1(t1) ⟹
+    t76 = (t81 → t82 → Bool) ∧
+    t75 = (List t81 → List t82 → Bool) ∧
+    t80 = (Ty t72, Ty t74 → t81 → t82 → Bool) ∧
+    t77 = (Ty t72, Ty t74) ∧ t78 = (Ty t72) ∧ t79 = (Ty t74) ∧
+    𝛘2(t4, t75) ∧ 𝛘1(t80)
+| (t88, t89) = t3 ∧ (Ty t90) = t88 ∧ Int = t90 ∧ (Ty t91) = t89 ∧
+    (List t92) = t91 ∧ 𝛘1(t1) ⟹ t93 = (List t96 → Ex1 t95) ∧
+    t94 = (List t96) ∧ t99 = (t100 → Bool) ∧ t101 = Bool ∧
+    𝛘2(t4, t93) ∧ 𝛘3(t95, t99)
+| (List t97) = t94 ∧ (t88, t89) = t3 ∧ (Ty t90) = t88 ∧ Int = t90 ∧
+    (Ty t91) = t89 ∧ (List t92) = t91 ∧ 𝛘1(t1) ⟹ 𝛘3(t95, t98) ∧
+    FALSE"
           (Format.flush_str_formatter ());
       with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
