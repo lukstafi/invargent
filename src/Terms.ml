@@ -180,13 +180,13 @@ let subst_typ sb =
 
 let subst_one v s =
   typ_map {typ_id_map with map_tvar =
-      fun v' -> if v = v' then s else TVar v}
+      fun w -> if v = w then s else TVar w}
 
 let subst_one_sb v s =
-  List.map (fun (v,(t,loc)) -> v, (subst_one v s t, loc))
+  List.map (fun (w,(t,loc)) -> w, (subst_one v s t, loc))
 
 let update_sb ~more_sb sb =
-  Aux.map_append (fun (v,(t,loc)) -> v, (subst_typ more_sb t, loc)) sb
+  Aux.map_append (fun (w,(t,loc)) -> w, (subst_typ more_sb t, loc)) sb
     more_sb
 
 (** {3 Formulas} *)
