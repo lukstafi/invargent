@@ -109,7 +109,7 @@ val typ_fold : 'a typ_fold -> typ -> 'a
 
 
 (** Set [extype_id] and [predvar_id] to [0]. *)
-val reset_processing : unit -> unit
+val reset_counters : unit -> unit
 
 type struct_item =
 | TypConstr of cns_name * sort list * loc

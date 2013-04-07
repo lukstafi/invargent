@@ -166,7 +166,7 @@ let typ_fold tfold t =
     | Nadd tys -> tfold.fold_nadd (List.map aux tys) in
   aux t
 
-(** {2 Substitutions and unification} *)
+(** {3 Substitutions} *)
 
 let fvs_typ =
   typ_fold {(typ_make_fold VarSet.union VarSet.empty)
@@ -224,8 +224,6 @@ type typ_scheme = var_name list * formula * typ
 
 let extype_id = ref 0
 let predvar_id = ref 0
-let reset_processing () =
-  extype_id := 0; predvar_id := 0
 
 type struct_item =
 | TypConstr of cns_name * sort list * loc
@@ -256,8 +254,6 @@ let typ_scheme_of_item ?(env=[]) = function
 | LetVal (PVar (name, _), _, _, _, _) -> List.assoc name env
 | LetVal _ -> raise Not_found
 
-(** {3 Unification} *)
-
 type var_scope =
 | Upstream | Same_quant | Downstream | Not_in_scope
 
@@ -277,233 +273,6 @@ let num_sort_typ = function
       TVar (VNam (Num_sort, _)
                  | VId (Num_sort, _)) -> true
   | _ -> false
-
-(** Separate type sort and number sort constraints,  *)
-let unify ~use_quants cmp_v uni_v cnj =
-  let cnj_typ, more_cnj = Aux.partition_map
-    (function
-    | Eqty (t1, t2, loc) when typ_sort_typ t1 && typ_sort_typ t2 ->
-      Aux.Left (t1, t2, loc)
-    | Eqty (t1, t2, loc) as a when num_sort_typ t1 && num_sort_typ t2 ->
-      Aux.Right (Aux.Left a)
-    | Leq _ as a -> Aux.Right (Aux.Left a)
-    | (CFalse _ | PredVarU _ | PredVarB _) as a ->
-      Aux.Right (Aux.Right a)
-    | Eqty (t1, t2, loc) -> raise
-      (Contradiction ("Type sort mismatch", Some (t1, t2), loc)))
-    cnj in
-  let cnj_num, cnj_so = Aux.partition_choice more_cnj in
-  let rec aux sb num_cn = function
-    | [] -> sb, num_cn
-    | (t1, t2, loc)::cnj when t1 = t2 -> aux sb num_cn cnj
-    | (t1, t2, loc)::cnj -> match subst_typ sb t1, subst_typ sb t2 with
-      | t1, t2 when t1 = t2 -> aux sb num_cn cnj
-      | t1, t2 when num_sort_typ t1 && num_sort_typ t2 ->
-        aux sb (Eqty (t1, t2, loc)::num_cn) cnj
-      | t1, t2 when num_sort_typ t1 || num_sort_typ t2 -> raise
-        (Contradiction ("Type sort mismatch", Some (t1, t2), loc))
-      | TVar v1, (TVar v2 as t)
-        when not (uni_v v1)
-          && List.mem (cmp_v v1 v2) [Downstream; Same_quant] ->
-        aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
-      | (TVar v2 as t), TVar v1
-          when not (uni_v v1)
-            && List.mem (cmp_v v1 v2) [Downstream; Same_quant] ->
-        aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
-      | (TVar v as tv, t | t, (TVar v as tv))
-          when VarSet.mem v (fvs_typ t) ->
-        raise (Contradiction ("Occurs check fail", Some (tv, t), loc))
-      | TVar v1, t
-          when not (uni_v v1) &&
-            VarSet.for_all (fun v2 ->
-              List.mem (cmp_v v1 v2) [Downstream; Same_quant]) (fvs_typ t) ->
-        aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
-      | t, TVar v1
-          when not (uni_v v1) &&
-            VarSet.for_all (fun v2 ->
-              List.mem (cmp_v v1 v2) [Downstream; Same_quant]) (fvs_typ t) ->
-        aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
-      | (TVar v as tv, t | t, (TVar v as tv)) ->
-        if use_quants
-        then raise
-          (Contradiction ("Quantifier violation", Some (tv, t), loc))
-        else aux ((v, (t, loc))::subst_one_sb v t sb) num_cn cnj
-      | (TCons (f, f_args) as t1,
-         (TCons (g, g_args) as t2)) when f=g ->
-        let more_cnj =
-          try List.combine f_args g_args
-          with Invalid_argument _ -> raise
-            (Contradiction ("Type arity mismatch", Some (t1, t2), loc)) in
-        aux sb num_cn (List.map (fun (t1,t2)->t1,t2,loc) more_cnj @ cnj)
-      | Fun (f1, a1), Fun (f2, a2) ->
-        let more_cnj = [f1, f2, loc; a1, a2, loc] in
-        aux sb num_cn (more_cnj @ cnj)
-      | t1, t2 -> raise
-        (Contradiction ("Type mismatch", Some (t1, t2), loc)) in
-  let cnj_typ, cnj_num = aux [] cnj_num cnj_typ in
-  cnj_typ, cnj_num, cnj_so
-
-let combine_sbs ~use_quants cmp_v uni_v ?(more_phi=[]) sbs =
-  let cnj_typ, cnj_num, cnj_so =
-    unify ~use_quants cmp_v uni_v
-      (more_phi @ Aux.concat_map
-         (List.map (fun (v,(t,loc)) -> Eqty (TVar v, t, loc))) sbs) in
-  assert (cnj_so = []);
-  cnj_typ, cnj_num
-
-(** {2 Sort inference} *)
-let newtype_env = Hashtbl.create 15
-
-let infer_sorts_item item =
-  let sorts = Hashtbl.create 15 in
-  let fresh_proxy = ref 0 in
-  let new_proxy () = incr fresh_proxy; Aux.Left !fresh_proxy in
-  let rec find v =
-    try
-      match Hashtbl.find sorts v with
-      | Aux.Left v' -> find (Aux.Left v')
-      | Aux.Right s -> s
-    with Not_found -> assert false in
-  let rec add loc msg v s =
-    try
-      match Hashtbl.find sorts v with
-      | Aux.Left s'l -> add loc msg (Aux.Left s'l) s
-      | Aux.Right s'r as s' ->
-        if s'r = Undefined_sort
-        then Hashtbl.replace sorts v s
-        else if s' <> s
-        then match s with
-        | Aux.Left sl ->
-          add loc msg (Aux.Left sl) s'
-        | Aux.Right sr -> raise
-          (Report_toplevel ("Sort mismatch for "^
-                               msg^": sorts "^sort_str sr^" and " ^
-                               sort_str s'r, Some loc))
-    with Not_found -> Hashtbl.add sorts v s in
-  let find_v v = find (Aux.Right v) in
-  let add_v loc v s =
-    if s <> Aux.Right Undefined_sort
-    then add loc (var_str v) (Aux.Right v) s in
-  let walk_var = function
-    | VId (_,id) as tv -> VId (find_v tv, id)
-    | VNam (_,v) as tv -> VNam (find_v tv, v) in
-  let walk_typ =
-    typ_map {typ_id_map with map_tvar =
-        fun tv -> TVar (walk_var tv)} in
-  let walk_atom = function
-    | Eqty (t1, t2, loc) ->
-      Eqty (walk_typ t1, walk_typ t2, loc)
-    | Leq (t1, t2, loc) -> Leq (walk_typ t1, walk_typ t2, loc)
-    | CFalse _ as a -> a
-    | PredVarU (id,ty) -> PredVarU (id, walk_typ ty)
-    | PredVarB (id,t1,t2) -> PredVarB (id, walk_typ t1, walk_typ t2) in
-  let rec infer_typ cur_loc s = function
-    | TVar tv -> add_v cur_loc tv s 
-    | TCons (CNam "Tuple", args) ->
-      List.iter (infer_typ cur_loc (Aux.Right Type_sort)) args
-    | TCons (CNam _ as n, args) ->
-      (try let argsorts = List.map
-             (fun s -> Aux.Right s) (Hashtbl.find newtype_env n) in
-           List.iter2 (infer_typ cur_loc) argsorts args
-       with
-       | Not_found -> raise
-         (Report_toplevel ("Undefined type constructor "^cns_str n,
-                           Some cur_loc))
-       | Invalid_argument _ -> raise
-         (Report_toplevel ("Arity mismatch for type constructor "^
-                              cns_str n, Some cur_loc)))
-    | TCons (Extype _ as n, args) ->
-      (try let argsorts = List.map
-             (fun s -> Aux.Right s) (Hashtbl.find newtype_env n) in
-           List.iter2 (infer_typ cur_loc) argsorts args
-       with
-       | Not_found ->
-         List.iter (infer_typ cur_loc (Aux.Right Undefined_sort)) args
-       | Invalid_argument _ -> assert false)
-    | Fun (t1, t2) ->
-      (match s with
-      | Aux.Right s ->
-        if s <> Undefined_sort && s <> Type_sort then raise
-          (Report_toplevel ("Expected sort "^sort_str s^
-                               " but found sort type (function)",
-                            Some cur_loc));
-      | Aux.Left sl ->
-        add cur_loc "function type" (Aux.Left sl) (Aux.Right Type_sort));
-      infer_typ cur_loc (Aux.Right Type_sort) t1;
-      infer_typ cur_loc (Aux.Right Type_sort) t2
-    | NCst _ ->
-      (match s with
-      | Aux.Right s ->
-        if s <> Undefined_sort && s <> Num_sort then raise
-          (Report_toplevel ("Expected sort "^sort_str s^
-                               " but found sort num (constant)",
-                            Some cur_loc));
-      | Aux.Left sl ->
-        add cur_loc "num constant" (Aux.Left sl) (Aux.Right Num_sort));
-      ()
-    | Nadd args ->
-      (match s with
-      | Aux.Right s ->
-        if s <> Undefined_sort && s <> Num_sort then raise
-          (Report_toplevel ("Expected sort "^sort_str s^
-                               " but found sort num (addition)",
-                            Some cur_loc));
-      | Aux.Left sl ->
-        add cur_loc "num addition" (Aux.Left sl) (Aux.Right Num_sort));
-      List.iter (infer_typ cur_loc (Aux.Right Num_sort)) args
-  and infer_atom = function
-    | Eqty (t1, t2, loc) ->
-      let s = new_proxy () in
-      infer_typ loc s t1; infer_typ loc s t2
-    | Leq (t1, t2, loc) ->
-      infer_typ loc (Aux.Right Num_sort) t1;
-      infer_typ loc (Aux.Right Num_sort) t2
-    | CFalse _ -> ()
-    | PredVarU (id,ty) ->
-      infer_typ dummy_loc (Aux.Right Type_sort) ty
-    | PredVarB (id,t1, t2) ->
-      infer_typ dummy_loc (Aux.Right Type_sort) t1;
-      infer_typ dummy_loc (Aux.Right Type_sort) t2 in
-  match item with
-  | TypConstr (CNam _ as name, sorts, _) as item ->
-    Hashtbl.add newtype_env name sorts; [item]
-  | TypConstr (Extype _, _, _) ->
-    []                                  (* will be reintroduced *)
-  | ValConstr (CNam _ as name, vs, phi, args, c_n, c_args, loc) ->
-    let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
-    infer_typ loc (Aux.Right Type_sort) res;
-    List.iter (infer_typ loc (Aux.Right Type_sort)) args;
-    List.iter infer_atom phi;
-    let args = List.map walk_typ args in
-    let phi = List.map walk_atom phi in
-    let vs = List.map walk_var vs in
-    let c_args = List.map walk_var c_args in
-    [ValConstr (name, vs, phi, args, c_n, c_args, loc)]
-  | ValConstr (Extype _ as name, vs, phi, args,
-               c_n, c_args, loc) when name = c_n ->
-    let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
-    List.iter (infer_typ loc (Aux.Right Type_sort)) args;
-    List.iter infer_atom phi;
-    infer_typ loc (Aux.Right Type_sort) res;
-    let sorts = List.map (fun v -> find_v v) c_args in
-    let args = List.map walk_typ args in
-    let phi = List.map walk_atom phi in
-    let vs = List.map walk_var vs in
-    let c_args = List.map walk_var c_args in
-    [TypConstr (name, sorts, loc);
-     ValConstr (name, vs, phi, args, c_n, c_args, loc)]
-  | ValConstr (Extype _, _, _, _, _, _, _) -> assert false
-  | PrimVal (n, (vs, phi, ty), loc) ->
-    infer_typ loc (Aux.Right Type_sort) ty;
-    List.iter infer_atom phi;
-    let ty = walk_typ ty in
-    let phi = List.map walk_atom phi in
-    let vs = List.map walk_var vs in
-    [PrimVal (n, (vs, phi, ty), loc)]
-  | (LetRecVal _ | LetVal _) as item -> [item]
-
-let infer_sorts prog =
-  Aux.concat_map infer_sorts_item prog
 
 (** {2 Printing} *)
 let current_file_name = ref ""
@@ -743,6 +512,12 @@ let pr_typscheme ppf = function
       (pr_sep_list " *" pr_tyvar) vs
       pr_formula phi (pr_ty false) ty
   
+let pr_subst ppf sb =
+  pr_sep_list ";" (fun ppf (v,(t,_)) ->
+    fprintf ppf "%s:=%a" (var_str v) (pr_ty false) t) ppf sb
+
+
+
 let pr_opt_sig_tysch ppf = function
   | None -> ()
   | Some tysch -> fprintf ppf "@ :@ %a" pr_typscheme tysch
@@ -814,3 +589,237 @@ let pr_exception ppf = function
     Format.fprintf ppf "%!\n%s\ntypes involved:\n%a\n%a\n%!"
       what (pr_ty false) ty1 (pr_ty false) ty2
   | exn -> raise exn
+
+
+(** {2 Unification} *)
+
+(** Separate type sort and number sort constraints,  *)
+let unify ~use_quants cmp_v uni_v cnj =
+  let cnj_typ, more_cnj = Aux.partition_map
+    (function
+    | Eqty (t1, t2, loc) when typ_sort_typ t1 && typ_sort_typ t2 ->
+      Aux.Left (t1, t2, loc)
+    | Eqty (t1, t2, loc) as a when num_sort_typ t1 && num_sort_typ t2 ->
+      Aux.Right (Aux.Left a)
+    | Leq _ as a -> Aux.Right (Aux.Left a)
+    | (CFalse _ | PredVarU _ | PredVarB _) as a ->
+      Aux.Right (Aux.Right a)
+    | Eqty (t1, t2, loc) -> raise
+      (Contradiction ("Type sort mismatch", Some (t1, t2), loc)))
+    cnj in
+  let cnj_num, cnj_so = Aux.partition_choice more_cnj in
+  let rec aux sb num_cn = function
+    | [] -> sb, num_cn
+    | (t1, t2, loc)::cnj when t1 = t2 -> aux sb num_cn cnj
+    | (t1, t2, loc)::cnj ->
+      match subst_typ sb t1, subst_typ sb t2 with
+      | t1, t2 when t1 = t2 -> aux sb num_cn cnj
+      | t1, t2 when num_sort_typ t1 && num_sort_typ t2 ->
+        aux sb (Eqty (t1, t2, loc)::num_cn) cnj
+      | t1, t2 when num_sort_typ t1 || num_sort_typ t2 -> raise
+        (Contradiction ("Type sort mismatch", Some (t1, t2), loc))
+      | TVar v1, (TVar v2 as t)
+        when not (uni_v v1)
+          && List.mem (cmp_v v1 v2) [Downstream; Same_quant] ->
+        aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
+      | (TVar v2 as t), TVar v1
+          when not (uni_v v1)
+            && List.mem (cmp_v v1 v2) [Downstream; Same_quant] ->
+        aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
+      | (TVar v as tv, t | t, (TVar v as tv))
+          when VarSet.mem v (fvs_typ t) ->
+        raise (Contradiction ("Occurs check fail", Some (tv, t), loc))
+      | TVar v1, t
+          when not (uni_v v1) &&
+            VarSet.for_all (fun v2 ->
+              List.mem (cmp_v v1 v2) [Downstream; Same_quant]) (fvs_typ t) ->
+        aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
+      | t, TVar v1
+          when not (uni_v v1) &&
+            VarSet.for_all (fun v2 ->
+              List.mem (cmp_v v1 v2) [Downstream; Same_quant]) (fvs_typ t) ->
+        aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
+      | (TVar v as tv, t | t, (TVar v as tv)) ->
+        if use_quants
+        then raise
+          (Contradiction ("Quantifier violation", Some (tv, t), loc))
+        else aux ((v, (t, loc))::subst_one_sb v t sb) num_cn cnj
+      | (TCons (f, f_args) as t1,
+         (TCons (g, g_args) as t2)) when f=g ->
+        let more_cnj =
+          try List.combine f_args g_args
+          with Invalid_argument _ -> raise
+            (Contradiction ("Type arity mismatch", Some (t1, t2), loc)) in
+        aux sb num_cn (List.map (fun (t1,t2)->t1,t2,loc) more_cnj @ cnj)
+      | Fun (f1, a1), Fun (f2, a2) ->
+        let more_cnj = [f1, f2, loc; a1, a2, loc] in
+        aux sb num_cn (more_cnj @ cnj)
+      | t1, t2 -> raise
+        (Contradiction ("Type mismatch", Some (t1, t2), loc)) in
+  let cnj_typ, cnj_num = aux [] cnj_num cnj_typ in
+  cnj_typ, cnj_num, cnj_so
+
+let combine_sbs ~use_quants cmp_v uni_v ?(more_phi=[]) sbs =
+  let cnj_typ, cnj_num, cnj_so =
+    unify ~use_quants cmp_v uni_v
+      (more_phi @ Aux.concat_map
+         (List.map (fun (v,(t,loc)) -> Eqty (TVar v, t, loc))) sbs) in
+  assert (cnj_so = []);
+  cnj_typ, cnj_num
+
+(** {2 Sort inference} *)
+let newtype_env = Hashtbl.create 15
+
+let infer_sorts_item item =
+  let sorts = Hashtbl.create 15 in
+  let fresh_proxy = ref 0 in
+  let new_proxy () = incr fresh_proxy; Aux.Left !fresh_proxy in
+  let rec find v =
+    try
+      match Hashtbl.find sorts v with
+      | Aux.Left v' -> find (Aux.Left v')
+      | Aux.Right s -> s
+    with Not_found -> assert false in
+  let rec add loc msg v s =
+    try
+      match Hashtbl.find sorts v with
+      | Aux.Left s'l -> add loc msg (Aux.Left s'l) s
+      | Aux.Right s'r as s' ->
+        if s'r = Undefined_sort
+        then Hashtbl.replace sorts v s
+        else if s' <> s
+        then match s with
+        | Aux.Left sl ->
+          add loc msg (Aux.Left sl) s'
+        | Aux.Right sr -> raise
+          (Report_toplevel ("Sort mismatch for "^
+                               msg^": sorts "^sort_str sr^" and " ^
+                               sort_str s'r, Some loc))
+    with Not_found -> Hashtbl.add sorts v s in
+  let find_v v = find (Aux.Right v) in
+  let add_v loc v s =
+    if s <> Aux.Right Undefined_sort
+    then add loc (var_str v) (Aux.Right v) s in
+  let walk_var = function
+    | VId (_,id) as tv -> VId (find_v tv, id)
+    | VNam (_,v) as tv -> VNam (find_v tv, v) in
+  let walk_typ =
+    typ_map {typ_id_map with map_tvar =
+        fun tv -> TVar (walk_var tv)} in
+  let walk_atom = function
+    | Eqty (t1, t2, loc) ->
+      Eqty (walk_typ t1, walk_typ t2, loc)
+    | Leq (t1, t2, loc) -> Leq (walk_typ t1, walk_typ t2, loc)
+    | CFalse _ as a -> a
+    | PredVarU (id,ty) -> PredVarU (id, walk_typ ty)
+    | PredVarB (id,t1,t2) -> PredVarB (id, walk_typ t1, walk_typ t2) in
+  let rec infer_typ cur_loc s = function
+    | TVar tv -> add_v cur_loc tv s 
+    | TCons (CNam "Tuple", args) ->
+      List.iter (infer_typ cur_loc (Aux.Right Type_sort)) args
+    | TCons (CNam _ as n, args) ->
+      (try let argsorts = List.map
+             (fun s -> Aux.Right s) (Hashtbl.find newtype_env n) in
+           List.iter2 (infer_typ cur_loc) argsorts args
+       with
+       | Not_found -> raise
+         (Report_toplevel ("Undefined type constructor "^cns_str n,
+                           Some cur_loc))
+       | Invalid_argument _ -> raise
+         (Report_toplevel ("Arity mismatch for type constructor "^
+                              cns_str n, Some cur_loc)))
+    | TCons (Extype _ as n, args) ->
+      (try let argsorts = List.map
+             (fun s -> Aux.Right s) (Hashtbl.find newtype_env n) in
+           List.iter2 (infer_typ cur_loc) argsorts args
+       with
+       | Not_found ->
+         List.iter (infer_typ cur_loc (Aux.Right Undefined_sort)) args
+       | Invalid_argument _ -> assert false)
+    | Fun (t1, t2) ->
+      (match s with
+      | Aux.Right s ->
+        if s <> Undefined_sort && s <> Type_sort then raise
+          (Report_toplevel ("Expected sort "^sort_str s^
+                               " but found sort type (function)",
+                            Some cur_loc));
+      | Aux.Left sl ->
+        add cur_loc "function type" (Aux.Left sl) (Aux.Right Type_sort));
+      infer_typ cur_loc (Aux.Right Type_sort) t1;
+      infer_typ cur_loc (Aux.Right Type_sort) t2
+    | NCst _ ->
+      (match s with
+      | Aux.Right s ->
+        if s <> Undefined_sort && s <> Num_sort then raise
+          (Report_toplevel ("Expected sort "^sort_str s^
+                               " but found sort num (constant)",
+                            Some cur_loc));
+      | Aux.Left sl ->
+        add cur_loc "num constant" (Aux.Left sl) (Aux.Right Num_sort));
+      ()
+    | Nadd args ->
+      (match s with
+      | Aux.Right s ->
+        if s <> Undefined_sort && s <> Num_sort then raise
+          (Report_toplevel ("Expected sort "^sort_str s^
+                               " but found sort num (addition)",
+                            Some cur_loc));
+      | Aux.Left sl ->
+        add cur_loc "num addition" (Aux.Left sl) (Aux.Right Num_sort));
+      List.iter (infer_typ cur_loc (Aux.Right Num_sort)) args
+  and infer_atom = function
+    | Eqty (t1, t2, loc) ->
+      let s = new_proxy () in
+      infer_typ loc s t1; infer_typ loc s t2
+    | Leq (t1, t2, loc) ->
+      infer_typ loc (Aux.Right Num_sort) t1;
+      infer_typ loc (Aux.Right Num_sort) t2
+    | CFalse _ -> ()
+    | PredVarU (id,ty) ->
+      infer_typ dummy_loc (Aux.Right Type_sort) ty
+    | PredVarB (id,t1, t2) ->
+      infer_typ dummy_loc (Aux.Right Type_sort) t1;
+      infer_typ dummy_loc (Aux.Right Type_sort) t2 in
+  match item with
+  | TypConstr (CNam _ as name, sorts, _) as item ->
+    Hashtbl.add newtype_env name sorts; [item]
+  | TypConstr (Extype _, _, _) ->
+    []                                  (* will be reintroduced *)
+  | ValConstr (CNam _ as name, vs, phi, args, c_n, c_args, loc) ->
+    let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
+    infer_typ loc (Aux.Right Type_sort) res;
+    List.iter (infer_typ loc (Aux.Right Type_sort)) args;
+    List.iter infer_atom phi;
+    let args = List.map walk_typ args in
+    let phi = List.map walk_atom phi in
+    let vs = List.map walk_var vs in
+    let c_args = List.map walk_var c_args in
+    [ValConstr (name, vs, phi, args, c_n, c_args, loc)]
+  | ValConstr (Extype _ as name, vs, phi, args,
+               c_n, c_args, loc) when name = c_n ->
+    let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
+    List.iter (infer_typ loc (Aux.Right Type_sort)) args;
+    List.iter infer_atom phi;
+    infer_typ loc (Aux.Right Type_sort) res;
+    let sorts = List.map (fun v -> find_v v) c_args in
+    let args = List.map walk_typ args in
+    let phi = List.map walk_atom phi in
+    let vs = List.map walk_var vs in
+    let c_args = List.map walk_var c_args in
+    [TypConstr (name, sorts, loc);
+     ValConstr (name, vs, phi, args, c_n, c_args, loc)]
+  | ValConstr (Extype _, _, _, _, _, _, _) -> assert false
+  | PrimVal (n, (vs, phi, ty), loc) ->
+    infer_typ loc (Aux.Right Type_sort) ty;
+    List.iter infer_atom phi;
+    let ty = walk_typ ty in
+    let phi = List.map walk_atom phi in
+    let vs = List.map walk_var vs in
+    [PrimVal (n, (vs, phi, ty), loc)]
+  | (LetRecVal _ | LetVal _) as item -> [item]
+
+let infer_sorts prog =
+  Aux.concat_map infer_sorts_item prog
+
+let reset_counters () =
+  extype_id := 0; predvar_id := 0

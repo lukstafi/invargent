@@ -565,8 +565,6 @@ let normalize cn =
   let rec aux up_vars same_vars at_uni more_prem more_cnj_typ cn =
     let cnj, impls, dsj_impls =
       flatten up_vars same_vars at_uni cn in
-    Format.printf "Prems:@ %a@\ncnj:@ %a@\n"
-      pr_formula more_prem pr_formula cnj;
     let cnj_typ, cnj_num, cnj_so = unify cnj in
     let more_impls, more_cns = Aux.partition_map
       (fun (up_vars, same_vars, at_uni, prems, concl, alt) ->
@@ -774,3 +772,6 @@ let pr_brs ppf brs =
       List.map (fun (v,(t,loc)) -> Eqty (TVar v, t, loc)) sb @
         num @ so in
     fprintf ppf "@[<2>%a@ ⟹@ %a@]" pr_formula prem pr_formula concl) ppf brs
+
+let reset_counters () =
+  fresh_var_id := 0; fresh_chi_id := 0

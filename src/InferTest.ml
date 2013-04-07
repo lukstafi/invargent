@@ -11,7 +11,8 @@ open Infer
 let tests = "Infer" >::: [
   "constraints: eval" >::
     (fun () ->
-      Terms.extype_id := 0;
+      Terms.reset_counters ();
+      Infer.reset_counters ();
       let prog = Parser.program Lexer.token
 	(Lexing.from_string
 "newtype Term : type
@@ -46,41 +47,43 @@ let rec eval = function
         pr_brs Format.str_formatter brs;
         assert_equal ~printer:(fun x -> x)
 " ⟹ 𝛘1(t2)
-| 𝛘1(t1) ⟹ t1 = (t3 → Ex1 t4) ∧ t3 = (Term Int) ∧
-    t3 = (Term Bool) ∧ t3 = (Term Int) ∧ t3 = (Term u17) ∧
-    t3 = (Term (u30, u31)) ∧ t3 = (Term u41) ∧ t3 = (Term u56)
-| (Term Int) = t3 ∧ 𝛘1(t1) ⟹ t5 = Int ∧ 𝛘2(t4, t5)
-| (Term Bool) = t3 ∧ 𝛘1(t1) ⟹ t7 = Int ∧ t6 = Bool ∧
-    t9 = (t8 → t7) ∧ t8 = (Term Int) ∧ 𝛘2(t4, t6) ∧ 𝛘1(t9)
-| (Term Int) = t3 ∧ 𝛘1(t1) ⟹ t14 = Int ∧ t11 = Int ∧ t10 = Int ∧
-    t16 = (t15 → t14) ∧ t15 = (Term Int) ∧ t13 = (t12 → t11) ∧
-    t12 = (Term Int) ∧ 𝛘2(t4, t10) ∧ 𝛘1(t16) ∧ 𝛘1(t13)
-| (Term u18) = t3 ∧ 𝛘1(t1) ⟹ t26 = Bool ∧ u29 = t23 ∧
-    u29 = t20 ∧ u29 = t19 ∧ t28 = (t27 → t26) ∧ t27 = (Term Bool) ∧
-    t25 = (t24 → t23) ∧ t24 = (Term u18) ∧ t22 = (t21 → t20) ∧
-    t21 = (Term u18) ∧ 𝛘2(t4, t19) ∧ 𝛘1(t28) ∧ 𝛘1(t25) ∧
-    𝛘1(t22)
-| (Term (u32, u33)) = t3 ∧ 𝛘1(t1) ⟹ t34 = (t35, t36) ∧
-    t38 = (t37 → t35) ∧ t37 = (Term u32) ∧ t40 = (t39 → t36) ∧
-    t39 = (Term u33) ∧ 𝛘2(t4, t34) ∧ 𝛘1(t38) ∧ 𝛘1(t40)
-| (Term u43) = t3 ∧ 𝛘1(t1) ⟹ t49 = t46 ∧ t50 = t45 ∧
-    t49 = (t51, t52) ∧ t48 = (t47 → t46) ∧ t47 = (Term (u43, u44)) ∧
-    𝛘2(t4, t45) ∧ 𝛘1(t48)
-| (t53, t54) = t49 ∧ (Term u43) = t3 ∧ 𝛘1(t1) ⟹ t53 = t50
-| (Term u58) = t3 ∧ 𝛘1(t1) ⟹ t63 = t60 ∧ t64 = t59 ∧
-    t63 = (t65, t66) ∧ t62 = (t61 → t60) ∧ t61 = (Term (u57, u58)) ∧
-    𝛘2(t4, t59) ∧ 𝛘1(t62)
-| (t67, t68) = t63 ∧ (Term u58) = t3 ∧ 𝛘1(t1) ⟹ t68 = t64"
+| 𝛘1(t1) ⟹ t1 = (Term t5 → Ex1 t4) ∧ t3 = (Term t5) ∧ t8 = t5 ∧
+    t14 = t5 ∧ t23 = t5 ∧ t36 = t5 ∧ t49 = t5 ∧ t64 = t5
+| (Term t6) = t3 ∧ Int = t6 ∧ 𝛘1(t1) ⟹ t7 = Int ∧ 𝛘2(t4, t7)
+| (Term t9) = t3 ∧ Bool = t9 ∧ 𝛘1(t1) ⟹ t11 = Int ∧ t10 = Bool ∧
+    t13 = (Term Int → Int) ∧ t12 = (Term Int) ∧ 𝛘2(t4, t10) ∧
+    𝛘1(t13)
+| (Term t15) = t3 ∧ Int = t15 ∧ 𝛘1(t1) ⟹ t20 = Int ∧ t17 = Int ∧
+    t16 = Int ∧ t22 = (Term Int → Int) ∧ t21 = (Term Int) ∧
+    t19 = (Term Int → Int) ∧ t18 = (Term Int) ∧ 𝛘2(t4, t16) ∧
+    𝛘1(t22) ∧ 𝛘1(t19)
+| (Term t24) = t3 ∧ 𝛘1(t1) ⟹ t32 = Bool ∧ t35 = t25 ∧
+    t29 = t25 ∧ t26 = t25 ∧ t34 = (Term Bool → Bool) ∧
+    t33 = (Term Bool) ∧ t31 = (Term t24 → t25) ∧ t30 = (Term t24) ∧
+    t28 = (Term t24 → t25) ∧ t27 = (Term t24) ∧ 𝛘2(t4, t25) ∧
+    𝛘1(t34) ∧ 𝛘1(t31) ∧ 𝛘1(t28)
+| (Term t39) = t3 ∧ (t40, t41) = t39 ∧ 𝛘1(t1) ⟹ t42 = (t43, t44) ∧
+    t46 = (Term t40 → t43) ∧ t45 = (Term t40) ∧
+    t48 = (Term t41 → t44) ∧ t47 = (Term t41) ∧ 𝛘2(t4, t42) ∧
+    𝛘1(t46) ∧ 𝛘1(t48)
+| (Term t51) = t3 ∧ 𝛘1(t1) ⟹ t57 = (t59, t60) ∧ t58 = t53 ∧
+    t54 = (t59, t60) ∧ t56 = (Term (t51, t52) → t59, t60) ∧
+    t55 = (Term (t51, t52)) ∧ 𝛘2(t4, t53) ∧ 𝛘1(t56)
+| (t61, t62) = t57 ∧ (Term t51) = t3 ∧ 𝛘1(t1) ⟹ t61 = t58
+| (Term t66) = t3 ∧ 𝛘1(t1) ⟹ t71 = (t73, t74) ∧ t72 = t67 ∧
+    t68 = (t73, t74) ∧ t70 = (Term (t65, t66) → t73, t74) ∧
+    t69 = (Term (t65, t66)) ∧ 𝛘2(t4, t67) ∧ 𝛘1(t70)
+| (t75, t76) = t71 ∧ (Term t66) = t3 ∧ 𝛘1(t1) ⟹ t76 = t72"
           (Format.flush_str_formatter ());
       with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
         Terms.pr_exception Format.str_formatter exn;
         assert_failure (Format.flush_str_formatter ())
     );
-
   "constraints: filter" >::
     (fun () ->
-      Terms.extype_id := 0;
+      Terms.reset_counters ();
+      Infer.reset_counters ();
       let prog = Parser.program Lexer.token
 	(Lexing.from_string
 "newtype Bool
@@ -101,24 +104,25 @@ let rec filter =
       try
         let prog = Terms.infer_sorts prog in
         let cn = infer_prog_mockup prog in
+        (* Format.printf "cn:@\n%a@\n" pr_cnstrnt cn; *)
         let cmp_v, uni_v, brs = normalize cn in
         ignore (Format.flush_str_formatter ());
         pr_brs Format.str_formatter brs;
         assert_equal ~printer:(fun x -> x)
-" ⟹ 𝛘3(t70)
-| 𝛘3(t69) ⟹ t69 = (t71 → Ex1 t72) ∧ t71 = (List (u73, 0)) ∧
-    t71 = (List (u78, u77 + 1))
-| (List (u74, 0)) = t71 ∧ 𝛘3(t69) ⟹ t75 = (List (u76, 0)) ∧
-    𝛘4(t72, t75)
-| (List (u80, u79 + 1)) = t71 ∧ 𝛘3(t69) ⟹ t84 = t82 ∧ t85 = t81 ∧
-    t84 = Bool ∧ t84 = Bool ∧ t83 = Bar ∧ t82 = Bool ∧ t83 = u80 ∧
-    𝛘4(t72, t81)
-| Bool = t84 ∧ (List (u80, u79 + 1)) = t71 ∧ 𝛘3(t69) ⟹
-    t85 = (List (u87, u86 + 1)) ∧ u87 = u80 ∧
-    t89 = (t88 → List (u87, u86)) ∧ t88 = (List (u80, u79)) ∧
-    𝛘3(t89)
-| Bool = t84 ∧ (List (u80, u79 + 1)) = t71 ∧ 𝛘3(t69) ⟹
-    t91 = (t90 → t85) ∧ t90 = (List (u80, u79)) ∧ 𝛘3(t91)"
+" ⟹ 𝛘1(t2)
+| 𝛘1(t1) ⟹ t1 = (List (t6, n5) → Ex1 t4) ∧ t3 = (List (t6, n5)) ∧
+    t13 = t6 ∧ n12 = n5
+| (List (t8, n7)) = t3 ∧ 0 = n7 ∧ 𝛘1(t1) ⟹
+    t9 = (List (t11, n10)) ∧ 0 = n10 ∧ 𝛘2(t4, t9)
+| (List (t16, n15)) = t3 ∧ (n17 + 1) = n15 ∧ 𝛘1(t1) ⟹ t21 = Bool ∧
+    t22 = t18 ∧ t19 = Bool ∧ t20 = Bar ∧ t16 = Bar ∧ 𝛘2(t4, t18)
+| Bool = t21 ∧ (List (t16, n15)) = t3 ∧ (n17 + 1) = n15 ∧ 𝛘1(t1) ⟹
+    t22 = (List (t16, n23)) ∧ t24 = t16 ∧
+    t27 = (List (t16, n17) → List (t16, n25)) ∧
+    t26 = (List (t16, n17)) ∧ (n25 + 1) = n23 ∧ 𝛘1(t27)
+| Bool = t21 ∧ (List (t16, n15)) = t3 ∧ (n17 + 1) = n15 ∧ 𝛘1(t1) ⟹
+    t29 = (List (t16, n17) → t22) ∧ t28 = (List (t16, n17)) ∧
+    𝛘1(t29)"
           (Format.flush_str_formatter ());
       with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
@@ -128,7 +132,8 @@ let rec filter =
 
   "constraints: equal with assert and test" >::
     (fun () ->
-      Terms.extype_id := 0;
+      Terms.reset_counters ();
+      Infer.reset_counters ();
       let prog = Parser.program Lexer.token
 	(Lexing.from_string
 "newtype Ty : type

@@ -69,3 +69,5 @@ val nicevars_struct_item : Terms.struct_item -> Terms.struct_item
 val pr_cnstrnt : Format.formatter -> cnstrnt -> unit
 val pr_brs : Format.formatter ->
   branch list -> unit
+
+val reset_counters : unit -> unit
