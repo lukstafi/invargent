@@ -376,14 +376,11 @@ let infer_sorts_item item =
         | Aux.Left sl ->
           add loc msg (Aux.Left sl) s'
         | Aux.Right sr -> raise
-          (Report_toplevel ("Sort mismatch for type variable "^
+          (Report_toplevel ("Sort mismatch for "^
                                msg^": sorts "^sort_str sr^" and " ^
                                sort_str s'r, Some loc))
     with Not_found -> Hashtbl.add sorts v s in
   let find_v v = find (Aux.Right v) in
-  let find_s = function
-    | Aux.Right s -> s
-    | Aux.Left sl -> find (Aux.Left sl) in
   let add_v loc v s =
     if s <> Aux.Right Undefined_sort
     then add loc (var_str v) (Aux.Right v) s in
@@ -424,23 +421,35 @@ let infer_sorts_item item =
          List.iter (infer_typ cur_loc (Aux.Right Undefined_sort)) args
        | Invalid_argument _ -> assert false)
     | Fun (t1, t2) ->
-      let s = find_s s in
-      if s <> Undefined_sort && s <> Type_sort then raise
-        (Report_toplevel ("Expected sort "^sort_str s^
-                             " but found sort type (function)", Some cur_loc));
+      (match s with
+      | Aux.Right s ->
+        if s <> Undefined_sort && s <> Type_sort then raise
+          (Report_toplevel ("Expected sort "^sort_str s^
+                               " but found sort type (function)",
+                            Some cur_loc));
+      | Aux.Left sl ->
+        add cur_loc "function type" (Aux.Left sl) (Aux.Right Type_sort));
       infer_typ cur_loc (Aux.Right Type_sort) t1;
       infer_typ cur_loc (Aux.Right Type_sort) t2
     | NCst _ ->
-      let s = find_s s in
-      if s <> Undefined_sort && s <> Num_sort then raise
-        (Report_toplevel ("Expected sort "^sort_str s^
-                             " but found sort num (constant)", Some cur_loc));
+      (match s with
+      | Aux.Right s ->
+        if s <> Undefined_sort && s <> Num_sort then raise
+          (Report_toplevel ("Expected sort "^sort_str s^
+                               " but found sort num (constant)",
+                            Some cur_loc));
+      | Aux.Left sl ->
+        add cur_loc "num constant" (Aux.Left sl) (Aux.Right Num_sort));
       ()
     | Nadd args ->
-      let s = find_s s in
-      if s <> Undefined_sort && s <> Num_sort then raise
-        (Report_toplevel ("Expected sort "^sort_str s^
-                             " but found sort num (addition)", Some cur_loc));
+      (match s with
+      | Aux.Right s ->
+        if s <> Undefined_sort && s <> Num_sort then raise
+          (Report_toplevel ("Expected sort "^sort_str s^
+                               " but found sort num (addition)",
+                            Some cur_loc));
+      | Aux.Left sl ->
+        add cur_loc "num addition" (Aux.Left sl) (Aux.Right Num_sort));
       List.iter (infer_typ cur_loc (Aux.Right Num_sort)) args
   and infer_atom = function
     | Eqty (t1, t2, loc) ->
