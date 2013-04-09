@@ -619,23 +619,23 @@ let unify ~use_quants cmp_v uni_v cnj =
       | t1, t2 when num_sort_typ t1 || num_sort_typ t2 -> raise
         (Contradiction ("Type sort mismatch", Some (t1, t2), loc))
       | TVar v1, (TVar v2 as t)
-        when not (uni_v v1)
+        when not (use_quants && uni_v v1)
           && List.mem (cmp_v v1 v2) [Downstream; Same_quant] ->
         aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
       | (TVar v2 as t), TVar v1
-          when not (uni_v v1)
+          when not (use_quants && uni_v v1)
             && List.mem (cmp_v v1 v2) [Downstream; Same_quant] ->
         aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
       | (TVar v as tv, t | t, (TVar v as tv))
           when VarSet.mem v (fvs_typ t) ->
         raise (Contradiction ("Occurs check fail", Some (tv, t), loc))
       | TVar v1, t
-          when not (uni_v v1) &&
+          when not (use_quants && uni_v v1) &&
             VarSet.for_all (fun v2 ->
               List.mem (cmp_v v1 v2) [Downstream; Same_quant]) (fvs_typ t) ->
         aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
       | t, TVar v1
-          when not (uni_v v1) &&
+          when not (use_quants && uni_v v1) &&
             VarSet.for_all (fun v2 ->
               List.mem (cmp_v v1 v2) [Downstream; Same_quant]) (fvs_typ t) ->
         aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
