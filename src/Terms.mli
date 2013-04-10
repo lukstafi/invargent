@@ -82,7 +82,7 @@ val var_str : var_name -> string
 val extype_id : int ref
 val predvar_id : int ref
 
-(** Mapping and folding over types. *)
+(** {3 Mapping and folding over types.} *)
 type typ_map = {
   map_tvar : var_name -> typ;
   map_tcons : cns_name -> typ list -> typ;
@@ -107,6 +107,18 @@ val typ_map : typ_map -> typ -> typ
 
 val typ_fold : 'a typ_fold -> typ -> 'a
 
+(** {3 Zippers.} *)
+type typ_dir =
+| TCons_dir of cns_name * typ list * typ list
+| Fun_left of typ
+| Fun_right of typ
+| Nadd_dir of typ list * typ list
+type typ_loc = {typ_sub : typ; typ_ctx : typ_dir list}
+
+val typ_up : typ_loc -> typ_loc option
+val typ_down : typ_loc -> typ_loc option
+val typ_next : ?same_level:bool -> typ_loc -> typ_loc option
+val typ_out : typ_loc -> typ
 
 (** Set [extype_id] and [predvar_id] to [0]. *)
 val reset_counters : unit -> unit
@@ -199,6 +211,9 @@ val pr_ty : bool -> Format.formatter -> typ -> unit
 val pr_sort : Format.formatter -> sort -> unit
 val pr_typscheme :
   Format.formatter -> typ_scheme -> unit
+val pr_typ_dir : Format.formatter -> typ_dir -> unit
+val pr_typ_loc : Format.formatter -> typ_loc -> unit
 val pr_struct_item : Format.formatter -> struct_item -> unit
 val pr_program : Format.formatter -> struct_item list -> unit
 val pr_exception : Format.formatter -> exn -> unit
+val pr_to_str : (Format.formatter -> 'a -> unit) -> 'a -> string

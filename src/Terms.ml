@@ -116,6 +116,8 @@ module VarSet =
 let vars_of_list l =
   List.fold_right VarSet.add l VarSet.empty
 
+(** {3 Mapping and folding} *)
+
 type typ_map = {
   map_tvar : var_name -> typ;
   map_tcons : cns_name -> typ list -> typ;
@@ -166,11 +168,64 @@ let typ_fold tfold t =
     | Nadd tys -> tfold.fold_nadd (List.map aux tys) in
   aux t
 
+(** {3 Zipper} *)
+type typ_dir =
+| TCons_dir of cns_name * typ list * typ list
+| Fun_left of typ
+| Fun_right of typ
+| Nadd_dir of typ list * typ list
+type typ_loc = {typ_sub : typ; typ_ctx : typ_dir list}
+
+let typ_up t =
+  match t.typ_sub with
+  | TVar v -> None
+  | TCons (_, []) -> None
+  | TCons (n, t1::ts) ->
+    Some {typ_sub = t1; typ_ctx = TCons_dir (n, [], ts) :: t.typ_ctx}
+  | Fun (t1, t2) ->
+    Some {typ_sub = t1; typ_ctx = Fun_left t2 :: t.typ_ctx}
+  | NCst i -> None
+  | Nadd [] -> None
+  | Nadd (t1::ts) ->
+    Some {typ_sub = t1; typ_ctx = Nadd_dir ([], ts) :: t.typ_ctx}
+
+let typ_down t =
+  match t.typ_ctx with
+  | [] -> None
+  | TCons_dir (n, ts_l, ts_r)::ctx ->
+    Some {typ_sub=TCons (n, ts_l@[t.typ_sub]@ts_r); typ_ctx=ctx}
+  | Fun_left t2::ctx ->
+    Some {typ_sub=Fun (t.typ_sub, t2); typ_ctx=ctx}
+  | Fun_right t1::ctx ->
+    Some {typ_sub=Fun (t1, t.typ_sub); typ_ctx=ctx}
+  | Nadd_dir (ts_l, ts_r)::ctx ->
+    Some {typ_sub=Nadd (ts_l@[t.typ_sub]@ts_r); typ_ctx=ctx}   
+
+let rec typ_next ?(same_level=false) t =
+  match t.typ_ctx with
+  | [] -> None
+  | (TCons_dir (n, ts_l, []))::_ && not same_level ->
+    Aux.bind_opt (typ_down t) (typ_next ~same_level)
+  | (TCons_dir (n, ts_l, t_r::ts_r))::ctx ->
+    Some {typ_sub=t_r; typ_ctx=TCons_dir (n, ts_l@[t.typ_sub], ts_r)::ctx}
+  | Fun_left t2::ctx ->
+    Some {typ_sub = t2; typ_ctx = Fun_right t.typ_sub::ctx}
+  | Fun_right _ :: _ && not same_level ->
+    Aux.bind_opt (typ_down t) (typ_next ~same_level)
+  | (Nadd_dir (ts_l, []))::_ && not same_level ->
+    Aux.bind_opt (typ_down t) (typ_next ~same_level)
+  | (Nadd_dir (ts_l, t_r::ts_r))::ctx ->
+    Some {typ_sub=t_r; typ_ctx=Nadd_dir (ts_l@[t.typ_sub], ts_r)::ctx}
+
+let rec typ_out t =
+  if t.typ_ctx = [] then t.typ_sub
+  else match typ_down t with Some t -> typ_out t | None -> assert false
+
 (** {3 Substitutions} *)
 
 let fvs_typ =
   typ_fold {(typ_make_fold VarSet.union VarSet.empty)
-            with fold_tvar = fun v -> VarSet.singleton v}
+  with fold_tvar = fun v -> VarSet.singleton v}
 
 type subst = (var_name * (typ * loc)) list
 
@@ -516,7 +571,29 @@ let pr_subst ppf sb =
   pr_sep_list ";" (fun ppf (v,(t,_)) ->
     fprintf ppf "%s:=%a" (var_str v) (pr_ty false) t) ppf sb
 
+let pr_typ_dir ppf = function
+  | TCons_dir (n, ts_l, []) ->
+    fprintf ppf "@[<2>%s@ (%a,@ ^)@]" (cns_str n)
+      (pr_sep_list "," (pr_ty true)) ts_l
+  | TCons_dir (n, ts_l, ts_r) ->
+    fprintf ppf "@[<2>%s@ (%a,@ ^,@ %a)@]" (cns_str n)
+      (pr_sep_list "," (pr_ty true)) ts_l
+      (pr_sep_list "," (pr_ty true)) ts_r
+  | Fun_left t2 ->
+    fprintf ppf "@[<2>^ →@ %a@]" (pr_ty true) t2
+  | Fun_right t1 ->
+    fprintf ppf "@[<2>%a →@ ^@]" (pr_ty true) t1
+  | Nadd_dir (ts_l, []) ->
+    fprintf ppf "@[<2>%a@ + ^@]"
+      (pr_sep_list " +" (pr_ty true)) ts_l
+  | Nadd_dir (ts_l, ts_r) ->
+    fprintf ppf "@[<2>%a@ + ^@ + %a@]"
+      (pr_sep_list " +" (pr_ty true)) ts_l
+      (pr_sep_list " +" (pr_ty true)) ts_r
 
+let pr_typ_loc ppf t =
+  fprintf ppf "@[<2>%a@ <-@ [%a]@]" (pr_ty false) t.typ_sub
+    (pr_sep_list ";" pr_typ_dir) t.typ_ctx
 
 let pr_opt_sig_tysch ppf = function
   | None -> ()
@@ -590,6 +667,11 @@ let pr_exception ppf = function
       what (pr_ty false) ty1 (pr_ty false) ty2
   | exn -> raise exn
 
+
+let pr_to_str pr_f e =
+  ignore (Format.flush_str_formatter ());
+  pr_f Format.str_formatter e;
+  Format.flush_str_formatter ()
 
 (** {2 Unification} *)
 

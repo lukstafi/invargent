@@ -59,6 +59,13 @@ let split3 l =
     | (e1,e2,e3)::tl -> aux (e1::l1) (e2::l2) (e3::l3) tl in
   aux [] [] [] l
 
+let bind_opt t f =
+  match t with
+  | None -> None
+  | Some t -> f t
+
+let unsome = function None -> invalid_arg "Aux.unsome" | Some e -> e
+
 (** {2 Choice, aka. either type}  *)
 
 type ('a,'b) choice = Left of 'a | Right of 'b
