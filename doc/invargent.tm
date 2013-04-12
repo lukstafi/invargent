@@ -274,14 +274,37 @@
 
   <section|Abduction>
 
-  The formal specification of abduction at <cite|jcaqpUNIF> provides a scheme
+  The formal specification of abduction in <cite|jcaqpUNIF> provides a scheme
   for combining sorts that substitutes number sort subterms from type sort
   terms with variables, so that a single-sort term abduction algorithm can be
   called. Since we implement term abduction over the two-sorted datatype
   <verbatim|typ>, we keep these <em|alien subterms> in terms passed to term
   abduction.
 
-  \;
+  Our initial implementation of simple constraint abduction for terms follows
+  <cite|AbductionSolvMaher> p. 13. It only gives <em|fully maximal answers>
+  which is loss of generality w.r.t. our requirements. To solve
+  <math|D\<Rightarrow\>C> the algorithm starts with with
+  <math|\<b-U\><around*|(|D\<wedge\>C|)>> and iteratively replaces subterms
+  by fresh variables <math|\<alpha\>\<in\><wide|\<alpha\>|\<bar\>>> for a
+  final solution <math|\<exists\><wide|\<alpha\>|\<bar\>>.A>. We follow
+  top-down approach where bigger subterms are abstracted first -- replaced by
+  fresh variable. Subterms of a subterm are tried only when replacing the
+  subterm no longer maintains <math|T<around*|(|F|)>\<vDash\>A\<wedge\>D\<Rightarrow\>C>.
+  Otherwise, the subterm is replaced, together with an arbitrary selection of
+  other occurrences of the subterm. Rather than branching on subsets of
+  replacements and performing the replacements straight away, we perform
+  replacement of a subterm when we encounter the subterm. This results in a
+  single pass over all subterms considered. TODO: this probably leads to
+  another loss of generality, does it? Finally, we clean up the solution by
+  eliminating fresh variables when possible (i.e. substituting-out equations
+  <math|x<wide|=|\<dot\>>\<alpha\>> for variable <math|x> and fresh variable
+  <math|\<alpha\>>).
+
+  Although our formalism stresses the possibility of infinite number of
+  abduction answers, there is always finite number of <em|fully maximal>
+  answers. We decided to compute all answers at once using lists, instead of
+  computing them lazily using streams.
 
   <\bibliography|bib|tm-plain|biblio.bib>
     <\bib-list|1>
@@ -335,6 +358,8 @@
       systemTechRep
 
       jcaqpUNIF
+
+      AbductionSolvMaher
     </associate>
     <\associate|toc>
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|1<space|2spc>Data
