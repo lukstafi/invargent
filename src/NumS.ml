@@ -10,4 +10,4 @@ let satisfiable_num cnj =
   true
 
 let abd_num cmp_v uni_v brs =
-  [[],[]]
+  [(* [] *)Terms.VarSet.empty,[]]

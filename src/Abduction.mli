@@ -21,4 +21,4 @@ val abd :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
   (Terms.atom list * Terms.atom list) list ->
-  (Terms.VarSet.elt list * Terms.atom list) list
+  ((* Terms.var_name list *)Terms.VarSet.t * Terms.atom list) list

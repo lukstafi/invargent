@@ -122,7 +122,7 @@ let abd cmp_v uni_v brs =
             | CFalse loc ->
               raise (Contradiction ("assert false is possible", None, loc))
             | _ -> ()) concl_so;
-            if not (satisfiable_num concl_num) then None
+            if not (NumS.satisfiable_num concl_num) then None
             else Some ((prem_typ, concl_typ), (prem_num, concl_num),
                        (prem_so, concl_so))
         | None -> None)
@@ -130,13 +130,13 @@ let abd cmp_v uni_v brs =
   let sols_typ = abd_typ cmp_v uni_v brs_typ in
   Aux.concat_map
     (fun (tvs, ans_typ, more_num) ->
-      let tvs = VarSet.elements tvs in
+      (* let tvs = VarSet.elements tvs in *)
       let brs_num = List.map2
         (fun (prem,concl) more -> prem, more @ concl)
         brs_num more_num in
-      let sols_num = abd_num cmp_v uni_v brs_num in
+      let sols_num = NumS.abd_num cmp_v uni_v brs_num in
       List.map
-        (fun (nvs, ans_num) -> nvs @ tvs,
+        (fun (nvs, ans_num) -> VarSet.union nvs tvs,
           (* Aux.map_append (fun (v,t,loc) -> Eqty (TVar v,t,loc)) *)
             ans_typ @ ans_num)
         sols_num)

@@ -10,5 +10,5 @@ val satisfiable_num : Terms.atom list -> bool
 val abd_num :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
-  (Terms.subst * Terms.subst) list ->
+  (Terms.formula * Terms.formula) list ->
   (Terms.VarSet.t * Terms.atom list) list
