@@ -272,6 +272,12 @@
   <verbatim|ImplOr2> corresponds to nesting of <verbatim|let>-<verbatim|in>
   definitions.
 
+  After normalization, we simplify the constraints by removing redundant
+  atoms. We remove atoms that bind variables not occurring anywhere else in
+  the constraint, and in case of atoms not in premises, not universally
+  quantified. The simplification step is not currently proven correct and
+  might need refining.
+
   <section|Abduction>
 
   The formal specification of abduction in <cite|jcaqpUNIF> provides a scheme

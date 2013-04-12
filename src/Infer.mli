@@ -42,9 +42,10 @@ type solution =
     (int * (Terms.typ -> Terms.subst * Terms.atom list)) list *
     (int * (Terms.var_name -> Terms.var_name -> Terms.subst * Terms.formula))
     list
-val infer_prog_mockup : Terms.struct_item list -> cnstrnt
+val infer_prog_mockup : Terms.struct_item list -> Terms.VarSet.t * cnstrnt
 val infer_prog :
-  (cnstrnt -> solution) -> Terms.struct_item list -> Terms.struct_item list
+  (preserve:Terms.VarSet.t -> cnstrnt -> solution) ->
+  Terms.struct_item list -> Terms.struct_item list
 
 (** {2 Normalization} *)
 type branch =
@@ -55,6 +56,11 @@ val normalize : cnstrnt ->
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) *
     (Terms.var_name, bool) Hashtbl.t *
     branch list
+
+val simplify :
+  Terms.VarSet.t ->
+  (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
+  (Terms.var_name -> bool)-> branch list -> branch list
 
 (** {2 Postprocessing and printing} *)
 (*

@@ -305,10 +305,10 @@ let infer_prog_mockup prog =
   let sigma = Hashtbl.create 127 in
   let ex_types = ref [] in
   let cns = List.map (function
-    | TypConstr _ -> And []
+    | TypConstr _ -> VarSet.empty, And []
     | ValConstr (CNam x, vs, phi, args, c_n, c_args, loc) ->
       Hashtbl.add sigma x (vs, phi, args, c_n, c_args);
-      And []
+      VarSet.empty, And []
     | ValConstr (Extype _ as n, vs, phi, [arg],
                  Extype _, c_args, loc) ->
       let tres = TCons (CNam "Tuple", List.map (fun v->TVar v) c_args) in
@@ -316,11 +316,11 @@ let infer_prog_mockup prog =
         Eqty (t3, arg, loc) ::
           Eqty (t2, tres, loc) :: phi in
       ex_types := (n, ex_phi, loc) :: !ex_types;
-      And []
+      VarSet.empty, And []
     | ValConstr (Extype _, _, _, _, _, _, _) -> assert false
     | PrimVal (x, tsch, loc) ->
       gamma := (x, tsch) :: !gamma;
-      And []
+      VarSet.empty, And []
     | LetRecVal (x, e, defsig, tests, loc) ->
       let bvs, sig_cn, t = match defsig with
         | None ->
@@ -328,10 +328,11 @@ let infer_prog_mockup prog =
           let tb = TVar b in
           [b], [], tb
         | Some (vs, phi, t) -> vs, phi, t in
+      let preserve = VarSet.union (fvs_typ t) (fvs_formula sig_cn) in
       let chi_id, typ_sch, cn =
         constr_gen_letrec !gamma sigma ex_types x e sig_cn t tests in
       gamma := (x, typ_sch) :: !gamma;
-      cn
+      preserve, cn
     | LetVal (p, e, defsig, tests, loc) ->
       let avs, sig_vs, sig_cn, t = match defsig with
         | None ->
@@ -341,6 +342,8 @@ let infer_prog_mockup prog =
         | Some (vs, phi, t) -> VarSet.empty, vs, phi, t in
       let bs, exphi, env, cn =
         constr_gen_let !gamma sigma ex_types p e t in
+      let preserve = VarSet.union (fvs_typ t)
+        (VarSet.union (fvs_formula sig_cn) (fvs_formula exphi)) in
       let cn =
         if sig_cn=[] || cn=And [] then cn else Impl (sig_cn, cn) in
       let cn =
@@ -369,9 +372,12 @@ let infer_prog_mockup prog =
           ex_types := (ety_cn, ex_phi, loc) :: !ex_types;
           x, ([], [], ety) in
       gamma := Aux.map_append typ_sch_ex env !gamma;
-      cn
+      preserve, cn
   ) prog in
-  List.fold_right cn_and cns (And [])
+  List.fold_right
+    (fun (pres, cn) (pres_acc, cn_acc) ->
+      VarSet.union pres pres_acc, cn_and cn cn_acc)
+    cns (VarSet.empty, And [])
 
 let infer_prog solver prog =
   let gamma = ref [] in
@@ -439,7 +445,9 @@ let infer_prog solver prog =
       | Some (vs, phi, t) -> vs, phi, t in
     let chi_id, _, cn =
       constr_gen_letrec !gamma sigma ex_types x e sig_cn t tests in
-    let (sb_res, phi_res), sb_chiU, sb_chiB = solver cn in
+    let preserve = VarSet.union (fvs_typ t) (fvs_formula sig_cn) in
+    let (sb_res, phi_res), sb_chiU, sb_chiB =
+      solver ~preserve cn in
     let more_sb, phi =
       try List.assoc chi_id sb_chiU t
       with Not_found -> assert false in
@@ -461,6 +469,8 @@ let infer_prog solver prog =
       | Some (vs, phi, t) -> VarSet.empty, vs, phi, t in
     let bs, exphi, env, cn =
       constr_gen_let !gamma sigma ex_types p e t in
+    let preserve = VarSet.union (fvs_typ t)
+      (VarSet.union (fvs_formula sig_cn) (fvs_formula exphi)) in
     let cn =
       if sig_cn=[] || cn=And [] then cn else Impl (sig_cn, cn) in
     let cn =
@@ -473,7 +483,8 @@ let infer_prog solver prog =
       if not (VarSet.is_empty bs) && test_cn <> And []
       then All (bs, test_cn) else test_cn in
     let cn = cn_and cn test_cn in
-    let (sb, phi), sb_chiU, sb_chiB = solver cn in
+    let (sb, phi), sb_chiU, sb_chiB =
+      solver ~preserve cn in
     let ex_items = update_new_ex_types old_ex_types sb sb_chiB in
     let res = subst_typ sb t in
     let gvs = VarSet.union (fvs_formula phi) (fvs_typ res) in
@@ -505,6 +516,7 @@ let infer_prog solver prog =
     gamma := Aux.map_append typ_sch_ex env !gamma;
     ex_items @ !more_items @ [LetVal (p, e, Some typ_sch, tests, loc)]
   ) prog
+
 
 (** {2 Normalization} *)
 
@@ -611,7 +623,55 @@ let normalize cn =
     br1, brs2 @ brs3 in
   let br, brs = aux VarSet.empty VarSet.empty false [] [] cn in
   cmp_vars, univars, br::brs
+
+let vs_hist_typ increase =
+  typ_fold {(typ_make_fold (fun _ _ -> ()) ())
+            with fold_tvar = (fun v -> increase v)}
+
+let vs_hist_atom increase = function
+  | Eqty (t1, t2, _) | Leq (t1, t2, _) ->
+    vs_hist_typ increase t1; vs_hist_typ increase t2
+  | CFalse _ -> ()
+  | PredVarU (_, t) -> vs_hist_typ increase t
+  | PredVarB (_, t1, t2) ->
+    vs_hist_typ increase t1; vs_hist_typ increase t2
+
+let vs_hist_sb increase sb =
+  List.iter (fun (v,(t,_)) -> increase v; vs_hist_typ increase t) sb
  
+let simplify preserve cmp_v uni_v brs =
+  let ht = Hashtbl.create 255 in
+  let increase v =
+    try
+      let n = Hashtbl.find ht v in
+      Hashtbl.replace ht v (n+1)
+    with Not_found -> Hashtbl.add ht v 1 in
+  let count v =
+    try Hashtbl.find ht v with Not_found -> 0 in
+  List.iter
+    (fun (prem,(cn_typ,cn_num,cn_so)) ->
+      List.iter (vs_hist_atom increase) prem;
+      vs_hist_sb increase cn_typ;
+      List.iter (vs_hist_atom increase) cn_num;
+      List.iter (vs_hist_atom increase) cn_so
+    ) brs;
+  let redundant_atom in_prem = function
+  | Eqty (TVar v, _, _) | Leq (TVar v, _, _)
+  | Eqty (_, TVar v, _) | Leq (_, TVar v, _) ->
+    not (VarSet.mem v preserve) && count v = 1
+    && (in_prem || not (uni_v v))       (* FIXME: use cmp_v? *)
+  | _ -> false in
+  let redundant_vsb (v,(t,_)) =
+    not (VarSet.mem v preserve) && count v = 1
+    && not (uni_v v) in    (* FIXME: use cmp_v? *)
+  let nonred_pr_atom a = not (redundant_atom true a) in
+  let nonred_atom a = not (redundant_atom false a) in
+  let nonred_vsb vsb = not (redundant_vsb vsb) in
+  List.map
+    (fun (prem,(cn_typ,cn_num,cn_so)) ->
+      List.filter nonred_pr_atom prem,
+      (List.filter nonred_vsb cn_typ,
+       List.filter nonred_atom cn_num, cn_so)) brs
 
 (** {2 Postprocessing and printing} *)
 
