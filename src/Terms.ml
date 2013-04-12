@@ -204,16 +204,19 @@ let typ_down t =
 let rec typ_next ?(same_level=false) t =
   match t.typ_ctx with
   | [] -> None
-  | (TCons_dir (n, ts_l, []))::_ && not same_level ->
+  | (TCons_dir (n, ts_l, []))::_ when not same_level ->
     Aux.bind_opt (typ_down t) (typ_next ~same_level)
+  | (TCons_dir (n, ts_l, []))::_ (* when same_level *) -> None
   | (TCons_dir (n, ts_l, t_r::ts_r))::ctx ->
     Some {typ_sub=t_r; typ_ctx=TCons_dir (n, ts_l@[t.typ_sub], ts_r)::ctx}
   | Fun_left t2::ctx ->
     Some {typ_sub = t2; typ_ctx = Fun_right t.typ_sub::ctx}
-  | Fun_right _ :: _ && not same_level ->
+  | Fun_right _ :: _ when not same_level ->
     Aux.bind_opt (typ_down t) (typ_next ~same_level)
-  | (Nadd_dir (ts_l, []))::_ && not same_level ->
+  | Fun_right _ :: _ (* when same_level *) -> None
+  | (Nadd_dir (ts_l, []))::_ when not same_level ->
     Aux.bind_opt (typ_down t) (typ_next ~same_level)
+  | (Nadd_dir (ts_l, []))::_ (* when same_level *) -> None
   | (Nadd_dir (ts_l, t_r::ts_r))::ctx ->
     Some {typ_sub=t_r; typ_ctx=Nadd_dir (ts_l@[t.typ_sub], ts_r)::ctx}
 
@@ -276,7 +279,7 @@ let fvs_formula phi =
 let fvs_sb sb =
   List.fold_left VarSet.union
     (vars_of_list (List.map fst sb))
-    (List.map (fun (_,t)->fvs_typ t) sb)
+    (List.map (fun (_,(t,_))->fvs_typ t) sb)
 
 let subst_formula sb phi = List.map (subst_atom sb) phi
 
