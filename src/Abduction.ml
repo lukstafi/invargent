@@ -103,12 +103,6 @@ let abd_typ cmp_v uni_v brs =
     with Contradiction _ -> None
   ) sols
 
-let satisfiable_num cnj =
-  true
-
-let abd_num cmp_v uni_v brs =
-  [[],[]]
-
 let abd cmp_v uni_v brs =
   (* Do not change the order and no. of branches afterwards. *)
   let brs_typ, brs_num, brs_so = Aux.split3

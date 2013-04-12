@@ -17,8 +17,6 @@ val abd_typ :
   (Terms.var_name -> bool) ->
   (Terms.subst * Terms.subst) list ->
   (Terms.VarSet.t * Terms.atom list * Terms.atom list list) list
-(* val satisfiable_num : 'a -> bool *)
-(* val abd_num : 'a -> 'b -> 'c -> ('d list * 'e list) list *)
 val abd :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
