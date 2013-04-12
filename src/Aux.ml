@@ -32,6 +32,11 @@ let concat_map f l =
   in
   List.rev (cmap_f [] l)
 
+let rec concat_fold f a = function
+  | [] -> [a]
+  | x::xs -> 
+    concat_map (fun a' -> concat_fold f a' xs) (f x a)
+
 let map_some f l =
   let rec maps_f accu = function
     | [] -> accu
@@ -58,6 +63,11 @@ let split3 l =
     | [] -> List.rev l1, List.rev l2, List.rev l3
     | (e1,e2,e3)::tl -> aux (e1::l1) (e2::l2) (e3::l3) tl in
   aux [] [] [] l
+
+let product l =
+  List.fold_left (fun prod set -> concat_map
+    (fun el -> List.rev (List.rev_map (fun tup ->  el::tup) prod))
+    set) [[]] (List.rev l) 
 
 let bind_opt t f =
   match t with
@@ -90,8 +100,36 @@ let map_choice f g = function
   | Left e -> Left (f e)
   | Right e -> Right (g e)
 
-(** {2 Lazy lists} *)
 
+let assoc_all x l =
+  let rec aux acc = function
+    | [] -> acc
+    | (a,b)::l ->
+      if a = x then aux (b::acc) l else aux acc l in
+  aux [] l
+
+(** {2 Lazy lists} *)
+(*
 type 'a lazy_list = 'a lazy_list_ Lazy.t
 and 'a lazy_list_ = LNil | LCons of 'a * 'a lazy_list
 
+let lsingl a = lazy (LCons (a, lazy LNil))
+let rec ltake n = function
+ | lazy (LazCons (a, l)) when n > 0 ->
+   a::(laztake (n-1) l)
+ | _ -> []
+let rec append_aux l1 l2 =
+  match l1 with lazy LazNil -> Lazy.force l2
+  | lazy (LazCons (hd, tl)) ->
+    LazCons (hd, lazy (append_aux tl l2))
+let lappend l1 l2 = lazy (append_aux l1 l2)
+let rec concat_map_aux f = function
+  | lazy LazNil -> LazNil
+  | lazy (LazCons (a, l)) ->
+    append_aux (f a) (lazy (concat_map_aux f l))
+let lconcat_map f l = lazy (concat_map_aux f l)
+
+let rec lfoldM f a = function
+  | [] -> lsingl a
+  | x::xs -> lconcat_map (fun a' -> foldM f a' xs) (f a x)
+*)
