@@ -569,10 +569,10 @@ let pr_typscheme ppf = function
   | [], [], ty -> pr_ty false ppf ty
   | vs, [], ty ->
     fprintf ppf "@[<0>∀%a.@ %a@]"
-      (pr_sep_list " *" pr_tyvar) vs (pr_ty false) ty
+      (pr_sep_list "," pr_tyvar) vs (pr_ty false) ty
   | vs, phi, ty ->
     fprintf ppf "@[<0>∀%a[%a].@ %a@]"
-      (pr_sep_list " *" pr_tyvar) vs
+      (pr_sep_list "," pr_tyvar) vs
       pr_formula phi (pr_ty false) ty
   
 let pr_subst ppf sb =
@@ -767,11 +767,12 @@ let infer_sorts_item item =
   let fresh_proxy = ref 0 in
   let new_proxy () = incr fresh_proxy; Aux.Left !fresh_proxy in
   let rec find v =
-    try
+    (* try *)
       match Hashtbl.find sorts v with
       | Aux.Left v' -> find (Aux.Left v')
       | Aux.Right s -> s
-    with Not_found -> assert false in
+    (* with Not_found -> assert false *)
+  in
   let rec add loc msg v s =
     try
       match Hashtbl.find sorts v with
@@ -788,7 +789,17 @@ let infer_sorts_item item =
                                msg^": sorts "^sort_str sr^" and " ^
                                sort_str s'r, Some loc))
     with Not_found -> Hashtbl.add sorts v s in
-  let find_v v = find (Aux.Right v) in
+  let find_v v =
+    try find (Aux.Right v)
+    with Not_found ->
+      match v with                      (* TODO: why? *)
+      | VNam (s, n) when s <> Type_sort && n.[0]='t' ->
+        find (Aux.Right (VNam (Type_sort, n)))          
+      | VNam (s, n) when s <> Num_sort && n.[0]='n' ->
+        find (Aux.Right (VNam (Num_sort, n)))          
+      | VNam (s, n) when s <> Undefined_sort ->
+        find (Aux.Right (VNam (Undefined_sort, n)))
+      | _ -> assert false in
   let add_v loc v s =
     if s <> Aux.Right Undefined_sort
     then add loc (var_str v) (Aux.Right v) s in

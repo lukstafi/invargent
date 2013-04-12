@@ -213,6 +213,7 @@ val pr_ty : bool -> Format.formatter -> typ -> unit
 val pr_sort : Format.formatter -> sort -> unit
 val pr_typscheme :
   Format.formatter -> typ_scheme -> unit
+val pr_subst : Format.formatter -> subst -> unit
 val pr_typ_dir : Format.formatter -> typ_dir -> unit
 val pr_typ_loc : Format.formatter -> typ_loc -> unit
 val pr_struct_item : Format.formatter -> struct_item -> unit

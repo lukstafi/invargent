@@ -43,6 +43,7 @@ let rec eval = function
       try
         let prog = Terms.infer_sorts prog in
         let preserve, cn = infer_prog_mockup prog in
+        (* Format.printf "cn:@\n%a@\n" pr_cnstrnt cn; *)
         let cmp_v, uni_v, brs = normalize cn in
         let uni_v v =
           try Hashtbl.find uni_v v with Not_found -> false in

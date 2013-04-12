@@ -119,9 +119,10 @@ let extract_datatyp allvs loc = function
 %nonassoc prec_constr_appl              /* above AS BAR COLONCOLON COMMA */
 %nonassoc LPAREN LBRACKET
 
-%start program
+%start program typ formula
 %type <Terms.struct_item list> program
-%type <Terms.typ> simple_typ
+%type <Terms.typ> simple_typ typ
+%type <Terms.formula> formula
 
 /* Grammar follows */
 %%
@@ -298,7 +299,11 @@ typ_comma_list:
 simple_typ:
   | simple_typ PLUS simple_typ
       { ty_add $1 $3 }
-  | LIDENT   { TVar (VNam (Undefined_sort, $1)) }
+  | LIDENT   { let v = $1 in
+               TVar (VNam (
+                 (if v.[0]='t' then Type_sort
+                  else if v.[0]='n' then Num_sort
+                  else Undefined_sort), $1)) }
   | UIDENT   { TCons (CNam $1, []) }
   | INT      { NCst $1 }
   | LPAREN typ RPAREN
