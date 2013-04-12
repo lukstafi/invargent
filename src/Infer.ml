@@ -768,9 +768,7 @@ let rec pr_cnstrnt ppf = function
 
 let pr_brs ppf brs =
   pr_line_list "| " (fun ppf (prem,(sb, num, so)) ->
-    let concl =
-      List.map (fun (v,(t,loc)) -> Eqty (TVar v, t, loc)) sb @
-        num @ so in
+    let concl = to_formula sb @ num @ so in
     fprintf ppf "@[<2>%a@ ⟹@ %a@]" pr_formula prem pr_formula concl) ppf brs
 
 let reset_counters () =

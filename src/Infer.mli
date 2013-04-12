@@ -49,6 +49,7 @@ val infer_prog :
 (** {2 Normalization} *)
 type branch =
   Terms.formula * (Terms.subst * Terms.formula * Terms.formula)
+val fresh_typ_var : unit -> Terms.var_name
 
 val normalize : cnstrnt ->
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) *

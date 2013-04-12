@@ -273,6 +273,11 @@ type formula = atom list
 let fvs_formula phi =
   List.fold_left VarSet.union VarSet.empty (List.map fvs_atom phi)
 
+let fvs_sb sb =
+  List.fold_left VarSet.union
+    (vars_of_list (List.map fst sb))
+    (List.map (fun (_,t)->fvs_typ t) sb)
+
 let subst_formula sb phi = List.map (subst_atom sb) phi
 
 type typ_scheme = var_name list * formula * typ
@@ -741,11 +746,13 @@ let unify ~use_quants cmp_v uni_v cnj =
   let cnj_typ, cnj_num = aux [] cnj_num cnj_typ in
   cnj_typ, cnj_num, cnj_so
 
+let to_formula =
+  List.map (fun (v,(t,loc)) -> Eqty (TVar v, t, loc))
+
 let combine_sbs ~use_quants cmp_v uni_v ?(more_phi=[]) sbs =
   let cnj_typ, cnj_num, cnj_so =
     unify ~use_quants cmp_v uni_v
-      (more_phi @ Aux.concat_map
-         (List.map (fun (v,(t,loc)) -> Eqty (TVar v, t, loc))) sbs) in
+      (more_phi @ Aux.concat_map to_formula sbs) in
   assert (cnj_so = []);
   cnj_typ, cnj_num
 

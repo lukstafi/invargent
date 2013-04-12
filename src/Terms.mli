@@ -144,6 +144,7 @@ type subst = (var_name * (typ * loc)) list
 
 val subst_atom : subst -> atom -> atom
 val subst_formula : subst -> formula -> formula
+val fvs_sb : subst -> VarSet.t
 
 val enc_funtype : typ -> typ list -> typ
 val ty_add : typ -> typ -> typ
@@ -175,6 +176,7 @@ val num_sort_typ : typ -> bool
 val unify : use_quants:bool ->
   (var_name -> var_name -> var_scope) -> (var_name -> bool) ->
   atom list -> subst * atom list * atom list
+val to_formula : subst -> atom list
 val combine_sbs : use_quants:bool ->
   (var_name -> var_name -> var_scope) -> (var_name -> bool) ->
   ?more_phi:atom list -> subst list -> subst * atom list
