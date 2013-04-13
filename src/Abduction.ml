@@ -27,18 +27,27 @@ let abd_simple cmp_v uni_v (prem, concl) =
       else cmp_v v1 v2 in
     let cnj_typ, cnj_num = prem_and ans in
     let res_ty, res_num = residuum cmp' uni_v cnj_typ concl in
-    if List.for_all (fun (v,_) -> List.mem v vs) res_ty
-    then Some (res_num @ cnj_num)
-    else None in
-  let rec abstract repls vs ans num = function
-    | [] -> [vs, ans, num]
+    Format.printf "@[<2>[%a@ ?⟹@ %a@ |@ %a]@]@\n" pr_subst cnj_typ
+      pr_subst concl pr_subst res_ty;
+    let num = res_num @ cnj_num in
+    if res_ty = [] && NumS.satisfiable num
+    then Some num else None in
+  let rec abstract repls vs ans = function
+    | [] ->
+      (match implies_concl vs ans with
+      | None -> []
+      | Some num -> [vs, ans, num])
     | (x, (t, lc))::cand ->
-      step x lc {typ_sub=t; typ_ctx=[]} repls vs ans num cand
-  and step x lc loc repls vs ans (num : atom list) cand =
+      Format.printf "abstract:@ x=%s;@ t=%a@\n"
+        (var_str x) (pr_ty false) t;
+      step x lc {typ_sub=t; typ_ctx=[]} repls vs ans cand
+  and step x lc loc repls vs ans cand =
+      Format.printf "step:@ x=%s;@ loc=%a@\n"
+        (var_str x) pr_typ_loc loc;
     let advance () =
       match typ_next loc with
-      | None -> abstract repls vs ((x, (typ_out loc,lc))::ans) num cand
-      | Some loc -> step x lc loc repls vs ans num cand in
+      | None -> abstract repls vs ((x, (typ_out loc,lc))::ans) cand
+      | Some loc -> step x lc loc repls vs ans cand in
     if num_sort_typ loc.typ_sub
     then advance ()
     else
@@ -47,34 +56,33 @@ let abd_simple cmp_v uni_v (prem, concl) =
       let vs' = a::vs in
       let loc' = {loc with typ_sub = TVar a} in
       let ans' = (x, (typ_out loc', lc))::ans in
-      match implies_concl vs' ans' with
-      | Some more_num ->
-        (match typ_next loc' with
-      | None -> abstract repls' vs' ans' num cand
-      | Some loc' ->
-        step x lc loc' repls' vs' ans (more_num @ num) cand
-        (* x ^ bound when leaving step *) )
+      let advance' () =
+        match typ_next loc' with (* x bound when leaving step *)
+        | None -> abstract repls' vs' ans' cand
+        | Some loc' -> step x lc loc' repls' vs' ans cand in
+      Format.printf "trying location:@ a=%s@\n" (var_str a);
+      match implies_concl vs' (ans' @ cand) with
+      | Some _ -> Format.printf "works.@\n"; advance' ()
       | None ->
         let repl = Aux.assoc_all loc.typ_sub repls in
-        List.rev_append
-          (match typ_up loc with
-          | None -> advance ()        
-          | Some loc -> step x lc loc repls vs ans num cand)
-          (Aux.concat_map
+        Format.printf "older:@ repl=%s@\n"
+          (String.concat ", " (List.map var_str repl));
+        (match typ_up loc with
+        | None -> advance ()        
+        | Some loc -> step x lc loc repls vs ans cand)
+        @ advance' ()
+        @ (Aux.concat_map
              (fun b ->
                let loc' = {loc with typ_sub = TVar b} in
                let ans' = (x, (typ_out loc', lc))::ans in
-               match implies_concl vs ans' with
-               | Some more_num ->
-                 (match typ_next loc' with
-                 | None -> abstract repls vs ans' (more_num @ num) cand
-                 | Some loc' ->
-                   step x lc loc' repls vs ans (more_num @ num) cand)
-               | None -> [])
+               match typ_next loc' with
+               | None -> abstract repls vs ans' cand
+               | Some loc' ->
+                 step x lc loc' repls vs ans cand)
              repl) in
-  let cnj_typ, cnj_num = prem_and concl in
+  let cnj_typ, _ = prem_and concl in
   (* abstract repls vs ans num (prem/\concl) *)
-  abstract [] [] [] cnj_num cnj_typ
+  abstract [] [] [] cnj_typ
 
 let abd_typ cmp_v uni_v brs =
   let sols = List.map (abd_simple cmp_v uni_v) brs in
@@ -122,7 +130,7 @@ let abd cmp_v uni_v brs =
             | CFalse loc ->
               raise (Contradiction ("assert false is possible", None, loc))
             | _ -> ()) concl_so;
-            if not (NumS.satisfiable_num concl_num) then None
+            if not (NumS.satisfiable concl_num) then None
             else Some ((prem_typ, concl_typ), (prem_num, concl_num),
                        (prem_so, concl_so))
         | None -> None)
@@ -134,7 +142,7 @@ let abd cmp_v uni_v brs =
       let brs_num = List.map2
         (fun (prem,concl) more -> prem, more @ concl)
         brs_num more_num in
-      let sols_num = NumS.abd_num cmp_v uni_v brs_num in
+      let sols_num = NumS.abd cmp_v uni_v brs_num in
       List.map
         (fun (nvs, ans_num) -> VarSet.union nvs tvs,
           (* Aux.map_append (fun (v,t,loc) -> Eqty (TVar v,t,loc)) *)

@@ -295,17 +295,19 @@
   by fresh variables <math|\<alpha\>\<in\><wide|\<alpha\>|\<bar\>>> for a
   final solution <math|\<exists\><wide|\<alpha\>|\<bar\>>.A>. We follow
   top-down approach where bigger subterms are abstracted first -- replaced by
-  fresh variable. Subterms of a subterm are tried only when replacing the
-  subterm no longer maintains <math|T<around*|(|F|)>\<vDash\>A\<wedge\>D\<Rightarrow\>C>.
-  Otherwise, the subterm is replaced, together with an arbitrary selection of
-  other occurrences of the subterm. Rather than branching on subsets of
-  replacements and performing the replacements straight away, we perform
-  replacement of a subterm when we encounter the subterm. This results in a
-  single pass over all subterms considered. TODO: this probably leads to
-  another loss of generality, does it? Finally, we clean up the solution by
-  eliminating fresh variables when possible (i.e. substituting-out equations
-  <math|x<wide|=|\<dot\>>\<alpha\>> for variable <math|x> and fresh variable
-  <math|\<alpha\>>).
+  fresh variable, \ together with an arbitrary selection of other occurrences
+  of the subterm. If replacing a subterm by fresh variable maintains
+  <math|T<around*|(|F|)>\<vDash\>A\<wedge\>D\<Rightarrow\>C>, we proceed to
+  neighboring subterm or next equation. If
+  <math|T<around*|(|F|)>\<vDash\>A\<wedge\>D\<Rightarrow\>C> does not hold,
+  we try all of: proceeding to subterms of the subterm; replacing the subterm
+  by the fresh variable; replacing the subterm by variables corresponding to
+  earlier occurrences of the subterm. This results in a single, branching
+  pass over all subterms considered. TODO: avoiding branching when
+  implication holds might lead to another loss of generality, does it?
+  Finally, we clean up the solution by eliminating fresh variables when
+  possible (i.e. substituting-out equations <math|x<wide|=|\<dot\>>\<alpha\>>
+  for variable <math|x> and fresh variable <math|\<alpha\>>).
 
   Although our formalism stresses the possibility of infinite number of
   abduction answers, there is always finite number of <em|fully maximal>
