@@ -6,8 +6,8 @@
     @since Mar 2013
 *)
 
-val satisfiable_num : Terms.atom list -> bool
-val abd_num :
+val satisfiable : Terms.atom list -> bool
+val abd :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
   (Terms.formula * Terms.formula) list ->

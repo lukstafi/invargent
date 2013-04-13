@@ -6,8 +6,8 @@
     @since Mar 2013
 *)
 
-let satisfiable_num cnj =
+let satisfiable cnj =
   true
 
-let abd_num cmp_v uni_v brs =
+let abd cmp_v uni_v brs =
   [(* [] *)Terms.VarSet.empty,[]]
