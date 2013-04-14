@@ -69,6 +69,25 @@ let product l =
     (fun el -> List.rev (List.rev_map (fun tup ->  el::tup) prod))
     set) [[]] (List.rev l) 
 
+let minimal leq l =
+  let rec aux acc = function
+    | [] -> acc
+    | e::l ->
+      if List.exists (flip leq e) acc then aux acc l
+      else aux (e::List.filter (fun f -> not (leq e f)) acc) l in
+  aux [] l
+
+let sorted_diff xs ys =
+  let rec aux acc = function
+    | [], _ -> acc
+    | xs, [] -> List.rev_append xs acc
+    | (x::xs' as xs), (y::ys' as ys) ->
+      let c = Pervasives.compare x y in
+      if c = 0 then aux acc (xs', ys')
+      else if c < 0 then aux (x::acc) (xs', ys)
+      else aux acc (xs, ys') in
+  List.rev (aux [] (xs, ys))
+
 let bind_opt t f =
   match t with
   | None -> None
