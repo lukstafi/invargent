@@ -7,26 +7,25 @@
 *)
 open Terms
 
-let residuum cmp_v uni_v prem concl =
+let residuum cmp_v uni_v params prem concl =
   let concl = to_formula concl in
   let res_ty, res_num, res_so =
-    unify ~use_quants:false cmp_v uni_v
+    unify ~use_quants:false ~params cmp_v uni_v
       (subst_formula prem concl) in
   assert (res_so = []);
   res_ty, res_num
 
+exception Result of var_name list * subst * formula
 
-let abd_simple cmp_v uni_v (prem, concl) =
-  let prem_and ans =
-    combine_sbs ~use_quants:false cmp_v uni_v [prem; ans] in
+let abd_simple cmp_v uni_v skip (vs, ans) (prem, concl) =
+  Format.printf "abd_simple:@\nans=%a@\n@[<2>%a@ ⟹@ %a@]@\n"
+    pr_subst ans pr_subst prem pr_subst concl;
+  let skip = ref skip in
+  let prem_and vs ans =
+    combine_sbs ~use_quants:false ~params:vs cmp_v uni_v [prem; ans] in
   let implies_concl vs ans =
-    let cmp' v1 v2 =
-      if List.mem v1 vs then
-        if List.mem v2 vs then Same_quant else Downstream
-      else if List.mem v2 vs then Upstream
-      else cmp_v v1 v2 in
-    let cnj_typ, cnj_num = prem_and ans in
-    let res_ty, res_num = residuum cmp' uni_v cnj_typ concl in
+    let cnj_typ, cnj_num = prem_and vs ans in
+    let res_ty, res_num = residuum cmp_v uni_v vs cnj_typ concl in
     Format.printf "@[<2>[%a@ ?⟹@ %a@ |@ %a]@]@\n" pr_subst cnj_typ
       pr_subst concl pr_subst res_ty;
     let num = res_num @ cnj_num in
@@ -35,18 +34,29 @@ let abd_simple cmp_v uni_v (prem, concl) =
   let rec abstract repls vs ans = function
     | [] ->
       (match implies_concl vs ans with
-      | None -> []
-      | Some num -> [vs, ans, num])
+      | None -> ()
+      | Some num ->
+        if !skip > 0 then decr skip
+        else raise (Result (vs, ans, num)))
     | (x, (t, lc))::cand ->
       Format.printf "abstract:@ x=%s;@ t=%a@\n"
         (var_str x) (pr_ty false) t;
       step x lc {typ_sub=t; typ_ctx=[]} repls vs ans cand
   and step x lc loc repls vs ans cand =
-      Format.printf "step:@ x=%s;@ loc=%a@\n"
-        (var_str x) pr_typ_loc loc;
+    Format.printf "step:@ x=%s;@ loc=%a@\n"
+      (var_str x) pr_typ_loc loc;
     let advance () =
       match typ_next loc with
-      | None -> abstract repls vs ((x, (typ_out loc,lc))::ans) cand
+      | None ->
+        let ans =
+          try
+            let ans, _, so =
+              unify ~use_quants:true ~prems:vs ~sb:ans
+                cmp_v uni_v [Eqty (x, typ_out loc, lc)] in
+            assert (so = []); Some ans
+          with Contradiction _ -> None in
+        (match ans with None -> ()
+        | Some ans -> abstract repls vs ans cand)
       | Some loc -> step x lc loc repls vs ans cand in
     if num_sort_typ loc.typ_sub
     then advance ()
@@ -55,34 +65,49 @@ let abd_simple cmp_v uni_v (prem, concl) =
       let repls' = (loc.typ_sub, a)::repls in
       let vs' = a::vs in
       let loc' = {loc with typ_sub = TVar a} in
-      let ans' = (x, (typ_out loc', lc))::ans in
+      let ans' =
+        try
+          let ans, _, so =
+            unify ~use_quants:true ~prems:vs ~sb:ans
+              cmp_v uni_v [Eqty (x, typ_out loc', lc)] in
+          assert (so = []); Some ans
+        with Contradiction _ -> None in
       let advance' () =
         match typ_next loc' with (* x bound when leaving step *)
-        | None -> abstract repls' vs' ans' cand
+        | None ->
+          (match ans' with
+          | None -> ()                  (* cannot fix answer *)
+          | Some ans' -> abstract repls' vs' ans' cand)
         | Some loc' -> step x lc loc' repls' vs' ans cand in
       Format.printf "trying location:@ a=%s@\n" (var_str a);
       match implies_concl vs' (ans' @ cand) with
-      | Some _ -> Format.printf "works.@\n"; advance' ()
+      | Some _ -> Format.printf "impl holds@\n"; advance' ()
       | None ->
         let repl = Aux.assoc_all loc.typ_sub repls in
         Format.printf "older:@ repl=%s@\n"
           (String.concat ", " (List.map var_str repl));
+        List.iter
+          (fun b ->
+            let loc' = {loc with typ_sub = TVar b} in
+            let ans' = (x, (typ_out loc', lc))::ans in
+            match typ_next loc' with
+            | None -> abstract repls vs ans' cand
+            | Some loc' ->
+              step x lc loc' repls vs ans cand)
+          repl;
+          advance' ();
         (match typ_up loc with
         | None -> advance ()        
-        | Some loc -> step x lc loc repls vs ans cand)
-        @ advance' ()
-        @ (Aux.concat_map
-             (fun b ->
-               let loc' = {loc with typ_sub = TVar b} in
-               let ans' = (x, (typ_out loc', lc))::ans in
-               match typ_next loc' with
-               | None -> abstract repls vs ans' cand
-               | Some loc' ->
-                 step x lc loc' repls vs ans cand)
-             repl) in
-  let cnj_typ, _ = prem_and concl in
-  (* abstract repls vs ans num (prem/\concl) *)
-  abstract [] [] [] cnj_typ
+        | Some loc -> step x lc loc repls vs ans cand);
+  in
+  let cleanup (vs, ans) =
+    let ans = List.filter (fun (x,_) -> not (List.mem x vs)) ans in
+    vs, List.sort compare ans in
+  let cnj_typ, _ = prem_and vs concl in
+  let res = List.map cleanup (abstract [] vs ans cnj_typ) in
+  let leq (vs1, ans1) (vs2, ans2) =
+    Aux.sorted_diff ans1 ans2 = [] in
+  Aux.minimal leq res
 
 let abd_typ cmp_v uni_v brs =
   let sols = List.map (abd_simple cmp_v uni_v) brs in

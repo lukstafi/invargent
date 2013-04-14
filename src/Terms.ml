@@ -684,7 +684,7 @@ let pr_to_str pr_f e =
 (** {2 Unification} *)
 
 (** Separate type sort and number sort constraints,  *)
-let unify ~use_quants cmp_v uni_v cnj =
+let unify ~use_quants ~params ?(sb=[]) cmp_v uni_v cnj =
   let cnj_typ, more_cnj = Aux.partition_map
     (function
     | Eqty (t1, t2, loc) when typ_sort_typ t1 && typ_sort_typ t2 ->
@@ -746,15 +746,15 @@ let unify ~use_quants cmp_v uni_v cnj =
         aux sb num_cn (more_cnj @ cnj)
       | t1, t2 -> raise
         (Contradiction ("Type mismatch", Some (t1, t2), loc)) in
-  let cnj_typ, cnj_num = aux [] cnj_num cnj_typ in
+  let cnj_typ, cnj_num = aux sb cnj_num cnj_typ in
   cnj_typ, cnj_num, cnj_so
 
 let to_formula =
   List.map (fun (v,(t,loc)) -> Eqty (TVar v, t, loc))
 
-let combine_sbs ~use_quants cmp_v uni_v ?(more_phi=[]) sbs =
+let combine_sbs ~use_quants ~params cmp_v uni_v ?(more_phi=[]) sbs =
   let cnj_typ, cnj_num, cnj_so =
-    unify ~use_quants cmp_v uni_v
+    unify ~use_quants ~params cmp_v uni_v
       (more_phi @ Aux.concat_map to_formula sbs) in
   assert (cnj_so = []);
   cnj_typ, cnj_num

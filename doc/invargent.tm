@@ -287,6 +287,8 @@
   <verbatim|typ>, we keep these <em|alien subterms> in terms passed to term
   abduction.
 
+  <subsection|Simple constraint abduction for terms>
+
   Our initial implementation of simple constraint abduction for terms follows
   <cite|AbductionSolvMaher> p. 13. It only gives <em|fully maximal answers>
   which is loss of generality w.r.t. our requirements. To solve
@@ -311,8 +313,44 @@
 
   Although our formalism stresses the possibility of infinite number of
   abduction answers, there is always finite number of <em|fully maximal>
-  answers. We decided to compute all answers at once using lists, instead of
-  computing them lazily using streams.
+  answers that we compute. The formalism suggests computing them lazily using
+  streams, and then testing all combinations -- generate and test scheme.
+  Instead, we use a search scheme that tests as soon as possible. The simple
+  abduction algorithm takes a partial solution -- a conjunction of candidate
+  solutions for some other branches -- and checks if the solution being
+  generated is satisfiable together with the candidate partial solution. The
+  algorithm also takes a number that determines how many correct solutions to
+  skip.
+
+  <subsection|Joint constraint abduction for terms>
+
+  We lose another bit of generality by using a heuristic search scheme
+  instead of testing all combinations of simple abduction answers. If natural
+  counterexamples are found, rather than ones contrived to demonstrate that
+  our search scheme is not complete, it can be augmented.
+
+  \ We maintain an ordering of branches. We remember the original sequence
+  positions for integrating the result with answers for other sorts. We
+  accumulate simple abduction answers into the partial abduction answer until
+  we meet branch that does not have any answer satisfiable with the partial
+  answer so far. Then we start over, but put the branch that failed in front
+  of the sequence. If a branch <math|i> is at front for <math|n<rsub|i>>th
+  time, we skip the initial <math|n<rsub|i>-1> simple abduction answers in
+  it. If the front branch <math|i> does not have at least <math|n<rsub|i>>
+  answers, the search fails.
+
+  As described in <cite|jcaqpTechRep2>, to check validity of answers, we use
+  a modified variant of unification under quantifiers: unification with
+  parameters, where the parameters do not interact with the quantifiers and
+  thus can be freely used and eliminated. Note that to compute conjunction of
+  the candidate answer with a premise, unification does not check for
+  validity under quantifiers.
+
+  Because it would be difficult to track other sort constraints while
+  updating the partial answer, we discard numeric sort constraints in simple
+  abduction algorithm, and recover them after the final answer for terms
+  (i.e. for the type sort) is found. This also provides a run-time check for
+  correctness of the answer.
 
   <\bibliography|bib|tm-plain|biblio.bib>
     <\bib-list|1>
@@ -339,10 +377,10 @@
     <associate|auto-1|<tuple|1|1>>
     <associate|auto-2|<tuple|2|2>>
     <associate|auto-3|<tuple|2.1|3>>
-    <associate|auto-4|<tuple|3|3>>
-    <associate|auto-5|<tuple|3|2>>
-    <associate|auto-6|<tuple|3|4>>
-    <associate|auto-7|<tuple|3|4>>
+    <associate|auto-4|<tuple|3|4>>
+    <associate|auto-5|<tuple|3.1|4>>
+    <associate|auto-6|<tuple|3.2|4>>
+    <associate|auto-7|<tuple|3.2|4>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
@@ -352,7 +390,7 @@
     <associate|bib-jcaqpTechRep|<tuple|8|4>>
     <associate|bib-jcaqpUNIF|<tuple|7|4>>
     <associate|bib-simonet-pottier-hmg-toplas|<tuple|6|4>>
-    <associate|bib-systemTechRep|<tuple|1|3>>
+    <associate|bib-systemTechRep|<tuple|1|4>>
   </collection>
 </references>
 
@@ -368,6 +406,8 @@
       jcaqpUNIF
 
       AbductionSolvMaher
+
+      jcaqpTechRep2
     </associate>
     <\associate|toc>
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|1<space|2spc>Data
@@ -386,9 +426,17 @@
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-4><vspace|0.5fn>
 
+      <with|par-left|<quote|1.5fn>|3.1<space|2spc>Simple constraint abduction
+      for terms <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-5>>
+
+      <with|par-left|<quote|1.5fn>|3.2<space|2spc>Joint constraint abduction
+      for terms <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-6>>
+
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-5><vspace|0.5fn>
+      <no-break><pageref|auto-7><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>
