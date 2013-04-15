@@ -324,10 +324,12 @@
 
   <subsection|Joint constraint abduction for terms>
 
-  We lose another bit of generality by using a heuristic search scheme
-  instead of testing all combinations of simple abduction answers. If natural
+  We further lose generality by using a heuristic search scheme instead of
+  testing all combinations of simple abduction answers. If natural
   counterexamples are found, rather than ones contrived to demonstrate that
-  our search scheme is not complete, it can be augmented.
+  our search scheme is not complete, it can be augmented. In particular, our
+  search scheme returns from joint abduction for types with a single answer,
+  which eliminates any interaction between the sort of types and other sorts.
 
   \ We maintain an ordering of branches. We remember the original sequence
   positions for integrating the result with answers for other sorts. We
@@ -349,8 +351,7 @@
   Because it would be difficult to track other sort constraints while
   updating the partial answer, we discard numeric sort constraints in simple
   abduction algorithm, and recover them after the final answer for terms
-  (i.e. for the type sort) is found. This also provides a run-time check for
-  correctness of the answer.
+  (i.e. for the type sort) is found.
 
   <\bibliography|bib|tm-plain|biblio.bib>
     <\bib-list|1>
