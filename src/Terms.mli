@@ -173,11 +173,12 @@ val subst_typ : subst -> typ -> typ
 val update_sb : more_sb:subst -> subst -> subst
 val typ_sort_typ : typ -> bool
 val num_sort_typ : typ -> bool
-val unify : use_quants:bool ->
+val unify : use_quants:bool -> ?params:var_name list ->
+  ?sb:subst ->
   (var_name -> var_name -> var_scope) -> (var_name -> bool) ->
   atom list -> subst * atom list * atom list
 val to_formula : subst -> atom list
-val combine_sbs : use_quants:bool ->
+val combine_sbs : use_quants:bool -> ?params:var_name list ->
   (var_name -> var_name -> var_scope) -> (var_name -> bool) ->
   ?more_phi:atom list -> subst list -> subst * atom list
 
