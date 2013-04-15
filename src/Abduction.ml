@@ -18,30 +18,32 @@ let residuum cmp_v uni_v params prem concl =
 exception Result of var_name list * subst
 
 let abd_simple cmp_v uni_v skip (vs, ans) (prem, concl) =
-  Format.printf "abd_simple:@\nans=%a@\n@[<2>%a@ ⟹@ %a@]@\n"
-    pr_subst ans pr_subst prem pr_subst concl;
   let skip = ref skip in
+  let skipped = ref [] in
+  let allvs = ref VarSet.empty in
   let prem_and vs ans =
     combine_sbs ~use_quants:false ~params:vs cmp_v uni_v [prem; ans] in
   let implies_concl vs ans =
     let cnj_typ, cnj_num = prem_and vs ans in
     let res_ty, res_num = residuum cmp_v uni_v vs cnj_typ concl in
-    Format.printf "@[<2>[%a@ ?⟹@ %a@ |@ %a]@]@\n" pr_subst cnj_typ
-      pr_subst concl pr_subst res_ty;
     let num = res_num @ cnj_num in
     res_ty = [] && NumS.satisfiable num in
   let rec abstract repls vs ans cur_ans = function
     | [] ->
       if implies_concl vs ans then
-        if !skip > 0 then decr skip
+        let ans = List.sort compare ans in
+        allvs := List.fold_right VarSet.add vs !allvs;
+        if List.exists (fun xs ->
+          List.for_all (fun (y,_) -> VarSet.mem y !allvs)
+            (Aux.sorted_diff xs ans)) !skipped
+        then ()
+        else if !skip > 0 then (
+          skipped := ans :: !skipped;
+          decr skip)
         else raise (Result (vs, ans))
     | (x, (t, lc))::cand ->
-      Format.printf "abstract:@ x=%s;@ t=%a@\n"
-        (var_str x) (pr_ty false) t;
       step x lc {typ_sub=t; typ_ctx=[]} repls vs ans cur_ans cand
   and step x lc loc repls vs ans cur_ans cand =
-    Format.printf "step:@ x=%s;@ loc=%a@\n"
-      (var_str x) pr_typ_loc loc;
     let advance () =
       match typ_next loc with
       | None ->
@@ -66,7 +68,7 @@ let abd_simple cmp_v uni_v skip (vs, ans) (prem, concl) =
       let ans' =
         try
           let ans, _, so =
-            unify ~use_quants:true ~params:vs ~sb:ans
+            unify ~use_quants:true ~params:vs' ~sb:ans
               cmp_v uni_v [Eqty (TVar x, t', lc)] in
           assert (so = []); Some ans
         with Contradiction _ -> None in
@@ -78,13 +80,10 @@ let abd_simple cmp_v uni_v skip (vs, ans) (prem, concl) =
           | None -> ()                  (* cannot fix answer *)
           | Some ans' -> abstract repls' vs' ans' cur_ans' cand)
         | Some loc' -> step x lc loc' repls' vs' ans cur_ans cand in
-      Format.printf "trying location:@ a=%s@\n" (var_str a);
       if implies_concl vs' (cur_ans' @ cand)
-      then (Format.printf "impl holds@\n"; advance' ())
+      then advance' ()
       else
         let repl = Aux.assoc_all loc.typ_sub repls in
-        Format.printf "older:@ repl=%s@\n"
-          (String.concat ", " (List.map var_str repl));
         List.iter
           (fun b ->
             let loc' = {loc with typ_sub = TVar b} in
