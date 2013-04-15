@@ -7,18 +7,18 @@
 *)
 val abd_simple :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
-  (Terms.var_name -> bool) ->
+  (Terms.var_name -> bool) -> int ->
+  Terms.var_name list * Terms.subst ->
   Terms.subst * Terms.subst ->
-  (Terms.var_name list * (Terms.var_name * (Terms.typ * Terms.loc)) list *
-   Terms.atom list)
-  list
+  (Terms.var_name list * Terms.subst)
+  option
 val abd_typ :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
   (Terms.subst * Terms.subst) list ->
-  (Terms.VarSet.t * Terms.atom list * Terms.atom list list) list
+  (Terms.var_name list * Terms.subst * Terms.atom list list) option
 val abd :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
   (Terms.atom list * Terms.atom list) list ->
-  ((* Terms.var_name list *)Terms.VarSet.t * Terms.atom list) list
+  (Terms.var_name list * Terms.atom list) option

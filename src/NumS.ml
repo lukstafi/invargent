@@ -10,4 +10,4 @@ let satisfiable cnj =
   true
 
 let abd cmp_v uni_v brs =
-  [(* [] *)Terms.VarSet.empty,[]]
+  Some ([],[])

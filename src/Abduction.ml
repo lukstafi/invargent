@@ -15,7 +15,7 @@ let residuum cmp_v uni_v params prem concl =
   assert (res_so = []);
   res_ty, res_num
 
-exception Result of var_name list * subst * formula
+exception Result of var_name list * subst
 
 let abd_simple cmp_v uni_v skip (vs, ans) (prem, concl) =
   Format.printf "abd_simple:@\nans=%a@\n@[<2>%a@ ⟹@ %a@]@\n"
@@ -30,7 +30,7 @@ let abd_simple cmp_v uni_v skip (vs, ans) (prem, concl) =
       pr_subst concl pr_subst res_ty;
     let num = res_num @ cnj_num in
     res_ty = [] && NumS.satisfiable num in
-  let rec abstract repls vs ans = function
+  let rec abstract repls vs ans cur_ans = function
     | [] ->
       if implies_concl vs ans then
         if !skip > 0 then decr skip
@@ -38,8 +38,8 @@ let abd_simple cmp_v uni_v skip (vs, ans) (prem, concl) =
     | (x, (t, lc))::cand ->
       Format.printf "abstract:@ x=%s;@ t=%a@\n"
         (var_str x) (pr_ty false) t;
-      step x lc {typ_sub=t; typ_ctx=[]} repls vs ans cand
-  and step x lc loc repls vs ans cand =
+      step x lc {typ_sub=t; typ_ctx=[]} repls vs ans cur_ans cand
+  and step x lc loc repls vs ans cur_ans cand =
     Format.printf "step:@ x=%s;@ loc=%a@\n"
       (var_str x) pr_typ_loc loc;
     let advance () =
@@ -48,13 +48,13 @@ let abd_simple cmp_v uni_v skip (vs, ans) (prem, concl) =
         let ans =
           try
             let ans, _, so =
-              unify ~use_quants:true ~prems:vs ~sb:ans
-                cmp_v uni_v [Eqty (x, typ_out loc, lc)] in
+              unify ~use_quants:true ~params:vs ~sb:ans
+                cmp_v uni_v [Eqty (TVar x, typ_out loc, lc)] in
             assert (so = []); Some ans
           with Contradiction _ -> None in
         (match ans with None -> ()
-        | Some ans -> abstract repls vs ans cand)
-      | Some loc -> step x lc loc repls vs ans cand in
+        | Some ans -> abstract repls vs ans cur_ans cand)
+      | Some loc -> step x lc loc repls vs ans cur_ans cand in
     if num_sort_typ loc.typ_sub
     then advance ()
     else
@@ -62,47 +62,60 @@ let abd_simple cmp_v uni_v skip (vs, ans) (prem, concl) =
       let repls' = (loc.typ_sub, a)::repls in
       let vs' = a::vs in
       let loc' = {loc with typ_sub = TVar a} in
+      let t' = typ_out loc' in
       let ans' =
         try
           let ans, _, so =
-            unify ~use_quants:true ~prems:vs ~sb:ans
-              cmp_v uni_v [Eqty (x, typ_out loc', lc)] in
+            unify ~use_quants:true ~params:vs ~sb:ans
+              cmp_v uni_v [Eqty (TVar x, t', lc)] in
           assert (so = []); Some ans
         with Contradiction _ -> None in
+      let cur_ans' = (x, (t', lc))::cur_ans in
       let advance' () =
         match typ_next loc' with (* x bound when leaving step *)
         | None ->
           (match ans' with
           | None -> ()                  (* cannot fix answer *)
-          | Some ans' -> abstract repls' vs' ans' cand)
-        | Some loc' -> step x lc loc' repls' vs' ans cand in
+          | Some ans' -> abstract repls' vs' ans' cur_ans' cand)
+        | Some loc' -> step x lc loc' repls' vs' ans cur_ans cand in
       Format.printf "trying location:@ a=%s@\n" (var_str a);
-      match implies_concl vs' (ans' @ cand) with
-      | Some _ -> Format.printf "impl holds@\n"; advance' ()
-      | None ->
+      if implies_concl vs' (cur_ans' @ cand)
+      then (Format.printf "impl holds@\n"; advance' ())
+      else
         let repl = Aux.assoc_all loc.typ_sub repls in
         Format.printf "older:@ repl=%s@\n"
           (String.concat ", " (List.map var_str repl));
         List.iter
           (fun b ->
             let loc' = {loc with typ_sub = TVar b} in
-            let ans' = (x, (typ_out loc', lc))::ans in
+            let t' = typ_out loc' in
+            let ans' =
+              try
+                let ans, _, so =
+                  unify ~use_quants:true ~params:vs ~sb:ans
+                    cmp_v uni_v [Eqty (TVar x, t', lc)] in
+                assert (so = []); Some ans
+              with Contradiction _ -> None in
+            let cur_ans' = (x, (t', lc))::cur_ans in
             match typ_next loc' with
-            | None -> abstract repls vs ans' cand
+            | None ->
+              (match ans' with
+              | None -> ()                  (* cannot fix answer *)
+              | Some ans' -> abstract repls' vs' ans' cur_ans' cand)
             | Some loc' ->
-              step x lc loc' repls vs ans cand)
+              step x lc loc' repls vs ans cur_ans cand)
           repl;
-          advance' ();
+        advance' ();
         (match typ_up loc with
         | None -> advance ()        
-        | Some loc -> step x lc loc repls vs ans cand);
+        | Some loc -> step x lc loc repls vs ans cur_ans cand);
   in
   let cleanup vs ans =
     let ans = List.filter (fun (x,_) -> not (List.mem x vs)) ans in
-    let ansvs = fvs_subst ans in
+    let ansvs = fvs_sb ans in
     List.filter (Aux.flip VarSet.mem ansvs) vs, ans in
   let cnj_typ, _ = prem_and vs concl in
-  try abstract [] vs ans cnj_typ; None
+  try abstract [] vs ans [] cnj_typ; None
   with Result (vs, ans) -> Some (cleanup vs ans)
 
 let abd_typ cmp_v uni_v brs =
@@ -110,22 +123,21 @@ let abd_typ cmp_v uni_v brs =
   let more_brs = List.map (fun br -> -1, br) (List.tl brs) in
   let rec loop first acc done_brs = function
     | [] -> Some acc
-    | (i, skip, br as obr)::more_brs ->
+    | (skip, br as obr)::more_brs ->
       match abd_simple cmp_v uni_v skip acc br with
       | Some acc -> loop false acc (obr::done_brs) more_brs
       | None ->
         if first then None
-        else loop ([], []) []
-          ((i, skip+1, br)::List.rev_append done_brs more_brs) in
+        else loop true ([], []) []
+          ((skip+1, br)::List.rev_append done_brs more_brs) in
   Aux.bind_opt (loop true ([], []) [] (br0::more_brs))
     (fun (vs, ans) ->
       let num = List.map
         (fun (prem, concl) ->
-          let cnj_ty, cnj_num, cnj_so =
+          let cnj_ty, cnj_num =
             combine_sbs ~use_quants:false ~params:vs cmp_v uni_v [prem; ans] in
-          assert (cnj_so = []);
           let res_ty, res_num =
-            residuum cmp_v uni_v vs prem_n_ans concl in
+            residuum cmp_v uni_v vs cnj_ty concl in
           assert (res_ty = []);
           cnj_num @ res_num)
         brs in
@@ -162,9 +174,9 @@ let abd cmp_v uni_v brs =
         (fun (prem,concl) more -> prem, more @ concl)
         brs_num more_num in
       let ans_num = NumS.abd cmp_v uni_v brs_num in
-      Aux.bind_opt
+      Aux.map_opt ans_num
         (fun (nvs, ans_num) ->
-          nvs @ tvs,
-        (* Aux.map_append (fun (v,t,loc) -> Eqty (TVar v,t,loc)) *)
-          ans_typ @ ans_num)
-        sols_num)
+          (nvs @ tvs,
+           Aux.map_append (fun (v,(t,lc)) -> Eqty (TVar v,t,lc))
+             ans_typ ans_num)))
+
