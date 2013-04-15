@@ -93,6 +93,11 @@ let bind_opt t f =
   | None -> None
   | Some t -> f t
 
+let map_opt t f =
+  match t with
+  | None -> None
+  | Some t -> Some (f t)
+
 let unsome = function None -> invalid_arg "Aux.unsome" | Some e -> e
 
 (** {2 Choice, aka. either type}  *)
