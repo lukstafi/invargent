@@ -94,7 +94,7 @@ let extract_datatyp allvs loc = function
 %token <string> LIDENT
 %token <int> INT
 %token PLUS MULTIPLY ARROW BAR AS
-%token FUNCTION FUN MATCH EMATCH WITH
+%token FUNCTION EFUNCTION FUN MATCH EMATCH WITH
 %token NUM TYPE
 %token LESSEQUAL
 %token ASSERT FALSE TEST
@@ -104,7 +104,7 @@ let extract_datatyp allvs loc = function
 %nonassoc IN
 %nonassoc LET AND
 %nonassoc below_WITH
-%nonassoc FUNCTION WITH
+%nonassoc FUNCTION EFUNCTION WITH
 %right ARROW
 %nonassoc AS
 %nonassoc BAR
@@ -142,9 +142,13 @@ expr:
   | LET pattern EQUAL expr error
       { unclosed "let" 1 "in" 5 }
   | FUNCTION opt_bar match_cases %prec below_WITH
+      { Lam (List.rev $3, get_loc ()) }
+  | EFUNCTION opt_bar match_cases %prec below_WITH
       { incr extype_id; ExLam (!extype_id, List.rev $3, get_loc ()) }
   | FUNCTION error
       { syntax_error "function case branches expected" 2 }
+  | EFUNCTION error
+      { syntax_error "existential function case branches expected" 2 }
   | FUN simple_pattern_list match_action
       { List.fold_right (fun p e -> Lam ([p, e], get_loc ()))
 	  (List.rev $2) $3 }

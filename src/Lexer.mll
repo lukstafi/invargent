@@ -28,6 +28,7 @@ rule token = parse
   | '.'		{ DOT }
   | ':'		{ COLON }
   | "function"  { FUNCTION }
+  | "efunction"  { EFUNCTION }
   | "fun"       { FUN }
   | "match"     { MATCH }
   | "ematch"    { EMATCH }

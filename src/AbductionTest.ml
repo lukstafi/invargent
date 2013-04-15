@@ -28,23 +28,25 @@ let test_simple lhs_m rhs_m skip res =
       pr_to_str pr_formula
         (to_formula ans_typ) in
   assert_equal ~printer:(fun x -> x)
-    ~msg:(lhs_m^" ⟹ "^rhs_m) res ans
+    ~msg:(string_of_int skip^":"^lhs_m^" ⟹ "^rhs_m) res ans
 
-(* tb-t6; ta-t3; tc-t7; td-t9; tf-t10; te-t13; tg-t15; th-t16;
-   tj-t22; ti-t19; tk-t24; tn-t34; to-t31; tl-t25; tm-t28 *)
-let lhs1 = "(Term tb) = ta ∧ Int = tb"
-let rhs1 = "tc = Int"
-let lhs2 = "(Term td) = ta ∧ Bool = td"
-let rhs2 = "tf = Bool ∧ te = (Term Int → Int)"
-let lhs3 = "(Term tg) = ta ∧ Int = tg"
-let rhs3 = "th = Int ∧ tj = (Term Int → Int)"
-let lhs4 = "(Term tg) = ta ∧ Int = tg"
-let rhs4 =
-  "th = Int ∧ tj = (Term Int → Int) ∧ ti = (Term Int → Int)"
-let lhs5 = "(Term tk) = ta"
-let rhs5 = "tn = (Term Bool → Bool) ∧
-    to = (Term tk → tl) ∧ tm = (Term tk → tl)"
-
+(*  *)
+let rhs0 = "tres = (Term tc → tb) ∧ ta = (Term tc)"
+let lhs1 = "(Term td) = ta ∧ Int = td" and rhs1 = "tb = Int"
+let lhs2 = "(Term te) = ta ∧ Bool = te" and rhs2 = "tb = Bool ∧
+    tf = (Term Int → Int)"
+let lhs3 = "(Term tg) = ta ∧ Int = tg" and rhs3 = "tb = Int ∧
+    ti = (Term Int → Int) ∧ th = (Term Int → Int)"
+let lhs4 = "(Term tj) = ta" and rhs4 = "tm = (Term Bool → Bool) ∧
+    tl = (Term tj → tb) ∧ tk = (Term tj → tb)"
+let lhs5 = "(Term tn) = ta ∧ (to, tp) = tn" and rhs5 = "tb = (tq, tr) ∧
+    ts = (Term to → tq) ∧ tt = (Term tp → tr)"
+let lhs6 = "(Term tu) = ta" and rhs6 = "tx = (ty, tz) ∧ tx = tb ∧
+    tw = (Term (tu, tv) → ty, tz)"
+let lhs7 = "(tA, tB) = tx ∧ (Term tu) = ta" and rhs7 = "tA = tx"
+let lhs8 = "(Term tD) = ta" and rhs8 = "tF = (tH, tI) ∧ tG = tb ∧
+    tE = (Term (tC, tD) → tH, tI)"
+let lhs9 = "(tJ, tK) = tF ∧ (Term tD) = ta" and rhs9 = "tK = tG"
 
 
 let tests = "Abduction" >::: [
@@ -54,23 +56,24 @@ let tests = "Abduction" >::: [
       Terms.reset_counters ();
       Infer.reset_counters ();
       try
-        test_simple lhs1 rhs1 0 "tb = tc";
-        test_simple lhs1 rhs1 1 "ta = (Term tc)";
-        test_simple lhs1 rhs1 2 "tc = Int";
-        test_simple lhs2 rhs2 0 "td = tf ∧
-te = (Term Int → Int)";
-        test_simple lhs2 rhs2 1 "ta = (Term tf) ∧
-te = (Term Int → Int)";
-test_simple lhs2 rhs2 2 "te = (Term Int → Int) ∧
-tf = Bool";
-        test_simple lhs3 rhs3 0 "tg = th ∧
-tj = (ta → th)";
-        test_simple lhs3 rhs3 2 "tg = th ∧
-tj = (Term th → th)";
-        test_simple lhs4 rhs4 0 "tg = th ∧ ti = (ta → th) ∧
-tj = (ta → th)";
-        test_simple lhs5 rhs5 0 "tm = (ta → tl) ∧ tn = (Term Bool → Bool) ∧
-to = (ta → tl)";
+        test_simple lhs1 rhs1 0 "td = tb";
+        test_simple lhs1 rhs1 1 "ta = (Term tb)";
+        test_simple lhs1 rhs1 2 "tb = Int";
+        test_simple lhs2 rhs2 0 "te = tb ∧
+tf = (Term Int → Int)";
+        test_simple lhs2 rhs2 1 "ta = (Term tb) ∧
+tf = (Term Int → Int)";
+test_simple lhs2 rhs2 2 "tb = Bool ∧
+tf = (Term Int → Int)";
+        test_simple lhs3 rhs3 0 "tg = tb ∧ th = (ta → tb) ∧
+ti = (ta → tb)";
+        test_simple lhs3 rhs3 2 "tg = tb ∧ th = (Term tb → tb) ∧
+ti = (ta → tb)";
+        test_simple lhs4 rhs4 0 "tk = (ta → tb) ∧ tl = (ta → tb) ∧
+tm = (Term Bool → Bool)";
+        (* takes almost 5 seconds!
+        test_simple lhs5 rhs5 0 "tb = (tq, tr) ∧ tn = (t14261, t14784) ∧ ts = (Term t14261 → tq) ∧
+tt = (Term t14784 → tr)"; *)
       with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
         Terms.pr_exception Format.str_formatter exn;
@@ -82,22 +85,29 @@ to = (ta → tl)";
       Terms.reset_counters ();
       Infer.reset_counters ();
       try
+        let lhs0, rhs0 = [], p_formula rhs0 in
         let lhs1 = p_formula lhs1 and rhs1 = p_formula rhs1 in
         let lhs2 = p_formula lhs2 and rhs2 = p_formula rhs2 in
         let lhs4 = p_formula lhs4 and rhs4 = p_formula rhs4 in
         let lhs5 = p_formula lhs5 and rhs5 = p_formula rhs5 in
+        let lhs0, rhs0 = br_simple lhs0 rhs0 in
         let lhs1, rhs1 = br_simple lhs1 rhs1 in
         let lhs2, rhs2 = br_simple lhs2 rhs2 in
         let lhs4, rhs4 = br_simple lhs4 rhs4 in
         let lhs5, rhs5 = br_simple lhs5 rhs5 in
         let ans =
           match abd_typ cmp_v uni_v
-            [lhs1, rhs1; lhs2, rhs2; lhs4, rhs4; lhs5, rhs5] with
+            [lhs0, rhs0; lhs1, rhs1;
+             lhs2, rhs2; lhs4, rhs4; (* FIXME:
+             lhs5, rhs5*)] with
             | None -> "none"
             | Some (vs, ans_typ, _) ->
               pr_to_str pr_formula (to_formula ans_typ) in
         assert_equal ~printer:(fun x -> x)
-          "" ans
+          "ta = (Term tc) ∧ td = tb ∧ te = tb ∧ tf = (Term Int → Int) ∧
+tk = (Term tc → tb) ∧ tl = (Term tc → tb) ∧
+tm = (Term Bool → Bool) ∧
+tres = (Term tc → tb)" (* ... *) ans
       with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
         Terms.pr_exception Format.str_formatter exn;

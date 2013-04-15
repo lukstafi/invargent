@@ -52,25 +52,25 @@ let rec eval = function
         pr_brs Format.str_formatter brs;
         assert_equal ~printer:(fun x -> x)
 " ⟹ 𝛘1(t2)
-| 𝛘1(t1) ⟹ t1 = (Term t5 → Ex1 t4) ∧ t3 = (Term t5)
-| (Term t6) = t3 ∧ Int = t6 ∧ 𝛘1(t1) ⟹ t7 = Int ∧ 𝛘2(t4, t7)
-| (Term t9) = t3 ∧ Bool = t9 ∧ 𝛘1(t1) ⟹ t10 = Bool ∧
-    t13 = (Term Int → Int) ∧ 𝛘2(t4, t10) ∧ 𝛘1(t13)
-| (Term t15) = t3 ∧ Int = t15 ∧ 𝛘1(t1) ⟹ t16 = Int ∧
-    t22 = (Term Int → Int) ∧ t19 = (Term Int → Int) ∧
-    𝛘2(t4, t16) ∧ 𝛘1(t22) ∧ 𝛘1(t19)
-| (Term t24) = t3 ∧ 𝛘1(t1) ⟹ t34 = (Term Bool → Bool) ∧
-    t31 = (Term t24 → t25) ∧ t28 = (Term t24 → t25) ∧
-    𝛘2(t4, t25) ∧ 𝛘1(t34) ∧ 𝛘1(t31) ∧ 𝛘1(t28)
-| (Term t39) = t3 ∧ (t40, t41) = t39 ∧ 𝛘1(t1) ⟹ t42 = (t43, t44) ∧
-    t46 = (Term t40 → t43) ∧ t48 = (Term t41 → t44) ∧
-    𝛘2(t4, t42) ∧ 𝛘1(t46) ∧ 𝛘1(t48)
-| (Term t51) = t3 ∧ 𝛘1(t1) ⟹ t57 = (t59, t60) ∧ t58 = t53 ∧
-    t56 = (Term (t51, t52) → t59, t60) ∧ 𝛘2(t4, t53) ∧ 𝛘1(t56)
-| (t61, t62) = t57 ∧ (Term t51) = t3 ∧ 𝛘1(t1) ⟹ t61 = t58
-| (Term t66) = t3 ∧ 𝛘1(t1) ⟹ t71 = (t73, t74) ∧ t72 = t67 ∧
-    t70 = (Term (t65, t66) → t73, t74) ∧ 𝛘2(t4, t67) ∧ 𝛘1(t70)
-| (t75, t76) = t71 ∧ (Term t66) = t3 ∧ 𝛘1(t1) ⟹ t76 = t72"
+| 𝛘1(t1) ⟹ t1 = (Term t5 → t4) ∧ t3 = (Term t5)
+| (Term t6) = t3 ∧ Int = t6 ∧ 𝛘1(t1) ⟹ t4 = Int
+| (Term t8) = t3 ∧ Bool = t8 ∧ 𝛘1(t1) ⟹ t4 = Bool ∧
+    t11 = (Term Int → Int) ∧ 𝛘1(t11)
+| (Term t13) = t3 ∧ Int = t13 ∧ 𝛘1(t1) ⟹ t4 = Int ∧
+    t19 = (Term Int → Int) ∧ t16 = (Term Int → Int) ∧ 𝛘1(t19) ∧
+    𝛘1(t16)
+| (Term t21) = t3 ∧ 𝛘1(t1) ⟹ t30 = (Term Bool → Bool) ∧
+    t27 = (Term t21 → t4) ∧ t24 = (Term t21 → t4) ∧ 𝛘1(t30) ∧
+    𝛘1(t27) ∧ 𝛘1(t24)
+| (Term t35) = t3 ∧ (t36, t37) = t35 ∧ 𝛘1(t1) ⟹ t4 = (t38, t39) ∧
+    t41 = (Term t36 → t38) ∧ t43 = (Term t37 → t39) ∧ 𝛘1(t41) ∧
+    𝛘1(t43)
+| (Term t46) = t3 ∧ 𝛘1(t1) ⟹ t51 = (t53, t54) ∧ t52 = t4 ∧
+    t50 = (Term (t46, t47) → t53, t54) ∧ 𝛘1(t50)
+| (t55, t56) = t51 ∧ (Term t46) = t3 ∧ 𝛘1(t1) ⟹ t55 = t52
+| (Term t60) = t3 ∧ 𝛘1(t1) ⟹ t64 = (t66, t67) ∧ t65 = t4 ∧
+    t63 = (Term (t59, t60) → t66, t67) ∧ 𝛘1(t63)
+| (t68, t69) = t64 ∧ (Term t60) = t3 ∧ 𝛘1(t1) ⟹ t69 = t65"
           (Format.flush_str_formatter ());
       with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
@@ -95,7 +95,7 @@ newtype Bar
 external f : Bar → Bool
 
 let rec filter =
-  function LNil -> LNil
+  efunction LNil -> LNil
     | LCons (x, l) -> match f x with
           True -> LCons (x, filter l)
 	| False -> filter l") in
@@ -173,37 +173,33 @@ test b_not (equal (TInt, TList TInt) Zero Nil)") in
         ignore (Format.flush_str_formatter ());
         pr_brs Format.str_formatter brs;
         assert_equal ~printer:(fun x -> x)
-" ⟹ t114 = (Ty Int, Ty (List Int) → Int → List t105 → Bool) ∧
-  𝛘1(t2) ∧ 𝛘1(t114)
-| 𝛘1(t1) ⟹ t1 = (Ty t7, Ty t8 → Ex2 t4) ∧ t3 = (Ty t7, Ty t8) ∧
-    t102 = Bool ∧ 𝛘2(t4, t102)
+" ⟹ t107 = (Ty Int, Ty (List Int) → Int → List t98 → Bool) ∧
+  𝛘1(t2) ∧ 𝛘1(t107)
+| 𝛘1(t1) ⟹ t1 = (Ty t7, Ty t8 → Bool) ∧ t3 = (Ty t7, Ty t8) ∧
+    t4 = Bool
 | (t9, t10) = t3 ∧ (Ty t11) = t9 ∧ Int = t11 ∧ (Ty t12) = t10 ∧
-    Int = t12 ∧ 𝛘1(t1) ⟹ t13 = (Int → Int → Bool) ∧
-    𝛘2(t4, t13)
-| (t28, t29) = t3 ∧ (Ty t30) = t28 ∧ (t31, t32) = t30 ∧
-    (Ty t33) = t29 ∧ (t34, t35) = t33 ∧ 𝛘1(t1) ⟹
-    t36 = (t39, t40 → t38) ∧ t37 = (t39, t40) ∧ 𝛘2(t4, t36)
-| (t41, t42) = t37 ∧ (t28, t29) = t3 ∧ (Ty t30) = t28 ∧
-    (t31, t32) = t30 ∧ (Ty t33) = t29 ∧ (t34, t35) = t33 ∧ 𝛘1(t1)
-    ⟹ t38 = (t45, t46 → t44) ∧ t43 = (t45, t46)
-| (t47, t48) = t43 ∧ (t41, t42) = t37 ∧ (t28, t29) = t3 ∧
-    (Ty t30) = t28 ∧ (t31, t32) = t30 ∧ (Ty t33) = t29 ∧
-    (t34, t35) = t33 ∧ 𝛘1(t1) ⟹ t44 = Bool ∧
-    t62 = (Ty t31, Ty t34 → t41 → t47 → Bool) ∧
-    t55 = (Ty t32, Ty t35 → t42 → t48 → Bool) ∧ 𝛘1(t62) ∧
-    𝛘1(t55)
-| (t69, t70) = t3 ∧ (Ty t71) = t69 ∧ (List t72) = t71 ∧
-    (Ty t73) = t70 ∧ (List t74) = t73 ∧ 𝛘1(t1) ⟹
-    t75 = (List t81 → List t82 → Bool) ∧
-    t80 = (Ty t72, Ty t74 → t81 → t82 → Bool) ∧ 𝛘2(t4, t75) ∧
-    𝛘1(t80)
-| (t88, t89) = t3 ∧ (Ty t90) = t88 ∧ Int = t90 ∧ (Ty t91) = t89 ∧
-    (List t92) = t91 ∧ 𝛘1(t1) ⟹ t93 = (List t96 → Ex1 t95) ∧
-    t94 = (List t96) ∧ t99 = (t100 → Bool) ∧ 𝛘2(t4, t93) ∧
-    𝛘3(t95, t99)
-| (List t97) = t94 ∧ (t88, t89) = t3 ∧ (Ty t90) = t88 ∧ Int = t90 ∧
-    (Ty t91) = t89 ∧ (List t92) = t91 ∧ 𝛘1(t1) ⟹ 𝛘3(t95, t98) ∧
-    FALSE"
+    Int = t12 ∧ 𝛘1(t1) ⟹ t4 = (Int → Int → Bool)
+| (t27, t28) = t3 ∧ (Ty t29) = t27 ∧ (t30, t31) = t29 ∧
+    (Ty t32) = t28 ∧ (t33, t34) = t32 ∧ 𝛘1(t1) ⟹
+    t4 = (t37, t38 → t36) ∧ t35 = (t37, t38)
+| (t39, t40) = t35 ∧ (t27, t28) = t3 ∧ (Ty t29) = t27 ∧
+    (t30, t31) = t29 ∧ (Ty t32) = t28 ∧ (t33, t34) = t32 ∧ 𝛘1(t1)
+    ⟹ t36 = (t43, t44 → t42) ∧ t41 = (t43, t44)
+| (t45, t46) = t41 ∧ (t39, t40) = t35 ∧ (t27, t28) = t3 ∧
+    (Ty t29) = t27 ∧ (t30, t31) = t29 ∧ (Ty t32) = t28 ∧
+    (t33, t34) = t32 ∧ 𝛘1(t1) ⟹ t42 = Bool ∧
+    t60 = (Ty t30, Ty t33 → t39 → t45 → Bool) ∧
+    t53 = (Ty t31, Ty t34 → t40 → t46 → Bool) ∧ 𝛘1(t60) ∧
+    𝛘1(t53)
+| (t67, t68) = t3 ∧ (Ty t69) = t67 ∧ (List t70) = t69 ∧
+    (Ty t71) = t68 ∧ (List t72) = t71 ∧ 𝛘1(t1) ⟹
+    t4 = (List t78 → List t79 → Bool) ∧
+    t77 = (Ty t70, Ty t72 → t78 → t79 → Bool) ∧ 𝛘1(t77)
+| (t85, t86) = t3 ∧ (Ty t87) = t85 ∧ Int = t87 ∧ (Ty t88) = t86 ∧
+    (List t89) = t88 ∧ 𝛘1(t1) ⟹ t4 = (List t92 → t94 → Bool) ∧
+    t90 = (List t92)
+| (List t93) = t90 ∧ (t85, t86) = t3 ∧ (Ty t87) = t85 ∧ Int = t87 ∧
+    (Ty t88) = t86 ∧ (List t89) = t88 ∧ 𝛘1(t1) ⟹ FALSE"
           (Format.flush_str_formatter ());
       with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());

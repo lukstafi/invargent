@@ -465,10 +465,10 @@ let rec pr_expr comma ppf = function
 	(pr_sep_list "" pr_one_pat) pats
 	(pr_expr false) expr
   | Lam (cs, _) ->
-      fprintf ppf "@[<2>fun x ->@ match x with@ %a@]"
+      fprintf ppf "@[<2>function@ %a@]"
 	(pr_pre_sep_list "| " pr_clause) cs
   | ExLam (_, cs, _) ->
-      fprintf ppf "@[<0>function@ %a@]"
+      fprintf ppf "@[<0>efunction@ %a@]"
 	(pr_pre_sep_list "| " pr_clause) cs
   | App (Lam ([(v,body)], _), def, _) ->
       fprintf ppf "@[<0>let@ @[<4>%a@] =@ @[<2>%a@]@ in@ @[<0>%a@]@]"
