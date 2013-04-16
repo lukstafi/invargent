@@ -17,11 +17,18 @@ let residuum cmp_v uni_v params prem concl =
 
 exception Result of var_name list * subst
 
-let abd_simple cmp_v uni_v skip (vs, ans) (prem, concl) =
+let abd_simple cmp_v uni_v validate skip (vs, ans) (prem, concl) =
   let skip = ref skip in
   let skipped = ref [] in
   let allvs = ref VarSet.empty in
+  let prem, _ =
+    subst_solved ~use_quants:false ~params:vs cmp_v uni_v ans
+      ~cnj:prem in
+  let concl, _ =
+    subst_solved ~use_quants:false ~params:vs cmp_v uni_v ans
+      ~cnj:concl in
   let prem_and vs ans =
+    (* TODO: optimize, don't redo work *)
     combine_sbs ~use_quants:false ~params:vs cmp_v uni_v [prem; ans] in
   let implies_concl vs ans =
     let cnj_typ, cnj_num = prem_and vs ans in
@@ -52,6 +59,7 @@ let abd_simple cmp_v uni_v skip (vs, ans) (prem, concl) =
             let ans, _, so =
               unify ~use_quants:true ~params:vs ~sb:ans
                 cmp_v uni_v [Eqty (TVar x, typ_out loc, lc)] in
+            validate vs ans;
             assert (so = []); Some ans
           with Contradiction _ -> None in
         (match ans with None -> ()
@@ -73,7 +81,7 @@ let abd_simple cmp_v uni_v skip (vs, ans) (prem, concl) =
              let ans', _, so =
                unify ~use_quants:true ~params:vs' ~sb:ans
                  cmp_v uni_v [Eqty (TVar x, t', lc)] in
-             validate ans';
+             validate vs' ans';
              assert (so = []);
              abstract repls' vs' ans' cur_ans' cand
            with Contradiction _ -> ())
@@ -90,12 +98,13 @@ let abd_simple cmp_v uni_v skip (vs, ans) (prem, concl) =
             match typ_next loc' with
             | None ->
               (try
-                let ans', _, so =
-                  unify ~use_quants:true ~params:vs ~sb:ans
-                    cmp_v uni_v [Eqty (TVar x, t', lc)] in
-                assert (so = []);
-                abstract repls' vs ans' cur_ans' cand
-              with Contradiction _ -> ())
+                 let ans', _, so =
+                   unify ~use_quants:true ~params:vs' ~sb:ans
+                     cmp_v uni_v [Eqty (TVar x, t', lc)] in
+                 validate vs ans';
+                 assert (so = []);
+                 abstract repls vs ans' cur_ans' cand
+               with Contradiction _ -> ())
             | Some loc' ->
               step x lc loc' repls vs ans cur_ans cand)
           repl;
@@ -119,12 +128,25 @@ let abd_simple cmp_v uni_v skip (vs, ans) (prem, concl) =
 let abd_typ cmp_v uni_v brs =
   let br0 = 0, List.hd brs in
   let more_brs = List.map (fun br -> -1, br) (List.tl brs) in
+  let validate vs ans = List.iter
+    (fun (prem, _) ->
+      ignore (combine_sbs ~use_quants:false ~params:vs cmp_v uni_v
+                [prem; ans]))
+      brs in
+  let time = ref (Sys.time ()) in
   let rec loop first acc done_brs = function
     | [] -> Some acc
     | (skip, br as obr)::more_brs ->
-      match abd_simple cmp_v uni_v skip acc br with
-      | Some acc -> loop false acc (obr::done_brs) more_brs
+      Format.printf "computing:@ %a@ ⟹@ %a@\n"
+        pr_subst (fst br) pr_subst (snd br);
+      match abd_simple cmp_v uni_v validate skip acc br with
+      | Some acc ->
+        let ntime = Sys.time () in
+        Format.printf "ans: (%.2fs)@ %a@\n" (ntime -. !time)
+          pr_subst (snd acc); time := ntime;
+        loop false acc (obr::done_brs) more_brs
       | None ->
+        Format.printf "reset@\n";
         if first then None
         else loop true ([], []) []
           ((skip+1, br)::List.rev_append done_brs more_brs) in
@@ -132,12 +154,14 @@ let abd_typ cmp_v uni_v brs =
     (fun (vs, ans) ->
       let num = List.map
         (fun (prem, concl) ->
+          try
           let cnj_ty, cnj_num =
             combine_sbs ~use_quants:false ~params:vs cmp_v uni_v [prem; ans] in
           let res_ty, res_num =
             residuum cmp_v uni_v vs cnj_ty concl in
           assert (res_ty = []);
-          cnj_num @ res_num)
+          cnj_num @ res_num
+          with Contradiction _ -> assert false)
         brs in
       Some (vs, ans, num))
   

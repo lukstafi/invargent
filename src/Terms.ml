@@ -763,6 +763,15 @@ let combine_sbs ~use_quants ?params cmp_v uni_v ?(more_phi=[]) sbs =
   assert (cnj_so = []);
   cnj_typ, cnj_num
 
+let subst_solved ~use_quants ?params cmp_v uni_v sb ~cnj =
+  let cnj = List.map
+    (fun (v,(t,lc)) -> Eqty (subst_typ sb (TVar v), subst_typ sb t, lc))
+    cnj in
+  let cnj_typ, cnj_num, cnj_so =
+    unify ~use_quants ?params cmp_v uni_v cnj in
+  assert (cnj_so = []);
+  cnj_typ, cnj_num
+
 (** {2 Sort inference} *)
 let newtype_env = Hashtbl.create 15
 

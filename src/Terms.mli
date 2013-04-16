@@ -181,6 +181,9 @@ val to_formula : subst -> atom list
 val combine_sbs : use_quants:bool -> ?params:var_name list ->
   (var_name -> var_name -> var_scope) -> (var_name -> bool) ->
   ?more_phi:atom list -> subst list -> subst * atom list
+val subst_solved : use_quants:bool -> ?params:var_name list ->
+  (var_name -> var_name -> var_scope) -> (var_name -> bool) ->
+  subst -> cnj:subst -> subst * atom list
 
 (** {2 Sort inference} *)
 

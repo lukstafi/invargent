@@ -7,7 +7,8 @@
 *)
 val abd_simple :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
-  (Terms.var_name -> bool) -> int ->
+  (Terms.var_name -> bool) ->
+  (Terms.VarSet.elt list -> Terms.subst -> unit) -> int ->
   Terms.var_name list * Terms.subst ->
   Terms.subst * Terms.subst ->
   (Terms.var_name list * Terms.subst)
