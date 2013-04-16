@@ -290,17 +290,22 @@
   <subsection|Simple constraint abduction for terms>
 
   Our initial implementation of simple constraint abduction for terms follows
-  <cite|AbductionSolvMaher> p. 13. It only gives <em|fully maximal answers>
-  which is loss of generality w.r.t. our requirements. To solve
-  <math|D\<Rightarrow\>C> the algorithm starts with with
-  <math|\<b-U\><around*|(|D\<wedge\>C|)>> and iteratively replaces subterms
-  by fresh variables <math|\<alpha\>\<in\><wide|\<alpha\>|\<bar\>>> for a
-  final solution <math|\<exists\><wide|\<alpha\>|\<bar\>>.A>. We follow
-  top-down approach where bigger subterms are abstracted first -- replaced by
-  fresh variable, \ together with an arbitrary selection of other occurrences
-  of the subterm. If replacing a subterm by fresh variable maintains
-  <math|T<around*|(|F|)>\<vDash\>A\<wedge\>D\<Rightarrow\>C>, we proceed to
-  neighboring subterm or next equation. If
+  <cite|AbductionSolvMaher> p. 13. The mentioned algorithm only gives
+  <em|fully maximal answers> which is loss of generality w.r.t. our
+  requirements. To solve <math|D\<Rightarrow\>C> the algorithm starts with
+  with <math|\<b-U\><around*|(|D\<wedge\>C|)>> and iteratively replaces
+  subterms by fresh variables <math|\<alpha\>\<in\><wide|\<alpha\>|\<bar\>>>
+  for a final solution <math|\<exists\><wide|\<alpha\>|\<bar\>>.A>. To
+  mitigate some of the limitations of fully maximal answers, we start from
+  <math|\<b-U\><rsub|<wide|\<alpha\>|\<bar\>>><around*|(|A<around*|(|D\<wedge\>C|)>|)>>,
+  where <math|\<exists\><wide|\<alpha\>|\<bar\>>.A> is the solution to
+  previous problems solved by the joint abduction algorithm, and
+  <math|A<around*|(|\<cdummy\>|)>> is the corresponding substitution. We
+  follow top-down approach where bigger subterms are abstracted first --
+  replaced by fresh variable, \ together with an arbitrary selection of other
+  occurrences of the subterm. If replacing a subterm by fresh variable
+  maintains <math|T<around*|(|F|)>\<vDash\>A\<wedge\>D\<Rightarrow\>C>, we
+  proceed to neighboring subterm or next equation. If
   <math|T<around*|(|F|)>\<vDash\>A\<wedge\>D\<Rightarrow\>C> does not hold,
   we try all of: proceeding to subterms of the subterm; replacing the subterm
   by the fresh variable; replacing the subterm by variables corresponding to
@@ -331,15 +336,14 @@
   search scheme returns from joint abduction for types with a single answer,
   which eliminates any interaction between the sort of types and other sorts.
 
-  \ We maintain an ordering of branches. We remember the original sequence
-  positions for integrating the result with answers for other sorts. We
-  accumulate simple abduction answers into the partial abduction answer until
-  we meet branch that does not have any answer satisfiable with the partial
-  answer so far. Then we start over, but put the branch that failed in front
-  of the sequence. If a branch <math|i> is at front for <math|n<rsub|i>>th
-  time, we skip the initial <math|n<rsub|i>-1> simple abduction answers in
-  it. If the front branch <math|i> does not have at least <math|n<rsub|i>>
-  answers, the search fails.
+  \ We maintain an ordering of branches. We accumulate simple abduction
+  answers into the partial abduction answer until we meet branch that does
+  not have any answer satisfiable with the partial answer so far. Then we
+  start over, but put the branch that failed in front of the sequence. If a
+  branch <math|i> is at front for <math|n<rsub|i>>th time, we skip the
+  initial <math|n<rsub|i>-1> simple abduction answers in it. If the front
+  branch <math|i> does not have at least <math|n<rsub|i>> answers, the search
+  fails.
 
   As described in <cite|jcaqpTechRep2>, to check validity of answers, we use
   a modified variant of unification under quantifiers: unification with
