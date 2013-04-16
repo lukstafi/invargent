@@ -65,20 +65,18 @@ let abd_simple cmp_v uni_v skip (vs, ans) (prem, concl) =
       let vs' = a::vs in
       let loc' = {loc with typ_sub = TVar a} in
       let t' = typ_out loc' in
-      let ans' =
-        try
-          let ans, _, so =
-            unify ~use_quants:true ~params:vs' ~sb:ans
-              cmp_v uni_v [Eqty (TVar x, t', lc)] in
-          assert (so = []); Some ans
-        with Contradiction _ -> None in
       let cur_ans' = (x, (t', lc))::cur_ans in
       let advance' () =
         match typ_next loc' with (* x bound when leaving step *)
         | None ->
-          (match ans' with
-          | None -> ()                  (* cannot fix answer *)
-          | Some ans' -> abstract repls' vs' ans' cur_ans' cand)
+          (try
+             let ans', _, so =
+               unify ~use_quants:true ~params:vs' ~sb:ans
+                 cmp_v uni_v [Eqty (TVar x, t', lc)] in
+             validate ans';
+             assert (so = []);
+             abstract repls' vs' ans' cur_ans' cand
+           with Contradiction _ -> ())
         | Some loc' -> step x lc loc' repls' vs' ans cur_ans cand in
       if implies_concl vs' (cur_ans' @ cand)
       then advance' ()
@@ -88,19 +86,16 @@ let abd_simple cmp_v uni_v skip (vs, ans) (prem, concl) =
           (fun b ->
             let loc' = {loc with typ_sub = TVar b} in
             let t' = typ_out loc' in
-            let ans' =
-              try
-                let ans, _, so =
-                  unify ~use_quants:true ~params:vs ~sb:ans
-                    cmp_v uni_v [Eqty (TVar x, t', lc)] in
-                assert (so = []); Some ans
-              with Contradiction _ -> None in
             let cur_ans' = (x, (t', lc))::cur_ans in
             match typ_next loc' with
             | None ->
-              (match ans' with
-              | None -> ()                  (* cannot fix answer *)
-              | Some ans' -> abstract repls' vs' ans' cur_ans' cand)
+              (try
+                let ans', _, so =
+                  unify ~use_quants:true ~params:vs ~sb:ans
+                    cmp_v uni_v [Eqty (TVar x, t', lc)] in
+                assert (so = []);
+                abstract repls' vs ans' cur_ans' cand
+              with Contradiction _ -> ())
             | Some loc' ->
               step x lc loc' repls vs ans cur_ans cand)
           repl;
@@ -113,9 +108,13 @@ let abd_simple cmp_v uni_v skip (vs, ans) (prem, concl) =
     let ans = List.filter (fun (x,_) -> not (List.mem x vs)) ans in
     let ansvs = fvs_sb ans in
     List.filter (Aux.flip VarSet.mem ansvs) vs, ans in
-  let cnj_typ, _ = prem_and vs concl in
-  try abstract [] vs ans [] cnj_typ; None
-  with Result (vs, ans) -> Some (cleanup vs ans)
+  try
+    if implies_concl vs ans then Some (vs, ans)
+    else
+      let cnj_typ, _ = prem_and vs concl in
+      try abstract [] vs ans [] cnj_typ; None
+      with Result (vs, ans) -> Some (cleanup vs ans)
+  with Contradiction _ -> None
 
 let abd_typ cmp_v uni_v brs =
   let br0 = 0, List.hd brs in
