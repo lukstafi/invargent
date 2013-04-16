@@ -21,61 +21,64 @@ let abd_simple cmp_v uni_v validate skip (vs, ans) (prem, concl) =
   let skip = ref skip in
   let skipped = ref [] in
   let allvs = ref VarSet.empty in
-  let prem, _ =
-    subst_solved ~use_quants:false ~params:vs cmp_v uni_v ans
-      ~cnj:prem in
-  let concl, _ =
-    subst_solved ~use_quants:false ~params:vs cmp_v uni_v ans
-      ~cnj:concl in
-  let prem_and vs ans =
-    (* TODO: optimize, don't redo work *)
-    combine_sbs ~use_quants:false ~params:vs cmp_v uni_v [prem; ans] in
-  let implies_concl vs ans =
-    let cnj_typ, cnj_num = prem_and vs ans in
-    let res_ty, res_num = residuum cmp_v uni_v vs cnj_typ concl in
-    let num = res_num @ cnj_num in
-    res_ty = [] && NumS.satisfiable num in
-  let rec abstract repls vs ans cur_ans = function
-    | [] ->
-      if implies_concl vs ans then
-        let ans = List.sort compare ans in
-        allvs := List.fold_right VarSet.add vs !allvs;
-        if List.exists (fun xs ->
-          List.for_all (fun (y,_) -> VarSet.mem y !allvs)
-            (Aux.sorted_diff xs ans)) !skipped
-        then ()
-        else if !skip > 0 then (
-          skipped := ans :: !skipped;
-          decr skip)
-        else raise (Result (vs, ans))
-    | (x, (t, lc))::cand ->
-      step x lc {typ_sub=t; typ_ctx=[]} repls vs ans cur_ans cand
-  and step x lc loc repls vs ans cur_ans cand =
-    let advance () =
-      match typ_next loc with
-      | None ->
-        let ans =
-          try
-            let ans, _, so =
-              unify ~use_quants:true ~params:vs ~sb:ans
-                cmp_v uni_v [Eqty (TVar x, typ_out loc, lc)] in
-            validate vs ans;
-            assert (so = []); Some ans
-          with Contradiction _ -> None in
-        (match ans with None -> ()
-        | Some ans -> abstract repls vs ans cur_ans cand)
-      | Some loc -> step x lc loc repls vs ans cur_ans cand in
-    if num_sort_typ loc.typ_sub
-    then advance ()
-    else
-      let a = Infer.fresh_typ_var () in
-      let repls' = (loc.typ_sub, a)::repls in
-      let vs' = a::vs in
-      let loc' = {loc with typ_sub = TVar a} in
-      let t' = typ_out loc' in
-      let cur_ans' = (x, (t', lc))::cur_ans in
-      let advance' () =
-        match typ_next loc' with (* x bound when leaving step *)
+  try
+    let prem, _ =
+      subst_solved ~use_quants:false ~params:vs cmp_v uni_v ans
+        ~cnj:prem in
+    let concl, _ =
+      subst_solved ~use_quants:false ~params:vs cmp_v uni_v ans
+        ~cnj:concl in
+    let prem_and vs ans =
+      (* TODO: optimize, don't redo work *)
+      combine_sbs ~use_quants:false ~params:vs cmp_v uni_v [prem; ans] in
+    let implies_concl vs ans =
+      let cnj_typ, cnj_num = prem_and vs ans in
+      let res_ty, res_num = residuum cmp_v uni_v vs cnj_typ concl in
+      let num = res_num @ cnj_num in
+      res_ty = [] && NumS.satisfiable num in
+    let rec abstract repls vs ans cur_ans = function
+      | [] ->
+        if implies_concl vs ans then
+          let ans = List.sort compare ans in
+          allvs := List.fold_right VarSet.add vs !allvs;
+          if List.exists (fun xs ->
+            List.for_all (fun (y,_) -> VarSet.mem y !allvs)
+              (Aux.sorted_diff xs ans)) !skipped
+          then ()
+          else if !skip > 0 then (
+            skipped := ans :: !skipped;
+            decr skip)
+          else raise (Result (vs, ans))
+      | (x, (t, lc))::cand ->
+        if implies_concl vs (ans @ cand) then (
+          (* Choice 1: drop premise/conclusion atom from answer *)
+          abstract repls vs ans cur_ans cand);
+        step x lc {typ_sub=t; typ_ctx=[]} repls vs ans cur_ans cand
+    and step x lc loc repls vs ans cur_ans cand =
+      (* Choice 2: preserve current premise/conclusion subterm for answer *)
+      (match typ_next loc with
+        | None ->
+          let ans =
+            try
+              let ans, _, so =
+                unify ~use_quants:true ~params:vs ~sb:ans
+                  cmp_v uni_v [Eqty (TVar x, typ_out loc, lc)] in
+              validate vs ans;
+              assert (so = []); Some ans
+            with Contradiction _ -> None in
+          (match ans with None -> ()
+          | Some ans -> abstract repls vs ans cur_ans cand)
+        | Some loc -> step x lc loc repls vs ans cur_ans cand);
+      if not (num_sort_typ loc.typ_sub)
+      then
+        (* Choice 3: remove subterm from answer *)
+        let a = Infer.fresh_typ_var () in
+        let repls' = (loc.typ_sub, a)::repls in
+        let vs' = a::vs in
+        let loc' = {loc with typ_sub = TVar a} in
+        let t' = typ_out loc' in
+        let cur_ans' = (x, (t', lc))::cur_ans in
+        (match typ_next loc' with (* x bound when leaving step *)
         | None ->
           (try
              let ans', _, so =
@@ -85,45 +88,45 @@ let abd_simple cmp_v uni_v validate skip (vs, ans) (prem, concl) =
              assert (so = []);
              abstract repls' vs' ans' cur_ans' cand
            with Contradiction _ -> ())
-        | Some loc' -> step x lc loc' repls' vs' ans cur_ans cand in
-      if implies_concl vs' (cur_ans' @ cand)
-      then advance' ()
-      else
-        let repl = Aux.assoc_all loc.typ_sub repls in
-        List.iter
-          (fun b ->
-            let loc' = {loc with typ_sub = TVar b} in
-            let t' = typ_out loc' in
-            let cur_ans' = (x, (t', lc))::cur_ans in
-            match typ_next loc' with
-            | None ->
-              (try
-                 let ans', _, so =
-                   unify ~use_quants:true ~params:vs' ~sb:ans
-                     cmp_v uni_v [Eqty (TVar x, t', lc)] in
-                 validate vs ans';
-                 assert (so = []);
-                 abstract repls vs ans' cur_ans' cand
-               with Contradiction _ -> ())
-            | Some loc' ->
-              step x lc loc' repls vs ans cur_ans cand)
-          repl;
-        advance' ();
-        (match typ_up loc with
-        | None -> advance ()        
-        | Some loc -> step x lc loc repls vs ans cur_ans cand);
-  in
-  let cleanup vs ans =
-    let ans = List.filter (fun (x,_) -> not (List.mem x vs)) ans in
-    let ansvs = fvs_sb ans in
-    List.filter (Aux.flip VarSet.mem ansvs) vs, ans in
-  try
+        | Some loc' -> step x lc loc' repls' vs' ans cur_ans cand);
+        (* Choice 4: match subterm with an earlier occurrence *)
+        if not (implies_concl vs' (cur_ans' @ cand))
+        then (
+          let repl = Aux.assoc_all loc.typ_sub repls in
+          List.iter
+            (fun b ->
+              let loc' = {loc with typ_sub = TVar b} in
+              let t' = typ_out loc' in
+              let cur_ans' = (x, (t', lc))::cur_ans in
+              match typ_next loc' with
+              | None ->
+                (try
+                   let ans', _, so =
+                     unify ~use_quants:true ~params:vs' ~sb:ans
+                       cmp_v uni_v [Eqty (TVar x, t', lc)] in
+                   validate vs ans';
+                   assert (so = []);
+                   abstract repls vs ans' cur_ans' cand
+                 with Contradiction _ -> ())
+              | Some loc' ->
+                step x lc loc' repls vs ans cur_ans cand)
+            repl;
+          (* Choice 5: try subterms of the subterm *)
+          (match typ_up loc with
+          | None -> ()        
+          | Some loc -> step x lc loc repls vs ans cur_ans cand);
+        )
+    in
+    let cleanup vs ans =
+      let ans = List.filter (fun (x,_) -> not (List.mem x vs)) ans in
+      let ansvs = fvs_sb ans in
+      List.filter (Aux.flip VarSet.mem ansvs) vs, ans in
     if implies_concl vs ans then Some (vs, ans)
     else
       let cnj_typ, _ = prem_and vs concl in
       try abstract [] vs ans [] cnj_typ; None
       with Result (vs, ans) -> Some (cleanup vs ans)
-  with Contradiction _ -> None
+  with Contradiction _ -> None          (* subst_solved or implies_concl *)
 
 let abd_typ cmp_v uni_v brs =
   let br0 = 0, List.hd brs in
@@ -132,21 +135,21 @@ let abd_typ cmp_v uni_v brs =
     (fun (prem, _) ->
       ignore (combine_sbs ~use_quants:false ~params:vs cmp_v uni_v
                 [prem; ans]))
-      brs in
-  let time = ref (Sys.time ()) in
+    brs in
+  (* let time = ref (Sys.time ()) in *)
   let rec loop first acc done_brs = function
     | [] -> Some acc
     | (skip, br as obr)::more_brs ->
-      Format.printf "computing:@ %a@ ⟹@ %a@\n"
-        pr_subst (fst br) pr_subst (snd br);
+      (*Format.printf "abd_typ-loop:@ @[<2>%a@ ⟹@ %a@]@\n"
+        pr_subst (fst br) pr_subst (snd br);*)
       match abd_simple cmp_v uni_v validate skip acc br with
       | Some acc ->
-        let ntime = Sys.time () in
-        Format.printf "ans: (%.2fs)@ %a@\n" (ntime -. !time)
-          pr_subst (snd acc); time := ntime;
+        (*let ntime = Sys.time () in
+        Format.printf "ans: (%.2fs)@ @[<2>%a@]@\n" (ntime -. !time)
+          pr_subst (snd acc); time := ntime;*)
         loop false acc (obr::done_brs) more_brs
       | None ->
-        Format.printf "reset@\n";
+        (* Format.printf "reset@\n"; *)
         if first then None
         else loop true ([], []) []
           ((skip+1, br)::List.rev_append done_brs more_brs) in
@@ -155,12 +158,13 @@ let abd_typ cmp_v uni_v brs =
       let num = List.map
         (fun (prem, concl) ->
           try
-          let cnj_ty, cnj_num =
-            combine_sbs ~use_quants:false ~params:vs cmp_v uni_v [prem; ans] in
-          let res_ty, res_num =
-            residuum cmp_v uni_v vs cnj_ty concl in
-          assert (res_ty = []);
-          cnj_num @ res_num
+            let cnj_ty, cnj_num =
+              combine_sbs ~use_quants:false ~params:vs cmp_v uni_v
+                [prem; ans] in
+            let res_ty, res_num =
+              residuum cmp_v uni_v vs cnj_ty concl in
+            assert (res_ty = []);
+            cnj_num @ res_num
           with Contradiction _ -> assert false)
         brs in
       Some (vs, ans, num))

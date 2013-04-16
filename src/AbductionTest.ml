@@ -41,9 +41,9 @@ let lhs4 = "(Term tj) = ta" and rhs4 = "tm = (Term Bool → Bool) ∧
     tl = (Term tj → tb) ∧ tk = (Term tj → tb)"
 let lhs5 = "(Term tn) = ta ∧ (to, tp) = tn" and rhs5 = "tb = (tq, tr) ∧
     ts = (Term to → tq) ∧ tt = (Term tp → tr)"
-let lhs6 = "(Term tu) = ta" and rhs6 = "tx = (ty, tz) ∧ tx = tb ∧
+let lhs6 = "(Term tu) = ta" and rhs6 = "tL = (ty, tz) ∧ tx = tb ∧
     tw = (Term (tu, tv) → ty, tz)"
-let lhs7 = "(tA, tB) = tx ∧ (Term tu) = ta" and rhs7 = "tA = tx"
+let lhs7 = "(tA, tB) = tL ∧ (Term tu) = ta" and rhs7 = "tA = tx"
 let lhs8 = "(Term tD) = ta" and rhs8 = "tF = (tH, tI) ∧ tG = tb ∧
     tE = (Term (tC, tD) → tH, tI)"
 let lhs9 = "(tJ, tK) = tF ∧ (Term tD) = ta" and rhs9 = "tK = tG"
@@ -56,9 +56,10 @@ let tests = "Abduction" >::: [
       Terms.reset_counters ();
       Infer.reset_counters ();
       try
-        test_simple lhs1 rhs1 0 "td = tb";
-        test_simple lhs1 rhs1 1 "ta = (Term tb)";
-        test_simple lhs1 rhs1 2 "tb = Int";
+        test_simple lhs1 rhs1 0 "tb = Int";
+        test_simple lhs1 rhs1 1 "ta = (Term tb) ∧
+td = Int";
+        test_simple lhs1 rhs1 2 "ta = (Term tb)"; (* expected *)
       with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
         Terms.pr_exception Format.str_formatter exn;
@@ -99,11 +100,13 @@ let tests = "Abduction" >::: [
             | Some (vs, ans_typ, _) ->
               pr_to_str pr_formula (to_formula ans_typ) in
         assert_equal ~printer:(fun x -> x)
-          "ta = (Term tb) ∧ tc = tb ∧ td = tb ∧ te = tb ∧
-tf = (Term Int → Int) ∧ tk = (Term tb → tb) ∧
-tl = (Term tb → tb) ∧ tm = (Term Bool → Bool) ∧ tn = (tq, t10680) ∧
-tp = tr ∧ tres = (Term tb → tb) ∧ ts = (Term to → to) ∧
-tt = (Term t10680 → t10680)" ans
+          "tE = (Term (tC, tD) → tH, tD) ∧ tF = (tH, tD) ∧ tG = tD ∧ tI = tD ∧
+tL = (tu, tz) ∧ ta = (Term tc) ∧ tb = tc ∧ te = Bool ∧
+tf = (Term Int → Int) ∧ tk = (Term tj → tj) ∧
+tl = (Term tj → tj) ∧ tm = (Term Bool → Bool) ∧ tn = (tq, tr) ∧
+tres = (Term tc → tc) ∧ ts = (Term tq → tq) ∧
+tt = (Term tr → tr) ∧ tw = (Term (tu, tv) → tu, tz) ∧ tx = tu ∧
+ty = tu" ans
       with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
         Terms.pr_exception Format.str_formatter exn;
