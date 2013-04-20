@@ -320,6 +320,12 @@ let typ_scheme_of_item ?(env=[]) = function
 type var_scope =
 | Upstream | Same_quant | Downstream | Not_in_scope
 
+let str_of_cmp = function
+| Upstream -> "upstream"
+| Same_quant -> "same_quant"
+| Downstream -> "downstream"
+| Not_in_scope -> "not_in_scope"
+
 exception Contradiction of string * (typ * typ) option * loc
 
 let typ_sort_typ = function
@@ -735,8 +741,9 @@ let unify ~use_quants ?(params=[]) ?(sb=[]) cmp_v uni_v cnj =
         aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
       | (TVar v as tv, t | t, (TVar v as tv)) ->
         if use_quants
-        then raise
-          (Contradiction ("Quantifier violation", Some (tv, t), loc))
+        then (
+          raise
+            (Contradiction ("Quantifier violation", Some (tv, t), loc)))
         else aux ((v, (t, loc))::subst_one_sb v t sb) num_cn cnj
       | (TCons (f, f_args) as t1,
          (TCons (g, g_args) as t2)) when f=g ->
@@ -829,7 +836,7 @@ let infer_sorts_item item =
     | CFalse _ as a -> a
     | PredVarU (id,ty) -> PredVarU (id, walk_typ ty)
     | PredVarB (id,t1,t2) -> PredVarB (id, walk_typ t1, walk_typ t2) in
-  let rec infer_typ cur_loc s = function
+  let rec infer_typ_ cur_loc s = function
     | TVar tv -> add_v cur_loc tv s 
     | TCons (CNam "Tuple", args) ->
       List.iter (infer_typ cur_loc (Aux.Right Type_sort)) args
@@ -841,9 +848,15 @@ let infer_sorts_item item =
        | Not_found -> raise
          (Report_toplevel ("Undefined type constructor "^cns_str n,
                            Some cur_loc))
-       | Invalid_argument _ -> raise
+       | Invalid_argument _ ->
+         let sorts = List.map sort_str (Hashtbl.find newtype_env n) in
+         let sorts = String.concat ", " sorts in
+         let args = String.concat ", "
+           (List.map (pr_to_str (pr_ty true)) args) in
+         raise
          (Report_toplevel ("Arity mismatch for type constructor "^
-                              cns_str n, Some cur_loc)))
+                              cns_str n^": expected "^sorts^
+                              "; found "^args, Some cur_loc)))
     | TCons (Extype _ as n, args) ->
       (try let argsorts = List.map
              (fun s -> Aux.Right s) (Hashtbl.find newtype_env n) in
@@ -883,6 +896,8 @@ let infer_sorts_item item =
       | Aux.Left sl ->
         add cur_loc "num addition" (Aux.Left sl) (Aux.Right Num_sort));
       List.iter (infer_typ cur_loc (Aux.Right Num_sort)) args
+  and infer_typ cur_loc s t =
+    infer_typ_ cur_loc s t
   and infer_atom = function
     | Eqty (t1, t2, loc) ->
       let s = new_proxy () in
