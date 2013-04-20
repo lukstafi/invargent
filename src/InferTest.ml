@@ -12,8 +12,8 @@ let tests = "Infer" >::: [
 
   "constraints: eval" >::
     (fun () ->
-      Terms.reset_counters ();
-      Infer.reset_counters ();
+      Terms.reset_state ();
+      Infer.reset_state ();
       let prog = Parser.program Lexer.token
 	(Lexing.from_string
 "newtype Term : type
@@ -80,8 +80,8 @@ let rec eval = function
 
   "constraints: filter" >::
     (fun () ->
-      Terms.reset_counters ();
-      Infer.reset_counters ();
+      Terms.reset_state ();
+      Infer.reset_state ();
       let prog = Parser.program Lexer.token
 	(Lexing.from_string
 "newtype Bool
@@ -131,8 +131,8 @@ let rec filter =
 
   "constraints: equal with assert and test" >::
     (fun () ->
-      Terms.reset_counters ();
-      Infer.reset_counters ();
+      Terms.reset_state ();
+      Infer.reset_state ();
       let prog = Parser.program Lexer.token
 	(Lexing.from_string
 "newtype Ty : type

@@ -50,6 +50,7 @@ val infer_prog :
 (** {2 Normalization} *)
 type branch =
   Terms.formula * (Terms.subst * Terms.formula * Terms.formula)
+val br_to_formulas : branch -> Terms.formula * Terms.formula
 val fresh_typ_var : unit -> Terms.var_name
 
 val normalize : cnstrnt ->
@@ -77,4 +78,4 @@ val pr_cnstrnt : Format.formatter -> cnstrnt -> unit
 val pr_brs : Format.formatter ->
   branch list -> unit
 
-val reset_counters : unit -> unit
+val reset_state : unit -> unit

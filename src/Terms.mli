@@ -121,7 +121,7 @@ val typ_next : ?same_level:bool -> typ_loc -> typ_loc option
 val typ_out : typ_loc -> typ
 
 (** Set [extype_id] and [predvar_id] to [0]. *)
-val reset_counters : unit -> unit
+val reset_state : unit -> unit
 
 type struct_item =
 | TypConstr of cns_name * sort list * loc
@@ -224,3 +224,9 @@ val pr_struct_item : Format.formatter -> struct_item -> unit
 val pr_program : Format.formatter -> struct_item list -> unit
 val pr_exception : Format.formatter -> exn -> unit
 val pr_to_str : (Format.formatter -> 'a -> unit) -> 'a -> string
+
+val parser_more_items : struct_item list ref
+val parser_unary_typs : (string, unit) Hashtbl.t
+val parser_unary_vals : (string, unit) Hashtbl.t
+val parser_last_typ : int ref
+val parser_last_num : int ref

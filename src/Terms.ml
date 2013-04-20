@@ -937,5 +937,16 @@ let infer_sorts_item item =
 let infer_sorts prog =
   Aux.concat_map infer_sorts_item prog
 
-let reset_counters () =
-  extype_id := 0; predvar_id := 0
+let parser_more_items = ref []
+let parser_unary_typs = Hashtbl.create 15
+let parser_unary_vals = Hashtbl.create 31
+let parser_last_typ = ref 0
+let parser_last_num = ref 0
+
+let reset_state () =
+  extype_id := 0; predvar_id := 0;
+  parser_more_items := [];
+  Hashtbl.clear parser_unary_typs;
+  Hashtbl.clear parser_unary_vals;
+  parser_last_typ := 0;
+  parser_last_num := 0

@@ -66,6 +66,8 @@ rule token = parse
   | "as"        { AS }
   | "->"        { ARROW }
   | "→"         { ARROW }
+  | "==>"       { DOUBLEARROW }
+  | "⟹"        { DOUBLEARROW }
   | (lowercase ident_body*) as id
       { LIDENT id }
   | (uppercase ident_body*) as id

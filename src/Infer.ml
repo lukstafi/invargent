@@ -523,6 +523,11 @@ let infer_prog solver prog =
 type branch =
   Terms.formula * (Terms.subst * Terms.formula * Terms.formula)
 
+let br_to_formulas (prem, (cn_typ, cn_num, cn_so)) =
+  prem,
+  Aux.map_append (fun (v,(t,lc)) -> Eqty (TVar v,t,lc))
+    cn_typ (cn_num @ cn_so)
+
 let normalize cn =
   let quants = Hashtbl.create 2047 in
   let univars = Hashtbl.create 127 in
@@ -831,5 +836,5 @@ let pr_brs ppf brs =
     let concl = to_formula sb @ num @ so in
     fprintf ppf "@[<2>%a@ ⟹@ %a@]" pr_formula prem pr_formula concl) ppf brs
 
-let reset_counters () =
+let reset_state () =
   fresh_var_id := 0; fresh_chi_id := 0

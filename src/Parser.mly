@@ -33,7 +33,7 @@ let parse_error s =
   Format.printf
     "@[<2>%s@ %a@]@." s pr_loc (get_loc ())
   
-let more_items = ref []
+let more_items = parser_more_items
 let existential evs phi ty loc =
   incr extype_id;
   let n = Extype !extype_id in
@@ -46,15 +46,15 @@ let existential evs phi ty loc =
   more_items := TypConstr (n, sorts, loc) :: excns :: !more_items;
   exty
 
-let unary_typs = Hashtbl.create 15
-let unary_vals = Hashtbl.create 31
+let unary_typs = parser_unary_typs
+let unary_vals = parser_unary_vals
 
 let typvars = "abcdefghorstuvw"
 let numvars = "nkijmlpqxyz"
 let typvars_n = String.length typvars
 let numvars_n = String.length numvars
-let last_typ = ref 0
-let last_num = ref 0
+let last_typ = parser_last_typ
+let last_num = parser_last_num
 let rec next_typ i fvs =
   let ch, n = i mod typvars_n, i / typvars_n in
   let v s = VNam (s,
@@ -73,7 +73,11 @@ let rec next_num i fvs =
   then next_num (i+1) fvs else v Num_sort
 
 let extract_datatyp allvs loc = function
-  | TCons (n, args) ->
+  | TCons (CNam m as n, args) as t ->
+    let args = match args with
+      | [TCons (CNam "Tuple", targs)] when not (Hashtbl.mem unary_typs m) ->
+        targs
+      | _ -> args in
     let phi, args = Aux.fold_map
       (fun phi -> function
       | TVar v -> phi, v
@@ -84,6 +88,7 @@ let extract_datatyp allvs loc = function
     n, args, phi
   | _ -> raise (Report_toplevel ("Syntax error: expected datatype",
 			         Some loc))
+
 %}
 
       /* Ocamlyacc Declarations */
@@ -98,7 +103,7 @@ let extract_datatyp allvs loc = function
 %token NUM TYPE
 %token LESSEQUAL
 %token ASSERT FALSE TEST
-%token NEWCONS NEWTYPE EXTERNAL LONGARROW
+%token NEWCONS NEWTYPE EXTERNAL LONGARROW DOUBLEARROW
 %token EOF
 
 %nonassoc IN
@@ -119,10 +124,11 @@ let extract_datatyp allvs loc = function
 %nonassoc prec_constr_appl              /* above AS BAR COLONCOLON COMMA */
 %nonassoc LPAREN LBRACKET
 
-%start program typ formula
+%start program typ formula cn_branches
 %type <Terms.struct_item list> program
 %type <Terms.typ> simple_typ typ
 %type <Terms.formula> formula
+%type <(Terms.formula * Terms.formula) list> cn_branches
 
 /* Grammar follows */
 %%
@@ -340,6 +346,14 @@ formula_logand_list:
       { $3 @ $1 }
 ;
 
+cn_branches_list:
+  | formula DOUBLEARROW formula { [$1, $3] }
+  | cn_branches BAR formula DOUBLEARROW formula
+      { ($3, $5) :: $1 }
+
+cn_branches:
+  | cn_branches_list EOF { List.rev $1 }
+
 opt_constr_intro:
   | ALL lident_list DOT
       { List.rev $2, [] }
@@ -413,8 +427,9 @@ structure_item_raw:
   | NEWCONS UIDENT error
       { unclosed "newcons" 1 ":" 3 }
   | NEWTYPE UIDENT COLON sort_star_list
-      { if List.length $4 = 1 then Hashtbl.add unary_typs $2 ();
-        TypConstr (CNam $2, List.rev $4, get_loc ()) }
+      {
+        if List.length ($4) = 1 then Hashtbl.add unary_typs ($2) ();
+        TypConstr (CNam ($2), List.rev ($4), get_loc ()) }
   | NEWTYPE COLON
       { syntax_error
 	  "lacking type identifier" 2 }
