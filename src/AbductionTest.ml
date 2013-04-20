@@ -53,8 +53,8 @@ let tests = "Abduction" >::: [
 
   "simple abduction: eval" >::
     (fun () ->
-      Terms.reset_counters ();
-      Infer.reset_counters ();
+      Terms.reset_state ();
+      Infer.reset_state ();
       try
         test_simple lhs1 rhs1 0 "tb = Int";
         test_simple lhs1 rhs1 1 "ta = (Term tb) ∧
@@ -68,8 +68,8 @@ td = Int";
 
   "joint term abduction: eval" >::
     (fun () ->
-      Terms.reset_counters ();
-      Infer.reset_counters ();
+      Terms.reset_state ();
+      Infer.reset_state ();
       try
         let lhs0, rhs0 = [], p_formula rhs0 in
         let lhs1 = p_formula lhs1 and rhs1 = p_formula rhs1 in
@@ -107,6 +107,181 @@ tl = (Term tj → tj) ∧ tm = (Term Bool → Bool) ∧ tn = (tq, tr) ∧
 tres = (Term tc → tc) ∧ ts = (Term tq → tq) ∧
 tt = (Term tr → tr) ∧ tw = (Term (tu, tv) → tu, tz) ∧ tx = tu ∧
 ty = tu" ans
+      with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+        ignore (Format.flush_str_formatter ());
+        Terms.pr_exception Format.str_formatter exn;
+        assert_failure (Format.flush_str_formatter ())
+    );
+
+  "constraint separation: binary plus" >::
+    (fun () ->
+      Terms.reset_state ();
+      Infer.reset_state ();
+      let prog = Parser.program Lexer.token
+	(Lexing.from_string
+"newtype Binary : num
+newtype Carry : num
+
+newcons Zero : Binary 0
+newcons PZero : ∀n. Binary(n) ⟶ Binary(n+n)
+newcons POne : ∀n. Binary(n) ⟶ Binary(n+n+1)
+
+newcons CZero : Carry 0
+newcons COne : Carry 1
+
+let rec plus =
+  function CZero ->
+    (function Zero -> (fun b -> b)
+      | PZero a1 as a ->
+        (function Zero -> a
+	  | PZero b1 -> PZero (plus CZero a1 b1)
+	  | POne b1 -> POne (plus CZero a1 b1))
+      | POne a1 as a ->
+        (function Zero -> a
+	  | PZero b1 -> POne (plus CZero a1 b1)
+	  | POne b1 -> PZero (plus COne a1 b1)))
+    | COne ->
+    (function Zero ->
+        (function Zero -> POne(Zero)
+	  | PZero b1 -> POne b1
+	  | POne b1 -> PZero (plus COne Zero b1))
+      | PZero a1 as a ->
+        (function Zero -> POne a1
+	  | PZero b1 -> POne (plus CZero a1 b1)
+	  | POne b1 -> PZero (plus COne a1 b1))
+      | POne a1 as a ->
+        (function Zero -> PZero (plus COne a1 Zero)
+	  | PZero b1 -> PZero (plus COne a1 b1)
+	  | POne b1 -> POne (plus COne a1 b1)))") in
+      try
+        let prog = Terms.infer_sorts prog in
+        let preserve, cn = Infer.infer_prog_mockup prog in
+        (* Format.printf "cn:@\n%a@\n" pr_cnstrnt cn; *)
+        let cmp_v, uni_v, brs = Infer.normalize cn in
+        (*let uni_v v =
+          try Hashtbl.find uni_v v with Not_found -> false in*)
+        (* FIXME: big problem with quantifiers! *)
+        let uni_v v = false in
+        let cmp_v v1 v2 = Same_quant in
+        let brs = Infer.simplify preserve cmp_v uni_v brs in
+        let brs = abd_mockup_num cmp_v uni_v
+          (List.map Infer.br_to_formulas brs) in
+        assert_bool "No abduction answer" (brs <> None);
+        let brs = Aux.unsome brs in
+        ignore (Format.flush_str_formatter ());
+        pr_line_list "| "
+          (fun ppf (prem,concl) -> Format.fprintf ppf
+            "@[<2>%a@ ⟹@ %a@]" pr_formula prem pr_formula concl)
+          Format.str_formatter brs;
+        assert_equal ~printer:(fun x -> x)
+          " ⟹ 
+|  ⟹ 
+| 0 = n6 ⟹ n6 = n5
+| 0 = n10 ∧ 0 = n6 ⟹ n10 = n9 ∧ n6 = n5
+| (n16 + n16) = n15 ∧ 0 = n6 ⟹ n15 = n9 ∧ n6 = n5
+| 0 = n20 ∧ (n16 + n16) = n15 ∧ 0 = n6 ⟹ n20 = n19 ∧ n15 = n9 ∧
+    n6 = n5 ∧ n19 = n15
+| (n24 + n24) = n23 ∧ (n16 + n16) = n15 ∧ 0 = n6 ⟹ n23 = n19 ∧
+    n15 = n9 ∧ n6 = n5 ∧ n19 = n25 ∧ (n26 + n26) = n25 ∧ 0 = n30
+| (1 + n35 + n35) = n34 ∧ (n16 + n16) = n15 ∧ 0 = n6 ⟹ n34 = n19 ∧
+    n15 = n9 ∧ n6 = n5 ∧ n19 = n36 ∧ (1 + n37 + n37) = n36 ∧ 
+    0 = n41
+| (1 + n46 + n46) = n45 ∧ 0 = n6 ⟹ n45 = n9 ∧ n6 = n5 ∧ n19 = n49
+| 0 = n50 ∧ (1 + n46 + n46) = n45 ∧ 0 = n6 ⟹ n50 = n49 ∧ n45 = n9 ∧
+    n6 = n5 ∧ n19 = n45
+| (n54 + n54) = n53 ∧ (1 + n46 + n46) = n45 ∧ 0 = n6 ⟹ n53 = n49 ∧
+    n45 = n9 ∧ n6 = n5 ∧ n19 = n55 ∧ (1 + n56 + n56) = n55 ∧ 
+    0 = n60
+| (1 + n65 + n65) = n64 ∧ (1 + n46 + n46) = n45 ∧ 0 = n6 ⟹
+    n64 = n49 ∧ n45 = n9 ∧ n6 = n5 ∧ n19 = n66 ∧
+    (n67 + n67) = n66 ∧ 1 = n71
+| 1 = n74 ⟹ n74 = n5 ∧ n9 = n77
+| 0 = n78 ∧ 1 = n74 ⟹ n78 = n77 ∧ n74 = n5 ∧ n19 = n81
+| 0 = n82 ∧ 0 = n78 ∧ 1 = n74 ⟹ n82 = n81 ∧ n78 = n77 ∧
+    n74 = n5 ∧ n19 = n83 ∧ n85 = n84 ∧ (1 + n84 + n84) = n83 ∧
+    0 = n85
+| (n89 + n89) = n88 ∧ 0 = n78 ∧ 1 = n74 ⟹ n88 = n81 ∧ n78 = n77 ∧
+    n74 = n5 ∧ n19 = n90 ∧ n89 = n91 ∧ (1 + n91 + n91) = n90
+| (1 + n95 + n95) = n94 ∧ 0 = n78 ∧ 1 = n74 ⟹ n94 = n81 ∧
+    n78 = n77 ∧ n74 = n5 ∧ n19 = n96 ∧ (n97 + n97) = n96 ∧
+    1 = n102 ∧ 0 = n100
+| (n107 + n107) = n106 ∧ 1 = n74 ⟹ n106 = n77 ∧ n74 = n5 ∧ n19 = n110
+| 0 = n111 ∧ (n107 + n107) = n106 ∧ 1 = n74 ⟹ n111 = n110 ∧
+    n106 = n77 ∧ n74 = n5 ∧ n19 = n112 ∧ n107 = n113 ∧
+    (1 + n113 + n113) = n112
+| (n117 + n117) = n116 ∧ (n107 + n107) = n106 ∧ 1 = n74 ⟹
+    n116 = n110 ∧ n106 = n77 ∧ n74 = n5 ∧ n19 = n118 ∧
+    (1 + n119 + n119) = n118 ∧ 0 = n123
+| (1 + n128 + n128) = n127 ∧ (n107 + n107) = n106 ∧ 1 = n74 ⟹
+    n127 = n110 ∧ n106 = n77 ∧ n74 = n5 ∧ n19 = n129 ∧
+    (n130 + n130) = n129 ∧ 1 = n134
+| (1 + n139 + n139) = n138 ∧ 1 = n74 ⟹ n138 = n77 ∧ n74 = n5 ∧
+    n19 = n142
+| 0 = n143 ∧ (1 + n139 + n139) = n138 ∧ 1 = n74 ⟹ n143 = n142 ∧
+    n138 = n77 ∧ n74 = n5 ∧ n19 = n144 ∧ (n145 + n145) = n144 ∧
+    1 = n150 ∧ 0 = n147
+| (n155 + n155) = n154 ∧ (1 + n139 + n139) = n138 ∧ 1 = n74 ⟹
+    n154 = n142 ∧ n138 = n77 ∧ n74 = n5 ∧ n19 = n156 ∧
+    (n157 + n157) = n156 ∧ 1 = n161
+| (1 + n166 + n166) = n165 ∧ (1 + n139 + n139) = n138 ∧ 1 = n74 ⟹
+    n165 = n142 ∧ n138 = n77 ∧ n74 = n5 ∧ n19 = n167 ∧
+    (1 + n168 + n168) = n167 ∧ 1 = n172"
+          (Format.flush_str_formatter ());
+      with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+        ignore (Format.flush_str_formatter ());
+        Terms.pr_exception Format.str_formatter exn;
+        assert_failure (Format.flush_str_formatter ())
+    );
+
+  "constraint separation: filter" >::
+    (fun () ->
+      Terms.reset_state ();
+      Infer.reset_state ();
+      let prog = Parser.program Lexer.token
+	(Lexing.from_string
+"newtype Bool
+newtype List : type * num
+newcons True : Bool
+newcons False : Bool
+newcons LNil : ∀a. List(a, 0)
+newcons LCons : ∀n, a. a * List(a, n) ⟶ List(a, n+1)
+
+newtype Bar
+external f : Bar → Bool
+
+let rec filter =
+  efunction LNil -> LNil
+    | LCons (x, l) -> match f x with
+          True -> LCons (x, filter l)
+	| False -> filter l") in
+      try
+        let prog = Terms.infer_sorts prog in
+        let preserve, cn = Infer.infer_prog_mockup prog in
+        (* Format.printf "cn:@\n%a@\n" Infer.pr_cnstrnt cn; *)
+        let cmp_v, uni_v, brs = Infer.normalize cn in
+        (*let uni_v v =
+          try Hashtbl.find uni_v v with Not_found -> false in*)
+        (* FIXME: big problem with quantifiers! *)
+        let uni_v v = false in
+        let cmp_v v1 v2 = Same_quant in
+        let brs = Infer.simplify preserve cmp_v uni_v brs in
+        let brs = abd_mockup_num cmp_v uni_v
+          (List.map Infer.br_to_formulas brs) in
+        assert_bool "No abduction answer" (brs <> None);
+        let brs = Aux.unsome brs in
+        ignore (Format.flush_str_formatter ());
+        pr_line_list "| "
+          (fun ppf (prem,concl) -> Format.fprintf ppf
+            "@[<2>%a@ ⟹@ %a@]" pr_formula prem pr_formula concl)
+          Format.str_formatter brs;
+        assert_equal ~printer:(fun x -> x)
+          " ⟹ 
+|  ⟹ 
+| 0 = n7 ⟹ n7 = n5 ∧ 0 = n10
+| (n17 + 1) = n15 ⟹ n15 = n5
+| (n17 + 1) = n15 ⟹ n15 = n5 ∧ (n25 + 1) = n23
+| (n17 + 1) = n15 ⟹ n15 = n5"
+          (Format.flush_str_formatter ());
       with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
         Terms.pr_exception Format.str_formatter exn;

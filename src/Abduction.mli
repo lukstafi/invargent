@@ -23,3 +23,8 @@ val abd :
   (Terms.var_name -> bool) ->
   (Terms.atom list * Terms.atom list) list ->
   (Terms.var_name list * Terms.atom list) option
+val abd_mockup_num :
+  (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
+  (Terms.var_name -> bool) ->
+  (Terms.atom list * Terms.atom list) list ->
+  (Terms.atom list * Terms.atom list) list option

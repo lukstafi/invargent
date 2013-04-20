@@ -206,4 +206,148 @@ test b_not (equal (TInt, TList TInt) Zero Nil)") in
         Terms.pr_exception Format.str_formatter exn;
         assert_failure (Format.flush_str_formatter ())
     );
+
+  "constraints: binary plus" >::
+    (fun () ->
+      Terms.reset_state ();
+      Infer.reset_state ();
+      let prog = Parser.program Lexer.token
+	(Lexing.from_string
+"newtype Binary : num
+newtype Carry : num
+
+newcons Zero : Binary 0
+newcons PZero : ∀n. Binary(n) ⟶ Binary(n+n)
+newcons POne : ∀n. Binary(n) ⟶ Binary(n+n+1)
+
+newcons CZero : Carry 0
+newcons COne : Carry 1
+
+let rec plus =
+  function CZero ->
+    (function Zero -> (fun b -> b)
+      | PZero a1 as a ->
+        (function Zero -> a
+	  | PZero b1 -> PZero (plus CZero a1 b1)
+	  | POne b1 -> POne (plus CZero a1 b1))
+      | POne a1 as a ->
+        (function Zero -> a
+	  | PZero b1 -> POne (plus CZero a1 b1)
+	  | POne b1 -> PZero (plus COne a1 b1)))
+    | COne ->
+    (function Zero ->
+        (function Zero -> POne(Zero)
+	  | PZero b1 -> POne b1
+	  | POne b1 -> PZero (plus COne Zero b1))
+      | PZero a1 as a ->
+        (function Zero -> POne a1
+	  | PZero b1 -> POne (plus CZero a1 b1)
+	  | POne b1 -> PZero (plus COne a1 b1))
+      | POne a1 as a ->
+        (function Zero -> PZero (plus COne a1 Zero)
+	  | PZero b1 -> PZero (plus COne a1 b1)
+	  | POne b1 -> POne (plus COne a1 b1)))") in
+      try
+        let prog = Terms.infer_sorts prog in
+        let preserve, cn = infer_prog_mockup prog in
+        (* Format.printf "cn:@\n%a@\n" pr_cnstrnt cn; *)
+        let cmp_v, uni_v, brs = normalize cn in
+        let uni_v v =
+          try Hashtbl.find uni_v v with Not_found -> false in
+        let brs = simplify preserve cmp_v uni_v brs in
+        ignore (Format.flush_str_formatter ());
+        pr_brs Format.str_formatter brs;
+        assert_equal ~printer:(fun x -> x)
+" ⟹ 𝛘1(t2)
+| 𝛘1(t1) ⟹ t1 = (Carry n5 → t4) ∧ t3 = (Carry n5)
+| (Carry n6) = t3 ∧ 0 = n6 ∧ 𝛘1(t1) ⟹ t4 = (Binary n9 → t8) ∧
+    t7 = (Binary n9)
+| (Binary n10) = t7 ∧ 0 = n10 ∧ (Carry n6) = t3 ∧ 0 = n6 ∧ 𝛘1(t1)
+    ⟹ t8 = (t12 → t12)
+| (Binary n15) = t7 ∧ (n16 + n16) = n15 ∧ (Carry n6) = t3 ∧ 0 = n6 ∧
+    𝛘1(t1) ⟹ t8 = (Binary n19 → t18) ∧ t17 = (Binary n19)
+| (Binary n20) = t17 ∧ 0 = n20 ∧ (Binary n15) = t7 ∧
+    (n16 + n16) = n15 ∧ (Carry n6) = t3 ∧ 0 = n6 ∧ 𝛘1(t1) ⟹
+    t18 = t7
+| (Binary n23) = t17 ∧ (n24 + n24) = n23 ∧ (Binary n15) = t7 ∧
+    (n16 + n16) = n15 ∧ (Carry n6) = t3 ∧ 0 = n6 ∧ 𝛘1(t1) ⟹
+    t18 = (Binary n25) ∧
+    t31 = (Carry n30 → Binary n16 → Binary n24 → Binary n26) ∧
+    (n26 + n26) = n25 ∧ 0 = n30 ∧ 𝛘1(t31)
+| (Binary n34) = t17 ∧ (1 + n35 + n35) = n34 ∧ (Binary n15) = t7 ∧
+    (n16 + n16) = n15 ∧ (Carry n6) = t3 ∧ 0 = n6 ∧ 𝛘1(t1) ⟹
+    t18 = (Binary n36) ∧
+    t42 = (Carry n41 → Binary n16 → Binary n35 → Binary n37) ∧
+    (1 + n37 + n37) = n36 ∧ 0 = n41 ∧ 𝛘1(t42)
+| (Binary n45) = t7 ∧ (1 + n46 + n46) = n45 ∧ (Carry n6) = t3 ∧
+    0 = n6 ∧ 𝛘1(t1) ⟹ t8 = (Binary n49 → t48) ∧ t47 = (Binary n49)
+| (Binary n50) = t47 ∧ 0 = n50 ∧ (Binary n45) = t7 ∧
+    (1 + n46 + n46) = n45 ∧ (Carry n6) = t3 ∧ 0 = n6 ∧ 𝛘1(t1) ⟹
+    t48 = t7
+| (Binary n53) = t47 ∧ (n54 + n54) = n53 ∧ (Binary n45) = t7 ∧
+    (1 + n46 + n46) = n45 ∧ (Carry n6) = t3 ∧ 0 = n6 ∧ 𝛘1(t1) ⟹
+    t48 = (Binary n55) ∧
+    t61 = (Carry n60 → Binary n46 → Binary n54 → Binary n56) ∧
+    (1 + n56 + n56) = n55 ∧ 0 = n60 ∧ 𝛘1(t61)
+| (Binary n64) = t47 ∧ (1 + n65 + n65) = n64 ∧ (Binary n45) = t7 ∧
+    (1 + n46 + n46) = n45 ∧ (Carry n6) = t3 ∧ 0 = n6 ∧ 𝛘1(t1) ⟹
+    t48 = (Binary n66) ∧
+    t72 = (Carry n71 → Binary n46 → Binary n65 → Binary n67) ∧
+    (n67 + n67) = n66 ∧ 1 = n71 ∧ 𝛘1(t72)
+| (Carry n74) = t3 ∧ 1 = n74 ∧ 𝛘1(t1) ⟹
+    t4 = (Binary n77 → t76) ∧ t75 = (Binary n77)
+| (Binary n78) = t75 ∧ 0 = n78 ∧ (Carry n74) = t3 ∧ 1 = n74 ∧
+    𝛘1(t1) ⟹ t76 = (Binary n81 → t80) ∧ t79 = (Binary n81)
+| (Binary n82) = t79 ∧ 0 = n82 ∧ (Binary n78) = t75 ∧ 0 = n78 ∧
+    (Carry n74) = t3 ∧ 1 = n74 ∧ 𝛘1(t1) ⟹ t80 = (Binary n83) ∧
+    n85 = n84 ∧ (1 + n84 + n84) = n83 ∧ 0 = n85
+| (Binary n88) = t79 ∧ (n89 + n89) = n88 ∧ (Binary n78) = t75 ∧
+    0 = n78 ∧ (Carry n74) = t3 ∧ 1 = n74 ∧ 𝛘1(t1) ⟹
+    t80 = (Binary n90) ∧ n89 = n91 ∧ (1 + n91 + n91) = n90
+| (Binary n94) = t79 ∧ (1 + n95 + n95) = n94 ∧ (Binary n78) = t75 ∧
+    0 = n78 ∧ (Carry n74) = t3 ∧ 1 = n74 ∧ 𝛘1(t1) ⟹
+    t80 = (Binary n96) ∧
+    t103 = (Carry n102 → Binary n100 → Binary n95 → Binary n97) ∧
+    (n97 + n97) = n96 ∧ 1 = n102 ∧ 0 = n100 ∧ 𝛘1(t103)
+| (Binary n106) = t75 ∧ (n107 + n107) = n106 ∧ (Carry n74) = t3 ∧
+    1 = n74 ∧ 𝛘1(t1) ⟹ t76 = (Binary n110 → t109) ∧
+    t108 = (Binary n110)
+| (Binary n111) = t108 ∧ 0 = n111 ∧ (Binary n106) = t75 ∧
+    (n107 + n107) = n106 ∧ (Carry n74) = t3 ∧ 1 = n74 ∧ 𝛘1(t1) ⟹
+    t109 = (Binary n112) ∧ n107 = n113 ∧ (1 + n113 + n113) = n112
+| (Binary n116) = t108 ∧ (n117 + n117) = n116 ∧ (Binary n106) = t75 ∧
+    (n107 + n107) = n106 ∧ (Carry n74) = t3 ∧ 1 = n74 ∧ 𝛘1(t1) ⟹
+    t109 = (Binary n118) ∧
+    t124 = (Carry n123 → Binary n107 → Binary n117 → Binary n119) ∧
+    (1 + n119 + n119) = n118 ∧ 0 = n123 ∧ 𝛘1(t124)
+| (Binary n127) = t108 ∧ (1 + n128 + n128) = n127 ∧
+    (Binary n106) = t75 ∧ (n107 + n107) = n106 ∧ (Carry n74) = t3 ∧
+    1 = n74 ∧ 𝛘1(t1) ⟹ t109 = (Binary n129) ∧
+    t135 = (Carry n134 → Binary n107 → Binary n128 → Binary n130) ∧
+    (n130 + n130) = n129 ∧ 1 = n134 ∧ 𝛘1(t135)
+| (Binary n138) = t75 ∧ (1 + n139 + n139) = n138 ∧ (Carry n74) = t3 ∧
+    1 = n74 ∧ 𝛘1(t1) ⟹ t76 = (Binary n142 → t141) ∧
+    t140 = (Binary n142)
+| (Binary n143) = t140 ∧ 0 = n143 ∧ (Binary n138) = t75 ∧
+    (1 + n139 + n139) = n138 ∧ (Carry n74) = t3 ∧ 1 = n74 ∧ 𝛘1(t1)
+    ⟹ t141 = (Binary n144) ∧
+    t151 = (Carry n150 → Binary n139 → Binary n147 → Binary n145) ∧
+    (n145 + n145) = n144 ∧ 1 = n150 ∧ 0 = n147 ∧ 𝛘1(t151)
+| (Binary n154) = t140 ∧ (n155 + n155) = n154 ∧ (Binary n138) = t75 ∧
+    (1 + n139 + n139) = n138 ∧ (Carry n74) = t3 ∧ 1 = n74 ∧ 𝛘1(t1)
+    ⟹ t141 = (Binary n156) ∧
+    t162 = (Carry n161 → Binary n139 → Binary n155 → Binary n157) ∧
+    (n157 + n157) = n156 ∧ 1 = n161 ∧ 𝛘1(t162)
+| (Binary n165) = t140 ∧ (1 + n166 + n166) = n165 ∧
+    (Binary n138) = t75 ∧ (1 + n139 + n139) = n138 ∧ (Carry n74) = t3 ∧
+    1 = n74 ∧ 𝛘1(t1) ⟹ t141 = (Binary n167) ∧
+    t173 = (Carry n172 → Binary n139 → Binary n166 → Binary n168) ∧
+    (1 + n168 + n168) = n167 ∧ 1 = n172 ∧ 𝛘1(t173)"
+          (Format.flush_str_formatter ());
+      with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+        ignore (Format.flush_str_formatter ());
+        Terms.pr_exception Format.str_formatter exn;
+        assert_failure (Format.flush_str_formatter ())
+    );
+
 ]

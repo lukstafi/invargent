@@ -67,8 +67,10 @@ let abd_simple cmp_v uni_v validate skip (vs, ans) (prem, concl) =
               assert (so = []); Some ans
             with Contradiction _ -> None in
           (match ans with None -> ()
-          | Some ans -> abstract repls vs ans cur_ans cand)
-        | Some loc -> step x lc loc repls vs ans cur_ans cand);
+          | Some ans ->
+            abstract repls vs ans cur_ans cand)
+        | Some loc ->
+          step x lc loc repls vs ans cur_ans cand);
       if not (num_sort_typ loc.typ_sub)
       then
         (* Choice 3: remove subterm from answer *)
@@ -87,8 +89,10 @@ let abd_simple cmp_v uni_v validate skip (vs, ans) (prem, concl) =
              validate vs' ans';
              assert (so = []);
              abstract repls' vs' ans' cur_ans' cand
-           with Contradiction _ -> ())
-        | Some loc' -> step x lc loc' repls' vs' ans cur_ans cand);
+           with Contradiction _ ->
+             ())
+        | Some loc' ->
+          step x lc loc' repls' vs' ans cur_ans cand);
         (* Choice 4: match subterm with an earlier occurrence *)
         if not (implies_concl vs' (cur_ans' @ cand))
         then (
@@ -107,14 +111,17 @@ let abd_simple cmp_v uni_v validate skip (vs, ans) (prem, concl) =
                    validate vs ans';
                    assert (so = []);
                    abstract repls vs ans' cur_ans' cand
-                 with Contradiction _ -> ())
+                 with Contradiction _ ->
+                   ())
               | Some loc' ->
                 step x lc loc' repls vs ans cur_ans cand)
             repl;
           (* Choice 5: try subterms of the subterm *)
           (match typ_up loc with
-          | None -> ()        
-          | Some loc -> step x lc loc repls vs ans cur_ans cand);
+          | None ->
+            ()        
+          | Some loc ->
+            step x lc loc repls vs ans cur_ans cand);
         )
     in
     let cleanup vs ans =
@@ -169,6 +176,36 @@ let abd_typ cmp_v uni_v brs =
         brs in
       Some (vs, ans, num))
   
+
+let abd_mockup_num cmp_v uni_v brs =
+  (* Do not change the order and no. of branches afterwards. *)
+  let brs_typ, brs_num, brs_so = Aux.split3
+    (Aux.map_some (fun (prem, concl) ->
+      let prems_opt =
+        try Some (unify ~use_quants:false cmp_v uni_v prem)
+        with Contradiction _ -> None in
+      match prems_opt with
+      | Some (prem_typ, prem_num, prem_so) ->
+        if List.exists
+          (function CFalse _ -> true | _ -> false) prem_so
+        then None
+        else                          (* can raise Contradiction *)
+          let concl_typ, concl_num, concl_so =
+            unify ~use_quants:false cmp_v uni_v concl in
+          List.iter (function
+          | CFalse loc ->
+            raise (Contradiction ("assert false is possible", None, loc))
+          | _ -> ()) concl_so;
+          if not (NumS.satisfiable concl_num) then None
+          else Some ((prem_typ, concl_typ), (prem_num, concl_num),
+                     (prem_so, concl_so))
+      | None -> None)
+       brs) in
+  Aux.map_opt (abd_typ cmp_v uni_v brs_typ)
+    (fun (tvs, ans_typ, more_num) ->
+      List.map2
+        (fun (prem,concl) more -> prem, more @ concl)
+        brs_num more_num)
 
 let abd cmp_v uni_v brs =
   (* Do not change the order and no. of branches afterwards. *)
