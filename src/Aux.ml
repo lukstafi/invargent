@@ -88,6 +88,25 @@ let sorted_diff xs ys =
       else aux acc (xs, ys') in
   List.rev (aux [] (xs, ys))
 
+let sorted_put cmp e l =
+  let rec aux acc = function
+    | [] -> List.rev (e::acc)
+    | hd::tl as l ->
+      let c = cmp e hd in
+      if c < 0 then List.rev_append (e::acc) l
+      else if c = 0 then List.rev_append acc l
+      else aux (e::acc) tl in
+  aux [] l
+
+let merge cmp l1 l2 =
+  let rec aux acc = function
+    | [], l | l, [] -> List.rev_append acc l
+    | e1::tl1, (e2::_ as l2) when cmp e1 e2 <= 0 ->
+      aux (e1::acc) (tl1, l2)
+    | l1, e2::tl2 ->
+      aux (e2::acc) (l1, tl2) in
+  aux [] (l1, l2)
+
 let bind_opt t f =
   match t with
   | None -> None
@@ -99,6 +118,19 @@ let map_opt t f =
   | Some t -> Some (f t)
 
 let unsome = function None -> invalid_arg "Aux.unsome" | Some e -> e
+
+let map_reduce ?mapf redf red0 l =
+  let l = match mapf with None -> l | Some f -> List.map f l in
+  match List.sort (fun x y -> compare (fst x) (fst y)) l with
+      | [] -> []
+      | (k0, v0)::tl ->
+        let k0, vs, l =
+          List.fold_left (fun (k0, vs, l) (kn, vn) ->
+	    if k0 = kn then k0, vn::vs, l
+            else kn, [vn], (k0,vs)::l)
+	    (k0, [v0], []) tl in
+        List.rev_map (fun (k,vs) -> k, List.fold_left redf red0 vs)
+          ((k0,vs)::l)
 
 (** {2 Choice, aka. either type}  *)
 
@@ -132,28 +164,10 @@ let assoc_all x l =
       if a = x then aux (b::acc) l else aux acc l in
   aux [] l
 
-(** {2 Lazy lists} *)
-(*
-type 'a lazy_list = 'a lazy_list_ Lazy.t
-and 'a lazy_list_ = LNil | LCons of 'a * 'a lazy_list
-
-let lsingl a = lazy (LCons (a, lazy LNil))
-let rec ltake n = function
- | lazy (LazCons (a, l)) when n > 0 ->
-   a::(laztake (n-1) l)
- | _ -> []
-let rec append_aux l1 l2 =
-  match l1 with lazy LazNil -> Lazy.force l2
-  | lazy (LazCons (hd, tl)) ->
-    LazCons (hd, lazy (append_aux tl l2))
-let lappend l1 l2 = lazy (append_aux l1 l2)
-let rec concat_map_aux f = function
-  | lazy LazNil -> LazNil
-  | lazy (LazCons (a, l)) ->
-    append_aux (f a) (lazy (concat_map_aux f l))
-let lconcat_map f l = lazy (concat_map_aux f l)
-
-let rec lfoldM f a = function
-  | [] -> lsingl a
-  | x::xs -> lconcat_map (fun a' -> foldM f a' xs) (f a x)
-*)
+let pop_assoc x l =
+  let rec aux acc = function
+    | [] -> raise Not_found
+    | (a, b as pair) :: l ->
+      if compare a x = 0 then b, List.rev_append acc l
+      else aux (pair :: acc) l in
+  aux [] l
