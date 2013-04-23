@@ -1,14 +1,14 @@
-<TeXmacs|1.0.7.16>
+<TeXmacs|1.0.7.19>
 
 <style|article>
 
 <\body>
-  <doc-data|<doc-title|InvarGenT: Implementation>||<doc-author-data|<author-name|Šukasz
-  Stafiniak>|<\author-address>
+  <doc-data|<doc-title|InvarGenT: Implementation>||<doc-author|<author-data|<author-name|Šukasz
+  Stafiniak>|<\author-affiliation>
     Institute of Computer Science
 
     University of Wrocªaw
-  </author-address>>>
+  </author-affiliation>>>>
 
   <\abstract>
     InvarGenT is a proof-of-concept system for invariant generation by full
@@ -357,6 +357,40 @@
   abduction algorithm, and recover them after the final answer for terms
   (i.e. for the type sort) is found.
 
+  <subsection|Joint constraint abduction for linear arithmetic>
+
+  We use <em|Fourier-Motzkin elimination>. To avoid complexities we initially
+  only handle rational number domain, but if need arises we will extend to
+  integers using <em|Omega-test> procedure as presented in
+  <cite|ArithQuantElim>. The major operations are:
+
+  <\itemize>
+    <item><em|Elimination> of a variable takes an equation and selects a
+    variable that isn't upstream of any other variable of the equation, and
+    substitutes-out this variable from the rest of the constraint. The solved
+    form contains an equation for this variable.
+
+    <item><em|Projection> of a variable takes a variable <math|x> that isn't
+    upstream of any other variable in the unsolved part of the constraint,
+    and reduces all inequalities containing <math|x> to the form
+    <math|x<wide|\<leqslant\>|\<dot\>>a> or
+    <math|b<wide|\<leqslant\>|\<dot\>>x>, depending on whether the
+    coefficient of <math|x> is positive or negative. For each such pair of
+    inequalities: if <math|b=a>, we add <math|x<wide|=|\<dot\>>a> to implicit
+    equalities; otherwise, we add the inequality
+    <math|b<wide|\<leqslant\>|\<dot\>>a> to the unsolved part of the
+    constraint.
+  </itemize>
+
+  We use elimination to solve all equations before we proceed to
+  inequalities. The starting point of our algorithm is <cite|ArithQuantElim>
+  section <em|4.2 Online Fourier-Motzkin Elimination for Reals>. We add
+  detection of implicit equalities and more online treatment of equations --
+  eliminating new equations from old inequalities reintroduces them to the
+  projection process.
+
+  We use the <verbatim|nums> library for exact precision rationals.
+
   <\bibliography|bib|tm-plain|biblio.bib>
     <\bib-list|1>
       <bibitem*|1><label|bib-systemTechRep>Šukasz<nbsp>Stafiniak.<newblock> A
@@ -385,7 +419,8 @@
     <associate|auto-4|<tuple|3|4>>
     <associate|auto-5|<tuple|3.1|4>>
     <associate|auto-6|<tuple|3.2|4>>
-    <associate|auto-7|<tuple|3.2|4>>
+    <associate|auto-7|<tuple|3.3|4>>
+    <associate|auto-8|<tuple|<with|mode|<quote|math>|\<bullet\>>|?>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
@@ -413,6 +448,10 @@
       AbductionSolvMaher
 
       jcaqpTechRep2
+
+      ArithQuantElim
+
+      ArithQuantElim
     </associate>
     <\associate|toc>
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|1<space|2spc>Data
@@ -439,9 +478,13 @@
       for terms <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-6>>
 
+      <with|par-left|<quote|1.5fn>|3.3<space|2spc>Joint constraint abduction
+      for linear arithmetic <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-7>>
+
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-7><vspace|0.5fn>
+      <no-break><pageref|auto-8><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>

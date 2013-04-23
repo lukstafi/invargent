@@ -11,7 +11,9 @@ open Terms
 open Lexing
 
 let get_loc () =
-  {beg_pos = symbol_start_pos (); end_pos = symbol_end_pos ()}
+  try
+    {beg_pos = symbol_start_pos (); end_pos = symbol_end_pos ()}
+  with Invalid_argument _ -> dummy_loc
 
 let rhs_loc i = {beg_pos = rhs_start_pos i; end_pos = rhs_end_pos i}
 
@@ -73,7 +75,7 @@ let rec next_num i fvs =
   then next_num (i+1) fvs else v Num_sort
 
 let extract_datatyp allvs loc = function
-  | TCons (CNam m as n, args) as t ->
+  | TCons (CNam m as n, args) ->
     let args = match args with
       | [TCons (CNam "Tuple", targs)] when not (Hashtbl.mem unary_typs m) ->
         targs
@@ -346,10 +348,15 @@ formula_logand_list:
       { $3 @ $1 }
 ;
 
+cn_branch:
+  | DOUBLEARROW { [], [] }
+  | DOUBLEARROW formula { [], $2 }
+  | formula DOUBLEARROW { $1, [] }
+  | formula DOUBLEARROW formula { $1, $3 }
+
 cn_branches_list:
-  | formula DOUBLEARROW formula { [$1, $3] }
-  | cn_branches BAR formula DOUBLEARROW formula
-      { ($3, $5) :: $1 }
+  | cn_branch { [$1] }
+  | cn_branches_list BAR cn_branch { $3 :: $1 }
 
 cn_branches:
   | cn_branches_list EOF { List.rev $1 }

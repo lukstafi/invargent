@@ -1,9 +1,9 @@
 main:
-	ocamlbuild src/InvarGenT.native
+	ocamlbuild -lib nums src/InvarGenT.native
 	cp _build/src/InvarGenT.native InvarGenT
 
 test:
-	ocamlbuild src/Tests.d.byte -pkg oUnit --
+	ocamlbuild src/Tests.d.byte -lib nums -pkg oUnit --
 
 docs:
 	ocamlbuild src/InvarGenT.docdir/index.html

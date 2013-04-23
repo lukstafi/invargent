@@ -17,7 +17,7 @@ Milestones: [x] - completed, [#] - finishing, [+] - in the middle, [-] - just st
 - [x] Generate constraints.
 - [x] Normalize constraints.
 - [x] Abduction for terms. Multisort abduction part 1.
-- [-] Abduction for linear systems. Multisort abduction part 2.
+- [+] Abduction for linear systems. Multisort abduction part 2.
 - [_] Multisort disjunction elimination (includes anti-unification).
 - [_] Disjunction elimination for linear systems.
 - [_] Solve for predicate variables. Iterate till fixpoint.
