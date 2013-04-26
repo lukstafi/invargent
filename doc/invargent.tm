@@ -385,9 +385,9 @@
   We use elimination to solve all equations before we proceed to
   inequalities. The starting point of our algorithm is <cite|ArithQuantElim>
   section <em|4.2 Online Fourier-Motzkin Elimination for Reals>. We add
-  detection of implicit equalities and more online treatment of equations --
-  eliminating new equations from old inequalities reintroduces them to the
-  projection process.
+  detection of implicit equalities, and more online treatment of equations,
+  introducing known inequalities on eliminated variables to the projection
+  process.
 
   We use the <verbatim|nums> library for exact precision rationals.
 

@@ -93,7 +93,7 @@ let expand_atom equ (vars, cst, loc) =
   let right = match right with [t] -> t | _ -> Nadd right in
   if equ then Eqty (left, right, loc) else Leq (left, right, loc)
 
-let solve ~use_quants cmp_v uni_v ?(eqs=[]) ?(ineqs=[]) cnj =
+let solve ~use_quants ?(strict=false) cmp_v uni_v ?(eqs=[]) ?(ineqs=[]) cnj =
   let cmp_v v1 v2 =
     match cmp_v v1 v2 with
     | Upstream -> 1
@@ -107,6 +107,7 @@ let solve ~use_quants cmp_v uni_v ?(eqs=[]) ?(ineqs=[]) cnj =
     | [], _ -> 1
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
   let eqn, ineqn = Aux.partition_map (flatten cmp) cnj in
+  assert (not strict || eqn = []);
   let eqn = if eqs=[] then eqn else List.map (subst cmp eqs) eqn in
   let ineqn = if eqs=[] then ineqn else List.map (subst cmp eqs) ineqn in
   let eqn = List.map
@@ -127,36 +128,40 @@ let solve ~use_quants cmp_v uni_v ?(eqs=[]) ?(ineqs=[]) cnj =
   let ineqn = if eqn=[] then ineqn else List.map (subst cmp eqn) ineqn in
   let eqs = if eqn=[] then eqs else List.map
       (fun (v,eq) -> v, subst cmp eqn eq) eqs in
-  let eqn_vs = List.map fst eqn in
-  let ineqs, more_ineqn = if eqn=[] then ineqs, [] else
-      let ineqs, more_ineqn = List.split
-        (List.map (fun (v, (left, right)) ->
-          let more_l, left =
-            List.partition (fun (vars,_,_) ->
-              List.exists (Aux.flip List.mem_assoc vars) eqn_vs) left in
-          let more_r, right =
-            List.partition (fun (vars,_,_) ->
-              List.exists (Aux.flip List.mem_assoc vars) eqn_vs) right in
-          let more_l = List.map
-            (fun ineq ->
-              let vars, cst, loc = subst cmp eqn ineq in
-              Aux.sorted_put cmp (v,!/(-1)) vars, cst, loc)
-            more_l in
-          let more_r = List.map
-            (fun ineq ->
-              let vars, cst, loc = mult !/(-1) (subst cmp eqn ineq) in
-              Aux.sorted_put cmp (v,!/1) vars, cst, loc)
-            more_r in
-          let ineq =
-            if left <> [] || right <> []
-            then Some (v, (left, right)) else None in
-          ineq, more_l @ more_r) ineqs) in
-      Aux.map_some (fun x->x) ineqs, more_ineqn in
-  let ineqn = List.sort cmp_w (List.concat (more_ineqn @ [ineqn])) in
+  (* inequalities [left <= v] and [v <= right] *)
+  let ineqs = if eqn=[] then ineqs else
+      List.map (fun (v, (left, right)) ->
+        v,
+        (List.map (subst cmp eqn) left,
+         List.map (subst cmp eqn) right)) ineqs in
+  let more_ineqn =
+    Aux.concat_map
+      (fun (v, w) ->
+        try
+          let left, right = List.assoc v ineqs in
+          List.map (fun lhs -> diff cmp lhs w) left @
+            List.map (fun rhs -> diff cmp w rhs) right
+        with Not_found -> [])
+      eqn in
+  let ineqn = List.sort cmp_w (more_ineqn @ ineqn) in
+  let project v lhs rhs =
+    if lhs = rhs
+    then if strict
+      then
+        let vars, cst, loc = lhs in
+        let a = expand_atom false ((v, !/(-1))::vars, cst, loc) in
+        let t1, t2 = match a with
+          | Leq (t1, t2, _) -> t1, t2 | _ -> assert false in
+        raise (Contradiction ("Failed numeric strict inequality",
+                              Some (t1, t2), loc))
+      else Aux.Right lhs
+    else Aux.Left (diff cmp lhs rhs) in
   let rec proj ineqs implicits ineqn =
     match ineqn with
     | [] -> ineqs, implicits
-    | ([], cst, _)::ineqn when cst <=/ !/0 -> proj ineqs implicits ineqn
+    | ([], cst, _)::ineqn
+        when (strict && cst </ !/0) || (not strict && cst <=/ !/0) ->
+      proj ineqs implicits ineqn
     | ([], cst, loc)::_ ->
       raise (Contradiction ("Failed numeric inequality", None, loc))
     | ((v,k)::vars, cst, loc)::ineqn ->
@@ -167,22 +172,16 @@ let solve ~use_quants cmp_v uni_v ?(eqs=[]) ?(ineqs=[]) cnj =
         then
           let rhs = mult (!/(-1) // k) (vars, cst, loc) in
           [], [rhs],
-          Aux.partition_map
-            (fun lhs ->
-              if lhs = rhs then Aux.Right lhs
-              else Aux.Left (diff cmp lhs rhs))
-            left
+          Aux.partition_map (fun lhs -> project v lhs rhs) left
         else
           let lhs = mult (!/1 // k) (vars, cst, loc) in
           [lhs], [],
-          Aux.partition_map
-            (fun rhs ->
-              if lhs = rhs then Aux.Right lhs
-              else Aux.Left (diff cmp lhs rhs))
-            right in
+          Aux.partition_map (fun rhs -> project v lhs rhs) right in
       let more_ineqn = List.filter
         (function
-        | [], cst, _ when cst <=/ !/0 -> false
+        | [], cst, _
+          when (strict && cst </ !/0) || (not strict && cst <=/ !/0) ->
+          false
         | [], cst, loc ->
           let a = expand_atom false ([v, !/(-1)], cst, loc) in
           let t1, t2 = match a with
@@ -203,5 +202,166 @@ let satisfiable cnj =
   try ignore (solve ~use_quants:false cmp_v uni_v cnj); true
   with Contradiction _ -> false
 
+(*
+let abd_simple cmp_v uni_v validate skip eqs ineqs (prem, concl) =
+  let skip = ref skip in
+  let skipped = ref [] in
+  try
+    let d_eqs, (d_ineqs, d_implicits) =
+      solve ~use_quants:false cmp_v uni_v ~eqs ~ineqs prem in
+    let dc_eqs, (dc_ineqs, dc_implicits) =
+      solve ~use_quants:false cmp_v uni_v ~eqs ~ineqs (prem @ concl) in
+    
+
+    let prem_and vs ans =
+      (* TODO: optimize, don't redo work *)
+      combine_sbs ~use_quants:false ~params:vs cmp_v uni_v [prem; ans] in
+    let implies_concl vs ans =
+      let cnj_typ, cnj_num = prem_and vs ans in
+      let res_ty, res_num = residuum cmp_v uni_v vs cnj_typ concl in
+      let num = res_num @ cnj_num in
+      res_ty = [] && NumS.satisfiable num in
+    let rec abstract repls vs ans cur_ans = function
+      | [] ->
+        if implies_concl vs ans then
+          let ans = List.sort compare ans in
+          allvs := List.fold_right VarSet.add vs !allvs;
+          if List.exists (fun xs ->
+            List.for_all (fun (y,_) -> VarSet.mem y !allvs)
+              (Aux.sorted_diff xs ans)) !skipped
+          then ()
+          else if !skip > 0 then (
+            skipped := ans :: !skipped;
+            decr skip)
+          else raise (Result (vs, ans))
+      | (x, (t, lc))::cand ->
+        if implies_concl vs (ans @ cand) then (
+          (* Choice 1: drop premise/conclusion atom from answer *)
+          abstract repls vs ans cur_ans cand);
+        step x lc {typ_sub=t; typ_ctx=[]} repls vs ans cur_ans cand
+    and step x lc loc repls vs ans cur_ans cand =
+      (* Choice 2: preserve current premise/conclusion subterm for answer *)
+      (match typ_next loc with
+        | None ->
+          let ans =
+            try
+              let ans, _, so =
+                unify ~use_quants:true ~params:vs ~sb:ans
+                  cmp_v uni_v [Eqty (TVar x, typ_out loc, lc)] in
+              validate vs ans;
+              assert (so = []); Some ans
+            with Contradiction _ -> None in
+          (match ans with None -> ()
+          | Some ans ->
+            abstract repls vs ans cur_ans cand)
+        | Some loc ->
+          step x lc loc repls vs ans cur_ans cand);
+      if not (num_sort_typ loc.typ_sub)
+      then
+        (* Choice 3: remove subterm from answer *)
+        let a = Infer.fresh_typ_var () in
+        let repls' = (loc.typ_sub, a)::repls in
+        let vs' = a::vs in
+        let loc' = {loc with typ_sub = TVar a} in
+        let t' = typ_out loc' in
+        let cur_ans' = (x, (t', lc))::cur_ans in
+        (match typ_next loc' with (* x bound when leaving step *)
+        | None ->
+          (try
+             let ans', _, so =
+               unify ~use_quants:true ~params:vs' ~sb:ans
+                 cmp_v uni_v [Eqty (TVar x, t', lc)] in
+             validate vs' ans';
+             assert (so = []);
+             abstract repls' vs' ans' cur_ans' cand
+           with Contradiction _ ->
+             ())
+        | Some loc' ->
+          step x lc loc' repls' vs' ans cur_ans cand);
+        (* Choice 4: match subterm with an earlier occurrence *)
+        if not (implies_concl vs' (cur_ans' @ cand))
+        then (
+          let repl = Aux.assoc_all loc.typ_sub repls in
+          List.iter
+            (fun b ->
+              let loc' = {loc with typ_sub = TVar b} in
+              let t' = typ_out loc' in
+              let cur_ans' = (x, (t', lc))::cur_ans in
+              match typ_next loc' with
+              | None ->
+                (try
+                   let ans', _, so =
+                     unify ~use_quants:true ~params:vs' ~sb:ans
+                       cmp_v uni_v [Eqty (TVar x, t', lc)] in
+                   validate vs ans';
+                   assert (so = []);
+                   abstract repls vs ans' cur_ans' cand
+                 with Contradiction _ ->
+                   ())
+              | Some loc' ->
+                step x lc loc' repls vs ans cur_ans cand)
+            repl;
+          (* Choice 5: try subterms of the subterm *)
+          (match typ_up loc with
+          | None ->
+            ()        
+          | Some loc ->
+            step x lc loc repls vs ans cur_ans cand);
+        )
+    in
+    let cleanup vs ans =
+      let ans = List.filter (fun (x,_) -> not (List.mem x vs)) ans in
+      let ansvs = fvs_sb ans in
+      List.filter (Aux.flip VarSet.mem ansvs) vs, ans in
+    if implies_concl vs ans then Some (vs, ans)
+    else
+      let cnj_typ, _ = prem_and vs concl in
+      try abstract [] vs ans [] cnj_typ; None
+      with Result (vs, ans) -> Some (cleanup vs ans)
+  with Contradiction _ -> None          (* subst_solved or implies_concl *)
+
+let abd_typ cmp_v uni_v brs =
+  let br0 = 0, List.hd brs in
+  let more_brs = List.map (fun br -> -1, br) (List.tl brs) in
+  let validate vs ans = List.iter
+    (fun (prem, _) ->
+      ignore (combine_sbs ~use_quants:false ~params:vs cmp_v uni_v
+                [prem; ans]))
+    brs in
+  (* let time = ref (Sys.time ()) in *)
+  let rec loop first acc done_brs = function
+    | [] -> Some acc
+    | (skip, br as obr)::more_brs ->
+      (*Format.printf "abd_typ-loop:@ @[<2>%a@ ⟹@ %a@]@\n"
+        pr_subst (fst br) pr_subst (snd br);*)
+      match abd_simple cmp_v uni_v validate skip acc br with
+      | Some acc ->
+        (*let ntime = Sys.time () in
+        Format.printf "ans: (%.2fs)@ @[<2>%a@]@\n" (ntime -. !time)
+          pr_subst (snd acc); time := ntime;*)
+        loop false acc (obr::done_brs) more_brs
+      | None ->
+        (* Format.printf "reset@\n"; *)
+        if first then None
+        else loop true ([], []) []
+          ((skip+1, br)::List.rev_append done_brs more_brs) in
+  Aux.bind_opt (loop true ([], []) [] (br0::more_brs))
+    (fun (vs, ans) ->
+      let num = List.map
+        (fun (prem, concl) ->
+          try
+            let cnj_ty, cnj_num =
+              combine_sbs ~use_quants:false ~params:vs cmp_v uni_v
+                [prem; ans] in
+            let res_ty, res_num =
+              residuum cmp_v uni_v vs cnj_ty concl in
+            assert (res_ty = []);
+            cnj_num @ res_num
+          with Contradiction _ -> assert false)
+        brs in
+      Some (vs, ans, num))
+
+let abd_simple = ()
+*)
 let abd cmp_v uni_v brs =
   Some ([],[])
