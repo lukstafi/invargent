@@ -69,6 +69,12 @@ let product l =
     (fun el -> List.rev (List.rev_map (fun tup ->  el::tup) prod))
     set) [[]] (List.rev l) 
 
+let product_iter f l =
+  let rec aux tup = function
+    | [] -> f (List.rev tup)
+    | hd::tl -> List.iter (fun e -> aux (e::tup) tl) hd in
+  aux [] l
+
 let minimal leq l =
   let rec aux acc = function
     | [] -> acc
