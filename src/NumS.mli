@@ -7,6 +7,7 @@
 *)
 
 val satisfiable : Terms.atom list -> bool
+(** For uniformity, we return an empty list as introduced variables. *)
 val abd :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->

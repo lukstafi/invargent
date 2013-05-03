@@ -389,7 +389,77 @@
   introducing known inequalities on eliminated variables to the projection
   process.
 
+  There are usually infinitely many answers to the simple constraint
+  abduction problem whenever equations or implicit equalities are involved.
+  The algorithm we develop follows our presentation in <cite|jcaqpTechRep2>,
+  but only considers answers achieved from canonical answers (cf.
+  <cite|jcaqpTechRep2>) by substitution of some occurrences of variables
+  according to some equations in the premise.
+
+  When we derive a substitution from a set of equations, we eliminate
+  variables that are maximally downstream, and using a fixed total order
+  among variables in the same quantifier alternation. Algorithm:
+
+  <\enumerate>
+    <item>Let <math|A<rsub|i>=A<rsup|=><rsub|i>\<wedge\>A<rsup|\<leqslant\>><rsub|i>>
+    be the answer to previous SCA problems where <math|A<rsup|=><rsub|i>> are
+    equations and <math|A<rsup|\<leqslant\>><rsub|i>> are inequalities, and
+    <math|D\<Rightarrow\>C> be the current problem.
+
+    <item>Let <math|D<rsup|<wide|=|\<dot\>>>\<wedge\>D<rsup|=>\<wedge\>D<rsup|\<leqslant\>>=A<rsub|i><rsup|=><around*|(|D|)>>,
+    <math|C<rsup|<wide|=|\<dot\>>>\<wedge\>C<rsup|=>\<wedge\>C<rsup|\<leqslant\>>=A<rsub|i><rsup|=><around*|(|C|)>>
+    and <math|DC<rsup|<wide|=|\<dot\>>>\<wedge\>DC<rsup|=>\<wedge\>DC<rsup|\<leqslant\>>=A<rsub|i><rsup|=><around*|(|D\<wedge\>C|)>>,
+    where <math|D<rsup|<wide|=|\<dot\>>>>, resp.
+    <math|C<rsup|<wide|=|\<dot\>>>>, <math|DC<rsup|<wide|=|\<dot\>>>> are
+    equations, <math|D<rsup|=>>, resp. <math|C<rsup|=>>, <math|DC<rsup|=>>
+    are implicit equalities of <math|A<rsub|i><rsup|=><around*|(|D|)>>, resp.
+    <math|A<rsub|i><rsup|=><around*|(|C|)>>,
+    <math|A<rsub|i><rsup|=><around*|(|D\<wedge\>C|)>>.
+
+    <item>Let <math|\<theta\>=DC<rsup|<wide|=|\<dot\>>>\<wedge\>DC<rsup|=>>.
+    Let <math|D<rprime|'>=\<theta\><around*|(|D<rsup|\<leqslant\>>|)>> and
+    <math|C<rprime|'>=\<theta\><around*|(|DC<rsup|\<leqslant\>>|)>>, where
+    <math|\<theta\><around*|(|\<nosymbol\>\<cdummy\>|)>> is the substitution
+    corresponding to <math|\<theta\>>.
+
+    <item>Let <math|A<rsup|\<leqslant\>>> be a core of <math|C<rprime|'>>
+    w.r.t. <math|D<rprime|'>>. (Choice point 1.)
+
+    <item>Let <math|A<rsup|=>=<around*|[|D<rsup|<wide|=|\<dot\>>>\<wedge\>D<rsup|=>|]><around*|(|\<theta\>|)>>,
+    where <math|<around*|[|D<rsup|<wide|=|\<dot\>>>\<wedge\>D<rsup|=>|]><around*|(|\<cdot\>|)>>
+    is a substitution corresponding to equations in
+    <math|D<rsup|<wide|=|\<dot\>>>\<wedge\>D<rsup|=>>.
+
+    <item>Let <math|A<rsup|=><rprime|'>> resp.
+    <math|A<rsup|\<leqslant\>><rprime|'>> be <math|A<rsup|=>> resp.
+    <math|A<rsup|\<leqslant\>>> with some occurrences of variables
+    substituted according to some equations in
+    <math|D<rsup|<wide|=|\<dot\>>>\<wedge\>D<rsup|=>>, but disregarding the
+    order of variables. (Choice point 2.)
+
+    <item>The answers are <math|A<rsub|i+1>=A<rsub|i>\<wedge\>A<rsup|\<leqslant\>><rprime|'>\<wedge\>A<rsup|=><rprime|'>>.
+  </enumerate>
+
+  Actually in the initial implementation, in step (6) we discard even more
+  solutions. Rather than replacing some occurrences of variables in a given
+  choice, we perform a full substitution: either replace all occurrences
+  using a given equation, or none. We might revert to a more thorough
+  exploration as descirbed in step (6), similar to choices made in abduction
+  for terms. First we need to collect a library of test cases.
+
   We use the <verbatim|nums> library for exact precision rationals.
+
+  <section|Disjunction Elimination>
+
+  <em|Disjunction elimination> answers are the maximally specific
+  conjunctions of atoms that are implied by each of a given set of
+  conjunction of atoms. In case of term equations the disjunction elimination
+  algorithm is based on the <em|anti-unification> algorithm. In case of
+  linear arithmetic inequalities, disjunction elimination is exactly finding
+  the convex hull of a set of possibly infinite polyhedra. We follow
+  <cite|disjelimTechRep>.
+
+  \;
 
   <\bibliography|bib|tm-plain|biblio.bib>
     <\bib-list|1>
@@ -419,8 +489,9 @@
     <associate|auto-4|<tuple|3|4>>
     <associate|auto-5|<tuple|3.1|4>>
     <associate|auto-6|<tuple|3.2|4>>
-    <associate|auto-7|<tuple|3.3|4>>
-    <associate|auto-8|<tuple|<with|mode|<quote|math>|\<bullet\>>|?>>
+    <associate|auto-7|<tuple|3.3|5>>
+    <associate|auto-8|<tuple|4|5>>
+    <associate|auto-9|<tuple|4|6>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
@@ -430,7 +501,7 @@
     <associate|bib-jcaqpTechRep|<tuple|8|4>>
     <associate|bib-jcaqpUNIF|<tuple|7|4>>
     <associate|bib-simonet-pottier-hmg-toplas|<tuple|6|4>>
-    <associate|bib-systemTechRep|<tuple|1|4>>
+    <associate|bib-systemTechRep|<tuple|1|6>>
   </collection>
 </references>
 
@@ -452,6 +523,12 @@
       ArithQuantElim
 
       ArithQuantElim
+
+      jcaqpTechRep2
+
+      jcaqpTechRep2
+
+      disjelimTechRep
     </associate>
     <\associate|toc>
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|1<space|2spc>Data
@@ -482,9 +559,13 @@
       for linear arithmetic <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-7>>
 
+      <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|4<space|2spc>Disjunction
+      Elimination> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-8><vspace|0.5fn>
+
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-8><vspace|0.5fn>
+      <no-break><pageref|auto-9><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>

@@ -12,12 +12,12 @@ make test   # build and perform the tests
 make clean  # remove the executable and intermediate files
 ```
 
-Milestones: [x] - completed, [#] - finishing, [+] - in the middle, [-] - just started, [_] - not started.
+Milestones: [x] - completed, [#] - finishing (75%-95%), [+] - in the middle (25%-75%), [-] - just started (5%-25%), [_] - not started.
 - [x] Setup project. Parse and pretty-print.
 - [x] Generate constraints.
 - [x] Normalize constraints.
 - [x] Abduction for terms. Multisort abduction part 1.
-- [+] Abduction for linear systems. Multisort abduction part 2.
+- [#] Abduction for linear systems. Multisort abduction part 2.
 - [_] Multisort disjunction elimination (includes anti-unification).
 - [_] Disjunction elimination for linear systems.
 - [_] Solve for predicate variables. Iterate till fixpoint.
