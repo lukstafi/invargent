@@ -17,13 +17,16 @@ type ineqs = (var_name * (w list * w list)) list
 let mult c (vars, cst, loc) =
   List.map (fun (v,k) -> v, c */ k) vars, c */ cst, loc
 
-let diff cmp (vars1, cst1, loc1) w2 =
-  let (vars2, cst2, loc2) = mult !/(-1) w2 in
+let sum_w cmp (vars1, cst1, loc1) (vars2, cst2, loc2) =
   let loc = loc_union loc1 loc2 in
   let vars = Aux.map_reduce (+/) (!/0) (vars1 @ vars2) in
   let vars = List.sort cmp
     (List.filter (fun (_,k) -> k <>/ !/0) vars) in
   vars, cst1 +/ cst2, loc
+
+let diff cmp w1 w2 = sum_w cmp w1 (mult !/(-1) w2)
+
+let zero_p (vars, cst, _) = vars = [] && cst = !/0
 
 let unsubst sb =
   List.map (fun (v, (vars, cst, loc)) -> (v, !/(-1))::vars, cst, loc) sb
@@ -327,7 +330,7 @@ let abd cmp_v uni_v brs =
     | Downstream -> -1
     | _ -> compare v1 v2 in
   let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
-  let cmp_w (vars1,_,_) (vars2,_,_) =
+  let cmp_w (vars1,cst1,_) (vars2,cst2,_) =
     match vars1, vars2 with
     | [], [] -> 0
     | _, [] -> -1
@@ -361,3 +364,86 @@ let abd cmp_v uni_v brs =
         else loop true [] [] []
           ((skip+1, br)::List.rev_append done_brs more_brs) in
   loop true [] [] [] (br0::more_brs)
+
+let disj_elim_rotations = ref 3
+
+let disj_elim cmp_v uni_v brs =
+  let cmp_v v1 v2 =
+    match cmp_v v1 v2 with
+    | Upstream -> 1
+    | Downstream -> -1
+    | _ -> compare v1 v2 in
+  let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
+  let cmp_w (vars1,cst1,_) (vars2,cst2,_) =
+    match vars1, vars2 with
+    | [], [] -> 0
+    | _, [] -> -1
+    | [], _ -> 1
+    | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
+  let compare_w (vars1,cst1,_) (vars2,cst2,_) =
+    let c = compare vars1 vars2 in
+    if c = 0 then compare_num cst1 cst2 else c in
+  let polytopes = List.map
+    (fun cnj ->
+      let eqs, (ineqs, implicits) = solve ~cnj cmp cmp_w uni_v in
+      let eqs, _ = solve ~eqs ~eqn:implicits cmp cmp_w uni_v in
+      eqs, ineqs)
+    brs in
+  let faces : w list list = List.map
+    (Aux.concat_map
+       (fun a -> match flatten cmp a with
+       | Aux.Right w -> [w]
+       | Aux.Left w -> [w; mult !/(-1) w]))
+    brs in
+  let check face =
+    let ineqn = [mult !/(-1) face] in
+    Format.printf "Check:@ %a@ --@ " pr_atom (expand_atom false face);
+    let res =
+      List.for_all
+        (fun (eqs, ineqs) ->
+          try (* ignore *)
+            let s_eqs, (s_ineqs, s_implicits) =
+                (solve ~strict:true ~eqs ~ineqs ~ineqn cmp cmp_w uni_v)(* ; *)in
+            let ans = List.map (expand_atom true) (unsubst s_eqs @ s_implicits) in
+            let ans = ans @ List.map (expand_atom false) (unsolve s_ineqs) in
+              Format.printf "@[<2>@ [%a]@]F" pr_formula ans; false
+          with Contradiction _ -> Format.printf "T"; true)
+        polytopes in
+    Format.printf "@\n"; res in
+  let selected : (w list * w list) list =
+    List.map (List.partition check) faces in
+  let ridges : (w * w) list = Aux.concat_map
+    (fun (sel, ptope) ->
+      Aux.concat_map (fun p -> List.map (fun s->s, p) sel) ptope)
+    selected in
+  let cands = List.map
+    (fun (s, p) ->
+      let l = Array.init
+        !disj_elim_rotations (fun i -> sum_w cmp s (mult !/(i+1) p)) in
+      let r = Array.init
+        !disj_elim_rotations (fun i -> sum_w cmp (mult !/(i+1) s) p) in
+      Array.to_list l @ Array.to_list r)
+    ridges in
+  let result = Aux.concat_map fst selected in
+  let result = Aux.map_some
+    (fun cands -> try Some (List.find check cands)
+      with Not_found -> None) cands
+    @ result in
+  let sort_w (vars, cst, loc) =
+    let vars = Aux.map_reduce (+/) (!/0) vars in
+    let vars = List.sort cmp
+      (List.filter (fun (_,k) -> k <>/ !/0) vars) in
+    vars, cst, loc in
+  let result = List.map sort_w result in
+  let rec idemp eqn ineqn = function
+    | e1::(e2::_ as tl) when compare_w e1 e2 = 0 -> idemp eqn ineqn tl
+    | e::tl when List.exists (fun w -> zero_p (sum_w cmp e w)) tl ->
+      idemp (e::eqn) ineqn
+        (List.filter (fun w -> not (zero_p (sum_w cmp e w))) tl)
+    | e::tl -> idemp eqn (e::ineqn) tl
+    | [] -> eqn, ineqn in
+  let res_eqn, res_ineqn =
+    idemp [] [] (List.sort compare result) in
+  [], List.map (expand_atom true) res_eqn
+    @ List.map (expand_atom false) res_ineqn
+

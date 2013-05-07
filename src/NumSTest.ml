@@ -119,4 +119,63 @@ let tests = "NumS" >::: [
         assert_failure (Printexc.to_string exn)
     );
 
+  "abduction: binary plus" >::
+    (fun () ->
+      Terms.reset_state ();
+      Infer.reset_state ();
+      (* try *)
+      try
+        Printexc.record_backtrace true;
+        let cmp_v _ _ = Same_quant in
+        let uni_v _ = false in
+        let brs = Parser.cn_branches Lexer.token
+	  (Lexing.from_string test1_brs) in
+        let ans =
+          match abd cmp_v uni_v brs with
+            | None -> "none"
+            | Some (vs, ans) ->
+              pr_to_str pr_formula ans in
+        assert_equal ~printer:(fun x -> x)
+          "0 = n77 ∧ 0 = n5 ∧ 0 = n172 ∧ n19 = (n168 + n168) ∧ n19 = n167 ∧
+n166 = n155"
+          ans
+      with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+        ignore (Format.flush_str_formatter ());
+        Terms.pr_exception Format.str_formatter exn;
+        assert_failure (Format.flush_str_formatter ())
+      (* with exn -> *)
+      (*   Printexc.print_backtrace stdout; *)
+      (*   assert_failure (Printexc.to_string exn) *)
+    );
+
+  "convex hull: filter" >::
+    (fun () ->
+      Terms.reset_state ();
+      Infer.reset_state ();
+      (* try *)
+      try
+        Printexc.record_backtrace true;
+        let cmp_v _ _ = Same_quant in
+        let uni_v _ = false in
+        let brs = Parser.cn_branches Lexer.token
+	  (Lexing.from_string " ⟹ n1 = n2 ∧ n3 <= n2 + 2
+|  ⟹ n1 = n2 ∧ n3 <= n2
+|  ⟹ n1 = n2 ∧ n3 <= n2 + 1") in
+        let brs = List.map snd brs in
+        let vs, ans = disj_elim cmp_v uni_v brs in
+        ignore (Format.flush_str_formatter ());
+        Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
+          (pr_sep_list "," pr_tyvar) vs pr_formula ans;
+        assert_equal ~printer:(fun x -> x)
+          ""
+          (Format.flush_str_formatter ())
+      with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+        ignore (Format.flush_str_formatter ());
+        Terms.pr_exception Format.str_formatter exn;
+        assert_failure (Format.flush_str_formatter ())
+      (* with exn ->
+        Printexc.print_backtrace stdout;
+        assert_failure (Printexc.to_string exn) *)
+    );
+
 ]

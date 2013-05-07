@@ -459,7 +459,31 @@
   the convex hull of a set of possibly infinite polyhedra. We follow
   <cite|disjelimTechRep>.
 
-  \;
+  <subsection|Anti-unification>
+
+  <subsection|Extended convex hull>
+
+  <cite|ConvexHull> provides a polynomial-time algorithm to find the
+  half-space represented convex hull of closed polytopes. It can be
+  generalized to unbounded polytopes -- conjunctions of linear inequalities.
+  Our implementation is inspired by this algorithm but very much simpler, at
+  cost of losing the maximality requirement.
+
+  First we find among the given inequalities those which are also the faces
+  of resulting convex hull. The negation of such inequality is not
+  satisfiable in conjunction with any of the polytopes -- any of the given
+  sets of inequalities. Next we iterate over <em|ridges> touching the
+  selected faces: pairs of the selected face and another face from the same
+  polytope. We rotate one face towards the other: we compute a convex
+  combination of the two faces of a ridge. We add to the result those
+  half-spaces whose complements lie outside of the convex hull (i.e. negation
+  of the inequality is unsatisfiable in conjunction with every polytope). For
+  a given ridge, we add at most one face, the one which is farthest away from
+  the already selected face, i.e. the coefficient of the selected face in the
+  convex combination is smallest. We check a small number of rotations, where
+  the algorithm from <cite|ConvexHull> would solve a linear programming
+  problem to find the rotation which exactly touches another one of the
+  polytopes.
 
   <\bibliography|bib|tm-plain|biblio.bib>
     <\bib-list|1>
@@ -484,6 +508,8 @@
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1>>
+    <associate|auto-10|<tuple|4.2|?>>
+    <associate|auto-11|<tuple|4.2|?>>
     <associate|auto-2|<tuple|2|2>>
     <associate|auto-3|<tuple|2.1|3>>
     <associate|auto-4|<tuple|3|4>>
@@ -491,7 +517,7 @@
     <associate|auto-6|<tuple|3.2|4>>
     <associate|auto-7|<tuple|3.3|5>>
     <associate|auto-8|<tuple|4|5>>
-    <associate|auto-9|<tuple|4|6>>
+    <associate|auto-9|<tuple|4.1|6>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
@@ -563,9 +589,17 @@
       Elimination> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-8><vspace|0.5fn>
 
+      <with|par-left|<quote|1.5fn>|4.1<space|2spc>Anti-unification
+      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-9>>
+
+      <with|par-left|<quote|1.5fn>|4.2<space|2spc>Extended convex hull
+      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-10>>
+
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-9><vspace|0.5fn>
+      <no-break><pageref|auto-11><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>
