@@ -288,4 +288,143 @@ let rec filter =
         assert_failure (Format.flush_str_formatter ())
     );
 
+  "abduction: binary plus" >::
+    (fun () ->
+      Terms.reset_state ();
+      Infer.reset_state ();
+      let prog = Parser.program Lexer.token
+	(Lexing.from_string
+"newtype Binary : num
+newtype Carry : num
+
+newcons Zero : Binary 0
+newcons PZero : ∀n. Binary(n) ⟶ Binary(n+n)
+newcons POne : ∀n. Binary(n) ⟶ Binary(n+n+1)
+
+newcons CZero : Carry 0
+newcons COne : Carry 1
+
+let rec plus =
+  function CZero ->
+    (function Zero -> (fun b -> b)
+      | PZero a1 as a ->
+        (function Zero -> a
+	  | PZero b1 -> PZero (plus CZero a1 b1)
+	  | POne b1 -> POne (plus CZero a1 b1))
+      | POne a1 as a ->
+        (function Zero -> a
+	  | PZero b1 -> POne (plus CZero a1 b1)
+	  | POne b1 -> PZero (plus COne a1 b1)))
+    | COne ->
+    (function Zero ->
+        (function Zero -> POne(Zero)
+	  | PZero b1 -> POne b1
+	  | POne b1 -> PZero (plus COne Zero b1))
+      | PZero a1 as a ->
+        (function Zero -> POne a1
+	  | PZero b1 -> POne (plus CZero a1 b1)
+	  | POne b1 -> PZero (plus COne a1 b1))
+      | POne a1 as a ->
+        (function Zero -> PZero (plus COne a1 Zero)
+	  | PZero b1 -> PZero (plus COne a1 b1)
+	  | POne b1 -> POne (plus COne a1 b1)))") in
+      try
+        let prog = Terms.infer_sorts prog in
+        let preserve, cn = Infer.infer_prog_mockup prog in
+        (* Format.printf "cn:@\n%a@\n" pr_cnstrnt cn; *)
+        let cmp_v, uni_v, brs = Infer.normalize cn in
+        (*let uni_v v =
+          try Hashtbl.find uni_v v with Not_found -> false in*)
+        (* FIXME: big problem with quantifiers! *)
+        let uni_v v = false in
+        let cmp_v v1 v2 = Same_quant in
+        let brs = Infer.simplify preserve cmp_v uni_v brs in
+        let ans = abd cmp_v uni_v
+          (List.map Infer.br_to_formulas brs) in
+        assert_bool "No abduction answer" (ans <> None);
+        let vs, ans = Aux.unsome ans in
+        ignore (Format.flush_str_formatter ());
+        Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
+          (pr_sep_list "," pr_tyvar) vs pr_formula ans;
+        assert_equal ~printer:(fun x -> x)
+          "∃. t1 = (Carry n5 → Binary n9 → Binary n19 → Binary n19) ∧
+  t3 = (Carry n5) ∧ t4 = (Binary n9 → Binary n19 → Binary n19) ∧
+  t7 = (Binary n9) ∧ t8 = (Binary n19 → Binary n19) ∧
+  t12 = (Binary n19) ∧ t17 = (Binary n19) ∧ t18 = (Binary n19) ∧
+  t31 = (Carry n30 → Binary n16 → Binary n24 → Binary n26) ∧
+  t42 = (Carry n41 → Binary n16 → Binary n35 → Binary n37) ∧
+  t47 = (Binary n49) ∧ t48 = (Binary n19) ∧
+  t61 = (Carry n60 → Binary n46 → Binary n54 → Binary n56) ∧
+  t72 = (Carry n71 → Binary n46 → Binary n65 → Binary n67) ∧
+  t75 = (Binary n77) ∧ t76 = (Binary n19 → Binary n19) ∧
+  t79 = (Binary n81) ∧ t80 = (Binary n19) ∧
+  t103 = (Carry n102 → Binary n100 → Binary n95 → Binary n97) ∧
+  t108 = (Binary n110) ∧ t109 = (Binary n19) ∧
+  t124 = (Carry n123 → Binary n107 → Binary n117 → Binary n119) ∧
+  t135 = (Carry n134 → Binary n107 → Binary n128 → Binary n130) ∧
+  t140 = (Binary n142) ∧ t141 = (Binary n19) ∧
+  t151 = (Carry n150 → Binary n139 → Binary n147 → Binary n145) ∧
+  t162 = (Carry n161 → Binary n139 → Binary n155 → Binary n157) ∧
+  t173 = (Carry n172 → Binary n139 → Binary n166 → Binary n168) ∧
+  0 = n172 ∧ (n168 + n168) = n167 ∧ n168 = n157 ∧
+  (n166 + n166) = n142 ∧ 0 = n77 ∧ 0 = n5"
+          (Format.flush_str_formatter ());
+      with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+        ignore (Format.flush_str_formatter ());
+        Terms.pr_exception Format.str_formatter exn;
+        assert_failure (Format.flush_str_formatter ())
+    );
+
+  "abduction: filter" >::
+    (fun () ->
+      Terms.reset_state ();
+      Infer.reset_state ();
+      let prog = Parser.program Lexer.token
+	(Lexing.from_string
+"newtype Bool
+newtype List : type * num
+newcons True : Bool
+newcons False : Bool
+newcons LNil : ∀a. List(a, 0)
+newcons LCons : ∀n, a. a * List(a, n) ⟶ List(a, n+1)
+
+newtype Bar
+external f : Bar → Bool
+
+let rec filter =
+  efunction LNil -> LNil
+    | LCons (x, l) -> match f x with
+          True -> LCons (x, filter l)
+	| False -> filter l") in
+      try
+        let prog = Terms.infer_sorts prog in
+        let preserve, cn = Infer.infer_prog_mockup prog in
+        (* Format.printf "cn:@\n%a@\n" Infer.pr_cnstrnt cn; *)
+        let cmp_v, uni_v, brs = Infer.normalize cn in
+        (*let uni_v v =
+          try Hashtbl.find uni_v v with Not_found -> false in*)
+        (* FIXME: big problem with quantifiers! *)
+        let uni_v v = false in
+        let cmp_v v1 v2 = Same_quant in
+        let brs = Infer.simplify preserve cmp_v uni_v brs in
+        let ans = abd cmp_v uni_v
+          (List.map Infer.br_to_formulas brs) in
+        assert_bool "No abduction answer" (ans <> None);
+        let vs, ans = Aux.unsome ans in
+        ignore (Format.flush_str_formatter ());
+        Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
+          (pr_sep_list "," pr_tyvar) vs pr_formula ans;
+        assert_equal ~printer:(fun x -> x)
+          "∃. t1 = (List (Bar, n5) → Ex1 t4) ∧ t3 = (List (Bar, n5)) ∧
+  t6 = Bar ∧ t9 = (List (t11, n10)) ∧ t18 = (List (Bar, n23)) ∧
+  t21 = Bool ∧ t22 = (List (Bar, n23)) ∧
+  t27 = (List (Bar, n17) → List (Bar, n25)) ∧
+  t29 = (List (Bar, n17) → List (Bar, n23)) ∧ 0 = n17"
+          (Format.flush_str_formatter ());
+      with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+        ignore (Format.flush_str_formatter ());
+        Terms.pr_exception Format.str_formatter exn;
+        assert_failure (Format.flush_str_formatter ())
+    );
+
 ]
