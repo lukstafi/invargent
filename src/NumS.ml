@@ -71,7 +71,7 @@ let subst_w cmp (eqs : w_subst) (vars, cst, loc : w) : w =
   let vars = Aux.map_reduce (+/) (!/0) (List.concat vars) in
   let vars = List.sort cmp
     (List.filter (fun (_,k) -> k <>/ !/0) vars) in
-  let cst = List.fold_left (+/) (!/0) csts in
+  let cst = List.fold_left (+/) cst csts in
   vars, cst, loc
 
 let subst_ineqs cmp eqs ineqs = List.map
@@ -184,15 +184,14 @@ let solve ?(use_quants=false) ?(strict=false)
       let (left, right), ineqs =
         try Aux.pop_assoc v ineqs with Not_found -> ([], []), ineqs in
       let ineq_l, ineq_r, (more_ineqn, more_implicits) = 
+        let ohs = mult (!/(-1) // k) (vars, cst, loc) in
         if k >/ !/0
         then
-          let rhs = mult (!/(-1) // k) (vars, cst, loc) in
-          [], [rhs],
-          Aux.partition_map (fun lhs -> project v lhs rhs) left
+          [], [ohs],
+          Aux.partition_map (fun lhs -> project v lhs ohs) left
         else
-          let lhs = mult (!/1 // k) (vars, cst, loc) in
-          [lhs], [],
-          Aux.partition_map (fun rhs -> project v lhs rhs) right in
+          [ohs], [],
+          Aux.partition_map (fun rhs -> project v ohs rhs) right in
       let more_ineqn = List.filter
         (function
         | [], cst, _
@@ -343,29 +342,27 @@ let abd cmp_v uni_v brs =
       ignore (solve ~eqs ~ineqs ~cnj:prem
                 cmp cmp_w uni_v))
     brs in
-  (* let time = ref (Sys.time ()) in *)
   let rec loop first ans_eqs ans_ineqs done_brs = function
     | [] ->
       let ans = List.map (expand_atom true) (unsubst ans_eqs) in
       let ans = ans @ List.map (expand_atom false) (unsolve ans_ineqs) in
       Some ([], ans)
     | (skip, br as obr)::more_brs ->
-      (*Format.printf "abd_num-loop:@ @[<2>%a@ ⟹@ %a@]@\n"
-        pr_subst (fst br) pr_subst (snd br);*)
       match abd_simple cmp cmp_w uni_v validate skip ans_eqs ans_ineqs br with
       | Some (ans_eqs, ans_ineqs) ->
-        (*let ntime = Sys.time () in
-        Format.printf "ans: (%.2fs)@ @[<2>%a@]@\n" (ntime -. !time)
-          pr_subst (snd acc); time := ntime;*)
         loop false ans_eqs ans_ineqs (obr::done_brs) more_brs
       | None ->
-        (* Format.printf "reset@\n"; *)
         if first then None
         else loop true [] [] []
           ((skip+1, br)::List.rev_append done_brs more_brs) in
   loop true [] [] [] (br0::more_brs)
 
 let disj_elim_rotations = ref 3
+
+let i2f = float_of_int
+let expand_eqineqs eqs ineqs =
+  let ans = List.map (expand_atom true) (unsubst eqs) in
+  ans @ List.map (expand_atom false) (unsolve ineqs)
 
 let disj_elim cmp_v uni_v brs =
   let cmp_v v1 v2 =
@@ -397,33 +394,39 @@ let disj_elim cmp_v uni_v brs =
     brs in
   let check face =
     let ineqn = [mult !/(-1) face] in
-    Format.printf "Check:@ %a@ --@ " pr_atom (expand_atom false face);
-    let res =
-      List.for_all
-        (fun (eqs, ineqs) ->
-          try (* ignore *)
-            let s_eqs, (s_ineqs, s_implicits) =
-                (solve ~strict:true ~eqs ~ineqs ~ineqn cmp cmp_w uni_v)(* ; *)in
-            let ans = List.map (expand_atom true) (unsubst s_eqs @ s_implicits) in
-            let ans = ans @ List.map (expand_atom false) (unsolve s_ineqs) in
-              Format.printf "@[<2>@ [%a]@]F" pr_formula ans; false
-          with Contradiction _ -> Format.printf "T"; true)
+    List.for_all
+      (fun (eqs, ineqs) ->
+        try ignore
+              (solve ~strict:true ~eqs ~ineqs ~ineqn cmp cmp_w uni_v);
+          false
+          with Contradiction _ -> true)
         polytopes in
-    Format.printf "@\n"; res in
   let selected : (w list * w list) list =
     List.map (List.partition check) faces in
   let ridges : (w * w) list = Aux.concat_map
     (fun (sel, ptope) ->
       Aux.concat_map (fun p -> List.map (fun s->s, p) sel) ptope)
     selected in
+  let angle i j = i2f (i+1) /. i2f (j+1) in
   let cands = List.map
     (fun (s, p) ->
       let l = Array.init
-        !disj_elim_rotations (fun i -> sum_w cmp s (mult !/(i+1) p)) in
+        !disj_elim_rotations (fun i ->
+          if i <= 1 then [||]
+          else Array.init (i-1) (fun j ->
+            angle j i, sum_w cmp (mult !/(j+1) s) (mult !/(i+1) p))) in
       let r = Array.init
-        !disj_elim_rotations (fun i -> sum_w cmp (mult !/(i+1) s) p) in
-      Array.to_list l @ Array.to_list r)
+        !disj_elim_rotations (fun i ->
+          if i <= 1 then [||]
+          else Array.init (i-1) (fun j ->
+            angle i j, sum_w cmp (mult !/(i+1) s) (mult !/(j+1) p))) in
+      (1., sum_w cmp s p) ::
+        Array.to_list (Array.concat (Array.to_list l)) @
+        Array.to_list (Array.concat (Array.to_list r)))
     ridges in
+  let cands = List.map (fun angles ->
+    List.map snd
+      (List.sort (fun (a,_) (b,_) -> compare a b) angles)) cands in
   let result = Aux.concat_map fst selected in
   let result = Aux.map_some
     (fun cands -> try Some (List.find check cands)
