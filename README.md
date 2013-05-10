@@ -19,7 +19,7 @@ Milestones: [x] - completed, [#] - finishing (75%-95%), [+] - in the middle (25%
 - [x] Abduction for terms. Multisort abduction part 1.
 - [#] Abduction for linear systems. Multisort abduction part 2.
 - [_] Multisort disjunction elimination (includes anti-unification).
-- [#] Disjunction elimination for linear systems.
+- [x] Disjunction elimination for linear systems.
 - [_] Solve for predicate variables related to recursive definitions. Iterate till fixpoint part 1.
 - [_] Solve for predicate variables related to existential types. Iterate till fixpoint part 2.
 - [_] Write convergence-enforcing heuristics for numeric constraints.

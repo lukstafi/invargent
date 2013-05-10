@@ -195,7 +195,7 @@ let tests = "NumS" >::: [
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
         assert_equal ~printer:(fun x -> x)
-          "∃. n1 ≤ n2 ∧ n1 ≤ 1 ∧ n2 ≤ (2 + n1) ∧ 0 ≤ n1"
+          "∃. 0 ≤ n1 ∧ n2 ≤ (2 + n1) ∧ n1 ≤ 1 ∧ n1 ≤ n2"
           (Format.flush_str_formatter ())
       with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
@@ -224,8 +224,8 @@ let tests = "NumS" >::: [
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
         assert_equal ~printer:(fun x -> x)
-          "∃. (n1 + n1) <= (n2 + n2 + n2) ∧ n1 ≤ 3 ∧
- 0 ≤ n1 ∧ (n2 + n2 + n2) <= (3 + n1 + n1)"
+          "∃. (n2 + n2 + n2) ≤ (3 + n1 + n1) ∧ 0 ≤ n1 ∧ n1 ≤ 3 ∧
+  (n1 + n1) ≤ (n2 + n2 + n2)"
           (Format.flush_str_formatter ())
       with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());

@@ -28,6 +28,8 @@ let diff cmp w1 w2 = sum_w cmp w1 (mult !/(-1) w2)
 
 let zero_p (vars, cst, _) = vars = [] && cst = !/0
 
+let equal_w cmp w1 w2 = zero_p (diff cmp w1 w2)
+
 let unsubst sb =
   List.map (fun (v, (vars, cst, loc)) -> (v, !/(-1))::vars, cst, loc) sb
 
@@ -161,7 +163,7 @@ let solve ?(use_quants=false) ?(strict=false)
       eqn in
   let ineqn = List.sort cmp_w (more_ineqn @ ineqn) in
   let project v (vars, cst, loc as lhs) rhs =
-    if lhs = rhs
+    if equal_w cmp lhs rhs
     then
       let w = (v, !/(-1))::vars, cst, loc in
       if strict then
@@ -445,8 +447,21 @@ let disj_elim cmp_v uni_v brs =
         (List.filter (fun w -> not (zero_p (sum_w cmp e w))) tl)
     | e::tl -> idemp eqn (e::ineqn) tl
     | [] -> eqn, ineqn in
-  let res_eqn, res_ineqn =
+  let eqn, ineqn =
     idemp [] [] (List.sort compare result) in
-  [], List.map (expand_atom true) res_eqn
-    @ List.map (expand_atom false) res_ineqn
+  let check face ptope =
+    let eqs, (ineqs, implicits) =
+      solve ~eqn ~ineqn:ptope cmp cmp_w uni_v in
+    let eqs, _ = solve ~eqs ~eqn:implicits cmp cmp_w uni_v in
+    let ineqn = [mult !/(-1) face] in
+    try ignore (solve ~strict:true ~eqs ~ineqs ~ineqn cmp cmp_w uni_v);
+        false
+    with Contradiction _ -> true in
+  let rec redundant p1 = function
+    | face::p2 ->
+      if check face (p1 @ p2) then redundant p1 p2
+      else redundant (face::p1) p2
+    | [] -> p1 in
+  [], List.map (expand_atom true) eqn
+    @ List.map (expand_atom false) (redundant [] ineqn)
 
