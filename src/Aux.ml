@@ -7,6 +7,10 @@
 *)
 let flip f a b = f b a
 
+let (%) f g x = f (g x)
+let (%>) f g x = g (f x)
+let (|>) x f = f x
+
 let unique_sorted ?(cmp = Pervasives.compare) l =
   let rec idemp acc = function
     | e1::(e2::_ as tl) when cmp e1 e2 = 0 -> idemp acc tl
@@ -64,6 +68,10 @@ let split3 l =
     | (e1,e2,e3)::tl -> aux (e1::l1) (e2::l2) (e3::l3) tl in
   aux [] [] [] l
 
+let fst3 (a,_,_) = a
+let snd3 (_,b,_) = b
+let thr3 (_,_,c) = c
+
 let product l =
   List.fold_left (fun prod set -> concat_map
     (fun el -> List.rev (List.rev_map (fun tup ->  el::tup) prod))
@@ -111,6 +119,16 @@ let merge cmp l1 l2 =
       aux (e1::acc) (tl1, l2)
     | l1, e2::tl2 ->
       aux (e2::acc) (l1, tl2) in
+  aux [] (l1, l2)
+
+let inter_merge cmp f l1 l2 =
+  let rec aux acc = function
+    | [], l | l, [] -> []
+    | e1::tl1 as l1, (e2::tl2 as l2) ->
+      let c = cmp e1 e2 in
+      if c = 0 then aux (f e1 e2::acc) (tl1, tl2)
+      else if c < 0 then aux acc (tl1, l2)
+      else aux acc (l1, tl2) in
   aux [] (l1, l2)
 
 let bind_opt t f =
