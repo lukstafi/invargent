@@ -367,8 +367,16 @@ let expand_eqineqs eqs ineqs =
   ans @ List.map (expand_atom false) (unsolve ineqs)
 
 let disjelim cmp_v uni_v brs =
+  let vars = List.map fvs_formula brs in
+  let common =
+    match vars with [] -> assert false
+    | [vars] -> vars
+    | hd::tl -> List.fold_left VarSet.inter hd tl in
   let cmp_v v1 v2 =
-    match cmp_v v1 v2 with
+    let v1c = VarSet.mem v1 common and v2c = VarSet.mem v2 common in
+    if v1c && not v2c then 1
+    else if v2c && not v1c then -1
+    else match cmp_v v1 v2 with
     | Upstream -> 1
     | Downstream -> -1
     | _ -> compare v1 v2 in
@@ -382,27 +390,35 @@ let disjelim cmp_v uni_v brs =
   let compare_w (vars1,cst1,_) (vars2,cst2,_) =
     let c = compare vars1 vars2 in
     if c = 0 then compare_num cst1 cst2 else c in
-  let polytopes = List.map
-    (fun cnj ->
-      let eqs, (ineqs, implicits) = solve ~cnj cmp cmp_w uni_v in
-      let eqs, _ = solve ~eqs ~eqn:implicits cmp cmp_w uni_v in
-      eqs, ineqs)
-    brs in
-  let faces : w list list = List.map
-    (Aux.concat_map
-       (fun a -> match flatten cmp a with
-       | Aux.Right w -> [w]
-       | Aux.Left w -> [w; mult !/(-1) w]))
-    brs in
+  let polytopes, elim_eqs = List.split
+    (List.map
+       (fun cnj ->
+         let eqs, (ineqs, implicits) = solve ~cnj cmp cmp_w uni_v in
+         let eqs, _ = solve ~eqs ~eqn:implicits cmp cmp_w uni_v in
+         let eqs, elim_eqs = List.partition
+           (fun (v, _) -> VarSet.mem v common) eqs in
+         (eqs, ineqs), elim_eqs)
+       brs) in
+  let polytopes = List.map2
+    (fun (eqs, ineqs) esb ->
+      List.map (fun (v,w) -> v, subst_w cmp esb w) eqs,
+      subst_ineqs cmp esb ineqs)
+    polytopes elim_eqs in
+  let faces : w list list = List.map2
+    (fun br esb -> Aux.concat_map
+       (fun a -> match (flatten cmp a) with
+       | Aux.Right w -> [subst_w cmp esb w]
+       | Aux.Left w -> let w = subst_w cmp esb w in [w; mult !/(-1) w]) br)
+    brs elim_eqs in
   let check face =
     let ineqn = [mult !/(-1) face] in
     List.for_all
       (fun (eqs, ineqs) ->
         try ignore
               (solve ~strict:true ~eqs ~ineqs ~ineqn cmp cmp_w uni_v);
-          false
-          with Contradiction _ -> true)
-        polytopes in
+            false
+        with Contradiction _ -> true)
+      polytopes in
   let selected : (w list * w list) list =
     List.map (List.partition check) faces in
   let ridges : (w * w) list = Aux.concat_map

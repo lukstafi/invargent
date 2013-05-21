@@ -456,8 +456,49 @@
   conjunction of atoms. In case of term equations the disjunction elimination
   algorithm is based on the <em|anti-unification> algorithm. In case of
   linear arithmetic inequalities, disjunction elimination is exactly finding
-  the convex hull of a set of possibly infinite polyhedra. We follow
-  <cite|disjelimTechRep>.
+  the convex hull of a set of possibly unbounded polyhedra. We roughly follow
+  <cite|disjelimTechRep>, but depart from the algorithm presented there
+  because we employ our unification algorithm to separate sorts. Since as a
+  result we do not introduce variables for <em|alien subterms>, we include
+  the variables introduced by anti-unification in constraints sent to
+  disjunction elimination for their respective sorts.
+
+  The adjusted algorithm looks as follows:
+
+  <\enumerate>
+    <item>Let <math|\<wedge\><rsub|s>D<rsub|i,s>\<equiv\>\<b-U\><around|(|D<rsub|i>|)>>
+    where <math|D<rsub|i,s>> is of sort <math|s>, be the result of our
+    sort-separating unification.
+
+    <item>For the sort <math|s<rsub|ty>>:
+
+    <\enumerate>
+      <item>Let <math|V=<around*|{|x<rsub|j>,<wide|t<rsub|i,j>|\<bar\>><mid|\|>\<forall\>i\<exists\>t<rsub|i,j>.x<rsub|j><wide|=|\<dot\>>t<rsub|i,j>\<in\>D<rsub|i,s<rsub|ty>>|}>>.
+
+      <item>Let <math|G=<around*|{|<wide|\<alpha\>|\<bar\>><rsub|j>,u<rsub|j>,<wide|\<theta\><rsub|i,j>|\<bar\>><mid|\|>\<theta\><rsub|i,j>=<around*|[|<wide|\<alpha\>|\<bar\>><rsub|j>\<assign\><wide|g|\<bar\>><rsub|j><rsup|i>|]>,\<theta\><rsub|i,j><around*|(|u<rsub|j>|)>=t<rsub|i,j>|}>>
+      be the most specific anti-unifiers of <math|<wide|t<rsub|i,j>|\<bar\>>>
+      for each <math|j>.
+
+      <item>Let <math|D<rsub|i><rsup|u>=\<wedge\><rsub|j><wide|\<alpha\>|\<bar\>><rsub|j><wide|=|\<dot\>><wide|g|\<bar\>><rsub|j><rsup|i>>
+      and <math|D<rsub|i><rsup|g>=D<rsub|i,s<rsub|ty>>\<wedge\>D<rsub|i><rsup|u>>.
+
+      <item>TO BE CONTINUED. Let <math|D<rsup|v><rsub|i>=<around*|{|x<wide|=|\<dot\>>y<mid|\|>x<wide|=|\<dot\>>t<rsub|1>\<in\>D<rsub|i><rsup|g>,y<wide|=|\<dot\>>t<rsub|2>\<in\>D<rsub|i><rsup|g>,D<rsub|i><rsup|g>\<wedge\><rsub|s>D<rsup|v,s><rsub|i>\<vDash\>t<rsub|1><wide|=|\<dot\>>t<rsub|2>|}>>
+      (work in other sorts already done in <math|D<rsup|v,s><rsub|i>>).
+
+      <item>Let <math|A<rsub|s<rsub|ty>>=\<wedge\><rsub|j>x<rsub|j><wide|=|\<dot\>>u<rsub|j><big|cap><rsub|i><around*|(|D<rsub|i><rsup|g>\<wedge\>D<rsub|i><rsup|v>|)>>
+      (where conjunctions are treated as sets of conjuncts and equations are
+      ordered so that only one of <math|a<wide|=|\<dot\>>b,b<wide|=|\<dot\>>a>
+      appears anywhere), and <math|<wide|\<alpha\>|\<bar\>><rsub|s<rsub|ty>>=<wide|<wide|\<alpha\>|\<bar\>><rsub|j>|\<bar\>>>.
+
+      <item>Let <math|\<wedge\><rsub|s>D<rsup|u><rsub|i,s>\<equiv\>D<rsup|u><rsub|i>>
+      for <math|D<rsup|u><rsub|i,s>\<in\>\<cal-L\><rsub|s>>.
+    </enumerate>
+
+    <item>For sorts <math|s\<neq\>s<rsub|ty>>, let
+    <math|\<exists\><wide|\<alpha\>|\<bar\>><rsub|s>.A<rsub|s>=DisjElim<rsub|s><around*|(|<wide|D<rsub|i><rsup|s>\<wedge\>D<rsub|i><rsup|t,s>\<wedge\>D<rsub|i,s><rsup|t>\<wedge\>D<rsup|u><rsub|i,s>|\<bar\>>|)>>.
+
+    <item>The answer is <math|\<exists\><wide|<wide|\<alpha\><rsup|j><rsub|i>|\<bar\>>|\<bar\>><wide|<wide|\<alpha\>|\<bar\>><rsub|s>|\<bar\>>.\<wedge\><rsub|s>A<rsub|s>>.
+  </enumerate>
 
   <subsection|Anti-unification>
 
@@ -485,6 +526,14 @@
   problem to find the rotation which exactly touches another one of the
   polytopes.
 
+  When all variables of an equation <math|a<wide|=|\<dot\>>b> appear in all
+  branches <math|D<rsub|i>>, we can turn the equation
+  <math|a<wide|=|\<dot\>>b> into pair of inequalities
+  <math|a\<leqslant\>b\<wedge\>b\<leqslant\>a>. We eliminate all equations
+  and implicit inequalities which contain a variable not shared by all
+  <math|D<rsub|i>>, by substituting out such variables. We pass the resulting
+  inequalities to the convex hull algorithm.
+
   <\bibliography|bib|tm-plain|biblio.bib>
     <\bib-list|1>
       <bibitem*|1><label|bib-systemTechRep>Šukasz<nbsp>Stafiniak.<newblock> A
@@ -508,8 +557,8 @@
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1>>
-    <associate|auto-10|<tuple|4.2|?>>
-    <associate|auto-11|<tuple|4.2|?>>
+    <associate|auto-10|<tuple|4.2|6>>
+    <associate|auto-11|<tuple|4.2|6>>
     <associate|auto-2|<tuple|2|2>>
     <associate|auto-3|<tuple|2.1|3>>
     <associate|auto-4|<tuple|3|4>>
@@ -555,6 +604,10 @@
       jcaqpTechRep2
 
       disjelimTechRep
+
+      ConvexHull
+
+      ConvexHull
     </associate>
     <\associate|toc>
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|1<space|2spc>Data
