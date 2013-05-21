@@ -359,14 +359,14 @@ let abd cmp_v uni_v brs =
           ((skip+1, br)::List.rev_append done_brs more_brs) in
   loop true [] [] [] (br0::more_brs)
 
-let disj_elim_rotations = ref 3
+let disjelim_rotations = ref 3
 
 let i2f = float_of_int
 let expand_eqineqs eqs ineqs =
   let ans = List.map (expand_atom true) (unsubst eqs) in
   ans @ List.map (expand_atom false) (unsolve ineqs)
 
-let disj_elim cmp_v uni_v brs =
+let disjelim cmp_v uni_v brs =
   let cmp_v v1 v2 =
     match cmp_v v1 v2 with
     | Upstream -> 1
@@ -413,12 +413,12 @@ let disj_elim cmp_v uni_v brs =
   let cands = List.map
     (fun (s, p) ->
       let l = Array.init
-        !disj_elim_rotations (fun i ->
+        !disjelim_rotations (fun i ->
           if i <= 1 then [||]
           else Array.init (i-1) (fun j ->
             angle j i, sum_w cmp (mult !/(j+1) s) (mult !/(i+1) p))) in
       let r = Array.init
-        !disj_elim_rotations (fun i ->
+        !disjelim_rotations (fun i ->
           if i <= 1 then [||]
           else Array.init (i-1) (fun j ->
             angle i j, sum_w cmp (mult !/(i+1) s) (mult !/(j+1) p))) in

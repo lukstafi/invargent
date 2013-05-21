@@ -15,9 +15,9 @@ val abd :
   (Terms.var_name list * Terms.atom list) option
 
 (** Twice as many angles of rotation are tried out for *)
-val disj_elim_rotations : int ref
+val disjelim_rotations : int ref
 (** For uniformity, we return an empty list as introduced variables. *)
-val disj_elim :
+val disjelim :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
   Terms.formula list -> Terms.var_name list * Terms.atom list

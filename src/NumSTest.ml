@@ -161,12 +161,41 @@ let tests = "NumS" >::: [
 |  ⟹ n1 = n2 ∧ n3 <= n2
 |  ⟹ n1 = n2 ∧ n3 <= n2 + 1") in
         let brs = List.map snd brs in
-        let vs, ans = disj_elim cmp_v uni_v brs in
+        let vs, ans = disjelim cmp_v uni_v brs in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
         assert_equal ~printer:(fun x -> x)
           "∃. n2 = n1 ∧ n3 ≤ (2 + n2)"
+          (Format.flush_str_formatter ())
+      with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+        ignore (Format.flush_str_formatter ());
+        Terms.pr_exception Format.str_formatter exn;
+        assert_failure (Format.flush_str_formatter ())
+      (* with exn ->
+        Printexc.print_backtrace stdout;
+        assert_failure (Printexc.to_string exn) *)
+    );
+
+  "convex hull: basic equations" >::
+    (fun () ->
+      Terms.reset_state ();
+      Infer.reset_state ();
+      (* try *)
+      try
+        Printexc.record_backtrace true;
+        let cmp_v _ _ = Same_quant in
+        let uni_v _ = false in
+        let brs = Parser.cn_branches Lexer.token
+	  (Lexing.from_string " ⟹ n1 = n3 ∧ n2 = n3
+|  ⟹ n1 = n4 ∧ n2 = n4") in
+        let brs = List.map snd brs in
+        let vs, ans = disjelim cmp_v uni_v brs in
+        ignore (Format.flush_str_formatter ());
+        Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
+          (pr_sep_list "," pr_tyvar) vs pr_formula ans;
+        assert_equal ~printer:(fun x -> x)
+          "∃. n2 = n1"
           (Format.flush_str_formatter ())
       with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
@@ -190,7 +219,7 @@ let tests = "NumS" >::: [
 	  (Lexing.from_string " ⟹ n1 <= n2 ∧ 0 <= n1 ∧ n2 <= 1
 |  ⟹ n2 <= n1 + 2 ∧ 2 <= n2 ∧ n1 <= 1") in
         let brs = List.map snd brs in
-        let vs, ans = disj_elim cmp_v uni_v brs in
+        let vs, ans = disjelim cmp_v uni_v brs in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
@@ -219,7 +248,7 @@ let tests = "NumS" >::: [
 	  (Lexing.from_string " ⟹ n1 <= n2 ∧ 0 <= n1 ∧ n2 <= 1
 |  ⟹ n2 <= n1 ∧ 2 <= n2 ∧ n1 <= 3") in
         let brs = List.map snd brs in
-        let vs, ans = disj_elim cmp_v uni_v brs in
+        let vs, ans = disjelim cmp_v uni_v brs in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
