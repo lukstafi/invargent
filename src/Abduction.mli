@@ -17,14 +17,14 @@ val abd_typ :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
   (Terms.subst * Terms.subst) list ->
-  (Terms.var_name list * Terms.subst * Terms.atom list list) option
+  (Terms.var_name list * Terms.subst * Terms.formula list) option
 val abd :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
-  (Terms.atom list * Terms.atom list) list ->
-  (Terms.var_name list * Terms.atom list) option
+  (Terms.formula * Terms.formula) list ->
+  (Terms.var_name list * Terms.formula) option
 val abd_mockup_num :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
-  (Terms.atom list * Terms.atom list) list ->
-  (Terms.atom list * Terms.atom list) list option
+  (Terms.formula * Terms.formula) list ->
+  (Terms.formula * Terms.formula) list option
