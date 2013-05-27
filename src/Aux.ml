@@ -6,6 +6,7 @@
     @since Mar 2013
 *)
 let flip f a b = f b a
+let uncurry f (a, b) = f a b
 
 let (%) f g x = f (g x)
 let (%>) f g x = g (f x)
@@ -83,6 +84,22 @@ let product_iter f l =
     | hd::tl -> List.iter (fun e -> aux (e::tup) tl) hd in
   aux [] l
 
+let triangle l =
+  let rec aux acc = function
+    | [] -> acc
+    | e::l -> aux (List.map (fun d -> e,d) l @ acc) l in
+  aux [] l
+
+let transpose_lists lls =
+  let rec aux acc = function
+    | [] -> List.map List.rev acc
+    | hd::tl ->
+        aux (List.map2 (fun e col -> e::col) hd acc) tl in
+  match lls with
+    | [] -> []
+    | hd::tl ->
+        aux (List.map (fun e->[e]) hd) tl
+
 let minimal leq l =
   let rec aux acc = function
     | [] -> acc
@@ -121,9 +138,12 @@ let merge cmp l1 l2 =
       aux (e2::acc) (l1, tl2) in
   aux [] (l1, l2)
 
-let inter_merge cmp f l1 l2 =
+let inter_merge (type a) (type b) (type c)
+    (cmp : a -> b -> int) (f : a -> b -> c)
+    (l1 : a list) (l2 : b list) : c list =
   let rec aux acc = function
-    | [], l | l, [] -> []
+    | [], l -> []
+    | l, [] -> []
     | e1::tl1 as l1, (e2::tl2 as l2) ->
       let c = cmp e1 e2 in
       if c = 0 then aux (f e1 e2::acc) (tl1, tl2)
@@ -155,6 +175,16 @@ let map_reduce ?mapf redf red0 l =
 	    (k0, [v0], []) tl in
         List.rev_map (fun (k,vs) -> k, List.fold_left redf red0 vs)
           ((k0,vs)::l)
+
+let collect l =
+  match List.sort (fun x y -> compare (fst x) (fst y)) l with
+    | [] -> []
+    | (k0, v0)::tl ->
+	let k0, vs, l = List.fold_left (fun (k0, vs, l) (kn, vn) ->
+	  if k0 = kn then k0, vn::vs, l
+          else kn, [vn], (k0,List.rev vs)::l)
+	  (k0, [v0], []) tl in
+	List.rev ((k0,List.rev vs)::l)
 
 (** {2 Choice, aka. either type}  *)
 
