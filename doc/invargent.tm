@@ -482,25 +482,27 @@
       <item>Let <math|D<rsub|i><rsup|u>=\<wedge\><rsub|j><wide|\<alpha\>|\<bar\>><rsub|j><wide|=|\<dot\>><wide|g|\<bar\>><rsub|j><rsup|i>>
       and <math|D<rsub|i><rsup|g>=D<rsub|i,s<rsub|ty>>\<wedge\>D<rsub|i><rsup|u>>.
 
-      <item>TO BE CONTINUED. Let <math|D<rsup|v><rsub|i>=<around*|{|x<wide|=|\<dot\>>y<mid|\|>x<wide|=|\<dot\>>t<rsub|1>\<in\>D<rsub|i><rsup|g>,y<wide|=|\<dot\>>t<rsub|2>\<in\>D<rsub|i><rsup|g>,D<rsub|i><rsup|g>\<wedge\><rsub|s>D<rsup|v,s><rsub|i>\<vDash\>t<rsub|1><wide|=|\<dot\>>t<rsub|2>|}>>
-      (work in other sorts already done in <math|D<rsup|v,s><rsub|i>>).
+      <item>Let <math|D<rsup|v><rsub|i>=<around*|{|x<wide|=|\<dot\>>y<mid|\|>x<wide|=|\<dot\>>t<rsub|1>\<in\>D<rsub|i><rsup|g>,y<wide|=|\<dot\>>t<rsub|2>\<in\>D<rsub|i><rsup|g>,D<rsub|i><rsup|g>\<vDash\>t<rsub|1><wide|=|\<dot\>>t<rsub|2>|}>>.
 
-      <item>Let <math|A<rsub|s<rsub|ty>>=\<wedge\><rsub|j>x<rsub|j><wide|=|\<dot\>>u<rsub|j><big|cap><rsub|i><around*|(|D<rsub|i><rsup|g>\<wedge\>D<rsub|i><rsup|v>|)>>
+      <item>Let <math|A<rsub|s<rsub|ty>>=\<wedge\><rsub|j>x<rsub|j><wide|=|\<dot\>>u<rsub|j>\<wedge\><big|cap><rsub|i><around*|(|D<rsub|i><rsup|g>\<wedge\>D<rsub|i><rsup|v>|)>>
       (where conjunctions are treated as sets of conjuncts and equations are
       ordered so that only one of <math|a<wide|=|\<dot\>>b,b<wide|=|\<dot\>>a>
       appears anywhere), and <math|<wide|\<alpha\>|\<bar\>><rsub|s<rsub|ty>>=<wide|<wide|\<alpha\>|\<bar\>><rsub|j>|\<bar\>>>.
 
       <item>Let <math|\<wedge\><rsub|s>D<rsup|u><rsub|i,s>\<equiv\>D<rsup|u><rsub|i>>
-      for <math|D<rsup|u><rsub|i,s>\<in\>\<cal-L\><rsub|s>>.
+      for <math|D<rsup|u><rsub|i,s>> of sort <math|s>.
     </enumerate>
 
     <item>For sorts <math|s\<neq\>s<rsub|ty>>, let
-    <math|\<exists\><wide|\<alpha\>|\<bar\>><rsub|s>.A<rsub|s>=DisjElim<rsub|s><around*|(|<wide|D<rsub|i><rsup|s>\<wedge\>D<rsub|i><rsup|t,s>\<wedge\>D<rsub|i,s><rsup|t>\<wedge\>D<rsup|u><rsub|i,s>|\<bar\>>|)>>.
+    <math|\<exists\><wide|\<alpha\>|\<bar\>><rsub|s>.A<rsub|s>=DisjElim<rsub|s><around*|(|<wide|D<rsub|i><rsup|s>\<wedge\>D<rsup|u><rsub|i,s>|\<bar\>>|)>>.
 
     <item>The answer is <math|\<exists\><wide|<wide|\<alpha\><rsup|j><rsub|i>|\<bar\>>|\<bar\>><wide|<wide|\<alpha\>|\<bar\>><rsub|s>|\<bar\>>.\<wedge\><rsub|s>A<rsub|s>>.
   </enumerate>
 
-  <subsection|Anti-unification>
+  We simplify the result by substituting-out redundant answer variables.
+
+  We follow the anti-unification algorithm provided in <cite|AntiUnifAlg>,
+  fig. 2.
 
   <subsection|Extended convex hull>
 
@@ -535,10 +537,53 @@
   inequalities to the convex hull algorithm.
 
   <\bibliography|bib|tm-plain|biblio.bib>
-    <\bib-list|1>
-      <bibitem*|1><label|bib-systemTechRep>Šukasz<nbsp>Stafiniak.<newblock> A
+    <\bib-list|8>
+      <bibitem*|1><label|bib-ArithQuantElim>Sergey<nbsp>Berezin,
+      Vijay<nbsp>Ganesh<localize| and >David L.<nbsp>Dill.<newblock> An
+      online proof-producing decision procedure for mixed-integer linear
+      arithmetic.<newblock> <localize|In ><with|font-shape|italic|Proceedings
+      of the 9th international conference on Tools and algorithms for the
+      construction and analysis of systems>, TACAS'03, <localize|pages
+      >521--536. Berlin, Heidelberg, 2003. Springer-Verlag.<newblock>
+
+      <bibitem*|2><label|bib-ConvexHull>Komei<nbsp>Fukuda, Thomas
+      M.<nbsp>Liebling<localize| and >Christine<nbsp>Lütolf.<newblock>
+      Extended convex hull.<newblock> <localize|In
+      ><with|font-shape|italic|Proceedings of the 12th Canadian Conference on
+      Computational Geometry, Fredericton, New Brunswick, Canada, August
+      16-19, 2000>. 2000.<newblock>
+
+      <bibitem*|3><label|bib-AbductionSolvMaher>Michael<nbsp>Maher<localize|
+      and >Ge<nbsp>Huang.<newblock> On computing constraint abduction
+      answers.<newblock> <localize|In >Iliano<nbsp>Cervesato,
+      Helmut<nbsp>Veith<localize| and >Andrei<nbsp>Voronkov<localize|,
+      editors>, <with|font-shape|italic|Logic for Programming, Artificial
+      Intelligence, and Reasoning>, <localize|volume> 5330<localize| of
+      ><with|font-shape|italic|Lecture Notes in Computer Science>,
+      <localize|pages >421--435. Springer Berlin / Heidelberg,
+      2008.<newblock> 10.1007/978-3-540-89439-1<rsub|3>0.<newblock>
+
+      <bibitem*|4><label|bib-jcaqpUNIF>Šukasz<nbsp>Stafiniak.<newblock> Joint
+      constraint abduction problems.<newblock>
+      <with|font-shape|italic|>2011.<newblock> The International Workshop on
+      Unification.<newblock>
+
+      <bibitem*|5><label|bib-systemTechRep>Šukasz<nbsp>Stafiniak.<newblock> A
       gadt system for invariant inference.<newblock> Manuscript,
       2012.<newblock> Available at: <hlink|http://www.ii.uni.wroc.pl/~lukstafi/pubs/EGADTs.pdf|http://www.ii.uni.wroc.pl/~lukstafi/pubs/invariants.pdf>
+
+      <bibitem*|6><label|bib-disjelimTechRep>Šukasz<nbsp>Stafiniak.<newblock>
+      Constraint disjunction elimination problems.<newblock> Manuscript,
+      2013.<newblock> Available at: <hlink|http://www.ii.uni.wroc.pl/~lukstafi/pubs/disjelim.pdf|http://www.ii.uni.wroc.pl/~lukstafi/pubs/invariants.pdf><newblock>
+
+      <bibitem*|7><label|bib-jcaqpTechRep2>Šukasz<nbsp>Stafiniak.<newblock>
+      Joint constraint abduction problems.<newblock> Manuscript, 2013.
+      Available at: <hlink|http://www.ii.uni.wroc.pl/~lukstafi/pubs/abduction-revised.pdf|http://www.ii.uni.wroc.pl/~lukstafi/pubs/invariants.pdf><newblock>
+
+      <bibitem*|8><label|bib-AntiUnifAlg>B<nbsp>Østvold.<newblock> A
+      functional reconstruction of anti-unification.<newblock>
+      <localize|Technical Report>, Norwegian Computing Center, Oslo, Norway,
+      2004.<newblock>
     </bib-list>
   </bibliography>
 </body>
@@ -557,7 +602,7 @@
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1>>
-    <associate|auto-10|<tuple|4.2|6>>
+    <associate|auto-10|<tuple|4.1|6>>
     <associate|auto-11|<tuple|4.2|6>>
     <associate|auto-2|<tuple|2|2>>
     <associate|auto-3|<tuple|2.1|3>>
@@ -567,16 +612,21 @@
     <associate|auto-7|<tuple|3.3|5>>
     <associate|auto-8|<tuple|4|5>>
     <associate|auto-9|<tuple|4.1|6>>
+    <associate|bib-AbductionSolvMaher|<tuple|3|6>>
+    <associate|bib-AntiUnifAlg|<tuple|8|7>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
-    <associate|bib-ConvexHull|<tuple|3|4>>
+    <associate|bib-ArithQuantElim|<tuple|1|6>>
+    <associate|bib-ConvexHull|<tuple|2|6>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
+    <associate|bib-disjelimTechRep|<tuple|6|7>>
     <associate|bib-jcaqpTechRep|<tuple|8|4>>
-    <associate|bib-jcaqpUNIF|<tuple|7|4>>
+    <associate|bib-jcaqpTechRep2|<tuple|7|7>>
+    <associate|bib-jcaqpUNIF|<tuple|4|7>>
     <associate|bib-simonet-pottier-hmg-toplas|<tuple|6|4>>
-    <associate|bib-systemTechRep|<tuple|1|6>>
+    <associate|bib-systemTechRep|<tuple|5|7>>
   </collection>
 </references>
 
@@ -604,6 +654,8 @@
       jcaqpTechRep2
 
       disjelimTechRep
+
+      AntiUnifAlg
 
       ConvexHull
 
@@ -642,17 +694,13 @@
       Elimination> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-8><vspace|0.5fn>
 
-      <with|par-left|<quote|1.5fn>|4.1<space|2spc>Anti-unification
+      <with|par-left|<quote|1.5fn>|4.1<space|2spc>Extended convex hull
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-9>>
 
-      <with|par-left|<quote|1.5fn>|4.2<space|2spc>Extended convex hull
-      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-10>>
-
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-11><vspace|0.5fn>
+      <no-break><pageref|auto-10><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>
