@@ -25,6 +25,9 @@ let loc_union ?loc loc1 loc2 =
   match loc with
     | Some loc -> loc
     | None ->
+      if loc1 = dummy_loc then loc2
+      else if loc2 = dummy_loc then loc1
+      else
 	{beg_pos = min_pos loc1.beg_pos loc2.beg_pos;
 	 end_pos = max_pos loc1.end_pos loc2.end_pos}
 let loc_tighter loc1 loc2 =
