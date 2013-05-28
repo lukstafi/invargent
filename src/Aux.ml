@@ -142,8 +142,8 @@ let inter_merge (type a) (type b) (type c)
     (cmp : a -> b -> int) (f : a -> b -> c)
     (l1 : a list) (l2 : b list) : c list =
   let rec aux acc = function
-    | [], l -> []
-    | l, [] -> []
+    | [], l -> List.rev acc
+    | l, [] -> List.rev acc
     | e1::tl1 as l1, (e2::tl2 as l2) ->
       let c = cmp e1 e2 in
       if c = 0 then aux (f e1 e2::acc) (tl1, tl2)
