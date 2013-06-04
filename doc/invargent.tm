@@ -653,10 +653,52 @@
   <math|S<rsub|0>\<assign\><wide|\<top\>|\<bar\>>>. If
   <math|\<Psi\><around*|(|\<Phi\>,S<rsub|k>|)>=A<rsub|res>,S<rsub|k>> then
   return <math|A<rsub|res>,S<rsub|k>>. Otherwise, let
-  <math|A<rsub|res>,S<rsub|k+1>=\<Psi\><around*|(|\<Phi\>,H<around*|(|S<rsub|0>,\<ldots\>,S<rsub|k>|)>|)>>
+  <math|S=H<around*|(|S<rsub|0>,\<ldots\>,S<rsub|k>|)>> and
+  <math|A<rsub|res>,S<rsub|k+1>=\<Psi\><around*|(|<wide|S|~><around*|(|\<Phi\>|)>,S|)>>
   and repeat with <math|k\<assign\>k+1>. <math|H<around*|(|S<rsub|0>,\<ldots\>,S<rsub|k>|)>>
   is a convergence improving heuristic, a dummy implementation is
   <math|H<around*|(|S<rsub|0>,\<ldots\>,S<rsub|k>|)>=S<rsub|k>>.
+  <math|<wide|S|~>> is the substitution of predicate variables
+  <math|<wide|\<chi\>|\<bar\>>> corresponding to <math|S>.
+
+  <subsection|Solving for Existential Types Predicates>
+
+  The general scheme is that we perform disjunction elimination on branches
+  with positive occurrences of existential type predicate variables on each
+  round. Since the branches are substituted with the solution from previous
+  round, disjunction elimination will automatically preserve monotonicity. We
+  retain existential types predicate variables in the later abduction step.
+
+  What differentiates existential type predicate variables from recursive
+  definition predicate variables is that the former are not local to context
+  in our implementation, we ignore the <verbatim|CstrIntro> rule, while the
+  latter are treated as local to context in the implementation. It means that
+  free variables need to be bound in the former while they are retained in
+  the latter.
+
+  In the algorithm we operate on all predicate variables, and perform
+  additional operations on existential type predicate variables; there are no
+  operations pertaining only to recursive definition predicate variables. The
+  final algorithm has the form:
+
+  <\eqnarray*>
+    <tformat|<cwith|10|10|2|2|cell-valign|c>|<table|<row|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.F<rsub|\<chi\>>|\<bar\>>>|<cell|=>|<cell|S<rsub|k>>>|<row|<cell|\<wedge\><rsub|i><around*|(|D<rsub|K><rsup|i>\<Rightarrow\>C<rsub|K><rsup|i>|)>>|<cell|=>|<cell|<with|mode|text|all
+    such that >\<chi\><rsub|K><around*|(|\<alpha\><rsub|2>,\<alpha\><rsub|3><rsup|i>|)>\<in\>C<rsub|K><rsup|i>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>.G<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|Connected<around*|(|\<alpha\><rsub|2>,DisjElim<around*|(|<wide|S<rsub|k><around*|(|D<rsup|i><rsub|K>\<wedge\>C<rsup|i><rsub|K>|)>\<wedge\>\<delta\><rprime|'><wide|=|\<dot\>>\<alpha\><rsup|i><rsub|3>|\<bar\>>|)>|)>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g<rprime|'>>.G<rprime|'><rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|AbdS<around*|(|\<cal-Q\>\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rsub|K>,k><wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>>,F<rsub|\<chi\><rsub|K>>,G<rsub|\<chi\><rsub|K>>|)>>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|Simpl<around*|(|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rsub|K>,k><wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g<rprime|'>>.G<rprime|'><rsub|\<chi\><rsub|K>>|)>\<neq\>\<top\>>>|<row|<cell|<with|mode|text|then
+    >\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rsub|K>,k>.F<rsub|\<chi\><rsub|K>>\<assign\>>|<cell|>|<cell|S<rsub|k><around*|(|\<chi\><rsub|K>|)>\<assign\>\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rsub|K>,k>\<exists\>FV<around*|(|G<rprime|'><rsub|\<chi\><rsub|K>>|)>\<cap\><around*|(|<wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g<rprime|'>>|)>.F<rsub|\<chi\><rsub|K>>\<wedge\>G<rprime|'><rsub|\<chi\><rsub|K>>>>|<row|<cell|\<cal-Q\><rprime|'>.\<wedge\><rsub|i><around*|(|D<rsub|i>\<Rightarrow\>C<rsub|i>|)>>|<cell|=>|<cell|S<rsub|k><around*|(|\<Phi\>|)>>>|<row|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.F<rsub|\<chi\><rsub|K>>|)>>|<cell|=>|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>FV<around*|(|F<rsub|\<chi\><rsub|K>>|)>.\<delta\><wide|=|\<dot\>><wide|<around*|{|\<alpha\>\<in\>FV<around*|(|F<rsub|\<chi\><rsub|K>>|)>\|\<alpha\>\<less\><rsub|\<cal-Q\><rprime|'>>\<alpha\><rsub|2>|}>|\<vect\>>\<wedge\>F<rsub|\<chi\><rsub|K>><around*|[|\<alpha\><rsub|2>\<assign\>\<delta\>|]>>>|<row|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.F<rsub|\<chi\>>|)>>|<cell|=>|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.F<rsub|\<chi\>><with|mode|text|
+    \ otherwise, i.e. for >\<chi\>\<in\>PV<rsup|1><around*|(|\<Phi\>|)>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>>.A>|<cell|=>|<cell|Abd<around*|(|\<cal-Q\><rprime|'><around*|[|<wide|\<forall\>\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<assign\><wide|\<exists\>\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>|]>,<wide|D<rsub|i>,C<rsub|i>|\<bar\>>|)>>>|<row|<cell|<around*|(|\<cal-Q\><rsup|k+1>,<wide|<wide|\<alpha\>|\<bar\>><rsup|\<chi\>><rsub|+>|\<bar\>>,A<rsub|res>,<wide|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.A<rsub|\<chi\>>|\<bar\>>|)>>|<cell|=>|<cell|Split<around*|(|\<cal-Q\><rprime|'>,<wide|\<alpha\>|\<bar\>><rsub|j>,A<rsub|j>,<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>,k>|\<bar\>>|)>>>|<row|<cell|S<rsub|k><rprime|'>>|<cell|=>|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.F<rsub|\<chi\>>\<wedge\>A<rsub|\<chi\>>|\<bar\>>>>|<row|<cell|S<rsub|k+1>>|<cell|=>|<cell|H<around*|(|S<rsub|k-1>,S<rsub|k>,S<rsub|k><rprime|'>|)>>>|<row|<cell|<wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>,k+1>>|<cell|=>|<cell|<wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>,k><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|S<rsub|k>=S<rsub|k+1>>>|<row|<cell|<with|mode|text|then
+    return>>|<cell|>|<cell|A<rsub|res>,\<Xi\><around*|(|S<rsub|k>|)>>>|<row|<cell|<with|mode|text|else
+    repeat>>|<cell|>|<cell|k\<assign\>k+1>>>>
+  </eqnarray*>
+
+  We start with <math|S<rsub|0>\<assign\><wide|\<top\>|\<bar\>>>.
+  <math|Connected<around*|(|\<alpha\>,G|)>> is the connected component of
+  hypergraph <math|G> containing node <math|\<alpha\>>, where nodes are
+  variables <math|FV<around*|(|G|)>> and hyperedges are atoms
+  <math|c\<in\>G>. <math|H<around*|(|S<rsub|a>,S<rsub|b>,S<rsub|c>|)>> is a
+  convergence improving heuristic, a dummy implementation is
+  <math|H<around*|(|S<rsub|a>,S<rsub|b>,S<rsub|c>|)>=S<rsub|c>>.
+  <math|<wide|S|~>> is the substitution of predicate variables
+  <math|<wide|\<chi\>|\<bar\>>> corresponding to <math|S>.
 
   <\bibliography|bib|tm-plain|biblio.bib>
     <\bib-list|8>
@@ -724,19 +766,20 @@
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1>>
-    <associate|auto-10|<tuple|5|7>>
+    <associate|auto-10|<tuple|5|6>>
     <associate|auto-11|<tuple|5.1|7>>
-    <associate|auto-12|<tuple|14|8>>
+    <associate|auto-12|<tuple|5.2|8>>
+    <associate|auto-13|<tuple|5.2|8>>
     <associate|auto-2|<tuple|2|2>>
     <associate|auto-3|<tuple|2.1|3>>
     <associate|auto-4|<tuple|3|4>>
     <associate|auto-5|<tuple|3.1|4>>
     <associate|auto-6|<tuple|3.2|4>>
     <associate|auto-7|<tuple|3.3|5>>
-    <associate|auto-8|<tuple|4|6>>
+    <associate|auto-8|<tuple|4|5>>
     <associate|auto-9|<tuple|4.1|6>>
     <associate|bib-AbductionSolvMaher|<tuple|3|8>>
-    <associate|bib-AntiUnifAlg|<tuple|8|8>>
+    <associate|bib-AntiUnifAlg|<tuple|8|9>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
@@ -746,7 +789,7 @@
     <associate|bib-UnificationBaader|<tuple|1|4>>
     <associate|bib-disjelimTechRep|<tuple|6|8>>
     <associate|bib-jcaqpTechRep|<tuple|8|4>>
-    <associate|bib-jcaqpTechRep2|<tuple|7|8>>
+    <associate|bib-jcaqpTechRep2|<tuple|7|9>>
     <associate|bib-jcaqpUNIF|<tuple|4|8>>
     <associate|bib-simonet-pottier-hmg-toplas|<tuple|6|4>>
     <associate|bib-systemTechRep|<tuple|5|8>>
@@ -831,9 +874,13 @@
       Negative Positions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-11>>
 
+      <with|par-left|<quote|1.5fn>|5.2<space|2spc>Solving for Existential
+      Types Predicates <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-12>>
+
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-12><vspace|0.5fn>
+      <no-break><pageref|auto-13><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>

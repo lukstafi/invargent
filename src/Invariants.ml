@@ -52,5 +52,26 @@ let sb_atom_pred psb = function
 let rec split cmp_v uni_v avs ans bvss =
   ()
 
-let operator cmp_v uni_v brs sol =
+let operator cmp_v uni_v sol brs =
   ()
+
+let solve cmp_v uni_v brs =
+  let chiR = Aux.unique_sorted
+    (Aux.concat_map
+       (fun (prem,_) -> Aux.map_some
+         (function PredVarU (i,t) -> Some (i,t) | _ -> None) prem)) in
+  let chiK = Aux.collect
+    (Aux.concat_map
+       (fun (prem,concl) -> Aux.map_some
+         (function PredVarB (i,t1,t2) -> Some (i,(t1,t2,prem,concl))
+         | _ -> None) concl)) in
+  let delta = Infer.fresh_typ_var ()
+  and delta' = Infer.fresh_typ_var () in
+  let chiK =
+  let rec loop sol0 sol1 =
+    let brs = subst_brs_pred sol1 in
+    let sol2 = operator cmp_v uni_v sol1 brs in
+    let sol2 = converge sol0 sol1 sol2 in
+    if sol1 = sol2 then sol2
+    else loop sol1 sol2 in
+  loop solT solT
