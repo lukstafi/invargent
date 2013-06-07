@@ -12,6 +12,8 @@ let (%) f g x = f (g x)
 let (%>) f g x = g (f x)
 let (|>) x f = f x
 
+let order_key l = List.sort (fun (a,_) (b,_) -> compare a b) l
+
 let unique_sorted ?(cmp = Pervasives.compare) l =
   let rec idemp acc = function
     | e1::(e2::_ as tl) when cmp e1 e2 = 0 -> idemp acc tl
@@ -150,6 +152,17 @@ let inter_merge (type a) (type b) (type c)
       else if c < 0 then aux acc (tl1, l2)
       else aux acc (l1, tl2) in
   aux [] (l1, l2)
+
+let list_inter a b = List.filter (fun e -> List.mem e b) a
+
+(* Second argument should be sorted. *)
+let replace_assocs ~repl l =
+  let cmp  (i,_) (j,_) = compare i j in
+  let rec idemp acc = function
+    | e1::(e2::_ as tl) when cmp e1 e2 = 0 -> idemp acc tl
+    | e::tl -> idemp (e::acc) tl
+    | [] -> acc in
+  idemp [] (List.rev (merge cmp (List.sort cmp repl) l))
 
 let bind_opt t f =
   match t with
