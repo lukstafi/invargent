@@ -176,7 +176,7 @@ let constr_gen_expr gamma sigma ex_types e t =
       let ety_cn = Extype ety_id in
       let ety = TCons (ety_cn, [t2]) in
       incr fresh_chi_id;
-      let ex_phi t2 t3 = [PredVarB (!fresh_chi_id, t2, t3)] in
+      let ex_phi ~g ~a = [PredVarB (!fresh_chi_id, g, a)] in
       ex_types := (ety_cn, ex_phi, loc) :: !ex_types;
       let cn = List.fold_left cn_and
         (A [Eqty (Fun (t1, ety), t, loc)])
@@ -235,7 +235,7 @@ let constr_gen_expr gamma sigma ex_types e t =
       let t3 = TVar a3 in
       let disj_prem = List.map
         (fun (ety_cn, phi, loc) ->
-          Eqty (TCons (ety_cn, [t2]), t0, loc) :: phi t2 t3)
+          Eqty (TCons (ety_cn, [t2]), t0, loc) :: phi ~g:t3 ~a:t2)
         !ex_types in
       let concl = aux_cl gamma t3 t (p, e2) in
       let altcn = aux gamma t (App (Lam ([p,e2],loc),e1,loc)) in
@@ -313,9 +313,9 @@ let infer_prog_mockup prog =
     | ValConstr (Extype _ as n, vs, phi, [arg],
                  Extype _, c_args, loc) ->
       let tres = TCons (CNam "Tuple", List.map (fun v->TVar v) c_args) in
-      let ex_phi t2 t3 =
-        Eqty (t3, arg, loc) ::
-          Eqty (t2, tres, loc) :: phi in
+      let ex_phi ~g ~a =
+        Eqty (g, arg, loc) ::
+          Eqty (a, tres, loc) :: phi in
       ex_types := (n, ex_phi, loc) :: !ex_types;
       VarSet.empty, And []
     | ValConstr (Extype _, _, _, _, _, _, _) -> assert false
@@ -368,8 +368,8 @@ let infer_prog_mockup prog =
           let ety_id = incr extype_id; !extype_id in
           let ety_cn = Extype ety_id in
           let ety = TCons (ety_cn, targs) in
-          let ex_phi t2 t3 =
-            Eqty (t3, res, loc) :: Eqty (t2, ety, loc) :: exphi in
+          let ex_phi ~g ~a =
+            Eqty (g, res, loc) :: Eqty (a, ety, loc) :: exphi in
           ex_types := (ety_cn, ex_phi, loc) :: !ex_types;
           x, ([], [], ety) in
       gamma := Aux.map_append typ_sch_ex env !gamma;
@@ -392,10 +392,10 @@ let infer_prog solver prog =
         let t2 = TVar a2 in
         let a3 = fresh_typ_var () in
         let t3 = TVar a3 in
-        match phi t2 t3 with
-        | [PredVarB (chi_id, vt2, vt3)] when vt2=t2 && vt3=t3 ->
+        match phi ~g:t3 ~a:t2 with
+        | [PredVarB (chi_id, vt3, vt2)] when vt2=t2 && vt3=t3 ->
           let more_sb, cond =
-            try List.assoc chi_id sb_chi a2 a3
+            try List.assoc chi_id sb_chi a3 a2
             with Not_found -> assert false in
           let sb = update_sb ~more_sb sb in
           let res = try fst (List.assoc a2 sb) with Not_found -> t2 in
@@ -412,8 +412,8 @@ let infer_prog solver prog =
           let extydef =
             ValConstr (ety_cn, vs, cond, [arg], ety_cn, resvs, loc) in
           more_items := extydec :: extydef :: !more_items;
-          let ex_phi t2 t3 =
-            Eqty (t3, arg, loc) :: Eqty (t2, ety, loc) :: cond in
+          let ex_phi ~g ~a =
+            Eqty (g, arg, loc) :: Eqty (a, ety, loc) :: cond in
           ety_cn, ex_phi, loc
         | _ -> assert false
       )
@@ -427,8 +427,8 @@ let infer_prog solver prog =
   | ValConstr (Extype _ as n, vs, phi, [arg],
                Extype _, c_args, loc) as item ->
     let tres = TCons (CNam "Tuple", List.map (fun v -> TVar v) c_args) in
-    let ex_phi t2 t3 =
-      Eqty (t3, arg, loc) :: Eqty (t2, tres, loc) :: phi in
+    let ex_phi ~g ~a =
+      Eqty (g, arg, loc) :: Eqty (a, tres, loc) :: phi in
     (* FIXME: what about freshening or clash of variables? *)
     ex_types := (n, ex_phi, loc) :: !ex_types;
     [item]
@@ -509,9 +509,8 @@ let infer_prog solver prog =
         let extydef =
           ValConstr (ety_cn, vs, exphi, [res], ety_cn, resvs, loc) in
         more_items := extydec :: extydef :: !more_items;
-        (* FIXME: ex_phi problem *)
-        let ex_phi t2 t3 =
-          Eqty (t3, res, loc) :: Eqty (t2, ety, loc) :: exphi in
+        let ex_phi ~g ~a =
+          Eqty (g, res, loc) :: Eqty (a, ety, loc) :: exphi in
         ex_types := (ety_cn, ex_phi, loc) :: !ex_types;
         x, (gvs, phi, ety) in
     gamma := Aux.map_append typ_sch_ex env !gamma;

@@ -181,17 +181,17 @@
   exception of polymorphic <verbatim|let> cases, where <verbatim|let rec>
   still needs to be used.
 
-  In the formalism, we use <math|\<cal-E\>=<around*|{|\<varepsilon\><rsub|K>,\<chi\><rsub|K><mid|\|>K\<colons\>\<forall\>\<alpha\>\<gamma\><around|[|\<chi\><rsub|K><around*|(|\<alpha\>,\<gamma\>|)>|]>.\<gamma\>\<rightarrow\>\<varepsilon\><rsub|K><around*|(|\<alpha\>|)>\<in\>\<Sigma\>|}>>
+  In the formalism, we use <math|\<cal-E\>=<around*|{|\<varepsilon\><rsub|K>,\<chi\><rsub|K><mid|\|>K\<colons\>\<forall\>\<alpha\>\<gamma\><around|[|\<chi\><rsub|K><around*|(|\<gamma\>,\<alpha\>|)>|]>.\<gamma\>\<rightarrow\>\<varepsilon\><rsub|K><around*|(|\<alpha\>|)>\<in\>\<Sigma\>|}>>
   for brevity, as if all existential types
   <math|\<varepsilon\><rsub|K><around*|(|\<alpha\>|)>> were related with a
-  predicate variable <math|\<chi\><rsub|K><around*|(|\<alpha\>,\<gamma\>|)>\<nosymbol\>>.
+  predicate variable <math|\<chi\><rsub|K><around*|(|\<gamma\>,\<alpha\>|)>\<nosymbol\>>.
   In the implementation, we have user-defined existential types with explicit
   constraints in addition to inferred existential types. We keep track of
   existential types in cell <verbatim|ex_types>, storing arbitrary
   constraints. For <verbatim|LetVal>, we form existential types after solving
   the generated constraint, to have less intermediate variables in them. The
   first argument of the predicate variable
-  <math|\<chi\><rsub|K><around*|(|\<alpha\>,\<gamma\>|)>\<nosymbol\>>
+  <math|\<chi\><rsub|K><around*|(|\<gamma\>,\<alpha\>|)>\<nosymbol\>>
   provides an ``escape route'' for free variables, e.g. precondition
   variables used in postcondition. It is used for convenience in the
   formalism. In the implementation, after the constraints are solved, we
@@ -683,9 +683,9 @@
 
   <\eqnarray*>
     <tformat|<cwith|10|10|2|2|cell-valign|c>|<table|<row|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.F<rsub|\<chi\>>|\<bar\>>>|<cell|=>|<cell|S<rsub|k>>>|<row|<cell|\<wedge\><rsub|i><around*|(|D<rsub|K><rsup|i>\<Rightarrow\>C<rsub|K><rsup|i>|)>>|<cell|=>|<cell|<with|mode|text|all
-    such that >\<chi\><rsub|K><around*|(|\<alpha\><rsub|2>,\<alpha\><rsub|3><rsup|i>|)>\<in\>C<rsub|K><rsup|i>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>.G<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|Connected<around*|(|\<alpha\><rsub|2>,DisjElim<around*|(|<wide|S<rsub|k><around*|(|D<rsup|i><rsub|K>\<wedge\>C<rsup|i><rsub|K>|)>\<wedge\>\<delta\><rprime|'><wide|=|\<dot\>>\<alpha\><rsup|i><rsub|3>|\<bar\>>|)>|)>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g<rprime|'>>.G<rprime|'><rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|AbdS<around*|(|\<cal-Q\>\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rsub|K>,k><wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>>,F<rsub|\<chi\><rsub|K>>,G<rsub|\<chi\><rsub|K>>|)>>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|Simpl<around*|(|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rsub|K>,k><wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g<rprime|'>>.G<rprime|'><rsub|\<chi\><rsub|K>>|)>\<neq\>\<top\>>>|<row|<cell|<with|mode|text|then
-    >\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rsub|K>,k>.F<rsub|\<chi\><rsub|K>>\<assign\>>|<cell|>|<cell|S<rsub|k><around*|(|\<chi\><rsub|K>|)>\<assign\>\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rsub|K>,k>\<exists\>FV<around*|(|G<rprime|'><rsub|\<chi\><rsub|K>>|)>\<cap\><around*|(|<wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g<rprime|'>>|)>.F<rsub|\<chi\><rsub|K>>\<wedge\>G<rprime|'><rsub|\<chi\><rsub|K>>>>|<row|<cell|\<cal-Q\><rprime|'>.\<wedge\><rsub|i><around*|(|D<rsub|i>\<Rightarrow\>C<rsub|i>|)>>|<cell|=>|<cell|S<rsub|k><around*|(|\<Phi\>|)>>>|<row|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.F<rsub|\<chi\><rsub|K>>|)>>|<cell|=>|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>FV<around*|(|F<rsub|\<chi\><rsub|K>>|)>.\<delta\><wide|=|\<dot\>><wide|<around*|{|\<alpha\>\<in\>FV<around*|(|F<rsub|\<chi\><rsub|K>>|)>\|\<alpha\>\<less\><rsub|\<cal-Q\><rprime|'>>\<alpha\><rsub|2>|}>|\<vect\>>\<wedge\>F<rsub|\<chi\><rsub|K>><around*|[|\<alpha\><rsub|2>\<assign\>\<delta\>|]>>>|<row|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.F<rsub|\<chi\>>|)>>|<cell|=>|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.F<rsub|\<chi\>><with|mode|text|
-    \ otherwise, i.e. for >\<chi\>\<in\>PV<rsup|1><around*|(|\<Phi\>|)>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>>.A>|<cell|=>|<cell|Abd<around*|(|\<cal-Q\><rprime|'><around*|[|<wide|\<forall\>\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<assign\><wide|\<exists\>\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>|]>,<wide|D<rsub|i>,C<rsub|i>|\<bar\>>|)>>>|<row|<cell|<around*|(|\<cal-Q\><rsup|k+1>,<wide|<wide|\<alpha\>|\<bar\>><rsup|\<chi\>><rsub|+>|\<bar\>>,A<rsub|res>,<wide|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.A<rsub|\<chi\>>|\<bar\>>|)>>|<cell|=>|<cell|Split<around*|(|\<cal-Q\><rprime|'>,<wide|\<alpha\>|\<bar\>><rsub|j>,A<rsub|j>,<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>,k>|\<bar\>>|)>>>|<row|<cell|S<rsub|k><rprime|'>>|<cell|=>|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.F<rsub|\<chi\>>\<wedge\>A<rsub|\<chi\>>|\<bar\>>>>|<row|<cell|S<rsub|k+1>>|<cell|=>|<cell|H<around*|(|S<rsub|k-1>,S<rsub|k>,S<rsub|k><rprime|'>|)>>>|<row|<cell|<wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>,k+1>>|<cell|=>|<cell|<wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>,k><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|S<rsub|k>=S<rsub|k+1>>>|<row|<cell|<with|mode|text|then
+    such that >\<chi\><rsub|K><around*|(|\<alpha\><rsub|3><rsup|i>,\<alpha\><rsub|2>|)>\<in\>C<rsub|K><rsup|i><eq-number>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>.G<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|Connected<around*|(|\<delta\>,DisjElim<around*|(|<wide|S<rsub|k><around*|(|D<rsup|i><rsub|K>\<wedge\>C<rsup|i><rsub|K>|)>\<wedge\>\<delta\><wide|=|\<dot\>>\<alpha\><rsup|i><rsub|3>|\<bar\>>|)>|)>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g<rprime|'>>.G<rprime|'><rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|AbdS<around*|(|\<cal-Q\>\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rsub|K>,k><wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>>,F<rsub|\<chi\><rsub|K>>,G<rsub|\<chi\><rsub|K>>|)><eq-number>>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|Simpl<around*|(|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rsub|K>,k><wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g<rprime|'>>.G<rprime|'><rsub|\<chi\><rsub|K>>|)>\<neq\>\<top\><eq-number>>>|<row|<cell|<with|mode|text|then
+    >\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rsub|K>,k>.F<rsub|\<chi\><rsub|K>>\<assign\>>|<cell|>|<cell|S<rsub|k><around*|(|\<chi\><rsub|K>|)>\<assign\>\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rsub|K>,k>\<exists\>FV<around*|(|G<rprime|'><rsub|\<chi\><rsub|K>>|)>\<cap\><around*|(|<wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g<rprime|'>>|)>.F<rsub|\<chi\><rsub|K>>\<wedge\>G<rprime|'><rsub|\<chi\><rsub|K>><eq-number>>>|<row|<cell|\<cal-Q\><rprime|'>.\<wedge\><rsub|i><around*|(|D<rsub|i>\<Rightarrow\>C<rsub|i>|)>>|<cell|=>|<cell|S<rsub|k><around*|(|\<Phi\>|)>>>|<row|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.F<rsub|\<chi\><rsub|K>>|)>>|<cell|=>|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>FV<around*|(|F<rsub|\<chi\><rsub|K>>|)>.\<delta\><rprime|'><wide|=|\<dot\>><wide|FV<around*|(|F<rsub|\<chi\><rsub|K>>|)>\\<wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>|\<vect\>>\<wedge\>F<rsub|\<chi\><rsub|K>><around*|[|\<alpha\><rsub|2>\<assign\>\<delta\><rprime|'>|]><eq-number>>>|<row|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.F<rsub|\<chi\>>|)>>|<cell|=>|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.F<rsub|\<chi\>><with|mode|text|
+    \ otherwise, i.e. for >\<chi\>\<in\>PV<rsup|1><around*|(|\<Phi\>|)>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>>.A>|<cell|=>|<cell|Abd<around*|(|\<cal-Q\><rprime|'><around*|[|<wide|\<forall\>\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<assign\><wide|\<exists\>\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>|]>,<wide|D<rsub|i>,C<rsub|i>|\<bar\>>|)><eq-number>>>|<row|<cell|<around*|(|\<cal-Q\><rsup|k+1>,<wide|<wide|\<alpha\>|\<bar\>><rsup|\<chi\>><rsub|+>|\<bar\>>,A<rsub|res>,<wide|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.A<rsub|\<chi\>>|\<bar\>>|)>>|<cell|=>|<cell|Split<around*|(|\<cal-Q\><rprime|'>,<wide|\<alpha\>|\<bar\>><rsub|j>,A<rsub|j>,<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>,k>|\<bar\>>|)>>>|<row|<cell|S<rsub|k><rprime|'>>|<cell|=>|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.F<rsub|\<chi\>>\<wedge\>A<rsub|\<chi\>>|\<bar\>><eq-number>>>|<row|<cell|S<rsub|k+1>>|<cell|=>|<cell|H<around*|(|S<rsub|k-1>,S<rsub|k>,S<rsub|k><rprime|'>|)><eq-number>>>|<row|<cell|<wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>,k+1>>|<cell|=>|<cell|<wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>,k><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|S<rsub|k>=S<rsub|k+1>>>|<row|<cell|<with|mode|text|then
     return>>|<cell|>|<cell|A<rsub|res>,\<Xi\><around*|(|S<rsub|k>|)>>>|<row|<cell|<with|mode|text|else
     repeat>>|<cell|>|<cell|k\<assign\>k+1>>>>
   </eqnarray*>
@@ -699,6 +699,13 @@
   <math|H<around*|(|S<rsub|a>,S<rsub|b>,S<rsub|c>|)>=S<rsub|c>>.
   <math|<wide|S|~>> is the substitution of predicate variables
   <math|<wide|\<chi\>|\<bar\>>> corresponding to <math|S>.
+
+  <subsection|Implementation details>
+
+  We represent <math|<wide|\<alpha\>|\<vect\>>> as a tuple type rather than
+  as a function type. We modify the quantifier <math|\<cal-Q\>> imperatively,
+  because it mostly grows monotonically, and when variables are dropped they
+  do not conflict with fresh variables generated later.
 
   <\bibliography|bib|tm-plain|biblio.bib>
     <\bib-list|8>
@@ -760,6 +767,7 @@
 
 <\references>
   <\collection>
+    <associate|1|<tuple|5.2|?>>
     <associate|ImplSubst|<tuple|4|2>>
     <associate|SepProp|<tuple|5|3>>
     <associate|SepProp2|<tuple|6|?>>
@@ -769,7 +777,8 @@
     <associate|auto-10|<tuple|5|6>>
     <associate|auto-11|<tuple|5.1|7>>
     <associate|auto-12|<tuple|5.2|8>>
-    <associate|auto-13|<tuple|5.2|8>>
+    <associate|auto-13|<tuple|5.3|8>>
+    <associate|auto-14|<tuple|5.3|8>>
     <associate|auto-2|<tuple|2|2>>
     <associate|auto-3|<tuple|2.1|3>>
     <associate|auto-4|<tuple|3|4>>
@@ -778,21 +787,21 @@
     <associate|auto-7|<tuple|3.3|5>>
     <associate|auto-8|<tuple|4|5>>
     <associate|auto-9|<tuple|4.1|6>>
-    <associate|bib-AbductionSolvMaher|<tuple|3|8>>
+    <associate|bib-AbductionSolvMaher|<tuple|3|9>>
     <associate|bib-AntiUnifAlg|<tuple|8|9>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
     <associate|bib-ArithQuantElim|<tuple|1|8>>
-    <associate|bib-ConvexHull|<tuple|2|8>>
+    <associate|bib-ConvexHull|<tuple|2|9>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
-    <associate|bib-disjelimTechRep|<tuple|6|8>>
+    <associate|bib-disjelimTechRep|<tuple|6|9>>
     <associate|bib-jcaqpTechRep|<tuple|8|4>>
     <associate|bib-jcaqpTechRep2|<tuple|7|9>>
-    <associate|bib-jcaqpUNIF|<tuple|4|8>>
+    <associate|bib-jcaqpUNIF|<tuple|4|9>>
     <associate|bib-simonet-pottier-hmg-toplas|<tuple|6|4>>
-    <associate|bib-systemTechRep|<tuple|5|8>>
+    <associate|bib-systemTechRep|<tuple|5|9>>
   </collection>
 </references>
 
@@ -878,9 +887,13 @@
       Types Predicates <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-12>>
 
+      <with|par-left|<quote|1.5fn>|5.3<space|2spc>Implementation details
+      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-13>>
+
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-13><vspace|0.5fn>
+      <no-break><pageref|auto-14><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>

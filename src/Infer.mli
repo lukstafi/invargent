@@ -35,12 +35,13 @@ type envfrag = Terms.VarSet.t * Terms.formula * (string * Terms.typ) list
 val typ_to_sch : 'a * Terms.typ -> 'a * Terms.typ_scheme
 val constr_gen_expr :
   (string * Terms.typ_scheme) list -> sigma ->
-  (Terms.cns_name * (Terms.typ -> Terms.typ -> Terms.atom list) * Terms.loc)
+  (Terms.cns_name * (g:Terms.typ -> a:Terms.typ -> Terms.atom list) * Terms.loc)
   list ref -> Terms.expr -> Terms.typ -> cnstrnt
 type solution =
   (Terms.subst * Terms.formula) *
     (int * (Terms.typ -> Terms.subst * Terms.atom list)) list *
-    (int * (Terms.var_name -> Terms.var_name -> Terms.subst * Terms.formula))
+    (int * (g:Terms.var_name -> a:Terms.var_name ->
+            Terms.subst * Terms.formula))
     list
 val infer_prog_mockup : Terms.struct_item list -> Terms.VarSet.t * cnstrnt
 val infer_prog :
