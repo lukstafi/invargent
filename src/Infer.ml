@@ -298,7 +298,8 @@ let constr_gen_let gamma sigma ex_types p e ta =
 type solution =
   (Terms.subst * Terms.formula) *
     (int * (Terms.typ -> Terms.subst * Terms.atom list)) list *
-    (int * (Terms.var_name -> Terms.var_name -> Terms.subst * Terms.formula))
+    (int * (g:Terms.var_name -> a:Terms.var_name ->
+            Terms.subst * Terms.formula))
     list
 
 let infer_prog_mockup prog =
@@ -395,7 +396,7 @@ let infer_prog solver prog =
         match phi ~g:t3 ~a:t2 with
         | [PredVarB (chi_id, vt3, vt2)] when vt2=t2 && vt3=t3 ->
           let more_sb, cond =
-            try List.assoc chi_id sb_chi a3 a2
+            try List.assoc chi_id sb_chi ~g:a3 ~a:a2
             with Not_found -> assert false in
           let sb = update_sb ~more_sb sb in
           let res = try fst (List.assoc a2 sb) with Not_found -> t2 in

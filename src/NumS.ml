@@ -50,7 +50,7 @@ let flatten cmp a : (w, w) Aux.choice =
       List.fold_left flat acc sum
     | NCst i -> vars, cst +/ !/i, loc
     | TVar v -> (v, !/1)::vars, cst, loc
-    | TCons _ | Fun _ -> assert false in
+    | TCons _ | Fun _ | Delta _ -> assert false in
   let collect t1 t2 loc =
     let zero = [], !/0, loc in
     let w1 = flat zero t1 in
@@ -359,6 +359,27 @@ let abd cmp_v uni_v brs =
           ((skip+1, br)::List.rev_append done_brs more_brs) in
   loop true [] [] [] (br0::more_brs)
 
+let abd_s cmp_v uni_v prem concl =
+  let cmp_v v1 v2 =
+    match cmp_v v1 v2 with
+    | Upstream -> 1
+    | Downstream -> -1
+    | _ -> compare v1 v2 in
+  let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
+  let cmp_w (vars1,cst1,_) (vars2,cst2,_) =
+    match vars1, vars2 with
+    | [], [] -> 0
+    | _, [] -> -1
+    | [], _ -> 1
+    | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
+  let validate eqs (ineqs : ineqs) = () in
+  match abd_simple cmp cmp_w uni_v validate 0 [] [] (prem, concl) with
+  | Some (ans_eqs, ans_ineqs) ->
+    let ans = List.map (expand_atom true) (unsubst ans_eqs) in
+    let ans = ans @ List.map (expand_atom false) (unsolve ans_ineqs) in
+    Some ([], ans)
+  | None -> None
+
 let disjelim_rotations = ref 3
 
 let i2f = float_of_int
@@ -481,3 +502,7 @@ let disjelim cmp_v uni_v brs =
   [], List.map (expand_atom true) eqn
     @ List.map (expand_atom false) (redundant [] ineqn)
 
+(* TODO *)
+let simplify cmp_v vs cnj =
+  if vs = [] then [], cnj
+  else failwith "Not implemented yet."

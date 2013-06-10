@@ -8,7 +8,7 @@
 open Terms
 open Aux
 
-type chi_subst = (int * formula) list
+type chi_subst = (int * (var_name list * formula)) list
 
 let sb_typ_unary arg =
   typ_map {typ_id_map with map_delta = fun _ -> arg}  
@@ -18,18 +18,18 @@ let sb_typ_binary arg1 arg2 =
 
 let sb_atom_unary arg = function
   | Eqty (t1, t2, lc) ->
-    Eqty (subst_typ_unary arg t1, subst_typ_unary arg t2, lc)
+    Eqty (sb_typ_unary arg t1, sb_typ_unary arg t2, lc)
   | Leq (t1, t2, lc) ->
-    Leq (subst_typ_unary arg t1, subst_typ_unary arg t2, lc)
+    Leq (sb_typ_unary arg t1, sb_typ_unary arg t2, lc)
   | CFalse _ as a -> a
   | PredVarU (_, t) -> assert false
   | PredVarB (_, t1, t2) -> assert false
 
 let sb_atom_binary arg1 arg2 = function
   | Eqty (t1, t2, lc) ->
-    Eqty (subst_typ_binary arg1 arg2 t1, subst_typ_binary arg1 arg2 t2, lc)
+    Eqty (sb_typ_binary arg1 arg2 t1, sb_typ_binary arg1 arg2 t2, lc)
   | Leq (t1, t2, lc) ->
-    Leq (subst_typ_binary arg1 arg2 t1, subst_typ_binary arg1 arg2 t2, lc)
+    Leq (sb_typ_binary arg1 arg2 t1, sb_typ_binary arg1 arg2 t2, lc)
   | CFalse _ as a -> a
   | PredVarU (_, t) -> assert false
   | PredVarB (_, t1, t2) -> assert false
@@ -41,14 +41,23 @@ let sb_phi_binary arg1 arg2 = List.map (sb_atom_binary arg1 arg2)
 let sb_atom_pred psb = function
   | PredVarU (i, t) as a ->
     (try
-       let phi = List.find i psb in
+       let phi = List.assoc i psb in
        sb_phi_unary t phi
-     with Not_found -> a)  
-  | PredVarB (_, t1, t2) -> assert false
+     with Not_found -> [a])  
+  | PredVarB (i, t1, t2) as a ->
     (try
-       let phi = List.find i psb in
+       let phi = List.assoc i psb in
        sb_phi_binary t1 t2 phi
-     with Not_found -> a)
+     with Not_found -> [a])
+  | a -> [a]
+
+let sb_formula_pred psb phi =
+  concat_map (sb_atom_pred psb) phi
+
+let sb_brs_pred psb brs = (*List.map
+  (fun (prem,concl) -> sb_formula_pred psb prem, sb_formula_pred psb concl)*)
+  (* FIXME: freshen variables and put them in the quantifier *)
+  brs
 
 type q_with_bvs = {
   cmp_v : var_name -> var_name -> var_scope;
@@ -60,6 +69,7 @@ type q_with_bvs = {
   find_b : int -> var_name;
   find_chi : var_name -> int;
   mutable allbvs : VarSet.t;
+  mutable allchi : Ints.t;
 }
   
 let new_q cmp_v uni_v =
@@ -75,12 +85,13 @@ let new_q cmp_v uni_v =
   let b_vs = Hashtbl.create 32 in
   let chi_b = Hashtbl.create 16 in
   let b_chi = Hashtbl.create 16 in
-  let add_bchi b i =
-    Hashtbl.add chi_b i b;
-    Hashtbl.add b_chi b i in
   let find_b i = Hashtbl.find chi_b i in
   let find_chi b = Hashtbl.find b_chi b in
-  let rec add_b_vs b vs =
+  let rec add_bchi b i =
+    q.allchi <- Ints.add i q.allchi;
+    Hashtbl.add chi_b i b;
+    Hashtbl.add b_chi b i
+  and add_b_vs b vs =
     assert (Hashtbl.mem b_chi b);
     List.iter (fun v -> Hashtbl.add same_q v b) vs;
     q.allbvs <- VarSet.union q.allbvs (vars_of_list vs);
@@ -90,41 +101,62 @@ let new_q cmp_v uni_v =
     with Not_found -> Hashtbl.add b_vs b (vars_of_list vs)
   and q = {
     cmp_v; uni_v; add_b_vs;
-    set_b_uni = (fun b -> b_is_uni := b);
+    set_b_uni = (fun b -> b_is_uni := b); allchi = Ints.empty;
     b_vs; allbvs = VarSet.empty; add_bchi; find_b; find_chi;
   } in q
 
 let rec split avs ans q =
-  ()  
+  failwith "FIXME: not implemented yet"
+
+let connected v phi =
+  (* FIXME: TODO *)
+  phi
+
+(** Perform quantifier elimination on provided variables and generally
+    simplify the formula. *)
+let simplify cmp_v vs cnj =
+  let ty_ans, num_ans, _ = unify ~use_quants:false ~params:vs cmp_v
+    (fun _ -> false) cnj in
+  let ty_sb, ty_ans = List.partition
+    (fun (v,_) -> List.mem v vs) ty_ans in
+  let ty_ans = subst_formula ty_sb (to_formula ty_ans) in
+  let vs = vars_of_list vs in
+  let ty_vs = VarSet.inter vs (fvs_formula ty_ans)
+  and num_vs = VarSet.inter vs (fvs_formula num_ans) in
+  let num_vs, num_ans =
+    NumS.simplify cmp_v (VarSet.elements num_vs) num_ans in
+  VarSet.elements (VarSet.union ty_vs (vars_of_list num_vs)),
+  ty_ans @ num_ans
+
+let converge sol0 sol1 sol2 =
+  (* TODO *)
+  sol2
+
+let implies sol1 sol2 =
+  failwith "FIXME: not implemented yet"
 
 let solve cmp_v uni_v brs =
-  (*let chi p phi = map_some
-    (function
-    | PredVarU (i,t) -> Some (i, (p, Left t))
-    | PredVarB (i,t1,t2) -> Some (i, (p, Right (t1, t2)))
-    | _ -> None) phi in
-  let chis = collect
-    (concat_map
-       (fun (prem,concl) -> chi true prem @ chi false concl) brs) in*)
   let q = new_q cmp_v uni_v in
   let cmp_v = q.cmp_v and uni_v = q.uni_v in
-  let bchis = List.iter
+  List.iter
     (fun (prem,_) -> List.iter
       (function
-      | PredVarU (i, TVar v) | PredVarB (i, TVar v, _) ->
-        q.add_bchi v i; q.add_b_vs b [b]
-      | _ -> ()) prem) brs in
-  let delta = Infer.fresh_typ_var ()
-  and delta' = Infer.fresh_typ_var () in
+      | PredVarU (i, TVar b) | PredVarB (i, TVar b, _) ->
+        q.add_bchi b i; q.add_b_vs b [b]
+      | _ -> ()) prem) brs;
+  let solT = List.map
+    (fun i -> i, ([], []))
+    (Ints.elements q.allchi) in
+  let delta = Infer.fresh_typ_var () in
   (* 1 *)
   let chiK = collect
     (concat_map
        (fun (prem,concl) -> Aux.map_some
          (function PredVarB (i,t1,t2) ->
-           Some ((i,t2), Eqty (delta, t1, dummy_loc) :: prem @ concl)
+           Some ((i,t2), Eqty (TVar delta, t1, dummy_loc) :: prem @ concl)
          | _ -> None) concl) brs) in
   let chiK = List.map (fun ((i,t2),cnjs) -> i, (t2, cnjs)) chiK in
-  let rec loop sol0 sol1 =
+  let rec loop sol0 (sol1 : (int * (var_name list * formula)) list) =
     let gK = List.map
       (fun (i,(t2,cnjs)) ->
         i, connected delta (DisjElim.disjelim cmp_v uni_v cnjs)) chiK in
@@ -132,37 +164,49 @@ let solve cmp_v uni_v brs =
       (fun (i,(gvs, g_ans)) ->
         (* 2 *)
         let vs, ans = List.assoc i sol1 in
-        match Abduction.abd_s cmp_v uni_v ans g_ans with
+        (* Adding to quantifier for [abd_s] and [simplify]. *)
+        let cmp_v' gvs v1 v2 =
+          let c1 = List.mem v1 gvs and c2 = List.mem v2 gvs in
+          if c1 && c2 then Same_quant
+          else if c1 then Downstream
+          else if c2 then Upstream
+          else cmp_v v1 v2 in
+        match Abduction.abd_s (cmp_v' gvs) uni_v ans g_ans with
         | None -> None
-        | Some gv_ans' ->
+        | Some (gvs', g_ans') ->
           (* 3 *)
-          let (gvs', g_ans') = simplify gv_ans' in
+          let gvs', g_ans' =
+            simplify (cmp_v' (gvs' @ gvs)) gvs' g_ans' in
           if g_ans' = [] then None
           else
-            let gvs = list_inter (gvs @ gvs') (fvs_formula g_ans) in
+            let gvs = VarSet.elements
+              (VarSet.inter (vars_of_list (gvs @ gvs')) (fvs_formula g_ans)) in
             let b = q.find_b i in
             q.add_b_vs b gvs;
-            Some (gvs @ vs, g_ans' @ ans)
+            Some (i, (gvs @ vs, g_ans' @ ans))
       ) gK in
     (* 4 *)
     let sol1 = replace_assocs ~repl:gK sol1 in
-    let brs = subst_brs_pred sol1 in
+    let brs = sb_brs_pred sol1 brs in
     (* 5 -- could be relocated *)
     let lift_ex_types t2 (vs, ans) =
       let fvs = fvs_formula ans in
       let dvs = VarSet.elements (VarSet.diff fvs (vars_of_list vs)) in
       let targs = List.map (fun v -> TVar v) dvs in
       let a2 = match t2 with TVar a2 -> a2 | _ -> assert false in
-      vs @ dvs, Eqty (Delta false, TCons ("Tuple", targs)) ::
-        subst_formula [a2, Delta false] ans in
+      vs @ dvs, Eqty (Delta false, TCons (CNam "Tuple", targs), dummy_loc) ::
+        subst_formula [a2, (Delta false, dummy_loc)] ans in
     (* 6 *)
-    let vs, ans = Abduction.abd cmp_v uni_v brs in
+    let vs, ans =
+      match Abduction.abd cmp_v uni_v brs with Some (vs,ans) -> vs,ans
+      | None -> failwith "FIXME-TODO: propagate contradiction"
+        (* raise (Contradiction) *) in
     let ans_res, sol2 = split vs ans q in
     (* 7 *)
     let sol2 = List.map2
       (fun (i,(vs, ans)) (j,(dvs, dans)) -> assert (i=j);
         let b = q.find_b i in
-        q.add_vs b dvs;
+        q.add_b_vs b dvs;
         i, (vs@dvs, ans@dans))
       sol1 (order_key sol2) in    
     (* 8 *)
@@ -170,10 +214,10 @@ let solve cmp_v uni_v brs =
     if implies sol1 sol2
     then
       let sol = List.map
-        (fun (i,sol) ->
+        (fun ((i,sol) as isol) ->
           try let t2, _ = List.assoc i chiK in
-              list_ex_types t2 sol
-          with Not_found -> sol)
+              i, lift_ex_types t2 sol
+          with Not_found -> isol)
         sol2 in
       ans_res, sol
     else loop sol1 sol2 in
