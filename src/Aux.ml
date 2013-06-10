@@ -12,6 +12,13 @@ let (%) f g x = f (g x)
 let (%>) f g x = g (f x)
 let (|>) x f = f x
 
+module Ints = Set.Make
+  (struct type t = int let compare x y = x - y end)
+let add_ints nvs vs =
+  List.fold_left (fun vs nv -> Ints.add nv vs) vs nvs
+let ints_of_list nvs =
+  add_ints nvs Ints.empty
+
 let order_key l = List.sort (fun (a,_) (b,_) -> compare a b) l
 
 let unique_sorted ?(cmp = Pervasives.compare) l =
