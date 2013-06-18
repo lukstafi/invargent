@@ -559,10 +559,18 @@
   (in number of atoms).
 
   Let us discuss the algorithm from <cite|InvariantsTechRep2> for
-  <math|Split<around*|(|\<cal-Q\>,<wide|\<alpha\>|\<bar\>>,A,<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|A<rsub|\<chi\>><rsup|0>|\<bar\>>|)>>:
+  <math|Split<around*|(|\<cal-Q\>,<wide|\<alpha\>|\<bar\>>,A,<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|A<rsub|\<chi\>><rsup|0>|\<bar\>>|)>>.
+  Note that due to existential types predicates, we actually compute
+  <math|Split<around*|(|\<cal-Q\>,<wide|\<alpha\>|\<bar\>>,A,<wide|<wide|\<beta\>|\<bar\>><rsup|\<beta\><rsub|\<chi\>>>|\<bar\>>,<wide|A<rsub|\<beta\><rsub|\<chi\>>><rsup|0>|\<bar\>>|)>>,
+  i.e. we index by <math|\<beta\><rsub|\<chi\>>> (which can be multiple for a
+  single <math|\<chi\>>) rather than <math|\<chi\>>. We retain the notation
+  from <cite|InvariantsTechRep2> here as it better conveys the intent. We do
+  not pass quantifiers around to reflect the source code: the helper function
+  <verbatim|loop avs ans sol> of function <verbatim|split> corresponds to
+  <math|Split<around*|(|<wide|\<alpha\>|\<bar\>>,A,<wide|A<rsub|\<beta\><rsub|\<chi\>>><rsup|0>|\<bar\>>|)>>.
 
   <\enumerate>
-    <item><math|<tabular|<tformat|<table|<row|<cell|\<alpha\>\<prec\>\<beta\>>|<cell|\<equiv\>>|<cell|\<alpha\>\<less\><rsub|\<cal-Q\>>\<beta\>\<vee\><around*|(|\<alpha\>\<leqslant\><rsub|\<cal-Q\>>\<beta\>\<wedge\>\<alpha\>\<in\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<wedge\>\<beta\>\<nin\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>|)>>>>>>>
+    <item><math|<tabular|<tformat|<table|<row|<cell|\<alpha\>\<prec\>\<beta\>>|<cell|\<equiv\>>|<cell|\<alpha\>\<less\><rsub|\<cal-Q\>>\<beta\>\<vee\><around*|(|\<alpha\>\<leqslant\><rsub|\<cal-Q\>>\<beta\>\<wedge\>\<beta\>\<nless\><rsub|\<cal-Q\>>\<alpha\>\<wedge\>\<alpha\>\<in\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<wedge\>\<beta\>\<nin\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>|)>>>>>>>
     The variables <math|<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>>
     are the answer variables of the solution from the previous round. We need
     to keep them apart from other variables even when they're not separated
@@ -580,9 +588,8 @@
     The atoms to consider incorporating in invariants for <math|\<chi\>>.
 
     <item><math|<tabular|<tformat|<table|<row|<cell|<with|mode|text|for one
-    ><wide|A<rsub|\<chi\>><rsup|+>|\<bar\>><with|mode|text| such
-    that>>|<cell|>|<cell|\<wedge\><rsub|\<chi\>><around*|(|A<rsub|\<chi\>><rsup|min>\<subset\>A<rsub|\<chi\>><rsup|+>\<subset\>A<rsub|\<chi\>><rsup|max>\<wedge\>A<rsub|\<chi\>><rsup|+><with|mode|text|
-    minimal w.r.t. >\<subset\>|)>\<wedge\>\<vDash\>\<cal-Q\>.A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>:>>>>>>
+    ><wide|A<rsub|\<chi\>><rsup|+>|\<bar\>><with|mode|text| minimal w.r.t.
+    >\<subset\><with|mode|text| such that>>|<cell|>|<cell|\<wedge\><rsub|\<chi\>><around*|(|A<rsub|\<chi\>><rsup|min>\<subset\>A<rsub|\<chi\>><rsup|+>\<subset\>A<rsub|\<chi\>><rsup|max>\<wedge\>A<rsub|\<chi\>><rsup|+>|)>\<wedge\>\<vDash\>\<cal-Q\>.A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>:>>>>>>
     Select invariants such that the residuum
     <math|A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>> is
     consistent. The final residuum <math|A<rsub|res>> represents the global
@@ -590,9 +597,9 @@
     <math|A<rsub|\<chi\>><rsup|+>> represent the invariants, the solution for
     invariant type parameters.
 
-    <item><math|<wide|\<alpha\>|\<bar\>><rsub|+><rsup|\<chi\>>,A<rsub|\<chi\>><rsup|L>,A<rsup|R><rsub|\<chi\>>=Strat<around*|(|A,<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|)>>
-    is computed as follows: for every <math|c\<in\>A>, and for every
-    <math|\<beta\><rsub|2>\<in\>FV<around*|(|c|)>> such that
+    <item><math|<wide|\<alpha\>|\<bar\>><rsub|+><rsup|\<chi\>>,A<rsub|\<chi\>><rsup|L>,A<rsup|R><rsub|\<chi\>>=Strat<around*|(|A<rsub|\<chi\>><rsup|+>,<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|)>>
+    is computed as follows: for every <math|c\<in\>A<rsub|\<chi\>><rsup|+>>,
+    and for every <math|\<beta\><rsub|2>\<in\>FV<around*|(|c|)>> such that
     <math|\<beta\><rsub|1>\<less\><rsub|\<cal-Q\>>\<beta\><rsub|2>> for
     <math|\<beta\><rsub|1>\<in\><wide|\<beta\>|\<bar\>><rsup|\<chi\>>>, if
     <math|\<beta\><rsub|2>> is universally quantified in <math|\<cal-Q\>>,
@@ -604,14 +611,14 @@
     replacing all such <with|mode|math|\<beta\><rsub|2>> add the resulting
     <math|c> to <with|mode|math|A<rsub|\<chi\>><rsup|L>>.
 
+    <\itemize>
+      <item>We add <math|<wide|\<alpha\>|\<bar\>><rsub|+><rsup|\<chi\>>> to
+      <math|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>>.
+    </itemize>
+
     <item><math|<tabular|<tformat|<table|<row|<cell|A<rsub|\<chi\>>>|<cell|=>|<cell|A<rsub|\<chi\>><rsup|0>\<cup\>A<rsub|\<chi\>><rsup|L>>>>>>>
     is the updated solution formula for <math|\<chi\>>, where
     <math|A<rsub|\<chi\>><rsup|0>> is the solution from previous round.
-
-    <item><math|<tabular|<tformat|<table|<row|<cell|A<rsub|+>>|<cell|=>|<cell|\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|R>>>>>>>
-    and <math|<tabular|<tformat|<table|<row|<cell|A<rsub|res>>|<cell|=>|<cell|A<rsub|+>\<cup\><wide|A<rsub|+>|~><around*|(|A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>|)>>>>>>>
-    is the resulting global constraint, where <math|<wide|A<rsub|+>|~>> is
-    the substitution corresponding to <math|A<rsub|+>>.
 
     <item><math|<tabular|<tformat|<table|<row|<cell|<wide|\<alpha\>|\<bar\>><rsup|\<chi\>><rsub|0>>|<cell|=>|<cell|<wide|\<alpha\>|\<bar\>>\<cap\>FV<around*|(|A<rsub|\<chi\>>|)>>>>>>>
     are the additional solution parameters coming from variables generated by
@@ -621,48 +628,34 @@
     The final solution parameters also include the variables generated by
     <math|Strat>.
 
+    <item><math|<tabular|<tformat|<table|<row|<cell|A<rsub|+>>|<cell|=>|<cell|\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|R>>>>>>>
+    and <math|<tabular|<tformat|<table|<row|<cell|A<rsub|res>>|<cell|=>|<cell|A<rsub|+>\<cup\><wide|A<rsub|+>|~><around*|(|A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>|)>>>>>>>
+    is the resulting global constraint, where <math|<wide|A<rsub|+>|~>> is
+    the substitution corresponding to <math|A<rsub|+>>.
+
     <item><math|<tabular|<tformat|<table|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|\<cup\><rsub|\<chi\>><wide|\<alpha\>|\<bar\>><rsup|\<chi\>><rsub|+>\<neq\>\<varnothing\><with|mode|text|
     \ then>>>>>>> -- If <math|Strat> generated new variables, we need to
     redistribute the <math|<wide|A<rsub|+>|~><around*|(|A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>|)>>
     atoms to make <math|\<cal-Q\><rprime|'>.A<rsub|res>> valid again.
 
-    <item><math|<tabular|<tformat|<table|<row|<cell|\<cal-Q\><rprime|'>,<wide|<wide|\<alpha\><rsub|>|\<bar\>><rsup|\<chi\>><rsub|+><rprime|'>|\<bar\>>,A<rsub|res><rprime|'>,<wide|\<exists\><wide|\<alpha\>|\<bar\>><rprime|'><rsup|\<chi\>>.A<rsub|\<chi\>><rprime|'>|\<bar\>>>|<cell|=>|<cell|Split<around*|(|\<cal-Q\><around*|[|<wide|\<forall\><wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<assign\><wide|\<forall\><around*|(|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>\<cup\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>|)>|\<bar\>>|]>,<wide|\<alpha\>|\<bar\>>\<setminus\>\<cup\><rsub|\<chi\>><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>,A<rsub|res>,<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>\<cup\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|A<rsub|\<chi\>>|\<bar\>>|)>>>>>>>
+    <item><math|<tabular|<tformat|<table|<row|<cell|A<rsub|res><rprime|'>,<wide|\<exists\><wide|\<alpha\>|\<bar\>><rprime|'><rsup|\<chi\>>.A<rsub|\<chi\>><rprime|'>|\<bar\>>>|<cell|=>|<cell|Split<around*|(|<wide|\<alpha\>|\<bar\>>\<setminus\>\<cup\><rsub|\<chi\>><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>,A<rsub|res>,<wide|A<rsub|\<chi\>>|\<bar\>>|)>>>>>>>
     Recursive call includes <math|<wide|\<alpha\>|\<bar\>><rsup|\<chi\>><rsub|+>>
     in <math|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>> so that, among other
     things, <math|A<rsub|+>> are redistributed into <math|A<rsub|\<chi\>>>.
 
-    <item><math|<tabular|<tformat|<table|<row|<cell|<with|mode|text|return>>|<cell|>|<cell|\<cal-Q\><rprime|'>,<wide|<wide|\<alpha\>|\<bar\>><rsub|+><rsup|\<chi\>><wide|\<alpha\><rsub|>|\<bar\>><rsup|\<chi\>><rsub|+><rprime|'>|\<bar\>>,A<rsub|res><rprime|'>,<wide|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>><wide|\<alpha\>|\<bar\>><rprime|'><rsup|\<chi\>>.A<rsub|\<chi\>><rprime|'>|\<bar\>>>>>>>>
-    We do not add <math|\<forall\><wide|\<alpha\>|\<bar\>>> in front of
-    <math|\<cal-Q\><rprime|'>> because it already includes these variables.
-    <math|<wide|<wide|\<alpha\>|\<bar\>><rsub|+><rsup|\<chi\>><wide|\<alpha\><rsub|>|\<bar\>><rsup|\<chi\>><rsub|+><rprime|'>|\<bar\>>>
-    lists all variables introduced by <math|Strat>.
+    <item><math|<tabular|<tformat|<table|<row|<cell|<with|mode|text|return>>|<cell|>|<cell|A<rsub|res><rprime|'>,<wide|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>><wide|\<alpha\>|\<bar\>><rprime|'><rsup|\<chi\>>.A<rsub|\<chi\>><rprime|'>|\<bar\>>>>>>>>
 
     <item><math|<tabular|<tformat|<table|<row|<cell|<with|mode|text|else
-    return>>|<cell|>|<cell|\<forall\><around*|(|<wide|\<alpha\>|\<bar\>>\<setminus\>\<cup\><rsub|\<chi\>><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>|)>\<cal-Q\>,<wide|<wide|\<alpha\><rsub|>|\<bar\>><rsup|\<chi\>><rsub|+>|\<bar\>>,A<rsub|res>,<wide|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.A<rsub|\<chi\>>|\<bar\>>>>>>>>
+    return>>|<cell|>|<cell|A<rsub|res>,<wide|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.A<rsub|\<chi\>>|\<bar\>>>>>>>>
     Note that <math|<wide|\<alpha\>|\<bar\>>\<setminus\>\<cup\><rsub|\<chi\>><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>>
     does not contain the current <math|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>>,
     because <math|<wide|\<alpha\>|\<bar\>>> does not contain it initially and
-    the recursive call maintains that: <math|<wide|\<alpha\>|\<bar\>>\<assign\><wide|\<alpha\>|\<bar\>>\<setminus\>\<cup\><rsub|\<chi\>><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>,<wide|\<beta\>|\<bar\>>\<assign\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>\<cup\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>|\<bar\>>>.
+    the recursive call maintains that: <math|<wide|\<alpha\>|\<bar\>>\<assign\><wide|\<alpha\>|\<bar\>>\<setminus\>\<cup\><rsub|\<chi\>><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>,<wide|\<beta\>|\<bar\>><rsup|\<chi\>>\<assign\><wide|\<beta\>|\<bar\>><rsup|\<chi\>><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>>.
   </enumerate>
 
-  Finally we define <math|Split<around*|(|\<cal-Q\>,<wide|\<alpha\>|\<bar\>>,A,<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>|)>\<assign\>Split<around*|(|\<cal-Q\>,<wide|\<alpha\>|\<bar\>>,A,<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|\<top\>|\<bar\>>|)>>
-  and for <math|\<Phi\>=\<cal-Q\>.\<wedge\><rsub|i><around*|(|D<rsub|i>\<Rightarrow\>C<rsub|i>|)>>:
-
-  <\eqnarray*>
-    <tformat|<table|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>>.A>|<cell|=>|<cell|Abd<around*|(|\<cal-Q\><around*|[|<wide|\<forall\>\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<assign\><wide|\<exists\>\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>|]>,<wide|D<rsub|i>,C<rsub|i>|\<bar\>>|)>>>|<row|<cell|<around*|(|\<cal-Q\><rprime|'>,<wide|<wide|\<alpha\>|\<bar\>><rsup|\<chi\>><rsub|+>|\<bar\>>,A<rsub|res>,<wide|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.A<rsub|\<chi\>>|\<bar\>>|)>>|<cell|=>|<cell|Split<around*|(|\<cal-Q\>,<wide|\<alpha\>|\<bar\>><rsub|j>,A<rsub|j>,<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>,k>|\<bar\>>|)>>>|<row|<cell|\<Psi\><around*|(|\<Phi\>,<wide|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>><rsub|F>.F<rsub|\<chi\>>|\<bar\>>|)>>|<cell|=>|<cell|<around*|(|A<rsub|res>,<wide|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>><rsub|F><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.F<rsub|\<chi\>>\<wedge\>A<rsub|\<chi\>><around*|[|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>\<assign\>\<delta\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>|]>|\<bar\>>|)>.>>>>
-  </eqnarray*>
-
-  We iterate <math|\<Psi\>> to get the answer: Start with
-  <math|S<rsub|0>\<assign\><wide|\<top\>|\<bar\>>>. If
-  <math|\<Psi\><around*|(|\<Phi\>,S<rsub|k>|)>=A<rsub|res>,S<rsub|k>> then
-  return <math|A<rsub|res>,S<rsub|k>>. Otherwise, let
-  <math|S=H<around*|(|S<rsub|0>,\<ldots\>,S<rsub|k>|)>> and
-  <math|A<rsub|res>,S<rsub|k+1>=\<Psi\><around*|(|<wide|S|~><around*|(|\<Phi\>|)>,S|)>>
-  and repeat with <math|k\<assign\>k+1>. <math|H<around*|(|S<rsub|0>,\<ldots\>,S<rsub|k>|)>>
-  is a convergence improving heuristic, a dummy implementation is
-  <math|H<around*|(|S<rsub|0>,\<ldots\>,S<rsub|k>|)>=S<rsub|k>>.
-  <math|<wide|S|~>> is the substitution of predicate variables
-  <math|<wide|\<chi\>|\<bar\>>> corresponding to <math|S>.
+  Finally we define <math|Split<around*|(|<wide|\<alpha\>|\<bar\>>,A|)>\<assign\>Split<around*|(|<wide|\<alpha\>|\<bar\>>,A,<wide|\<top\>|\<bar\>>|)>>.
+  The complete algorithm for solving predicate variables is presented in the
+  next section.
 
   <subsection|Solving for Existential Types Predicates>
 
@@ -702,7 +695,10 @@
   <math|<with|math-font-series|bold|let> \<ldots\>
   <with|math-font-series|bold|in>> expressions.
   <math|\<wedge\><rsub|\<beta\><rsub|\<chi\>>>A<rsub|\<beta\><rsub|\<chi\>>>>
-  is a conjunction that spans all such occurrences.
+  is a conjunction that spans all such occurrences. The variant of the
+  algorithm to achieve completeness as conjectured in
+  <cite|InvariantsTechRep2> would compute all answers for variants of
+  <math|Abd> and <math|Split> algorithms that return multiple answers.
 
   We start with <math|S<rsub|0>\<assign\><wide|\<top\>|\<bar\>>>.
   <math|Connected<around*|(|\<alpha\>,G|)>> is the connected component of
@@ -725,6 +721,8 @@
   assume they are universal, and some use a variant of the quantifier, e.g.
   <math|\<cal-Q\><rprime|'><around*|[|<wide|\<forall\>\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<assign\><wide|\<exists\>\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>|]>>,
   where they are existential.
+
+  \;
 
   <\bibliography|bib|tm-plain|biblio.bib>
     <\bib-list|8>
@@ -793,25 +791,25 @@
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1>>
-    <associate|auto-10|<tuple|5|6>>
+    <associate|auto-10|<tuple|5|7>>
     <associate|auto-11|<tuple|5.1|7>>
     <associate|auto-12|<tuple|5.2|8>>
-    <associate|auto-13|<tuple|5.3|8>>
-    <associate|auto-14|<tuple|5.3|8>>
+    <associate|auto-13|<tuple|5.3|9>>
+    <associate|auto-14|<tuple|5.3|9>>
     <associate|auto-2|<tuple|2|2>>
     <associate|auto-3|<tuple|2.1|3>>
     <associate|auto-4|<tuple|3|4>>
     <associate|auto-5|<tuple|3.1|4>>
     <associate|auto-6|<tuple|3.2|4>>
     <associate|auto-7|<tuple|3.3|5>>
-    <associate|auto-8|<tuple|4|5>>
+    <associate|auto-8|<tuple|4|6>>
     <associate|auto-9|<tuple|4.1|6>>
     <associate|bib-AbductionSolvMaher|<tuple|3|9>>
     <associate|bib-AntiUnifAlg|<tuple|8|9>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
-    <associate|bib-ArithQuantElim|<tuple|1|8>>
+    <associate|bib-ArithQuantElim|<tuple|1|9>>
     <associate|bib-ConvexHull|<tuple|2|9>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
@@ -854,6 +852,8 @@
       ConvexHull
 
       ConvexHull
+
+      InvariantsTechRep2
 
       InvariantsTechRep2
     </associate>

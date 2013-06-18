@@ -109,12 +109,12 @@ let transpose_lists lls =
     | hd::tl ->
         aux (List.map (fun e->[e]) hd) tl
 
-let minimal leq l =
+let minimal ~less l =
   let rec aux acc = function
     | [] -> acc
     | e::l ->
-      if List.exists (flip leq e) acc then aux acc l
-      else aux (e::List.filter (fun f -> not (leq e f)) acc) l in
+      if List.exists (flip less e) acc then aux acc l
+      else aux (e::List.filter (fun f -> not (less e f)) acc) l in
   aux [] l
 
 let sorted_diff xs ys =
@@ -161,6 +161,7 @@ let inter_merge (type a) (type b) (type c)
   aux [] (l1, l2)
 
 let list_inter a b = List.filter (fun e -> List.mem e b) a
+let list_diff a b = List.filter (fun e -> not (List.mem e b)) a
 
 (* Second argument should be sorted. *)
 let replace_assocs ~repl l =

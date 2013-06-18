@@ -80,7 +80,8 @@ let new_q cmp_v uni_v =
     else q.negbs <- b::q.negbs;
     q.allchi <- Ints.add i q.allchi;
     Hashtbl.add chi_b i b;
-    Hashtbl.add b_chi b i
+    Hashtbl.add b_chi b i;
+    q.add_b_vs b [b]
   and add_b_vs b vs =
     assert (Hashtbl.mem b_chi b);
     List.iter (fun v -> Hashtbl.add same_q v b) vs;
@@ -138,8 +139,113 @@ let sb_brs_pred q psb brs = List.map
     sb_formula_pred q false psb prem, sb_formula_pred q true psb concl)
   brs
 
+(* 5 *)
+let select q ans ans_min ans_max =
+  failwith "select: not implemented yet"
+
+(* 6 *)
+let strat q b ans =
+  failwith "strat: not implemented yet"
+  
+
 let rec split avs ans q =
-  failwith "FIXME: not implemented yet"
+  (* 1 FIXME: do we really need this? *)
+  let cmp_v v1 v2 =
+    let a = q.cmp_v v1 v2 in
+    if a <> Same_quant then a
+    else
+      let c1 = VarSet.mem v1 q.allbvs
+      and c2 = VarSet.mem v2 q.allbvs in
+      if c1 && c2 then Same_quant
+      else if c1 then Downstream
+      else if c2 then Upstream
+      else Same_quant in
+  let greater_v v1 v2 = cmp_v v1 v2 = Upstream in
+  let rec loop avs ans sol =
+    (* 2 *)
+    let ans0 = List.filter
+      (function
+      | Eqty (TVar a, TVar b, _)
+          when not (q.uni_v a) && VarSet.mem b q.allbvs &&
+            cmp_v a b = Downstream -> false
+      | Eqty (TVar b, TVar a, _)
+          when not (q.uni_v a) && VarSet.mem b q.allbvs &&
+            cmp_v a b = Downstream -> false
+      | _ -> true) ans in
+    let ans0 = List.map (fun c -> c, fvs_atom c) ans0 in
+    (* 3 *)
+    let ans_min = List.map
+      (fun b ->
+        let bs = Hashtbl.find q.b_vs b in
+        b, map_some
+          (fun (c, vs) ->
+            let vmax =
+              minimal ~less:greater_v (VarSet.elements vs) in
+            if List.for_all (fun v -> VarSet.mem v bs) vmax
+            then Some c else None)
+          ans0)
+      q.negbs in
+    (* 4 *)
+    let ans_max = List.map
+      (fun b ->
+        let bs = Hashtbl.find q.b_vs b in
+        b, map_some
+          (fun (c, vs) ->
+            let vmax = minimal ~less:greater_v
+                (VarSet.elements (VarSet.inter vs q.allbvs)) in
+            if List.exists (fun v -> VarSet.mem v bs) vmax
+            then Some c else None)
+          ans0)
+      q.negbs in
+    (* 5 *)
+    let ans_p = select q ans ans_min ans_max in
+    (* 6 *)
+    let ans_strat = List.map
+      (fun (b, ans_p) ->
+        let (avs_p, ans_l, ans_r) = strat q b ans_p in
+        q.add_b_vs b avs_p;
+        (* 7 *)
+        let ans0 = List.assoc b sol in
+        let ans = ans0 @ ans_l in
+        (* 8 *)
+        let avs0 = VarSet.inter avs (fvs_formula ans) in
+        (* 9.a *)
+        let avs = VarSet.union avs0 (vars_of_list avs_p) in
+        (b, avs), (b, ans), (avs_p, ans_r)
+      ) ans_p in
+    let avss, sol', more = split3 ans_strat in
+    let avs_ps, ans_rs = List.split more in
+    (* 9.b *)
+    let avss = List.map
+      (fun (b, avs) ->
+        let lbs = List.filter
+          (fun b' -> q.cmp_v b b' = Downstream) q.negbs in
+        let uvs = List.fold_left VarSet.union VarSet.empty
+          (List.map (flip List.assoc avss) lbs) in
+        VarSet.diff avs uvs)
+      avss in
+    (* 10 *)
+    let ans_p = List.concat ans_rs in
+    let ans0_res = list_diff ans (concat_map snd sol') in
+    let ans_res = to_formula ans_p @
+      subst_formula ans_p ans0_res in
+    let avs_p = List.concat avs_ps in
+    let avsl = List.map VarSet.elements avss in
+    (* 11 *)
+    if avs_p <> []
+    then
+      (* 12 *)
+      let avs' = VarSet.diff avs
+        (List.fold_left VarSet.union VarSet.empty avss) in
+      let ans_res', sol' = loop avs' ans_res sol' in
+      (* 13 *)
+      ans_res', List.map2
+        (fun avs (b, (avs', ans')) -> b, (avs@avs', ans')) avsl sol'
+    else
+      (* 14 *)
+      ans_res, List.map2 (fun avs (b, ans) -> b, (avs, ans)) avsl sol' in
+  let solT = List.map (fun b->b, []) q.negbs in
+  loop (vars_of_list avs) ans solT  
 
 let connected v phi =
   (* FIXME: TODO *)
@@ -176,12 +282,12 @@ let solve cmp_v uni_v brs =
       List.iter
         (function
         | PredVarU (i, TVar b) | PredVarB (i, TVar b, _) ->
-          q.add_bchi b i false; q.add_b_vs b [b]
+          q.add_bchi b i false
         | _ -> ()) prem;
       List.iter
         (function
         | PredVarU (i, TVar b) | PredVarB (i, TVar b, _) ->
-          q.add_bchi b i true; q.add_b_vs b [b]
+          q.add_bchi b i true
         | _ -> ()) concl;
     ) brs;
   let solT = List.map
