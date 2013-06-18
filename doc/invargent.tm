@@ -722,7 +722,15 @@
   <math|\<cal-Q\><rprime|'><around*|[|<wide|\<forall\>\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<assign\><wide|\<exists\>\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>|]>>,
   where they are existential.
 
-  \;
+  The code that selects <math|\<wedge\><rsub|\<chi\>><around*|(|A<rsub|\<chi\>><rsup|min>\<subset\>A<rsub|\<chi\>><rsup|+>\<subset\>A<rsub|\<chi\>><rsup|max>\<wedge\>A<rsub|\<chi\>><rsup|+>|)>\<wedge\>\<vDash\>\<cal-Q\>.A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>>
+  is an incremental validity checker. It starts with
+  <math|A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|max>> and
+  tries to add as many atoms <math|c\<in\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|max>\\\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|min>>
+  as possible to what in effect becomes <math|A<rsub|res>>. The remaining
+  atoms are distributed among <math|A<rsub|b<rsub|\<chi\>>><rsup|+>> by
+  putting them into the last <math|b<rsub|\<chi\>>> in <math|\<cal-Q\>>, i.e.
+  the first <verbatim|b> in the <verbatim|q.negbs> list, for which
+  <math|x<rsub|\<prec\>><around*|(|<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<cap\>FV<around*|(|c|)>|)>\<cap\><wide|\<beta\>|\<bar\>><rsup|\<chi\>>\<neq\>\<varnothing\>>.
 
   <\bibliography|bib|tm-plain|biblio.bib>
     <\bib-list|8>
@@ -852,6 +860,8 @@
       ConvexHull
 
       ConvexHull
+
+      InvariantsTechRep2
 
       InvariantsTechRep2
 

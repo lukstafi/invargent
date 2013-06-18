@@ -6,7 +6,6 @@
     @since Mar 2013
 *)
 
-val satisfiable : Terms.atom list -> bool
 (** For uniformity, we return an empty list as introduced variables. *)
 val abd :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
@@ -34,3 +33,13 @@ val simplify :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   Terms.var_name list -> Terms.formula -> 
   Terms.var_name list * Terms.formula
+
+val satisfiable : Terms.atom list -> bool
+
+type state
+val empty_state : state
+(** Incremental check whether |= Q.A. Raises [Contradiction]. *)
+val holds :
+  (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
+  (Terms.var_name -> bool) ->
+  state -> Terms.formula -> state

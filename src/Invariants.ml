@@ -139,9 +139,39 @@ let sb_brs_pred q psb brs = List.map
     sb_formula_pred q false psb prem, sb_formula_pred q true psb concl)
   brs
 
+type state = subst * NumS.state
+
+let empty_state : state = [], NumS.empty_state
+
+let holds q (ty_st, num_st) cnj =
+  let ty_st, num_cnj, _ =
+    unify ~use_quants:true ~sb:ty_st q.cmp_v q.uni_v cnj in
+  let num_st = NumS.holds q.cmp_v q.uni_v num_st num_cnj in
+  ty_st, num_st
+
 (* 5 *)
-let select q ans ans_min ans_max =
-  failwith "select: not implemented yet"
+let select check_max_b q ans ans_min ans_max =
+  let allmax = concat_map snd ans_max
+  and allmin = concat_map snd ans_min in
+  let init_res = list_diff ans allmax in
+  let cands = list_diff allmax allmin in
+  (* Raises [Contradiction] here if solution impossible. *)
+  let init_state = holds q empty_state init_res in
+  let rec loop state ans_res ans_p = function
+    | [] -> ans_res, ans_p
+    | c::cands ->
+      try
+        let state = holds q state [c] in
+        loop state (c::ans_res) ans_p cands
+      with Contradiction _ ->
+        let vs = fvs_atom c in
+        let ans_p = List.map
+          (fun (b,ans as b_ans) ->
+            let bs = Hashtbl.find q.b_vs b in
+            if check_max_b vs bs then b, c::ans else b_ans)
+          ans_p in
+        loop state ans_res ans_p cands in
+  loop init_state init_res ans_min cands
 
 (* 6 *)
 let strat q b ans =
@@ -186,19 +216,20 @@ let rec split avs ans q =
           ans0)
       q.negbs in
     (* 4 *)
+    let check_max_b vs bs =
+      let vmax = minimal ~less:greater_v
+        (VarSet.elements (VarSet.inter vs q.allbvs)) in
+      List.exists (fun v -> VarSet.mem v bs) vmax in
     let ans_max = List.map
       (fun b ->
         let bs = Hashtbl.find q.b_vs b in
         b, map_some
           (fun (c, vs) ->
-            let vmax = minimal ~less:greater_v
-                (VarSet.elements (VarSet.inter vs q.allbvs)) in
-            if List.exists (fun v -> VarSet.mem v bs) vmax
-            then Some c else None)
+            if check_max_b vs bs then Some c else None)
           ans0)
       q.negbs in
-    (* 5 *)
-    let ans_p = select q ans ans_min ans_max in
+    (* 5, 10a *)
+    let ans_res, ans_ps = select check_max_b q ans ans_min ans_max in
     (* 6 *)
     let ans_strat = List.map
       (fun (b, ans_p) ->
@@ -211,8 +242,8 @@ let rec split avs ans q =
         let avs0 = VarSet.inter avs (fvs_formula ans) in
         (* 9.a *)
         let avs = VarSet.union avs0 (vars_of_list avs_p) in
-        (b, avs), (b, ans), (avs_p, ans_r)
-      ) ans_p in
+        (b, avs), (b, ans), (avs_p, ans_r))
+      ans_ps in
     let avss, sol', more = split3 ans_strat in
     let avs_ps, ans_rs = List.split more in
     (* 9.b *)
@@ -224,11 +255,9 @@ let rec split avs ans q =
           (List.map (flip List.assoc avss) lbs) in
         VarSet.diff avs uvs)
       avss in
-    (* 10 *)
+    (* 10b *)
     let ans_p = List.concat ans_rs in
-    let ans0_res = list_diff ans (concat_map snd sol') in
-    let ans_res = to_formula ans_p @
-      subst_formula ans_p ans0_res in
+    let ans_res = to_formula ans_p @ subst_formula ans_p ans_res in
     let avs_p = List.concat avs_ps in
     let avsl = List.map VarSet.elements avss in
     (* 11 *)

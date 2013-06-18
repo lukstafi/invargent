@@ -213,24 +213,6 @@ let solve ?(use_quants=false) ?(strict=false)
       proj ineqs (more_implicits @ implicits) ineqn in
   eqn @ eqs, proj ineqs [] ineqn
 
-let satisfiable cnj =
-  let cmp_v _ _ = Same_quant in
-  let uni_v _ = false in
-  let cmp_v v1 v2 =
-    match cmp_v v1 v2 with
-    | Upstream -> 1
-    | Downstream -> -1
-    | _ -> compare v1 v2 in
-  let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
-  let cmp_w (vars1,_,_) (vars2,_,_) =
-    match vars1, vars2 with
-    | [], [] -> 0
-    | _, [] -> -1
-    | [], _ -> 1
-    | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
-  try ignore (solve ~cnj cmp cmp_w uni_v); true
-  with Contradiction _ -> false
-
 let fvs_w (vars, _, _) = vars_of_list (List.map fst vars)
 
 exception Result of w_subst * ineqs
@@ -505,4 +487,43 @@ let disjelim cmp_v uni_v brs =
 (* TODO *)
 let simplify cmp_v vs cnj =
   if vs = [] then [], cnj
-  else failwith "Not implemented yet."
+  else failwith "simplify: not implemented yet"
+
+let satisfiable cnj =
+  let cmp_v _ _ = Same_quant in
+  let uni_v _ = false in
+  let cmp_v v1 v2 =
+    match cmp_v v1 v2 with
+    | Upstream -> 1
+    | Downstream -> -1
+    | _ -> compare v1 v2 in
+  let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
+  let cmp_w (vars1,_,_) (vars2,_,_) =
+    match vars1, vars2 with
+    | [], [] -> 0
+    | _, [] -> -1
+    | [], _ -> 1
+    | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
+  try ignore (solve ~cnj cmp cmp_w uni_v); true
+  with Contradiction _ -> false
+
+type state = w_subst * ineqs
+let empty_state = [], []
+
+let holds cmp_v uni_v (eqs, ineqs : state) cnj : state =
+  let cmp_v v1 v2 =
+    match cmp_v v1 v2 with
+    | Upstream -> 1
+    | Downstream -> -1
+    | _ -> compare v1 v2 in
+  let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
+  let cmp_w (vars1,_,_) (vars2,_,_) =
+    match vars1, vars2 with
+    | [], [] -> 0
+    | _, [] -> -1
+    | [], _ -> 1
+    | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
+  let eqs, (ineqs, implicits) =
+    solve ~eqs ~ineqs ~cnj cmp cmp_w uni_v in
+  let eqs, _ = solve ~eqs ~eqn:implicits cmp cmp_w uni_v in
+  eqs, ineqs
