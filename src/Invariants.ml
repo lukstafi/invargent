@@ -75,13 +75,15 @@ let new_q cmp_v uni_v =
   let find_b i = Hashtbl.find_all chi_b i in
   let find_chi b = Hashtbl.find b_chi b in
   let rec add_bchi b i posi =
-    assert (not (Hashtbl.mem b_chi b));
-    if posi then Hashtbl.add posi_b b ()
-    else q.negbs <- b::q.negbs;
-    q.allchi <- Ints.add i q.allchi;
-    Hashtbl.add chi_b i b;
-    Hashtbl.add b_chi b i;
-    q.add_b_vs b [b]
+    if Hashtbl.mem b_chi b
+    then assert (Hashtbl.find b_chi b = i)
+    else (
+      if posi then Hashtbl.add posi_b b ()
+      else q.negbs <- b::q.negbs;
+      q.allchi <- Ints.add i q.allchi;
+      Hashtbl.add chi_b i b;
+      Hashtbl.add b_chi b i;
+      q.add_b_vs b [b])
   and add_b_vs b vs =
     assert (Hashtbl.mem b_chi b);
     List.iter (fun v -> Hashtbl.add same_q v b) vs;
@@ -291,9 +293,20 @@ let rec split avs ans q =
   let solT = List.map (fun b->b, []) q.negbs in
   loop (vars_of_list avs) ans solT  
 
-let connected v phi =
-  (* FIXME: TODO *)
-  phi
+let connected v (vs, phi) =
+  let nodes = List.map (fun c -> c, fvs_atom c) phi in
+  let rec loop acc vs nvs rem =
+    let more, rem = List.partition
+      (fun (c, cvs) -> List.exists (flip VarSet.mem cvs) nvs) rem in
+    let mvs = List.fold_left VarSet.union VarSet.empty
+      (List.map snd more) in
+    let nvs = VarSet.elements (VarSet.diff mvs vs) in
+    let acc = List.map fst more @ acc in
+    if nvs = [] then acc
+    else loop acc (VarSet.union mvs vs) nvs rem in
+  let ans = loop [] VarSet.empty [v] nodes in
+  VarSet.elements (VarSet.inter (fvs_formula ans) (vars_of_list vs)),
+  ans
 
 (** Perform quantifier elimination on provided variables and generally
     simplify the formula. *)
@@ -359,6 +372,7 @@ let solve cmp_v uni_v brs =
           else if c1 then Downstream
           else if c2 then Upstream
           else cmp_v v1 v2 in
+        (* FIXME:     q.set_b_uni false; ? *)
         match Abduction.abd_s (cmp_v' gvs) uni_v ans g_ans with
         | None -> None
         | Some (gvs', g_ans') ->
@@ -369,18 +383,19 @@ let solve cmp_v uni_v brs =
           else
             let gvs = VarSet.elements
               (VarSet.inter (vars_of_list (gvs @ gvs')) (fvs_formula g_ans)) in
-            let b = q.find_b i in
-            List.iter (fun b -> q.add_b_vs b gvs) b;
+            (* freshened [gvs] will be added to [q] by substitution *)
             Some (i, (gvs @ vs, g_ans' @ ans))
       ) gK in
     (* 4 *)
     let sol1 = replace_assocs ~repl:gK sol1 in
     let brs = sb_brs_pred q sol1 brs in
     (* 5 *)
+    q.set_b_uni false;
     let vs, ans =
       match Abduction.abd cmp_v uni_v brs with Some (vs,ans) -> vs,ans
       | None -> failwith "FIXME-TODO: propagate contradiction"
         (* raise (Contradiction) *) in
+    q.set_b_uni true;
     let ans_res, sol2 = split vs ans q in
     (* 6 *)
     let lift_ex_types t2 (vs, ans) =

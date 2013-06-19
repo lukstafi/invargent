@@ -21,7 +21,7 @@ Milestones: [x] - completed, [#] - finishing (75%-95%), [+] - in the middle (25%
 - [x] Multisort disjunction elimination (includes anti-unification).
 - [x] Disjunction elimination for linear systems.
 - [#] Solve for predicate variables related to recursive definitions. Iterate till fixpoint part 1.
-- [+] Solve for predicate variables related to existential types. Iterate till fixpoint part 2.
+- [#] Solve for predicate variables related to existential types. Iterate till fixpoint part 2.
 - [_] Write convergence-enforcing heuristics for numeric constraints.
 - [_] Export (print) OCaml source. Collect examples, test, write user documentation.
 
