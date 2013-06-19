@@ -315,8 +315,6 @@ let converge sol0 sol1 sol2 =
   (* TODO *)
   sol2
 
-let implies sol1 sol2 =
-  failwith "FIXME: not implemented yet"
 
 let solve cmp_v uni_v brs =
   let q = new_q cmp_v uni_v in
@@ -385,24 +383,6 @@ let solve cmp_v uni_v brs =
         (* raise (Contradiction) *) in
     let ans_res, sol2 = split vs ans q in
     (* 6 *)
-    let sol2 = List.map
-      (fun (i, (vs, ans)) ->
-        (* [sol2] is currently organized by [b], and [sol1] by [i]
-           also, subsitute [delta] by [Delta true] *)
-        let bs = q.find_b i in
-        let ds = List.map (fun b-> b, List.assoc b sol2) bs in
-        let dans = concat_map
-         (fun (b, (dvs, dans)) ->
-           let renaming = matchup_vars q b vs in
-           subst_formula ((b, (Delta true, dummy_loc))::renaming) dans
-         ) ds in
-        let dvs = concat_map (fun (_,(dvs,_))->dvs) ds in
-        (* [dvs] must come before [vs] bc. of [matchup_vars] and [q] *)
-        i, (dvs @ vs, dans @ ans))
-      sol1 in    
-    (* 7 *)
-    let sol2 = converge sol0 sol1 sol2 in
-    (* 8 *)
     let lift_ex_types t2 (vs, ans) =
       let fvs = fvs_formula ans in
       let dvs = VarSet.elements (VarSet.diff fvs (vars_of_list vs)) in
@@ -410,14 +390,34 @@ let solve cmp_v uni_v brs =
       let a2 = match t2 with TVar a2 -> a2 | _ -> assert false in
       vs @ dvs, Eqty (Delta false, TCons (CNam "Tuple", targs), dummy_loc) ::
         subst_formula [a2, (Delta false, dummy_loc)] ans in
-    if implies sol1 sol2
+    (* 7 *)
+    if List.for_all (fun (_,(_,ans)) -> ans=[]) sol2
     then
       let sol = List.map
         (fun ((i,sol) as isol) ->
           try let t2, _ = List.assoc i chiK in
               i, lift_ex_types t2 sol
           with Not_found -> isol)
-        sol2 in
+        sol1 in
       ans_res, sol
-    else loop sol1 sol2 in
+    else
+      (* 8 *)
+      let sol2 = List.map
+        (fun (i, (vs, ans)) ->
+        (* [sol2] is currently organized by [b], and [sol1] by [i]
+           also, subsitute [delta] by [Delta true] *)
+          let bs = q.find_b i in
+          let ds = List.map (fun b-> b, List.assoc b sol2) bs in
+          let dans = concat_map
+            (fun (b, (dvs, dans)) ->
+              let renaming = matchup_vars q b vs in
+              subst_formula ((b, (Delta true, dummy_loc))::renaming) dans
+            ) ds in
+          let dvs = concat_map (fun (_,(dvs,_))->dvs) ds in
+        (* [dvs] must come before [vs] bc. of [matchup_vars] and [q] *)
+          i, (dvs @ vs, dans @ ans))
+        sol1 in    
+    (* 9 *)
+      let sol2 = converge sol0 sol1 sol2 in
+      loop sol1 sol2 in
   loop solT solT
