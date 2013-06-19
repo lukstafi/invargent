@@ -175,7 +175,22 @@ let select check_max_b q ans ans_min ans_max =
 
 (* 6 *)
 let strat q b ans =
-  failwith "strat: not implemented yet"
+  let strat = List.map
+    (fun c ->
+      let vs = VarSet.elements (fvs_atom c) in
+      let vs = List.filter
+        (fun v -> q.cmp_v b v = Upstream) vs in
+      let loc = atom_loc c in
+      if List.exists q.uni_v vs then
+        raise (Contradiction
+                 ("Escaping universal variable",
+                  Some (TVar b, TVar (List.find q.uni_v vs)), loc));
+      let avs = List.map Infer.freshen_var vs in
+      let ans_r = List.map2 (fun a b -> a, (TVar b, loc)) avs vs in
+      avs, subst_atom ans_r c, ans_r)
+    ans in
+  let avs, ans_l, ans_r = split3 strat in
+  List.concat avs, ans_l, List.concat ans_r
   
 
 let rec split avs ans q =

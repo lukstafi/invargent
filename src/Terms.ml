@@ -275,6 +275,11 @@ let fvs_atom = function
   | PredVarB (_, t1, t2) ->
     VarSet.union (fvs_typ t1) (fvs_typ t2)
 
+let atom_loc = function
+  | Eqty (_, _, loc) | Leq (_, _, loc)
+  | CFalse loc -> loc
+  | PredVarU (_, _) | PredVarB (_, _, _) -> dummy_loc
+
 let subst_atom sb = function
   | Eqty (t1, t2, loc) -> Eqty (subst_typ sb t1, subst_typ sb t2, loc)
   | Leq (t1, t2, loc) -> Leq (subst_typ sb t1, subst_typ sb t2, loc)

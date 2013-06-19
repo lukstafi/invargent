@@ -143,6 +143,8 @@ val vars_of_list : var_name list -> VarSet.t
 
 (** {3 Formulas} *)
 
+val atom_loc : atom -> loc
+
 type subst = (var_name * (typ * loc)) list
 
 val subst_atom : subst -> atom -> atom
