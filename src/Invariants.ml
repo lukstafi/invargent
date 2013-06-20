@@ -91,7 +91,7 @@ let new_q cmp_v uni_v =
     try
       let ovs = Hashtbl.find b_vs b in
       Hashtbl.replace b_vs b (VarSet.union ovs (vars_of_list vs));
-      let qvs = Hashtbl.find b_qvs b in
+      let qvs = try Hashtbl.find b_qvs b with Not_found -> [] in
       let vs = List.filter (fun v -> not (List.mem v qvs)) vs in
       Hashtbl.replace b_qvs b (vs @ qvs);
     with Not_found -> Hashtbl.add b_vs b (vars_of_list vs)
@@ -421,7 +421,7 @@ let solve cmp_v uni_v brs =
         (fun (i, (vs, ans)) ->
         (* [sol2] is currently organized by [b], and [sol1] by [i]
            also, subsitute [delta] by [Delta true] *)
-          let bs = q.find_b i in
+          let bs = List.filter (not % q.positive_b) (q.find_b i) in
           let ds = List.map (fun b-> b, List.assoc b sol2) bs in
           let dans = concat_map
             (fun (b, (dvs, dans)) ->
