@@ -360,6 +360,11 @@
   abduction algorithm, and recover them after the final answer for terms
   (i.e. for the type sort) is found.
 
+  When searching for abduction answer fails, we raise exception
+  <verbatim|Suspect> that contains the partial answer conjoined with
+  conclusion of an implication that failed to produce an answer compatible
+  with remaining implications.
+
   <subsection|Joint constraint abduction for linear arithmetic>
 
   We use <em|Fourier-Motzkin elimination>. To avoid complexities we initially

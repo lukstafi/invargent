@@ -23,7 +23,7 @@ let test_simple lhs_m rhs_m ?(validate=(fun _ _ -> ())) skip res =
   let lhs, rhs = br_simple lhs rhs in
   let ans =
     match abd_simple cmp_v uni_v validate skip ([],[]) (lhs, rhs) with
-    | None -> "none"
+    | None _ -> "none"
     | Some (vs, ans_typ) ->
       pr_to_str pr_formula
         (to_formula ans_typ) in
@@ -90,15 +90,14 @@ td = Int";
         let lhs8, rhs8 = br_simple lhs8 rhs8 in
         let lhs9, rhs9 = br_simple lhs9 rhs9 in
         let ans =
-          match abd_typ cmp_v uni_v
-            [lhs0, rhs0; lhs1, rhs1;
-             lhs2, rhs2; lhs4, rhs4;
-             lhs5, rhs5; lhs6, rhs6;
-             lhs7, rhs7; lhs8, rhs8;
-             lhs9, rhs9] with
-            | None -> "none"
-            | Some (vs, ans_typ, _) ->
-              pr_to_str pr_formula (to_formula ans_typ) in
+          try let vs, ans_typ, _ = abd_typ cmp_v uni_v
+                [lhs0, rhs0; lhs1, rhs1;
+                 lhs2, rhs2; lhs4, rhs4;
+                 lhs5, rhs5; lhs6, rhs6;
+                 lhs7, rhs7; lhs8, rhs8;
+                 lhs9, rhs9] in
+              pr_to_str pr_formula (to_formula ans_typ)
+          with Suspect _ -> "none" in
         assert_equal ~printer:(fun x -> x)
           "tE = (Term (tC, tD) → tH, tD) ∧ tF = (tH, tD) ∧ tG = tD ∧ tI = tD ∧
 tL = (tu, tz) ∧ ta = (Term tc) ∧ tb = tc ∧ te = Bool ∧
@@ -119,7 +118,7 @@ ty = tu" ans
       Infer.reset_state ();
       let prog = Parser.program Lexer.token
 	(Lexing.from_string
-"newtype Binary : num
+           "newtype Binary : num
 newtype Carry : num
 
 newcons Zero : Binary 0
@@ -339,10 +338,10 @@ let rec plus =
         let uni_v v = false in
         let cmp_v v1 v2 = Same_quant in
         let brs = Infer.simplify preserve cmp_v uni_v brs in
-        let ans = abd cmp_v uni_v
-          (List.map Infer.br_to_formulas brs) in
-        assert_bool "No abduction answer" (ans <> None);
-        let vs, ans = Aux.unsome ans in
+        let vs, ans =
+          try abd cmp_v uni_v
+                (List.map Infer.br_to_formulas brs)
+          with Suspect _ -> assert_failure "No abduction answer" in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
@@ -387,10 +386,10 @@ let rec filter =
         let uni_v v = false in
         let cmp_v v1 v2 = Same_quant in
         let brs = Infer.simplify preserve cmp_v uni_v brs in
-        let ans = abd cmp_v uni_v
-          (List.map Infer.br_to_formulas brs) in
-        assert_bool "No abduction answer" (ans <> None);
-        let vs, ans = Aux.unsome ans in
+        let vs, ans =
+          try abd cmp_v uni_v
+                (List.map Infer.br_to_formulas brs)
+          with Suspect _ -> assert_failure "No abduction answer" in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;

@@ -131,10 +131,8 @@ let tests = "NumS" >::: [
         let brs = Parser.cn_branches Lexer.token
 	  (Lexing.from_string test1_brs) in
         let ans =
-          match abd cmp_v uni_v brs with
-            | None -> "none"
-            | Some (vs, ans) ->
-              pr_to_str pr_formula ans in
+          try let vs, ans = abd cmp_v uni_v brs
+              in pr_to_str pr_formula ans with Suspect _ -> "none" in
         assert_equal ~printer:(fun x -> x)
           ""
           ans

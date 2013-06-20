@@ -343,6 +343,7 @@ let str_of_cmp = function
 | Not_in_scope -> "not_in_scope"
 
 exception Contradiction of string * (typ * typ) option * loc
+exception Suspect of var_name list * formula
 
 let typ_sort_typ = function
   | TVar (VNam (Undefined_sort, _) | VId (Undefined_sort, _)) ->

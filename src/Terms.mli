@@ -173,6 +173,7 @@ type var_scope =
 | Upstream | Same_quant | Downstream | Not_in_scope
 
 exception Contradiction of string * (typ * typ) option * loc
+exception Suspect of var_name list * formula
 
 val subst_typ : subst -> typ -> typ
 val update_sb : more_sb:subst -> subst -> subst

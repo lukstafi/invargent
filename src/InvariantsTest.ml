@@ -9,7 +9,7 @@ open OUnit
 open Terms
 open Aux
 
-let test_case msg test result chi =
+let test_case msg test result chi residuum =
       Terms.reset_state ();
       Infer.reset_state ();
       let prog = Parser.program Lexer.token
@@ -30,6 +30,12 @@ let test_case msg test result chi =
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
         assert_equal ~printer:(fun x -> x)
           result
+          (Format.flush_str_formatter ());
+        ignore (Format.flush_str_formatter ());
+        Format.fprintf Format.str_formatter "@[<2>%a@]"
+          pr_formula sol_res;
+        assert_equal ~printer:(fun x -> x)
+          residuum
           (Format.flush_str_formatter ());
       with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
@@ -65,7 +71,16 @@ let rec eval = function
   | Pair (x, y) -> eval x, eval y
   | Fst p -> (match eval p with x, y -> x)
   | Snd p -> (match eval p with x, y -> y)"
-        "" 1
+
+        "∃. (δ) = (Term t4 → t4) ∧ (δ) = (Term t5 → t5)" 1
+        "t3 = (Term t5) ∧ t11 = (Term Int → Int) ∧ t16 = (Term Int → Int) ∧
+  t19 = (Term Int → Int) ∧ t24 = (Term t4 → t4) ∧
+  t27 = (Term t4 → t4) ∧ t30 = (Term Bool → Bool) ∧ t38 = t36 ∧
+  t39 = t37 ∧ t41 = (Term t36 → t36) ∧ t43 = (Term t37 → t37) ∧
+  t50 = (Term (t4, t47) → t4, t54) ∧ t51 = (t4, t54) ∧ t52 = t4 ∧
+  t53 = t4 ∧ t63 = (Term (t59, t4) → t66, t4) ∧ t64 = (t66, t4) ∧
+  t65 = t4 ∧ t67 = t4"
+    (* FIXME: figure out that t4=t5 and simplify *)
 (*
 " ⟹ 𝛘1(t2)
 | 𝛘1(t1) ⟹ t1 = (Term t5 → t4) ∧ t3 = (Term t5)
@@ -109,6 +124,7 @@ let rec filter =
           True -> LCons (x, filter l)
 	| False -> filter l"
         "" 1
+        ""
 (*
 " ⟹ 𝛘1(t2)
 | 𝛘1(t1) ⟹ t1 = (List (t6, n5) → Ex1 t4) ∧ t3 = (List (t6, n5))
@@ -157,6 +173,7 @@ let rec equal = function
   | _ -> False
 test b_not (equal (TInt, TList TInt) Zero Nil)"
         "" 1
+        ""
 (*
 " ⟹ t107 = (Ty Int, Ty (List Int) → Int → List t98 → Bool) ∧
   𝛘1(t2) ∧ 𝛘1(t107)
@@ -226,6 +243,7 @@ let rec plus =
 	  | PZero b1 -> PZero (plus COne a1 b1)
 	  | POne b1 -> POne (plus COne a1 b1)))"
         "" 1
+        ""
 (*
 " ⟹ 𝛘1(t2)
 | 𝛘1(t1) ⟹ t1 = (Carry n5 → t4) ∧ t3 = (Carry n5)

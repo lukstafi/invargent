@@ -5,6 +5,7 @@
     @author Lukasz Stafiniak lukstafi (AT) gmail.com
     @since Mar 2013
 *)
+
 val abd_simple :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
@@ -17,12 +18,13 @@ val abd_typ :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
   (Terms.subst * Terms.subst) list ->
-  (Terms.var_name list * Terms.subst * Terms.formula list) option
+  Terms.var_name list * Terms.subst * Terms.formula list
+(* Raises [Suspect] if no answer can be found. *)
 val abd :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
   (Terms.formula * Terms.formula) list ->
-  (Terms.var_name list * Terms.formula) option
+  Terms.var_name list * Terms.formula
 val abd_mockup_num :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->

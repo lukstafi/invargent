@@ -330,13 +330,16 @@ let abd cmp_v uni_v brs =
     | [] ->
       let ans = List.map (expand_atom true) (unsubst ans_eqs) in
       let ans = ans @ List.map (expand_atom false) (unsolve ans_ineqs) in
-      Some ([], ans)
+      [], ans
     | (skip, br as obr)::more_brs ->
       match abd_simple cmp cmp_w uni_v validate skip ans_eqs ans_ineqs br with
       | Some (ans_eqs, ans_ineqs) ->
         loop false ans_eqs ans_ineqs (obr::done_brs) more_brs
       | None ->
-        if first then None
+        if first then
+          let ans = List.map (expand_atom true) (unsubst ans_eqs) in
+          let ans = ans @ List.map (expand_atom false) (unsolve ans_ineqs) in
+          raise (Suspect ([], ans @ snd br))
         else loop true [] [] []
           ((skip+1, br)::List.rev_append done_brs more_brs) in
   loop true [] [] [] (br0::more_brs)

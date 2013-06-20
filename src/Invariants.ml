@@ -145,9 +145,9 @@ type state = subst * NumS.state
 
 let empty_state : state = [], NumS.empty_state
 
-let holds q (ty_st, num_st) cnj =
+let holds q ?params (ty_st, num_st) cnj =
   let ty_st, num_cnj, _ =
-    unify ~use_quants:true ~sb:ty_st q.cmp_v q.uni_v cnj in
+    unify ~use_quants:true ?params ~sb:ty_st q.cmp_v q.uni_v cnj in
   let num_st = NumS.holds q.cmp_v q.uni_v num_st num_cnj in
   ty_st, num_st
 
@@ -392,9 +392,11 @@ let solve cmp_v uni_v brs =
     (* 5 *)
     q.set_b_uni false;
     let vs, ans =
-      match Abduction.abd cmp_v uni_v brs with Some (vs,ans) -> vs,ans
-      | None -> failwith "FIXME-TODO: propagate contradiction"
-        (* raise (Contradiction) *) in
+      try Abduction.abd cmp_v uni_v brs
+      with Suspect (vs, concl) ->
+        q.set_b_uni false; ignore (holds q ~params:vs empty_state concl);
+        q.set_b_uni true; ignore (holds q ~params:vs empty_state concl);
+        assert false in
     q.set_b_uni true;
     let ans_res, sol2 = split vs ans q in
     (* 6 *)

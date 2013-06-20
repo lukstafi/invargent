@@ -145,36 +145,36 @@ let abd_typ cmp_v uni_v brs =
     brs in
   (* let time = ref (Sys.time ()) in *)
   let rec loop first acc done_brs = function
-    | [] -> Some acc
+    | [] -> acc
     | (skip, br as obr)::more_brs ->
       (*Format.printf "abd_typ-loop:@ @[<2>%a@ ⟹@ %a@]@\n"
         pr_subst (fst br) pr_subst (snd br);*)
       match abd_simple cmp_v uni_v validate skip acc br with
       | Some acc ->
         (*let ntime = Sys.time () in
-        Format.printf "ans: (%.2fs)@ @[<2>%a@]@\n" (ntime -. !time)
+          Format.printf "ans: (%.2fs)@ @[<2>%a@]@\n" (ntime -. !time)
           pr_subst (snd acc); time := ntime;*)
         loop false acc (obr::done_brs) more_brs
       | None ->
         (* Format.printf "reset@\n"; *)
-        if first then None
+        if first then raise
+          (Suspect (fst acc, to_formula (snd acc @ snd br)))
         else loop true ([], []) []
           ((skip+1, br)::List.rev_append done_brs more_brs) in
-  Aux.bind_opt (loop true ([], []) [] (br0::more_brs))
-    (fun (vs, ans) ->
-      let num = List.map
-        (fun (prem, concl) ->
-          try
-            let cnj_ty, cnj_num =
-              combine_sbs ~use_quants:false ~params:vs cmp_v uni_v
-                [prem; ans] in
-            let res_ty, res_num =
-              residuum cmp_v uni_v vs cnj_ty concl in
-            assert (res_ty = []);
-            cnj_num @ res_num
-          with Contradiction _ -> assert false)
-        brs in
-      Some (vs, ans, num))
+  let vs, ans = loop true ([], []) [] (br0::more_brs) in
+  let num = List.map
+    (fun (prem, concl) ->
+      try
+        let cnj_ty, cnj_num =
+          combine_sbs ~use_quants:false ~params:vs cmp_v uni_v
+            [prem; ans] in
+        let res_ty, res_num =
+          residuum cmp_v uni_v vs cnj_ty concl in
+        assert (res_ty = []);
+        cnj_num @ res_num
+      with Contradiction _ -> assert false)
+    brs in
+  vs, ans, num
   
 
 let abd_mockup_num cmp_v uni_v brs =
@@ -201,11 +201,12 @@ let abd_mockup_num cmp_v uni_v brs =
                      (prem_so, concl_so))
       | None -> None)
        brs) in
-  Aux.map_opt (abd_typ cmp_v uni_v brs_typ)
-    (fun (tvs, ans_typ, more_num) ->
-      List.map2
-        (fun (prem,concl) more -> prem, more @ concl)
-        brs_num more_num)
+  try
+    let tvs, ans_typ, more_num = abd_typ cmp_v uni_v brs_typ in
+    Some (List.map2
+            (fun (prem,concl) more -> prem, more @ concl)
+            brs_num more_num)
+  with Suspect _ -> None
 
 let abd cmp_v uni_v brs =
   (* Do not change the order and no. of branches afterwards. *)
@@ -226,22 +227,19 @@ let abd cmp_v uni_v brs =
           | CFalse loc ->
             raise (Contradiction ("assert false is possible", None, loc))
           | _ -> ()) concl_so;
-          if not (NumS.satisfiable concl_num) then None
+          if not (NumS.satisfiable prem_num) then None
           else Some ((prem_typ, concl_typ), (prem_num, concl_num),
                      (prem_so, concl_so))
       | None -> None)
        brs) in
-  Aux.bind_opt (abd_typ cmp_v uni_v brs_typ)
-    (fun (tvs, ans_typ, more_num) ->
-      let brs_num = List.map2
-        (fun (prem,concl) more -> prem, more @ concl)
-        brs_num more_num in
-      let ans_num = NumS.abd cmp_v uni_v brs_num in
-      Aux.map_opt ans_num
-        (fun (nvs, ans_num) ->
-          (nvs @ tvs,
-           Aux.map_append (fun (v,(t,lc)) -> Eqty (TVar v,t,lc))
-             ans_typ ans_num)))
+  let tvs, ans_typ, more_num = abd_typ cmp_v uni_v brs_typ in
+  let brs_num = List.map2
+    (fun (prem,concl) more -> prem, more @ concl)
+    brs_num more_num in
+  let nvs, ans_num = NumS.abd cmp_v uni_v brs_num in
+  nvs @ tvs,
+  Aux.map_append (fun (v,(t,lc)) -> Eqty (TVar v,t,lc))
+    ans_typ ans_num
 
 let abd_s cmp_v uni_v prem concl =
   (* Do not change the order and no. of branches afterwards. *)

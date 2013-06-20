@@ -6,12 +6,13 @@
     @since Mar 2013
 *)
 
-(** For uniformity, we return an empty list as introduced variables. *)
+(** For uniformity, we return an empty list as introduced
+    variables. Raise [Suspect] if no answer can be found. *)
 val abd :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
   (Terms.formula * Terms.formula) list ->
-  (Terms.var_name list * Terms.formula) option
+  Terms.var_name list * Terms.formula
 val abd_s :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
