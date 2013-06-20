@@ -50,7 +50,7 @@ let flatten cmp a : (w, w) Aux.choice =
       List.fold_left flat acc sum
     | NCst i -> vars, cst +/ !/i, loc
     | TVar v -> (v, !/1)::vars, cst, loc
-    | TCons _ | Fun _ | Delta _ -> assert false in
+    | TCons _ | Fun _ -> assert false in
   let collect t1 t2 loc =
     let zero = [], !/0, loc in
     let w1 = flat zero t1 in

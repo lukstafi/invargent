@@ -109,11 +109,13 @@ let cns_str = function
 
 type typ =
 | TVar of var_name
-| Delta of bool
 | TCons of cns_name * typ list
 | Fun of typ * typ
 | NCst of int
 | Nadd of typ list
+
+let delta = VId (Type_sort, -1)
+let delta' = VId (Type_sort, -2)
 
 module VarSet =
     Set.Make (struct type t = var_name let compare = Pervasives.compare end)
@@ -124,7 +126,6 @@ let vars_of_list l =
 
 type typ_map = {
   map_tvar : var_name -> typ;
-  map_delta : bool -> typ;
   map_tcons : cns_name -> typ list -> typ;
   map_fun : typ -> typ -> typ;
   map_ncst : int -> typ;
@@ -133,7 +134,6 @@ type typ_map = {
 
 type 'a typ_fold = {
   fold_tvar : var_name -> 'a;
-  fold_delta : bool -> 'a;
   fold_tcons : cns_name -> 'a list -> 'a;
   fold_fun : 'a -> 'a -> 'a;
   fold_ncst : int -> 'a;
@@ -142,7 +142,6 @@ type 'a typ_fold = {
 
 let typ_id_map = {
   map_tvar = (fun v -> TVar v);
-  map_delta = (fun p -> Delta p);
   map_tcons = (fun n tys -> TCons (n, tys));
   map_fun = (fun t1 t2 -> Fun (t1, t2));
   map_ncst = (fun i -> NCst i);
@@ -151,7 +150,6 @@ let typ_id_map = {
 
 let typ_make_fold op base = {
   fold_tvar = (fun _ -> base);
-  fold_delta = (fun _ -> base);
   fold_tcons = (fun _ tys -> List.fold_left op base tys);
   fold_fun = (fun t1 t2 -> op t1 t2);
   fold_ncst = (fun _ -> base);
@@ -161,7 +159,6 @@ let typ_make_fold op base = {
 let typ_map tmap t =
   let rec aux = function
     | TVar v -> tmap.map_tvar v
-    | Delta p -> tmap.map_delta p
     | TCons (n, tys) -> tmap.map_tcons n (List.map aux tys)
     | Fun (t1, t2) -> tmap.map_fun (aux t1) (aux t2)
     | NCst i -> tmap.map_ncst i
@@ -171,7 +168,6 @@ let typ_map tmap t =
 let typ_fold tfold t =
   let rec aux = function
     | TVar v -> tfold.fold_tvar v
-    | Delta p -> tfold.fold_delta p
     | TCons (n, tys) -> tfold.fold_tcons n (List.map aux tys)
     | Fun (t1, t2) -> tfold.fold_fun (aux t1) (aux t2)
     | NCst i -> tfold.fold_ncst i
@@ -189,7 +185,6 @@ type typ_loc = {typ_sub : typ; typ_ctx : typ_dir list}
 let typ_up t =
   match t.typ_sub with
   | TVar v -> None
-  | Delta p -> None
   | TCons (_, []) -> None
   | TCons (n, t1::ts) ->
     Some {typ_sub = t1; typ_ctx = TCons_dir (n, [], ts) :: t.typ_ctx}
@@ -546,9 +541,9 @@ and pr_formula ppf atoms =
   pr_sep_list " ∧" pr_atom ppf atoms
 
 and pr_ty comma ppf = function
+  | TVar d when d = delta -> fprintf ppf "δ"
+  | TVar d when d = delta' -> fprintf ppf "δ'"
   | TVar v -> fprintf ppf "%s" (var_str v)
-  | Delta true -> fprintf ppf "δ"
-  | Delta false -> fprintf ppf "δ'"
   | NCst i -> fprintf ppf "%d" i
   | TCons (x, []) -> fprintf ppf "%s" (cns_str x)
   | TCons (CNam "Tuple", exps) ->
@@ -857,7 +852,6 @@ let infer_sorts_item item =
     | PredVarB (id,t1,t2) -> PredVarB (id, walk_typ t1, walk_typ t2) in
   let rec infer_typ_ cur_loc s = function
     | TVar tv -> add_v cur_loc tv s 
-    | Delta _ -> assert false
     | TCons (CNam "Tuple", args) ->
       List.iter (infer_typ cur_loc (Aux.Right Type_sort)) args
     | TCons (CNam _ as n, args) ->

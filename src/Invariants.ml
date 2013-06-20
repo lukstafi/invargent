@@ -11,10 +11,12 @@ open Aux
 type chi_subst = (int * (var_name list * formula)) list
 
 let sb_typ_unary arg =
-  typ_map {typ_id_map with map_delta = fun _ -> arg}  
+  typ_map {typ_id_map with map_tvar = fun v ->
+    if v = delta then arg else TVar v}  
 
 let sb_typ_binary arg1 arg2 =
-  typ_map {typ_id_map with map_delta = fun b -> if b then arg1 else arg2}  
+  typ_map {typ_id_map with map_tvar = fun v ->
+    if v = delta then arg1 else if v = delta' then arg2 else TVar v}  
 
 let sb_atom_unary arg = function
   | Eqty (t1, t2, lc) ->
@@ -310,9 +312,9 @@ let connected v (vs, phi) =
 
 (** Perform quantifier elimination on provided variables and generally
     simplify the formula. *)
-let simplify cmp_v vs cnj =
-  let ty_ans, num_ans, _ = unify ~use_quants:false ~params:vs cmp_v
-    (fun _ -> false) cnj in
+let simplify cmp_v uni_v vs cnj =
+  let ty_ans, num_ans, _ =
+    unify ~use_quants:false ~params:vs cmp_v uni_v cnj in
   let ty_sb, ty_ans = List.partition
     (fun (v,_) -> List.mem v vs) ty_ans in
   let ty_ans = subst_formula ty_sb (to_formula ty_ans) in
@@ -348,7 +350,6 @@ let solve cmp_v uni_v brs =
   let solT = List.map
     (fun i -> i, ([], []))
     (Ints.elements q.allchi) in
-  let delta = Infer.fresh_typ_var () in
   (* 1 *)
   let chiK = collect
     (concat_map
@@ -378,7 +379,7 @@ let solve cmp_v uni_v brs =
         | Some (gvs', g_ans') ->
           (* 3 *)
           let gvs', g_ans' =
-            simplify (cmp_v' (gvs' @ gvs)) gvs' g_ans' in
+            simplify (cmp_v' (gvs' @ gvs)) uni_v gvs' g_ans' in
           if g_ans' = [] then None
           else
             let gvs = VarSet.elements
@@ -405,8 +406,8 @@ let solve cmp_v uni_v brs =
       let dvs = VarSet.elements (VarSet.diff fvs (vars_of_list vs)) in
       let targs = List.map (fun v -> TVar v) dvs in
       let a2 = match t2 with TVar a2 -> a2 | _ -> assert false in
-      vs @ dvs, Eqty (Delta false, TCons (CNam "Tuple", targs), dummy_loc) ::
-        subst_formula [a2, (Delta false, dummy_loc)] ans in
+      vs @ dvs, Eqty (TVar delta', TCons (CNam "Tuple", targs), dummy_loc) ::
+        subst_formula [a2, (TVar delta', dummy_loc)] ans in
     (* 7 *)
     if List.for_all (fun (_,(_,ans)) -> ans=[]) sol2
     then
@@ -416,7 +417,16 @@ let solve cmp_v uni_v brs =
               i, lift_ex_types t2 sol
           with Not_found -> isol)
         sol1 in
-      ans_res, sol
+      fold_map
+        (fun ans_res (i,(vs,ans)) ->
+          let vs, ans = simplify cmp_v uni_v vs ans in
+          let allbs = (* VarSet.union q.allbvs *)
+            (vars_of_list (delta::vs)) in
+          let more, ans = List.partition
+            (fun c-> VarSet.is_empty (VarSet.inter allbs (fvs_atom c)))
+            ans in
+          more @ ans_res, (i, (vs, ans)))
+       ans_res sol
     else
       (* 8 *)
       let sol2 = List.map
@@ -428,13 +438,15 @@ let solve cmp_v uni_v brs =
           let dans = concat_map
             (fun (b, (dvs, dans)) ->
               let renaming = matchup_vars q b vs in
-              subst_formula ((b, (Delta true, dummy_loc))::renaming) dans
+              subst_formula ((b, (TVar delta, dummy_loc))::renaming) dans
             ) ds in
           let dvs = concat_map (fun (_,(dvs,_))->dvs) ds in
-        (* [dvs] must come before [vs] bc. of [matchup_vars] and [q] *)
+          (* [dvs] must come before [vs] bc. of [matchup_vars] and [q] *)
           i, (dvs @ vs, dans @ ans))
         sol1 in    
     (* 9 *)
       let sol2 = converge sol0 sol1 sol2 in
       loop sol1 sol2 in
-  loop solT solT
+  let sol = loop solT solT in
+  q.set_b_uni true;
+  cmp_v, uni_v, sol

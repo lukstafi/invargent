@@ -63,7 +63,6 @@ type cns_name =
 
 type typ =
 | TVar of var_name
-| Delta of bool
 | TCons of cns_name * typ list
 | Fun of typ * typ
 | NCst of int
@@ -77,6 +76,9 @@ type atom =
 type formula = atom list
 type typ_scheme = var_name list * formula * typ
 
+val delta : var_name
+val delta' : var_name
+
 val var_sort : var_name -> sort
 val var_str : var_name -> string
 
@@ -86,7 +88,6 @@ val predvar_id : int ref
 (** {3 Mapping and folding over types.} *)
 type typ_map = {
   map_tvar : var_name -> typ;
-  map_delta : bool -> typ;
   map_tcons : cns_name -> typ list -> typ;
   map_fun : typ -> typ -> typ;
   map_ncst : int -> typ;
@@ -95,7 +96,6 @@ type typ_map = {
 
 type 'a typ_fold = {
   fold_tvar : var_name -> 'a;
-  fold_delta : bool -> 'a;
   fold_tcons : cns_name -> 'a list -> 'a;
   fold_fun : 'a -> 'a -> 'a;
   fold_ncst : int -> 'a;

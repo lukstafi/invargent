@@ -23,7 +23,8 @@ let test_case msg test result chi residuum =
           try Hashtbl.find uni_v v with Not_found -> false in
         let brs = Infer.simplify preserve cmp_v uni_v brs in
         let brs = List.map Infer.br_to_formulas brs in
-        let sol_res, sol_chi = Invariants.solve cmp_v uni_v brs in
+        let _, _, (sol_res, sol_chi) =
+          Invariants.solve cmp_v uni_v brs in
         let vs, ans = List.assoc chi sol_chi in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
@@ -72,15 +73,15 @@ let rec eval = function
   | Fst p -> (match eval p with x, y -> x)
   | Snd p -> (match eval p with x, y -> y)"
 
-        "∃. (δ) = (Term t4 → t4) ∧ (δ) = (Term t5 → t5)" 1
-        "t3 = (Term t5) ∧ t11 = (Term Int → Int) ∧ t16 = (Term Int → Int) ∧
-  t19 = (Term Int → Int) ∧ t24 = (Term t4 → t4) ∧
-  t27 = (Term t4 → t4) ∧ t30 = (Term Bool → Bool) ∧ t38 = t36 ∧
-  t39 = t37 ∧ t41 = (Term t36 → t36) ∧ t43 = (Term t37 → t37) ∧
+        "∃. δ = (Term t5 → t5)" 1
+        "t4 = t5 ∧ t3 = (Term t5) ∧ t11 = (Term Int → Int) ∧
+  t16 = (Term Int → Int) ∧ t19 = (Term Int → Int) ∧
+  t24 = (Term t4 → t4) ∧ t27 = (Term t4 → t4) ∧
+  t30 = (Term Bool → Bool) ∧ t38 = t36 ∧ t39 = t37 ∧
+  t41 = (Term t36 → t36) ∧ t43 = (Term t37 → t37) ∧
   t50 = (Term (t4, t47) → t4, t54) ∧ t51 = (t4, t54) ∧ t52 = t4 ∧
   t53 = t4 ∧ t63 = (Term (t59, t4) → t66, t4) ∧ t64 = (t66, t4) ∧
   t65 = t4 ∧ t67 = t4"
-    (* FIXME: figure out that t4=t5 and simplify *)
 (*
 " ⟹ 𝛘1(t2)
 | 𝛘1(t1) ⟹ t1 = (Term t5 → t4) ∧ t3 = (Term t5)

@@ -39,7 +39,6 @@ let freshen_var v =
 let rec freshen_typ env = function
   | TVar v as tv ->
     (try TVar (List.assoc v env) with Not_found -> tv)
-  | Delta _ as t -> t
   | TCons (n, tys) -> TCons (n, List.map (freshen_typ env) tys)
   | Fun (t1, t2) -> Fun (freshen_typ env t1, freshen_typ env t2)
   | NCst _ as c -> c
@@ -716,7 +715,6 @@ let nicevars_v env = function
 let nicevars_typ env t =
   let rec aux = function
     | TVar (VNam _) as v -> v
-    | Delta _ as t -> t
     | TVar (VId (s, id)) as v ->
       (try TVar (VNam (s, List.assoc id env.nvs_env))
        with Not_found -> v)
