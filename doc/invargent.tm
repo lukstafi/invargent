@@ -346,7 +346,10 @@
   branch <math|i> is at front for <math|n<rsub|i>>th time, we skip the
   initial <math|n<rsub|i>-1> simple abduction answers in it. If the front
   branch <math|i> does not have at least <math|n<rsub|i>> answers, the search
-  fails.
+  fails. After an answer working for all branches has been found, we perform
+  additional check, which encapsulates negative constraints introduced by
+  <verbatim|assert false> construct. If the check fails, we increase the skip
+  count of the head branch and repeat the search.
 
   As described in <cite|jcaqpTechRep2>, to check validity of answers, we use
   a modified variant of unification under quantifiers: unification with
@@ -662,7 +665,7 @@
   The complete algorithm for solving predicate variables is presented in the
   next section.
 
-  <subsection|Solving for Existential Types Predicates>
+  <subsection|Solving for Existential Types Predicates and Main Algorithm>
 
   The general scheme is that we perform disjunction elimination on branches
   with positive occurrences of existential type predicate variables on each
@@ -722,7 +725,26 @@
   <reference|SolSimpl> we simplify and then prune each
   <math|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>>.F<rsub|\<chi\>>>. The
   updated residuum <math|\<cal-Q\><rprime|'>.A<rsub|res>\<wedge\>A<rsub|sel>>
-  is checked for validity at a later stage.\ 
+  is checked for validity at a later stage.
+
+  We introduced the <verbatim|assert false> construct into the programming
+  language to indicate that a branch of code should not be reached. Type
+  inference generates for it the logical connective <math|\<b-F\>>
+  (falsehood). We partition the implication branches
+  <math|D<rsub|i>,C<rsub|i>> into <math|<around*|{|D<rsub|i>,C<rsub|i><mid|\|>\<b-F\>\<nin\>C<rsub|i>|}>>
+  which are fed to the algorithm and <math|\<Phi\><rsub|\<b-F\>>=<around*|{|<around*|(|D<rsub|i>,C<rsub|i>|)><mid|\|>\<b-F\>\<in\>C<rsub|i>|}>>.
+  After the main algorithm ends we check that for each
+  <math|<around*|(|D<rsub|i>,C<rsub|i>|)>\<in\>\<Phi\><rsub|\<b-F\>>>,
+  \ <math|S<rsub|k><around*|(|D<rsub|i>|)>> fails. Optionally (and
+  alternatively), we pass to abduction the corresponding check truncated to
+  the sort of types. Turning this option <em|on> gives a limited way to
+  express negative constraints but is discouraged for general application.
+  With the option <em|off>, the inferred type is the same as it would be
+  without the impossible pattern matching branch in the program, but the
+  check statically guarantees that the branch is in fact impossible. The
+  negative constraints with option <em|on> are limited to the sort of types
+  because otherwise we would be faced with a disjunction of negative
+  constraints for multiple sorts and we do not handle disjunction.
 
   <subsection|Implementation details>
 
@@ -814,7 +836,7 @@
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1>>
-    <associate|auto-10|<tuple|5|7>>
+    <associate|auto-10|<tuple|5|6>>
     <associate|auto-11|<tuple|5.1|7>>
     <associate|auto-12|<tuple|5.2|8>>
     <associate|auto-13|<tuple|5.3|9>>
@@ -825,7 +847,7 @@
     <associate|auto-5|<tuple|3.1|4>>
     <associate|auto-6|<tuple|3.2|4>>
     <associate|auto-7|<tuple|3.3|5>>
-    <associate|auto-8|<tuple|4|6>>
+    <associate|auto-8|<tuple|4|5>>
     <associate|auto-9|<tuple|4.1|6>>
     <associate|bib-AbductionSolvMaher|<tuple|3|9>>
     <associate|bib-AntiUnifAlg|<tuple|8|9>>
@@ -928,7 +950,8 @@
       <no-break><pageref|auto-11>>
 
       <with|par-left|<quote|1.5fn>|5.2<space|2spc>Solving for Existential
-      Types Predicates <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      Types Predicates and Main Algorithm
+      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-12>>
 
       <with|par-left|<quote|1.5fn>|5.3<space|2spc>Implementation details

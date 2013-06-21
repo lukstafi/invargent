@@ -17,12 +17,14 @@ val abd_simple :
 val abd_typ :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
+  ?fincheck:(Terms.var_name list * Terms.subst -> bool) ->
   (Terms.subst * Terms.subst) list ->
   Terms.var_name list * Terms.subst * Terms.formula list
 (* Raises [Suspect] if no answer can be found. *)
 val abd :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
+  ?fincheck:(Terms.var_name list * Terms.subst -> bool) ->
   (Terms.formula * Terms.formula) list ->
   Terms.var_name list * Terms.formula
 val abd_mockup_num :

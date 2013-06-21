@@ -330,10 +330,21 @@ let converge sol0 sol1 sol2 =
   (* TODO *)
   sol2
 
+let neg_constrns = ref false
 
 let solve cmp_v uni_v brs =
   let q = new_q cmp_v uni_v in
   let cmp_v = q.cmp_v and uni_v = q.uni_v in
+  let neg_brs, brs = List.partition
+    (fun (_,concl) -> List.exists
+      (function CFalse _ -> true | _ -> false) concl) brs in
+  let neg_cns = List.map
+    (fun (prem, concl) ->
+      let loc =
+        match List.find (function CFalse _ -> true | _ -> false) concl
+        with CFalse loc -> loc | _ -> assert false in
+      concl, loc)
+    neg_brs in
   List.iter
     (fun (prem,concl) ->
       List.iter
@@ -390,10 +401,19 @@ let solve cmp_v uni_v brs =
     (* 4 *)
     let sol1 = replace_assocs ~repl:gK sol1 in
     let brs = sb_brs_pred q sol1 brs in
+    let fincheck (params, sb) = List.for_all
+      (fun (cnj, loc) ->
+        try
+          ignore (unify ~use_quants:true ~params ~sb cmp_v uni_v cnj);
+          false
+        with Contradiction _ -> true)
+      neg_cns in
+    let fincheck =
+      if not !neg_constrns then None else Some fincheck in
     (* 5 *)
     q.set_b_uni false;
     let vs, ans =
-      try Abduction.abd cmp_v uni_v brs
+      try Abduction.abd cmp_v uni_v ?fincheck brs
       with Suspect (vs, concl) ->
         q.set_b_uni false; ignore (holds q ~params:vs empty_state concl);
         q.set_b_uni true; ignore (holds q ~params:vs empty_state concl);
@@ -426,13 +446,13 @@ let solve cmp_v uni_v brs =
             (fun c-> VarSet.is_empty (VarSet.inter allbs (fvs_atom c)))
             ans in
           more @ ans_res, (i, (vs, ans)))
-       ans_res sol
+        ans_res sol
     else
       (* 8 *)
       let sol2 = List.map
         (fun (i, (vs, ans)) ->
-        (* [sol2] is currently organized by [b], and [sol1] by [i]
-           also, subsitute [delta] by [Delta true] *)
+          (* [sol2] is currently organized by [b], and [sol1] by [i]
+             also, subsitute [delta] by [Delta true] *)
           let bs = List.filter (not % q.positive_b) (q.find_b i) in
           let ds = List.map (fun b-> b, List.assoc b sol2) bs in
           let dans = concat_map
@@ -444,9 +464,17 @@ let solve cmp_v uni_v brs =
           (* [dvs] must come before [vs] bc. of [matchup_vars] and [q] *)
           i, (dvs @ vs, dans @ ans))
         sol1 in    
-    (* 9 *)
+      (* 9 *)
       let sol2 = converge sol0 sol1 sol2 in
       loop sol1 sol2 in
   let sol = loop solT solT in
+  List.iter (fun (cnj, loc) ->
+    try
+      let cnj = sb_formula_pred q false (snd sol) cnj in
+      ignore (holds q empty_state cnj);
+      raise (Contradiction ("A branch with \"assert false\" is possible",
+                            None, loc))
+    with Contradiction _ -> ()
+  ) neg_cns;
   q.set_b_uni true;
   cmp_v, uni_v, sol

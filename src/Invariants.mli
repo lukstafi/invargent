@@ -7,7 +7,7 @@
 *)
 
 type chi_subst = (int * (Terms.var_name list * Terms.formula)) list
-
+val neg_constrns : bool ref
 val solve :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool)->

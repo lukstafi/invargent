@@ -135,7 +135,7 @@ let abd_simple cmp_v uni_v validate skip (vs, ans) (prem, concl) =
       with Result (vs, ans) -> Some (cleanup vs ans)
   with Contradiction _ -> None          (* subst_solved or implies_concl *)
 
-let abd_typ cmp_v uni_v brs =
+let abd_typ cmp_v uni_v ?fincheck brs =
   let br0 = 0, List.hd brs in
   let more_brs = List.map (fun br -> -1, br) (List.tl brs) in
   let validate vs ans = List.iter
@@ -145,7 +145,13 @@ let abd_typ cmp_v uni_v brs =
     brs in
   (* let time = ref (Sys.time ()) in *)
   let rec loop first acc done_brs = function
-    | [] -> acc
+    | [] ->
+      (match fincheck with None -> acc
+      | Some f -> if f acc then acc else
+          match List.rev done_brs with
+          | [] -> assert false
+          | (skip, br)::more_brs ->
+            loop true ([], []) [] ((skip+1, br)::more_brs))
     | (skip, br as obr)::more_brs ->
       (*Format.printf "abd_typ-loop:@ @[<2>%a@ ⟹@ %a@]@\n"
         pr_subst (fst br) pr_subst (snd br);*)
@@ -208,7 +214,7 @@ let abd_mockup_num cmp_v uni_v brs =
             brs_num more_num)
   with Suspect _ -> None
 
-let abd cmp_v uni_v brs =
+let abd cmp_v uni_v ?fincheck brs =
   (* Do not change the order and no. of branches afterwards. *)
   let brs_typ, brs_num, brs_so = Aux.split3
     (Aux.map_some (fun (prem, concl) ->
@@ -232,7 +238,7 @@ let abd cmp_v uni_v brs =
                      (prem_so, concl_so))
       | None -> None)
        brs) in
-  let tvs, ans_typ, more_num = abd_typ cmp_v uni_v brs_typ in
+  let tvs, ans_typ, more_num = abd_typ cmp_v uni_v ?fincheck brs_typ in
   let brs_num = List.map2
     (fun (prem,concl) more -> prem, more @ concl)
     brs_num more_num in
