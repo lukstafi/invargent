@@ -17,12 +17,16 @@ let test_case msg test result chi residuum =
       try
         let prog = Terms.infer_sorts prog in
         let preserve, cn = Infer.infer_prog_mockup prog in
-        (* Format.printf "cn:@\n%a@\n" pr_cnstrnt cn; *)
+        Format.printf "cn: %s@\n%a@\n" msg Infer.pr_cnstrnt cn;
         let cmp_v, uni_v, brs = Infer.normalize cn in
+        Format.printf "brs: %s@\n%a@\n" msg Infer.pr_brs brs;
         let uni_v v =
           try Hashtbl.find uni_v v with Not_found -> false in
         let brs = Infer.simplify preserve cmp_v uni_v brs in
+        (* Format.printf "simpl-brs: %s@\n%a@\n" msg Infer.pr_brs brs; *)
         let brs = List.map Infer.br_to_formulas brs in
+        (* FIXME: DEBUG *)
+        let brs = match brs with b1::b2::b3::b4::_ -> [b1; b2; b3; b4] in
         let _, _, (sol_res, sol_chi) =
           Invariants.solve cmp_v uni_v brs in
         let vs, ans = List.assoc chi sol_chi in
@@ -44,7 +48,7 @@ let test_case msg test result chi residuum =
         assert_failure (Format.flush_str_formatter ())
 
 let tests = "Invariants" >::: [
-
+(*
   "eval" >::
     (fun () ->
       test_case "eval term"
@@ -141,7 +145,7 @@ let rec filter =
     t29 = (List (t16, n17) → t22) ∧ 𝛘1(t29)"
 *)
     );
-
+*)
   "equal with assert and test" >::
     (fun () ->
       test_case "equal terms"
@@ -171,7 +175,7 @@ let rec equal = function
   | TInt, TList l ->
     (function Nil -> assert false
     | _ -> fun _ -> False)
-  | _ -> False
+  | _ -> fun _ -> fun _ -> False
 test b_not (equal (TInt, TList TInt) Zero Nil)"
         "" 1
         ""
@@ -205,6 +209,7 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
     (Ty t88) = t86 ∧ (List t89) = t88 ∧ 𝛘1(t1) ⟹ FALSE"
 *)
     );
+(*
 
   "binary plus" >::
     (fun () ->
@@ -333,4 +338,5 @@ let rec plus =
     (1 + n168 + n168) = n167 ∧ 1 = n172 ∧ 𝛘1(t173)"
 *)
     );
+*)
 ]

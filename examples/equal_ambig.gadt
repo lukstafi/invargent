@@ -21,4 +21,4 @@ let rec equal = function
         b_and (equal (t1, u1) x1 y1)
               (equal (t2, u2) x2 y2))
   | TList t, TList u -> forall2 (equal (t, u))
-  | _ -> False
+  | _ -> fun _ -> fun _ -> False
