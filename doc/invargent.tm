@@ -272,11 +272,13 @@
   <verbatim|ImplOr2> corresponds to nesting of <verbatim|let>-<verbatim|in>
   definitions.
 
-  After normalization, we simplify the constraints by removing redundant
-  atoms. We remove atoms that bind variables not occurring anywhere else in
-  the constraint, and in case of atoms not in premises, not universally
-  quantified. The simplification step is not currently proven correct and
-  might need refining.
+  <subsection|Simplification>
+
+  After normalization, we simplify the constraints by TODO: applying shared
+  constraints and removing redundant atoms. We remove atoms that bind
+  variables not occurring anywhere else in the constraint, and in case of
+  atoms not in premises, not universally quantified. The simplification step
+  is not currently proven correct and might need refining.
 
   <section|Abduction>
 
@@ -768,6 +770,8 @@
   the first <verbatim|b> in the <verbatim|q.negbs> list, for which
   <math|x<rsub|\<prec\>><around*|(|<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<cap\>FV<around*|(|c|)>|)>\<cap\><wide|\<beta\>|\<bar\>><rsup|\<chi\>>\<neq\>\<varnothing\>>.
 
+  \;
+
   <\bibliography|bib|tm-plain|biblio.bib>
     <\bib-list|8>
       <bibitem*|1><label|bib-ArithQuantElim>Sergey<nbsp>Berezin,
@@ -836,19 +840,20 @@
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1>>
-    <associate|auto-10|<tuple|5|6>>
-    <associate|auto-11|<tuple|5.1|7>>
-    <associate|auto-12|<tuple|5.2|8>>
-    <associate|auto-13|<tuple|5.3|9>>
+    <associate|auto-10|<tuple|4.1|6>>
+    <associate|auto-11|<tuple|5|7>>
+    <associate|auto-12|<tuple|5.1|8>>
+    <associate|auto-13|<tuple|5.2|9>>
     <associate|auto-14|<tuple|5.3|9>>
+    <associate|auto-15|<tuple|5.3|?>>
     <associate|auto-2|<tuple|2|2>>
     <associate|auto-3|<tuple|2.1|3>>
-    <associate|auto-4|<tuple|3|4>>
-    <associate|auto-5|<tuple|3.1|4>>
-    <associate|auto-6|<tuple|3.2|4>>
-    <associate|auto-7|<tuple|3.3|5>>
-    <associate|auto-8|<tuple|4|5>>
-    <associate|auto-9|<tuple|4.1|6>>
+    <associate|auto-4|<tuple|2.2|4>>
+    <associate|auto-5|<tuple|3|4>>
+    <associate|auto-6|<tuple|3.1|4>>
+    <associate|auto-7|<tuple|3.2|5>>
+    <associate|auto-8|<tuple|3.3|5>>
+    <associate|auto-9|<tuple|4|6>>
     <associate|bib-AbductionSolvMaher|<tuple|3|9>>
     <associate|bib-AntiUnifAlg|<tuple|8|9>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>

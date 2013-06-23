@@ -645,6 +645,23 @@ let vs_hist_sb increase sb =
   List.iter (fun (v,(t,_)) -> increase v; vs_hist_typ increase t) sb
  
 let simplify preserve cmp_v uni_v brs =
+  (* Substitute-out shared facts. *)
+  let aux cond sb (prem, (concl_ty, concl_num, concl_so) as br) =
+    if List.for_all (fun c -> List.mem c prem) cond
+    then
+      let concl_ty, more_num =
+        subst_solved ~use_quants:false cmp_v uni_v sb ~cnj:concl_ty in
+      subst_formula sb prem, (concl_ty, more_num @ concl_num, concl_so)
+    else br in
+  let rec loop acc = function
+    | [] -> List.rev acc
+    | (prem, (ty_sb, num_cn, so_cn) as br)::more ->
+      let acc = List.map (aux prem ty_sb) acc in
+      let more = List.map (aux prem ty_sb) more in
+      loop (br::acc) more in
+  let brs = loop [] brs in
+  (* TODO: also for numeric sort. *)
+  (* Prune uninformative variables. *)
   let ht = Hashtbl.create 255 in
   let increase v =
     try
@@ -661,11 +678,11 @@ let simplify preserve cmp_v uni_v brs =
       List.iter (vs_hist_atom increase) cn_so
     ) brs;
   let redundant_atom in_prem = function
-  | Eqty (TVar v, _, _) | Leq (TVar v, _, _)
-  | Eqty (_, TVar v, _) | Leq (_, TVar v, _) ->
-    not (VarSet.mem v preserve) && count v = 1
-    && (in_prem || not (uni_v v))       (* FIXME: use cmp_v? *)
-  | _ -> false in
+    | Eqty (TVar v, _, _) | Leq (TVar v, _, _)
+    | Eqty (_, TVar v, _) | Leq (_, TVar v, _) ->
+      not (VarSet.mem v preserve) && count v = 1
+      && (in_prem || not (uni_v v))       (* FIXME: use cmp_v? *)
+    | _ -> false in
   let redundant_vsb (v,(t,_)) =
     not (VarSet.mem v preserve) && count v = 1
     && not (uni_v v) in    (* FIXME: use cmp_v? *)
@@ -834,6 +851,10 @@ let rec pr_cnstrnt ppf = function
 let pr_brs ppf brs =
   pr_line_list "| " (fun ppf (prem,(sb, num, so)) ->
     let concl = to_formula sb @ num @ so in
+    fprintf ppf "@[<2>%a@ ⟹@ %a@]" pr_formula prem pr_formula concl) ppf brs
+
+let pr_rbrs ppf brs =
+  pr_line_list "| " (fun ppf (prem,concl) ->
     fprintf ppf "@[<2>%a@ ⟹@ %a@]" pr_formula prem pr_formula concl) ppf brs
 
 let reset_state () =

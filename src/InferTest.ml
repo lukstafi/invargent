@@ -161,7 +161,7 @@ let rec equal = function
   | TInt, TList l ->
     (function Nil -> assert false
     | _ -> fun _ -> False)
-  | _ -> False
+  | _ -> fun _ -> fun _ -> False
 test b_not (equal (TInt, TList TInt) Zero Nil)") in
       try
         let prog = Terms.infer_sorts prog in
@@ -173,10 +173,10 @@ test b_not (equal (TInt, TList TInt) Zero Nil)") in
         ignore (Format.flush_str_formatter ());
         pr_brs Format.str_formatter brs;
         assert_equal ~printer:(fun x -> x)
-" ⟹ t107 = (Ty Int, Ty (List Int) → Int → List t98 → Bool) ∧
-  𝛘1(t2) ∧ 𝛘1(t107)
-| 𝛘1(t1) ⟹ t1 = (Ty t7, Ty t8 → Bool) ∧ t3 = (Ty t7, Ty t8) ∧
-    t4 = Bool
+" ⟹ t111 = (Ty Int, Ty (List Int) → Int → List t102 → Bool) ∧
+  𝛘1(t2) ∧ 𝛘1(t111)
+| 𝛘1(t1) ⟹ t1 = (Ty t7, Ty t8 → t96 → t98 → Bool) ∧
+    t3 = (Ty t7, Ty t8) ∧ t4 = (t96 → t98 → Bool)
 | (t9, t10) = t3 ∧ (Ty t11) = t9 ∧ Int = t11 ∧ (Ty t12) = t10 ∧
     Int = t12 ∧ 𝛘1(t1) ⟹ t4 = (Int → Int → Bool)
 | (t27, t28) = t3 ∧ (Ty t29) = t27 ∧ (t30, t31) = t29 ∧
