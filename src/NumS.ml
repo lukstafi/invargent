@@ -118,6 +118,7 @@ let expand_atom equ (vars, cst, loc) =
   let right = match right with [t] -> t | _ -> Nadd right in
   if equ then Eqty (left, right, loc) else Leq (left, right, loc)
 
+(* TODO: quantifier violations not possible? *)
 let solve ?(use_quants=false) ?(strict=false)
     ?(eqs=[]) ?(ineqs=[]) ?(eqn=[]) ?(ineqn=[]) ?(cnj=[])
     cmp cmp_w uni_v =
@@ -217,7 +218,7 @@ let fvs_w (vars, _, _) = vars_of_list (List.map fst vars)
 
 exception Result of w_subst * ineqs
 
-let abd_simple cmp cmp_w uni_v (validate : w_subst -> ineqs -> unit)
+let abd_simple cmp cmp_w uni_v ~init_params validate
     skip eqs ineqs (prem, concl) =
   let skip = ref skip in
   try
@@ -306,7 +307,7 @@ let abd_simple cmp cmp_w uni_v (validate : w_subst -> ineqs -> unit)
     with Result (ans_eqs, ans_ineqs) -> Some (ans_eqs, ans_ineqs)
   with Contradiction _ -> None
 
-let abd cmp_v uni_v brs =
+let abd cmp_v uni_v ?(init_params=VarSet.empty) brs =
   let cmp_v v1 v2 =
     match cmp_v v1 v2 with
     | Upstream -> 1
@@ -332,7 +333,8 @@ let abd cmp_v uni_v brs =
       let ans = ans @ List.map (expand_atom false) (unsolve ans_ineqs) in
       [], ans
     | (skip, br as obr)::more_brs ->
-      match abd_simple cmp cmp_w uni_v validate skip ans_eqs ans_ineqs br with
+      match abd_simple cmp cmp_w uni_v init_params validate
+        skip ans_eqs ans_ineqs br with
       | Some (ans_eqs, ans_ineqs) ->
         loop false ans_eqs ans_ineqs (obr::done_brs) more_brs
       | None ->
@@ -344,7 +346,7 @@ let abd cmp_v uni_v brs =
           ((skip+1, br)::List.rev_append done_brs more_brs) in
   loop true [] [] [] (br0::more_brs)
 
-let abd_s cmp_v uni_v prem concl =
+let abd_s cmp_v uni_v ?(init_params=VarSet.empty) prem concl =
   let cmp_v v1 v2 =
     match cmp_v v1 v2 with
     | Upstream -> 1
@@ -358,7 +360,8 @@ let abd_s cmp_v uni_v prem concl =
     | [], _ -> 1
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
   let validate eqs (ineqs : ineqs) = () in
-  match abd_simple cmp cmp_w uni_v validate 0 [] [] (prem, concl) with
+  match abd_simple cmp cmp_w uni_v ~init_params validate
+    0 [] [] (prem, concl) with
   | Some (ans_eqs, ans_ineqs) ->
     let ans = List.map (expand_atom true) (unsubst ans_eqs) in
     let ans = ans @ List.map (expand_atom false) (unsolve ans_ineqs) in

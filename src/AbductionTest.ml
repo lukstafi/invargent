@@ -406,4 +406,31 @@ let rec filter =
         assert_failure (Format.flush_str_formatter ())
     );
 
+  "term abduction: params" >::
+    (fun () ->
+      Terms.reset_state ();
+      Infer.reset_state ();
+      try
+        let lhs0, rhs0 = [], p_formula "tA = ((Ty tB, Ty tC) → Bool)" in
+        let lhs1 = [] and rhs1 = p_formula "tD = ((Ty Int, Ty Int) → Bool)" in
+        let lhs0, rhs0 = br_simple lhs0 rhs0 in
+        let lhs1, rhs1 = br_simple lhs1 rhs1 in
+        let pms = vars_of_list
+          [VNam (Type_sort, "tA");VNam (Type_sort, "tB");
+           VNam (Type_sort, "tC");VNam (Type_sort, "tD")] in
+        let ans =
+          try let vs, ans_typ, _ = abd_typ cmp_v uni_v ~init_params:pms
+                [lhs0, rhs0; lhs1, rhs1] in
+              pr_to_str pr_formula (to_formula ans_typ)
+          with Suspect _ -> "none" in
+        assert_equal ~printer:(fun x -> x)
+          "tA = (Ty tB, Ty tC → Bool) ∧
+tD = (Ty Int, Ty Int → Bool)" ans
+      with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+        ignore (Format.flush_str_formatter ());
+        Terms.pr_exception Format.str_formatter exn;
+        assert_failure (Format.flush_str_formatter ())
+    );
+
+
 ]

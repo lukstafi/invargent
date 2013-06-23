@@ -704,7 +704,7 @@ let pr_to_str pr_f e =
 (** {2 Unification} *)
 
 (** Separate type sort and number sort constraints,  *)
-let unify ~use_quants ?(params=[]) ?(sb=[]) cmp_v uni_v cnj =
+let unify ~use_quants ?(params=VarSet.empty) ?(sb=[]) cmp_v uni_v cnj =
   let cnj_typ, more_cnj = Aux.partition_map
     (function
     | Eqty (t1, t2, loc) when typ_sort_typ t1 && typ_sort_typ t2 ->
@@ -728,9 +728,9 @@ let unify ~use_quants ?(params=[]) ?(sb=[]) cmp_v uni_v cnj =
         aux sb (Eqty (t1, t2, loc)::num_cn) cnj
       | t1, t2 when num_sort_typ t1 || num_sort_typ t2 -> raise
         (Contradiction ("Type sort mismatch", Some (t1, t2), loc))
-      | TVar v1, t when List.mem v1 params ->
+      | TVar v1, t when VarSet.mem v1 params ->
         aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj        
-      | t, TVar v1 when List.mem v1 params ->
+      | t, TVar v1 when VarSet.mem v1 params ->
         aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj        
       | TVar v1, (TVar v2 as t)
         when not (use_quants && uni_v v1)
@@ -745,12 +745,12 @@ let unify ~use_quants ?(params=[]) ?(sb=[]) cmp_v uni_v cnj =
         raise (Contradiction ("Occurs check fail", Some (tv, t), loc))
       | TVar v1, t
           when not (use_quants && uni_v v1) &&
-            VarSet.for_all (fun v2 -> List.mem v2 params ||
+            VarSet.for_all (fun v2 -> VarSet.mem v2 params ||
               List.mem (cmp_v v1 v2) [Downstream; Same_quant]) (fvs_typ t) ->
         aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
       | t, TVar v1
           when not (use_quants && uni_v v1) &&
-            VarSet.for_all (fun v2 -> List.mem v2 params ||
+            VarSet.for_all (fun v2 -> VarSet.mem v2 params ||
               List.mem (cmp_v v1 v2) [Downstream; Same_quant]) (fvs_typ t) ->
         aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
       | (TVar v as tv, t | t, (TVar v as tv)) ->

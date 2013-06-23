@@ -9,6 +9,7 @@
 val abd_simple :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
+  ?init_params:Terms.VarSet.t ->  
   (Terms.VarSet.elt list -> Terms.subst -> unit) -> int ->
   Terms.var_name list * Terms.subst ->
   Terms.subst * Terms.subst ->
@@ -17,6 +18,7 @@ val abd_simple :
 val abd_typ :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
+  ?init_params:Terms.VarSet.t ->  
   ?fincheck:(Terms.var_name list * Terms.subst -> bool) ->
   (Terms.subst * Terms.subst) list ->
   Terms.var_name list * Terms.subst * Terms.formula list
@@ -24,16 +26,19 @@ val abd_typ :
 val abd :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
+  ?init_params:Terms.VarSet.t ->  
   ?fincheck:(Terms.var_name list * Terms.subst -> bool) ->
   (Terms.formula * Terms.formula) list ->
   Terms.var_name list * Terms.formula
 val abd_mockup_num :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
+  ?init_params:Terms.VarSet.t ->  
   (Terms.formula * Terms.formula) list ->
   (Terms.formula * Terms.formula) list option
 val abd_s :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
+  ?init_params:Terms.VarSet.t ->  
   Terms.formula -> Terms.formula ->
   (Terms.var_name list * Terms.formula) option

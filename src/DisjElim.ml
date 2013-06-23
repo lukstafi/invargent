@@ -129,7 +129,8 @@ let disjelim_typ cmp_v uni_v brs =
       avs, ty_ans @ eqv_ans, ty_eqs, List.map to_formula num_eqs
 
 let simplify cmp_v (vs, ty_ans, num_ans) =
-  let ty_ans, ty_num, _ = unify ~use_quants:false ~params:vs cmp_v
+  let ty_ans, ty_num, _ =
+    unify ~use_quants:false ~params:(vars_of_list vs) cmp_v
     (fun _ -> false) (to_formula ty_ans) in
   assert (ty_num = []);
   let ty_sb, ty_ans = List.partition
