@@ -433,13 +433,13 @@ let solve cmp_v uni_v brs =
     q.set_b_uni false;
     let vs, ans =
       try Abduction.abd cmp_v uni_v ~init_params:q.allbvs ?fincheck brs
-      with Suspect (vs, concl) ->
+      with Suspect (vs, phi) ->
         try
-          Format.printf "solve: abduction failed: concl=@ %a@\n%!"
-            pr_formula concl;
-          q.set_b_uni false; ignore (holds q ~params:(pms vs) empty_state concl);
-          q.set_b_uni true; ignore (holds q ~params:(pms vs) empty_state concl);
-          q.set_b_uni true; ignore (holds q empty_state concl);
+          Format.printf "solve: abduction failed: phi=@ %a@\n%!"
+            pr_formula phi;
+          q.set_b_uni false; ignore (holds q ~params:(pms vs) empty_state phi);
+          q.set_b_uni true; ignore (holds q ~params:(pms vs) empty_state phi);
+          q.set_b_uni true; ignore (holds q empty_state phi);
           assert false
         with Contradiction (msg, tys, loc) -> raise
           (Contradiction

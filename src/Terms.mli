@@ -172,6 +172,8 @@ val collect_apps : expr -> expr list
 type var_scope =
 | Upstream | Same_quant | Downstream | Not_in_scope
 
+val str_of_cmp : var_scope -> string
+
 exception Contradiction of string * (typ * typ) option * loc
 exception Suspect of var_name list * formula
 

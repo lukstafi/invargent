@@ -274,11 +274,12 @@
 
   <subsection|Simplification>
 
-  After normalization, we simplify the constraints by TODO: applying shared
-  constraints and removing redundant atoms. We remove atoms that bind
-  variables not occurring anywhere else in the constraint, and in case of
-  atoms not in premises, not universally quantified. The simplification step
-  is not currently proven correct and might need refining.
+  After normalization, we simplify the constraints by [TODO: explain]
+  applying shared constraints, and removing redundant atoms. We remove atoms
+  that bind variables not occurring anywhere else in the constraint, and in
+  case of atoms not in premises, not universally quantified. The
+  simplification step is not currently proven correct and might need
+  refining.
 
   <section|Abduction>
 
@@ -346,12 +347,22 @@
   not have any answer satisfiable with the partial answer so far. Then we
   start over, but put the branch that failed in front of the sequence. If a
   branch <math|i> is at front for <math|n<rsub|i>>th time, we skip the
-  initial <math|n<rsub|i>-1> simple abduction answers in it. If the front
-  branch <math|i> does not have at least <math|n<rsub|i>> answers, the search
-  fails. After an answer working for all branches has been found, we perform
+  initial <math|n<rsub|i>-1> simple abduction answers in it. If no front
+  branch <math|i> has at least <math|n<rsub|i>> answers, the search fails.
+  After an answer working for all branches has been found, we perform
   additional check, which encapsulates negative constraints introduced by
   <verbatim|assert false> construct. If the check fails, we increase the skip
   count of the head branch and repeat the search.
+
+  When a branch has no more solutions to offer -- its skip factor
+  <math|n<rsub|i>> has reached the number of fully maximal solutions to that
+  branch -- we move it to a separate <em|runouts> list and continue search
+  starting from a different branch. We do not increase its skip factor, but
+  we check the runouts directly after the first branch, so that conflicting
+  branches can be located. When the first branch conflicts with the runouts,
+  we increase its skip factor and repeat. We keep a count of conflicts for
+  the runouts so that in case of overall failure, we can report a branch
+  likely to be among those preventing abduction.
 
   As described in <cite|jcaqpTechRep2>, to check validity of answers, we use
   a modified variant of unification under quantifiers: unification with
@@ -842,20 +853,20 @@
     <associate|auto-1|<tuple|1|1>>
     <associate|auto-10|<tuple|4.1|6>>
     <associate|auto-11|<tuple|5|7>>
-    <associate|auto-12|<tuple|5.1|8>>
-    <associate|auto-13|<tuple|5.2|9>>
+    <associate|auto-12|<tuple|5.1|7>>
+    <associate|auto-13|<tuple|5.2|8>>
     <associate|auto-14|<tuple|5.3|9>>
-    <associate|auto-15|<tuple|5.3|?>>
+    <associate|auto-15|<tuple|5.3|9>>
     <associate|auto-2|<tuple|2|2>>
     <associate|auto-3|<tuple|2.1|3>>
     <associate|auto-4|<tuple|2.2|4>>
     <associate|auto-5|<tuple|3|4>>
     <associate|auto-6|<tuple|3.1|4>>
-    <associate|auto-7|<tuple|3.2|5>>
+    <associate|auto-7|<tuple|3.2|4>>
     <associate|auto-8|<tuple|3.3|5>>
     <associate|auto-9|<tuple|4|6>>
     <associate|bib-AbductionSolvMaher|<tuple|3|9>>
-    <associate|bib-AntiUnifAlg|<tuple|8|9>>
+    <associate|bib-AntiUnifAlg|<tuple|8|10>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
@@ -863,9 +874,9 @@
     <associate|bib-ConvexHull|<tuple|2|9>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
-    <associate|bib-disjelimTechRep|<tuple|6|9>>
+    <associate|bib-disjelimTechRep|<tuple|6|10>>
     <associate|bib-jcaqpTechRep|<tuple|8|4>>
-    <associate|bib-jcaqpTechRep2|<tuple|7|9>>
+    <associate|bib-jcaqpTechRep2|<tuple|7|10>>
     <associate|bib-jcaqpUNIF|<tuple|4|9>>
     <associate|bib-simonet-pottier-hmg-toplas|<tuple|6|4>>
     <associate|bib-systemTechRep|<tuple|5|9>>
@@ -922,50 +933,54 @@
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-3>>
 
+      <with|par-left|<quote|1.5fn>|2.2<space|2spc>Simplification
+      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-4>>
+
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|3<space|2spc>Abduction>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-4><vspace|0.5fn>
+      <no-break><pageref|auto-5><vspace|0.5fn>
 
       <with|par-left|<quote|1.5fn>|3.1<space|2spc>Simple constraint abduction
       for terms <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-5>>
+      <no-break><pageref|auto-6>>
 
       <with|par-left|<quote|1.5fn>|3.2<space|2spc>Joint constraint abduction
       for terms <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-6>>
+      <no-break><pageref|auto-7>>
 
       <with|par-left|<quote|1.5fn>|3.3<space|2spc>Joint constraint abduction
       for linear arithmetic <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-7>>
+      <no-break><pageref|auto-8>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|4<space|2spc>Disjunction
       Elimination> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-8><vspace|0.5fn>
+      <no-break><pageref|auto-9><vspace|0.5fn>
 
       <with|par-left|<quote|1.5fn>|4.1<space|2spc>Extended convex hull
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-9>>
+      <no-break><pageref|auto-10>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|5<space|2spc>Solving
       for Predicate Variables> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-10><vspace|0.5fn>
+      <no-break><pageref|auto-11><vspace|0.5fn>
 
       <with|par-left|<quote|1.5fn>|5.1<space|2spc>Solving for Predicates in
       Negative Positions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-11>>
+      <no-break><pageref|auto-12>>
 
       <with|par-left|<quote|1.5fn>|5.2<space|2spc>Solving for Existential
       Types Predicates and Main Algorithm
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-12>>
+      <no-break><pageref|auto-13>>
 
       <with|par-left|<quote|1.5fn>|5.3<space|2spc>Implementation details
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-13>>
+      <no-break><pageref|auto-14>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-14><vspace|0.5fn>
+      <no-break><pageref|auto-15><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>

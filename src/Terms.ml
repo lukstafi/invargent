@@ -734,11 +734,13 @@ let unify ~use_quants ?(params=VarSet.empty) ?(sb=[]) cmp_v uni_v cnj =
         aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj        
       | TVar v1, (TVar v2 as t)
         when not (use_quants && uni_v v1)
-          && List.mem (cmp_v v1 v2) [Downstream; Same_quant] ->
+          && List.mem (cmp_v v1 v2)
+            [Downstream; Same_quant; Not_in_scope] ->
         aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
       | (TVar v2 as t), TVar v1
           when not (use_quants && uni_v v1)
-            && List.mem (cmp_v v1 v2) [Downstream; Same_quant] ->
+            && List.mem (cmp_v v1 v2)
+              [Downstream; Same_quant; Not_in_scope] ->
         aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
       | (TVar v as tv, t | t, (TVar v as tv))
           when VarSet.mem v (fvs_typ t) ->
@@ -746,12 +748,14 @@ let unify ~use_quants ?(params=VarSet.empty) ?(sb=[]) cmp_v uni_v cnj =
       | TVar v1, t
           when not (use_quants && uni_v v1) &&
             VarSet.for_all (fun v2 -> VarSet.mem v2 params ||
-              List.mem (cmp_v v1 v2) [Downstream; Same_quant]) (fvs_typ t) ->
+              List.mem (cmp_v v1 v2)
+              [Downstream; Same_quant; Not_in_scope]) (fvs_typ t) ->
         aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
       | t, TVar v1
           when not (use_quants && uni_v v1) &&
             VarSet.for_all (fun v2 -> VarSet.mem v2 params ||
-              List.mem (cmp_v v1 v2) [Downstream; Same_quant]) (fvs_typ t) ->
+              List.mem (cmp_v v1 v2)
+              [Downstream; Same_quant; Not_in_scope]) (fvs_typ t) ->
         aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
       | (TVar v as tv, t | t, (TVar v as tv)) ->
         if use_quants

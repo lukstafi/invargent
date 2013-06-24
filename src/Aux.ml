@@ -117,6 +117,12 @@ let minimal ~less l =
       else aux (e::List.filter (fun f -> not (less e f)) acc) l in
   aux [] l
 
+let maximum ~leq l =
+  let rec aux acc = function
+    | [] -> acc
+    | e::l -> if leq e acc then aux acc l else aux e l in
+  aux (List.hd l) (List.tl l)
+
 let sorted_diff xs ys =
   let rec aux acc = function
     | [], _ -> acc

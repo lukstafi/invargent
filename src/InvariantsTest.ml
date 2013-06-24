@@ -26,7 +26,7 @@ let test_case msg test result chi residuum =
         (* Format.printf "simpl-brs: %s@\n%a@\n" msg Infer.pr_brs brs; *)
         let brs = List.map Infer.br_to_formulas brs in
         (* FIXME: DEBUG *)
-        let brs = match brs with b1::b2::b3::b4::_ -> [b1; b2; b3; b4] in
+        (* let brs = match brs with b1::b2::b3::b4::_ -> [b1; b2; b3; b4] in *)
         let _, _, (sol_res, sol_chi) =
           Invariants.solve cmp_v uni_v brs in
         let vs, ans = List.assoc chi sol_chi in
