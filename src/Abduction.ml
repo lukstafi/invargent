@@ -196,8 +196,8 @@ let abd_simple cmp_v uni_v ?(init_params=VarSet.empty) validate skip
 (* let max_skip = ref 20 *)
 
 let abd_typ cmp_v uni_v ?(init_params=VarSet.empty) ?fincheck brs =
-  Format.printf "abd_typ:@ init params=@ %s@\n%!"
-    (String.concat ", " (List.map var_str (VarSet.elements init_params)));
+  (*Format.printf "abd_typ:@ init params=@ %s@\n%!"
+    (String.concat ", " (List.map var_str (VarSet.elements init_params)));*)
   let br0 = 0, List.hd brs in
   let more_brs = List.map (fun br -> -1, br) (List.tl brs) in
   let pms vs = VarSet.union (vars_of_list vs) init_params in
@@ -206,40 +206,40 @@ let abd_typ cmp_v uni_v ?(init_params=VarSet.empty) ?fincheck brs =
       ignore (combine_sbs ~use_quants:false ~params:(pms vs) cmp_v uni_v
                 [prem; concl; ans]))
     brs in
-  let time = ref (Sys.time ()) in
+  (* let time = ref (Sys.time ()) in *)
   let rec loop acc runouts = function
     | [] ->
       let _, (prem, concl) =
         Aux.maximum ~leq:(fun (i,_) (j,_) -> i<=j) runouts in
       raise (Suspect (fst acc, to_formula (snd acc @ prem @ concl)))      
     | (skip, br as obr)::more_brs ->
-      Format.printf
+      (*Format.printf
         "abd_typ-loop: skip=%d, #runouts=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
-        skip (List.length runouts) pr_subst (fst br) pr_subst (snd br);
+        skip (List.length runouts) pr_subst (fst br) pr_subst (snd br);*)
       match abd_simple cmp_v uni_v ~init_params validate skip acc br with
       | Some acc ->
-        let ntime = Sys.time () in
+        (*let ntime = Sys.time () in
           Format.printf "ans: (%.2fs)@ @[<2>%a@]@\n%!" (ntime -. !time)
-          pr_subst (snd acc); time := ntime;
+          pr_subst (snd acc); time := ntime;*)
         check_runouts acc obr more_brs [] runouts
       | None ->
-        Format.printf "reset first at skip=%d@\n%!" skip;
+        (* Format.printf "reset first at skip=%d@\n%!" skip; *)
         loop ([], []) ((0, br)::runouts) more_brs
 
   and check_runouts acc (dskip, dbr as done_br) more_brs done_runouts = function
     | [] -> check_brs acc (List.rev done_runouts) [done_br] more_brs
     | (confls, br as obr)::more_runouts ->
-      Format.printf
+      (*Format.printf
         "abd_typ-check_runouts: confls=%d, #done=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
-        confls (List.length done_runouts) pr_subst (fst br) pr_subst (snd br);
+        confls (List.length done_runouts) pr_subst (fst br) pr_subst (snd br);*)
       match abd_simple cmp_v uni_v ~init_params validate 0 acc br with
       | Some acc ->
-        let ntime = Sys.time () in
+        (*let ntime = Sys.time () in
           Format.printf "ans: (%.2fs)@ @[<2>%a@]@\n%!" (ntime -. !time)
-          pr_subst (snd acc); time := ntime;
+          pr_subst (snd acc); time := ntime;*)
         check_runouts acc done_br more_brs (obr::done_runouts) more_runouts
       | None ->
-        Format.printf "reset runouts at confls=%d@\n%!" confls;
+        (* Format.printf "reset runouts at confls=%d@\n%!" confls; *)
         loop ([], [])
           ((confls+1, br)::List.rev_append done_runouts more_runouts)
           ((dskip+1, dbr)::more_brs)
@@ -253,17 +253,17 @@ let abd_typ cmp_v uni_v ?(init_params=VarSet.empty) ?fincheck brs =
           | (skip, br)::more_brs ->
             loop ([], []) runouts ((skip+1, br)::more_brs))
     | (skip, br as obr)::more_brs ->
-      Format.printf
+      (*Format.printf
         "abd_typ-check_brs: skip=%d, #done=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
-        skip (List.length done_brs) pr_subst (fst br) pr_subst (snd br);
+        skip (List.length done_brs) pr_subst (fst br) pr_subst (snd br);*)
       match abd_simple cmp_v uni_v ~init_params validate 0 acc br with
       | Some acc ->
-        let ntime = Sys.time () in
+        (*let ntime = Sys.time () in
           Format.printf "ans: (%.2fs)@ @[<2>%a@]@\n%!" (ntime -. !time)
-          pr_subst (snd acc); time := ntime;
+          pr_subst (snd acc); time := ntime;*)
         check_brs acc runouts (obr::done_brs) more_brs
       | None ->
-        Format.printf "reset check at skip=%d@\n%!" skip;
+        (* Format.printf "reset check at skip=%d@\n%!" skip; *)
         loop ([], [])
           runouts ((skip+1, br)::List.rev_append done_brs more_brs) in
 
@@ -315,7 +315,7 @@ let abd_mockup_num cmp_v uni_v ?(init_params=VarSet.empty) brs =
 
 let abd cmp_v uni_v ?(init_params=VarSet.empty) ?fincheck brs =
   (* Do not change the order and no. of branches afterwards. *)
-  Format.printf "abd: prepare branches@\n%!";
+  (* Format.printf "abd: prepare branches@\n%!"; *)
   let brs_typ, brs_num, brs_so = Aux.split3
     (Aux.map_some (fun (prem, concl) ->
       let prems_opt =
@@ -338,13 +338,13 @@ let abd cmp_v uni_v ?(init_params=VarSet.empty) ?fincheck brs =
                      (prem_so, concl_so))
       | None -> None)
        brs) in
-  Format.printf "abd: solve for types@\n%!";
+  (* Format.printf "abd: solve for types@\n%!"; *)
   let tvs, ans_typ, more_num =
     abd_typ cmp_v uni_v ~init_params ?fincheck brs_typ in
   let brs_num = List.map2
     (fun (prem,concl) more -> prem, more @ concl)
     brs_num more_num in
-  Format.printf "abd: solve for numbers@\n%!";
+  (* Format.printf "abd: solve for numbers@\n%!"; *)
   let nvs, ans_num = NumS.abd ~init_params cmp_v uni_v brs_num in
   nvs @ tvs,
   Aux.map_append (fun (v,(t,lc)) -> Eqty (TVar v,t,lc))

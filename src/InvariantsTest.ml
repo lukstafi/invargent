@@ -19,7 +19,7 @@ let test_case msg test result chi residuum =
         let preserve, cn = Infer.infer_prog_mockup prog in
         Format.printf "cn: %s@\n%a@\n" msg Infer.pr_cnstrnt cn;
         let cmp_v, uni_v, brs = Infer.normalize cn in
-        Format.printf "brs: %s@\n%a@\n" msg Infer.pr_brs brs;
+        (* Format.printf "brs: %s@\n%a@\n" msg Infer.pr_brs brs; *)
         let uni_v v =
           try Hashtbl.find uni_v v with Not_found -> false in
         let brs = Infer.simplify preserve cmp_v uni_v brs in
@@ -48,7 +48,7 @@ let test_case msg test result chi residuum =
         assert_failure (Format.flush_str_formatter ())
 
 let tests = "Invariants" >::: [
-(*
+
   "eval" >::
     (fun () ->
       test_case "eval term"
@@ -109,7 +109,7 @@ let rec eval = function
 | (t68, t69) = t64 ∧ (Term t60) = t3 ∧ 𝛘1(t1) ⟹ t69 = t65"
 *)
     );
-
+(*
   "filter" >::
     (fun () ->
       test_case "list filter"

@@ -61,7 +61,7 @@ let new_q cmp_v uni_v =
   let posi_b = Hashtbl.create 16 in
   let cmp_v v1 v2 =
     let v1 = try Hashtbl.find same_q v1 with Not_found -> v1 in
-    let v2 = try Hashtbl.find same_q v1 with Not_found -> v2 in
+    let v2 = try Hashtbl.find same_q v2 with Not_found -> v2 in
     cmp_v v1 v2 in
   let b_is_uni = ref true in
   let uni_v v =
@@ -201,7 +201,7 @@ let strat q b ans =
                  ("Escaping universal variable",
                   Some (TVar b, TVar (List.find q.uni_v vs)), loc));
       let avs = List.map Infer.freshen_var vs in
-      let ans_r = List.map2 (fun a b -> a, (TVar b, loc)) avs vs in
+      let ans_r = List.map2 (fun a b -> b, (TVar a, loc)) avs vs in
       avs, subst_atom ans_r c, ans_r)
     ans in
   let avs, ans_l, ans_r = split3 strat in
@@ -212,7 +212,7 @@ let rec split avs ans q =
   (* 1 FIXME: do we really need this? *)
   let cmp_v v1 v2 =
     let a = q.cmp_v v1 v2 in
-    if a <> Same_quant then a
+    if a <> Same_quant && a <> Not_in_scope then a
     else
       let c1 = VarSet.mem v1 q.allbvs
       and c2 = VarSet.mem v2 q.allbvs in
@@ -287,7 +287,11 @@ let rec split avs ans q =
       avss in
     (* 10b *)
     let ans_p = List.concat ans_rs in
+    Format.printf "split: ans_p=@ %a@ --@ ans_res=@ %a@\n%!"
+      pr_subst ans_p pr_formula ans_res;
     let ans_res = to_formula ans_p @ subst_formula ans_p ans_res in
+    Format.printf "split: ans_res'=@ %a@\n%!"
+      pr_formula ans_res;
     let avs_p = List.concat avs_ps in
     let avsl = List.map VarSet.elements avss in
     (* 11 *)
@@ -343,6 +347,15 @@ let converge sol0 sol1 sol2 =
 
 let neg_constrns = ref false
 
+let pr_chi_subst ppf chi_sb =
+  pr_sep_list ";" (fun ppf (i,ans) ->
+    Format.fprintf ppf "𝛘%d:=%a" i pr_ans ans) ppf chi_sb
+
+let pr_bchi_subst ppf chi_sb =
+  pr_sep_list ";" (fun ppf (v,ans) ->
+    Format.fprintf ppf "𝛘(%s):=%a" (var_str v) pr_ans ans) ppf chi_sb
+
+
 let solve cmp_v uni_v brs =
   let q = new_q cmp_v uni_v in
   let cmp_v = q.cmp_v and uni_v = q.uni_v in
@@ -397,6 +410,9 @@ let solve cmp_v uni_v brs =
           else if c1 then Downstream
           else if c2 then Upstream
           else cmp_v v1 v2 in
+        Format.printf "solve.loop.cmp_v': t1 t4 = %s@\n%!"
+          (str_of_cmp (cmp_v' [VId (Type_sort, 1)] (VId (Type_sort, 1))
+                         (VId (Type_sort, 4))));
         (* FIXME:     q.set_b_uni false; ? *)
         match Abduction.abd_s (cmp_v' gvs) uni_v
           ~init_params:(pms (gvs @ vs)) ans g_ans with
@@ -445,10 +461,12 @@ let solve cmp_v uni_v brs =
           (Contradiction
              ("Could not find invariants. Possible reason: "^msg,
               tys, loc)) in
-    Printf.printf "solve: loop -- abduction found\n%!";
+    Format.printf "solve: loop -- abduction found@ ans=@ %a@\n%!"
+      pr_ans (vs, ans);
     q.set_b_uni true;
     let ans_res, sol2 = split vs ans q in
-    Printf.printf "solve: loop -- answer split\n%!";
+    Format.printf "solve: loop -- answer split@ ans_res=@ %a@\nsol=@ %a@\n%!"
+      pr_formula ans_res pr_bchi_subst sol2;
     (* 6 *)
     let lift_ex_types t2 (vs, ans) =
       let fvs = fvs_formula ans in

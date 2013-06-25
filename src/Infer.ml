@@ -541,7 +541,8 @@ let normalize cn =
     VarSet.iter (fun uv ->
       VarSet.iter (fun dv ->
         Hashtbl.add quants (uv,dv) Upstream;
-        Hashtbl.add quants (dv,uv) Downstream) vs) up_vars;
+        Hashtbl.add quants (dv,uv) Downstream
+      ) vs) up_vars;
     VarSet.iter (fun av ->
       VarSet.iter (fun bv ->
         Hashtbl.add quants (av,bv) Same_quant;
@@ -644,6 +645,8 @@ let vs_hist_atom increase = function
 let vs_hist_sb increase sb =
   List.iter (fun (v,(t,_)) -> increase v; vs_hist_typ increase t) sb
  
+let elim_shared_concls = ref true
+
 let simplify preserve cmp_v uni_v brs =
   (* Substitute-out shared facts. *)
   let aux cond sb (prem, (concl_ty, concl_num, concl_so) as br) =
@@ -651,7 +654,7 @@ let simplify preserve cmp_v uni_v brs =
     then
       let concl_ty, more_num =
         subst_solved ~use_quants:false cmp_v uni_v sb ~cnj:concl_ty in
-      subst_formula sb prem, (concl_ty, more_num @ concl_num, concl_so)
+      subst_fo_formula sb prem, (concl_ty, more_num @ concl_num, concl_so)
     else br in
   let rec loop acc = function
     | [] -> List.rev acc
@@ -659,8 +662,7 @@ let simplify preserve cmp_v uni_v brs =
       let acc = List.map (aux prem ty_sb) acc in
       let more = List.map (aux prem ty_sb) more in
       loop (br::acc) more in
-  let brs = loop [] brs in
-  (* TODO: also for numeric sort. *)
+  let brs = if !elim_shared_concls then loop [] brs else brs in
   (* Prune uninformative variables. *)
   let ht = Hashtbl.create 255 in
   let increase v =

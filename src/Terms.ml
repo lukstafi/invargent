@@ -282,6 +282,12 @@ let subst_atom sb = function
   | PredVarU (n, t) -> PredVarU (n, subst_typ sb t)
   | PredVarB (n, t1, t2) -> PredVarB (n, subst_typ sb t1, subst_typ sb t2)
 
+let subst_fo_atom sb = function
+  | Eqty (t1, t2, loc) -> Eqty (subst_typ sb t1, subst_typ sb t2, loc)
+  | Leq (t1, t2, loc) -> Leq (subst_typ sb t1, subst_typ sb t2, loc)
+  | CFalse _ as a -> a
+  | (PredVarU _ | PredVarB _) as a -> a
+
 type formula = atom list
 
 let fvs_formula phi =
@@ -293,6 +299,8 @@ let fvs_sb sb =
     (List.map (fun (_,(t,_))->fvs_typ t) sb)
 
 let subst_formula sb phi = List.map (subst_atom sb) phi
+
+let subst_fo_formula sb phi = List.map (subst_fo_atom sb) phi
 
 type typ_scheme = var_name list * formula * typ
 
@@ -594,6 +602,12 @@ let pr_typscheme ppf = function
     fprintf ppf "@[<0>∀%a[%a].@ %a@]"
       (pr_sep_list "," pr_tyvar) vs
       pr_formula phi (pr_ty false) ty
+
+let pr_ans ppf = function
+  | [], ans -> pr_formula ppf ans
+  | vs, ans ->
+    fprintf ppf "@[<2>∃%a.@ %a@]"
+      (pr_sep_list "," pr_tyvar) vs pr_formula ans
   
 let pr_subst ppf sb =
   pr_sep_list ";" (fun ppf (v,(t,_)) ->

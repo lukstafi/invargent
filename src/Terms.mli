@@ -149,6 +149,8 @@ type subst = (var_name * (typ * loc)) list
 
 val subst_atom : subst -> atom -> atom
 val subst_formula : subst -> formula -> formula
+val subst_fo_atom : subst -> atom -> atom
+val subst_fo_formula : subst -> formula -> formula
 val fvs_sb : subst -> VarSet.t
 
 val enc_funtype : typ -> typ list -> typ
@@ -225,6 +227,8 @@ val pr_ty : bool -> Format.formatter -> typ -> unit
 val pr_sort : Format.formatter -> sort -> unit
 val pr_typscheme :
   Format.formatter -> typ_scheme -> unit
+val pr_ans :
+  Format.formatter -> var_name list * formula -> unit
 val pr_subst : Format.formatter -> subst -> unit
 val pr_typ_dir : Format.formatter -> typ_dir -> unit
 val pr_typ_loc : Format.formatter -> typ_loc -> unit

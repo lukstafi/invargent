@@ -133,8 +133,10 @@ let tests = "NumS" >::: [
         let ans =
           try let vs, ans = abd cmp_v uni_v brs
               in pr_to_str pr_formula ans with Suspect _ -> "none" in
+        (* FIXME: correct answer? *)
         assert_equal ~printer:(fun x -> x)
-          ""
+          "1 = n172 ∧ (n19 + n19) = (2 + n168 + n168 + n168 + n168) ∧ n19 = n167 ∧
+(1 + n166 + n166) = (n155 + n155)"
           ans
       with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
