@@ -109,9 +109,10 @@ let rec eval = function
 | (t68, t69) = t64 ∧ (Term t60) = t3 ∧ 𝛘1(t1) ⟹ t69 = t65"
 *)
     );
-(*
+
   "filter" >::
     (fun () ->
+      todo "numeric";
       test_case "list filter"
 "newtype Bool
 newtype List : type * num
@@ -145,7 +146,7 @@ let rec filter =
     t29 = (List (t16, n17) → t22) ∧ 𝛘1(t29)"
 *)
     );
-*)
+
   "equal with assert and test" >::
     (fun () ->
       test_case "equal terms"
@@ -209,10 +210,10 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
     (Ty t88) = t86 ∧ (List t89) = t88 ∧ 𝛘1(t1) ⟹ FALSE"
 *)
     );
-(*
 
   "binary plus" >::
     (fun () ->
+      todo "numeric";
       test_case "binary plus"
 "newtype Binary : num
 newtype Carry : num
@@ -338,5 +339,5 @@ let rec plus =
     (1 + n168 + n168) = n167 ∧ 1 = n172 ∧ 𝛘1(t173)"
 *)
     );
-*)
+
 ]
