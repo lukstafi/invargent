@@ -154,6 +154,14 @@ let sb_brs_pred q psb brs = List.map
     sb_formula_pred q false psb prem, sb_formula_pred q true psb concl)
   brs
 
+let pr_chi_subst ppf chi_sb =
+  pr_sep_list ";" (fun ppf (i,ans) ->
+    Format.fprintf ppf "𝛘%d:=%a" i pr_ans ans) ppf chi_sb
+
+let pr_bchi_subst ppf chi_sb =
+  pr_sep_list ";" (fun ppf (v,ans) ->
+    Format.fprintf ppf "𝛘(%s):=%a" (var_str v) pr_ans ans) ppf chi_sb
+
 type state = subst * NumS.state
 
 let empty_state : state = [], NumS.empty_state
@@ -164,12 +172,12 @@ let holds q ?params (ty_st, num_st) cnj =
   let num_st = NumS.holds q.cmp_v q.uni_v num_st num_cnj in
   ty_st, num_st
 
-(* 5 *)
+(* 4 *)
 let select check_max_b q ans ans_min ans_max =
-  let allmax = concat_map snd ans_max
-  and allmin = concat_map snd ans_min in
+  let allmax = concat_map snd ans_max in
   let init_res = list_diff ans allmax in
-  let cands = list_diff allmax allmin in
+  Format.printf "select: allmax=@ %a@\n%!"
+      pr_formula allmax;
   (* Raises [Contradiction] here if solution impossible. *)
   let init_state = holds q empty_state init_res in
   let rec loop state ans_res ans_p = function
@@ -186,13 +194,14 @@ let select check_max_b q ans ans_min ans_max =
             if check_max_b vs bs then b, c::ans else b_ans)
           ans_p in
         loop state ans_res ans_p cands in
-  loop init_state init_res ans_min cands
+  let ans_p = List.map (fun (b,_)->b,[]) ans_max in
+  loop init_state init_res ans_p allmax
 
-(* 6 *)
+(* 5 *)
 let strat q b ans =
-  let strat = List.map
-    (fun c ->
-      let vs = VarSet.elements (fvs_atom c) in
+  let (_, ans_r), ans = fold_map
+    (fun (pvs, ans_r) c ->
+      let vs = VarSet.elements (VarSet.diff (fvs_atom c) pvs) in
       let vs = List.filter
         (fun v -> q.cmp_v b v = Upstream) vs in
       let loc = atom_loc c in
@@ -201,11 +210,13 @@ let strat q b ans =
                  ("Escaping universal variable",
                   Some (TVar b, TVar (List.find q.uni_v vs)), loc));
       let avs = List.map Infer.freshen_var vs in
-      let ans_r = List.map2 (fun a b -> b, (TVar a, loc)) avs vs in
-      avs, subst_atom ans_r c, ans_r)
-    ans in
-  let avs, ans_l, ans_r = split3 strat in
-  List.concat avs, ans_l, List.concat ans_r
+      let ans_r =
+        List.map2 (fun a b -> b, (TVar a, loc)) avs vs @ ans_r in
+      (VarSet.union pvs (vars_of_list vs), ans_r),
+      (avs, subst_atom ans_r c))
+    (VarSet.empty, []) ans in
+  let avs, ans_l = List.split ans in
+  List.concat avs, ans_l, ans_r
   
 
 let rec split avs ans q =
@@ -223,6 +234,8 @@ let rec split avs ans q =
   let greater_v v1 v2 = cmp_v v1 v2 = Upstream in
   let rec loop avs ans sol =
     (* 2 *)
+    Format.printf "split-loop: starting ans=@ %a@\nsol=@ %a@\n%!"
+      pr_formula ans pr_bchi_subst (List.map (fun (b,a)->b,([],a)) sol);
     let ans0 = List.filter
       (function
       | Eqty (TVar a, TVar b, _)
@@ -234,18 +247,6 @@ let rec split avs ans q =
       | _ -> true) ans in
     let ans0 = List.map (fun c -> c, fvs_atom c) ans0 in
     (* 3 *)
-    let ans_min = List.map
-      (fun b ->
-        let bs = Hashtbl.find q.b_vs b in
-        b, map_some
-          (fun (c, vs) ->
-            let vmax =
-              minimal ~less:greater_v (VarSet.elements vs) in
-            if List.for_all (fun v -> VarSet.mem v bs) vmax
-            then Some c else None)
-          ans0)
-      q.negbs in
-    (* 4 *)
     let check_max_b vs bs =
       let vmax = minimal ~less:greater_v
         (VarSet.elements (VarSet.inter vs q.allbvs)) in
@@ -258,25 +259,29 @@ let rec split avs ans q =
             if check_max_b vs bs then Some c else None)
           ans0)
       q.negbs in
-    (* 5, 10a *)
+    (* 4, 9a *)
     let ans_res, ans_ps = select check_max_b q ans ans_min ans_max in
-    (* 6 *)
+    (* 5 *)
     let ans_strat = List.map
       (fun (b, ans_p) ->
+        Format.printf "select: ans_chi(%s)=@ %a@\n%!"
+          (var_str b) pr_formula ans_p;
         let (avs_p, ans_l, ans_r) = strat q b ans_p in
+        Format.printf "select: ans_l(%s)=@ %a@\n%!"
+          (var_str b) pr_formula ans_l;
         q.add_b_vs b avs_p;
-        (* 7 *)
+        (* 6 *)
         let ans0 = List.assoc b sol in
         let ans = ans0 @ ans_l in
-        (* 8 *)
+        (* 7 *)
         let avs0 = VarSet.inter avs (fvs_formula ans) in
-        (* 9.a *)
+        (* 8.a *)
         let avs = VarSet.union avs0 (vars_of_list avs_p) in
         (b, avs), (b, ans), (avs_p, ans_r))
       ans_ps in
     let avss, sol', more = split3 ans_strat in
     let avs_ps, ans_rs = List.split more in
-    (* 9.b *)
+    (* 8.b *)
     let avss = List.map
       (fun (b, avs) ->
         let lbs = List.filter
@@ -285,7 +290,7 @@ let rec split avs ans q =
           (List.map (flip List.assoc avss) lbs) in
         VarSet.diff avs uvs)
       avss in
-    (* 10b *)
+    (* 9b *)
     let ans_p = List.concat ans_rs in
     Format.printf "split: ans_p=@ %a@ --@ ans_res=@ %a@\n%!"
       pr_subst ans_p pr_formula ans_res;
@@ -294,18 +299,18 @@ let rec split avs ans q =
       pr_formula ans_res;
     let avs_p = List.concat avs_ps in
     let avsl = List.map VarSet.elements avss in
-    (* 11 *)
+    (* 10 *)
     if avs_p <> []
     then
-      (* 12 *)
+      (* 11 *)
       let avs' = VarSet.diff avs
         (List.fold_left VarSet.union VarSet.empty avss) in
       let ans_res', sol' = loop avs' ans_res sol' in
-      (* 13 *)
+      (* 12 *)
       ans_res', List.map2
         (fun avs (b, (avs', ans')) -> b, (avs@avs', ans')) avsl sol'
     else
-      (* 14 *)
+      (* 13 *)
       ans_res, List.map2 (fun avs (b, ans) -> b, (avs, ans)) avsl sol' in
   let solT = List.map (fun b->b, []) q.negbs in
   loop (vars_of_list avs) ans solT  
@@ -346,14 +351,6 @@ let converge sol0 sol1 sol2 =
   sol2
 
 let neg_constrns = ref false
-
-let pr_chi_subst ppf chi_sb =
-  pr_sep_list ";" (fun ppf (i,ans) ->
-    Format.fprintf ppf "𝛘%d:=%a" i pr_ans ans) ppf chi_sb
-
-let pr_bchi_subst ppf chi_sb =
-  pr_sep_list ";" (fun ppf (v,ans) ->
-    Format.fprintf ppf "𝛘(%s):=%a" (var_str v) pr_ans ans) ppf chi_sb
 
 
 let solve cmp_v uni_v brs =
