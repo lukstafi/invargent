@@ -61,7 +61,6 @@ val normalize : cnstrnt ->
     branch list
 
 (* Eliminate shared conclusions during {!simplify}. *)
-(* val elim_shared_concls : bool ref *)
 val simplify :
   Terms.VarSet.t ->
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->

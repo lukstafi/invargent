@@ -51,6 +51,7 @@ let tests = "Invariants" >::: [
 
   "eval" >::
     (fun () ->
+      (* todo "debug"; *)
       test_case "eval term"
 "newtype Term : type
 newtype Int
@@ -77,15 +78,18 @@ let rec eval = function
   | Fst p -> (match eval p with x, y -> x)
   | Snd p -> (match eval p with x, y -> y)"
 
-        "∃. δ = (Term t5 → t5)" 1
-        "t4 = t5 ∧ t3 = (Term t5) ∧ t11 = (Term Int → Int) ∧
-  t16 = (Term Int → Int) ∧ t19 = (Term Int → Int) ∧
-  t24 = (Term t4 → t4) ∧ t27 = (Term t4 → t4) ∧
-  t30 = (Term Bool → Bool) ∧ t38 = t36 ∧ t39 = t37 ∧
-  t41 = (Term t36 → t36) ∧ t43 = (Term t37 → t37) ∧
-  t50 = (Term (t4, t47) → t4, t54) ∧ t51 = (t4, t54) ∧ t52 = t4 ∧
-  t53 = t4 ∧ t63 = (Term (t59, t4) → t66, t4) ∧ t64 = (t66, t4) ∧
-  t65 = t4 ∧ t67 = t4"
+        "∃t78. δ = (Term t78 → t78)" 1
+        "t2 = (Term t79 → t79) ∧ t3 = (Term t5) ∧ t4 = t5 ∧
+  t11 = (Term Int → Int) ∧ t16 = (Term Int → Int) ∧
+  t19 = (Term Int → Int) ∧ t24 = (Term t5 → t5) ∧
+  t27 = (Term t5 → t5) ∧ t30 = (Term Bool → Bool) ∧ t38 = t36 ∧
+  t39 = t37 ∧ t41 = (Term t36 → t36) ∧ t43 = (Term t37 → t37) ∧
+  t50 = (Term (t46, t47) → t46, t47) ∧ t51 = (t46, t47) ∧ t52 = t46 ∧
+  t53 = t46 ∧ t54 = t47 ∧ t63 = (Term (t59, t60) → t59, t60) ∧
+  t64 = (t59, t60) ∧ t65 = t60 ∧ t66 = t59 ∧ t67 = t60 ∧ t78 = t5 ∧
+  t80 = Int ∧ t81 = Int ∧ t82 = Int ∧ t83 = Bool ∧ t84 = t5 ∧
+  t85 = t5 ∧ t86 = t36 ∧ t87 = t37 ∧ t88 = (t46, t47) ∧
+  t89 = (t59, t60)"
 (*
 " ⟹ 𝛘1(t2)
 | 𝛘1(t1) ⟹ t1 = (Term t5 → t4) ∧ t3 = (Term t5)

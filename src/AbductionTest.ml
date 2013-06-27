@@ -22,7 +22,8 @@ let test_simple lhs_m rhs_m ?(validate=(fun _ _ -> ())) skip res =
   let lhs = p_formula lhs_m and rhs = p_formula rhs_m in
   let lhs, rhs = br_simple lhs rhs in
   let ans =
-    match abd_simple cmp_v uni_v validate skip ([],[]) (lhs, rhs) with
+    match abd_simple cmp_v uni_v
+      ~validate ~discard:[] skip ([],[]) (lhs, rhs) with
     | None _ -> "none"
     | Some (vs, ans_typ) ->
       pr_to_str pr_formula
@@ -90,7 +91,7 @@ let tests = "Abduction" >::: [
         let lhs8, rhs8 = br_simple lhs8 rhs8 in
         let lhs9, rhs9 = br_simple lhs9 rhs9 in
         let ans =
-          try let vs, ans_typ, _ = abd_typ cmp_v uni_v
+          try let vs, ans_typ, _ = abd_typ cmp_v uni_v ~discard:[]
                 [lhs0, rhs0; lhs1, rhs1;
                  lhs2, rhs2; lhs4, rhs4;
                  lhs5, rhs5; lhs6, rhs6;
@@ -349,7 +350,7 @@ let rec plus =
         todo "Test fails by looping inside abduction";
         let brs = Infer.simplify preserve cmp_v uni_v brs in
         let vs, ans =
-          try abd cmp_v uni_v
+          try abd cmp_v uni_v ~discard:[]
                 (List.map Infer.br_to_formulas brs)
           with Suspect _ -> assert_failure "No abduction answer" in
         ignore (Format.flush_str_formatter ());
@@ -398,7 +399,7 @@ let rec filter =
         todo "Test fails by looping inside abduction";
         let brs = Infer.simplify preserve cmp_v uni_v brs in
         let vs, ans =
-          try abd cmp_v uni_v
+          try abd cmp_v uni_v ~discard:[]
                 (List.map Infer.br_to_formulas brs)
           with Suspect _ -> assert_failure "No abduction answer" in
         ignore (Format.flush_str_formatter ());
@@ -430,7 +431,8 @@ let rec filter =
           [VNam (Type_sort, "tA");VNam (Type_sort, "tB");
            VNam (Type_sort, "tC");VNam (Type_sort, "tD")] in
         let ans =
-          try let vs, ans_typ, _ = abd_typ cmp_v uni_v ~init_params:pms
+          try let vs, ans_typ, _ =
+                abd_typ cmp_v uni_v ~init_params:pms ~discard:[]
                 [lhs0, rhs0; lhs1, rhs1] in
               pr_to_str pr_formula (to_formula ans_typ)
           with Suspect _ -> "none" in
@@ -445,3 +447,6 @@ tD = (Ty Int, Ty Int → Bool)" ans
 
 
 ]
+
+let tests = "Abduction Debug Off" >::: [ ]
+

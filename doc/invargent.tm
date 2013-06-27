@@ -327,8 +327,20 @@
   abduction algorithm takes a partial solution -- a conjunction of candidate
   solutions for some other branches -- and checks if the solution being
   generated is satisfiable together with the candidate partial solution. The
-  algorithm also takes a number that determines how many correct solutions to
-  skip.
+  algorithm also takes several indicators to let it select an expected
+  answer:
+
+  <\itemize>
+    <item>a number that determines how many correct solutions to skip;
+
+    <item>a validation procedure that checks whether the partial answer meets
+    a condition, in joint abduction the condition is consistency with premise
+    and conclusion of each branch;
+
+    <item>a discard list that contains answer atoms -- substitution terms --
+    disallowed in the pursued solution. The main algorithm will pass the
+    answer atoms from previous iterations as a discard list.
+  </itemize>
 
   Besides multisort joint constraint abduction <verbatim|abd> we also provide
   multisort simple fully maximal constraint abduction <verbatim|abd_s>.

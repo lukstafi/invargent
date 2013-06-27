@@ -10,7 +10,9 @@ val abd_simple :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
   ?init_params:Terms.VarSet.t ->  
-  (Terms.VarSet.elt list -> Terms.subst -> unit) -> int ->
+  validate:(Terms.VarSet.elt list -> Terms.subst -> unit) ->
+  discard:Terms.subst ->
+  int ->
   Terms.var_name list * Terms.subst ->
   Terms.subst * Terms.subst ->
   (Terms.var_name list * Terms.subst)
@@ -20,6 +22,7 @@ val abd_typ :
   (Terms.var_name -> bool) ->
   ?init_params:Terms.VarSet.t ->  
   ?fincheck:(Terms.var_name list * Terms.subst -> bool) ->
+  discard:Terms.subst ->
   (Terms.subst * Terms.subst) list ->
   Terms.var_name list * Terms.subst * Terms.formula list
 (* Raises [Suspect] if no answer can be found. *)
@@ -28,6 +31,7 @@ val abd :
   (Terms.var_name -> bool) ->
   ?init_params:Terms.VarSet.t ->  
   ?fincheck:(Terms.var_name list * Terms.subst -> bool) ->
+  discard:Terms.formula ->
   (Terms.formula * Terms.formula) list ->
   Terms.var_name list * Terms.formula
 val abd_mockup_num :

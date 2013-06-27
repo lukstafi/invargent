@@ -406,7 +406,7 @@ let solve cmp_v uni_v brs =
   let chiK = List.map (fun ((i,t2),cnjs) -> i, (t2, cnjs)) chiK in
   let pms vs =
     VarSet.union (vars_of_list vs) q.allbvs in
-  let rec loop sol0 (sol1 : (int * (var_name list * formula)) list) =
+  let rec loop discard sol0 sol1 =
     let gK = List.map
       (fun (i,(t2,cnjs)) ->
         i, connected delta (DisjElim.disjelim cmp_v uni_v cnjs)) chiK in
@@ -459,7 +459,8 @@ let solve cmp_v uni_v brs =
     (* 5 *)
     q.set_b_uni false;
     let vs, ans =
-      try Abduction.abd cmp_v uni_v ~init_params:q.allbvs ?fincheck brs
+      try Abduction.abd cmp_v uni_v ~init_params:q.allbvs
+            ?fincheck ~discard brs
       with Suspect (vs, phi) ->
         try
           Format.printf "solve: abduction failed: phi=@ %a@\n%!"
@@ -476,8 +477,10 @@ let solve cmp_v uni_v brs =
       pr_ans (vs, ans);
     q.set_b_uni true;
     let ans_res, sol2 = split vs ans q in
-    Format.printf "solve: loop -- answer split@ ans_res=@ %a@\nsol=@ %a@\n%!"
-      pr_formula ans_res pr_bchi_subst sol2;
+    let more_discard = list_diff ans ans_res in
+    Format.printf "solve: loop -- answer split@ more_discard=@ %a@\nans_res=@ %a@\nsol=@ %a@\n%!"
+      pr_formula more_discard pr_formula ans_res pr_bchi_subst sol2;
+    let discard = more_discard @ discard in
     (* 6 *)
     let lift_ex_types t2 (vs, ans) =
       let fvs = fvs_formula ans in
@@ -527,8 +530,8 @@ let solve cmp_v uni_v brs =
         sol1 in    
       (* 10 *)
       let sol2 = converge sol0 sol1 sol2 in
-      loop sol1 sol2 in
-  let sol = loop solT solT in
+      loop discard sol1 sol2 in
+  let sol = loop [] solT solT in
   Printf.printf "solve: checking assert false\n%!";
   List.iter (fun (cnj, loc) ->
     try

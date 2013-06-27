@@ -47,7 +47,6 @@ let rec eval = function
         let cmp_v, uni_v, brs = normalize cn in
         let uni_v v =
           try Hashtbl.find uni_v v with Not_found -> false in
-        (* elim_shared_concls := false; *)
         let sbrs = simplify preserve cmp_v uni_v brs in
         ignore (Format.flush_str_formatter ());
         pr_brs Format.str_formatter sbrs;
@@ -171,7 +170,6 @@ test b_not (equal (TInt, TList TInt) Zero Nil)") in
         let cmp_v, uni_v, brs = normalize cn in
         let uni_v v =
           try Hashtbl.find uni_v v with Not_found -> false in
-        (* elim_shared_concls := false; *)
         let sbrs = simplify preserve cmp_v uni_v brs in
         ignore (Format.flush_str_formatter ());
         pr_brs Format.str_formatter sbrs;
@@ -258,7 +256,6 @@ let rec plus =
         let cmp_v, uni_v, brs = normalize cn in
         let uni_v v =
           try Hashtbl.find uni_v v with Not_found -> false in
-        (* elim_shared_concls := false; *)
         let brs = simplify preserve cmp_v uni_v brs in
         ignore (Format.flush_str_formatter ());
         pr_brs Format.str_formatter brs;
