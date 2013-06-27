@@ -645,11 +645,11 @@ let vs_hist_atom increase = function
 let vs_hist_sb increase sb =
   List.iter (fun (v,(t,_)) -> increase v; vs_hist_typ increase t) sb
  
-let elim_shared_concls = ref true
+(* let elim_shared_concls = ref true *)
 
 let simplify preserve cmp_v uni_v brs =
   (* Substitute-out shared facts. *)
-  let aux cond sb (prem, (concl_ty, concl_num, concl_so) as br) =
+  (*let aux cond sb (prem, (concl_ty, concl_num, concl_so) as br) =
     if List.for_all (fun c -> List.mem c prem) cond
     then
       let concl_ty, more_num =
@@ -662,7 +662,7 @@ let simplify preserve cmp_v uni_v brs =
       let acc = List.map (aux prem ty_sb) acc in
       let more = List.map (aux prem ty_sb) more in
       loop (br::acc) more in
-  let brs = if !elim_shared_concls then loop [] brs else brs in
+  let brs = if !elim_shared_concls then loop [] brs else brs in*)
   (* Prune uninformative variables. *)
   let ht = Hashtbl.create 255 in
   let increase v =
