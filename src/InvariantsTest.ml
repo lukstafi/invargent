@@ -51,7 +51,7 @@ let tests = "Invariants" >::: [
 
   "eval" >::
     (fun () ->
-      (* todo "debug"; *)
+      todo "debug";
       test_case "eval term"
 "newtype Term : type
 newtype Int
@@ -177,42 +177,12 @@ let rec equal = function
         b_and (equal (t1, u1) x1 y1)
               (equal (t2, u2) x2 y2))
   | TList t, TList u -> forall2 (equal (t, u))
-  | TInt, TList l ->
-    (function Nil -> assert false
-    | _ -> fun _ -> False)
-  | _ -> fun _ -> fun _ -> False
+  | _ -> fun _ _ -> False
+  | TInt, TList l -> (function Nil -> assert false)
+  | TList l, TInt -> fun _ -> function Nil -> assert false
 test b_not (equal (TInt, TList TInt) Zero Nil)"
         "" 1
-        ""
-(*
-" ⟹ t107 = (Ty Int, Ty (List Int) → Int → List t98 → Bool) ∧
-  𝛘1(t2) ∧ 𝛘1(t107)
-| 𝛘1(t1) ⟹ t1 = (Ty t7, Ty t8 → Bool) ∧ t3 = (Ty t7, Ty t8) ∧
-    t4 = Bool
-| (t9, t10) = t3 ∧ (Ty t11) = t9 ∧ Int = t11 ∧ (Ty t12) = t10 ∧
-    Int = t12 ∧ 𝛘1(t1) ⟹ t4 = (Int → Int → Bool)
-| (t27, t28) = t3 ∧ (Ty t29) = t27 ∧ (t30, t31) = t29 ∧
-    (Ty t32) = t28 ∧ (t33, t34) = t32 ∧ 𝛘1(t1) ⟹
-    t4 = (t37, t38 → t36) ∧ t35 = (t37, t38)
-| (t39, t40) = t35 ∧ (t27, t28) = t3 ∧ (Ty t29) = t27 ∧
-    (t30, t31) = t29 ∧ (Ty t32) = t28 ∧ (t33, t34) = t32 ∧ 𝛘1(t1)
-    ⟹ t36 = (t43, t44 → t42) ∧ t41 = (t43, t44)
-| (t45, t46) = t41 ∧ (t39, t40) = t35 ∧ (t27, t28) = t3 ∧
-    (Ty t29) = t27 ∧ (t30, t31) = t29 ∧ (Ty t32) = t28 ∧
-    (t33, t34) = t32 ∧ 𝛘1(t1) ⟹ t42 = Bool ∧
-    t60 = (Ty t30, Ty t33 → t39 → t45 → Bool) ∧
-    t53 = (Ty t31, Ty t34 → t40 → t46 → Bool) ∧ 𝛘1(t60) ∧
-    𝛘1(t53)
-| (t67, t68) = t3 ∧ (Ty t69) = t67 ∧ (List t70) = t69 ∧
-    (Ty t71) = t68 ∧ (List t72) = t71 ∧ 𝛘1(t1) ⟹
-    t4 = (List t78 → List t79 → Bool) ∧
-    t77 = (Ty t70, Ty t72 → t78 → t79 → Bool) ∧ 𝛘1(t77)
-| (t85, t86) = t3 ∧ (Ty t87) = t85 ∧ Int = t87 ∧ (Ty t88) = t86 ∧
-    (List t89) = t88 ∧ 𝛘1(t1) ⟹ t4 = (List t92 → t94 → Bool) ∧
-    t90 = (List t92)
-| (List t93) = t90 ∧ (t85, t86) = t3 ∧ (Ty t87) = t85 ∧ Int = t87 ∧
-    (Ty t88) = t86 ∧ (List t89) = t88 ∧ 𝛘1(t1) ⟹ FALSE"
-*)
+        "";
     );
 
   "binary plus" >::

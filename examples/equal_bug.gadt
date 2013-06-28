@@ -21,7 +21,8 @@ let rec equal = function
         b_and (equal (t1, u1) x1 y1)
               (equal (t2, u2) x2 y2))
   | TList t, TList u -> forall2 (equal (t, u))
-  | _ -> fun _ _ -> False
-  | TInt, TList l -> (function Nil -> assert false)
-  | TList l, TInt -> fun _ -> function Nil -> assert false
+  | TInt, TList l ->
+    (function Nil -> assert false
+    | _ -> fun _ -> False)
+  | _ -> fun _ -> fun _ -> False
 test b_not (equal (TInt, TList TInt) Zero Nil)
