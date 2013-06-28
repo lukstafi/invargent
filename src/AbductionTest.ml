@@ -448,5 +448,5 @@ tD = (Ty Int, Ty Int → Bool)" ans
 
 ]
 
-let tests = "Abduction Debug Off" >::: [ ]
+(* let tests = "Abduction Debug Off" >::: [ ] *)
 
