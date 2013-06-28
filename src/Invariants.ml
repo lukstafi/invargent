@@ -233,7 +233,7 @@ let strat q b ans =
   List.concat avs, ans_l, ans_r
   
 
-let rec split avs ans q =
+let split avs ans q =
   (* 1 FIXME: do we really need this? *)
   let cmp_v v1 v2 =
     let a = q.cmp_v v1 v2 in
@@ -246,7 +246,7 @@ let rec split avs ans q =
       else if c2 then Upstream
       else Same_quant in
   let greater_v v1 v2 = cmp_v v1 v2 = Upstream in
-  let rec loop avs ans sol =
+  let rec loop avs ans discard sol =
     (* 2 *)
     Format.printf "split-loop: starting ans=@ %a@\nsol=@ %a@\n%!"
       pr_formula ans pr_bchi_subst (List.map (fun (b,a)->b,([],a)) sol);
@@ -275,6 +275,7 @@ let rec split avs ans q =
       q.negbs in
     (* 4, 9a *)
     let ans_res, ans_ps = select check_max_b q ans ans_max in
+    let more_discard = concat_map snd ans_ps in
     (* 5 *)
     let ans_strat = List.map
       (fun (b, ans_p) ->
@@ -319,15 +320,18 @@ let rec split avs ans q =
       (* 11 *)
       let avs' = VarSet.diff avs
         (List.fold_left VarSet.union VarSet.empty avss) in
-      let ans_res', sol' = loop avs' ans_res sol' in
+      let ans_res', discard', sol' =
+        loop avs' ans_res (more_discard @ discard) sol' in
       (* 12 *)
-      ans_res', List.map2
+      ans_res', discard',
+      List.map2
         (fun avs (b, (avs', ans')) -> b, (avs@avs', ans')) avsl sol'
     else
       (* 13 *)
-      ans_res, List.map2 (fun avs (b, ans) -> b, (avs, ans)) avsl sol' in
+      ans_res, more_discard @ discard,
+      List.map2 (fun avs (b, ans) -> b, (avs, ans)) avsl sol' in
   let solT = List.map (fun b->b, []) q.negbs in
-  loop (vars_of_list avs) ans solT  
+  loop (vars_of_list avs) ans [] solT  
 
 let connected v (vs, phi) =
   let nodes = List.map (fun c -> c, fvs_atom c) phi in
@@ -406,7 +410,7 @@ let solve cmp_v uni_v brs =
   let chiK = List.map (fun ((i,t2),cnjs) -> i, (t2, cnjs)) chiK in
   let pms vs =
     VarSet.union (vars_of_list vs) q.allbvs in
-  let rec loop discard sol0 sol1 =
+  let rec loop discard sol0 brs0 sol1 =
     let gK = List.map
       (fun (i,(t2,cnjs)) ->
         i, connected delta (DisjElim.disjelim cmp_v uni_v cnjs)) chiK in
@@ -443,9 +447,9 @@ let solve cmp_v uni_v brs =
     (* 4 *)
     let sol1 = replace_assocs ~repl:gK sol1 in
     Format.printf "solve: before brs=@ %a@\n%!" Infer.pr_rbrs brs;
-    let brs = sb_brs_pred q sol1 brs in
+    let brs1 = sb_brs_pred q sol1 brs in
     Printf.printf "solve: loop -- brs substituted\n%!";
-    Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs brs;
+    Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs brs1;
     let fincheck (vs, sb) = List.for_all
       (fun (cnj, loc) ->
         try
@@ -458,9 +462,9 @@ let solve cmp_v uni_v brs =
       if not !neg_constrns then None else Some fincheck in
     (* 5 *)
     q.set_b_uni false;
-    let vs, ans =
+    let fallback, (vs, ans) =
       try Abduction.abd cmp_v uni_v ~init_params:q.allbvs
-            ?fincheck ~discard brs
+            ?fincheck ~discard ~fallback:brs0 brs1
       with Suspect (vs, phi) ->
         try
           Format.printf "solve: abduction failed: phi=@ %a@\n%!"
@@ -473,11 +477,11 @@ let solve cmp_v uni_v brs =
           (Contradiction
              ("Could not find invariants. Possible reason: "^msg,
               tys, loc)) in
+    let sol1, brs1 = if fallback then sol0, brs0 else sol1, brs1 in
     Format.printf "solve: loop -- abduction found@ ans=@ %a@\n%!"
       pr_ans (vs, ans);
     q.set_b_uni true;
-    let ans_res, sol2 = split vs ans q in
-    let more_discard = list_diff ans ans_res in
+    let ans_res, more_discard, sol2 = split vs ans q in
     Format.printf "solve: loop -- answer split@ more_discard=@ %a@\nans_res=@ %a@\nsol=@ %a@\n%!"
       pr_formula more_discard pr_formula ans_res pr_bchi_subst sol2;
     let discard = more_discard @ discard in
@@ -530,8 +534,8 @@ let solve cmp_v uni_v brs =
         sol1 in    
       (* 10 *)
       let sol2 = converge sol0 sol1 sol2 in
-      loop discard sol1 sol2 in
-  let sol = loop [] solT solT in
+      loop discard sol1 brs1 sol2 in
+  let sol = loop [] solT (sb_brs_pred q solT brs) solT in
   Printf.printf "solve: checking assert false\n%!";
   List.iter (fun (cnj, loc) ->
     try

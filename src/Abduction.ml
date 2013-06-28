@@ -33,13 +33,13 @@ let abd_simple cmp_v uni_v ?(init_params=VarSet.empty)
     let concl, _ =
       subst_solved ~use_quants:false ~params cmp_v uni_v ans
         ~cnj:concl in
-    (* Format.printf
+    Format.printf
       "abd_simple: init params=@ %s@\n%!"
-      (String.concat "," (List.map var_str (VarSet.elements init_params))); * *)
-    (* Format.printf
+      (String.concat "," (List.map var_str (VarSet.elements init_params))); (* *)
+    Format.printf
       "abd_simple: skip=%d,@ vs=@ %s;@ ans=@ %a@ --@\n@[<2>%a@ ⟹@ %a@]@\n%!"
       !skip (String.concat "," (List.map var_str vs))
-      pr_subst ans pr_subst prem pr_subst concl; * *)
+      pr_subst ans pr_subst prem pr_subst concl; (* *)
     let prem_and vs ans =
       (* TODO: optimize, don't redo work *)
       combine_sbs ~use_quants:false ~params:(pms vs) cmp_v uni_v [ans; prem] in
@@ -47,17 +47,17 @@ let abd_simple cmp_v uni_v ?(init_params=VarSet.empty)
       let cnj_typ, cnj_num = prem_and vs ans in
       let res_ty, res_num = residuum cmp_v uni_v (pms vs) cnj_typ concl in
       let num = res_num @ cnj_num in
-      (* Format.printf "abd_simple:@ implies?@ %b@ #res_ty=%d@\nans=@ %a@\nres_ty=@ %a@\n%!"
-        (res_ty = [] && NumS.satisfiable num) (List.length res_ty) pr_subst ans pr_subst res_ty; * *)
+      Format.printf "abd_simple:@ implies?@ %b@ #res_ty=%d@\nans=@ %a@\nres_ty=@ %a@\n%!"
+        (res_ty = [] && NumS.satisfiable num) (List.length res_ty) pr_subst ans pr_subst res_ty; (* *)
       res_ty = [] && NumS.satisfiable num in
     let rec abstract repls vs ans cur_ans = function
       | [] ->
-        (* let ddepth = incr debug_dep; !debug_dep in *)
-        (* Format.printf
+        let ddepth = incr debug_dep; !debug_dep in
+        Format.printf
           "abd_simple-abstract: [%d] @ repls=%a@ vs=%s@ ans=%a@ cur_ans=%a@\n%!"
           ddepth pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls)
           (String.concat ","(List.map var_str vs))
-          pr_subst ans pr_subst cur_ans; * *)
+          pr_subst ans pr_subst cur_ans; (* *)
         if implies_concl vs ans then
           let ans = List.sort compare ans in
           allvs := List.fold_right VarSet.add vs !allvs;
@@ -68,88 +68,96 @@ let abd_simple cmp_v uni_v ?(init_params=VarSet.empty)
                 (fun xs ->
                   List.for_all (fun (y,_) -> VarSet.mem y !allvs)
                     (Aux.sorted_diff xs ans)) !skipped in
-              (* Format.printf "skipping: [%d] ans=@ %a --@ old_ans=@ %a...@\n%!"
-                ddepth pr_subst ans pr_subst old_ans; * *)
+              Format.printf "skipping: [%d] ans=@ %a --@ old_ans=@ %a...@\n%!"
+                ddepth pr_subst ans pr_subst old_ans; (* *)
               true
             with Not_found -> false in
           if repeated
-          then ()
+          then (
+            Format.printf "repeated: [%d] skip=%d --@ @[<2>%a@]@\n%!"
+              ddepth !skip pr_subst ans; (* *)
+            ())
           else if !skip > 0 then (
             skipped := ans :: !skipped;
-            (* Format.printf "skipped: [%d]@ @[<2>%a@]@\n%!" ddepth pr_subst ans; * *)
+            Format.printf "skipped: [%d]@ @[<2>%a@]@\n%!" ddepth pr_subst ans; (* *)
             decr skip)
+          else if List.exists (fun sx -> List.mem sx discard) ans
+          then (
+              Format.printf "discarding: [%d] skip=%d --@ @[<2>%a@]@\n%!"
+                ddepth !skip pr_subst ans; (* *)
+              ())
           else (
-            (* Format.printf "returning: [%d] skip=%d --@ @[<2>%a@]@\n%!"
-              ddepth !skip pr_subst ans; * *)
-            raise (Result (vs, ans)))
+              Format.printf "returning: [%d] skip=%d --@ @[<2>%a@]@\n%!"
+                ddepth !skip pr_subst ans; (* *)
+              raise (Result (vs, ans)))
       | (x, (t, lc) as sx)::cand ->
-        (* let ddepth = incr debug_dep; !debug_dep in *)
-        (* Format.printf
+        let ddepth = incr debug_dep; !debug_dep in
+        Format.printf
           "abd_simple-abstract: [%d] @ repls=%a@ vs=%s@ ans=%a@ cur_ans=%a@ x=%s@ cand=%a@\n%!"
           ddepth pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls)
           (String.concat ","(List.map var_str vs))
-          pr_subst ans pr_subst cur_ans (var_str x) pr_subst cand; * *)
+          pr_subst ans pr_subst cur_ans (var_str x) pr_subst cand; (* *)
         if implies_concl vs (ans @ cand) then (
           (* Choice 1: drop premise/conclusion atom from answer *)
           (* FIXME: remove choice 1 as equivalent with choice 3? *)
-          (* Format.printf "abd_simple: [%d]@ choice 1@ drop %s =@ %a@\n%!"
-            ddepth (var_str x) (pr_ty false) t; * *)
+          Format.printf "abd_simple: [%d]@ choice 1@ drop %s =@ %a@\n%!"
+            ddepth (var_str x) (pr_ty false) t; (* *)
           try abstract repls vs ans cur_ans cand
           with Result (vs, ans) as e ->
-            (* Format.printf "abd_simple: [%d]@ preserve choice 1@ %s =@ %a@ -- returned@ ans=%a@\n%!"
-              ddepth (var_str x) (pr_ty false) t pr_subst ans; * *)
+            (* FIXME: remove try-with after debug over *)
+            Format.printf "abd_simple: [%d]@ preserve choice 1@ %s =@ %a@ -- returned@ ans=%a@\n%!"
+              ddepth (var_str x) (pr_ty false) t pr_subst ans; (* *)
             raise e);
-        if not (List.mem sx discard) then (
-          (* Format.printf
-            "abd_simple: [%d]@ recover after choice 1@ %s =@ %a@\n%!"
-            ddepth (var_str x) (pr_ty false) t; * *)
-          step x lc {typ_sub=t; typ_ctx=[]} repls vs ans cur_ans cand)
+        Format.printf
+          "abd_simple: [%d]@ recover after choice 1@ %s =@ %a@\n%!"
+          ddepth (var_str x) (pr_ty false) t; (* *)
+        step x lc {typ_sub=t; typ_ctx=[]} repls vs ans cur_ans cand
     and step x lc loc repls vs ans cur_ans cand =
       (* Choice 2: preserve current premise/conclusion subterm for answer *)
-        (* let ddepth = incr debug_dep; !debug_dep in *)
-        (* Format.printf
+        let ddepth = incr debug_dep; !debug_dep in
+        Format.printf
           "abd_simple-step: [%d] @ loc=%a@ repls=%a@ vs=%s@ ans=%a@
 cur_ans=%a@ x=%s@ cand=%a@\n%!"
           ddepth (pr_ty false) (typ_out loc) pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls)
           (String.concat ","(List.map var_str vs))
-          pr_subst ans pr_subst cur_ans (var_str x) pr_subst cand; * *)
+          pr_subst ans pr_subst cur_ans (var_str x) pr_subst cand; (* *)
       (match typ_next loc with
       | None ->
         let ans =
           try
-            (* Format.printf
+            Format.printf
               "abd_simple: [%d] trying choice 2 params=%s@ sb=@ %a@\n%!"
               ddepth (String.concat ", "
-                 (List.map var_str (VarSet.elements (pms vs)))) pr_subst ans; * *)
+                 (List.map var_str (VarSet.elements (pms vs)))) pr_subst ans; (* *)
             let ans, _, so =
               unify ~use_quants:true ~params:(pms vs) ~sb:ans
                 cmp_v uni_v [Eqty (TVar x, typ_out loc, lc)] in
-            (* Format.printf
-              "abd_simple: [%d] validate 2 ans=@ %a@\n%!" ddepth pr_subst ans; * *)
+            Format.printf
+              "abd_simple: [%d] validate 2 ans=@ %a@\n%!" ddepth pr_subst ans; (* *)
             validate vs ans;
-            (* Format.printf "abd_simple: [%d] choice 2 OK@\n%!" ddepth; * *)
+            Format.printf "abd_simple: [%d] choice 2 OK@\n%!" ddepth; (* *)
             assert (so = []); Some ans
           with Contradiction _ ->
-            (* Format.printf "abd_simple: [%d] choice 2 failed@\n%!" ddepth; * *)
+            Format.printf "abd_simple: [%d] choice 2 failed@\n%!" ddepth; (* *)
             None in
         (match ans with None -> ()
         | Some ans ->
           abstract repls vs ans cur_ans cand)
       | Some loc ->
-        (* Format.printf "abd_simple: [%d] neighbor loc@\n%!" ddepth; * *)
+        Format.printf "abd_simple: [%d] neighbor loc@\n%!" ddepth; (* *)
         step x lc loc repls vs ans cur_ans cand);
       if not (num_sort_typ loc.typ_sub)
       then
         (* Choice 3: remove subterm from answer *)
         let a = Infer.fresh_typ_var () in
         let repls' = (loc.typ_sub, a)::repls in
-        (* Format.printf "abd_simple: [%d]@ choice 3@ repls'=@ %a@\n%!"
-          ddepth pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls'); * *)
+        Format.printf "abd_simple: [%d]@ choice 3@ repls'=@ %a@\n%!"
+          ddepth pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls'); (* *)
         let vs' = a::vs in
         let loc' = {loc with typ_sub = TVar a} in
         let t' = typ_out loc' in
-        (* Format.printf "abd_simple: [%d]@ choice 3@ remove subterm %s =@ %a@\n%!"
-          ddepth (var_str x) (pr_ty false) t'; * *)
+        Format.printf "abd_simple: [%d]@ choice 3@ remove subterm %s =@ %a@\n%!"
+          ddepth (var_str x) (pr_ty false) t'; (* *)
         let cur_ans' = (x, (t', lc))::cur_ans in
         (match typ_next loc' with (* x bound when leaving step *)
         | None ->
@@ -157,10 +165,10 @@ cur_ans=%a@ x=%s@ cand=%a@\n%!"
              let ans', _, so =
                unify ~use_quants:true ~params:(pms vs') ~sb:ans
                  cmp_v uni_v [Eqty (TVar x, t', lc)] in
-             (* Format.printf
-               "abd_simple: [%d] validate 3 ans=@ %a@\n%!" ddepth pr_subst ans; * *)
+             Format.printf
+               "abd_simple: [%d] validate 3 ans=@ %a@\n%!" ddepth pr_subst ans; (* *)
              validate vs' ans';
-             (* Format.printf "abd_simple: [%d] choice 3 OK@\n%!" ddepth; * *)
+             Format.printf "abd_simple: [%d] choice 3 OK@\n%!" ddepth; (* *)
              assert (so = []);
              abstract repls' vs' ans' cur_ans' cand
            with Contradiction _ ->
@@ -171,12 +179,12 @@ cur_ans=%a@ x=%s@ cand=%a@\n%!"
         if not (implies_concl vs' (cur_ans' (* @ cand *)))
         then (
           let repl = Aux.assoc_all loc.typ_sub repls in
-          (* Format.printf "abd_simple: [%d]@ choice 4 x=%s@ repls=@ %a@\n%!"
+          Format.printf "abd_simple: [%d]@ choice 4 x=%s@ repls=@ %a@\n%!"
             ddepth (var_str x)
-            pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls); * *)
-          (* Format.printf "abd_simple: [%d]@ choice 4@ sub=@ %a@ repl=@ %s@\n%!"
+            pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls); (* *)
+          Format.printf "abd_simple: [%d]@ choice 4@ sub=@ %a@ repl=@ %s@\n%!"
             ddepth (pr_ty false) loc.typ_sub
-            (String.concat ", " (List.map var_str repl)); * *)
+            (String.concat ", " (List.map var_str repl)); (* *)
           List.iter
             (fun b ->
               let loc' = {loc with typ_sub = TVar b} in
@@ -185,9 +193,9 @@ cur_ans=%a@ x=%s@ cand=%a@\n%!"
               match typ_next loc' with
               | None ->
                 (try
-                   (* Format.printf
+                   Format.printf
                      "abd_simple: [%d]@ c.4 unify x=%s@ t'=%a@ sb=@ %a@\n%!"
-                     ddepth (var_str x) (pr_ty false) t' pr_subst ans; * *)
+                     ddepth (var_str x) (pr_ty false) t' pr_subst ans; (* *)
                    let ans', _, so =
                      (* try *)
                        unify ~use_quants:true ~params:(pms vs') ~sb:ans
@@ -207,15 +215,29 @@ cur_ans=%a@ x=%s@ cand=%a@\n%!"
                        ignore (Format.flush_str_formatter ());
                        Terms.pr_exception Format.str_formatter exn;
                        raise exn *) in
-                   (* Format.printf
-                     "abd_simple: [%d] validate 4 ans=@ %a@\n%!"
-                     ddepth pr_subst ans; * *)
+                   Format.printf
+                     "abd_simple: [%d] validate 4 ans'=@ %a@\n%!"
+                     ddepth pr_subst ans'; (* *)
+                   (try
                    validate vs ans';
-                   (* Format.printf "abd_simple: choice 4 OK@\n%!"; * *)
+                     with Terms.Contradiction (msg,Some (ty1,ty2),_) as exn ->
+                        Format.printf
+                         "abd_simple: [%d] @ c.4 validate failed:@ %s@ %a@ %a@\n%!" ddepth
+                         msg (pr_ty true) ty1 (pr_ty true) ty2;
+                       (match (ty1, ty2) with
+                         TVar v1, TVar v2 ->
+                           Format.printf
+                             "uni_v %s=%b; uni_v %s=%b; cmp_v =%s@\n%!"
+                             (var_str v1) (uni_v v1)
+                             (var_str v2) (uni_v v2)
+                             (str_of_cmp (cmp_v v1 v2))
+                       | _ -> ()); 
+                       raise exn);
+                   Format.printf "abd_simple: choice 4 OK@\n%!"; (* *)
                    assert (so = []);
-                   (* Format.printf
+                   Format.printf
                      "abd_simple: [%d]@ choice 4@ match earlier %s =@ %a@\n%!"
-                     ddepth (var_str x) (pr_ty false) t'; * *)
+                     ddepth (var_str x) (pr_ty false) t'; (* *)
                    abstract repls vs ans' cur_ans' cand
                  with Contradiction _ ->
                    ())
@@ -223,16 +245,16 @@ cur_ans=%a@ x=%s@ cand=%a@\n%!"
                 step x lc loc' repls vs ans cur_ans cand)
             repl;
           (* Choice 5: try subterms of the subterm *)
-          (* Format.printf
+          Format.printf
             "abd_simple: [%d] approaching choice 5@ for@ %a@ @@ %s =@ %a@\n%!"
             ddepth (pr_ty false) loc.typ_sub (var_str x) (pr_ty false)
-            (typ_out loc); * *)
+            (typ_out loc); (* *)
           (match typ_up loc with
           | None ->
             ()        
           | Some loc ->
-            (* Format.printf
-              "abd_simple: [%d]@ choice 5@ try subterms@\n%!" ddepth; * *)
+            Format.printf
+              "abd_simple: [%d]@ choice 5@ try subterms@\n%!" ddepth; (* *)
             step x lc loc repls vs ans cur_ans cand);
         )
     in
@@ -243,8 +265,8 @@ cur_ans=%a@ x=%s@ cand=%a@\n%!"
     if implies_concl vs ans then Some (vs, ans)
     else
       let cnj_typ, _ = prem_and vs concl in
-      (* Format.printf
-        "abd_simple: init cnj=@ %a@\n%!" pr_subst cnj_typ; * *)
+      Format.printf
+        "abd_simple: init cnj=@ %a@\n%!" pr_subst cnj_typ; (* *)
       try abstract [] vs ans [] cnj_typ; None
       with Result (vs, ans) -> Some (cleanup vs ans)
   with Contradiction _ -> None          (* subst_solved or implies_concl *)
@@ -376,12 +398,17 @@ let abd_mockup_num cmp_v uni_v ?(init_params=VarSet.empty) brs =
             brs_num more_num)
   with Suspect _ -> None
 
-let abd cmp_v uni_v ?(init_params=VarSet.empty) ?fincheck ~discard brs =
+let abd cmp_v uni_v ?(init_params=VarSet.empty) ?fincheck ~discard
+    ~fallback brs =
   (* Do not change the order and no. of branches afterwards. *)
   Format.printf "abd: prepare branches@\n%!";
-  let discard_typ, discard_num, _ =
-    unify ~use_quants:false ~params:init_params cmp_v uni_v discard in
-  let brs_typ, brs_num, brs_so = Aux.split3
+  let discard_typ, discard_num = List.partition
+    (function Eqty (_, t2, _) when typ_sort_typ t2 -> true | _ -> false)
+    discard in
+  let discard_typ = List.map
+    (function Eqty (TVar v, t, lc) -> v, (t, lc) | _ -> assert false)
+    discard_typ in
+  let prepare_brs brs = Aux.split3
     (Aux.map_some (fun (prem, concl) ->
       let prems_opt =
         try Some (unify ~use_quants:false ~params:init_params cmp_v uni_v prem)
@@ -403,7 +430,12 @@ let abd cmp_v uni_v ?(init_params=VarSet.empty) ?fincheck ~discard brs =
                      (prem_so, concl_so))
       | None -> None)
        brs) in
-  Format.printf "abd: solve for types@\n%!";
+  let fallback, (brs_typ, brs_num, brs_so) =
+    try false, prepare_brs brs
+    with Contradiction _ ->
+      Format.printf "abd: prepare fallback@\n%!";
+      true, prepare_brs fallback in
+  Format.printf "abd: discard_typ=@ %a@\n%!" pr_subst discard_typ;
   let tvs, ans_typ, more_num =
     abd_typ cmp_v uni_v ~init_params ?fincheck ~discard:discard_typ brs_typ in
   let brs_num = List.map2
@@ -412,9 +444,10 @@ let abd cmp_v uni_v ?(init_params=VarSet.empty) ?fincheck ~discard brs =
   Format.printf "abd: solve for numbers@\n%!";
   (* FIXME: add [discard] to NumS.abd *)
   let nvs, ans_num = NumS.abd ~init_params cmp_v uni_v brs_num in
-  nvs @ tvs,
-  Aux.map_append (fun (v,(t,lc)) -> Eqty (TVar v,t,lc))
-    ans_typ ans_num
+  fallback,
+  (nvs @ tvs,
+   Aux.map_append (fun (v,(t,lc)) -> Eqty (TVar v,t,lc))
+    ans_typ ans_num)
 
 let abd_s cmp_v uni_v ?(init_params=VarSet.empty) prem concl =
   (* Do not change the order and no. of branches afterwards. *)

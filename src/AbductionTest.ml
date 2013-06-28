@@ -349,9 +349,9 @@ let rec plus =
         let cmp_v v1 v2 = Same_quant in*)
         todo "Test fails by looping inside abduction";
         let brs = Infer.simplify preserve cmp_v uni_v brs in
-        let vs, ans =
-          try abd cmp_v uni_v ~discard:[]
-                (List.map Infer.br_to_formulas brs)
+        let brs = List.map Infer.br_to_formulas brs in
+        let _, (vs, ans) =
+          try abd cmp_v uni_v ~discard:[] ~fallback:brs brs
           with Suspect _ -> assert_failure "No abduction answer" in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
@@ -398,9 +398,9 @@ let rec filter =
         let cmp_v v1 v2 = Same_quant in*)
         todo "Test fails by looping inside abduction";
         let brs = Infer.simplify preserve cmp_v uni_v brs in
-        let vs, ans =
-          try abd cmp_v uni_v ~discard:[]
-                (List.map Infer.br_to_formulas brs)
+        let brs = List.map Infer.br_to_formulas brs in
+        let _, (vs, ans) =
+          try abd cmp_v uni_v ~discard:[] ~fallback:brs brs
           with Suspect _ -> assert_failure "No abduction answer" in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"

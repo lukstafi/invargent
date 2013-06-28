@@ -767,6 +767,15 @@
   because otherwise we would be faced with a disjunction of negative
   constraints for multiple sorts and we do not handle disjunction.
 
+  We implement a simple form of backtracking. When abduction detects
+  contradiction in the branches <math|S<rsub|k><around*|(|\<Phi\>|)>> passed
+  to it, it uses <verbatim|fallback> branches
+  <math|S<rsub|k-1><around*|(|\<Phi\>|)>>. Infinite loop is avoided because
+  the discard list for step <math|k> contains answers of step <math|k-1>. In
+  case abduction used the fallback branches, we set
+  <math|S<rsub|k>\<assign\>S<rsub|k-1>> before going on to compute
+  <math|S<rsub|k+1>>.
+
   <subsection|Implementation details>
 
   We represent <math|<wide|\<alpha\>|\<vect\>>> as a tuple type rather than
