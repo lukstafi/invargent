@@ -762,16 +762,14 @@
   which are fed to the algorithm and <math|\<Phi\><rsub|\<b-F\>>=<around*|{|<around*|(|D<rsub|i>,C<rsub|i>|)><mid|\|>\<b-F\>\<in\>C<rsub|i>|}>>.
   After the main algorithm ends we check that for each
   <math|<around*|(|D<rsub|i>,C<rsub|i>|)>\<in\>\<Phi\><rsub|\<b-F\>>>,
-  \ <math|S<rsub|k><around*|(|D<rsub|i>|)>> fails. Optionally (and
-  alternatively), we pass to abduction the corresponding check truncated to
-  the sort of types. Turning this option <em|on> gives a limited way to
-  express negative constraints but is discouraged for general application.
-  With the option <em|off>, the inferred type is the same as it would be
-  without the impossible pattern matching branch in the program, but the
-  check statically guarantees that the branch is in fact impossible. The
-  negative constraints with option <em|on> are limited to the sort of types
-  because otherwise we would be faced with a disjunction of negative
-  constraints for multiple sorts and we do not handle disjunction.
+  \ <math|S<rsub|k><around*|(|D<rsub|i>|)>> fails. Optionally, but by
+  default, we perform the check in each iteration. Turning this option
+  <em|on> gives a limited way to express negative constraints. With the
+  option <em|off>, the inferred type is the same as it would be without the
+  impossible pattern matching branch in the program, but the check statically
+  guarantees that the branch is in fact impossible. The option should be
+  turned <em|off> when a single iteration (plus fallback backtracking
+  described below) is insufficient to solve for the invariants.
 
   We implement a simple form of backtracking. When abduction detects
   contradiction in the branches <math|S<rsub|k><around*|(|\<Phi\>|)>> passed
@@ -780,7 +778,12 @@
   the discard list for step <math|k> contains answers of step <math|k-1>. In
   case abduction used the fallback branches, we set
   <math|S<rsub|k>\<assign\>S<rsub|k-1>> before going on to compute
-  <math|S<rsub|k+1>>.
+  <math|S<rsub|k+1>>. Similarly, with checking for negative constraints
+  <em|on>, when the check of negative branches
+  <math|<around*|(|D<rsub|i>,C<rsub|i>|)>\<in\>\<Phi\><rsub|\<b-F\>>>,
+  \ <math|\<nvDash\>\<exists\>FV<around*|(|S<rsub|k><around*|(|D<rsub|i>|)>|)>.S<rsub|k><around*|(|D<rsub|i>|)>>
+  fails, we set <math|S<rsub|k>\<assign\>S<rsub|k-1>> before calling
+  abduction.
 
   <subsection|Implementation details>
 
@@ -870,39 +873,39 @@
     <associate|ImplSubst|<tuple|4|2>>
     <associate|SepProp|<tuple|5|3>>
     <associate|SepProp2|<tuple|6|?>>
-    <associate|SolSimpl|<tuple|8|8>>
+    <associate|SolSimpl|<tuple|8|9>>
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1>>
-    <associate|auto-10|<tuple|4.1|6>>
+    <associate|auto-10|<tuple|4.1|7>>
     <associate|auto-11|<tuple|5|7>>
     <associate|auto-12|<tuple|5.1|7>>
     <associate|auto-13|<tuple|5.2|8>>
-    <associate|auto-14|<tuple|5.3|9>>
-    <associate|auto-15|<tuple|5.3|9>>
+    <associate|auto-14|<tuple|5.3|10>>
+    <associate|auto-15|<tuple|5.3|10>>
     <associate|auto-2|<tuple|2|2>>
     <associate|auto-3|<tuple|2.1|3>>
     <associate|auto-4|<tuple|2.2|4>>
     <associate|auto-5|<tuple|3|4>>
     <associate|auto-6|<tuple|3.1|4>>
-    <associate|auto-7|<tuple|3.2|4>>
+    <associate|auto-7|<tuple|3.2|5>>
     <associate|auto-8|<tuple|3.3|5>>
     <associate|auto-9|<tuple|4|6>>
-    <associate|bib-AbductionSolvMaher|<tuple|3|9>>
+    <associate|bib-AbductionSolvMaher|<tuple|3|10>>
     <associate|bib-AntiUnifAlg|<tuple|8|10>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
-    <associate|bib-ArithQuantElim|<tuple|1|9>>
-    <associate|bib-ConvexHull|<tuple|2|9>>
+    <associate|bib-ArithQuantElim|<tuple|1|10>>
+    <associate|bib-ConvexHull|<tuple|2|10>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
     <associate|bib-disjelimTechRep|<tuple|6|10>>
     <associate|bib-jcaqpTechRep|<tuple|8|4>>
     <associate|bib-jcaqpTechRep2|<tuple|7|10>>
-    <associate|bib-jcaqpUNIF|<tuple|4|9>>
+    <associate|bib-jcaqpUNIF|<tuple|4|10>>
     <associate|bib-simonet-pottier-hmg-toplas|<tuple|6|4>>
-    <associate|bib-systemTechRep|<tuple|5|9>>
+    <associate|bib-systemTechRep|<tuple|5|10>>
   </collection>
 </references>
 

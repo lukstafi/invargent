@@ -17,14 +17,14 @@ let test_case msg test result chi residuum =
       try
         let prog = Terms.infer_sorts prog in
         let preserve, cn = Infer.infer_prog_mockup prog in
-        Format.printf "cn: %s@\n%a@\n%!" msg Infer.pr_cnstrnt cn; (* *)
+        (* Format.printf "cn: %s@\n%a@\n%!" msg Infer.pr_cnstrnt cn; * *)
         let cmp_v, uni_v, brs = Infer.normalize cn in
-        Format.printf "brs: %s@\n%a@\n%!" msg Infer.pr_brs brs; (* *)
+        (* Format.printf "brs: %s@\n%a@\n%!" msg Infer.pr_brs brs; * *)
         let uni_v v =
           try Hashtbl.find uni_v v with Not_found -> false in
         let brs = Infer.simplify preserve cmp_v uni_v brs in
-        Format.printf "simpl-brs: %s@\n%a@\n%!" msg Infer.pr_brs brs;
-        (* *)
+        (* Format.printf "simpl-brs: %s@\n%a@\n%!" msg Infer.pr_brs brs;
+        * *)
         let brs = List.map Infer.br_to_formulas brs in
         let _, _, (sol_res, sol_chi) =
           Invariants.solve cmp_v uni_v brs in
@@ -50,7 +50,7 @@ let tests = "Invariants" >::: [
 
   "eval" >::
     (fun () ->
-      todo "debug";
+      (* todo "debug"; *)
       test_case "eval term"
 "newtype Term : type
 newtype Int
@@ -152,7 +152,7 @@ let rec filter =
 
   "equal with test" >::
     (fun () ->
-      todo "debug";
+      (* todo "debug"; *)
       test_case "equal terms"
 "newtype Ty : type
 newtype Int
@@ -196,8 +196,7 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
 
   "equal with assert" >::
     (fun () ->
-      (* FIXME *)
-      (* todo "FIXME: bug in preparing <assert false> branches, not cut off"; *)
+      (* todo "debug"; *)
       test_case "equal terms"
 "newtype Ty : type
 newtype Int
@@ -224,15 +223,23 @@ let rec equal = function
   | TList t, TList u -> forall2 (equal (t, u))
   | _ -> fun _ _ -> False
   | TInt, TList l -> (function Nil -> assert false)
-  | TList l, TInt -> (function Zero -> assert false)"
-        "" 1
-        "";
+  | TList l, TInt -> (fun _ -> function Nil -> assert false)"
+        "∃t156, t157. δ = (Ty t156, Ty t157 → t156 → t157 → Bool)" 1
+        "t2 = (Ty t122, Ty t123 → t122 → t123 → Bool) ∧
+  t3 = (Ty t7, Ty t8) ∧ t4 = (t7 → t8 → Bool) ∧ t35 = (t30, t31) ∧
+  t36 = (t33, t34 → Bool) ∧ t37 = t30 ∧ t38 = t31 ∧
+  t41 = (t33, t34) ∧ t42 = Bool ∧ t43 = t33 ∧ t44 = t34 ∧
+  t53 = (Ty t31, Ty t34 → t31 → t34 → Bool) ∧
+  t60 = (Ty t30, Ty t33 → t30 → t33 → Bool) ∧
+  t77 = (Ty t70, Ty t72 → t70 → t72 → Bool) ∧ t78 = t70 ∧
+  t79 = t72 ∧ t80 = t7 ∧ t82 = t8 ∧ t124 = t30 ∧ t125 = t33 ∧
+  t126 = t31 ∧ t127 = t34 ∧ t128 = t70 ∧ t129 = t72 ∧ t156 = t7 ∧
+  t157 = t8";
     );
 
   "equal with assert and test" >::
     (fun () ->
-      (* FIXME *)
-      todo "FIXME: bug in preparing <assert false> branches, not cut off";
+      (* todo "debug"; *)
       test_case "equal terms"
 "newtype Ty : type
 newtype Int
@@ -259,10 +266,21 @@ let rec equal = function
   | TList t, TList u -> forall2 (equal (t, u))
   | _ -> fun _ _ -> False
   | TInt, TList l -> (function Nil -> assert false)
-  | TList l, TInt -> (function Zero -> assert false)
+  | TList l, TInt -> (fun _ -> function Nil -> assert false)
 test b_not (equal (TInt, TList TInt) Zero Nil)"
-        "" 1
-        "";
+        "∃t170, t171. δ = (Ty t170, Ty t171 → t170 → t171 → Bool)" 1
+        "t2 = (Ty t134, Ty t135 → t134 → t135 → Bool) ∧
+  t3 = (Ty t7, Ty t8) ∧ t4 = (t7 → t8 → Bool) ∧ t35 = (t30, t31) ∧
+  t36 = (t33, t34 → Bool) ∧ t37 = t30 ∧ t38 = t31 ∧
+  t41 = (t33, t34) ∧ t42 = Bool ∧ t43 = t33 ∧ t44 = t34 ∧
+  t53 = (Ty t31, Ty t34 → t31 → t34 → Bool) ∧
+  t60 = (Ty t30, Ty t33 → t30 → t33 → Bool) ∧
+  t77 = (Ty t70, Ty t72 → t70 → t72 → Bool) ∧ t78 = t70 ∧
+  t79 = t72 ∧ t80 = t7 ∧ t82 = t8 ∧ t116 = Int ∧
+  t125 = (Ty Int, Ty (List Int) → Int → List Int → Bool) ∧
+  t136 = Int ∧ t137 = (List Int) ∧ t138 = t30 ∧ t139 = t33 ∧
+  t140 = t31 ∧ t141 = t34 ∧ t142 = t70 ∧ t143 = t72 ∧ t170 = t7 ∧
+  t171 = t8";
     );
 
   "binary plus" >::

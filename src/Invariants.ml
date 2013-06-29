@@ -190,8 +190,8 @@ let holds q ?params (ty_st, num_st) cnj =
 let select check_max_b q ans ans_max =
   let allmax = concat_map snd ans_max in
   let init_res = list_diff ans allmax in
-  Format.printf "select: allmax=@ %a@\n%!"
-      pr_formula allmax; (* *)
+  (* Format.printf "select: allmax=@ %a@\n%!"
+      pr_formula allmax; * *)
   (* Raises [Contradiction] here if solution impossible. *)
   let init_state = holds q empty_state init_res in
   let rec loop state ans_res ans_p = function
@@ -248,9 +248,9 @@ let split avs ans q =
   let greater_v v1 v2 = cmp_v v1 v2 = Upstream in
   let rec loop avs ans discard sol =
     (* 2 *)
-    Format.printf "split-loop: starting ans=@ %a@\nsol=@ %a@\n%!"
+    (* Format.printf "split-loop: starting ans=@ %a@\nsol=@ %a@\n%!"
       pr_formula ans pr_bchi_subst (List.map (fun (b,a)->b,([],a))
-     sol); (* *)
+     sol); * *)
     let ans0 = List.filter
       (function
       | Eqty (TVar a, TVar b, _)
@@ -280,11 +280,11 @@ let split avs ans q =
     (* 5 *)
     let ans_strat = List.map
       (fun (b, ans_p) ->
-        Format.printf "select: ans_chi(%s)=@ %a@\n%!"
-          (var_str b) pr_formula ans_p; (* *)
+        (* Format.printf "select: ans_chi(%s)=@ %a@\n%!"
+          (var_str b) pr_formula ans_p; * *)
         let (avs_p, ans_l, ans_r) = strat q b ans_p in
-        Format.printf "select: ans_l(%s)=@ %a@\n%!"
-          (var_str b) pr_formula ans_l; (* *)
+        (* Format.printf "select: ans_l(%s)=@ %a@\n%!"
+          (var_str b) pr_formula ans_l; * *)
         q.add_b_vs b avs_p;
         (* 6 *)
         let ans0 = List.assoc b sol in
@@ -308,11 +308,11 @@ let split avs ans q =
       avss in
     (* 9b *)
     let ans_p = List.concat ans_rs in
-    Format.printf "split: ans_p=@ %a@ --@ ans_res=@ %a@\n%!"
-      pr_subst ans_p pr_formula ans_res; (* *)
+    (* Format.printf "split: ans_p=@ %a@ --@ ans_res=@ %a@\n%!"
+      pr_subst ans_p pr_formula ans_res; * *)
     let ans_res = to_formula ans_p @ subst_formula ans_p ans_res in
-    Format.printf "split: ans_res'=@ %a@\n%!"
-      pr_formula ans_res; (* *)
+    (* Format.printf "split: ans_res'=@ %a@\n%!"
+      pr_formula ans_res; * *)
     let avs_p = List.concat avs_ps in
     let avsl = List.map VarSet.elements avss in
     (* 10 *)
@@ -386,7 +386,7 @@ let solve cmp_v uni_v brs =
            brs) in
       more @ prem, concl)
     neg_brs in
-  Format.printf "solve: neg_brs=@ %a@\n%!" Infer.pr_rbrs neg_brs;
+  (* Format.printf "solve: neg_brs=@ %a@\n%!" Infer.pr_rbrs neg_brs; * *)
   let neg_cns = List.map
     (fun (prem, concl) ->
       let loc =
@@ -394,8 +394,8 @@ let solve cmp_v uni_v brs =
         with CFalse loc -> loc | _ -> assert false in
       prem, loc)
     neg_brs in
-  Format.printf "solve: neg_cns=@ %a@\n%!" Infer.pr_rbrs
-    (List.map (fun (cnj,_) -> cnj, []) neg_cns);
+  (* Format.printf "solve: neg_cns=@ %a@\n%!" Infer.pr_rbrs
+    (List.map (fun (cnj,_) -> cnj, []) neg_cns); * *)
   List.iter
     (fun (prem,concl) ->
       List.iter
@@ -437,9 +437,9 @@ let solve cmp_v uni_v brs =
           else if c1 then Downstream
           else if c2 then Upstream
           else cmp_v v1 v2 in
-        Format.printf "solve.loop.cmp_v': t1 t4 = %s@\n%!"
+        (* Format.printf "solve.loop.cmp_v': t1 t4 = %s@\n%!"
           (str_of_cmp (cmp_v' [VId (Type_sort, 1)] (VId (Type_sort, 1))
-                         (VId (Type_sort, 4)))); (* *)
+                         (VId (Type_sort, 4)))); * *)
         (* FIXME:     q.set_b_uni false; ? *)
         match Abduction.abd_s (cmp_v' gvs) uni_v
           ~init_params:(pms (gvs @ vs)) ans g_ans with
@@ -455,27 +455,34 @@ let solve cmp_v uni_v brs =
             (* freshened [gvs] will be added to [q] by substitution *)
             Some (i, (gvs @ vs, g_ans' @ ans))
       ) gK in
-    Format.printf "solve: loop; #gK=%d@\n%!" (List.length gK); (* *)
+    (* Format.printf "solve: loop; #gK=%d@\n%!" (List.length gK); * *)
     (* 4 *)
     let sol1 = replace_assocs ~repl:gK sol1 in
-    Format.printf "solve: before brs=@ %a@\n%!" Infer.pr_rbrs brs;
-     (* *)
+    (* Format.printf "solve: before brs=@ %a@\n%!" Infer.pr_rbrs brs;
+     * *)
     let brs1 = sb_brs_pred q sol1 brs in
-    Format.printf "solve: loop -- brs substituted@\n%!"; (* *)
-    Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs brs1; (* *)
-    let fincheck (vs, sb) = List.for_all
+    let neg_cns1 = List.map
+      (fun (prem,loc) -> sb_formula_pred q false sol1 prem, loc)
+      neg_cns in
+    (* Format.printf "solve: loop -- brs substituted@\n%!"; * *)
+    (* Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs brs1; * *)
+    let neg_cl_check = not !neg_constrns ||
+      List.for_all
       (fun (cnj, loc) ->
         try
-          Format.printf "fincheck: sb=@ %a--@ cnj=@ %a@\n%!"
-            pr_subst sb pr_formula cnj;
-          let res, _, _ = unify ~use_quants:false ~params:(pms vs) ~sb
-                    cmp_v uni_v cnj in
-          Format.printf "fincheck: false res=@ %a@\n%!" pr_subst res;
-          false
+          (* Format.printf "neg_cl_check: cnj=@ %a@\n%!" pr_formula
+               cnj; * *)
+          let (* ty_cn *)_, num_cn, _ = unify ~use_quants:false ~params:q.allbvs
+            cmp_v uni_v cnj in
+          let res = not (NumS.satisfiable num_cn) in
+          (* Format.printf
+               "neg_cl_check: res=%b@ ty_cn=@ %a@\nnum_cn=@ %a@\n%!"
+               res pr_subst ty_cn pr_formula num_cn; * *)
+          res
         with Contradiction (msg, Some (ty1, ty2), _) ->
-          Format.printf "fincheck: true@\n%!";
+          (* Format.printf "neg_cl_check: true@\n%!";
           Format.printf
-            "fincheck: failed:@ %s@ %a@ %a@\n%!"
+            "neg_cl_check: failed:@ %s@ %a@ %a@\n%!"
             msg (pr_ty true) ty1 (pr_ty true) ty2;
           (match (ty1, ty2) with
             TVar v1, TVar v2 ->
@@ -484,20 +491,19 @@ let solve cmp_v uni_v brs =
                 (var_str v1) (uni_v v1)
                 (var_str v2) (uni_v v2)
                 (str_of_cmp (cmp_v v1 v2))
-          | _ -> ()); 
+          | _ -> ()); * *)
           true)
-      neg_cns in
-    let fincheck =
-      if not !neg_constrns then None else Some fincheck in
+      neg_cns1 in
+    let sol1, brs1 = if neg_cl_check then sol1, brs1 else sol0, brs0 in
     (* 5 *)
     q.set_b_uni false;
     let fallback, (vs, ans) =
       try Abduction.abd cmp_v uni_v ~init_params:q.allbvs
-            ?fincheck ~discard ~fallback:brs0 brs1
+            ~discard ~fallback:brs0 brs1
       with Suspect (vs, phi) ->
         try
-          Format.printf "solve: abduction failed: phi=@ %a@\n%!"
-            pr_formula phi; (* *)
+          (* Format.printf "solve: abduction failed: phi=@ %a@\n%!"
+            pr_formula phi; * *)
           q.set_b_uni false; ignore (holds q ~params:(pms vs) empty_state phi);
           q.set_b_uni true; ignore (holds q ~params:(pms vs) empty_state phi);
           q.set_b_uni true; ignore (holds q empty_state phi);
@@ -507,12 +513,12 @@ let solve cmp_v uni_v brs =
              ("Could not find invariants. Possible reason: "^msg,
               tys, loc)) in
     let sol1, brs1 = if fallback then sol0, brs0 else sol1, brs1 in
-    Format.printf "solve: loop -- abduction found@ ans=@ %a@\n%!"
-      pr_ans (vs, ans); (* *)
+    (* Format.printf "solve: loop -- abduction found@ ans=@ %a@\n%!"
+      pr_ans (vs, ans); * *)
     q.set_b_uni true;
     let ans_res, more_discard, sol2 = split vs ans q in
-    Format.printf "solve: loop -- answer split@ more_discard=@ %a@\nans_res=@ %a@\nsol=@ %a@\n%!"
-      pr_formula more_discard pr_formula ans_res pr_bchi_subst sol2; (* *)
+    (* Format.printf "solve: loop -- answer split@ more_discard=@ %a@\nans_res=@ %a@\nsol=@ %a@\n%!"
+      pr_formula more_discard pr_formula ans_res pr_bchi_subst sol2; * *)
     let discard = more_discard @ discard in
     (* 6 *)
     let lift_ex_types t2 (vs, ans) =
@@ -550,9 +556,9 @@ let solve cmp_v uni_v brs =
           let ds = List.map (fun b-> b, List.assoc b sol2) bs in
           let dans = concat_map
             (fun (b, (dvs, dans)) ->
-              Format.printf
+              (* Format.printf
                 "solve-loop-9: chi%d(%s)=@ %a@ +@ %a@\n%!"
-                i (var_str b) pr_ans (dvs,dans) pr_ans (vs,ans); (* *)
+                i (var_str b) pr_ans (dvs,dans) pr_ans (vs,ans); * *)
               (* No need to substitute, because variables will be
                  freshened when predicate variable is instantiated. *)
               subst_formula [b, (TVar delta, dummy_loc)] dans
@@ -565,7 +571,7 @@ let solve cmp_v uni_v brs =
       let sol2 = converge sol0 sol1 sol2 in
       loop discard sol1 brs1 sol2 in
   let sol = loop [] solT (sb_brs_pred q solT brs) solT in
-  Format.printf "solve: checking assert false@\n%!"; (* *)
+  (* Format.printf "solve: checking assert false@\n%!"; * *)
   List.iter (fun (cnj, loc) ->
     try
       let cnj = sb_formula_pred q false (snd sol) cnj in
@@ -574,6 +580,6 @@ let solve cmp_v uni_v brs =
                             None, loc))
     with Contradiction _ -> ()
   ) neg_cns;
-  Format.printf "solve: returning@\n%!"; (* *)
+  (* Format.printf "solve: returning@\n%!"; * *)
   q.set_b_uni true;
   cmp_v, uni_v, sol

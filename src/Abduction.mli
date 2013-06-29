@@ -21,7 +21,6 @@ val abd_typ :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
   ?init_params:Terms.VarSet.t ->  
-  ?fincheck:(Terms.var_name list * Terms.subst -> bool) ->
   discard:Terms.subst ->
   (Terms.subst * Terms.subst) list ->
   Terms.var_name list * Terms.subst * Terms.formula list
@@ -31,7 +30,6 @@ val abd :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
   ?init_params:Terms.VarSet.t ->  
-  ?fincheck:(Terms.var_name list * Terms.subst -> bool) ->
   discard:Terms.formula ->
   fallback:(Terms.formula * Terms.formula) list ->
   (Terms.formula * Terms.formula) list ->

@@ -306,15 +306,15 @@ let constr_gen_expr gamma sigma ex_types e t =
             (All (vars_of_list [a3], ImplOr2 (disj_prem, concl, altcn))))
 
   and aux_cl_negcn gamma t1 t2 tcn (p, e) =
-    Format.printf "aux_cl_negcn: p=@ %a ->@ e= %a@\n%!" (pr_pat false) p
-      (pr_expr false) e;
+    (* Format.printf "aux_cl_negcn: p=@ %a ->@ e= %a@\n%!" (pr_pat false) p
+      (pr_expr false) e; * *)
     let pcns = constr_gen_pat sigma p t1 in
     let bs, prem, env = envfrag_gen_pat sigma p t1 in
     let concl = aux (List.map typ_to_sch env @ gamma) t2 e in
     let cn = atoms_of_cnstrnt
       (fun pcns -> Impl (tcn::pcns @ prem, concl)) pcns in
     let res = if VarSet.is_empty bs then cn else All (bs, cn) in
-    Format.printf "aux_cl_negcn: res=@ %a@\n%!" pr_cnstrnt res;
+    (* Format.printf "aux_cl_negcn: res=@ %a@\n%!" pr_cnstrnt res; * *)
     res
     
 

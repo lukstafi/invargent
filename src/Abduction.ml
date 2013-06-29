@@ -114,7 +114,7 @@ let abd_simple cmp_v uni_v ?(init_params=VarSet.empty)
         step x lc {typ_sub=t; typ_ctx=[]} repls vs ans cur_ans cand
     and step x lc loc repls vs ans cur_ans cand =
       (* Choice 2: preserve current premise/conclusion subterm for answer *)
-        let ddepth = incr debug_dep; !debug_dep in
+        (* let ddepth = incr debug_dep; !debug_dep in *)
         (* Format.printf
           "abd_simple-step: [%d] @ loc=%a@ repls=%a@ vs=%s@ ans=%a@
 cur_ans=%a@ x=%s@ cand=%a@\n%!"
@@ -218,9 +218,9 @@ cur_ans=%a@ x=%s@ cand=%a@\n%!"
                    (* Format.printf
                      "abd_simple: [%d] validate 4 ans'=@ %a@\n%!"
                      ddepth pr_subst ans'; * *)
-                   (try
+                   (*try*)
                    validate vs ans';
-                     with Terms.Contradiction (msg,Some (ty1,ty2),_) as exn ->
+                     (*with Terms.Contradiction (msg,Some (ty1,ty2),_) as exn ->
                         Format.printf
                          "abd_simple: [%d] @ c.4 validate failed:@ %s@ %a@ %a@\n%!" ddepth
                          msg (pr_ty true) ty1 (pr_ty true) ty2;
@@ -232,7 +232,7 @@ cur_ans=%a@ x=%s@ cand=%a@\n%!"
                              (var_str v2) (uni_v v2)
                              (str_of_cmp (cmp_v v1 v2))
                        | _ -> ()); 
-                       raise exn);
+                       raise exn);*)
                    (* Format.printf "abd_simple: choice 4 OK@\n%!"; * *)
                    assert (so = []);
                    (* Format.printf
@@ -274,7 +274,7 @@ cur_ans=%a@ x=%s@ cand=%a@\n%!"
 
 (* let max_skip = ref 20 *)
 
-let abd_typ cmp_v uni_v ?(init_params=VarSet.empty) ?fincheck ~discard brs =
+let abd_typ cmp_v uni_v ?(init_params=VarSet.empty) ~discard brs =
   (* Format.printf "abd_typ:@ init params=@ %s@\n%!"
     (String.concat ", " (List.map var_str (VarSet.elements
      init_params))); * *)
@@ -333,13 +333,7 @@ let abd_typ cmp_v uni_v ?(init_params=VarSet.empty) ?fincheck ~discard brs =
           ((dskip+1, dbr)::more_brs)
       
   and check_brs acc runouts done_brs = function
-    | [] ->
-      (match fincheck with None -> acc
-      | Some f -> if f acc then acc else
-          match List.rev done_brs with
-          | [] -> assert false
-          | (skip, br)::more_brs ->
-            loop ([], []) runouts ((skip+1, br)::more_brs))
+    | [] -> acc
     | (skip, br as obr)::more_brs ->
       (* let ddepth = incr debug_dep; !debug_dep in *)
       (* Format.printf
@@ -406,7 +400,7 @@ let abd_mockup_num cmp_v uni_v ?(init_params=VarSet.empty) brs =
             brs_num more_num)
   with Suspect _ -> None
 
-let abd cmp_v uni_v ?(init_params=VarSet.empty) ?fincheck ~discard
+let abd cmp_v uni_v ?(init_params=VarSet.empty) ~discard
     ~fallback brs =
   (* Do not change the order and no. of branches afterwards. *)
   (* Format.printf "abd: prepare branches@\n%!"; * *)
@@ -440,13 +434,15 @@ let abd cmp_v uni_v ?(init_params=VarSet.empty) ?fincheck ~discard
        brs) in
   let fallback, (brs_typ, brs_num, brs_so) =
     try false, prepare_brs brs
-    with Contradiction _ ->
+    with Contradiction _ as e ->
+      if fallback == brs then raise e
+      else (
       (* Format.printf "abd: prepare fallback@\n%!"; * *)
-      true, prepare_brs fallback in
+      true, prepare_brs fallback) in
   (* Format.printf "abd: discard_typ=@ %a@\n%!" pr_subst discard_typ;
      * *)
   let tvs, ans_typ, more_num =
-    abd_typ cmp_v uni_v ~init_params ?fincheck ~discard:discard_typ brs_typ in
+    abd_typ cmp_v uni_v ~init_params ~discard:discard_typ brs_typ in
   let brs_num = List.map2
     (fun (prem,concl) more -> prem, more @ concl)
     brs_num more_num in
