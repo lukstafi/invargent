@@ -17,14 +17,14 @@ let test_case msg test result chi residuum =
       try
         let prog = Terms.infer_sorts prog in
         let preserve, cn = Infer.infer_prog_mockup prog in
-        (* Format.printf "cn: %s@\n%a@\n" msg Infer.pr_cnstrnt cn; * *)
+        Format.printf "cn: %s@\n%a@\n%!" msg Infer.pr_cnstrnt cn; (* *)
         let cmp_v, uni_v, brs = Infer.normalize cn in
-        (* Format.printf "brs: %s@\n%a@\n" msg Infer.pr_brs brs; * *)
+        Format.printf "brs: %s@\n%a@\n%!" msg Infer.pr_brs brs; (* *)
         let uni_v v =
           try Hashtbl.find uni_v v with Not_found -> false in
         let brs = Infer.simplify preserve cmp_v uni_v brs in
-        (* Format.printf "simpl-brs: %s@\n%a@\n" msg Infer.pr_brs brs;
-      * *)
+        Format.printf "simpl-brs: %s@\n%a@\n%!" msg Infer.pr_brs brs;
+        (* *)
         let brs = List.map Infer.br_to_formulas brs in
         let _, _, (sol_res, sol_chi) =
           Invariants.solve cmp_v uni_v brs in
@@ -50,7 +50,7 @@ let tests = "Invariants" >::: [
 
   "eval" >::
     (fun () ->
-      (* todo "debug"; *)
+      todo "debug";
       test_case "eval term"
 "newtype Term : type
 newtype Int
@@ -152,6 +152,7 @@ let rec filter =
 
   "equal with test" >::
     (fun () ->
+      todo "debug";
       test_case "equal terms"
 "newtype Ty : type
 newtype Int
@@ -193,6 +194,41 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
   t141 = t8";
     );
 
+  "equal with assert" >::
+    (fun () ->
+      (* FIXME *)
+      (* todo "FIXME: bug in preparing <assert false> branches, not cut off"; *)
+      test_case "equal terms"
+"newtype Ty : type
+newtype Int
+newtype List : type
+newcons Zero : Int
+newcons Nil : ∀a. List a
+newcons TInt : Ty Int
+newcons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
+newcons TList : ∀a. Ty a ⟶ Ty (List a)
+newtype Bool
+newcons True : Bool
+newcons False : Bool
+external eq_int : Int → Int → Bool
+external b_and : Bool → Bool → Bool
+external b_not : Bool → Bool
+external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool
+
+let rec equal = function
+  | TInt, TInt -> fun x y -> eq_int x y
+  | TPair (t1, t2), TPair (u1, u2) ->  
+    (fun (x1, x2) (y1, y2) ->
+        b_and (equal (t1, u1) x1 y1)
+              (equal (t2, u2) x2 y2))
+  | TList t, TList u -> forall2 (equal (t, u))
+  | _ -> fun _ _ -> False
+  | TInt, TList l -> (function Nil -> assert false)
+  | TList l, TInt -> (function Zero -> assert false)"
+        "" 1
+        "";
+    );
+
   "equal with assert and test" >::
     (fun () ->
       (* FIXME *)
@@ -223,7 +259,7 @@ let rec equal = function
   | TList t, TList u -> forall2 (equal (t, u))
   | _ -> fun _ _ -> False
   | TInt, TList l -> (function Nil -> assert false)
-  | TList l, TInt -> fun _ -> function Nil -> assert false
+  | TList l, TInt -> (function Zero -> assert false)
 test b_not (equal (TInt, TList TInt) Zero Nil)"
         "" 1
         "";

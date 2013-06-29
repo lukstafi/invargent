@@ -246,6 +246,12 @@
   that <verbatim|e1> has type <verbatim|Num n1> and <verbatim|e2> has type
   <verbatim|Num n2>.
 
+  We treat a chain of single branch functions with only <verbatim|assert
+  false> in the body of the last function specially. We put all information
+  about the type of the functions in the premise of the generated constraint.
+  Therefore the user can use them to exclude unintended types. See the
+  example <verbatim|equal_assert.gadt>.
+
   <subsection|Normalization>
 
   Rather than reducing to prenex-normal form as in our formalization, we

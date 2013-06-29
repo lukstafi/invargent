@@ -16,6 +16,55 @@ type cnstrnt =
 | All of VarSet.t * cnstrnt
 | Ex of VarSet.t * cnstrnt
 
+let rec atoms_of_cnstrnt k = function
+| A cnj -> k cnj
+| And [] -> k []
+| And [cn] -> atoms_of_cnstrnt k cn
+| And (cn::cns) ->
+  atoms_of_cnstrnt
+    (fun cnj0 -> atoms_of_cnstrnt
+      (fun cnj1 -> k (cnj0 @ cnj1)) (And cns))
+    cn
+| Or1 [cnj] -> k [cnj]
+| Impl ([], cn) -> atoms_of_cnstrnt k cn
+| All (vs, cn) ->
+  if VarSet.is_empty vs then atoms_of_cnstrnt k cn
+  else All (vs, atoms_of_cnstrnt k cn)
+| Ex (vs, cn) ->
+  if VarSet.is_empty vs then atoms_of_cnstrnt k cn
+  else Ex (vs, atoms_of_cnstrnt k cn)
+| _ -> assert false
+  
+open Format
+
+let rec pr_cnstrnt ppf = function
+  | A atoms -> pr_formula ppf atoms
+  | And cns -> fprintf ppf "@[<0>";
+    pr_sep_list " ∧" pr_cnstrnt ppf cns; fprintf ppf "@]"
+  | Or1 disjs -> fprintf ppf "@[<0>[";
+    pr_sep_list " ∨" pr_atom ppf disjs; fprintf ppf "]@]"
+  | Impl (prem,concl) -> fprintf ppf "@[<2>";
+    pr_formula ppf prem; fprintf ppf "@ ⟹@ %a@]" pr_cnstrnt concl
+  | ImplOr2 (disjs, concl, altcn) -> fprintf ppf "@[<2>[";
+    pr_sep_list " ∨" pr_formula ppf disjs;
+    fprintf ppf "]@ ⟹@ %a@]@[<2>[or@ %a]@]"
+      pr_cnstrnt concl pr_cnstrnt altcn
+  | All (vs, cn) ->
+    fprintf ppf "@[<0>∀%a.@ %a@]"
+      (pr_sep_list "," pr_tyvar) (VarSet.elements vs) pr_cnstrnt cn
+  | Ex (vs, cn) ->
+    fprintf ppf "@[<0>∃%a.@ %a@]"
+      (pr_sep_list "," pr_tyvar) (VarSet.elements vs) pr_cnstrnt cn
+
+let pr_brs ppf brs =
+  pr_line_list "| " (fun ppf (prem,(sb, num, so)) ->
+    let concl = to_formula sb @ num @ so in
+    fprintf ppf "@[<2>%a@ ⟹@ %a@]" pr_formula prem pr_formula concl) ppf brs
+
+let pr_rbrs ppf brs =
+  pr_line_list "| " (fun ppf (prem,concl) ->
+    fprintf ppf "@[<2>%a@ ⟹@ %a@]" pr_formula prem pr_formula concl) ppf brs
+
 (** {2 Constraint inference} *)
 
 let rec flat_and = function
@@ -131,6 +180,12 @@ let rec envfrag_gen_pat sigma p t =
       List.fold_left envfrag_x ef0 (List.map2 aux args ps) in
   aux t p
 
+let rec single_assert_false (_, e) =
+  match e with
+    | AssertFalse _ -> true
+    | Lam ([cl], loc) -> single_assert_false cl
+    | _ -> false
+
 let constr_gen_expr gamma sigma ex_types e t =
   let rec aux gamma t = function
     | Var (x, loc) when not (List.mem_assoc x gamma) ->
@@ -158,6 +213,14 @@ let constr_gen_expr gamma sigma ex_types e t =
       let a = fresh_typ_var () in
       Ex (VarSet.singleton a,
           cn_and (aux gamma (Fun (TVar a, t)) e1) (aux gamma (TVar a) e2))
+    | Lam ([cl], loc) when single_assert_false cl ->
+      let a1 = fresh_typ_var () in
+      let t1 = TVar a1 in
+      let a2 = fresh_typ_var () in
+      let t2 = TVar a2 in
+      let cn =
+        aux_cl_negcn gamma t1 t2 (Eqty (Fun (t1, t2), t, loc)) cl in
+      Ex (vars_of_list [a1; a2], cn)
     | Lam (cls, loc) ->
       let a1 = fresh_typ_var () in
       let t1 = TVar a1 in
@@ -241,6 +304,19 @@ let constr_gen_expr gamma sigma ex_types e t =
       Ex (vars_of_list [a0; a2],
           cn_and (cn_and (A disj) cn0)
             (All (vars_of_list [a3], ImplOr2 (disj_prem, concl, altcn))))
+
+  and aux_cl_negcn gamma t1 t2 tcn (p, e) =
+    Format.printf "aux_cl_negcn: p=@ %a ->@ e= %a@\n%!" (pr_pat false) p
+      (pr_expr false) e;
+    let pcns = constr_gen_pat sigma p t1 in
+    let bs, prem, env = envfrag_gen_pat sigma p t1 in
+    let concl = aux (List.map typ_to_sch env @ gamma) t2 e in
+    let cn = atoms_of_cnstrnt
+      (fun pcns -> Impl (tcn::pcns @ prem, concl)) pcns in
+    let res = if VarSet.is_empty bs then cn else All (bs, cn) in
+    Format.printf "aux_cl_negcn: res=@ %a@\n%!" pr_cnstrnt res;
+    res
+    
 
   and aux_cl gamma t1 t2 (p, e) =
     let pcns = constr_gen_pat sigma p t1 in
@@ -646,6 +722,9 @@ let vs_hist_sb increase sb =
   List.iter (fun (v,(t,_)) -> increase v; vs_hist_typ increase t) sb
  
 let simplify preserve cmp_v uni_v brs =
+  (* Prune "implies true" branches. *)
+  let brs = List.filter
+    (function _, ([], [], []) -> false | _ -> true) brs in
   (* Prune uninformative variables. *)
   let ht = Hashtbl.create 255 in
   let increase v =
@@ -811,36 +890,6 @@ let nicevars_struct_item = function
     let phi = List.map (nicevars_atom env) phi in
     let ty = nicevars_typ env ty in
     LetVal (p, e, Some (vs, phi, ty), tests, loc)  
-  
-open Format
-
-let rec pr_cnstrnt ppf = function
-  | A atoms -> pr_formula ppf atoms
-  | And cns -> fprintf ppf "@[<0>";
-    pr_sep_list " ∧" pr_cnstrnt ppf cns; fprintf ppf "@]"
-  | Or1 disjs -> fprintf ppf "@[<0>[";
-    pr_sep_list " ∨" pr_atom ppf disjs; fprintf ppf "]@]"
-  | Impl (prem,concl) -> fprintf ppf "@[<2>";
-    pr_formula ppf prem; fprintf ppf "@ ⟹@ %a@]" pr_cnstrnt concl
-  | ImplOr2 (disjs, concl, altcn) -> fprintf ppf "@[<2>[";
-    pr_sep_list " ∨" pr_formula ppf disjs;
-    fprintf ppf "]@ ⟹@ %a@]@[<2>[or@ %a]@]"
-      pr_cnstrnt concl pr_cnstrnt altcn
-  | All (vs, cn) ->
-    fprintf ppf "@[<0>∀%a.@ %a@]"
-      (pr_sep_list "," pr_tyvar) (VarSet.elements vs) pr_cnstrnt cn
-  | Ex (vs, cn) ->
-    fprintf ppf "@[<0>∃%a.@ %a@]"
-      (pr_sep_list "," pr_tyvar) (VarSet.elements vs) pr_cnstrnt cn
-
-let pr_brs ppf brs =
-  pr_line_list "| " (fun ppf (prem,(sb, num, so)) ->
-    let concl = to_formula sb @ num @ so in
-    fprintf ppf "@[<2>%a@ ⟹@ %a@]" pr_formula prem pr_formula concl) ppf brs
-
-let pr_rbrs ppf brs =
-  pr_line_list "| " (fun ppf (prem,concl) ->
-    fprintf ppf "@[<2>%a@ ⟹@ %a@]" pr_formula prem pr_formula concl) ppf brs
 
 let reset_state () =
   fresh_var_id := 0; fresh_chi_id := 0
