@@ -9,19 +9,18 @@
 val abd_simple :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
-  params:Terms.VarSet.t ->  
-  validate:(Terms.VarSet.t -> Terms.var_name list -> Terms.subst -> unit) ->
+  Terms.params ->  
+  validate:(Terms.params -> Terms.var_name list -> Terms.subst -> unit) ->
   discard:Terms.subst ->
   int ->
   Terms.var_name list * Terms.subst ->
   Terms.subst * Terms.subst ->
-  (Terms.VarSet.t * (Terms.var_name list * Terms.subst))
-  option
+  (Terms.var_name list * Terms.subst) option
 val abd_typ :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
-  ?init_params:Terms.VarSet.t ->  
-  validate:(Terms.VarSet.t -> Terms.var_name list -> Terms.subst -> unit) ->
+  Terms.params ->  
+  validate:(Terms.params -> Terms.var_name list -> Terms.subst -> unit) ->
   discard:Terms.subst ->
   (Terms.subst * Terms.subst) list ->
   Terms.var_name list * Terms.subst * Terms.formula list
@@ -30,7 +29,7 @@ val abd_typ :
 val abd :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
-  ?init_params:Terms.VarSet.t ->  
+  Terms.params ->  
   discard:Terms.formula ->
   fallback:(Terms.formula * Terms.formula) list ->
   (Terms.formula * Terms.formula) list ->
@@ -38,12 +37,12 @@ val abd :
 val abd_mockup_num :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
-  ?init_params:Terms.VarSet.t ->  
+  Terms.params ->  
   (Terms.formula * Terms.formula) list ->
   (Terms.formula * Terms.formula) list option
 val abd_s :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
-  ?init_params:Terms.VarSet.t ->  
+  Terms.params ->  
   Terms.formula -> Terms.formula ->
   (Terms.var_name list * Terms.formula) option

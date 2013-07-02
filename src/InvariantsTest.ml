@@ -78,14 +78,14 @@ let rec eval = function
   | Snd p -> (match eval p with x, y -> y)"
 
         "∃t78. δ = (Term t78 → t78)" 1
-        "t2 = (Term t79 → t79) ∧ t3 = (Term t5) ∧ t4 = t5 ∧
+        "t3 = (Term t78) ∧ t2 = (Term t79 → t79) ∧ t4 = t78 ∧ t5 = t78 ∧
   t11 = (Term Int → Int) ∧ t16 = (Term Int → Int) ∧
   t19 = (Term Int → Int) ∧ t24 = (Term t21 → t21) ∧
   t27 = (Term t21 → t21) ∧ t30 = (Term Bool → Bool) ∧ t38 = t36 ∧
   t39 = t37 ∧ t41 = (Term t36 → t36) ∧ t43 = (Term t37 → t37) ∧
   t50 = (Term (t46, t47) → t46, t47) ∧ t51 = (t46, t47) ∧ t52 = t46 ∧
   t53 = t46 ∧ t54 = t47 ∧ t63 = (Term (t59, t60) → t59, t60) ∧
-  t64 = (t59, t60) ∧ t65 = t60 ∧ t66 = t59 ∧ t67 = t60 ∧ t78 = t5 ∧
+  t64 = (t59, t60) ∧ t65 = t60 ∧ t66 = t59 ∧ t67 = t60 ∧
   t80 = Int ∧ t81 = Int ∧ t82 = Int ∧ t83 = Bool ∧ t84 = t21 ∧
   t85 = t21 ∧ t86 = t36 ∧ t87 = t37 ∧ t88 = (t46, t47) ∧
   t89 = (t59, t60)"
@@ -180,18 +180,18 @@ let rec equal = function
   | _ -> fun _ _ -> False
 test b_not (equal (TInt, TList TInt) Zero Nil)"
         "∃t140, t141. δ = (Ty t140, Ty t141 → t140 → t141 → Bool)" 1
-        "t2 = (Ty t104, Ty t105 → t104 → t105 → Bool) ∧
-  t3 = (Ty t7, Ty t8) ∧ t4 = (t7 → t8 → Bool) ∧ t35 = (t30, t31) ∧
-  t36 = (t33, t34 → Bool) ∧ t37 = t30 ∧ t38 = t31 ∧
-  t41 = (t33, t34) ∧ t42 = Bool ∧ t43 = t33 ∧ t44 = t34 ∧
+        "t4 = (t140 → t141 → Bool) ∧ t3 = (Ty t140, Ty t141) ∧
+  t2 = (Ty t104, Ty t105 → t104 → t105 → Bool) ∧ t7 = t140 ∧
+  t8 = t141 ∧ t35 = (t30, t31) ∧ t36 = (t33, t34 → Bool) ∧
+  t37 = t30 ∧ t38 = t31 ∧ t41 = (t33, t34) ∧ t42 = Bool ∧
+  t43 = t33 ∧ t44 = t34 ∧
   t53 = (Ty t31, Ty t34 → t31 → t34 → Bool) ∧
   t60 = (Ty t30, Ty t33 → t30 → t33 → Bool) ∧
   t77 = (Ty t70, Ty t72 → t70 → t72 → Bool) ∧ t78 = t70 ∧
-  t79 = t72 ∧ t80 = t7 ∧ t82 = t8 ∧ t86 = Int ∧
+  t79 = t72 ∧ t80 = t140 ∧ t82 = t141 ∧ t86 = Int ∧
   t95 = (Ty Int, Ty (List Int) → Int → List Int → Bool) ∧
   t106 = Int ∧ t107 = (List Int) ∧ t108 = t30 ∧ t109 = t33 ∧
-  t110 = t31 ∧ t111 = t34 ∧ t112 = t70 ∧ t113 = t72 ∧ t140 = t7 ∧
-  t141 = t8";
+  t110 = t31 ∧ t111 = t34 ∧ t112 = t70 ∧ t113 = t72";
     );
 
   "equal with assert" >::
@@ -225,16 +225,16 @@ let rec equal = function
   | TInt, TList l -> (function Nil -> assert false)
   | TList l, TInt -> (fun _ -> function Nil -> assert false)"
         "∃t156, t157. δ = (Ty t156, Ty t157 → t156 → t157 → Bool)" 1
-        "t2 = (Ty t122, Ty t123 → t122 → t123 → Bool) ∧
-  t3 = (Ty t7, Ty t8) ∧ t4 = (t7 → t8 → Bool) ∧ t35 = (t30, t31) ∧
-  t36 = (t33, t34 → Bool) ∧ t37 = t30 ∧ t38 = t31 ∧
-  t41 = (t33, t34) ∧ t42 = Bool ∧ t43 = t33 ∧ t44 = t34 ∧
+        "t4 = (t156 → t157 → Bool) ∧ t3 = (Ty t156, Ty t157) ∧
+  t2 = (Ty t122, Ty t123 → t122 → t123 → Bool) ∧ t7 = t156 ∧
+  t8 = t157 ∧ t35 = (t30, t31) ∧ t36 = (t33, t34 → Bool) ∧
+  t37 = t30 ∧ t38 = t31 ∧ t41 = (t33, t34) ∧ t42 = Bool ∧
+  t43 = t33 ∧ t44 = t34 ∧
   t53 = (Ty t31, Ty t34 → t31 → t34 → Bool) ∧
   t60 = (Ty t30, Ty t33 → t30 → t33 → Bool) ∧
   t77 = (Ty t70, Ty t72 → t70 → t72 → Bool) ∧ t78 = t70 ∧
-  t79 = t72 ∧ t80 = t7 ∧ t82 = t8 ∧ t124 = t30 ∧ t125 = t33 ∧
-  t126 = t31 ∧ t127 = t34 ∧ t128 = t70 ∧ t129 = t72 ∧ t156 = t7 ∧
-  t157 = t8";
+  t79 = t72 ∧ t80 = t156 ∧ t82 = t157 ∧ t124 = t30 ∧ t125 = t33 ∧
+  t126 = t31 ∧ t127 = t34 ∧ t128 = t70 ∧ t129 = t72";
     );
 
   "equal with assert and test" >::
@@ -269,23 +269,23 @@ let rec equal = function
   | TList l, TInt -> (fun _ -> function Nil -> assert false)
 test b_not (equal (TInt, TList TInt) Zero Nil)"
         "∃t170, t171. δ = (Ty t170, Ty t171 → t170 → t171 → Bool)" 1
-        "t2 = (Ty t134, Ty t135 → t134 → t135 → Bool) ∧
-  t3 = (Ty t7, Ty t8) ∧ t4 = (t7 → t8 → Bool) ∧ t35 = (t30, t31) ∧
-  t36 = (t33, t34 → Bool) ∧ t37 = t30 ∧ t38 = t31 ∧
-  t41 = (t33, t34) ∧ t42 = Bool ∧ t43 = t33 ∧ t44 = t34 ∧
+        "t4 = (t170 → t171 → Bool) ∧ t3 = (Ty t170, Ty t171) ∧
+  t2 = (Ty t134, Ty t135 → t134 → t135 → Bool) ∧ t7 = t170 ∧
+  t8 = t171 ∧ t35 = (t30, t31) ∧ t36 = (t33, t34 → Bool) ∧
+  t37 = t30 ∧ t38 = t31 ∧ t41 = (t33, t34) ∧ t42 = Bool ∧
+  t43 = t33 ∧ t44 = t34 ∧
   t53 = (Ty t31, Ty t34 → t31 → t34 → Bool) ∧
   t60 = (Ty t30, Ty t33 → t30 → t33 → Bool) ∧
   t77 = (Ty t70, Ty t72 → t70 → t72 → Bool) ∧ t78 = t70 ∧
-  t79 = t72 ∧ t80 = t7 ∧ t82 = t8 ∧ t116 = Int ∧
+  t79 = t72 ∧ t80 = t170 ∧ t82 = t171 ∧ t116 = Int ∧
   t125 = (Ty Int, Ty (List Int) → Int → List Int → Bool) ∧
   t136 = Int ∧ t137 = (List Int) ∧ t138 = t30 ∧ t139 = t33 ∧
-  t140 = t31 ∧ t141 = t34 ∧ t142 = t70 ∧ t143 = t72 ∧ t170 = t7 ∧
-  t171 = t8";
+  t140 = t31 ∧ t141 = t34 ∧ t142 = t70 ∧ t143 = t72";
     );
 
   "binary plus" >::
     (fun () ->
-      (* todo "numeric"; *)
+      todo "numeric";
       test_case "binary plus"
 "newtype Binary : num
 newtype Carry : num
@@ -410,6 +410,51 @@ let rec plus =
     t173 = (Carry n172 → Binary n139 → Binary n166 → Binary n168) ∧
     (1 + n168 + n168) = n167 ∧ 1 = n172 ∧ 𝛘1(t173)"
 *)
+    );
+
+  "binary plus with test" >::
+    (fun () ->
+      todo "numeric";
+      test_case "binary plus test"
+"newtype Binary : num
+newtype Carry : num
+newtype Bool
+
+newcons Zero : Binary 0
+newcons PZero : ∀n. Binary(n) ⟶ Binary(n+n)
+newcons POne : ∀n. Binary(n) ⟶ Binary(n+n+1)
+newcons CZero : Carry 0
+newcons COne : Carry 1
+
+external eq_Binary :  ∀n. Binary(n) → Binary(n) → Bool
+
+let rec plus =
+  function CZero ->
+    (function Zero -> (fun b -> b)
+      | PZero a1 as a ->
+        (function Zero -> a
+	  | PZero b1 -> PZero (plus CZero a1 b1)
+	  | POne b1 -> POne (plus CZero a1 b1))
+      | POne a1 as a ->
+        (function Zero -> a
+	  | PZero b1 -> POne (plus CZero a1 b1)
+	  | POne b1 -> PZero (plus COne a1 b1)))
+    | COne ->
+    (function Zero ->
+        (function Zero -> POne(Zero)
+	  | PZero b1 -> POne b1
+	  | POne b1 -> PZero (plus COne Zero b1))
+      | PZero a1 as a ->
+        (function Zero -> POne a1
+	  | PZero b1 -> POne (plus CZero a1 b1)
+	  | POne b1 -> PZero (plus COne a1 b1))
+      | POne a1 as a ->
+        (function Zero -> PZero (plus COne a1 Zero)
+	  | PZero b1 -> PZero (plus COne a1 b1)
+	  | POne b1 -> POne (plus COne a1 b1)))
+test (eq_Binary (plus (POne Zero) (PZero (POne Zero))) (POne (POne Zero)))"
+        "" 1
+        ""
     );
 
 ]

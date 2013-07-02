@@ -179,9 +179,9 @@ type state = subst * NumS.state
 
 let empty_state : state = [], NumS.empty_state
 
-let holds q ?params (ty_st, num_st) cnj =
+let holds q params (ty_st, num_st) cnj =
   let ty_st, num_cnj, _ =
-    unify ~use_quants:true ?params ~sb:ty_st q.cmp_v q.uni_v cnj in
+    unify ~use_quants:true params ~sb:ty_st q.cmp_v q.uni_v cnj in
   let num_st = NumS.holds q.cmp_v q.uni_v num_st num_cnj in
   ty_st, num_st
 
@@ -192,12 +192,12 @@ let select check_max_b q ans ans_max =
   Format.printf "select: allmax=@ %a@\ninit_res=@ %a@\n%!"
       pr_formula allmax pr_formula init_res; (* *)
   (* Raises [Contradiction] here if solution impossible. *)
-  let init_state = holds q empty_state init_res in
+  let init_state = holds q No_params empty_state init_res in
   let rec loop state ans_res ans_p = function
     | [] -> ans_res, ans_p
     | c::cands ->
       try
-        let state = holds q state [c] in
+        let state = holds q No_params state [c] in
         loop state (c::ans_res) ans_p cands
       with Contradiction _ ->
         let vs = fvs_atom c in
@@ -359,7 +359,8 @@ let connected v (vs, phi) =
     simplify the formula. *)
 let simplify cmp_v uni_v vs cnj =
   let ty_ans, num_ans, _ =
-    unify ~use_quants:false ~params:(vars_of_list vs) cmp_v uni_v cnj in
+    unify ~use_quants:false (Params (vars_of_list vs))
+      cmp_v uni_v cnj in
   let ty_sb, ty_ans = List.partition
     (fun (v,_) -> List.mem v vs) ty_ans in
   let ty_ans = subst_formula ty_sb (to_formula ty_ans) in
@@ -426,8 +427,6 @@ let solve cmp_v uni_v brs =
            Some ((i,t2), Eqty (TVar delta, t1, dummy_loc) :: prem @ concl)
          | _ -> None) concl) brs) in
   let chiK = List.map (fun ((i,t2),cnjs) -> i, (t2, cnjs)) chiK in
-  let pms vs =
-    VarSet.union (vars_of_list vs) q.allbvs in
   let rec loop discard sol0 brs0 sol1 =
     let gK = List.map
       (fun (i,(t2,cnjs)) ->
@@ -447,7 +446,7 @@ let solve cmp_v uni_v brs =
           (str_of_cmp (cmp_v' [VId (Type_sort, 1)] (VId (Type_sort, 1))
                          (VId (Type_sort, 4)))); (* *)
         match Abduction.abd_s (cmp_v' gvs) uni_v
-          ~init_params:(pms (gvs @ vs)) ans g_ans with
+          (Params (vars_of_list (gvs @ vs))) ans g_ans with
         | None -> None
         | Some (gvs', g_ans') ->
           (* 3 *)
@@ -477,7 +476,7 @@ let solve cmp_v uni_v brs =
         try
           Format.printf "neg_cl_check: cnj=@ %a@\n%!" pr_formula
                cnj; (* *)
-          let ty_cn (*_*), num_cn, _ = unify ~use_quants:false ~params:q.allbvs
+          let ty_cn (*_*), num_cn, _ = unify ~use_quants:false No_params
             cmp_v uni_v cnj in
           let res = not (NumS.satisfiable num_cn) in
           Format.printf
@@ -503,19 +502,21 @@ let solve cmp_v uni_v brs =
       if neg_cl_check then sol1, brs1
       else sol0, brs0 in
     (* 5 *)
-    let init_params = Hashtbl.fold
+    let paramvs = Hashtbl.fold
       (fun b bvs acc ->
         if List.mem b q.negbs then VarSet.union bvs acc else acc)
       q.b_vs VarSet.empty in
+    let params = Existential_plus paramvs in
     let fallback, (vs, ans) =
-      try Abduction.abd cmp_v uni_v ~init_params
+      try Abduction.abd cmp_v uni_v params
             ~discard ~fallback:brs0 brs1
       with Suspect (vs, phi) ->
         try
           Format.printf "solve: abduction failed: phi=@ %a@\n%!"
             pr_formula phi; (* *)
-          ignore (holds q ~params:(pms vs) empty_state phi);
-          ignore (holds q empty_state phi);
+          ignore (holds q (Existential_plus (add_vars vs paramvs))
+                    empty_state phi);
+          ignore (holds q No_params empty_state phi);
           assert false
         with Contradiction (msg, tys, loc) -> raise
           (Contradiction
@@ -589,7 +590,8 @@ let solve cmp_v uni_v brs =
   List.iter (fun (cnj, loc) ->
     try
       let cnj = sb_formula_pred q false (snd sol) cnj in
-      ignore (holds q empty_state cnj);
+      (* FIXME: should use [satisfiable], not [holds]! *)
+      ignore (holds q No_params empty_state cnj);
       raise (Contradiction ("A branch with \"assert false\" is possible",
                             None, loc))
     with Contradiction _ -> ()

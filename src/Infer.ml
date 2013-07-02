@@ -611,8 +611,9 @@ let normalize cn =
     try Hashtbl.find quants (v1, v2) with Not_found -> Not_in_scope in
   let is_uni_v  v =
     try Hashtbl.find univars v with Not_found -> false in
-  let unify = unify ~use_quants:false cmp_vars is_uni_v in
-  let combine_sbs = combine_sbs ~use_quants:false cmp_vars is_uni_v in
+  let unify = unify ~use_quants:false No_params cmp_vars is_uni_v in
+  let combine_sbs =
+    combine_sbs ~use_quants:false No_params cmp_vars is_uni_v in
   let add_var_rels up_vars same_vars vs =
     VarSet.iter (fun uv ->
       VarSet.iter (fun dv ->
