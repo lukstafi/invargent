@@ -18,7 +18,7 @@ let br_simple lhs rhs =
   let rhs, _, _ = unify ~use_quants:false cmp_v uni_v rhs in
   lhs, rhs
 
-let test_simple lhs_m rhs_m ?(validate=(fun _ _ -> ())) skip res =
+let test_simple lhs_m rhs_m ?(validate=(fun _ _ _ -> ())) skip res =
   let lhs = p_formula lhs_m and rhs = p_formula rhs_m in
   let lhs, rhs = br_simple lhs rhs in
   let ans =
@@ -91,7 +91,8 @@ let tests = "Abduction" >::: [
         let lhs8, rhs8 = br_simple lhs8 rhs8 in
         let lhs9, rhs9 = br_simple lhs9 rhs9 in
         let ans =
-          try let vs, ans_typ, _ = abd_typ cmp_v uni_v ~discard:[]
+          try let vs, ans_typ, _ = abd_typ cmp_v uni_v
+                ~validate:(fun _ _ _ -> ()) ~discard:[]
                 [lhs0, rhs0; lhs1, rhs1;
                  lhs2, rhs2; lhs4, rhs4;
                  lhs5, rhs5; lhs6, rhs6;
@@ -432,7 +433,8 @@ let rec filter =
            VNam (Type_sort, "tC");VNam (Type_sort, "tD")] in
         let ans =
           try let vs, ans_typ, _ =
-                abd_typ cmp_v uni_v ~init_params:pms ~discard:[]
+                abd_typ cmp_v uni_v ~init_params:pms
+                  ~validate:(fun _ _ _ -> ()) ~discard:[]
                 [lhs0, rhs0; lhs1, rhs1] in
               pr_to_str pr_formula (to_formula ans_typ)
           with Suspect _ -> "none" in

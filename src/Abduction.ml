@@ -179,7 +179,7 @@ cur_ans=%a@ x=%s@ cand=%a@\n%!"
                 cmp_v uni_v [Eqty (TVar x, t, lc)] in
             Format.printf
               "abd_simple: [%d] validate 2 ans=@ %a@\n%!" ddepth pr_subst ans; (* *)
-            validate params ans;
+            validate params vs ans;
             Format.printf "abd_simple: [%d] choice 2 OK@\n%!" ddepth; (* *)
             assert (so = []);
             abstract repls params vs ans cur_ans cand
@@ -224,7 +224,7 @@ cur_ans=%a@ x=%s@ cand=%a@\n%!"
                  cmp_v uni_v [Eqty (TVar x, t', lc)] in
              Format.printf
                "abd_simple: [%d] validate 3 ans=@ %a@\n%!" ddepth pr_subst ans; (* *)
-             validate params' ans';
+             validate params' vs' ans';
              Format.printf "abd_simple: [%d] choice 3 OK@\n%!" ddepth; (* *)
              assert (so = []);
              abstract repls' params' vs' ans' cur_ans' cand
@@ -275,7 +275,7 @@ cur_ans=%a@ x=%s@ cand=%a@\n%!"
                      "abd_simple: [%d] validate 4 ans'=@ %a@\n%!"
                      ddepth pr_subst ans'; (* *)
                    (*try*)
-                   validate params ans';
+                   validate params vs ans';
                      (*with Terms.Contradiction (msg,Some (ty1,ty2),_) as exn ->
                         Format.printf
                          "abd_simple: [%d] @ c.4 validate failed:@ %s@ %a@ %a@\n%!" ddepth
@@ -328,18 +328,12 @@ cur_ans=%a@ x=%s@ cand=%a@\n%!"
 
 (* let max_skip = ref 20 *)
 
-let abd_typ cmp_v uni_v ?(init_params=VarSet.empty) ~discard brs =
+let abd_typ cmp_v uni_v ?(init_params=VarSet.empty) ~validate ~discard brs =
   Format.printf "abd_typ:@ init params=@ %s@\n%!"
     (String.concat ", " (List.map var_str (VarSet.elements
      init_params))); (* *)
   let br0 = 0, List.hd brs in
   let more_brs = List.map (fun br -> -1, br) (List.tl brs) in
-  let validate params ans = List.iter
-    (fun (prem, concl) ->
-      (* Do not use quantifiers, because premise is in the conjunction. *)
-      ignore (combine_sbs ~use_quants:false ~params cmp_v uni_v
-                [prem; concl; ans]))
-    brs in
   let time = ref (Sys.time ()) in
   let rec loop (params, a_acc (* as acc *)) runouts = function
     | [] ->
@@ -455,9 +449,22 @@ let abd_mockup_num cmp_v uni_v ?(init_params=VarSet.empty) brs =
                      (prem_so, concl_so))
       | None -> None)
        brs) in
+  let validate params vs ans = List.iter2
+    (fun (prem_ty, concl_ty) (prem_num, concl_num) ->
+      (* Do not use quantifiers, because premise is in the conjunction. *)
+      (* TODO: after cleanup optimized in abd_simple, pass clean_ans
+         and remove cleanup here *)
+      let vs, ans = cleanup vs ans in
+      let sb_ty, ans_num =
+        combine_sbs ~use_quants:false ~params cmp_v uni_v
+          [prem_ty; concl_ty; ans] in
+      let cnj_num = ans_num @ prem_num @ concl_num in
+      ignore (NumS.holds (fun _ _ -> Same_quant) (fun _ -> false)
+                NumS.empty_state cnj_num))
+    brs_typ brs_num in
   try
     let tvs, ans_typ, more_num =
-      abd_typ cmp_v uni_v ~init_params ~discard:[] brs_typ in
+      abd_typ cmp_v uni_v ~init_params ~validate ~discard:[] brs_typ in
     Some (List.map2
             (fun (prem,concl) more -> prem, more @ concl)
             brs_num more_num)
@@ -502,10 +509,28 @@ let abd cmp_v uni_v ?(init_params=VarSet.empty) ~discard
       else (
       Format.printf "abd: prepare fallback@\n%!"; (* *)
       true, prepare_brs fallback) in
+  let validate params vs ans = List.iter2
+    (fun (prem_ty, concl_ty) (prem_num, concl_num) ->
+      (* Do not use quantifiers, because premise is in the conjunction. *)
+      (* TODO: after cleanup optimized in abd_simple, pass clean_ans
+         and remove cleanup here *)
+      let vs, ans = cleanup vs ans in
+      let sb_ty, ans_num =
+        combine_sbs ~use_quants:false ~params cmp_v uni_v
+          [prem_ty; concl_ty; ans] in
+      let cnj_num = ans_num @ prem_num @ concl_num in
+      Format.printf "validate-typ: sb_ty=@ %a@\ncnj_num=@ %a@\n%!"
+        pr_subst sb_ty pr_formula cnj_num; (* *)
+      let num_state = NumS.holds (fun _ _ -> Same_quant) (fun _ -> false)
+        NumS.empty_state cnj_num in
+      Format.printf "validate-typ: num_state=@ %a@\n%!"
+        pr_formula (NumS.formula_of_state num_state); (* *)
+    )
+    brs_typ brs_num in
   Format.printf "abd: discard_typ=@ %a@\n%!" pr_subst discard_typ;
      (* *)
   let tvs, ans_typ, more_num =
-    abd_typ cmp_v uni_v ~init_params ~discard:discard_typ brs_typ in
+    abd_typ cmp_v uni_v ~init_params ~validate ~discard:discard_typ brs_typ in
   let brs_num = List.map2
     (fun (prem,concl) more -> prem, more @ concl)
     brs_num more_num in
@@ -534,7 +559,7 @@ let abd_s cmp_v uni_v ?(init_params=VarSet.empty) prem concl =
        else
          Aux.bind_opt
            (abd_simple cmp_v uni_v ~params:init_params
-              ~validate:(fun _ _ -> ()) ~discard:[] 0 ([], [])
+              ~validate:(fun _ _ _ -> ()) ~discard:[] 0 ([], [])
               (prem_typ, concl_typ))
            (fun (params, (tvs, ans_typ)) ->
              let more_num =

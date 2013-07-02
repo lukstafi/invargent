@@ -516,6 +516,9 @@ let satisfiable cnj =
 type state = w_subst * ineqs
 let empty_state = [], []
 
+let formula_of_state (eqs, ineqs) = expand_eqineqs eqs ineqs
+  
+
 let holds cmp_v uni_v (eqs, ineqs : state) cnj : state =
   let cmp_v v1 v2 =
     match cmp_v v1 v2 with

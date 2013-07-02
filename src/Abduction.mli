@@ -10,7 +10,7 @@ val abd_simple :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
   params:Terms.VarSet.t ->  
-  validate:(Terms.VarSet.t -> Terms.subst -> unit) ->
+  validate:(Terms.VarSet.t -> Terms.var_name list -> Terms.subst -> unit) ->
   discard:Terms.subst ->
   int ->
   Terms.var_name list * Terms.subst ->
@@ -21,6 +21,7 @@ val abd_typ :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
   ?init_params:Terms.VarSet.t ->  
+  validate:(Terms.VarSet.t -> Terms.var_name list -> Terms.subst -> unit) ->
   discard:Terms.subst ->
   (Terms.subst * Terms.subst) list ->
   Terms.var_name list * Terms.subst * Terms.formula list

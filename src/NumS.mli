@@ -41,6 +41,7 @@ val satisfiable : Terms.atom list -> bool
 
 type state
 val empty_state : state
+val formula_of_state : state -> Terms.formula
 (** Incremental check whether |= Q.A. Raises [Contradiction]. *)
 val holds :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
