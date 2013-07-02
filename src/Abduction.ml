@@ -117,7 +117,7 @@ let abd_simple cmp_v uni_v ~params
             skipped := ans :: !skipped;
             Format.printf "skipped: [%d]@ @[<2>%a@]@\n%!" ddepth pr_subst ans; (* *)
             decr skip)
-          (* FIXME *)
+          (* TODO: optimize by passing clean_ans along with ans *)
           else if List.exists (fun sx -> List.mem sx discard)
               (snd (cleanup vs ans))
           then (
@@ -143,7 +143,6 @@ let abd_simple cmp_v uni_v ~params
 
         if implies_concl ~params (ans @ cand) then (
           (* Choice 1: drop premise/conclusion atom from answer *)
-          (* FIXME: remove choice 1 as equivalent with choice 3? *)
           Format.printf "abd_simple: [%d]@ choice 1@ drop %s =@ %a@\n%!"
             ddepth (var_str x) (pr_ty false) t; (* *)
           try abstract repls params vs ans cur_ans cand
@@ -318,7 +317,9 @@ cur_ans=%a@ x=%s@ cand=%a@\n%!"
     if implies_concl params ans then Some (params, (vs, ans))
     else
       let cnj_typ, _ = prem_and params concl in
-      let cnj_typ = Aux.list_diff cnj_typ discard in
+      let cnj_typ = List.sort
+        (fun (_,(t1,_)) (_,(t2,_)) -> typ_size t2 - typ_size t1)
+        (Aux.list_diff cnj_typ discard) in
       Format.printf
         "abd_simple: init cnj=@ %a@\n%!" pr_subst cnj_typ; (* *)
       try abstract [] params vs ans [] cnj_typ; None

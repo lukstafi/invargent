@@ -261,7 +261,7 @@ let split avs ans q =
             cmp_v a b = Downstream -> false
       | _ -> true) ans in
     let ans0 = List.map (fun c -> c, fvs_atom c) ans0 in
-    (* 3 *)
+    (* 3a *)
     let check_max_b vs bs =
       let vmax = minimal ~less:greater_v
         (VarSet.elements (VarSet.inter vs q.allbvs)) in
@@ -274,8 +274,11 @@ let split avs ans q =
             if check_max_b vs bs then Some c else None)
           ans0)
       q.negbs in
+    (* FIXME: complete 3b, 3c -- Connected(ans_max, ans0) *)
+    let ans_cand = (* FIXME *) ans_max in
+    let ans_cap = (* FIXME *) ans_cand in
     (* 4, 9a *)
-    let ans_res, ans_ps = select check_max_b q ans ans_max in
+    let ans_res, ans_ps = select check_max_b q ans ans_cap in
     let more_discard = concat_map snd ans_ps in
     (* 5 *)
     let ans_strat = List.map
@@ -501,10 +504,9 @@ let solve cmp_v uni_v brs =
       (fun b bvs acc ->
         if List.mem b q.negbs then VarSet.union bvs acc else acc)
       q.b_vs VarSet.empty in
-    let fallback () = brs0 in
     let fallback, (vs, ans) =
       try Abduction.abd cmp_v uni_v ~init_params
-            ~discard ~fallback brs1
+            ~discard ~fallback:brs0 brs1
       with Suspect (vs, phi) ->
         try
           Format.printf "solve: abduction failed: phi=@ %a@\n%!"

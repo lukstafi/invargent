@@ -232,6 +232,8 @@ let rec typ_out t =
 
 (** {3 Substitutions} *)
 
+let typ_size = typ_fold (typ_make_fold (fun i j -> i+j+1) 1)
+
 let fvs_typ =
   typ_fold {(typ_make_fold VarSet.union VarSet.empty)
   with fold_tvar = fun v -> VarSet.singleton v}

@@ -619,12 +619,18 @@
     We handle information carried in <math|\<beta\><wide|=|\<dot\>>\<alpha\>>
     by substituting <math|\<alpha\>> with <math|\<beta\>>.
 
-    <item><math|<tabular|<tformat|<table|<row|<cell|A<rsub|\<chi\>><rsup|max>>|<cell|=>|<cell|<around*|{|c\<in\>A<rsub|0><mid|\|>max<rsub|\<prec\>><around*|(|<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<cap\>FV<around*|(|c|)>|)>\<cap\><wide|\<beta\>|\<bar\>><rsup|\<chi\>>\<neq\>\<varnothing\>|}>>>>>>>
-    The atoms to consider incorporating in invariants for <math|\<chi\>>.
+    <item><math|<tabular|<tformat|<table|<row|<cell|A<rsub|\<chi\>><rsup|max>>|<cell|=>|<cell|<around*|{|c\<in\>A<rsub|0><mid|\|>max<rsub|\<prec\>><around*|(|<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<cap\>FV<around*|(|c|)>|)>\<cap\><wide|\<beta\>|\<bar\>><rsup|\<chi\>>\<neq\>\<varnothing\>|}>>>>>>>,
+    <math|<tabular|<tformat|<table|<row|<cell|A<rsub|\<chi\>><rsup|cand>>|<cell|=>|<cell|Connected<around*|(|A<rsub|\<chi\>><rsup|max>,A<rsub|0>|)>>>>>>>,
+    <math|<tabular|<tformat|<table|<row|<cell|A<rsub|\<chi\>><rsup|cap>>|<cell|=>|<cell|A<rsub|\<chi\>><rsup|cand>\\\<cup\><rsub|\<chi\><rprime|'>\<gtr\><rsub|\<cal-Q\>>\<chi\>>A<rsub|\<chi\>><rsup|cand>>>>>>>
+    All of the atoms to consider incorporating in invariants for
+    <math|\<chi\>>. <math|Connected<around*|(|A<rsub|\<chi\>><rsup|max>,A<rsub|0>|)>>
+    is the subset of atoms of <math|A<rsub|0>> reachable from
+    <math|A<rsub|\<chi\>><rsup|max>>, where atoms are considered directly
+    connected when they share a variable.
 
     <item><math|<tabular|<tformat|<table|<row|<cell|<with|mode|text|for one
     ><wide|A<rsub|\<chi\>><rsup|+>|\<bar\>><with|mode|text| minimal w.r.t.
-    >\<subset\><with|mode|text| such that>>|<cell|>|<cell|\<wedge\><rsub|\<chi\>><around*|(|A<rsub|\<chi\>><rsup|+>\<subset\>A<rsub|\<chi\>><rsup|max>\<wedge\>A<rsub|\<chi\>><rsup|+>|)>\<wedge\>\<vDash\>\<cal-Q\>.A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>:>>>>>>
+    >\<subset\><with|mode|text| such that>>|<cell|>|<cell|\<wedge\><rsub|\<chi\>><around*|(|A<rsub|\<chi\>><rsup|+>\<subset\>A<rsub|\<chi\>><rsup|cand>|)>\<wedge\>\<vDash\>\<cal-Q\>.A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>:>>>>>>
     Select invariants such that the residuum
     <math|A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>> is
     consistent. The final residuum <math|A<rsub|res>> represents the global

@@ -77,18 +77,18 @@ let rec eval = function
   | Fst p -> (match eval p with x, y -> x)
   | Snd p -> (match eval p with x, y -> y)"
 
-        "∃t71. δ = (Term t71 → t71)" 1
-        "t2 = (Term t78 → t78) ∧ t3 = (Term t71) ∧ t4 = t71 ∧ t5 = t71 ∧
+        "∃t78. δ = (Term t78 → t78)" 1
+        "t2 = (Term t79 → t79) ∧ t3 = (Term t5) ∧ t4 = t5 ∧
   t11 = (Term Int → Int) ∧ t16 = (Term Int → Int) ∧
-  t19 = (Term Int → Int) ∧ t24 = (Term t71 → t71) ∧
-  t27 = (Term t71 → t71) ∧ t30 = (Term Bool → Bool) ∧ t38 = t36 ∧
+  t19 = (Term Int → Int) ∧ t24 = (Term t21 → t21) ∧
+  t27 = (Term t21 → t21) ∧ t30 = (Term Bool → Bool) ∧ t38 = t36 ∧
   t39 = t37 ∧ t41 = (Term t36 → t36) ∧ t43 = (Term t37 → t37) ∧
   t50 = (Term (t46, t47) → t46, t47) ∧ t51 = (t46, t47) ∧ t52 = t46 ∧
   t53 = t46 ∧ t54 = t47 ∧ t63 = (Term (t59, t60) → t59, t60) ∧
-  t64 = (t59, t60) ∧ t65 = t60 ∧ t66 = t59 ∧ t67 = t60 ∧
-  t79 = Int ∧ t80 = Int ∧ t81 = Int ∧ t82 = Bool ∧ t83 = t71 ∧
-  t84 = t71 ∧ t85 = t36 ∧ t86 = t37 ∧ t87 = (t46, t47) ∧
-  t88 = (t59, t60)"
+  t64 = (t59, t60) ∧ t65 = t60 ∧ t66 = t59 ∧ t67 = t60 ∧ t78 = t5 ∧
+  t80 = Int ∧ t81 = Int ∧ t82 = Int ∧ t83 = Bool ∧ t84 = t21 ∧
+  t85 = t21 ∧ t86 = t36 ∧ t87 = t37 ∧ t88 = (t46, t47) ∧
+  t89 = (t59, t60)"
 (*
 " ⟹ 𝛘1(t2)
 | 𝛘1(t1) ⟹ t1 = (Term t5 → t4) ∧ t3 = (Term t5)
@@ -152,7 +152,7 @@ let rec filter =
 
   "equal with test" >::
     (fun () ->
-      (* todo "debug"; *)
+      todo "debug";
       test_case "equal terms"
 "newtype Ty : type
 newtype Int
@@ -191,9 +191,7 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
   t95 = (Ty Int, Ty (List Int) → Int → List Int → Bool) ∧
   t106 = Int ∧ t107 = (List Int) ∧ t108 = t30 ∧ t109 = t33 ∧
   t110 = t31 ∧ t111 = t34 ∧ t112 = t70 ∧ t113 = t72 ∧ t140 = t7 ∧
-  t141 = t8 ∧ t144 = t105 ∧ t145 = t104 ∧ t146 = (List Int) ∧
-  t147 = Int ∧ t148 = t33 ∧ t149 = t30 ∧ t150 = t34 ∧ t151 = t31 ∧
-  t152 = t72 ∧ t153 = t70";
+  t141 = t8";
     );
 
   "equal with assert" >::
@@ -287,7 +285,7 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
 
   "binary plus" >::
     (fun () ->
-      todo "numeric";
+      (* todo "numeric"; *)
       test_case "binary plus"
 "newtype Binary : num
 newtype Carry : num

@@ -136,6 +136,7 @@ type struct_item =
 type program = struct_item list
 
 module VarSet : (Set.S with type elt = var_name)
+val typ_size : typ -> int
 val fvs_typ : typ -> VarSet.t
 val fvs_atom : atom -> VarSet.t
 val fvs_formula : formula -> VarSet.t

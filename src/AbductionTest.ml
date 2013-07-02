@@ -58,8 +58,8 @@ let tests = "Abduction" >::: [
       Infer.reset_state ();
       try
         test_simple lhs1 rhs1 0 "tb = Int"; 
-        test_simple lhs1 rhs1 1 "ta = (Term tb)";
-        test_simple lhs1 rhs1 2 "tb = td";
+        test_simple lhs1 rhs1 1 "tb = td";
+        test_simple lhs1 rhs1 2 "ta = (Term tb)";
         test_simple lhs1 rhs1 3 "none";
       with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
@@ -351,7 +351,7 @@ let rec plus =
         let brs = Infer.simplify preserve cmp_v uni_v brs in
         let brs = List.map Infer.br_to_formulas brs in
         let _, (vs, ans) =
-          try abd cmp_v uni_v ~discard:[] ~fallback:(fun ()->brs) brs
+          try abd cmp_v uni_v ~discard:[] ~fallback:brs brs
           with Suspect _ -> assert_failure "No abduction answer" in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
@@ -400,7 +400,7 @@ let rec filter =
         let brs = Infer.simplify preserve cmp_v uni_v brs in
         let brs = List.map Infer.br_to_formulas brs in
         let _, (vs, ans) =
-          try abd cmp_v uni_v ~discard:[] ~fallback:(fun () ->brs) brs
+          try abd cmp_v uni_v ~discard:[] ~fallback:brs brs
           with Suspect _ -> assert_failure "No abduction answer" in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
