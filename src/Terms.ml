@@ -249,6 +249,9 @@ let subst_one v s =
 let subst_one_sb v s =
   List.map (fun (w,(t,loc)) -> w, (subst_one v s t, loc))
 
+let subst_sb ~sb =
+  List.map (fun (w,(t,loc)) -> w, (subst_typ sb t, loc))
+
 let update_sb ~more_sb sb =
   Aux.map_append (fun (w,(t,loc)) -> w, (subst_typ more_sb t, loc)) sb
     more_sb

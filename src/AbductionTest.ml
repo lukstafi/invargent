@@ -22,10 +22,10 @@ let test_simple lhs_m rhs_m ?(validate=(fun _ _ -> ())) skip res =
   let lhs = p_formula lhs_m and rhs = p_formula rhs_m in
   let lhs, rhs = br_simple lhs rhs in
   let ans =
-    match abd_simple cmp_v uni_v
+    match abd_simple cmp_v uni_v ~params:VarSet.empty
       ~validate ~discard:[] skip ([],[]) (lhs, rhs) with
     | None _ -> "none"
-    | Some (vs, ans_typ) ->
+    | Some (_, (vs, ans_typ)) ->
       pr_to_str pr_formula
         (to_formula ans_typ) in
   assert_equal ~printer:(fun x -> x)
@@ -351,7 +351,7 @@ let rec plus =
         let brs = Infer.simplify preserve cmp_v uni_v brs in
         let brs = List.map Infer.br_to_formulas brs in
         let _, (vs, ans) =
-          try abd cmp_v uni_v ~discard:[] ~fallback:brs brs
+          try abd cmp_v uni_v ~discard:[] ~fallback:(fun ()->brs) brs
           with Suspect _ -> assert_failure "No abduction answer" in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
@@ -400,7 +400,7 @@ let rec filter =
         let brs = Infer.simplify preserve cmp_v uni_v brs in
         let brs = List.map Infer.br_to_formulas brs in
         let _, (vs, ans) =
-          try abd cmp_v uni_v ~discard:[] ~fallback:brs brs
+          try abd cmp_v uni_v ~discard:[] ~fallback:(fun () ->brs) brs
           with Suspect _ -> assert_failure "No abduction answer" in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
@@ -448,5 +448,5 @@ tD = (Ty Int, Ty Int → Bool)" ans
 
 ]
 
-(* let tests = "Abduction Debug Off" >::: [ ] *)
+let tests = "Abduction Debug Off" >::: [ ]
 

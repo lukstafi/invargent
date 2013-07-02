@@ -9,13 +9,13 @@
 val abd_simple :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
-  ?init_params:Terms.VarSet.t ->  
-  validate:(Terms.VarSet.elt list -> Terms.subst -> unit) ->
+  params:Terms.VarSet.t ->  
+  validate:(Terms.VarSet.t -> Terms.subst -> unit) ->
   discard:Terms.subst ->
   int ->
   Terms.var_name list * Terms.subst ->
   Terms.subst * Terms.subst ->
-  (Terms.var_name list * Terms.subst)
+  (Terms.VarSet.t * (Terms.var_name list * Terms.subst))
   option
 val abd_typ :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->

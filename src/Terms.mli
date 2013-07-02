@@ -180,6 +180,7 @@ exception Contradiction of string * (typ * typ) option * loc
 exception Suspect of var_name list * formula
 
 val subst_typ : subst -> typ -> typ
+val subst_sb : sb:subst -> subst -> subst
 val update_sb : more_sb:subst -> subst -> subst
 val typ_sort_typ : typ -> bool
 val num_sort_typ : typ -> bool
