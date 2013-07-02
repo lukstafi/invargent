@@ -45,7 +45,6 @@ type q_with_bvs = {
   uni_v : var_name -> bool;
   positive_b : var_name -> bool;
   add_b_vs : var_name -> var_name list -> unit;
-  set_b_uni : bool -> unit;
   b_vs : (var_name, VarSet.t) Hashtbl.t;
   b_qvs : (var_name, var_name list) Hashtbl.t;
   add_bchi : var_name -> int -> bool -> unit;
@@ -103,7 +102,7 @@ let new_q cmp_v uni_v =
       Hashtbl.add b_qvs b vs;
   and q = {
     cmp_v; uni_v; add_b_vs;
-    set_b_uni = (fun b -> b_is_uni := b); allchi = Ints.empty;
+    allchi = Ints.empty;
     b_vs; b_qvs; allbvs = VarSet.empty; add_bchi; find_b; find_chi;
     positive_b; negbs = [];
   } in q
@@ -190,8 +189,8 @@ let holds q ?params (ty_st, num_st) cnj =
 let select check_max_b q ans ans_max =
   let allmax = concat_map snd ans_max in
   let init_res = list_diff ans allmax in
-  Format.printf "select: allmax=@ %a@\n%!"
-      pr_formula allmax; (* *)
+  Format.printf "select: allmax=@ %a@\ninit_res=@ %a@\n%!"
+      pr_formula allmax pr_formula init_res; (* *)
   (* Raises [Contradiction] here if solution impossible. *)
   let init_state = holds q empty_state init_res in
   let rec loop state ans_res ans_p = function
@@ -232,6 +231,7 @@ let strat q b ans =
   let avs, ans_l = List.split ans in
   List.concat avs, ans_l, ans_r
   
+exception Fallback of formula * string * (typ * typ) option * loc
 
 let split avs ans q =
   (* 1 FIXME: do we really need this? *)
@@ -278,7 +278,10 @@ let split avs ans q =
     let ans_cand = (* FIXME *) ans_max in
     let ans_cap = (* FIXME *) ans_cand in
     (* 4, 9a *)
-    let ans_res, ans_ps = select check_max_b q ans ans_cap in
+    let ans_res, ans_ps =
+      try select check_max_b q ans ans_cap
+      with Contradiction (a,b,c) -> raise
+        (Fallback (concat_map snd ans_cap, a, b, c)) in
     let more_discard = concat_map snd ans_ps in
     (* 5 *)
     let ans_strat = List.map
@@ -511,9 +514,8 @@ let solve cmp_v uni_v brs =
         try
           Format.printf "solve: abduction failed: phi=@ %a@\n%!"
             pr_formula phi; (* *)
-          q.set_b_uni false; ignore (holds q ~params:(pms vs) empty_state phi);
-          q.set_b_uni true; ignore (holds q ~params:(pms vs) empty_state phi);
-          q.set_b_uni true; ignore (holds q empty_state phi);
+          ignore (holds q ~params:(pms vs) empty_state phi);
+          ignore (holds q empty_state phi);
           assert false
         with Contradiction (msg, tys, loc) -> raise
           (Contradiction
@@ -522,7 +524,7 @@ let solve cmp_v uni_v brs =
     let sol1, brs1 = if fallback then sol0, brs0 else sol1, brs1 in
     Format.printf "solve: loop -- abduction found@ ans=@ %a@\n%!"
       pr_ans (vs, ans); (* *)
-    q.set_b_uni true;
+    try
     let ans_res, more_discard, sol2 = split vs ans q in
     Format.printf "solve: loop -- answer split@ more_discard=@ %a@\nans_res=@ %a@\nsol=@ %a@\n%!"
       pr_formula more_discard pr_formula ans_res pr_bchi_subst sol2; (* *)
@@ -576,7 +578,12 @@ let solve cmp_v uni_v brs =
         sol1 in    
       (* 10 *)
       let sol2 = converge sol0 sol1 sol2 in
-      loop discard sol1 brs1 sol2 in
+      loop discard sol1 brs1 sol2
+    with Fallback (more_discard, a, b, c) ->
+      Format.printf "Fallback: more=@ %a@\n%!" pr_formula more_discard;
+      let more_discard = list_diff more_discard discard in
+      if more_discard = [] then raise (Contradiction (a,b,c))
+      else loop (more_discard @ discard) sol0 brs0 sol1 in
   let sol = loop [] solT (sb_brs_pred q solT brs) solT in
   Format.printf "solve: checking assert false@\n%!"; (* *)
   List.iter (fun (cnj, loc) ->
@@ -588,5 +595,4 @@ let solve cmp_v uni_v brs =
     with Contradiction _ -> ()
   ) neg_cns;
   Format.printf "solve: returning@\n%!"; (* *)
-  q.set_b_uni true;
   cmp_v, uni_v, sol
