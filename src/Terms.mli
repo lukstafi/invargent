@@ -223,6 +223,7 @@ val pr_line_list :
   (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list -> unit
 val pr_pat : bool -> Format.formatter -> pat -> unit
 val pr_tyvar : Format.formatter -> var_name -> unit
+val pr_vars : Format.formatter -> VarSet.t -> unit
 val pr_expr : bool -> Format.formatter -> expr -> unit
 val pr_clause : Format.formatter -> clause -> unit
 val pr_atom : Format.formatter -> atom -> unit

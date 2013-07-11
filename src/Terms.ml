@@ -475,6 +475,9 @@ let rec collect_apps e =
 
 let pr_tyvar ppf v = pp_print_string ppf (var_str v)
 
+let pr_vars ppf vs =
+  pr_sep_list "," pr_tyvar ppf (VarSet.elements vs)
+
 let rec pr_expr comma ppf = function
   | Var (s, _) -> fprintf ppf "%s" s
   | Num (i, _) -> fprintf ppf "%d" i

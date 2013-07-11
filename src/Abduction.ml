@@ -50,21 +50,32 @@ let check_connected ~bparams ~zparams ~cparams (x,(t,_) as sx) cand =
       let delta = List.filter
         (fun b ->
           let zpms = List.assoc b zparams
+          and bpms = List.assoc b bparams
           and cpms = List.assoc b cparams in
-          VarSet.exists
-            (fun x -> VarSet.mem x cpms) (VarSet.inter zpms yvs)
-          && VarSet.exists
-            (fun x -> VarSet.mem x yvs) (VarSet.inter zpms xvs))
+          let cpms = VarSet.union cpms bpms
+          and zpms = VarSet.union zpms bpms in
+          not
+            (VarSet.exists
+               (fun x -> VarSet.mem x cpms) (VarSet.inter zpms yvs)
+             && VarSet.exists
+               (fun x -> VarSet.mem x yvs) (VarSet.inter zpms xvs)))
         delta in
       if delta = []
-      then List.rev_append acc (sy::sx::cand)
+      then (
+        Format.printf "check_connected: xvs=%a;@ yvs=%a;@ sy; sx = %a@\n%!"
+          pr_vars xvs pr_vars yvs pr_subst [sy; sx];
+        List.rev_append acc (sy::sx::cand))
       else loop (sy::acc) (union_pms ~zparams ~cparams yvs) delta cand in
   let delta = Aux.map_some2
     (fun (b, zpms) (b2, cpms) ->
       assert (b = b2);
-      if VarSet.exists
-        (fun x -> VarSet.mem x cpms) (VarSet.inter zpms xvs)
-      then Some b else None)
+      let bpms = List.assoc b bparams in
+      let cpms = VarSet.union cpms bpms
+      and zpms = VarSet.union cpms bpms in
+      if not (VarSet.exists (fun x -> VarSet.mem x zpms) xvs)
+        || VarSet.exists
+          (fun x -> VarSet.mem x cpms) (VarSet.inter zpms xvs)
+      then None else Some b)
     zparams cparams in
   if delta = []
   then Aux.Left (union_pms ~zparams ~cparams xvs)
@@ -138,6 +149,10 @@ let abd_simple cmp_v uni_v ?params ?bparams ?zparams
         match cparams with None -> assert false | Some cp ->
           List.exists2
             (fun (b,cp) (b2,zp) ->
+              assert (b = b2);
+              let bp = List.assoc b bparams in
+              let cp = VarSet.union bp cp
+              and zp = VarSet.union bp zp in
               VarSet.exists (fun x -> VarSet.mem x zp) avs
               && not (VarSet.exists (fun x -> VarSet.mem x cp) avs))
             cp zparams)
@@ -237,6 +252,9 @@ let abd_simple cmp_v uni_v ?params ?bparams ?zparams
           step x lc {typ_sub=t; typ_ctx=[]} repls
             cparams params vs ans cand
         | Aux.Right cand ->
+          Format.printf
+            "abd_simple-abstract: [%d]@ disconnected cand'=%a@\n%!"
+            ddepth pr_subst cand; (* *)
           abstract repls cparams params vs ans cand)
     and step x lc loc repls cparams params vs ans cand =
       (* Choice 2: preserve current premise/conclusion subterm for answer *)
