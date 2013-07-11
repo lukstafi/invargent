@@ -98,7 +98,8 @@ let new_q cmp_v uni_v =
       let vs = List.filter (fun v -> not (List.mem v qvs)) vs in
       Hashtbl.replace b_qvs b (vs @ qvs);
     with Not_found ->
-      Hashtbl.add b_vs b (vars_of_list vs);
+      (* FIXME: b_vs contains b, but b_qvs doesn't, right? *)
+      Hashtbl.add b_vs b (vars_of_list (b::vs));
       Hashtbl.add b_qvs b vs;
   and q = {
     cmp_v; uni_v; add_b_vs;
@@ -179,9 +180,9 @@ type state = subst * NumS.state
 
 let empty_state : state = [], NumS.empty_state
 
-let holds q params (ty_st, num_st) cnj =
+let holds q ?params (ty_st, num_st) cnj =
   let ty_st, num_cnj, _ =
-    unify ~use_quants:true params ~sb:ty_st q.cmp_v q.uni_v cnj in
+    unify ~use_quants:true ?params ~sb:ty_st q.cmp_v q.uni_v cnj in
   let num_st = NumS.holds q.cmp_v q.uni_v num_st num_cnj in
   ty_st, num_st
 
@@ -192,12 +193,12 @@ let select check_max_b q ans ans_max =
   Format.printf "select: allmax=@ %a@\ninit_res=@ %a@\n%!"
       pr_formula allmax pr_formula init_res; (* *)
   (* Raises [Contradiction] here if solution impossible. *)
-  let init_state = holds q No_params empty_state init_res in
+  let init_state = holds q empty_state init_res in
   let rec loop state ans_res ans_p = function
     | [] -> ans_res, ans_p
     | c::cands ->
       try
-        let state = holds q No_params state [c] in
+        let state = holds q state [c] in
         loop state (c::ans_res) ans_p cands
       with Contradiction _ ->
         let vs = fvs_atom c in
@@ -359,7 +360,7 @@ let connected v (vs, phi) =
     simplify the formula. *)
 let simplify cmp_v uni_v vs cnj =
   let ty_ans, num_ans, _ =
-    unify ~use_quants:false (Params (vars_of_list vs))
+    unify ~use_quants:false ~params:(vars_of_list vs)
       cmp_v uni_v cnj in
   let ty_sb, ty_ans = List.partition
     (fun (v,_) -> List.mem v vs) ty_ans in
@@ -416,6 +417,39 @@ let solve cmp_v uni_v brs =
           q.add_bchi b i true
         | _ -> ()) concl;
     ) brs;
+  let bparams () = List.map
+    (fun b -> b, Hashtbl.find q.b_vs b) q.negbs in
+  let zparams = List.map (fun b -> b, ref VarSet.empty) q.negbs in
+  let modified = ref true in
+  let add_atom a =
+    let avs = VarSet.filter
+      (fun v -> not (uni_v v) || List.mem v q.negbs) (fvs_atom a) in
+    List.iter
+      (fun (b, zpms) ->
+        let zvs = VarSet.add b !zpms in
+        if VarSet.exists (fun a -> VarSet.mem a zvs) avs
+          && not (VarSet.is_empty (VarSet.diff avs zvs))
+        then (zpms := VarSet.union avs !zpms; modified := true))
+      zparams in
+  while !modified do
+    modified := false;
+    List.iter
+      (fun (prem,concl) ->
+        List.iter add_atom prem; List.iter add_atom concl)
+      brs
+  done;
+  let zparams = List.map
+    (fun (b,pms) -> b, VarSet.diff !pms (Hashtbl.find q.b_vs b)) zparams in
+  Format.printf "zparams: prior=@ %a@\n%!" Abduction.pr_vparams zparams;
+  let zparams = List.map
+    (fun (b1, pms) ->
+      b1, List.fold_left
+        (fun pms (b2, pms2) ->
+          if cmp_v b1 b2 = Upstream
+          then VarSet.diff pms pms2 else pms)
+        pms zparams)
+    zparams in
+  Format.printf "zparams: post=@ %a@\n%!" Abduction.pr_vparams zparams;
   let solT = List.map
     (fun i -> i, ([], []))
     (Ints.elements q.allchi) in
@@ -445,8 +479,8 @@ let solve cmp_v uni_v brs =
         Format.printf "solve.loop.cmp_v': t1 t4 = %s@\n%!"
           (str_of_cmp (cmp_v' [VId (Type_sort, 1)] (VId (Type_sort, 1))
                          (VId (Type_sort, 4)))); (* *)
-        match Abduction.abd_s (cmp_v' gvs) uni_v
-          (Params (vars_of_list (gvs @ vs))) ans g_ans with
+        (* FIXME: what about quantifiers? parameters? *)
+        match Abduction.abd_s (cmp_v' gvs) uni_v ans g_ans with
         | None -> None
         | Some (gvs', g_ans') ->
           (* 3 *)
@@ -463,7 +497,7 @@ let solve cmp_v uni_v brs =
     (* 4 *)
     let sol1 = replace_assocs ~repl:gK sol1 in
     Format.printf "solve: before brs=@ %a@\n%!" Infer.pr_rbrs brs;
-     (* *)
+    (* *)
     let brs1 = sb_brs_pred q sol1 brs in
     let neg_cns1 = List.map
       (fun (prem,loc) -> sb_formula_pred q false sol1 prem, loc)
@@ -475,13 +509,13 @@ let solve cmp_v uni_v brs =
       (fun (cnj, loc) ->
         try
           Format.printf "neg_cl_check: cnj=@ %a@\n%!" pr_formula
-               cnj; (* *)
-          let ty_cn (*_*), num_cn, _ = unify ~use_quants:false No_params
+            cnj; (* *)
+          let ty_cn (*_*), num_cn, _ = unify ~use_quants:false
             cmp_v uni_v cnj in
           let res = not (NumS.satisfiable num_cn) in
           Format.printf
-               "neg_cl_check: res=%b@ ty_cn=@ %a@\nnum_cn=@ %a@\n%!"
-               res pr_subst ty_cn pr_formula num_cn; (* *)
+            "neg_cl_check: res=%b@ ty_cn=@ %a@\nnum_cn=@ %a@\n%!"
+            res pr_subst ty_cn pr_formula num_cn; (* *)
           res
         with Contradiction (msg, Some (ty1, ty2), _) ->
           Format.printf "neg_cl_check: true@\n%!";
@@ -502,22 +536,29 @@ let solve cmp_v uni_v brs =
       if neg_cl_check then sol1, brs1
       else sol0, brs0 in
     (* 5 *)
-    let paramvs = Hashtbl.fold
+    (* let params = Hashtbl.fold
       (fun b bvs acc ->
         if List.mem b q.negbs then VarSet.union bvs acc else acc)
-      q.b_vs VarSet.empty in
-    let params = Existential_plus paramvs in
+      q.b_vs VarSet.empty in *)
+    let bparams = bparams () in
+    let params = List.fold_left2
+      (fun pms (_, bpms) (_, zpms) ->
+        VarSet.union pms (VarSet.union bpms zpms))
+      VarSet.empty bparams zparams in
     let fallback, (vs, ans) =
-      try Abduction.abd cmp_v uni_v params
+      try Abduction.abd cmp_v uni_v ~params ~bparams ~zparams
             ~discard ~fallback:brs0 brs1
-      with Suspect (vs, phi) ->
+      with Suspect (vs, phi, lc) ->
         try
           Format.printf "solve: abduction failed: phi=@ %a@\n%!"
             pr_formula phi; (* *)
-          ignore (holds q (Existential_plus (add_vars vs paramvs))
+          ignore (holds q ~params:(add_vars vs params)
                     empty_state phi);
-          ignore (holds q No_params empty_state phi);
-          assert false
+          ignore (holds q empty_state phi);
+          raise
+            (Contradiction
+               ("Reason uncertain.",
+                None, lc))
         with Contradiction (msg, tys, loc) -> raise
           (Contradiction
              ("Could not find invariants. Possible reason: "^msg,
@@ -526,60 +567,60 @@ let solve cmp_v uni_v brs =
     Format.printf "solve: loop -- abduction found@ ans=@ %a@\n%!"
       pr_ans (vs, ans); (* *)
     try
-    let ans_res, more_discard, sol2 = split vs ans q in
-    Format.printf "solve: loop -- answer split@ more_discard=@ %a@\nans_res=@ %a@\nsol=@ %a@\n%!"
-      pr_formula more_discard pr_formula ans_res pr_bchi_subst sol2; (* *)
-    let discard = more_discard @ discard in
-    (* 6 *)
-    let lift_ex_types t2 (vs, ans) =
-      let fvs = fvs_formula ans in
-      let dvs = VarSet.elements (VarSet.diff fvs (vars_of_list vs)) in
-      let targs = List.map (fun v -> TVar v) dvs in
-      let a2 = match t2 with TVar a2 -> a2 | _ -> assert false in
-      vs @ dvs, Eqty (TVar delta', TCons (CNam "Tuple", targs), dummy_loc) ::
-        subst_formula [a2, (TVar delta', dummy_loc)] ans in
-    (* 7 *)
-    if List.for_all (fun (_,(_,ans)) -> ans=[]) sol2
-    then
-      let sol = List.map
-        (fun ((i,sol) as isol) ->
-          (* 8 *)
-          try let t2, _ = List.assoc i chiK in
-              i, lift_ex_types t2 sol
-          with Not_found -> isol)
-        sol1 in
-      fold_map
-        (fun ans_res (i,(vs,ans)) ->
-          let vs, ans = simplify cmp_v uni_v vs ans in
-          let allbs = (* VarSet.union q.allbvs *)
-            (vars_of_list (delta::vs)) in
-          let more, ans = List.partition
-            (fun c-> VarSet.is_empty (VarSet.inter allbs (fvs_atom c)))
-            ans in
-          more @ ans_res, (i, (vs, ans)))
-        ans_res sol
-    else
-      (* 9 *)
-      let sol2 = List.map
-        (fun (i, (vs, ans)) ->
-          let bs = List.filter (not % q.positive_b) (q.find_b i) in
-          let ds = List.map (fun b-> b, List.assoc b sol2) bs in
-          let dans = concat_map
-            (fun (b, (dvs, dans)) ->
-              Format.printf
-                "solve-loop-9: chi%d(%s)=@ %a@ +@ %a@\n%!"
-                i (var_str b) pr_ans (dvs,dans) pr_ans (vs,ans); (* *)
-              (* No need to substitute, because variables will be
-                 freshened when predicate variable is instantiated. *)
-              subst_formula [b, (TVar delta, dummy_loc)] dans
-            ) ds in
-          let dvs = concat_map (fun (_,(dvs,_))->dvs) ds in
-          (* [dvs] must come before [vs] bc. of [matchup_vars] and [q] *)
-          i, (dvs @ vs, dans @ ans))
-        sol1 in    
-      (* 10 *)
-      let sol2 = converge sol0 sol1 sol2 in
-      loop discard sol1 brs1 sol2
+      let ans_res, more_discard, sol2 = split vs ans q in
+      Format.printf "solve: loop -- answer split@ more_discard=@ %a@\nans_res=@ %a@\nsol=@ %a@\n%!"
+        pr_formula more_discard pr_formula ans_res pr_bchi_subst sol2; (* *)
+      let discard = more_discard @ discard in
+      (* 6 *)
+      let lift_ex_types t2 (vs, ans) =
+        let fvs = fvs_formula ans in
+        let dvs = VarSet.elements (VarSet.diff fvs (vars_of_list vs)) in
+        let targs = List.map (fun v -> TVar v) dvs in
+        let a2 = match t2 with TVar a2 -> a2 | _ -> assert false in
+        vs @ dvs, Eqty (TVar delta', TCons (CNam "Tuple", targs), dummy_loc) ::
+          subst_formula [a2, (TVar delta', dummy_loc)] ans in
+      (* 7 *)
+      if List.for_all (fun (_,(_,ans)) -> ans=[]) sol2
+      then
+        let sol = List.map
+          (fun ((i,sol) as isol) ->
+            (* 8 *)
+            try let t2, _ = List.assoc i chiK in
+                i, lift_ex_types t2 sol
+            with Not_found -> isol)
+          sol1 in
+        fold_map
+          (fun ans_res (i,(vs,ans)) ->
+            let vs, ans = simplify cmp_v uni_v vs ans in
+            let allbs = (* VarSet.union q.allbvs *)
+              (vars_of_list (delta::vs)) in
+            let more, ans = List.partition
+              (fun c-> VarSet.is_empty (VarSet.inter allbs (fvs_atom c)))
+              ans in
+            more @ ans_res, (i, (vs, ans)))
+          ans_res sol
+      else
+        (* 9 *)
+        let sol2 = List.map
+          (fun (i, (vs, ans)) ->
+            let bs = List.filter (not % q.positive_b) (q.find_b i) in
+            let ds = List.map (fun b-> b, List.assoc b sol2) bs in
+            let dans = concat_map
+              (fun (b, (dvs, dans)) ->
+                Format.printf
+                  "solve-loop-9: chi%d(%s)=@ %a@ +@ %a@\n%!"
+                  i (var_str b) pr_ans (dvs,dans) pr_ans (vs,ans); (* *)
+                (* No need to substitute, because variables will be
+                   freshened when predicate variable is instantiated. *)
+                subst_formula [b, (TVar delta, dummy_loc)] dans
+              ) ds in
+            let dvs = concat_map (fun (_,(dvs,_))->dvs) ds in
+            (* [dvs] must come before [vs] bc. of [matchup_vars] and [q] *)
+            i, (dvs @ vs, dans @ ans))
+          sol1 in    
+        (* 10 *)
+        let sol2 = converge sol0 sol1 sol2 in
+        loop discard sol1 brs1 sol2
     with Fallback (more_discard, a, b, c) ->
       Format.printf "Fallback: more=@ %a@\n%!" pr_formula more_discard;
       let more_discard = list_diff more_discard discard in
@@ -591,7 +632,7 @@ let solve cmp_v uni_v brs =
     try
       let cnj = sb_formula_pred q false (snd sol) cnj in
       (* FIXME: should use [satisfiable], not [holds]! *)
-      ignore (holds q No_params empty_state cnj);
+      ignore (holds q empty_state cnj);
       raise (Contradiction ("A branch with \"assert false\" is possible",
                             None, loc))
     with Contradiction _ -> ()

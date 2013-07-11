@@ -306,15 +306,25 @@
   subterms by fresh variables <math|\<alpha\>\<in\><wide|\<alpha\>|\<bar\>>>
   for a final solution <math|\<exists\><wide|\<alpha\>|\<bar\>>.A>. To
   mitigate some of the limitations of fully maximal answers, we start from
-  <math|\<b-U\><rsub|<wide|\<alpha\>|\<bar\>>><around*|(|A<around*|(|D\<wedge\>C|)>|)>>,
-  where <math|\<exists\><wide|\<alpha\>|\<bar\>>.A> is the solution to
-  previous problems solved by the joint abduction algorithm, and
-  <math|A<around*|(|\<cdummy\>|)>> is the corresponding substitution. We
-  follow top-down approach where bigger subterms are abstracted first --
-  replaced by fresh variable, \ together with an arbitrary selection of other
-  occurrences of the subterm. If replacing a subterm by fresh variable
-  maintains <math|T<around*|(|F|)>\<vDash\>A\<wedge\>D\<Rightarrow\>C>, we
-  proceed to neighboring subterm or next equation. If
+  <math|\<b-U\><rsub|><around*|(|A<around*|(|D\<wedge\>C|)>|)>>, where
+  <math|\<exists\><wide|\<alpha\>|\<bar\>>.A> is the solution to previous
+  problems solved by the joint abduction algorithm, and
+  <math|A<around*|(|\<cdummy\>|)>> is the corresponding substitution. During
+  abduction <math|Abd<around*|(|\<cal-Q\>,<wide|\<zeta\>|\<bar\>>,<wide|D<rsub|i>,C<rsub|i>|\<bar\>>|)>>,
+  we ensure that the (partial as well as final) answer
+  <math|\<exists\><wide|\<alpha\>|\<bar\>>.A> satisfies
+  <math|\<vDash\>\<cal-Q\>.A<around*|[|<wide|\<alpha\>|\<bar\>><wide|\<zeta\>|\<bar\>>\<assign\><wide|t|\<bar\>>|]>>
+  for some <math|<wide|t|\<bar\>>>. We achieve this by normalizing the answer
+  using parameterized unification under quantifiers
+  <math|\<b-U\><rsub|<wide|\<alpha\>|\<bar\>><wide|\<zeta\>|\<bar\>>><around*|(|\<cal-Q\>.A|)>>.
+  <math|<wide|\<zeta\>|\<bar\>>> are potential parameters of the invariants.
+
+  In implementing <cite|AbductionSolvMaher> p. 13, we follow top-down
+  approach where bigger subterms are abstracted first -- replaced by fresh
+  variable, \ together with an arbitrary selection of other occurrences of
+  the subterm. If replacing a subterm by fresh variable maintains
+  <math|T<around*|(|F|)>\<vDash\>A\<wedge\>D\<Rightarrow\>C>, we proceed to
+  neighboring subterm or next equation. If
   <math|T<around*|(|F|)>\<vDash\>A\<wedge\>D\<Rightarrow\>C> does not hold,
   we try all of: proceeding to subterms of the subterm; replacing the subterm
   by the fresh variable; replacing the subterm by variables corresponding to
@@ -327,14 +337,14 @@
 
   Although our formalism stresses the possibility of infinite number of
   abduction answers, there is always finite number of <em|fully maximal>
-  answers that we compute. The formalism suggests computing them lazily using
-  streams, and then testing all combinations -- generate and test scheme.
-  Instead, we use a search scheme that tests as soon as possible. The simple
-  abduction algorithm takes a partial solution -- a conjunction of candidate
-  solutions for some other branches -- and checks if the solution being
-  generated is satisfiable together with the candidate partial solution. The
-  algorithm also takes several indicators to let it select an expected
-  answer:
+  answers, one of which we compute. The formalism suggests computing them
+  lazily using streams, and then testing all combinations -- generate and
+  test scheme. Instead, we use a search scheme that tests as soon as
+  possible. The simple abduction algorithm takes a partial solution -- a
+  conjunction of candidate solutions for some other branches -- and checks if
+  the solution being generated is satisfiable together with the candidate
+  partial solution. The algorithm also takes several indicators to let it
+  select the expected answer:
 
   <\itemize>
     <item>a number that determines how many correct solutions to skip;
@@ -343,10 +353,28 @@
     a condition, in joint abduction the condition is consistency with premise
     and conclusion of each branch;
 
+    <item>the initial parameters of the invariants (represented by
+    <math|<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>>
+    in the main algorithm) to which all variables of every atom in the answer
+    for which <math|FV<around*|(|c|)>\<cap\><wide|\<zeta\>|\<bar\>>\<neq\>\<varnothing\>>
+    should be connected;
+
     <item>a discard list that contains answer atoms -- substitution terms --
     disallowed in the pursued solution. The main algorithm will pass the
     answer atoms from previous iterations as a discard list.
   </itemize>
+
+  To ensure connected variables condition, if an atom
+  <math|FV<around*|(|c|)>\<cap\><wide|\<zeta\>|\<bar\>>\<neq\>\<varnothing\>>,
+  we only add it to the answer if it contains a connected variable, and since
+  then count all its <math|FV<around*|(|c|)>\<cap\><wide|\<zeta\>|\<bar\>>>
+  variables as connected. The initially connected variables are the initial
+  parameters \ of the invariants. If such atom does not have a connected
+  variable, we move it through the candidates past an atom that would make it
+  connected. If none would, we drop the atom. In terms of the notation from
+  the main algorithm, every <math|<wide|\<zeta\>|\<bar\>><rsup|\<chi\>>> atom
+  of the answer has to be connected to a <math|\<beta\><rsub|\<chi\>><wide|\<beta\>|\<bar\>><rsup|\<chi\>>>
+  atom using only the atoms in the answer.
 
   Besides multisort joint constraint abduction <verbatim|abd> we also provide
   multisort simple fully maximal constraint abduction <verbatim|abd_s>.
@@ -354,21 +382,22 @@
   <subsection|Joint constraint abduction for terms>
 
   We further lose generality by using a heuristic search scheme instead of
-  testing all combinations of simple abduction answers. If natural
-  counterexamples are found, rather than ones contrived to demonstrate that
-  our search scheme is not complete, it can be augmented. In particular, our
+  testing all combinations of simple abduction answers. In particular, our
   search scheme returns from joint abduction for types with a single answer,
-  which eliminates any interaction between the sort of types and other sorts.
+  which eliminates deeper interaction between the sort of types and other
+  sorts. Some amount of interaction is provided by the validation procedure,
+  which checks for consistency of the partial answer, the premise and the
+  conclusion of each branch, including consistency for other sorts.
 
-  \ We maintain an ordering of branches. We accumulate simple abduction
-  answers into the partial abduction answer until we meet branch that does
-  not have any answer satisfiable with the partial answer so far. Then we
-  start over, but put the branch that failed in front of the sequence. If a
-  branch <math|i> is at front for <math|n<rsub|i>>th time, we skip the
-  initial <math|n<rsub|i>-1> simple abduction answers in it. If no front
-  branch <math|i> has at least <math|n<rsub|i>> answers, the search fails.
-  After an answer working for all branches has been found, we perform
-  additional check, which encapsulates negative constraints introduced by
+  We maintain an ordering of branches. We accumulate simple abduction answers
+  into the partial abduction answer until we meet branch that does not have
+  any answer satisfiable with the partial answer so far. Then we start over,
+  but put the branch that failed in front of the sequence. If a branch
+  <math|i> is at front for <math|n<rsub|i>>th time, we skip the initial
+  <math|n<rsub|i>-1> simple abduction answers in it. If no front branch
+  <math|i> has at least <math|n<rsub|i>> answers, the search fails. After an
+  answer working for all branches has been found, we perform additional
+  check, which encapsulates negative constraints introduced by
   <verbatim|assert false> construct. If the check fails, we increase the skip
   count of the head branch and repeat the search.
 
@@ -589,6 +618,26 @@
   the first solution found. In future, we might introduce some form of
   backtracking, if the loss of completeness outweighs the computational cost.
 
+  <subsection|Invariant Parameter Candidates>
+
+  We start from the variables <math|\<beta\><rsub|\<chi\>>> that participate
+  in negative occurrences of predicate variables:
+  <math|\<chi\><around*|(|\<beta\><rsub|\<chi\>>|)>> or
+  <math|\<chi\><around*|(|\<beta\><rsub|\<chi\>>,\<alpha\>|)>>. We select
+  sets of variables <math|\<beta\><rsub|\<chi\>><wide|\<zeta\>|\<bar\>><rsup|\<chi\>>>,
+  the <em|parameter candidates>, by considering all atoms of the generated
+  constraints. <math|<wide|\<zeta\>|\<bar\>><rsup|\<chi\>>> are existential
+  variables that: are connected with <math|\<beta\><rsub|\<chi\>>> in the
+  hypergraph whose nodes are variables and hyperedges are atoms of the
+  constraints, and are not connected with
+  <math|\<beta\><rsub|\<chi\><rprime|'>>> for any
+  <math|\<beta\><rsub|\<chi\><rprime|'>>> that is within scope of
+  <math|\<beta\><rsub|\<chi\>>>. If <math|FV<around*|(|c|)>\<cap\>\<beta\><rsub|\<chi\>><wide|\<zeta\>|\<bar\>><rsup|\<chi\>>\<neq\>\<varnothing\>>
+  for an atom <math|c>, and <math|\<beta\><rsub|\<chi\>>> is not in the scope
+  of <math|\<beta\><rsub|\<chi\><rprime|'>>> for which
+  <math|FV<around*|(|c|)>\<cap\>\<beta\><rsub|\<chi\><rprime|'>><wide|\<zeta\>|\<bar\>><rsup|\<chi\><rprime|'>>\<neq\>\<varnothing\>>,
+  then <math|c> is a candidate for atoms of the solution of <math|\<chi\>>.
+
   <subsection|Solving for Predicates in Negative Positions>
 
   The core of our inference algorithm consists of distributing atoms of an
@@ -598,9 +647,9 @@
   (in number of atoms).
 
   Let us discuss the algorithm from <cite|InvariantsTechRep2> for
-  <math|Split<around*|(|\<cal-Q\>,<wide|\<alpha\>|\<bar\>>,A,<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|A<rsub|\<chi\>><rsup|0>|\<bar\>>|)>>.
+  <math|Split<around*|(|\<cal-Q\>,<wide|\<alpha\>|\<bar\>>,A,<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|<wide|\<zeta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|A<rsub|\<chi\>><rsup|0>|\<bar\>>|)>>.
   Note that due to existential types predicates, we actually compute
-  <math|Split<around*|(|\<cal-Q\>,<wide|\<alpha\>|\<bar\>>,A,<wide|<wide|\<beta\>|\<bar\>><rsup|\<beta\><rsub|\<chi\>>>|\<bar\>>,<wide|A<rsub|\<beta\><rsub|\<chi\>>><rsup|0>|\<bar\>>|)>>,
+  <math|Split<around*|(|\<cal-Q\>,<wide|\<alpha\>|\<bar\>>,A,<wide|<wide|\<beta\>|\<bar\>><rsup|\<beta\><rsub|\<chi\>>>|\<bar\>>,<wide|<wide|\<zeta\>|\<bar\>><rsup|\<beta\><rsub|\<chi\>>>|\<bar\>>,<wide|A<rsub|\<beta\><rsub|\<chi\>>><rsup|0>|\<bar\>>|)>>,
   i.e. we index by <math|\<beta\><rsub|\<chi\>>> (which can be multiple for a
   single <math|\<chi\>>) rather than <math|\<chi\>>. We retain the notation
   from <cite|InvariantsTechRep2> here as it better conveys the intent. We do
@@ -619,18 +668,13 @@
     We handle information carried in <math|\<beta\><wide|=|\<dot\>>\<alpha\>>
     by substituting <math|\<alpha\>> with <math|\<beta\>>.
 
-    <item><math|<tabular|<tformat|<table|<row|<cell|A<rsub|\<chi\>><rsup|max>>|<cell|=>|<cell|<around*|{|c\<in\>A<rsub|0><mid|\|>max<rsub|\<prec\>><around*|(|<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<cap\>FV<around*|(|c|)>|)>\<cap\><wide|\<beta\>|\<bar\>><rsup|\<chi\>>\<neq\>\<varnothing\>|}>>>>>>>,
-    <math|<tabular|<tformat|<table|<row|<cell|A<rsub|\<chi\>><rsup|cand>>|<cell|=>|<cell|Connected<around*|(|A<rsub|\<chi\>><rsup|max>,A<rsub|0>|)>>>>>>>,
-    <math|<tabular|<tformat|<table|<row|<cell|A<rsub|\<chi\>><rsup|cap>>|<cell|=>|<cell|A<rsub|\<chi\>><rsup|cand>\\\<cup\><rsub|\<chi\><rprime|'>\<gtr\><rsub|\<cal-Q\>>\<chi\>>A<rsub|\<chi\>><rsup|cand>>>>>>>
+    <item><math|<tabular|<tformat|<table|<row|<cell|A<rsub|\<chi\>><rsup|cap>>|<cell|=>|<cell|<around*|{|c\<in\>A<rsub|0><mid|\|>max<rsub|\<prec\>><around*|(|<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>><wide|\<zeta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<cap\>FV<around*|(|c|)>|)>\<cap\><wide|\<beta\>|\<bar\>><rsup|\<chi\>><wide|\<zeta\>|\<bar\>><rsup|\<chi\>>\<neq\>\<varnothing\>|}>>>>>>>
     All of the atoms to consider incorporating in invariants for
-    <math|\<chi\>>. <math|Connected<around*|(|A<rsub|\<chi\>><rsup|max>,A<rsub|0>|)>>
-    is the subset of atoms of <math|A<rsub|0>> reachable from
-    <math|A<rsub|\<chi\>><rsup|max>>, where atoms are considered directly
-    connected when they share a variable.
+    <math|\<chi\>>.
 
     <item><math|<tabular|<tformat|<table|<row|<cell|<with|mode|text|for one
     ><wide|A<rsub|\<chi\>><rsup|+>|\<bar\>><with|mode|text| minimal w.r.t.
-    >\<subset\><with|mode|text| such that>>|<cell|>|<cell|\<wedge\><rsub|\<chi\>><around*|(|A<rsub|\<chi\>><rsup|+>\<subset\>A<rsub|\<chi\>><rsup|cand>|)>\<wedge\>\<vDash\>\<cal-Q\>.A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>:>>>>>>
+    >\<subset\><with|mode|text| such that>>|<cell|>|<cell|\<wedge\><rsub|\<chi\>><around*|(|A<rsub|\<chi\>><rsup|+>\<subset\>A<rsub|\<chi\>><rsup|cap>|)>\<wedge\>\<vDash\>\<cal-Q\>.A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>:>>>>>>
     Select invariants such that the residuum
     <math|A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>> is
     consistent. The final residuum <math|A<rsub|res>> represents the global
@@ -719,10 +763,9 @@
   final algorithm has the form:
 
   <\eqnarray*>
-    <tformat|<cwith|10|10|2|2|cell-valign|c>|<table|<row|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.F<rsub|\<chi\>>|\<bar\>>>|<cell|=>|<cell|S<rsub|k>>>|<row|<cell|\<wedge\><rsub|i><around*|(|D<rsub|K><rsup|i>\<Rightarrow\>C<rsub|K><rsup|i>|)>>|<cell|=>|<cell|<with|mode|text|all
+    <tformat|<cwith|9|9|2|2|cell-valign|c>|<table|<row|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.F<rsub|\<chi\>>|\<bar\>>>|<cell|=>|<cell|S<rsub|k>>>|<row|<cell|\<wedge\><rsub|i><around*|(|D<rsub|K><rsup|i>\<Rightarrow\>C<rsub|K><rsup|i>|)>>|<cell|=>|<cell|<with|mode|text|all
     such that >\<chi\><rsub|K><around*|(|\<alpha\><rsub|3><rsup|i>,\<alpha\><rsub|2>|)>\<in\>C<rsub|K><rsup|i><eq-number>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>.G<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|Connected<around*|(|\<delta\>,DisjElim<around*|(|<wide|S<rsub|k><around*|(|D<rsup|i><rsub|K>\<wedge\>C<rsup|i><rsub|K>|)>\<wedge\>\<delta\><wide|=|\<dot\>>\<alpha\><rsup|i><rsub|3>|\<bar\>>|)>|)>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g<rprime|'>>.G<rprime|'><rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|AbdS<around*|(|\<cal-Q\>\<exists\><wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>>,F<rsub|\<chi\><rsub|K>>,G<rsub|\<chi\><rsub|K>>|)><eq-number>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g<rprime|''>>.G<rprime|''><rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|Simpl<around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g<rprime|'>>.G<rprime|'><rsub|\<chi\><rsub|K>>|)><eq-number>>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|G<rsub|\<chi\><rsub|K>><rprime|''>\<neq\>\<top\>>>|<row|<cell|<with|mode|text|then
-    >\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rsub|K>,k>.F<rsub|\<chi\><rsub|K>>\<assign\>>|<cell|>|<cell|S<rsub|k><around*|(|\<chi\><rsub|K>|)>\<assign\>\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rsub|K>,k>\<exists\>FV<around*|(|G<rsub|\<chi\><rsub|K>><rprime|''>|)>\<cap\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g<rprime|''>>.F<rsub|\<chi\><rsub|K>>\<wedge\>G<rsub|\<chi\><rsub|K>><rprime|''><eq-number>>>|<row|<cell|\<cal-Q\><rprime|'>.\<wedge\><rsub|i><around*|(|D<rsub|i>\<Rightarrow\>C<rsub|i>|)>>|<cell|=>|<cell|S<rsub|k><around*|(|\<Phi\>|)>>>|<row|<cell|<with|mode|text|FIXME:>>|<cell|>|<cell|<with|mode|text|describe
-    new parameter scheme (also in invariants-revised)>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>>.A>|<cell|=>|<cell|Abd<around*|(|\<cal-Q\><rprime|'>\\<wide|\<forall\>\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|D<rsub|i>,C<rsub|i>|\<bar\>>|)><eq-number>>>|<row|<cell|<around*|(|\<cal-Q\><rsup|k+1>,<wide|<wide|\<alpha\>|\<bar\>><rsup|\<chi\>><rsub|+>|\<bar\>>,A<rsub|res>,<wide|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<beta\><rsub|\<chi\>>>.A<rsub|\<beta\><rsub|\<chi\>>>|\<bar\>>|)>>|<cell|=>|<cell|Split<around*|(|\<cal-Q\><rprime|'>,<wide|\<alpha\>|\<bar\>>,A,<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>|)>>>|<row|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.F<rsub|\<chi\><rsub|K>>|)>>|<cell|=>|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>FV<around*|(|F<rsub|\<chi\><rsub|K>>|)>.\<delta\><rprime|'><wide|=|\<dot\>><wide|FV<around*|(|F<rsub|\<chi\><rsub|K>>|)>\\<wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>|\<vect\>>\<wedge\>F<rsub|\<chi\><rsub|K>><around*|[|\<alpha\><rsub|2>\<assign\>\<delta\><rprime|'>|]><eq-number>>>|<row|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.F<rsub|\<chi\>>|)>>|<cell|=>|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.F<rsub|\<chi\>><with|mode|text|
+    >\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rsub|K>,k>.F<rsub|\<chi\><rsub|K>>\<assign\>>|<cell|>|<cell|S<rsub|k><around*|(|\<chi\><rsub|K>|)>\<assign\>\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rsub|K>,k>\<exists\>FV<around*|(|G<rsub|\<chi\><rsub|K>><rprime|''>|)>\<cap\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g<rprime|''>>.F<rsub|\<chi\><rsub|K>>\<wedge\>G<rsub|\<chi\><rsub|K>><rprime|''><eq-number>>>|<row|<cell|\<cal-Q\><rprime|'>.\<wedge\><rsub|i><around*|(|D<rsub|i>\<Rightarrow\>C<rsub|i>|)>>|<cell|=>|<cell|S<rsub|k><around*|(|\<Phi\>|)>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>>.A>|<cell|=>|<cell|Abd<around*|(|\<cal-Q\><rprime|'>\\<wide|\<forall\>\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>,<wide|\<zeta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|D<rsub|i>,C<rsub|i>|\<bar\>>|)><eq-number>>>|<row|<cell|<around*|(|\<cal-Q\><rsup|k+1>,<wide|<wide|\<alpha\>|\<bar\>><rsup|\<chi\>><rsub|+>|\<bar\>>,A<rsub|res>,<wide|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<beta\><rsub|\<chi\>>>.A<rsub|\<beta\><rsub|\<chi\>>>|\<bar\>>|)>>|<cell|=>|<cell|Split<around*|(|\<cal-Q\><rprime|'>,<wide|\<alpha\>|\<bar\>>,A,<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|<wide|\<zeta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>|)>>>|<row|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.F<rsub|\<chi\><rsub|K>>|)>>|<cell|=>|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>FV<around*|(|F<rsub|\<chi\><rsub|K>>|)>.\<delta\><rprime|'><wide|=|\<dot\>><wide|FV<around*|(|F<rsub|\<chi\><rsub|K>>|)>\\<wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>|\<vect\>>\<wedge\>F<rsub|\<chi\><rsub|K>><around*|[|\<alpha\><rsub|2>\<assign\>\<delta\><rprime|'>|]><eq-number>>>|<row|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.F<rsub|\<chi\>>|)>>|<cell|=>|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.F<rsub|\<chi\>><with|mode|text|
     \ otherwise, i.e. for >\<chi\>\<in\>PV<rsup|1><around*|(|\<Phi\>|)>>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|\<wedge\><rsub|\<chi\>>\<wedge\><rsub|\<beta\><rsub|\<chi\>>>A<rsub|\<beta\><rsub|\<chi\>>>=\<top\><eq-number>>>|<row|<cell|<with|mode|text|then:>>|<cell|>|<cell|>>|<row|<cell|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>><rprime|'>.F<rsub|\<chi\>><rprime|'>>|<cell|=>|<cell|Simpl<around*|(|\<Xi\><around*|(|S<rsub|k>|)>|)><eq-number><label|SolSimpl>>>|<row|<cell|A<rsub|sel>>|<cell|=>|<cell|<around*|{|c\<in\>\<wedge\><rsub|\<chi\>>F<rsub|\<chi\>><rprime|'><mid|\|>FV<around*|(|c|)>\<cap\>\<delta\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>=\<varnothing\>|}>>>|<row|<cell|<with|mode|text|return>>|<cell|>|<cell|A<rsub|res>\<wedge\>A<rsub|sel>,<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>><rprime|'>.F<rprime|'><rsub|\<chi\>>\\A<rsub|sel>|\<bar\>>>>|<row|<cell|<with|mode|text|else:>>|<cell|>|<cell|>>|<row|<cell|S<rsub|k><rprime|'>>|<cell|=>|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k><wide|<wide|\<alpha\>|\<bar\>><rsup|\<beta\><rsub|\<chi\>>>|\<bar\>>.F<rsub|\<chi\>>\<wedge\><rsub|\<beta\><rsub|\<chi\>>>A<rsub|\<beta\><rsub|\<chi\>>><around*|[|<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<assign\><wide|\<delta\><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>,k>|\<bar\>>|]>|\<bar\>><eq-number>>>|<row|<cell|S<rsub|k+1>>|<cell|=>|<cell|H<around*|(|S<rsub|k-1>,S<rsub|k>,S<rsub|k><rprime|'>|)><eq-number>>>|<row|<cell|<wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>,k+1>>|<cell|=>|<cell|<wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>,k><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>>>|<row|<cell|<with|mode|text|repeat>>|<cell|>|<cell|k\<assign\>k+1>>>>
   </eqnarray*>
 
@@ -804,15 +847,15 @@
   <math|\<cal-Q\><rprime|'><around*|[|<wide|\<forall\>\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<assign\><wide|\<exists\>\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>|]>>,
   where they are existential.
 
-  The code that selects <math|\<wedge\><rsub|\<chi\>><around*|(|A<rsub|\<chi\>><rsup|min>\<subset\>A<rsub|\<chi\>><rsup|+>\<subset\>A<rsub|\<chi\>><rsup|max>\<wedge\>A<rsub|\<chi\>><rsup|+>|)>\<wedge\>\<vDash\>\<cal-Q\>.A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>>
+  The code that selects <math|\<wedge\><rsub|\<chi\>><around*|(|A<rsub|\<chi\>><rsup|+>\<subset\>A<rsub|\<chi\>><rsup|cap>|)>\<wedge\>\<vDash\>\<cal-Q\>.A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>>
   is an incremental validity checker. It starts with
-  <math|A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|max>> and
-  tries to add as many atoms <math|c\<in\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|max>\\\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|min>>
+  <math|A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|cap>> and
+  tries to add as many atoms <math|c\<in\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|cap>>
   as possible to what in effect becomes <math|A<rsub|res>>. The remaining
-  atoms are distributed among <math|A<rsub|b<rsub|\<chi\>>><rsup|+>> by
-  putting them into the last <math|b<rsub|\<chi\>>> in <math|\<cal-Q\>>, i.e.
-  the first <verbatim|b> in the <verbatim|q.negbs> list, for which
-  <math|x<rsub|\<prec\>><around*|(|<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<cap\>FV<around*|(|c|)>|)>\<cap\><wide|\<beta\>|\<bar\>><rsup|\<chi\>>\<neq\>\<varnothing\>>.
+  atoms are distributed among <math|A<rsub|\<beta\><rsub|\<chi\>>><rsup|+>>
+  by putting them into the last <math|\<beta\><rsub|\<chi\>>> in
+  <math|\<cal-Q\>>, i.e. the first <verbatim|b> in the <verbatim|q.negbs>
+  list, for which <math|x<rsub|\<prec\>><around*|(|<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>><wide|\<zeta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<cap\>FV<around*|(|c|)>|)>\<cap\><wide|\<beta\>|\<bar\>><rsup|\<chi\>><wide|\<zeta\>|\<bar\>><rsup|\<chi\>>\<neq\>\<varnothing\>>.
 
   \;
 
@@ -889,7 +932,8 @@
     <associate|auto-12|<tuple|5.1|7>>
     <associate|auto-13|<tuple|5.2|8>>
     <associate|auto-14|<tuple|5.3|10>>
-    <associate|auto-15|<tuple|5.3|10>>
+    <associate|auto-15|<tuple|5.4|10>>
+    <associate|auto-16|<tuple|5.4|?>>
     <associate|auto-2|<tuple|2|2>>
     <associate|auto-3|<tuple|2.1|3>>
     <associate|auto-4|<tuple|2.2|4>>
@@ -998,22 +1042,26 @@
       for Predicate Variables> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-11><vspace|0.5fn>
 
-      <with|par-left|<quote|1.5fn>|5.1<space|2spc>Solving for Predicates in
-      Negative Positions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <with|par-left|<quote|1.5fn>|5.1<space|2spc>Invariant Parameter
+      Candidates <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-12>>
 
-      <with|par-left|<quote|1.5fn>|5.2<space|2spc>Solving for Existential
-      Types Predicates and Main Algorithm
-      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <with|par-left|<quote|1.5fn>|5.2<space|2spc>Solving for Predicates in
+      Negative Positions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-13>>
 
-      <with|par-left|<quote|1.5fn>|5.3<space|2spc>Implementation details
+      <with|par-left|<quote|1.5fn>|5.3<space|2spc>Solving for Existential
+      Types Predicates and Main Algorithm
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-14>>
 
+      <with|par-left|<quote|1.5fn>|5.4<space|2spc>Implementation details
+      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-15>>
+
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-15><vspace|0.5fn>
+      <no-break><pageref|auto-16><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>

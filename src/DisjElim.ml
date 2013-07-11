@@ -130,7 +130,7 @@ let disjelim_typ cmp_v uni_v brs =
 
 let simplify cmp_v (vs, ty_ans, num_ans) =
   let ty_ans, ty_num, _ =
-    unify ~use_quants:false (Params (vars_of_list vs)) cmp_v
+    unify ~use_quants:false ~params:(vars_of_list vs) cmp_v
     (fun _ -> false) (to_formula ty_ans) in
   assert (ty_num = []);
   let ty_sb, ty_ans = List.partition
@@ -142,7 +142,7 @@ let disjelim cmp_v uni_v brs =
   (* (1) D_i,s *)
   let brs = Aux.map_some
     (fun br ->
-      try Some (unify ~use_quants:false No_params cmp_v uni_v br)
+      try Some (unify ~use_quants:false cmp_v uni_v br)
       with Contradiction _ -> None) brs in
   (* [avs] contains variables introduced by anti-unification, also
   of sorts other than "type" *)

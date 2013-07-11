@@ -59,6 +59,15 @@ let map_some f l =
   in
   List.rev (maps_f [] l)
 
+let map_some2 f l1 l2 =
+  let rec maps_f accu = function
+    | ([], []) -> accu
+    | a1::l1, a2::l2 -> maps_f (match f a1 a2 with None -> accu
+	| Some r -> r::accu) (l1, l2)
+    | _, _ -> invalid_arg "Aux.map_some2"
+  in
+  List.rev (maps_f [] (l1, l2))
+
 let map_upto postfix f l =
   let rec aux = function
     | [] -> []

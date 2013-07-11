@@ -353,7 +353,7 @@ let str_of_cmp = function
 | Not_in_scope -> "not_in_scope"
 
 exception Contradiction of string * (typ * typ) option * loc
-exception Suspect of var_name list * formula
+exception Suspect of var_name list * formula * loc
 
 let typ_sort_typ = function
   | TVar (VNam (Undefined_sort, _) | VId (Undefined_sort, _)) ->
@@ -723,15 +723,12 @@ let pr_to_str pr_f e =
   Format.flush_str_formatter ()
 
 (** {2 Unification} *)
-type params = No_params | Params of VarSet.t | Existential_plus of VarSet.t
 
 (** Separate type sort and number sort constraints,  *)
-let unify ~use_quants params ?(sb=[]) cmp_v uni_v cnj =
+let unify ~use_quants ?params ?(sb=[]) cmp_v uni_v cnj =
   let check_param = match params with
-    | No_params -> fun _ -> false
-    | Params params -> fun v -> VarSet.mem v params
-    | Existential_plus params ->
-      fun v -> not (uni_v v) || VarSet.mem v params in
+    | None -> fun _ -> false
+    | Some params -> fun v -> VarSet.mem v params in
   let cnj_typ, more_cnj = Aux.partition_map
     (function
     | Eqty (t1, t2, loc) when typ_sort_typ t1 && typ_sort_typ t2 ->
@@ -755,6 +752,9 @@ let unify ~use_quants params ?(sb=[]) cmp_v uni_v cnj =
         aux sb (Eqty (t1, t2, loc)::num_cn) cnj
       | t1, t2 when num_sort_typ t1 || num_sort_typ t2 -> raise
         (Contradiction ("Type sort mismatch", Some (t1, t2), loc))
+      | (TVar v as tv, t | t, (TVar v as tv))
+          when VarSet.mem v (fvs_typ t) ->
+        raise (Contradiction ("Occurs check fail", Some (tv, t), loc))
       | TVar v1, t when check_param v1 ->
         aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj        
       | t, TVar v1 when check_param v1 ->
@@ -769,9 +769,6 @@ let unify ~use_quants params ?(sb=[]) cmp_v uni_v cnj =
             && List.mem (cmp_v v1 v2)
               [Downstream; Same_quant; Not_in_scope] ->
         aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
-      | (TVar v as tv, t | t, (TVar v as tv))
-          when VarSet.mem v (fvs_typ t) ->
-        raise (Contradiction ("Occurs check fail", Some (tv, t), loc))
       | TVar v1, t
           when not (use_quants && uni_v v1) &&
             VarSet.for_all (fun v2 -> check_param v2 ||
@@ -808,19 +805,19 @@ let unify ~use_quants params ?(sb=[]) cmp_v uni_v cnj =
 let to_formula =
   List.map (fun (v,(t,loc)) -> Eqty (TVar v, t, loc))
 
-let combine_sbs ~use_quants params cmp_v uni_v ?(more_phi=[]) sbs =
+let combine_sbs ~use_quants ?params cmp_v uni_v ?(more_phi=[]) sbs =
   let cnj_typ, cnj_num, cnj_so =
-    unify ~use_quants params cmp_v uni_v
+    unify ~use_quants ?params cmp_v uni_v
       (more_phi @ Aux.concat_map to_formula sbs) in
   assert (cnj_so = []);
   cnj_typ, cnj_num
 
-let subst_solved ~use_quants params cmp_v uni_v sb ~cnj =
+let subst_solved ~use_quants ?params cmp_v uni_v sb ~cnj =
   let cnj = List.map
     (fun (v,(t,lc)) -> Eqty (subst_typ sb (TVar v), subst_typ sb t, lc))
     cnj in
   let cnj_typ, cnj_num, cnj_so =
-    unify ~use_quants params cmp_v uni_v cnj in
+    unify ~use_quants ?params cmp_v uni_v cnj in
   assert (cnj_so = []);
   cnj_typ, cnj_num
 

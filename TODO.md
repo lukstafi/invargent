@@ -4,3 +4,4 @@ Place for TODOs/FIXMEs, especially if not expressed in other places. See README.
 * TODO: treat params as first-to-eliminate variables in [unify] and make use of this feature.
 * TODO: remove the use of parameters where [~use_quants:false] makes them obsolete.
 * FIXME: handle params and quantifier violations in NumS.
+* FIXME: does solving for existentials require abduction? Fix (remove?) quantifier handling for [abd_s].

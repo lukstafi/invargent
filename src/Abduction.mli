@@ -5,12 +5,15 @@
     @author Lukasz Stafiniak lukstafi (AT) gmail.com
     @since Mar 2013
 *)
-
+type vparams = (Terms.var_name * Terms.VarSet.t) list
+val pr_vparams : Format.formatter -> vparams -> unit
 val abd_simple :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
-  Terms.params ->  
-  validate:(Terms.params -> Terms.var_name list -> Terms.subst -> unit) ->
+  ?params:Terms.VarSet.t ->
+  ?bparams:vparams ->
+  ?zparams:vparams ->
+  validate:(Terms.VarSet.t option -> Terms.var_name list -> Terms.subst -> unit) ->
   discard:Terms.subst ->
   int ->
   Terms.var_name list * Terms.subst ->
@@ -19,8 +22,10 @@ val abd_simple :
 val abd_typ :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
-  Terms.params ->  
-  validate:(Terms.params -> Terms.var_name list -> Terms.subst -> unit) ->
+  params:Terms.VarSet.t ->
+  bparams:vparams ->
+  zparams:vparams ->
+  validate:(Terms.VarSet.t option -> Terms.var_name list -> Terms.subst -> unit) ->
   discard:Terms.subst ->
   (Terms.subst * Terms.subst) list ->
   Terms.var_name list * Terms.subst * Terms.formula list
@@ -29,7 +34,9 @@ val abd_typ :
 val abd :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
-  Terms.params ->  
+  params:Terms.VarSet.t ->
+  bparams:vparams ->
+  zparams:vparams ->
   discard:Terms.formula ->
   fallback:(Terms.formula * Terms.formula) list ->
   (Terms.formula * Terms.formula) list ->
@@ -37,12 +44,13 @@ val abd :
 val abd_mockup_num :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
-  Terms.params ->  
+  params:Terms.VarSet.t ->
+  bparams:vparams ->
+  zparams:vparams ->
   (Terms.formula * Terms.formula) list ->
   (Terms.formula * Terms.formula) list option
 val abd_s :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
-  Terms.params ->  
   Terms.formula -> Terms.formula ->
   (Terms.var_name list * Terms.formula) option

@@ -307,7 +307,7 @@ let abd_simple cmp cmp_w uni_v params validate
     with Result (ans_eqs, ans_ineqs) -> Some (ans_eqs, ans_ineqs)
   with Contradiction _ -> None
 
-let abd cmp_v uni_v params brs =
+let abd cmp_v uni_v ~bparams brs =
   let cmp_v v1 v2 =
     match cmp_v v1 v2 with
     | Upstream -> 1
@@ -333,7 +333,7 @@ let abd cmp_v uni_v params brs =
       let ans = ans @ List.map (expand_atom false) (unsolve ans_ineqs) in
       [], ans
     | (skip, br as obr)::more_brs ->
-      match abd_simple cmp cmp_w uni_v params validate
+      match abd_simple cmp cmp_w uni_v bparams validate
         skip ans_eqs ans_ineqs br with
       | Some (ans_eqs, ans_ineqs) ->
         loop false ans_eqs ans_ineqs (obr::done_brs) more_brs
@@ -341,12 +341,14 @@ let abd cmp_v uni_v params brs =
         if first then
           let ans = List.map (expand_atom true) (unsubst ans_eqs) in
           let ans = ans @ List.map (expand_atom false) (unsolve ans_ineqs) in
-          raise (Suspect ([], ans @ snd br))
+          let loc = List.fold_left loc_union dummy_loc
+            (List.map atom_loc (snd br)) in
+          raise (Suspect ([], ans @ snd br, loc))
         else loop true [] [] []
           ((skip+1, br)::List.rev_append done_brs more_brs) in
   loop true [] [] [] (br0::more_brs)
 
-let abd_s cmp_v uni_v params prem concl =
+let abd_s cmp_v uni_v prem concl =
   let cmp_v v1 v2 =
     match cmp_v v1 v2 with
     | Upstream -> 1
@@ -360,7 +362,7 @@ let abd_s cmp_v uni_v params prem concl =
     | [], _ -> 1
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
   let validate eqs (ineqs : ineqs) = () in
-  match abd_simple cmp cmp_w uni_v params validate
+  match abd_simple cmp cmp_w uni_v VarSet.empty validate
     0 [] [] (prem, concl) with
   | Some (ans_eqs, ans_ineqs) ->
     let ans = List.map (expand_atom true) (unsubst ans_eqs) in

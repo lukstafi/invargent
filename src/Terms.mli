@@ -179,7 +179,7 @@ type var_scope =
 val str_of_cmp : var_scope -> string
 
 exception Contradiction of string * (typ * typ) option * loc
-exception Suspect of var_name list * formula
+exception Suspect of var_name list * formula * loc
 
 val subst_typ : subst -> typ -> typ
 val subst_sb : sb:subst -> subst -> subst
@@ -187,16 +187,15 @@ val update_sb : more_sb:subst -> subst -> subst
 val typ_sort_typ : typ -> bool
 val num_sort_typ : typ -> bool
 
-type params = No_params | Params of VarSet.t | Existential_plus of VarSet.t
-val unify : use_quants:bool -> params ->
+val unify : use_quants:bool -> ?params:VarSet.t ->
   ?sb:subst ->
   (var_name -> var_name -> var_scope) -> (var_name -> bool) ->
   atom list -> subst * atom list * atom list
 val to_formula : subst -> atom list
-val combine_sbs : use_quants:bool -> params ->
+val combine_sbs : use_quants:bool -> ?params:VarSet.t ->
   (var_name -> var_name -> var_scope) -> (var_name -> bool) ->
   ?more_phi:atom list -> subst list -> subst * atom list
-val subst_solved : use_quants:bool -> params ->
+val subst_solved : use_quants:bool -> ?params:VarSet.t ->
   (var_name -> var_name -> var_scope) -> (var_name -> bool) ->
   subst -> cnj:subst -> subst * atom list
 

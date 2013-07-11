@@ -14,15 +14,15 @@ let uni_v v = false
 
 let p_formula s = Parser.formula Lexer.token (Lexing.from_string s)
 let br_simple lhs rhs =
-  let lhs, _, _ = unify ~use_quants:false No_params cmp_v uni_v lhs in
-  let rhs, _, _ = unify ~use_quants:false No_params cmp_v uni_v rhs in
+  let lhs, _, _ = unify ~use_quants:false cmp_v uni_v lhs in
+  let rhs, _, _ = unify ~use_quants:false cmp_v uni_v rhs in
   lhs, rhs
 
 let test_simple lhs_m rhs_m ?(validate=(fun _ _ _ -> ())) skip res =
   let lhs = p_formula lhs_m and rhs = p_formula rhs_m in
   let lhs, rhs = br_simple lhs rhs in
   let ans =
-    match abd_simple cmp_v uni_v No_params
+    match abd_simple cmp_v uni_v
       ~validate ~discard:[] skip ([],[]) (lhs, rhs) with
     | None _ -> "none"
     | Some (vs, ans_typ) ->
@@ -91,7 +91,10 @@ let tests = "Abduction" >::: [
         let lhs8, rhs8 = br_simple lhs8 rhs8 in
         let lhs9, rhs9 = br_simple lhs9 rhs9 in
         let ans =
-          try let vs, ans_typ, _ = abd_typ cmp_v uni_v No_params
+          try let vs, ans_typ, _ = abd_typ cmp_v uni_v
+                ~params:VarSet.empty
+                ~bparams:[]
+                ~zparams:[]
                 ~validate:(fun _ _ _ -> ()) ~discard:[]
                 [lhs0, rhs0; lhs1, rhs1;
                  lhs2, rhs2; lhs4, rhs4;
@@ -274,7 +277,10 @@ let rec filter =
         let cmp_v v1 v2 = Same_quant in*)
         todo "Test fails by looping inside abduction";
         let brs = Infer.simplify preserve cmp_v uni_v brs in
-        let brs = abd_mockup_num cmp_v uni_v No_params
+        let brs = abd_mockup_num cmp_v uni_v
+          ~params:VarSet.empty
+          ~bparams:[]
+          ~zparams:[]
           (List.map Infer.br_to_formulas brs) in
         assert_bool "No abduction answer" (brs <> None);
         let brs = Aux.unsome brs in
@@ -352,7 +358,11 @@ let rec plus =
         let brs = Infer.simplify preserve cmp_v uni_v brs in
         let brs = List.map Infer.br_to_formulas brs in
         let _, (vs, ans) =
-          try abd cmp_v uni_v No_params ~discard:[] ~fallback:brs brs
+          try abd cmp_v uni_v
+                ~params:VarSet.empty
+                ~bparams:[]
+                ~zparams:[]
+                ~discard:[] ~fallback:brs brs
           with Suspect _ -> assert_failure "No abduction answer" in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
@@ -401,7 +411,10 @@ let rec filter =
         let brs = Infer.simplify preserve cmp_v uni_v brs in
         let brs = List.map Infer.br_to_formulas brs in
         let _, (vs, ans) =
-          try abd cmp_v uni_v No_params ~discard:[] ~fallback:brs brs
+          try abd cmp_v uni_v ~params:VarSet.empty
+                ~bparams:[]
+                ~zparams:[]
+                ~discard:[] ~fallback:brs brs
           with Suspect _ -> assert_failure "No abduction answer" in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
@@ -428,12 +441,16 @@ let rec filter =
         let lhs1 = [] and rhs1 = p_formula "tD = ((Ty Int, Ty Int) → Bool)" in
         let lhs0, rhs0 = br_simple lhs0 rhs0 in
         let lhs1, rhs1 = br_simple lhs1 rhs1 in
-        let pms = vars_of_list
-          [VNam (Type_sort, "tA");VNam (Type_sort, "tB");
-           VNam (Type_sort, "tC");VNam (Type_sort, "tD")] in
+        let vA = VNam (Type_sort, "tA")
+        and vB = VNam (Type_sort, "tB")
+        and vC = VNam (Type_sort, "tC")
+        and vD = VNam (Type_sort, "tD") in
+        let pms = vars_of_list [vA; vB; vC; vD] in
         let ans =
           try let vs, ans_typ, _ =
-                abd_typ cmp_v uni_v (Params pms)
+                abd_typ cmp_v uni_v ~params:pms
+                  ~bparams:[vA, VarSet.singleton vA]
+                  ~zparams:[vA, vars_of_list [vA; vB; vC]]
                   ~validate:(fun _ _ _ -> ()) ~discard:[]
                 [lhs0, rhs0; lhs1, rhs1] in
               pr_to_str pr_formula (to_formula ans_typ)
@@ -450,5 +467,5 @@ tD = (Ty Int, Ty Int → Bool)" ans
 
 ]
 
-(* let tests = "Abduction Debug Off" >::: [ ] *)
+let tests = "Abduction Debug Off" >::: [ ]
 
