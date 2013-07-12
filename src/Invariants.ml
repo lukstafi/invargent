@@ -234,7 +234,7 @@ let strat q b ans =
   
 exception Fallback of formula * string * (typ * typ) option * loc
 
-let split avs ans q =
+let split avs ans params zparams q =
   (* 1 FIXME: do we really need this? *)
   let cmp_v v1 v2 =
     let a = q.cmp_v v1 v2 in
@@ -265,19 +265,17 @@ let split avs ans q =
     (* 3a *)
     let check_max_b vs bs =
       let vmax = minimal ~less:greater_v
-        (VarSet.elements (VarSet.inter vs q.allbvs)) in
+        (VarSet.elements (VarSet.inter vs params)) in
       List.exists (fun v -> VarSet.mem v bs) vmax in
-    let ans_max = List.map
+    let ans_cap = List.map
       (fun b ->
-        let bs = Hashtbl.find q.b_vs b in
+        let pms = Hashtbl.find q.b_vs b in
+        let pms = VarSet.union pms (List.assoc b zparams) in
         b, map_some
           (fun (c, vs) ->
-            if check_max_b vs bs then Some c else None)
+            if check_max_b vs pms then Some c else None)
           ans0)
       q.negbs in
-    (* FIXME: complete 3b, 3c -- Connected(ans_max, ans0) *)
-    let ans_cand = (* FIXME *) ans_max in
-    let ans_cap = (* FIXME *) ans_cand in
     (* 4, 9a *)
     let ans_res, ans_ps =
       try select check_max_b q ans ans_cap
@@ -567,7 +565,7 @@ let solve cmp_v uni_v brs =
     Format.printf "solve: loop -- abduction found@ ans=@ %a@\n%!"
       pr_ans (vs, ans); (* *)
     try
-      let ans_res, more_discard, sol2 = split vs ans q in
+      let ans_res, more_discard, sol2 = split vs ans params zparams q in
       Format.printf "solve: loop -- answer split@ more_discard=@ %a@\nans_res=@ %a@\nsol=@ %a@\n%!"
         pr_formula more_discard pr_formula ans_res pr_bchi_subst sol2; (* *)
       let discard = more_discard @ discard in
