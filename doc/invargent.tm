@@ -322,12 +322,11 @@
   In implementing <cite|AbductionSolvMaher> p. 13, we follow top-down
   approach where bigger subterms are abstracted first -- replaced by fresh
   variable, \ together with an arbitrary selection of other occurrences of
-  the subterm. If replacing a subterm by fresh variable maintains
+  the subterm. If dropping the candidate atom maintains
   <math|T<around*|(|F|)>\<vDash\>A\<wedge\>D\<Rightarrow\>C>, we proceed to
-  neighboring subterm or next equation. If
-  <math|T<around*|(|F|)>\<vDash\>A\<wedge\>D\<Rightarrow\>C> does not hold,
-  we try all of: proceeding to subterms of the subterm; replacing the subterm
-  by the fresh variable; replacing the subterm by variables corresponding to
+  neighboring subterm or next equation. Otherwise, we try all of: replacing
+  the subterm by the fresh variable; proceeding to subterms of the subterm;
+  preserving the subterm; replacing the subterm by variables corresponding to
   earlier occurrences of the subterm. This results in a single, branching
   pass over all subterms considered. TODO: avoiding branching when
   implication holds might lead to another loss of generality, does it?
@@ -357,7 +356,7 @@
     <math|<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>>
     in the main algorithm) to which all variables of every atom in the answer
     for which <math|FV<around*|(|c|)>\<cap\><wide|\<zeta\>|\<bar\>>\<neq\>\<varnothing\>>
-    should be connected;
+    should be <em|connected>;
 
     <item>a discard list that contains answer atoms -- substitution terms --
     disallowed in the pursued solution. The main algorithm will pass the
@@ -378,6 +377,64 @@
 
   Besides multisort joint constraint abduction <verbatim|abd> we also provide
   multisort simple fully maximal constraint abduction <verbatim|abd_s>.
+
+  To recapitulate, the implementation is:
+
+  <\itemize>
+    <item><verbatim|abstract> is the entry point.
+
+    <item>If <verbatim|cand=[]> -- no more candidates to add to the partial
+    solution: check for repeated answers, skipping, and discarded answers.
+
+    <item>Otherwise, pick the next atom and check if it's connected, if no,
+    loop with reordered candidates (possibly without the atom).
+
+    <item><verbatim|step> works through a single atom of the form <math|x=t>.
+
+    <item>The <verbatim|abstract>/<verbatim|step> choices are:
+
+    <\enumerate>
+      <item>Try to drop the atom (if the partial answer + remaining
+      candidates can still be completed to a correct answer).
+
+      <item>Replace the current subterm of the atom with a fresh parameter,
+      adding the subterm to replacements; if at the root of the atom, check
+      connected and validate before proceeding to remaining candidates.
+
+      <item>Step into subterms of the current subterm, if any, and if at the
+      sort of types.
+
+      <item>Keep the current part of the atom unchanged; if at the root of
+      the atom, check connected and validate before proceeding to remaining
+      candidates.
+
+      <item>Replace the current subterm with a parameter introduced for an
+      earlier occurrence; branch over all matching parameters; if at the root
+      of the atom, check connected and validate before proceeding to
+      remaining candidates.
+    </enumerate>
+
+    <item>Choices 2-5 are guarded by <verbatim|try>-<verbatim|with>, as tests
+    raise <verbatim|Contradiction> if they fail, choice 1 only tests
+    <verbatim|implies_concl> which returns a boolean.
+
+    <item>We recompute modifications of parameters due to partial answer,
+    e.g. <verbatim|cparams>, for clarity of joint constraint abduction; we
+    could compute them incrementally and pass around.
+
+    <item>We sort the initial candidates by decreasing size.
+  </itemize>
+
+  The above ordering of choices ensures that more general answers are tried
+  first. Moreover:
+
+  <\itemize>
+    <item>choice 1 could be dropped as it is equivalent to choice 2 applied
+    on the root term;
+
+    <item>choices 4 and 5 could be reordered but having choice 4 as soon as
+    possible is important for efficiency.
+  </itemize>
 
   <subsection|Joint constraint abduction for terms>
 
@@ -928,22 +985,22 @@
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1>>
     <associate|auto-10|<tuple|4.1|7>>
-    <associate|auto-11|<tuple|5|7>>
-    <associate|auto-12|<tuple|5.1|7>>
+    <associate|auto-11|<tuple|5|8>>
+    <associate|auto-12|<tuple|5.1|8>>
     <associate|auto-13|<tuple|5.2|8>>
-    <associate|auto-14|<tuple|5.3|10>>
+    <associate|auto-14|<tuple|5.3|9>>
     <associate|auto-15|<tuple|5.4|10>>
-    <associate|auto-16|<tuple|5.4|?>>
+    <associate|auto-16|<tuple|5.4|10>>
     <associate|auto-2|<tuple|2|2>>
     <associate|auto-3|<tuple|2.1|3>>
     <associate|auto-4|<tuple|2.2|4>>
     <associate|auto-5|<tuple|3|4>>
     <associate|auto-6|<tuple|3.1|4>>
     <associate|auto-7|<tuple|3.2|5>>
-    <associate|auto-8|<tuple|3.3|5>>
-    <associate|auto-9|<tuple|4|6>>
-    <associate|bib-AbductionSolvMaher|<tuple|3|10>>
-    <associate|bib-AntiUnifAlg|<tuple|8|10>>
+    <associate|auto-8|<tuple|3.3|6>>
+    <associate|auto-9|<tuple|4|7>>
+    <associate|bib-AbductionSolvMaher|<tuple|3|11>>
+    <associate|bib-AntiUnifAlg|<tuple|8|11>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
@@ -951,12 +1008,12 @@
     <associate|bib-ConvexHull|<tuple|2|10>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
-    <associate|bib-disjelimTechRep|<tuple|6|10>>
+    <associate|bib-disjelimTechRep|<tuple|6|11>>
     <associate|bib-jcaqpTechRep|<tuple|8|4>>
-    <associate|bib-jcaqpTechRep2|<tuple|7|10>>
-    <associate|bib-jcaqpUNIF|<tuple|4|10>>
+    <associate|bib-jcaqpTechRep2|<tuple|7|11>>
+    <associate|bib-jcaqpUNIF|<tuple|4|11>>
     <associate|bib-simonet-pottier-hmg-toplas|<tuple|6|4>>
-    <associate|bib-systemTechRep|<tuple|5|10>>
+    <associate|bib-systemTechRep|<tuple|5|11>>
   </collection>
 </references>
 
@@ -970,6 +1027,8 @@
       systemTechRep
 
       jcaqpUNIF
+
+      AbductionSolvMaher
 
       AbductionSolvMaher
 
