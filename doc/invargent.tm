@@ -418,6 +418,10 @@
     raise <verbatim|Contradiction> if they fail, choice 1 only tests
     <verbatim|implies_concl> which returns a boolean.
 
+    <item>We provide an option <verbatim|more_general>, which when set to
+    false reorders the choices into: 1, 4, 2, 3, 5 -- pushing 4 up minimizes
+    the amount of branching in 5.
+
     <item>We recompute modifications of parameters due to partial answer,
     e.g. <verbatim|cparams>, for clarity of joint constraint abduction; we
     could compute them incrementally and pass around.

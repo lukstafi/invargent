@@ -5,6 +5,14 @@
     @author Lukasz Stafiniak lukstafi (AT) gmail.com
     @since Mar 2013
 *)
+type skip_kind = Subset_old_mod | Superset_old_mod | Equ_old_mod
+val skip_kind : skip_kind ref
+
+(** If [more_general=false] works usually faster, if it doesn't work
+    try [more_general=true]. *)
+val more_general : bool ref
+
+
 type vparams = (Terms.var_name * Terms.VarSet.t) list
 val pr_vparams : Format.formatter -> vparams -> unit
 val abd_simple :
