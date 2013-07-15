@@ -82,6 +82,9 @@ let fresh_chi_id = ref 0
 let fresh_typ_var () =
   incr fresh_var_id; VId (Type_sort, !fresh_var_id)  
 
+let fresh_num_var () =
+  incr fresh_var_id; VId (Num_sort, !fresh_var_id)  
+
 let freshen_var v =
   incr fresh_var_id; VId (var_sort v, !fresh_var_id)  
 

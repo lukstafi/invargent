@@ -485,6 +485,39 @@
   conclusion of an implication that failed to produce an answer compatible
   with remaining implications.
 
+  <subsection|Abduction for terms with Alien Subterms>
+
+  The JCAQPAS problem is more complex than simply substituting alien subterms
+  with variables and performing joint constraint abduction on resulting
+  implications. The ability to ``outsource'' constraints to the alien sorts
+  enables more general answers to the target sort, in our case the term
+  algebra <math|T<around*|(|F|)>>. Consider a case where one of the
+  implications, for example <math|\<beta\><wide|=|\<dot\>>f<around*|(|\<beta\><rsub|1>,\<beta\><rsub|2>|)>\<Rightarrow\>\<beta\><rsub|1><wide|=|\<dot\>>\<beta\><rsub|2>>,
+  requires <math|\<exists\>\<alpha\>.\<beta\><wide|=|\<dot\>>f<around*|(|\<alpha\>,\<alpha\>|)>>
+  in the answer. Under JCAQPAS, we can instead answer
+  <math|\<exists\>\<alpha\><rsub|1>\<alpha\><rsub|2>.\<beta\><wide|=|\<dot\>>f<around*|(|N<around*|(|\<alpha\><rsub|1>|)>,N<around*|(|\<alpha\><rsub|2>|)>|)>,<around*|(|\<alpha\><rsub|1><wide|=|\<dot\>>\<alpha\><rsub|2>,\<ldots\>|)>>,
+  where we output <math|\<alpha\><rsub|1><wide|=|\<dot\>>\<alpha\><rsub|2>>
+  as alien subterm equation required for this particular branch. Note that
+  the resulting answer is just as general and is independent of which
+  <math|N:s<rprime|'>\<rightarrow\>s<rsub|ty>\<in\>F> we pick. As in joint
+  constraint abduction in general, the proliferation of simple abduction
+  answers is not problematic in itself, but because it enlarges the search
+  space when looking for a solution of the joint constraints.
+
+  We solve the problem by preserving the joint abduction for terms algorithm,
+  and after a solution <math|\<exists\><wide|\<alpha\>|\<bar\>>.A> is found,
+  we ``<em|dissociate>'' the alien subterms (including variables) in <math|A>
+  as follows. We replace every alien subterm <math|n<rsub|s>> in <math|A>
+  (including variables, even parameters) with a fresh variable
+  <math|\<alpha\><rsub|s>>, which results in <math|A<rprime|'>> (in
+  particular <math|A<rprime|'><around*|[|<wide|\<alpha\><rsub|s>|\<bar\>>\<assign\><wide|n<rsub|s>|\<bar\>>|]>=A>).
+  Subsets <math|A<rsub|i>\<subset\><wide|\<alpha\><rsub|s><wide|=|\<dot\>>n<rsub|s>|\<bar\>>>
+  such that <math|\<exists\><wide|\<alpha\>|\<bar\>><wide|\<alpha\><rsub|s>|\<bar\>>.A<rprime|'>,<wide|A<rsub|i>|\<bar\>>>
+  is a JCAQPAS answer will be recovered automatically by a residuum-finding
+  process at the end of <verbatim|ans_typ>. This process is needed regardless
+  of the ``dissociation'' issue, to uncover the full content of numeric sort
+  constraints.
+
   <subsection|Joint constraint abduction for linear arithmetic>
 
   We use <em|Fourier-Motzkin elimination>. To avoid complexities we initially
@@ -980,17 +1013,18 @@
     <associate|ImplSubst|<tuple|4|2>>
     <associate|SepProp|<tuple|5|3>>
     <associate|SepProp2|<tuple|6|?>>
-    <associate|SolSimpl|<tuple|8|9>>
+    <associate|SolSimpl|<tuple|8|10>>
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1>>
-    <associate|auto-10|<tuple|4.1|7>>
-    <associate|auto-11|<tuple|5|8>>
-    <associate|auto-12|<tuple|5.1|8>>
-    <associate|auto-13|<tuple|5.2|8>>
-    <associate|auto-14|<tuple|5.3|9>>
-    <associate|auto-15|<tuple|5.4|10>>
-    <associate|auto-16|<tuple|5.4|10>>
+    <associate|auto-10|<tuple|4|7>>
+    <associate|auto-11|<tuple|4.1|8>>
+    <associate|auto-12|<tuple|5|8>>
+    <associate|auto-13|<tuple|5.1|8>>
+    <associate|auto-14|<tuple|5.2|9>>
+    <associate|auto-15|<tuple|5.3|10>>
+    <associate|auto-16|<tuple|5.4|11>>
+    <associate|auto-17|<tuple|5.4|11>>
     <associate|auto-2|<tuple|2|2>>
     <associate|auto-3|<tuple|2.1|3>>
     <associate|auto-4|<tuple|2.2|4>>
@@ -998,14 +1032,14 @@
     <associate|auto-6|<tuple|3.1|4>>
     <associate|auto-7|<tuple|3.2|5>>
     <associate|auto-8|<tuple|3.3|6>>
-    <associate|auto-9|<tuple|4|7>>
+    <associate|auto-9|<tuple|3.4|6>>
     <associate|bib-AbductionSolvMaher|<tuple|3|11>>
     <associate|bib-AntiUnifAlg|<tuple|8|11>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
-    <associate|bib-ArithQuantElim|<tuple|1|10>>
-    <associate|bib-ConvexHull|<tuple|2|10>>
+    <associate|bib-ArithQuantElim|<tuple|1|11>>
+    <associate|bib-ConvexHull|<tuple|2|11>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
     <associate|bib-disjelimTechRep|<tuple|6|11>>
@@ -1085,42 +1119,46 @@
       for terms <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-7>>
 
-      <with|par-left|<quote|1.5fn>|3.3<space|2spc>Joint constraint abduction
-      for linear arithmetic <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <with|par-left|<quote|1.5fn>|3.3<space|2spc>Abduction for terms with
+      Alien Subterms <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-8>>
+
+      <with|par-left|<quote|1.5fn>|3.4<space|2spc>Joint constraint abduction
+      for linear arithmetic <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-9>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|4<space|2spc>Disjunction
       Elimination> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-9><vspace|0.5fn>
+      <no-break><pageref|auto-10><vspace|0.5fn>
 
       <with|par-left|<quote|1.5fn>|4.1<space|2spc>Extended convex hull
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-10>>
+      <no-break><pageref|auto-11>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|5<space|2spc>Solving
       for Predicate Variables> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-11><vspace|0.5fn>
+      <no-break><pageref|auto-12><vspace|0.5fn>
 
       <with|par-left|<quote|1.5fn>|5.1<space|2spc>Invariant Parameter
       Candidates <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-12>>
+      <no-break><pageref|auto-13>>
 
       <with|par-left|<quote|1.5fn>|5.2<space|2spc>Solving for Predicates in
       Negative Positions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-13>>
+      <no-break><pageref|auto-14>>
 
       <with|par-left|<quote|1.5fn>|5.3<space|2spc>Solving for Existential
       Types Predicates and Main Algorithm
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-14>>
+      <no-break><pageref|auto-15>>
 
       <with|par-left|<quote|1.5fn>|5.4<space|2spc>Implementation details
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-15>>
+      <no-break><pageref|auto-16>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-16><vspace|0.5fn>
+      <no-break><pageref|auto-17><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>

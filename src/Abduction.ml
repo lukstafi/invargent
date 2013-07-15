@@ -540,6 +540,19 @@ let abd_typ cmp_v uni_v ~params ~bparams ~zparams ~validate ~discard brs =
   Format.printf "abd_typ: result vs=%s@\nans=%a@\n%!"
     (String.concat ","(List.map var_str vs))
     pr_subst ans; (* *)
+  let alien_vs = ref [] in
+  let rec aux = function
+    | t when num_sort_typ t ->
+      let n = Infer.fresh_num_var () in
+      alien_vs := n :: !alien_vs; TVar n
+    | TCons (n, tys) -> TCons (n, List.map aux tys)
+    | Fun (t1, t2) -> Fun (aux t1, aux t2)
+    | (TVar _ | NCst _ | Nadd _) as t -> t in
+  let ans = List.map (fun (v,(t,lc)) -> v, (aux t, lc)) ans in
+  let vs = !alien_vs @ vs in
+  Format.printf "abd_typ: dissociated vs=%s@\nans=%a@\n%!"
+    (String.concat ","(List.map var_str vs))
+    pr_subst ans; (* *)
   let num = List.map
     (fun (prem, concl) ->
       try
@@ -547,9 +560,8 @@ let abd_typ cmp_v uni_v ~params ~bparams ~zparams ~validate ~discard brs =
           combine_sbs ~use_quants:false cmp_v uni_v [prem; ans] in
         let res_ty, res_num =
           residuum cmp_v uni_v cnj_ty concl in
-        Format.printf "abd_typ: vs=%s@ res_ty=%a@ res_num=%a@\nconcl=%a@\n%!"
-          (String.concat ","(List.map var_str vs))
-          pr_subst res_ty pr_formula res_num pr_subst concl; (* *)
+        Format.printf "abd_typ-num: res_ty=%a@ res_num=%a@\ncnj_num=%a@\n%!"
+          pr_subst res_ty pr_formula res_num pr_formula cnj_num; (* *)
         assert (res_ty = []);
         cnj_num @ res_num
       with Contradiction _ -> assert false)
