@@ -13,6 +13,7 @@ let (!/) i = num_of_int i
 type w = (var_name * num) list * num * loc
 type w_subst = (var_name * w) list
 type ineqs = (var_name * (w list * w list)) list
+  
 
 let mult c (vars, cst, loc) =
   List.map (fun (v,k) -> v, c */ k) vars, c */ cst, loc
@@ -29,6 +30,29 @@ let diff cmp w1 w2 = sum_w cmp w1 (mult !/(-1) w2)
 let zero_p (vars, cst, _) = vars = [] && cst = !/0
 
 let equal_w cmp w1 w2 = zero_p (diff cmp w1 w2)
+
+
+let pr_vnum ppf (v, n) =
+  Format.fprintf ppf "%s*%s" (string_of_num n) (var_str v)
+
+let pr_w ppf (vs, cst, _ : w) =
+  if vs = [] then Format.fprintf ppf "%s" (string_of_num cst)
+  else Format.fprintf ppf "@[<2>%a@ +@ %s@]"
+    (pr_sep_list "+" pr_vnum) vs (string_of_num cst)
+
+let pr_sw ppf (v, w) =
+  Format.fprintf ppf "@[<2>%s@ =@ %a@]" (var_str v) pr_w w
+
+let pr_w_subst ppf sb =
+  Format.fprintf ppf "@[<2>%a@]" (pr_sep_list "," pr_sw) sb
+
+let pr_ineq ppf (v, (wl, wr)) =
+  Format.fprintf ppf "@[<2>[%a]@ ≤@ %s@ ≤@ [%a]@]"
+    (pr_sep_list ";" pr_w) wl (var_str v) (pr_sep_list ";" pr_w) wr
+
+let pr_ineqs ppf (ineqs : ineqs) =
+  pr_sep_list "," pr_ineq ppf ineqs
+
 
 let unsubst sb =
   List.map (fun (v, (vars, cst, loc)) -> (v, !/(-1))::vars, cst, loc) sb
@@ -120,9 +144,16 @@ let expand_atom equ (vars, cst, loc) =
 
 (* TODO: quantifier violations not possible? *)
 let solve ?(use_quants=false) ?(strict=false)
-    ?(eqs=[]) ?(ineqs=[]) ?(eqn=[]) ?(ineqn=[]) ?(cnj=[])
+    ?(eqs=[]) ?(ineqs=[]) ?(eqs'=[])
+    ?(eqn=[]) ?(ineqn=[]) ?(cnj=[])
     cmp cmp_w uni_v =
   (* FIXME: use uni_v when use_quants. *)
+  let eqs = if eqs' = [] then eqs else List.map
+      (fun (v,eq) -> v, subst_w cmp eqs' eq) eqs @ eqs' in
+  let ineqs = if eqs' = [] then ineqs else List.map
+      (fun (v,(wl,wr)) -> v,
+        (List.map (subst_w cmp eqs') wl,
+         List.map (subst_w cmp eqs') wr)) ineqs in
   let more_eqn, more_ineqn = Aux.partition_map (flatten cmp) cnj in
   let eqn = eqn @ more_eqn in
   let ineqn = ineqn @ more_ineqn in
@@ -222,6 +253,10 @@ let abd_simple cmp cmp_w uni_v params validate
     skip eqs ineqs (prem, concl) =
   let skip = ref skip in
   try
+    Format.printf
+      "NumS.abd_simple: eqs=@ %a@\nineqs=@ %a@\nprem=@ %a@\nconcl=@ %a@\n%!"
+      pr_w_subst eqs pr_ineqs ineqs pr_formula prem pr_formula concl;
+    (* *)
     let d_eqs, (d_ineqs, d_implicits) =
       solve ~eqs ~ineqs ~cnj:prem cmp cmp_w uni_v in
     (* let c_eqs, (c_ineqs, c_implicits) =
@@ -307,7 +342,7 @@ let abd_simple cmp cmp_w uni_v params validate
     with Result (ans_eqs, ans_ineqs) -> Some (ans_eqs, ans_ineqs)
   with Contradiction _ -> None
 
-let abd cmp_v uni_v ~bparams brs =
+let abd cmp_v uni_v ~bparams ?(alien_vs=[]) brs =
   let cmp_v v1 v2 =
     match cmp_v v1 v2 with
     | Upstream -> 1
@@ -320,6 +355,7 @@ let abd cmp_v uni_v ~bparams brs =
     | _, [] -> -1
     | [], _ -> 1
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
+  Format.printf "NumS.abd: brs=@ %a@\n%!" Infer.pr_rbrs brs; (* *)
   let br0 = 0, List.hd brs in
   let more_brs = List.map (fun br -> -1, br) (List.tl brs) in
   let validate eqs (ineqs : ineqs) = List.iter
@@ -331,13 +367,31 @@ let abd cmp_v uni_v ~bparams brs =
     | [] ->
       let ans = List.map (expand_atom true) (unsubst ans_eqs) in
       let ans = ans @ List.map (expand_atom false) (unsolve ans_ineqs) in
+      Format.printf
+        "NumS.abd-loop: return eqs=@ %a@\nineqs=@ %a@\nans=@ %a@\n%!"
+        pr_w_subst ans_eqs pr_ineqs ans_ineqs pr_formula ans;
+      (* *)
       [], ans
     | (skip, br as obr)::more_brs ->
       match abd_simple cmp cmp_w uni_v bparams validate
         skip ans_eqs ans_ineqs br with
-      | Some (ans_eqs, ans_ineqs) ->
+      | Some (ans_eqs', ans_ineqs') ->
+        let ans_eqs, (ans_ineqs, ans_implicits) =
+          solve ~eqs:ans_eqs ~ineqs:ans_ineqs ~eqs':ans_eqs'
+            ~ineqn:(unsolve ans_ineqs') cmp cmp_w uni_v in
+        let ans_eqs, _ =
+          solve ~eqs:ans_eqs ~eqn:ans_implicits cmp cmp_w uni_v in
+        Format.printf
+          "NumS.abd-loop: progress@\neqs'=@ %a@\nineqs'=@ %a@\neqs=@ %a@\nineqs=@ %a@\n%!"
+          pr_w_subst ans_eqs' pr_ineqs ans_ineqs'
+          pr_w_subst ans_eqs pr_ineqs ans_ineqs;
+        (* *)
         loop false ans_eqs ans_ineqs (obr::done_brs) more_brs
       | None ->
+        Format.printf
+          "NumS.abd-loop: reset at first=%b, skip=%d@\nprem=@ %a@\nconcl=@ %a@\n%!"
+          first skip pr_formula (fst br) pr_formula (snd br);
+        (* *)
         if first then
           let ans = List.map (expand_atom true) (unsubst ans_eqs) in
           let ans = ans @ List.map (expand_atom false) (unsolve ans_ineqs) in

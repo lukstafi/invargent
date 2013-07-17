@@ -119,34 +119,6 @@ let tests = "NumS" >::: [
         assert_failure (Printexc.to_string exn)
     );
 
-  "abduction: binary plus" >::
-    (fun () ->
-      Terms.reset_state ();
-      Infer.reset_state ();
-      (* try *)
-      try
-        Printexc.record_backtrace true;
-        let cmp_v _ _ = Same_quant in
-        let uni_v _ = false in
-        let brs = Parser.cn_branches Lexer.token
-	  (Lexing.from_string test1_brs) in
-        let ans =
-          try let vs, ans = abd cmp_v uni_v ~bparams:[] brs
-              in pr_to_str pr_formula ans with Suspect _ -> "none" in
-        (* FIXME: correct answer? *)
-        assert_equal ~printer:(fun x -> x)
-          "1 = n172 ∧ (n19 + n19) = (2 + n168 + n168 + n168 + n168) ∧ n19 = n167 ∧
-(1 + n166 + n166) = (n155 + n155)"
-          ans
-      with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
-        ignore (Format.flush_str_formatter ());
-        Terms.pr_exception Format.str_formatter exn;
-        assert_failure (Format.flush_str_formatter ())
-      (* with exn -> *)
-      (*   Printexc.print_backtrace stdout; *)
-      (*   assert_failure (Printexc.to_string exn) *)
-    );
-
   "convex hull: basic cst" >::
     (fun () ->
       Terms.reset_state ();
