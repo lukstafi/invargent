@@ -8,10 +8,12 @@
 
 open Terms
 open Num
+open Aux
 let (!/) i = num_of_int i
 
 type w = (var_name * num) list * num * loc
 type w_subst = (var_name * w) list
+type cw_subst = ((var_name, bool) choice * w) list
 type ineqs = (var_name * (w list * w list)) list
   
 
@@ -20,7 +22,7 @@ let mult c (vars, cst, loc) =
 
 let sum_w cmp (vars1, cst1, loc1) (vars2, cst2, loc2) =
   let loc = loc_union loc1 loc2 in
-  let vars = Aux.map_reduce (+/) (!/0) (vars1 @ vars2) in
+  let vars = map_reduce (+/) (!/0) (vars1 @ vars2) in
   let vars = List.sort cmp
     (List.filter (fun (_,k) -> k <>/ !/0) vars) in
   vars, cst1 +/ cst2, loc
@@ -57,7 +59,7 @@ let pr_ineqs ppf (ineqs : ineqs) =
 let unsubst sb =
   List.map (fun (v, (vars, cst, loc)) -> (v, !/(-1))::vars, cst, loc) sb
 
-let unsolve (ineqs : ineqs) : w list = Aux.concat_map
+let unsolve (ineqs : ineqs) : w list = concat_map
   (fun (v, (left, right)) ->
     List.map (fun (vars, cst, loc) -> (v, !/(-1))::vars, cst, loc)
       left @
@@ -68,7 +70,7 @@ let unsolve (ineqs : ineqs) : w list = Aux.concat_map
   ineqs
   
 
-let flatten cmp a : (w, w) Aux.choice =
+let flatten cmp a : (w, w) choice =
   let rec flat (vars, cst, loc as acc) = function
     | Nadd sum ->
       List.fold_left flat acc sum
@@ -82,9 +84,9 @@ let flatten cmp a : (w, w) Aux.choice =
     diff cmp w1 w2 in
   match a with
   | Eqty (t1, t2, loc) ->
-    Aux.Left (collect t1 t2 loc)
+    Left (collect t1 t2 loc)
   | Leq (t1, t2, loc) ->
-    Aux.Right (collect t1 t2 loc)
+    Right (collect t1 t2 loc)
   | _ -> assert false
 
 let subst_w cmp (eqs : w_subst) (vars, cst, loc : w) : w =
@@ -94,10 +96,36 @@ let subst_w cmp (eqs : w_subst) (vars, cst, loc : w) : w =
       with Not_found -> [v,k], !/0)
     vars in
   let vars, csts = List.split sums in
-  let vars = Aux.map_reduce (+/) (!/0) (List.concat vars) in
+  let vars = map_reduce (+/) (!/0) (List.concat vars) in
   let vars = List.sort cmp
     (List.filter (fun (_,k) -> k <>/ !/0) vars) in
   let cst = List.fold_left (+/) cst csts in
+  vars, cst, loc
+
+let subst_cw cmp (eqs : cw_subst) (vars, cst, loc : w) : w =
+  let sums = List.map
+    (fun (v,k) ->
+      try let vars, cst, _ = mult k (List.assoc (Left v) eqs) in
+          vars, cst
+      with Not_found -> [v,k], !/0)
+    vars in
+  let vars, csts = List.split sums in
+  let cst = List.fold_left (+/) cst csts in
+  let c_vars, cst =
+    let vars0 =
+      try let vars, _, _ = List.assoc (Right false) eqs in vars
+      with Not_found -> [] in
+    let vars1, cst =
+      if cst <>/ !/0
+      then
+        try let vars, cst, _ = mult cst (List.assoc (Right true) eqs) in
+            vars, cst
+        with Not_found -> [], cst
+      else [], cst in
+    vars0 @ vars1, cst in
+  let vars = map_reduce (+/) (!/0) (List.concat (c_vars::vars)) in
+  let vars = List.sort cmp
+    (List.filter (fun (_,k) -> k <>/ !/0) vars) in  
   vars, cst, loc
 
 let subst_ineqs cmp eqs ineqs = List.map
@@ -107,9 +135,9 @@ let subst_ineqs cmp eqs ineqs = List.map
 
 let subst_one cmp (v, w) (vars, cst, loc as arg) =
   try
-    let k, vars = Aux.pop_assoc v vars in
+    let k, vars = pop_assoc v vars in
     let w_vs, w_cst, w_loc = mult k w in
-    let vars = Aux.map_reduce (+/) (!/0) (w_vs @ vars) in
+    let vars = map_reduce (+/) (!/0) (w_vs @ vars) in
     let vars = List.sort cmp
       (List.filter (fun (_,k) -> k <>/ !/0) vars) in
     let cst = w_cst +/ cst in
@@ -135,15 +163,15 @@ let expand_atom equ (vars, cst, loc) =
   let right = List.map (fun (v,k) -> v, ~-k) right in
   let expand (v,k) = Array.to_list (Array.make k (TVar v)) in
   let left = (if cst > 0 then [NCst cst] else [])
-    @ Aux.concat_map expand left in
+    @ concat_map expand left in
   let right = (if cst < 0 then [NCst (~-cst)] else [])
-    @ Aux.concat_map expand right in
+    @ concat_map expand right in
   let left = match left with [t] -> t | _ -> Nadd left in
   let right = match right with [t] -> t | _ -> Nadd right in
   if equ then Eqty (left, right, loc) else Leq (left, right, loc)
 
-(* TODO: quantifier violations not possible? *)
-let solve ?(use_quants=false) ?(strict=false)
+(* FIXME: check quantifier violations *)
+let solve ?(use_quants=false) ?(params=VarSet.empty) ?(strict=false)
     ?(eqs=[]) ?(ineqs=[]) ?(eqs'=[])
     ?(eqn=[]) ?(ineqn=[]) ?(cnj=[])
     cmp cmp_w uni_v =
@@ -154,7 +182,7 @@ let solve ?(use_quants=false) ?(strict=false)
       (fun (v,(wl,wr)) -> v,
         (List.map (subst_w cmp eqs') wl,
          List.map (subst_w cmp eqs') wr)) ineqs in
-  let more_eqn, more_ineqn = Aux.partition_map (flatten cmp) cnj in
+  let more_eqn, more_ineqn = partition_map (flatten cmp) cnj in
   let eqn = eqn @ more_eqn in
   let ineqn = ineqn @ more_ineqn in
   assert (not strict || eqn = []);
@@ -185,7 +213,7 @@ let solve ?(use_quants=false) ?(strict=false)
         (List.map (subst_w cmp eqn) left,
          List.map (subst_w cmp eqn) right)) ineqs in
   let more_ineqn =
-    Aux.concat_map
+    concat_map
       (fun (v, w) ->
         try
           let left, right = List.assoc v ineqs in
@@ -204,8 +232,8 @@ let solve ?(use_quants=false) ?(strict=false)
           | Leq (t1, t2, _) -> t1, t2 | _ -> assert false in
         raise (Contradiction ("Failed numeric strict inequality",
                               Some (t1, t2), loc))
-      else Aux.Right w
-    else Aux.Left (diff cmp lhs rhs) in
+      else Right w
+    else Left (diff cmp lhs rhs) in
   let rec proj ineqs implicits ineqn =
     match ineqn with
     | [] -> ineqs, implicits
@@ -216,16 +244,16 @@ let solve ?(use_quants=false) ?(strict=false)
       raise (Contradiction ("Failed numeric inequality", None, loc))
     | ((v,k)::vars, cst, loc)::ineqn ->
       let (left, right), ineqs =
-        try Aux.pop_assoc v ineqs with Not_found -> ([], []), ineqs in
+        try pop_assoc v ineqs with Not_found -> ([], []), ineqs in
       let ineq_l, ineq_r, (more_ineqn, more_implicits) = 
         let ohs = mult (!/(-1) // k) (vars, cst, loc) in
         if k >/ !/0
         then
           [], [ohs],
-          Aux.partition_map (fun lhs -> project v lhs ohs) left
+          partition_map (fun lhs -> project v lhs ohs) left
         else
           [ohs], [],
-          Aux.partition_map (fun rhs -> project v ohs rhs) right in
+          partition_map (fun rhs -> project v ohs rhs) right in
       let more_ineqn = List.filter
         (function
         | [], cst, _
@@ -240,7 +268,7 @@ let solve ?(use_quants=false) ?(strict=false)
         | _ -> true)
         more_ineqn in
       let ineqn =
-        Aux.merge cmp_w (List.sort cmp_w more_ineqn) ineqn in
+        merge cmp_w (List.sort cmp_w more_ineqn) ineqn in
       let ineqs = (v, (ineq_l @ left, ineq_r @ right))::ineqs in
       proj ineqs (more_implicits @ implicits) ineqn in
   eqn @ eqs, proj ineqs [] ineqn
@@ -284,30 +312,40 @@ let abd_simple cmp cmp_w uni_v params validate
       with Contradiction _ -> () in
     let prepare ans_ineqs sb_cand =
       return
-        (List.map (subst_w cmp sb_cand) ans_eqs)
-        (List.map (subst_w cmp sb_cand) ans_ineqs) in
+        (List.map (subst_cw cmp sb_cand) ans_eqs)
+        (List.map (subst_cw cmp sb_cand) ans_ineqs) in
     (* Choice point 2. *)
     (* Iterate through all substitutions (as a product of equations
        for variables occurring in the answer, from premises [des] plus
        "identity equation"). *)
+    let allvs = List.fold_left VarSet.union VarSet.empty
+      (List.map fvs_w ans_eqs) in
     let rename ans_ineqs =
       (* possible optimization:
          if !skip = 0 then (return ans_eqs ans_ineqs; incr skip); *)
-      let allvs = List.fold_left VarSet.union VarSet.empty
-        (List.map fvs_w ans_eqs) in
       let allvs = VarSet.union allvs
         (List.fold_left VarSet.union VarSet.empty
            (List.map fvs_w ans_ineqs)) in
       let repls = List.map
-        (fun v -> (v, ([v,!/1], !/0, dummy_loc))::Aux.map_some
+        (fun v -> (Left v, ([v,!/1], !/0, dummy_loc))::map_some
           (fun (vars, cst, loc) ->
             try
-              let k, vars = Aux.pop_assoc v vars in
-              Some (v, mult k (vars, cst, loc))
+              let k, vars = pop_assoc v vars in
+              Some (Left v, mult k (vars, cst, loc))
             with Not_found -> None)
           des)
         (VarSet.elements allvs) in
-      Aux.product_iter (prepare ans_ineqs) repls in
+      let repls_0 = (Right false, ([], !/0, dummy_loc))::map_some
+        (function ([v,_], c, loc) when c =/ !/0 ->
+          Some (Right false, ([v,!/1], !/0, dummy_loc))
+        | _ -> None)
+        des in
+      let repls_1 = (Right true, ([], !/1, dummy_loc))::map_some
+        (function ([v,k], c, loc) when c <>/ !/0 ->
+          Some (Right true, ([v, k // c], !/0, dummy_loc))
+        | _ -> None)
+        des in
+      product_iter (prepare ans_ineqs) (repls_0::repls_1::repls) in
     (* Compute the core by checking in turn whether conclusion atoms
        are implied by the premise and the partial answer so far. *)
     let rec core_fin ans_ineqs = function
@@ -470,10 +508,10 @@ let disjelim cmp_v uni_v brs =
       subst_ineqs cmp esb ineqs)
     polytopes elim_eqs in
   let faces : w list list = List.map2
-    (fun br esb -> Aux.concat_map
+    (fun br esb -> concat_map
        (fun a -> match (flatten cmp a) with
-       | Aux.Right w -> [subst_w cmp esb w]
-       | Aux.Left w -> let w = subst_w cmp esb w in [w; mult !/(-1) w]) br)
+       | Right w -> [subst_w cmp esb w]
+       | Left w -> let w = subst_w cmp esb w in [w; mult !/(-1) w]) br)
     brs elim_eqs in
   let check face =
     let ineqn = [mult !/(-1) face] in
@@ -486,9 +524,9 @@ let disjelim cmp_v uni_v brs =
       polytopes in
   let selected : (w list * w list) list =
     List.map (List.partition check) faces in
-  let ridges : (w * w) list = Aux.concat_map
+  let ridges : (w * w) list = concat_map
     (fun (sel, ptope) ->
-      Aux.concat_map (fun p -> List.map (fun s->s, p) sel) ptope)
+      concat_map (fun p -> List.map (fun s->s, p) sel) ptope)
     selected in
   let angle i j = i2f (i+1) /. i2f (j+1) in
   let cands = List.map
@@ -510,13 +548,13 @@ let disjelim cmp_v uni_v brs =
   let cands = List.map (fun angles ->
     List.map snd
       (List.sort (fun (a,_) (b,_) -> compare a b) angles)) cands in
-  let result = Aux.concat_map fst selected in
-  let result = Aux.map_some
+  let result = concat_map fst selected in
+  let result = map_some
     (fun cands -> try Some (List.find check cands)
       with Not_found -> None) cands
     @ result in
   let sort_w (vars, cst, loc) =
-    let vars = Aux.map_reduce (+/) (!/0) vars in
+    let vars = map_reduce (+/) (!/0) vars in
     let vars = List.sort cmp
       (List.filter (fun (_,k) -> k <>/ !/0) vars) in
     vars, cst, loc in

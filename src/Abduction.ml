@@ -552,17 +552,20 @@ let abd_typ cmp_v uni_v ~params ~bparams ~zparams ~validate ~discard brs =
     (String.concat ","(List.map var_str vs))
     pr_subst ans; (* *)
   let alien_vs = ref [] in
+  let alien_eqs = ref [] in
   let rec aux = function
     | t when num_sort_typ t ->
       let n = Infer.fresh_num_var () in
+      alien_eqs := (n, (t, dummy_loc)):: !alien_eqs;
       alien_vs := n :: !alien_vs; TVar n
     | TCons (n, tys) -> TCons (n, List.map aux tys)
     | Fun (t1, t2) -> Fun (aux t1, aux t2)
     | (TVar _ | NCst _ | Nadd _) as t -> t in
   let ans = List.map (fun (v,(t,lc)) -> v, (aux t, lc)) ans in
   let vs = !alien_vs @ vs in
-  Format.printf "abd_typ: dissociated vs=%s@\nans=%a@\n%!"
+  Format.printf "abd_typ: dissociated vs=%s@\nalien=@ %a@\nans=%a@\n%!"
     (String.concat ","(List.map var_str vs))
+    pr_subst !alien_eqs
     pr_subst ans; (* *)
   let num = List.map
     (fun (prem, concl) ->

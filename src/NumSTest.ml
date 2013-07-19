@@ -9,6 +9,78 @@ open OUnit
 open Terms
 open NumS
 
+(* 
+   Binary addition legend:
+   - t1: result
+   - t3, n5: the carry bit and its value
+   - n6: case when carry is 0
+   - t7, n9, n13: the first number (A)
+   - n10=0, t11, t12: case when A is 0
+   - n15=2*n16: case when A ends with 0
+   - t17, n19, n21: the second number (B)
+   - t18, n25: the result (C)
+   - n20=0: case when B is 0
+   - n23=2*n24: case when B ends with 0
+   - n25=2*n26: C ends with 0, recursive call A=n16, B=n24, C=n26
+   - n30=0: recursive carry in above call
+   - n32: B
+   - n34=2*n35+1: case B ends with 1
+   - n36=2*n37+1: C
+   - recursive call carry=n41=0, A=n16, B=n35, C=n37
+   - n43, n45=2*n46+1: case when A ends with 1
+   - t47, n49, n51, n62: B
+   - t48: C
+   - n50=0: B is 0
+   - n53=2*n54: B ends with 0
+   - n55=2*n56: C ends with 0
+   - recursive call carry=n60=0, A=n46, B=n54, C=n56
+   - n64=2*n65+1: case B ends with 1
+   - n66=2*n67: C ends with 0
+   - recursive call carry=n71=1, A=n46, B=n65, C=n67
+   - n73, n74=1: case carry is 1
+   - t75, n77, n104, n136: A
+   - n78=0: case A is 0
+   - t79, n81, n92, n110, n114, n125, n142, n152, n163: B
+   - n82=0: case B is 0
+   - t80, n83=2*n84+1, n84=n85=0: C
+   - n86=n88=2*n89: B ends with 0
+   - n90=2*n91+1, n91=n89: C=B
+   - n94=2*n95+1: B ends with 1
+   - n96=2*n97: C ends with 0
+   - recursive call carry=n102=1, A=n100=0, B=n95
+   - n106=2*n107: case A ends with 0
+   - n111=0: case B is 0
+   - n112=2*n113+1, n113=n107: C ends with 1
+   - n116=2*n117: case B ends with 0
+   - n118=2*n119+1: C ends with 1
+   - recursive call carry=n123=0, A=n107, B=n117, C=n119
+   - n127=2*n128+1: case B ends with 1
+   - n129=2*n130: C ends with 0
+   - recursive call carry=n134=1, A=n107, B=n128, C=n130
+   - n138=2*n139+1: case A ends with 1
+   - n143=0: case B is 0
+   - n144=2*n145: case C ends with 0
+   - recursive call carry=n150=1, A=n139, B=n147=0, C=n145
+   - n154=2*n155: case B ends with 0
+   - n156=2*n157: C ends with 0
+   - recursive call carry=n161=1, A=n139, B=n155, C=n157
+   - n165=2*n166+1: case B ends with 1
+   - n167=2*n168+1: C ends with 1
+   - recursive call carry=n172=1, A=n139, B=n166, C=n168
+   - alien subterm variables:
+n266:=n172; n265:=n139; n264:=n166; n263:=n168; n262:=n161;
+n261:=n139; n260:=n155; n259:=n157; n258:=n150; n257:=n139; n256:=n147;
+n255:=n145; n254:=n19; n253:=n142; n252:=n134; n251:=n107; n250:=n128;
+n249:=n130; n248:=n123; n247:=n107; n246:=n117; n245:=n119; n244:=n19;
+n243:=n110; n242:=n102; n241:=n100; n240:=n95; n239:=n97; n238:=n19;
+n237:=n81; n236:=n19; n235:=n19; n234:=n77; n233:=n71; n232:=n46; n231:=n65;
+n230:=n67; n229:=n60; n228:=n46; n227:=n54; n226:=n56; n225:=n19; n224:=n49;
+n223:=n41; n222:=n16; n221:=n35; n220:=n37; n219:=n30; n218:=n16; n217:=n24;
+n216:=n26; n215:=n19; n214:=n19; n213:=n19; n212:=n19; n211:=n19; n210:=n9;
+n209:=n9; n208:=n19; n207:=n19; n206:=n5; n205:=n5; n204:=n9; n203:=n19;
+n202:=n19
+ *)
+
 let test1_brs = " ⟹ 
 |  ⟹ 
 | 0 = n6 ⟹ n6 = n5

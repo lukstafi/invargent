@@ -600,7 +600,8 @@
     <math|A<rsup|\<leqslant\>>> with some occurrences of variables
     substituted according to some equations in
     <math|D<rsup|<wide|=|\<dot\>>>\<wedge\>D<rsup|=>>, but disregarding the
-    order of variables. (Choice point 2.)
+    order of variables. In case of single-variable equations, we can also
+    substitute some constants using some such equations. (Choice point 2.)
 
     <item>The answers are <math|A<rsub|i+1>=A<rsub|i>\<wedge\>A<rsup|\<leqslant\>><rprime|'>\<wedge\>A<rsup|=><rprime|'>>.
   </enumerate>
@@ -608,9 +609,18 @@
   Actually in the initial implementation, in step (6) we discard even more
   solutions. Rather than replacing some occurrences of variables in a given
   choice, we perform a full substitution: either replace all occurrences
-  using a given equation, or none. We might revert to a more thorough
-  exploration as descirbed in step (6), similar to choices made in abduction
-  for terms. First we need to collect a library of test cases.
+  using a given equation, or none. To handle substitutions of constants, we
+  split single-variable equations into <em|substitutions of 0>:
+  <math|x<wide|=|\<dot\>>0>, and <em|substitutions of 1>:
+  <math|x<wide|=|\<dot\>>c> for <math|c\<neq\>0>. To any equation or
+  inequality we apply at most one substitution of 0. In case a given equation
+  or inequality has a non-zero constant term, we apply at most one
+  substitution of 1. Substitutions of 0 and 1 are handled together with the
+  standard variable substitutions.
+
+  \ We might revert to a more thorough exploration of various linear
+  combinations, exploring more answers indicated in <cite|jcaqpTechRep2>. The
+  effort needs to be justified by practical examples.
 
   We use the <verbatim|nums> library for exact precision rationals.
 
