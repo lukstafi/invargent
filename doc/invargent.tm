@@ -603,6 +603,9 @@
     order of variables. In case of single-variable equations, we can also
     substitute some constants using some such equations. (Choice point 2.)
 
+    <item>Check validation condition for <math|A<rsub|i>\<wedge\>A<rsup|\<leqslant\>><rprime|'>\<wedge\>A<rsup|=><rprime|'>>,
+    and skipping answers.
+
     <item>The answers are <math|A<rsub|i+1>=A<rsub|i>\<wedge\>A<rsup|\<leqslant\>><rprime|'>\<wedge\>A<rsup|=><rprime|'>>.
   </enumerate>
 
@@ -1085,6 +1088,8 @@
       ArithQuantElim
 
       ArithQuantElim
+
+      jcaqpTechRep2
 
       jcaqpTechRep2
 

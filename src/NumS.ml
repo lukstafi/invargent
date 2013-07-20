@@ -278,19 +278,21 @@ let fvs_w (vars, _, _) = vars_of_list (List.map fst vars)
 exception Result of w_subst * ineqs
 
 let abd_simple cmp cmp_w uni_v params validate
-    skip eqs ineqs (prem, concl) =
+    skip eqs_i ineqs_i (prem, concl) =
   let skip = ref skip in
   try
     Format.printf
       "NumS.abd_simple: eqs=@ %a@\nineqs=@ %a@\nprem=@ %a@\nconcl=@ %a@\n%!"
-      pr_w_subst eqs pr_ineqs ineqs pr_formula prem pr_formula concl;
+      pr_w_subst eqs_i pr_ineqs ineqs_i pr_formula prem pr_formula concl;
     (* *)
+    (* 2 *)
     let d_eqs, (d_ineqs, d_implicits) =
-      solve ~eqs ~ineqs ~cnj:prem cmp cmp_w uni_v in
+      solve ~eqs:eqs_i ~ineqs:ineqs_i ~cnj:prem cmp cmp_w uni_v in
     (* let c_eqs, (c_ineqs, c_implicits) =
       solve ~eqs ~ineqs ~cnj:prem cmp cmp_w uni_v in *)
     let dc_eqs, (dc_ineqs, dc_implicits) =
-      solve ~eqs ~ineqs ~cnj:(prem @ concl) cmp cmp_w uni_v in
+      solve ~eqs:eqs_i ~ineqs:ineqs_i ~cnj:(prem @ concl) cmp cmp_w uni_v in
+    (* 3 *)
     let theta = unsubst dc_eqs @ dc_implicits in
     let theta_sb, _ = solve ~eqs:dc_eqs ~eqn:dc_implicits cmp cmp_w uni_v in
     let concl' = subst_ineqs cmp theta_sb dc_ineqs in
@@ -299,13 +301,25 @@ let abd_simple cmp cmp_w uni_v params validate
     let d_sb, _ = solve ~eqs:d_eqs ~eqn:d_implicits cmp cmp_w uni_v in
     let ans_eqs = List.map (subst_w cmp d_sb) theta in
     (* Algorithm in reverse order: *)
+    (* 7 *)
     (* We need to normalize the answer again after substitutions. *)
     let return eqn ineqn =
       try
-        let eqs, (ans_ineqs, implicits) =
+        let eqs, (ans_ineqs', implicits) =
           solve ~use_quants:true ~eqn ~ineqn cmp cmp_w uni_v in
-        let ans_eqs, _ =
+        let ans_eqs', _ =
           solve ~eqs ~eqn:implicits cmp cmp_w uni_v in
+        (* FIXME: ans_ineqs' already contains ans_ineqs? *)
+        let ans_eqs, (ans_ineqs, ans_implicits) =
+          solve ~eqs:eqs_i ~ineqs:ineqs_i ~eqs':ans_eqs'
+            ~ineqn:(unsolve ans_ineqs') cmp cmp_w uni_v in
+        let ans_eqs, _ =
+          solve ~eqs:ans_eqs ~eqn:ans_implicits cmp cmp_w uni_v in
+        Format.printf
+          "NumS.abd_simple: validating@\neqs'=@ %a@\nineqs'=@ %a@\neqs=@ %a@\nineqs=@ %a@\n%!"
+          pr_w_subst ans_eqs' pr_ineqs ans_ineqs'
+          pr_w_subst ans_eqs pr_ineqs ans_ineqs;
+        (* *)
         validate ans_eqs ans_ineqs;
         if !skip <= 0 then raise (Result (ans_eqs, ans_ineqs))
         else decr skip
@@ -314,6 +328,7 @@ let abd_simple cmp cmp_w uni_v params validate
       return
         (List.map (subst_cw cmp sb_cand) ans_eqs)
         (List.map (subst_cw cmp sb_cand) ans_ineqs) in
+    (* 6 *)
     (* Choice point 2. *)
     (* Iterate through all substitutions (as a product of equations
        for variables occurring in the answer, from premises [des] plus
@@ -346,6 +361,7 @@ let abd_simple cmp cmp_w uni_v params validate
         | _ -> None)
         des in
       product_iter (prepare ans_ineqs) (repls_0::repls_1::repls) in
+    (* 4 *)
     (* Compute the core by checking in turn whether conclusion atoms
        are implied by the premise and the partial answer so far. *)
     let rec core_fin ans_ineqs = function
@@ -413,15 +429,9 @@ let abd cmp_v uni_v ~bparams ?(alien_vs=[]) brs =
     | (skip, br as obr)::more_brs ->
       match abd_simple cmp cmp_w uni_v bparams validate
         skip ans_eqs ans_ineqs br with
-      | Some (ans_eqs', ans_ineqs') ->
-        let ans_eqs, (ans_ineqs, ans_implicits) =
-          solve ~eqs:ans_eqs ~ineqs:ans_ineqs ~eqs':ans_eqs'
-            ~ineqn:(unsolve ans_ineqs') cmp cmp_w uni_v in
-        let ans_eqs, _ =
-          solve ~eqs:ans_eqs ~eqn:ans_implicits cmp cmp_w uni_v in
+      | Some (ans_eqs, ans_ineqs) ->
         Format.printf
-          "NumS.abd-loop: progress@\neqs'=@ %a@\nineqs'=@ %a@\neqs=@ %a@\nineqs=@ %a@\n%!"
-          pr_w_subst ans_eqs' pr_ineqs ans_ineqs'
+          "NumS.abd-loop: progress eqs=@ %a@\nineqs=@ %a@\n%!"
           pr_w_subst ans_eqs pr_ineqs ans_ineqs;
         (* *)
         loop false ans_eqs ans_ineqs (obr::done_brs) more_brs
