@@ -170,6 +170,10 @@ let expand_atom equ (vars, cst, loc) =
   let right = match right with [t] -> t | _ -> Nadd right in
   if equ then Eqty (left, right, loc) else Leq (left, right, loc)
 
+let ans_to_formula (eqs, ineqs) =
+  List.map (expand_atom true) (unsubst eqs)
+  @ List.map (expand_atom false) (unsolve ineqs)
+
 (* FIXME: check quantifier violations *)
 let solve ?(use_quants=false) ?(params=VarSet.empty) ?(strict=false)
     ?(eqs=[]) ?(ineqs=[]) ?(eqs'=[])
@@ -277,8 +281,8 @@ let fvs_w (vars, _, _) = vars_of_list (List.map fst vars)
 
 exception Result of w_subst * ineqs
 
-let abd_simple cmp cmp_w uni_v params validate
-    skip eqs_i ineqs_i (prem, concl) =
+let abd_simple cmp cmp_w uni_v ~bparams ~validate
+    skip (eqs_i, ineqs_i) (prem, concl) =
   let skip = ref skip in
   try
     Format.printf
@@ -396,6 +400,8 @@ let abd_simple cmp cmp_w uni_v params validate
     with Result (ans_eqs, ans_ineqs) -> Some (ans_eqs, ans_ineqs)
   with Contradiction _ -> None
 
+let debug_dep = ref 0
+
 let abd cmp_v uni_v ~bparams ?(alien_vs=[]) brs =
   let cmp_v v1 v2 =
     match cmp_v v1 v2 with
@@ -413,10 +419,83 @@ let abd cmp_v uni_v ~bparams ?(alien_vs=[]) brs =
   let br0 = 0, List.hd brs in
   let more_brs = List.map (fun br -> -1, br) (List.tl brs) in
   let validate eqs (ineqs : ineqs) = List.iter
-    (fun (prem, _) ->
-      ignore (solve ~eqs ~ineqs ~cnj:prem
+    (fun (prem, concl) ->
+      ignore (solve ~use_quants:false ~eqs ~ineqs ~cnj:(prem @ concl)
                 cmp cmp_w uni_v))
     brs in
+
+  let time = ref (Sys.time ()) in
+  let rec loop acc runouts = function
+    | [] ->
+      let _, (prem, concl) =
+        Aux.maximum ~leq:(fun (i,_) (j,_) -> i<=j) runouts in
+      raise (Suspect ([],
+                      ans_to_formula acc
+                      @ prem @ concl,
+                      List.fold_left loc_union dummy_loc
+                        (List.map atom_loc concl)))
+    | (skip, br as obr)::more_brs ->
+      let ddepth = incr debug_dep; !debug_dep in
+      Format.printf
+        "NumS.abd-loop: [%d] skip=%d, #runouts=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
+        ddepth skip (List.length runouts) pr_formula (fst br) pr_formula
+        (snd br); (* *)
+      match abd_simple cmp cmp_w uni_v ~bparams
+        ~validate skip acc br with
+      | Some acc ->
+        let ntime = Sys.time () in
+          Format.printf "NumS.abd: loop ans: [%d] (%.2fs)@\neqs=%a@\nineqs=%a@\n%!" ddepth (ntime -. !time)
+          pr_w_subst (fst acc) pr_ineqs (snd acc); time := ntime; (* *)
+        check_runouts acc obr more_brs [] runouts
+      | None ->
+        Format.printf "NumS.abd: reset first [%d] at skip=%d@\n%!" ddepth
+          skip; (* *)
+        loop ([], []) ((0, br)::runouts) more_brs
+
+  and check_runouts acc (dskip, dbr as done_br)
+      more_brs done_runouts = function
+    | [] -> check_brs acc (List.rev done_runouts) [done_br] more_brs
+    | (confls, br as obr)::more_runouts ->
+      let ddepth = incr debug_dep; !debug_dep in
+      Format.printf
+        "NumS.abd-check_runouts: [%d] confls=%d, #done=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
+        ddepth confls (List.length done_runouts) pr_formula (fst br)
+        pr_formula (snd br); (* *)
+      match abd_simple cmp cmp_w uni_v ~bparams
+        ~validate 0 acc br with
+      | Some acc ->
+        let ntime = Sys.time () in
+          Format.printf "NumS.abd: runouts ans: [%d] (%.2fs)@\neqs=%a@\nineqs=%a@\n%!" ddepth (ntime -. !time)
+          pr_w_subst (fst acc) pr_ineqs (snd acc); time := ntime; (* *)
+        check_runouts acc done_br more_brs (obr::done_runouts) more_runouts
+      | None ->
+        Format.printf "NumS.abd: reset runouts [%d] at confls=%d@\n%!" ddepth
+          confls; (* *)
+        loop ([], [])
+          ((confls+1, br)::List.rev_append done_runouts more_runouts)
+          ((dskip+1, dbr)::more_brs)
+      
+  and check_brs acc runouts done_brs = function
+    | [] -> acc
+    | (skip, br as obr)::more_brs ->
+      let ddepth = incr debug_dep; !debug_dep in
+      Format.printf
+        "NumS.abd-check_brs: [%d] skip=%d, #done=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
+        ddepth skip (List.length done_brs) pr_formula (fst br) pr_formula
+        (snd br); (* *)
+      match abd_simple cmp cmp_w uni_v ~bparams
+        ~validate 0 acc br with
+      | Some acc ->
+        let ntime = Sys.time () in
+          Format.printf "NumS.abd: check ans: [%d] (%.2fs)@\neqs=%a@\nineqs=%a@\n%!" ddepth (ntime -. !time)
+          pr_w_subst (fst acc) pr_ineqs (snd acc); time := ntime; (* *)
+        check_brs acc runouts (obr::done_brs) more_brs
+      | None ->
+        Format.printf "NumS.abd: reset check [%d] at skip=%d@\n%!" ddepth
+     skip; (* *)
+        loop ([], [])
+          runouts ((skip+1, br)::List.rev_append done_brs more_brs) in
+  (*
   let rec loop first ans_eqs ans_ineqs done_brs = function
     | [] ->
       let ans = List.map (expand_atom true) (unsubst ans_eqs) in
@@ -448,7 +527,8 @@ let abd cmp_v uni_v ~bparams ?(alien_vs=[]) brs =
           raise (Suspect ([], ans @ snd br, loc))
         else loop true [] [] []
           ((skip+1, br)::List.rev_append done_brs more_brs) in
-  loop true [] [] [] (br0::more_brs)
+  *)
+  [], ans_to_formula (loop ([], []) [] (br0::more_brs))
 
 let abd_s cmp_v uni_v prem concl =
   let cmp_v v1 v2 =
@@ -464,8 +544,8 @@ let abd_s cmp_v uni_v prem concl =
     | [], _ -> 1
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
   let validate eqs (ineqs : ineqs) = () in
-  match abd_simple cmp cmp_w uni_v VarSet.empty validate
-    0 [] [] (prem, concl) with
+  match abd_simple cmp cmp_w uni_v ~bparams:[] ~validate
+    0 ([], []) (prem, concl) with
   | Some (ans_eqs, ans_ineqs) ->
     let ans = List.map (expand_atom true) (unsubst ans_eqs) in
     let ans = ans @ List.map (expand_atom false) (unsolve ans_ineqs) in

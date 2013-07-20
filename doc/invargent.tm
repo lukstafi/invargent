@@ -522,7 +522,7 @@
   of the ``dissociation'' issue, to uncover the full content of numeric sort
   constraints.
 
-  <subsection|Joint constraint abduction for linear arithmetic>
+  <subsection|Simple constraint abduction for linear arithmetic>
 
   We use <em|Fourier-Motzkin elimination>. To avoid complexities we initially
   only handle rational number domain, but if need arises we will extend to
@@ -626,6 +626,38 @@
   effort needs to be justified by practical examples.
 
   We use the <verbatim|nums> library for exact precision rationals.
+
+  <subsection|Joint constraint abduction for linear arithmetic>
+
+  We follow the scheme we established in joint constraint abduction for
+  terms.
+
+  We maintain an ordering of branches. We accumulate simple abduction answers
+  into the partial abduction answer until we meet branch that does not have
+  any answer satisfiable with the partial answer so far. Then we start over,
+  but put the branch that failed in front of the sequence. If a branch
+  <math|i> is at front for <math|n<rsub|i>>th time, we skip the initial
+  <math|n<rsub|i>-1> simple abduction answers in it. If no front branch
+  <math|i> has at least <math|n<rsub|i>> answers, the search fails. After an
+  answer working for all branches has been found, we perform additional
+  check, which encapsulates negative constraints introduced by
+  <verbatim|assert false> construct. If the check fails, we increase the skip
+  count of the head branch and repeat the search.
+
+  When a branch has no more solutions to offer -- its skip factor
+  <math|n<rsub|i>> has reached the number of fully maximal solutions to that
+  branch -- we move it to a separate <em|runouts> list and continue search
+  starting from a different branch. We do not increase its skip factor, but
+  we check the runouts directly after the first branch, so that conflicting
+  branches can be located. When the first branch conflicts with the runouts,
+  we increase its skip factor and repeat. We keep a count of conflicts for
+  the runouts so that in case of overall failure, we can report a branch
+  likely to be among those preventing abduction.
+
+  When searching for abduction answer fails, we raise exception
+  <verbatim|Suspect> that contains the partial answer conjoined with
+  conclusion of an implication that failed to produce an answer compatible
+  with remaining implications.
 
   <section|Disjunction Elimination>
 
@@ -1034,14 +1066,15 @@
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1>>
-    <associate|auto-10|<tuple|4|7>>
-    <associate|auto-11|<tuple|4.1|8>>
-    <associate|auto-12|<tuple|5|8>>
-    <associate|auto-13|<tuple|5.1|8>>
-    <associate|auto-14|<tuple|5.2|9>>
-    <associate|auto-15|<tuple|5.3|10>>
-    <associate|auto-16|<tuple|5.4|11>>
+    <associate|auto-10|<tuple|3.5|7>>
+    <associate|auto-11|<tuple|4|8>>
+    <associate|auto-12|<tuple|4.1|8>>
+    <associate|auto-13|<tuple|5|8>>
+    <associate|auto-14|<tuple|5.1|9>>
+    <associate|auto-15|<tuple|5.2|10>>
+    <associate|auto-16|<tuple|5.3|11>>
     <associate|auto-17|<tuple|5.4|11>>
+    <associate|auto-18|<tuple|5.4|?>>
     <associate|auto-2|<tuple|2|2>>
     <associate|auto-3|<tuple|2.1|3>>
     <associate|auto-4|<tuple|2.2|4>>
