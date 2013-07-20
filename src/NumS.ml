@@ -361,7 +361,7 @@ let abd_simple cmp cmp_w uni_v ~bparams ~validate
         des in
       let repls_1 = (Right true, ([], !/1, dummy_loc))::map_some
         (function ([v,k], c, loc) when c <>/ !/0 ->
-          Some (Right true, ([v, k // c], !/0, dummy_loc))
+          Some (Right true, ([v, !/(-1) */ k // c], !/0, dummy_loc))
         | _ -> None)
         des in
       product_iter (prepare ans_ineqs) (repls_0::repls_1::repls) in
