@@ -48,6 +48,18 @@ let pr_sw ppf (v, w) =
 let pr_w_subst ppf sb =
   Format.fprintf ppf "@[<2>%a@]" (pr_sep_list "," pr_sw) sb
 
+let pr_cw ppf (v, w) =
+  match v with
+  | Left v ->
+    Format.fprintf ppf "@[<2>%s@ =@ %a@]" (var_str v) pr_w w
+  | Right false ->
+    Format.fprintf ppf "@[<2>0 =@ %a@]" pr_w w
+  | Right true ->
+    Format.fprintf ppf "@[<2>1 =@ %a@]" pr_w w
+
+let pr_cw_subst ppf sb =
+  Format.fprintf ppf "@[<2>%a@]" (pr_sep_list "," pr_cw) sb
+
 let pr_ineq ppf (v, (wl, wr)) =
   Format.fprintf ppf "@[<2>[%a]@ ≤@ %s@ ≤@ [%a]@]"
     (pr_sep_list ";" pr_w) wl (var_str v) (pr_sep_list ";" pr_w) wr
@@ -329,7 +341,7 @@ let abd_simple cmp cmp_w uni_v ~params ~validate
         let eqs, _ =
           solve ~eqs ~eqn:implicits cmp cmp_w uni_v in
         Format.printf
-          "NumS.abd_simple: validating@\neqs=@ %a@\nineqs=@ %a@\n%!"
+          "NumS.abd_simple-return: validating@\neqs=@ %a@\nineqs=@ %a@\n%!"
           pr_w_subst eqs pr_ineqs ineqs;
         (* *)
         validate eqs ineqs;
@@ -337,6 +349,10 @@ let abd_simple cmp cmp_w uni_v ~params ~validate
         else decr skip
       with Contradiction _ -> () in
     let prepare ans_ineqs sb_cand =
+      Format.printf
+        "NumS.abd_simple-prepare: sb_cand=@ %a@\n%!"
+        pr_cw_subst sb_cand;
+      (* *)
       return
         (List.map (subst_cw cmp sb_cand) ans_eqs)
         (List.map (subst_cw cmp sb_cand) ans_ineqs) in
@@ -358,7 +374,7 @@ let abd_simple cmp cmp_w uni_v ~params ~validate
           (fun (vars, cst, loc) ->
             try
               let k, vars = pop_assoc v vars in
-              Some (Left v, mult k (vars, cst, loc))
+              Some (Left v, mult (!/(-1) */ k) (vars, cst, loc))
             with Not_found -> None)
           des)
         (VarSet.elements allvs) in
