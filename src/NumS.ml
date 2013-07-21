@@ -429,17 +429,17 @@ let abd_simple cmp cmp_w uni_v ~params ~alibi ~validate
 
 let debug_dep = ref 0
 
-let abd cmp_v uni_v ~bparams ?(alien_vs=VarSet.empty) brs =
+let abd cmp_v uni_v ~bparams ~zparams ?(alien_vs=VarSet.empty) brs =
   let cmp_v v1 v2 =
     let c1 = VarSet.mem v1 alien_vs
     and c2 = VarSet.mem v2 alien_vs in
-    if c1 && c2 then compare v1 v2
+    if c1 && c2 then compare v2 v1
     else if c1 then -1
     else if c2 then 1
     else match cmp_v v1 v2 with
     | Upstream -> 1
     | Downstream -> -1
-    | _ -> compare v1 v2 in
+    | _ -> compare v2 v1 in
   let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
   let cmp_w (vars1,cst1,_) (vars2,cst2,_) =
     match vars1, vars2 with
@@ -539,7 +539,7 @@ let abd_s cmp_v uni_v prem concl =
     match cmp_v v1 v2 with
     | Upstream -> 1
     | Downstream -> -1
-    | _ -> compare v1 v2 in
+    | _ -> compare v2 v1 in
   let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
   let cmp_w (vars1,cst1,_) (vars2,cst2,_) =
     match vars1, vars2 with
@@ -577,7 +577,7 @@ let disjelim cmp_v uni_v brs =
     else match cmp_v v1 v2 with
     | Upstream -> 1
     | Downstream -> -1
-    | _ -> compare v1 v2 in
+    | _ -> compare v2 v1 in
   let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
   let cmp_w (vars1,cst1,_) (vars2,cst2,_) =
     match vars1, vars2 with
@@ -691,7 +691,7 @@ let satisfiable cnj =
     match cmp_v v1 v2 with
     | Upstream -> 1
     | Downstream -> -1
-    | _ -> compare v1 v2 in
+    | _ -> compare v2 v1 in
   let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
   let cmp_w (vars1,_,_) (vars2,_,_) =
     match vars1, vars2 with
@@ -713,7 +713,7 @@ let holds cmp_v uni_v (eqs, ineqs : state) cnj : state =
     match cmp_v v1 v2 with
     | Upstream -> 1
     | Downstream -> -1
-    | _ -> compare v1 v2 in
+    | _ -> compare v2 v1 in
   let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
   let cmp_w (vars1,_,_) (vars2,_,_) =
     match vars1, vars2 with
