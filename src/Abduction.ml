@@ -697,9 +697,10 @@ let abd cmp_v uni_v ~params ~bparams ~zparams ~discard
     brs_num more_num in
   Format.printf "abd: solve for numbers@\n%!"; (* *)
   (* FIXME: add [discard] to NumS.abd *)
-  let alien_vs = List.filter
-    (function VNam (Num_sort, _) | VId (Num_sort, _) -> true
-    | _ -> false) tvs in
+  let alien_vs = vars_of_list
+    (List.filter
+       (function VNam (Num_sort, _) | VId (Num_sort, _) -> true
+       | _ -> false) tvs) in
   let nvs, ans_num = NumS.abd cmp_v uni_v ~bparams ~alien_vs brs_num in
   fallback,
   (nvs @ tvs,

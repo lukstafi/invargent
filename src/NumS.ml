@@ -174,12 +174,10 @@ let ans_to_formula (eqs, ineqs) =
   List.map (expand_atom true) (unsubst eqs)
   @ List.map (expand_atom false) (unsolve ineqs)
 
-(* FIXME: check quantifier violations *)
 let solve ?(use_quants=false) ?(params=VarSet.empty) ?(strict=false)
     ?(eqs=[]) ?(ineqs=[]) ?(eqs'=[])
     ?(eqn=[]) ?(ineqn=[]) ?(cnj=[])
     cmp cmp_w uni_v =
-  (* FIXME: use uni_v when use_quants. *)
   let eqs = if eqs' = [] then eqs else List.map
       (fun (v,eq) -> v, subst_w cmp eqs' eq) eqs @ eqs' in
   let ineqs = if eqs' = [] then ineqs else List.map
@@ -198,6 +196,14 @@ let solve ?(use_quants=false) ?(params=VarSet.empty) ?(strict=false)
   let eqn = List.sort cmp_w eqn in
   let rec elim acc = function
     | [] -> List.rev acc
+    | ((v, k)::vars, cst, loc)::eqn
+        when use_quants && uni_v v && not (VarSet.mem v params) ->
+      let t1, t2 =
+        match expand_atom true ((v, k)::vars, cst, loc) with
+        | Eqty (t1, t2, _) -> t1, t2
+        | _ -> assert false in
+      raise (Contradiction ("Quantifier violation (numeric equation)",
+                            Some (t1, t2), loc))
     | ((v, k)::vars, cst, loc)::eqn ->
       let w_sb = v, mult (!/(-1) // k) (vars, cst, loc) in
       let acc = subst_one_sb cmp w_sb acc in
@@ -246,6 +252,14 @@ let solve ?(use_quants=false) ?(params=VarSet.empty) ?(strict=false)
       proj ineqs implicits ineqn
     | ([], cst, loc)::_ ->
       raise (Contradiction ("Failed numeric inequality", None, loc))
+    | ((v, k)::vars, cst, loc)::ineqn
+        when use_quants && uni_v v && not (VarSet.mem v params) ->
+      let t1, t2 =
+        match expand_atom false ((v, k)::vars, cst, loc) with
+        | Leq (t1, t2, _) -> t1, t2
+        | _ -> assert false in
+      raise (Contradiction ("Quantifier violation (numeric inequality)",
+                            Some (t1, t2), loc))
     | ((v,k)::vars, cst, loc)::ineqn ->
       let (left, right), ineqs =
         try pop_assoc v ineqs with Not_found -> ([], []), ineqs in
@@ -281,7 +295,7 @@ let fvs_w (vars, _, _) = vars_of_list (List.map fst vars)
 
 exception Result of w_subst * ineqs
 
-let abd_simple cmp cmp_w uni_v ~bparams ~validate
+let abd_simple cmp cmp_w uni_v ~params ~validate
     skip (eqs_i, ineqs_i) (prem, concl) =
   let skip = ref skip in
   try
@@ -309,23 +323,17 @@ let abd_simple cmp cmp_w uni_v ~bparams ~validate
     (* We need to normalize the answer again after substitutions. *)
     let return eqn ineqn =
       try
-        let eqs, (ans_ineqs', implicits) =
-          solve ~use_quants:true ~eqn ~ineqn cmp cmp_w uni_v in
-        let ans_eqs', _ =
+        let eqs, (ineqs, implicits) =
+          solve ~use_quants:true ~params ~eqs:eqs_i ~ineqs:ineqs_i
+            ~eqn ~ineqn cmp cmp_w uni_v in
+        let eqs, _ =
           solve ~eqs ~eqn:implicits cmp cmp_w uni_v in
-        (* FIXME: ans_ineqs' already contains ans_ineqs? *)
-        let ans_eqs, (ans_ineqs, ans_implicits) =
-          solve ~eqs:eqs_i ~ineqs:ineqs_i ~eqs':ans_eqs'
-            ~ineqn:(unsolve ans_ineqs') cmp cmp_w uni_v in
-        let ans_eqs, _ =
-          solve ~eqs:ans_eqs ~eqn:ans_implicits cmp cmp_w uni_v in
         Format.printf
-          "NumS.abd_simple: validating@\neqs'=@ %a@\nineqs'=@ %a@\neqs=@ %a@\nineqs=@ %a@\n%!"
-          pr_w_subst ans_eqs' pr_ineqs ans_ineqs'
-          pr_w_subst ans_eqs pr_ineqs ans_ineqs;
+          "NumS.abd_simple: validating@\neqs=@ %a@\nineqs=@ %a@\n%!"
+          pr_w_subst eqs pr_ineqs ineqs;
         (* *)
-        validate ans_eqs ans_ineqs;
-        if !skip <= 0 then raise (Result (ans_eqs, ans_ineqs))
+        validate eqs ineqs;
+        if !skip <= 0 then raise (Result (eqs, ineqs))
         else decr skip
       with Contradiction _ -> () in
     let prepare ans_ineqs sb_cand =
@@ -402,9 +410,14 @@ let abd_simple cmp cmp_w uni_v ~bparams ~validate
 
 let debug_dep = ref 0
 
-let abd cmp_v uni_v ~bparams ?(alien_vs=[]) brs =
+let abd cmp_v uni_v ~bparams ?(alien_vs=VarSet.empty) brs =
   let cmp_v v1 v2 =
-    match cmp_v v1 v2 with
+    let c1 = VarSet.mem v1 alien_vs
+    and c2 = VarSet.mem v2 alien_vs in
+    if c1 && c2 then compare v1 v2
+    else if c1 then -1
+    else if c2 then 1
+    else match cmp_v v1 v2 with
     | Upstream -> 1
     | Downstream -> -1
     | _ -> compare v1 v2 in
@@ -415,6 +428,8 @@ let abd cmp_v uni_v ~bparams ?(alien_vs=[]) brs =
     | _, [] -> -1
     | [], _ -> 1
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
+  let params = List.fold_left
+    (fun acc (_,ps) -> VarSet.union acc ps) VarSet.empty bparams in
   Format.printf "NumS.abd: brs=@ %a@\n%!" Infer.pr_rbrs brs; (* *)
   let br0 = 0, List.hd brs in
   let more_brs = List.map (fun br -> -1, br) (List.tl brs) in
@@ -440,7 +455,7 @@ let abd cmp_v uni_v ~bparams ?(alien_vs=[]) brs =
         "NumS.abd-loop: [%d] skip=%d, #runouts=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
         ddepth skip (List.length runouts) pr_formula (fst br) pr_formula
         (snd br); (* *)
-      match abd_simple cmp cmp_w uni_v ~bparams
+      match abd_simple cmp cmp_w uni_v ~params
         ~validate skip acc br with
       | Some acc ->
         let ntime = Sys.time () in
@@ -461,7 +476,7 @@ let abd cmp_v uni_v ~bparams ?(alien_vs=[]) brs =
         "NumS.abd-check_runouts: [%d] confls=%d, #done=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
         ddepth confls (List.length done_runouts) pr_formula (fst br)
         pr_formula (snd br); (* *)
-      match abd_simple cmp cmp_w uni_v ~bparams
+      match abd_simple cmp cmp_w uni_v ~params
         ~validate 0 acc br with
       | Some acc ->
         let ntime = Sys.time () in
@@ -483,7 +498,7 @@ let abd cmp_v uni_v ~bparams ?(alien_vs=[]) brs =
         "NumS.abd-check_brs: [%d] skip=%d, #done=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
         ddepth skip (List.length done_brs) pr_formula (fst br) pr_formula
         (snd br); (* *)
-      match abd_simple cmp cmp_w uni_v ~bparams
+      match abd_simple cmp cmp_w uni_v ~params
         ~validate 0 acc br with
       | Some acc ->
         let ntime = Sys.time () in
@@ -495,39 +510,7 @@ let abd cmp_v uni_v ~bparams ?(alien_vs=[]) brs =
      skip; (* *)
         loop ([], [])
           runouts ((skip+1, br)::List.rev_append done_brs more_brs) in
-  (*
-  let rec loop first ans_eqs ans_ineqs done_brs = function
-    | [] ->
-      let ans = List.map (expand_atom true) (unsubst ans_eqs) in
-      let ans = ans @ List.map (expand_atom false) (unsolve ans_ineqs) in
-      Format.printf
-        "NumS.abd-loop: return eqs=@ %a@\nineqs=@ %a@\nans=@ %a@\n%!"
-        pr_w_subst ans_eqs pr_ineqs ans_ineqs pr_formula ans;
-      (* *)
-      [], ans
-    | (skip, br as obr)::more_brs ->
-      match abd_simple cmp cmp_w uni_v bparams validate
-        skip ans_eqs ans_ineqs br with
-      | Some (ans_eqs, ans_ineqs) ->
-        Format.printf
-          "NumS.abd-loop: progress eqs=@ %a@\nineqs=@ %a@\n%!"
-          pr_w_subst ans_eqs pr_ineqs ans_ineqs;
-        (* *)
-        loop false ans_eqs ans_ineqs (obr::done_brs) more_brs
-      | None ->
-        Format.printf
-          "NumS.abd-loop: reset at first=%b, skip=%d@\nprem=@ %a@\nconcl=@ %a@\n%!"
-          first skip pr_formula (fst br) pr_formula (snd br);
-        (* *)
-        if first then
-          let ans = List.map (expand_atom true) (unsubst ans_eqs) in
-          let ans = ans @ List.map (expand_atom false) (unsolve ans_ineqs) in
-          let loc = List.fold_left loc_union dummy_loc
-            (List.map atom_loc (snd br)) in
-          raise (Suspect ([], ans @ snd br, loc))
-        else loop true [] [] []
-          ((skip+1, br)::List.rev_append done_brs more_brs) in
-  *)
+
   [], ans_to_formula (loop ([], []) [] (br0::more_brs))
 
 let abd_s cmp_v uni_v prem concl =
@@ -544,7 +527,7 @@ let abd_s cmp_v uni_v prem concl =
     | [], _ -> 1
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
   let validate eqs (ineqs : ineqs) = () in
-  match abd_simple cmp cmp_w uni_v ~bparams:[] ~validate
+  match abd_simple cmp cmp_w uni_v ~validate ~params:VarSet.empty
     0 ([], []) (prem, concl) with
   | Some (ans_eqs, ans_ineqs) ->
     let ans = List.map (expand_atom true) (unsubst ans_eqs) in
