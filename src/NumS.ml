@@ -186,7 +186,8 @@ let ans_to_formula (eqs, ineqs) =
   List.map (expand_atom true) (unsubst eqs)
   @ List.map (expand_atom false) (unsolve ineqs)
 
-let solve ?(use_quants=false) ?(params=VarSet.empty) ?(strict=false)
+let solve ?(use_quants=false) ?(params=VarSet.empty)
+    ?(alibi=VarSet.empty) ?(strict=false)
     ?(eqs=[]) ?(ineqs=[]) ?(eqs'=[])
     ?(eqn=[]) ?(ineqn=[]) ?(cnj=[])
     cmp cmp_w uni_v =
@@ -209,7 +210,8 @@ let solve ?(use_quants=false) ?(params=VarSet.empty) ?(strict=false)
   let rec elim acc = function
     | [] -> List.rev acc
     | ((v, k)::vars, cst, loc)::eqn
-        when use_quants && uni_v v && not (VarSet.mem v params) ->
+        when use_quants && uni_v v && not (VarSet.mem v params)
+          && not (List.exists (fun (v,_) -> VarSet.mem v alibi) vars) ->
       let t1, t2 =
         match expand_atom true ((v, k)::vars, cst, loc) with
         | Eqty (t1, t2, _) -> t1, t2
@@ -265,7 +267,8 @@ let solve ?(use_quants=false) ?(params=VarSet.empty) ?(strict=false)
     | ([], cst, loc)::_ ->
       raise (Contradiction ("Failed numeric inequality", None, loc))
     | ((v, k)::vars, cst, loc)::ineqn
-        when use_quants && uni_v v && not (VarSet.mem v params) ->
+        when use_quants && uni_v v && not (VarSet.mem v params)
+          && not (List.exists (fun (v,_) -> VarSet.mem v alibi) vars) ->
       let t1, t2 =
         match expand_atom false ((v, k)::vars, cst, loc) with
         | Leq (t1, t2, _) -> t1, t2
@@ -307,7 +310,7 @@ let fvs_w (vars, _, _) = vars_of_list (List.map fst vars)
 
 exception Result of w_subst * ineqs
 
-let abd_simple cmp cmp_w uni_v ~params ~validate
+let abd_simple cmp cmp_w uni_v ~params ~alibi ~validate
     skip (eqs_i, ineqs_i) (prem, concl) =
   let skip = ref skip in
   try
@@ -336,7 +339,7 @@ let abd_simple cmp cmp_w uni_v ~params ~validate
     let return eqn ineqn =
       try
         let eqs, (ineqs, implicits) =
-          solve ~use_quants:true ~params ~eqs:eqs_i ~ineqs:ineqs_i
+          solve ~use_quants:true ~params ~alibi ~eqs:eqs_i ~ineqs:ineqs_i
             ~eqn ~ineqn cmp cmp_w uni_v in
         let eqs, _ =
           solve ~eqs ~eqn:implicits cmp cmp_w uni_v in
@@ -446,6 +449,8 @@ let abd cmp_v uni_v ~bparams ?(alien_vs=VarSet.empty) brs =
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
   let params = List.fold_left
     (fun acc (_,ps) -> VarSet.union acc ps) VarSet.empty bparams in
+  let alibi = List.fold_left
+    (fun acc (_,ps) -> VarSet.union acc ps) alien_vs zparams in
   Format.printf "NumS.abd: brs=@ %a@\n%!" Infer.pr_rbrs brs; (* *)
   let br0 = 0, List.hd brs in
   let more_brs = List.map (fun br -> -1, br) (List.tl brs) in
@@ -471,7 +476,7 @@ let abd cmp_v uni_v ~bparams ?(alien_vs=VarSet.empty) brs =
         "NumS.abd-loop: [%d] skip=%d, #runouts=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
         ddepth skip (List.length runouts) pr_formula (fst br) pr_formula
         (snd br); (* *)
-      match abd_simple cmp cmp_w uni_v ~params
+      match abd_simple cmp cmp_w uni_v ~params ~alibi
         ~validate skip acc br with
       | Some acc ->
         let ntime = Sys.time () in
@@ -492,7 +497,7 @@ let abd cmp_v uni_v ~bparams ?(alien_vs=VarSet.empty) brs =
         "NumS.abd-check_runouts: [%d] confls=%d, #done=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
         ddepth confls (List.length done_runouts) pr_formula (fst br)
         pr_formula (snd br); (* *)
-      match abd_simple cmp cmp_w uni_v ~params
+      match abd_simple cmp cmp_w uni_v ~params ~alibi
         ~validate 0 acc br with
       | Some acc ->
         let ntime = Sys.time () in
@@ -514,7 +519,7 @@ let abd cmp_v uni_v ~bparams ?(alien_vs=VarSet.empty) brs =
         "NumS.abd-check_brs: [%d] skip=%d, #done=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
         ddepth skip (List.length done_brs) pr_formula (fst br) pr_formula
         (snd br); (* *)
-      match abd_simple cmp cmp_w uni_v ~params
+      match abd_simple cmp cmp_w uni_v ~params ~alibi
         ~validate 0 acc br with
       | Some acc ->
         let ntime = Sys.time () in
@@ -543,7 +548,8 @@ let abd_s cmp_v uni_v prem concl =
     | [], _ -> 1
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
   let validate eqs (ineqs : ineqs) = () in
-  match abd_simple cmp cmp_w uni_v ~validate ~params:VarSet.empty
+  match abd_simple cmp cmp_w uni_v ~validate
+    ~params:VarSet.empty ~alibi:VarSet.empty
     0 ([], []) (prem, concl) with
   | Some (ans_eqs, ans_ineqs) ->
     let ans = List.map (expand_atom true) (unsubst ans_eqs) in

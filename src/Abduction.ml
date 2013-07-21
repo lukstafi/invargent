@@ -701,7 +701,8 @@ let abd cmp_v uni_v ~params ~bparams ~zparams ~discard
     (List.filter
        (function VNam (Num_sort, _) | VId (Num_sort, _) -> true
        | _ -> false) tvs) in
-  let nvs, ans_num = NumS.abd cmp_v uni_v ~bparams ~alien_vs brs_num in
+  let nvs, ans_num =
+    NumS.abd cmp_v uni_v ~bparams ~zparams ~alien_vs brs_num in
   fallback,
   (nvs @ tvs,
    Aux.map_append (fun (v,(t,lc)) -> Eqty (TVar v,t,lc))
