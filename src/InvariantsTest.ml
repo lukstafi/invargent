@@ -263,7 +263,7 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
 
   "binary plus" >::
     (fun () ->
-      todo "numeric";
+      (* todo "numeric"; *)
       test_case "binary plus"
 "newtype Binary : num
 newtype Carry : num

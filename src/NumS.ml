@@ -114,19 +114,27 @@ let subst_w cmp (eqs : w_subst) (vars, cst, loc : w) : w =
   let cst = List.fold_left (+/) cst csts in
   vars, cst, loc
 
-let subst_cw cmp (eqs : cw_subst) (vars, cst, loc : w) : w =
-  let sums = List.map
-    (fun (v,k) ->
-      try let vars, cst, _ = mult k (List.assoc (Left v) eqs) in
-          vars, cst
-      with Not_found -> [v,k], !/0)
-    vars in
-  let vars, csts = List.split sums in
-  let cst = List.fold_left (+/) cst csts in
-  let c_vars, cst =
-    let vars0 =
-      try let vars, _, _ = List.assoc (Right false) eqs in vars
-      with Not_found -> [] in
+(* FIXME: Substitutions of csts bad idea. Conceive of sth similar to
+   term abduction algo. *)
+let subst_cw cmp iseq (eqs : cw_subst) (vars, cst, loc : w) : w =
+  let has_0 = List.mem_assoc (Right false) eqs &&
+    let vars, _, _ = List.assoc (Right false) eqs in vars <> [] in
+  match vars with
+  | [v1,k] when cst =/ !/0 && has_0 ->
+    (let vars, _, _ = List.assoc (Right false) eqs in
+     match vars with (v2,_)::_ ->
+       if iseq || k >/ !/0 then [v1, !/1; v2, !/(-1)], !/0, loc
+       else [v1, !/(-1); v2, !/1], !/0, loc
+     | _ -> assert false)
+  | _ ->  
+    let sums = List.map
+      (fun (v,k) ->
+        try let vars, cst, _ = mult k (List.assoc (Left v) eqs) in
+            vars, cst
+        with Not_found -> [v,k], !/0)
+      vars in
+    let vars, csts = List.split sums in
+    let cst = List.fold_left (+/) cst csts in
     let vars1, cst =
       if cst <>/ !/0
       then
@@ -134,11 +142,10 @@ let subst_cw cmp (eqs : cw_subst) (vars, cst, loc : w) : w =
             vars, cst
         with Not_found -> [], cst
       else [], cst in
-    vars0 @ vars1, cst in
-  let vars = map_reduce (+/) (!/0) (List.concat (c_vars::vars)) in
-  let vars = List.sort cmp
-    (List.filter (fun (_,k) -> k <>/ !/0) vars) in  
-  vars, cst, loc
+    let vars = map_reduce (+/) (!/0) (List.concat (vars1::vars)) in
+    let vars = List.sort cmp
+      (List.filter (fun (_,k) -> k <>/ !/0) vars) in  
+    vars, cst, loc
 
 let subst_ineqs cmp eqs ineqs = List.map
   (fun (v, (left, right)) ->
@@ -357,8 +364,8 @@ let abd_simple cmp cmp_w uni_v ~params ~alibi ~validate
         pr_cw_subst sb_cand;
       (* *)
       return
-        (List.map (subst_cw cmp sb_cand) ans_eqs)
-        (List.map (subst_cw cmp sb_cand) ans_ineqs) in
+        (List.map (subst_cw cmp true sb_cand) ans_eqs)
+        (List.map (subst_cw cmp false sb_cand) ans_ineqs) in
     (* 6 *)
     (* Choice point 2. *)
     (* Iterate through all substitutions (as a product of equations
