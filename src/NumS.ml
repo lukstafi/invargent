@@ -67,6 +67,16 @@ let pr_ineq ppf (v, (wl, wr)) =
 let pr_ineqs ppf (ineqs : ineqs) =
   pr_sep_list "," pr_ineq ppf ineqs
 
+let pr_eq ppf w = Format.fprintf ppf "%a@ = 0" pr_w w
+let pr_ineq ppf w = Format.fprintf ppf "%a@ ≤ 0" pr_w w
+let pr_eqn ppf eqn =
+  pr_sep_list "," pr_eq ppf eqn
+let pr_ineqn ppf ineqn =
+  pr_sep_list "," pr_ineq ppf ineqn
+let pr_eqineq_br ppf ((d_eqn, d_ineqn), (c_eqn, c_ineqn)) =
+    Format.fprintf ppf "@[<2>%a,@ %a@ ⟹@ %a,@ %a@]"
+    pr_eqn d_eqn pr_ineqn d_ineqn
+    pr_eqn c_eqn pr_ineqn c_ineqn
 
 let unsubst sb =
   List.map (fun (v, (vars, cst, loc)) -> (v, !/(-1))::vars, cst, loc) sb
@@ -114,39 +124,6 @@ let subst_w cmp (eqs : w_subst) (vars, cst, loc : w) : w =
   let cst = List.fold_left (+/) cst csts in
   vars, cst, loc
 
-(* FIXME: Substitutions of csts bad idea. Conceive of sth similar to
-   term abduction algo. *)
-let subst_cw cmp iseq (eqs : cw_subst) (vars, cst, loc : w) : w =
-  let has_0 = List.mem_assoc (Right false) eqs &&
-    let vars, _, _ = List.assoc (Right false) eqs in vars <> [] in
-  match vars with
-  | [v1,k] when cst =/ !/0 && has_0 ->
-    (let vars, _, _ = List.assoc (Right false) eqs in
-     match vars with (v2,_)::_ ->
-       if iseq || k >/ !/0 then [v1, !/1; v2, !/(-1)], !/0, loc
-       else [v1, !/(-1); v2, !/1], !/0, loc
-     | _ -> assert false)
-  | _ ->  
-    let sums = List.map
-      (fun (v,k) ->
-        try let vars, cst, _ = mult k (List.assoc (Left v) eqs) in
-            vars, cst
-        with Not_found -> [v,k], !/0)
-      vars in
-    let vars, csts = List.split sums in
-    let cst = List.fold_left (+/) cst csts in
-    let vars1, cst =
-      if cst <>/ !/0
-      then
-        try let vars, cst, _ = mult cst (List.assoc (Right true) eqs) in
-            vars, cst
-        with Not_found -> [], cst
-      else [], cst in
-    let vars = map_reduce (+/) (!/0) (List.concat (vars1::vars)) in
-    let vars = List.sort cmp
-      (List.filter (fun (_,k) -> k <>/ !/0) vars) in  
-    vars, cst, loc
-
 let subst_ineqs cmp eqs ineqs = List.map
   (fun (v, (left, right)) ->
     v, (List.map (subst_w cmp eqs) left, List.map (subst_w cmp eqs) right))
@@ -192,6 +169,14 @@ let expand_atom equ (vars, cst, loc) =
 let ans_to_formula (eqs, ineqs) =
   List.map (expand_atom true) (unsubst eqs)
   @ List.map (expand_atom false) (unsolve ineqs)
+
+let eqineq_to_formula (eqn, ineqn) =
+  List.map (expand_atom true) eqn
+  @ List.map (expand_atom false) ineqn
+
+let eqineq_loc_union (eqn, ineqn) =
+  List.fold_left loc_union dummy_loc
+    (List.map (fun (_,_,lc) -> lc) (eqn @ ineqn))
 
 let solve ?(use_quants=false) ?(params=VarSet.empty)
     ?(alibi=VarSet.empty) ?(strict=false)
@@ -315,122 +300,142 @@ let solve ?(use_quants=false) ?(params=VarSet.empty)
 
 let fvs_w (vars, _, _) = vars_of_list (List.map fst vars)
 
+
+let abd_rotations = ref 2
+let abd_more_general = ref false
+
 exception Result of w_subst * ineqs
 
+let implies cmp cmp_w uni_v eqs ineqs c_eqn c_ineqn =
+  List.for_all
+    (fun w ->
+      match subst_w cmp eqs w with
+      | [], cst, _ -> cst =/ !/0
+      | _ -> false)
+    c_eqn
+  && List.for_all
+    (fun w ->
+      let ineqn = [mult !/(-1) w] in
+      try ignore
+            (solve ~strict:true ~eqs ~ineqs ~ineqn cmp cmp_w uni_v);
+          false
+      with Contradiction _ -> true)
+    c_ineqn
+
 let abd_simple cmp cmp_w uni_v ~params ~alibi ~validate
-    skip (eqs_i, ineqs_i) (prem, concl) =
+    skip (eqs_i, ineqs_i) ((d_eqn, d_ineqn), (c_eqn, c_ineqn)) =
   let skip = ref skip in
   try
     Format.printf
-      "NumS.abd_simple: eqs=@ %a@\nineqs=@ %a@\nprem=@ %a@\nconcl=@ %a@\n%!"
-      pr_w_subst eqs_i pr_ineqs ineqs_i pr_formula prem pr_formula concl;
+      "NumS.abd_simple: eqs=@ %a@\nineqs=@ %a@\nd_eqn=@ %a@ d_ineqn=@ %a@\nc_eqn=@ %a@ c_ineqn=@ %a@\n%!"
+      pr_w_subst eqs_i pr_ineqs ineqs_i pr_eqn d_eqn pr_ineqn d_ineqn
+      pr_eqn c_eqn pr_ineqn c_ineqn;
     (* *)
-    (* 2 *)
-    let d_eqs, (d_ineqs, d_implicits) =
-      solve ~eqs:eqs_i ~ineqs:ineqs_i ~cnj:prem cmp cmp_w uni_v in
-    (* let c_eqs, (c_ineqs, c_implicits) =
-      solve ~eqs ~ineqs ~cnj:prem cmp cmp_w uni_v in *)
-    let dc_eqs, (dc_ineqs, dc_implicits) =
-      solve ~eqs:eqs_i ~ineqs:ineqs_i ~cnj:(prem @ concl) cmp cmp_w uni_v in
-    (* 3 *)
-    let theta = unsubst dc_eqs @ dc_implicits in
-    let theta_sb, _ = solve ~eqs:dc_eqs ~eqn:dc_implicits cmp cmp_w uni_v in
-    let concl' = subst_ineqs cmp theta_sb dc_ineqs in
-    let prem' =  subst_ineqs cmp theta_sb d_ineqs in
-    let des = unsubst d_eqs @ d_implicits in
-    let d_sb, _ = solve ~eqs:d_eqs ~eqn:d_implicits cmp cmp_w uni_v in
-    let ans_eqs = List.map (subst_w cmp d_sb) theta in
-    (* Algorithm in reverse order: *)
-    (* 7 *)
-    (* We need to normalize the answer again after substitutions. *)
-    let return eqn ineqn =
-      try
-        let eqs, (ineqs, implicits) =
-          solve ~use_quants:true ~params ~alibi ~eqs:eqs_i ~ineqs:ineqs_i
-            ~eqn ~ineqn cmp cmp_w uni_v in
-        let eqs, _ =
-          solve ~eqs ~eqn:implicits cmp cmp_w uni_v in
-        Format.printf
-          "NumS.abd_simple-return: validating@\neqs=@ %a@\nineqs=@ %a@\n%!"
-          pr_w_subst eqs pr_ineqs ineqs;
-        (* *)
-        validate eqs ineqs;
-        if !skip <= 0 then raise (Result (eqs, ineqs))
-        else decr skip
-      with Contradiction _ -> () in
-    let prepare ans_ineqs sb_cand =
+    (* 1b *)
+    let rec loop eqs_acc ineqs_acc eq_trs ineq_trs eq_cands eq_retries
+        ineq_cands ineq_retries =
+      let a, iseq, isretry, eq_cands, eq_retries, ineq_cands, ineq_retries =
+        match eq_cands, eq_retries, ineq_cands, ineq_retries with
+        | a::eq_cands, eq_retries, ineq_cands, ineq_retries ->
+          a, true, false, eq_cands, eq_retries, ineq_cands, ineq_retries
+        | [], a::eq_retries, ineq_cands, ineq_retries ->
+          a, true, true, [], eq_retries, ineq_cands, ineq_retries
+        | [], [], a::ineq_cands, ineq_retries ->
+          a, false, false, [], [], ineq_cands, ineq_retries
+        | [], [], [], a::ineq_retries ->
+          a, false, true, [], [], [], ineq_retries
+        | [], [], [], [] ->
+          if !skip > 0 then
+            (decr skip; raise
+              (Contradiction ("Numeric SCA: skipping", None, dummy_loc)))
+          else raise (Result (eqs_acc, ineqs_acc)) in
+      (* TODO: optimize *)
+      (* 2 *)
+      let eqn = eq_retries @ eq_cands @ d_eqn in
+      let ineqn = ineq_retries @ ineq_cands @ d_ineqn in
+      let b_eqs, (b_ineqs, b_implicits) =
+        solve ~use_quants:false ~eqs:eqs_acc ~ineqs:ineqs_acc
+          ~eqn ~ineqn cmp cmp_w uni_v in
+      let b_eqs, (b_ineqs, _) =
+        solve ~use_quants:false ~eqs:b_eqs ~ineqs:b_ineqs
+          ~eqn:b_implicits cmp cmp_w uni_v in
+
       Format.printf
-        "NumS.abd_simple-prepare: sb_cand=@ %a@\n%!"
-        pr_cw_subst sb_cand;
+        "NumS.abd_simple-loop: iseq=%b isretry=%b@ a=@ %a@\nb_eqs=@ %a@\nb_ineqs=@ %a@\nineq_trs=@ %a@\n%!"
+        iseq isretry pr_w a pr_w_subst b_eqs pr_ineqs b_ineqs (pr_sep_list "," pr_w) ineq_trs;
       (* *)
-      return
-        (List.map (subst_cw cmp true sb_cand) ans_eqs)
-        (List.map (subst_cw cmp false sb_cand) ans_ineqs) in
-    (* 6 *)
-    (* Choice point 2. *)
-    (* Iterate through all substitutions (as a product of equations
-       for variables occurring in the answer, from premises [des] plus
-       "identity equation"). *)
-    let allvs = List.fold_left VarSet.union VarSet.empty
-      (List.map fvs_w ans_eqs) in
-    let rename ans_ineqs =
-      (* possible optimization:
-         if !skip = 0 then (return ans_eqs ans_ineqs; incr skip); *)
-      let allvs = VarSet.union allvs
-        (List.fold_left VarSet.union VarSet.empty
-           (List.map fvs_w ans_ineqs)) in
-      let repls = List.map
-        (fun v -> (Left v, ([v,!/1], !/0, dummy_loc))::map_some
-          (fun (vars, cst, loc) ->
-            try
-              let k, vars = pop_assoc v vars in
-              Some (Left v, mult (!/(-1) */ k) (vars, cst, loc))
-            with Not_found -> None)
-          des)
-        (VarSet.elements allvs) in
-      let repls_0 = (Right false, ([], !/0, dummy_loc))::map_some
-        (function ([v,_], c, loc) when c =/ !/0 ->
-          Some (Right false, ([v,!/1], !/0, dummy_loc))
-        | _ -> None)
-        des in
-      let repls_1 = (Right true, ([], !/1, dummy_loc))::map_some
-        (function ([v,k], c, loc) when c <>/ !/0 ->
-          Some (Right true, ([v, !/(-1) */ k // c], !/0, dummy_loc))
-        | _ -> None)
-        des in
-      product_iter (prepare ans_ineqs) (repls_0::repls_1::repls) in
-    (* 4 *)
-    (* Compute the core by checking in turn whether conclusion atoms
-       are implied by the premise and the partial answer so far. *)
-    let rec core_fin ans_ineqs = function
-      | [] -> rename ans_ineqs
-      | w::concl ->
-        (try
-           ignore (solve ~strict:true
-                      ~eqs:theta_sb ~ineqs:prem'
-                      ~ineqn:(mult !/(-1) w::ans_ineqs)
-                      cmp cmp_w uni_v);
-           (* does not imply w *)
-           core_fin (w::ans_ineqs) concl
-         with Contradiction _ ->
-           (* implies w *)
-           core_fin ans_ineqs concl) in
-    (* Choice point 1. *)
-    let rec core untried partial = function
-      | [] -> core_fin partial untried
-      | w::concl ->
-        (try
-           ignore (solve ~strict:true
-                      ~eqs:theta_sb ~ineqs:prem'
-                      ~ineqn:(mult !/(-1) w::partial)
-                      cmp cmp_w uni_v);
-           (* prem' does not imply w *)
-           core untried (w::partial) concl; (* choice 1a *)
-           core (w::untried) partial concl  (* choice 1b *)
-         with Contradiction _ ->
-           (* prem' implies w *)
-           core untried partial concl) in
-    try core [] [] (unsolve concl'); None
+      
+      if implies cmp cmp_w uni_v b_eqs b_ineqs c_eqn c_ineqn
+      then
+        (* 3 *)
+        let big_k = Array.init (!abd_rotations - 1) (fun k -> !/(k+2)) in
+        let ks =
+          (* 3b1 *)
+          if iseq then Array.to_list
+            (Array.append big_k (Array.map (fun k-> !/1 // k) big_k))
+          (* 3c1 *)
+          else Array.to_list big_k in
+        let ks =
+          if !abd_more_general then ks @ [!/1; !/0]
+          else !/0 :: !/1 :: ks in
+        let kas = List.map (fun k -> mult k a) ks in
+        let add_kas tr = List.map (fun ka -> sum_w cmp ka tr) kas in
+        let eq_trs, ineq_trs =
+          (* 3b2 *)
+          if iseq then concat_map add_kas eq_trs, concat_map add_kas ineq_trs
+          (* 3c2 *)
+          else eq_trs, concat_map add_kas ineq_trs in
+        loop eqs_acc ineqs_acc eq_trs ineq_trs eq_cands eq_retries
+          ineq_cands ineq_retries
+      else
+        (* 4 *)
+        (* [ineq_trs] include [eq_trs]! *)
+        let trs = if iseq then eq_trs else ineq_trs in
+        let passes = List.fold_left (fun passes tr ->
+          try
+            (* 4a *)
+            let a' = sum_w cmp tr a in
+            let eqn, ineqn = if iseq then [a'], [] else [], [a'] in
+            let eqs_acc, (ineqs_acc, acc_implicits) =
+              solve ~use_quants:true ~params ~alibi
+                ~eqs:eqs_acc ~ineqs:ineqs_acc
+                ~eqn ~ineqn cmp cmp_w uni_v in
+            let eqs_acc, (ineqs_acc, _) =
+              solve ~use_quants:true ~params ~alibi
+                ~eqs:eqs_acc ~ineqs:ineqs_acc
+                ~eqn:acc_implicits cmp cmp_w uni_v in
+            ignore (validate eqs_acc ineqs_acc);
+            (* 4d TODO *)
+            (*let ineq_trs =
+              if !passing_ineq_trs then
+              else ineq_trs in*)
+            (* 4e *)
+            (try                        (* choice point *)
+               loop eqs_acc ineqs_acc eq_trs ineq_trs eq_cands eq_retries
+                 ineq_cands ineq_retries
+             with Contradiction _ -> ());
+            true
+          with Contradiction _ -> passes
+        ) false trs in
+        if not passes then
+          if not isretry
+          then
+            (* 4b *)
+            let eq_retries, ineq_retries =
+              if iseq then eq_retries @ [a], ineq_retries
+              else eq_retries, ineq_retries @ [a] in
+            loop eqs_acc ineqs_acc eq_trs ineq_trs eq_cands eq_retries
+              ineq_cands ineq_retries
+          else
+            (* 4c *)
+            raise (Contradiction ("Could not solve numeric SCA",
+                                  None, dummy_loc))
+          
+    in
+    (* 1a *)
+    let zero = [], !/0, dummy_loc in
+    try loop eqs_i ineqs_i [zero] [zero] (c_eqn @ d_eqn) []
+          (c_ineqn @ d_ineqn) []; None
     with Result (ans_eqs, ans_ineqs) -> Some (ans_eqs, ans_ineqs)
   with Contradiction _ -> None
 
@@ -459,11 +464,18 @@ let abd cmp_v uni_v ~bparams ~zparams ?(alien_vs=VarSet.empty) brs =
   let alibi = List.fold_left
     (fun acc (_,ps) -> VarSet.union acc ps) alien_vs zparams in
   Format.printf "NumS.abd: brs=@ %a@\n%!" Infer.pr_rbrs brs; (* *)
+  let brs = List.map
+    (fun (prem, concl) ->
+      partition_map (flatten cmp) prem,
+      partition_map (flatten cmp) concl)
+    brs in
+
   let br0 = 0, List.hd brs in
   let more_brs = List.map (fun br -> -1, br) (List.tl brs) in
-  let validate eqs (ineqs : ineqs) = List.iter
-    (fun (prem, concl) ->
-      ignore (solve ~use_quants:false ~eqs ~ineqs ~cnj:(prem @ concl)
+  let validate eqs ineqs = List.iter
+    (fun ((d_eqn, d_ineqn), (c_eqn, c_ineqn)) ->
+      ignore (solve ~use_quants:false ~eqs ~ineqs
+                ~eqn:(d_eqn @ c_eqn) ~ineqn:(d_ineqn @ c_ineqn)
                 cmp cmp_w uni_v))
     brs in
 
@@ -474,15 +486,13 @@ let abd cmp_v uni_v ~bparams ~zparams ?(alien_vs=VarSet.empty) brs =
         Aux.maximum ~leq:(fun (i,_) (j,_) -> i<=j) runouts in
       raise (Suspect ([],
                       ans_to_formula acc
-                      @ prem @ concl,
-                      List.fold_left loc_union dummy_loc
-                        (List.map atom_loc concl)))
+                      @ eqineq_to_formula prem @ eqineq_to_formula concl,
+                      eqineq_loc_union concl))
     | (skip, br as obr)::more_brs ->
       let ddepth = incr debug_dep; !debug_dep in
       Format.printf
-        "NumS.abd-loop: [%d] skip=%d, #runouts=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
-        ddepth skip (List.length runouts) pr_formula (fst br) pr_formula
-        (snd br); (* *)
+        "NumS.abd-loop: [%d] skip=%d, #runouts=%d@\n%a@\n%!"
+        ddepth skip (List.length runouts) pr_eqineq_br br; (* *)
       match abd_simple cmp cmp_w uni_v ~params ~alibi
         ~validate skip acc br with
       | Some acc ->
@@ -501,9 +511,8 @@ let abd cmp_v uni_v ~bparams ~zparams ?(alien_vs=VarSet.empty) brs =
     | (confls, br as obr)::more_runouts ->
       let ddepth = incr debug_dep; !debug_dep in
       Format.printf
-        "NumS.abd-check_runouts: [%d] confls=%d, #done=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
-        ddepth confls (List.length done_runouts) pr_formula (fst br)
-        pr_formula (snd br); (* *)
+        "NumS.abd-check_runouts: [%d] confls=%d, #done=%d@\n%a@\n%!"
+        ddepth confls (List.length done_runouts) pr_eqineq_br br; (* *)
       match abd_simple cmp cmp_w uni_v ~params ~alibi
         ~validate 0 acc br with
       | Some acc ->
@@ -523,9 +532,8 @@ let abd cmp_v uni_v ~bparams ~zparams ?(alien_vs=VarSet.empty) brs =
     | (skip, br as obr)::more_brs ->
       let ddepth = incr debug_dep; !debug_dep in
       Format.printf
-        "NumS.abd-check_brs: [%d] skip=%d, #done=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
-        ddepth skip (List.length done_brs) pr_formula (fst br) pr_formula
-        (snd br); (* *)
+        "NumS.abd-check_brs: [%d] skip=%d, #done=%d@\n%a@\n%!"
+        ddepth skip (List.length done_brs) pr_eqineq_br br; (* *)
       match abd_simple cmp cmp_w uni_v ~params ~alibi
         ~validate 0 acc br with
       | Some acc ->
@@ -557,7 +565,9 @@ let abd_s cmp_v uni_v prem concl =
   let validate eqs (ineqs : ineqs) = () in
   match abd_simple cmp cmp_w uni_v ~validate
     ~params:VarSet.empty ~alibi:VarSet.empty
-    0 ([], []) (prem, concl) with
+    0 ([], [])
+    (partition_map (flatten cmp) prem,
+     partition_map (flatten cmp) concl) with
   | Some (ans_eqs, ans_ineqs) ->
     let ans = List.map (expand_atom true) (unsubst ans_eqs) in
     let ans = ans @ List.map (expand_atom false) (unsolve ans_ineqs) in

@@ -6,6 +6,11 @@
     @since Mar 2013
 *)
 
+(** How many linear combinations to try out *)
+val abd_rotations : int ref
+(** If [abd_more_general=false] works usually faster, if it doesn't work
+    try [abd_more_general=true] (gives the same or better answers) . *)
+val abd_more_general : bool ref
 (** For uniformity, we return an empty list as introduced
     variables. Raise [Suspect] if no answer can be found. *)
 val abd :

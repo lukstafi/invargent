@@ -554,76 +554,85 @@
   introducing known inequalities on eliminated variables to the projection
   process.
 
-  There are usually infinitely many answers to the simple constraint
-  abduction problem whenever equations or implicit equalities are involved.
-  The algorithm we develop follows our presentation in <cite|jcaqpTechRep2>,
-  but only considers answers achieved from canonical answers (cf.
-  <cite|jcaqpTechRep2>) by substitution of some occurrences of variables
-  according to some equations in the premise.
-
-  When we derive a substitution from a set of equations, we eliminate
-  variables that are maximally downstream, and using a fixed total order
-  among variables in the same quantifier alternation. Algorithm:
+  Our algorithm follows a familiar incrementally-generate-and-test scheme:
 
   <\enumerate>
-    <item>Let <math|A<rsub|i>=A<rsup|=><rsub|i>\<wedge\>A<rsup|\<leqslant\>><rsub|i>>
-    be the answer to previous SCA problems where <math|A<rsup|=><rsub|i>> are
-    equations and <math|A<rsup|\<leqslant\>><rsub|i>> are inequalities, and
-    <math|D\<Rightarrow\>C> be the current problem.
+    <item>Start from <math|A\<assign\>C\<wedge\>D,Acc\<assign\><around*|{||}>>.
+    Try atoms <math|A=a A<rprime|'>> in some order.
 
-    <item>Let <math|D<rsup|<wide|=|\<dot\>>>\<wedge\>D<rsup|=>\<wedge\>D<rsup|\<leqslant\>>=A<rsub|i><rsup|=><around*|(|D|)>>,
-    <math|C<rsup|<wide|=|\<dot\>>>\<wedge\>C<rsup|=>\<wedge\>C<rsup|\<leqslant\>>=A<rsub|i><rsup|=><around*|(|C|)>>
-    and <math|DC<rsup|<wide|=|\<dot\>>>\<wedge\>DC<rsup|=>\<wedge\>DC<rsup|\<leqslant\>>=A<rsub|i><rsup|=><around*|(|D\<wedge\>C|)>>,
-    where <math|D<rsup|<wide|=|\<dot\>>>>, resp.
-    <math|C<rsup|<wide|=|\<dot\>>>>, <math|DC<rsup|<wide|=|\<dot\>>>> are
-    equations, <math|D<rsup|=>>, resp. <math|C<rsup|=>>, <math|DC<rsup|=>>
-    are implicit equalities of <math|A<rsub|i><rsup|=><around*|(|D|)>>, resp.
-    <math|A<rsub|i><rsup|=><around*|(|C|)>>,
-    <math|A<rsub|i><rsup|=><around*|(|D\<wedge\>C|)>>.
+    <item>Let <math|B=A<rsub|i>\<wedge\>D\<wedge\>A<rprime|'>\<wedge\>Acc>.
 
-    <item>Let <math|\<theta\>=DC<rsup|<wide|=|\<dot\>>>\<wedge\>DC<rsup|=>>.
-    Let <math|D<rprime|'>=\<theta\><around*|(|D<rsup|\<leqslant\>>|)>> and
-    <math|C<rprime|'>=\<theta\><around*|(|DC<rsup|\<leqslant\>>|)>>, where
-    <math|\<theta\><around*|(|\<nosymbol\>\<cdummy\>|)>> is the substitution
-    corresponding to <math|\<theta\>>.
+    <item>If <math|B\<Rightarrow\>C>, remove <math|a> and store a linear
+    combination involving <math|a> as a possible transformation.
 
-    <item>Let <math|A<rsup|\<leqslant\>>> be a core of <math|C<rprime|'>>
-    w.r.t. <math|D<rprime|'>>. (Choice point 1.)
+    <\enumerate>
+      <item>We perform the combinations lazily: we collect a stack of
+      transformations. If <verbatim|abd_more_general> is set, stack bigger
+      transformations (bigger <math|<around*|\||k|\|>>) before smaller.
 
-    <item>Let <math|A<rsup|=>=<around*|[|D<rsup|<wide|=|\<dot\>>>\<wedge\>D<rsup|=>|]><around*|(|\<theta\>|)>>,
-    where <math|<around*|[|D<rsup|<wide|=|\<dot\>>>\<wedge\>D<rsup|=>|]><around*|(|\<cdot\>|)>>
-    is a substitution corresponding to equations in
-    <math|D<rsup|<wide|=|\<dot\>>>\<wedge\>D<rsup|=>>.
+      <item>For equations <math|a>, add combinations <math|k<rsup|s>*a+b> for
+      <math|k=-n\<ldots\>n,s=-1,1> to the stack of transformations to be
+      tried for all remaining atoms <math|b\<in\>A<rprime|'>>.
 
-    <item>Let <math|A<rsup|=><rprime|'>> resp.
-    <math|A<rsup|\<leqslant\>><rprime|'>> be <math|A<rsup|=>> resp.
-    <math|A<rsup|\<leqslant\>>> with some occurrences of variables
-    substituted according to some equations in
-    <math|D<rsup|<wide|=|\<dot\>>>\<wedge\>D<rsup|=>>, but disregarding the
-    order of variables. In case of single-variable equations, we can also
-    substitute some constants using some such equations. (Choice point 2.)
+      <item>For inequalities <math|a>, add combinations <math|k<rsup|s>*a+b>
+      for <math|k=0\<ldots\>n,s=-1,1> to the stack of trasformations to be
+      tried only for remaining inequalities <math|b\<in\>A<rprime|'>>.
+    </enumerate>
 
-    <item>Check validation condition for <math|A<rsub|i>\<wedge\>A<rsup|\<leqslant\>><rprime|'>\<wedge\>A<rsup|=><rprime|'>>,
-    and skipping answers.
+    <item>If <math|B\<nRightarrow\>C>, for a transformation
+    <math|a<rprime|'>> of <math|a> which passes validation against other
+    branches in a joint problem: <math|Acc\<assign\>Acc\<cup\><around*|{|a<rprime|'>|}>>,
+    or if all <math|a<rprime|'>> fail, keep <math|a> for a retry.
 
-    <item>The answers are <math|A<rsub|i+1>=A<rsub|i>\<wedge\>A<rsup|\<leqslant\>><rprime|'>\<wedge\>A<rsup|=><rprime|'>>.
+    <\enumerate>
+      <item>Let <math|a<rprime|'>> be <math|a> with some transformations
+      applied.
+
+      <item>If <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|'>|}>|)>>
+      does not pass <verbatim|validate> for all <math|a<rprime|'>> (not a
+      retry), repeat with <math|A\<assign\>A<rprime|'> a> (where <math|a> is
+      at the end).
+
+      <item>If <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|'>|}>|)>>
+      does not pass <verbatim|validate> for all <math|a<rprime|'>> of a retry
+      of <math|a>, fail.
+
+      <item>Optionally, if <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|'>|}>|)>>
+      passes <verbatim|validate> for inequality <math|a>, add combinations to
+      the stack of transformations as in step (3c).
+
+      <item>If <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|'>|}>|)>>
+      passes <verbatim|validate>, repeat with
+      <math|A\<assign\>A<rprime|'>,Acc\<assign\>Acc\<cup\><around*|{|a<rprime|'>|}>>.
+      (Choice point.)
+    </enumerate>
+
+    <item>The answers are <math|A<rsub|i+1>=A<rsub|i>\<wedge\>Acc>.
   </enumerate>
 
-  Actually in the initial implementation, in step (6) we discard even more
-  solutions. Rather than replacing some occurrences of variables in a given
-  choice, we perform a full substitution: either replace all occurrences
-  using a given equation, or none. To handle substitutions of constants, we
-  split single-variable equations into <em|substitutions of 0>:
-  <math|x<wide|=|\<dot\>>0>, and <em|substitutions of 1>:
-  <math|x<wide|=|\<dot\>>c> for <math|c\<neq\>0>. To any equation or
-  inequality we apply at most one substitution of 0. In case a given equation
-  or inequality has a non-zero constant term, we apply at most one
-  substitution of 1. Substitutions of 0 and 1 are handled together with the
-  standard variable substitutions.
+  Note that if an equation <math|a\<in\>Acc>, linear combinations with it
+  <math|a+b\<wedge\>Acc> would remain equivalent to original
+  <math|b\<wedge\>Acc>. For inequalities <math|a\<in\>Acc>, combinations
+  <math|a+b\<wedge\>Acc> are weaker than <math|b\<wedge\>Acc>, thus the
+  optional step (4d). We precompute the tranformation variants to try out.
+  The parameter <math|n> is called <verbatim|abd_rotations> and defaults to a
+  small value (2 or 3).
 
-  \ We might revert to a more thorough exploration of various linear
-  combinations, exploring more answers indicated in <cite|jcaqpTechRep2>. The
-  effort needs to be justified by practical examples.
+  The order of atoms in <math|A\<assign\>DC<rprime|'>> is lexically:
+  equations before inequalities, conclusion before premise.
+
+  To check whether <math|B\<Rightarrow\>C>, we check for each
+  <math|c\<in\>C>:
+
+  <\itemize>
+    <item>if <math|c=x<wide|=|\<dot\>>y>, that
+    <math|A<around*|(|x|)>=A<around*|(|y|)>>, where
+    <math|A<around*|(|\<cdummy\>|)>> is the substitution corresponding to
+    equations and implicit equalities in <math|A>;
+
+    <item>if <math|c=x<wide|\<leqslant\>|\<dot\>>y>, that
+    <math|B\<wedge\>y<wide|\<less\>|\<dot\>>x> is not satisfiable.
+  </itemize>
 
   We use the <verbatim|nums> library for exact precision rationals.
 
@@ -1069,12 +1078,12 @@
     <associate|auto-10|<tuple|3.5|7>>
     <associate|auto-11|<tuple|4|8>>
     <associate|auto-12|<tuple|4.1|8>>
-    <associate|auto-13|<tuple|5|8>>
+    <associate|auto-13|<tuple|5|9>>
     <associate|auto-14|<tuple|5.1|9>>
-    <associate|auto-15|<tuple|5.2|10>>
-    <associate|auto-16|<tuple|5.3|11>>
+    <associate|auto-15|<tuple|5.2|9>>
+    <associate|auto-16|<tuple|5.3|10>>
     <associate|auto-17|<tuple|5.4|11>>
-    <associate|auto-18|<tuple|5.4|?>>
+    <associate|auto-18|<tuple|5.4|11>>
     <associate|auto-2|<tuple|2|2>>
     <associate|auto-3|<tuple|2.1|3>>
     <associate|auto-4|<tuple|2.2|4>>
@@ -1083,8 +1092,8 @@
     <associate|auto-7|<tuple|3.2|5>>
     <associate|auto-8|<tuple|3.3|6>>
     <associate|auto-9|<tuple|3.4|6>>
-    <associate|bib-AbductionSolvMaher|<tuple|3|11>>
-    <associate|bib-AntiUnifAlg|<tuple|8|11>>
+    <associate|bib-AbductionSolvMaher|<tuple|3|12>>
+    <associate|bib-AntiUnifAlg|<tuple|8|12>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
@@ -1092,12 +1101,12 @@
     <associate|bib-ConvexHull|<tuple|2|11>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
-    <associate|bib-disjelimTechRep|<tuple|6|11>>
+    <associate|bib-disjelimTechRep|<tuple|6|12>>
     <associate|bib-jcaqpTechRep|<tuple|8|4>>
-    <associate|bib-jcaqpTechRep2|<tuple|7|11>>
-    <associate|bib-jcaqpUNIF|<tuple|4|11>>
+    <associate|bib-jcaqpTechRep2|<tuple|7|12>>
+    <associate|bib-jcaqpUNIF|<tuple|4|12>>
     <associate|bib-simonet-pottier-hmg-toplas|<tuple|6|4>>
-    <associate|bib-systemTechRep|<tuple|5|11>>
+    <associate|bib-systemTechRep|<tuple|5|12>>
   </collection>
 </references>
 
@@ -1121,12 +1130,6 @@
       ArithQuantElim
 
       ArithQuantElim
-
-      jcaqpTechRep2
-
-      jcaqpTechRep2
-
-      jcaqpTechRep2
 
       disjelimTechRep
 
@@ -1175,42 +1178,46 @@
       Alien Subterms <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-8>>
 
-      <with|par-left|<quote|1.5fn>|3.4<space|2spc>Joint constraint abduction
+      <with|par-left|<quote|1.5fn>|3.4<space|2spc>Simple constraint abduction
       for linear arithmetic <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-9>>
 
+      <with|par-left|<quote|1.5fn>|3.5<space|2spc>Joint constraint abduction
+      for linear arithmetic <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-10>>
+
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|4<space|2spc>Disjunction
       Elimination> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-10><vspace|0.5fn>
+      <no-break><pageref|auto-11><vspace|0.5fn>
 
       <with|par-left|<quote|1.5fn>|4.1<space|2spc>Extended convex hull
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-11>>
+      <no-break><pageref|auto-12>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|5<space|2spc>Solving
       for Predicate Variables> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-12><vspace|0.5fn>
+      <no-break><pageref|auto-13><vspace|0.5fn>
 
       <with|par-left|<quote|1.5fn>|5.1<space|2spc>Invariant Parameter
       Candidates <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-13>>
+      <no-break><pageref|auto-14>>
 
       <with|par-left|<quote|1.5fn>|5.2<space|2spc>Solving for Predicates in
       Negative Positions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-14>>
+      <no-break><pageref|auto-15>>
 
       <with|par-left|<quote|1.5fn>|5.3<space|2spc>Solving for Existential
       Types Predicates and Main Algorithm
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-15>>
+      <no-break><pageref|auto-16>>
 
       <with|par-left|<quote|1.5fn>|5.4<space|2spc>Implementation details
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-16>>
+      <no-break><pageref|auto-17>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-17><vspace|0.5fn>
+      <no-break><pageref|auto-18><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>

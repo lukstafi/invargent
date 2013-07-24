@@ -9,7 +9,7 @@ type skip_kind = Subset_old_mod | Superset_old_mod | Equ_old_mod
 val skip_kind : skip_kind ref
 
 (** If [more_general=false] works usually faster, if it doesn't work
-    try [more_general=true]. *)
+    try [more_general=true] (gives the same or better answers). *)
 val more_general : bool ref
 
 
