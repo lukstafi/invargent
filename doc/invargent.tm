@@ -489,7 +489,7 @@
   conclusion of an implication that failed to produce an answer compatible
   with remaining implications.
 
-  <subsection|Abduction for terms with Alien Subterms>
+  <subsection|Abduction for terms with Alien Subterms><label|AlienSubterms>
 
   The JCAQPAS problem is more complex than simply substituting alien subterms
   with variables and performing joint constraint abduction on resulting
@@ -506,13 +506,14 @@
   <math|N:s<rprime|'>\<rightarrow\>s<rsub|ty>\<in\>F> we pick. As in joint
   constraint abduction in general, the proliferation of simple abduction
   answers is not problematic in itself, but because it enlarges the search
-  space when looking for a solution of the joint constraints.
+  space when looking for a solution of the joint constraints. Term abduction
+  will offer answers that cannot be extended to multisort answers.
 
-  We solve the problem by preserving the joint abduction for terms algorithm,
-  and after a solution <math|\<exists\><wide|\<alpha\>|\<bar\>>.A> is found,
-  we ``<em|dissociate>'' the alien subterms (including variables) in <math|A>
-  as follows. We replace every alien subterm <math|n<rsub|s>> in <math|A>
-  (including variables, even parameters) with a fresh variable
+  One might mitigate the problem by preserving the joint abduction for terms
+  algorithm, and after a solution <math|\<exists\><wide|\<alpha\>|\<bar\>>.A>
+  is found, ``<em|dissociating>'' the alien subterms (including variables) in
+  <math|A> as follows. We replace every alien subterm <math|n<rsub|s>> in
+  <math|A> (including variables, even parameters) with a fresh variable
   <math|\<alpha\><rsub|s>>, which results in <math|A<rprime|'>> (in
   particular <math|A<rprime|'><around*|[|<wide|\<alpha\><rsub|s>|\<bar\>>\<assign\><wide|n<rsub|s>|\<bar\>>|]>=A>).
   Subsets <math|A<rsub|i>\<subset\><wide|\<alpha\><rsub|s><wide|=|\<dot\>>n<rsub|s>|\<bar\>>>
@@ -521,6 +522,16 @@
   process at the end of <verbatim|ans_typ>. This process is needed regardless
   of the ``dissociation'' issue, to uncover the full content of numeric sort
   constraints.
+
+  For efficiency, we use a slightly different approach. On the first
+  iteration of the main algorithm, we dissociate alien subterms, but we do
+  not perform other-sort abduction at all. On the next iteration, we do not
+  perform dissociation, as we expect the dissociation in the partial answers
+  (to predicate variables) from the first step to be sufficient. Other-sort
+  abduction algorithms now have less work, because only a fraction of alien
+  subterm variables <math|\<alpha\><rsub|s>> remain in the partial answers
+  (see main algorithm in section <reference|MainAlgo>). They also have more
+  information to work with, present in the instatiation of partial answers.
 
   <subsection|Simple constraint abduction for linear arithmetic>
 
@@ -745,7 +756,7 @@
   <math|D<rsub|i>>, by substituting out such variables. We pass the resulting
   inequalities to the convex hull algorithm.
 
-  <section|Solving for Predicate Variables>
+  <section|Solving for Predicate Variables><label|MainAlgo>
 
   As we decided to provide the first solution to abduction problems, we
   similarly simplify the task of solving for predicate variables. Instead of
@@ -995,6 +1006,11 @@
   <math|\<cal-Q\>>, i.e. the first <verbatim|b> in the <verbatim|q.negbs>
   list, for which <math|x<rsub|\<prec\>><around*|(|<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>><wide|\<zeta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<cap\>FV<around*|(|c|)>|)>\<cap\><wide|\<beta\>|\<bar\>><rsup|\<chi\>><wide|\<zeta\>|\<bar\>><rsup|\<chi\>>\<neq\>\<varnothing\>>.
 
+  The main loop of the main algorithm also decides whether multisort
+  abduction should dissociate alien subterms -- in the first step of the loop
+  or during fallback -- or should perform abductions for other sorts -- in
+  subsequent steps. See discussion in subsection <reference|AlienSubterms>.
+
   \;
 
   <\bibliography|bib|tm-plain|biblio.bib>
@@ -1058,7 +1074,9 @@
 <\references>
   <\collection>
     <associate|1|<tuple|5.2|?>>
+    <associate|AlienSubterms|<tuple|3.3|?>>
     <associate|ImplSubst|<tuple|4|2>>
+    <associate|MainAlgo|<tuple|5|?>>
     <associate|SepProp|<tuple|5|3>>
     <associate|SepProp2|<tuple|6|?>>
     <associate|SolSimpl|<tuple|8|10>>
