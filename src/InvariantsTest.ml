@@ -269,8 +269,8 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
 newtype Carry : num
 
 newcons Zero : Binary 0
-newcons PZero : ∀n. Binary(n) ⟶ Binary(n+n)
-newcons POne : ∀n. Binary(n) ⟶ Binary(n+n+1)
+newcons PZero : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n)
+newcons POne : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n+1)
 
 newcons CZero : Carry 0
 newcons COne : Carry 1
@@ -336,7 +336,7 @@ let rec plus =
    - n82=0: case B is 0
    - t80, n83=2*n84+1, n84=n85=0: C
    - n86=n88=2*n89: B ends with 0
-   - n90=2*n91+1, n91=n89: C=B
+   - n90=2*n91+1, n91=n89: C = B+1
    - n94=2*n95+1: B ends with 1
    - n96=2*n97: C ends with 0
    - recursive call carry=n102=1, A=n100=0, B=n95

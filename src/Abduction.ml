@@ -471,7 +471,8 @@ let abd_simple cmp_v uni_v ?params ?bparams ?zparams
 
 (* let max_skip = ref 20 *)
 
-let abd_typ cmp_v uni_v ~params ~bparams ~zparams ~validate ~discard brs =
+let abd_typ cmp_v uni_v ~params ~bparams ~zparams
+    ?(dissociate=false) ~validate ~discard brs =
   Format.printf "abd_typ:@ bparams=@ %a@\nzparams=@ %a@\n%!"
     pr_vparams bparams pr_vparams zparams; (* *)
   let br0 = 0, List.hd brs in
@@ -561,10 +562,13 @@ let abd_typ cmp_v uni_v ~params ~bparams ~zparams ~validate ~discard brs =
     | TCons (n, tys) -> TCons (n, List.map aux tys)
     | Fun (t1, t2) -> Fun (aux t1, aux t2)
     | (TVar _ | NCst _ | Nadd _) as t -> t in
-  let ans = List.map (fun (v,(t,lc)) -> v, (aux t, lc)) ans in
+  let ans =
+    if dissociate
+    then List.map (fun (v,(t,lc)) -> v, (aux t, lc)) ans
+    else ans in
   let vs = !alien_vs @ vs in
-  Format.printf "abd_typ: dissociated vs=%s@\nalien=@ %a@\nans=%a@\n%!"
-    (String.concat ","(List.map var_str vs))
+  Format.printf "abd_typ: dissociated %b vs=%s@\nalien=@ %a@\nans=%a@\n%!"
+    dissociate (String.concat ","(List.map var_str vs))
     pr_subst !alien_eqs
     pr_subst ans; (* *)
   let num = List.map
@@ -628,7 +632,7 @@ let abd_mockup_num cmp_v uni_v ~params ~bparams ~zparams brs =
             brs_num more_num)
   with Suspect _ -> None
 
-let abd cmp_v uni_v ~params ~bparams ~zparams ~discard
+let abd cmp_v uni_v ~params ~bparams ~zparams ?(dissociate=false) ~discard
     ~fallback brs =
   (* Do not change the order and no. of branches afterwards. *)
   Format.printf "abd: prepare branches@\n%!"; (* *)
@@ -691,7 +695,7 @@ let abd cmp_v uni_v ~params ~bparams ~zparams ~discard
      (* *)
   let tvs, ans_typ, more_num =
     abd_typ cmp_v uni_v ~params ~bparams ~zparams
-      ~validate ~discard:discard_typ brs_typ in
+      ~dissociate ~validate ~discard:discard_typ brs_typ in
   let brs_num = List.map2
     (fun (prem,concl) more -> prem, more @ concl)
     brs_num more_num in
@@ -702,7 +706,8 @@ let abd cmp_v uni_v ~params ~bparams ~zparams ~discard
        (function VNam (Num_sort, _) | VId (Num_sort, _) -> true
        | _ -> false) tvs) in
   let nvs, ans_num =
-    NumS.abd cmp_v uni_v ~bparams ~zparams ~alien_vs brs_num in
+    if dissociate then [], []
+    else NumS.abd cmp_v uni_v ~bparams ~zparams ~alien_vs brs_num in
   fallback,
   (nvs @ tvs,
    Aux.map_append (fun (v,(t,lc)) -> Eqty (TVar v,t,lc))

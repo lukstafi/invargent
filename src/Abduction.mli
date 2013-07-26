@@ -33,6 +33,7 @@ val abd_typ :
   params:Terms.VarSet.t ->
   bparams:vparams ->
   zparams:vparams ->
+  ?dissociate:bool ->
   validate:(Terms.VarSet.t option -> Terms.var_name list -> Terms.subst -> unit) ->
   discard:Terms.subst ->
   (Terms.subst * Terms.subst) list ->
@@ -45,6 +46,7 @@ val abd :
   params:Terms.VarSet.t ->
   bparams:vparams ->
   zparams:vparams ->
+  ?dissociate:bool ->
   discard:Terms.formula ->
   fallback:(Terms.formula * Terms.formula) list ->
   (Terms.formula * Terms.formula) list ->

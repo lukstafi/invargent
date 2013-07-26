@@ -451,6 +451,7 @@ let solve cmp_v uni_v brs =
   let solT = List.map
     (fun i -> i, ([], []))
     (Ints.elements q.allchi) in
+  let brsT = sb_brs_pred q solT brs in
   (* 1 *)
   let chiK = collect
     (concat_map
@@ -459,7 +460,7 @@ let solve cmp_v uni_v brs =
            Some ((i,t2), Eqty (TVar delta, t1, dummy_loc) :: prem @ concl)
          | _ -> None) concl) brs) in
   let chiK = List.map (fun ((i,t2),cnjs) -> i, (t2, cnjs)) chiK in
-  let rec loop discard sol0 brs0 sol1 =
+  let rec loop dissociate discard sol0 brs0 sol1 =
     let gK = List.map
       (fun (i,(t2,cnjs)) ->
         i, connected delta (DisjElim.disjelim cmp_v uni_v cnjs)) chiK in
@@ -545,7 +546,7 @@ let solve cmp_v uni_v brs =
       VarSet.empty bparams zparams in
     let fallback, (vs, ans) =
       try Abduction.abd cmp_v uni_v ~params ~bparams ~zparams
-            ~discard ~fallback:brs0 brs1
+            ~dissociate ~discard ~fallback:brs0 brs1
       with Suspect (vs, phi, lc) ->
         try
           Format.printf "solve: abduction failed: phi=@ %a@\n%!"
@@ -618,13 +619,13 @@ let solve cmp_v uni_v brs =
           sol1 in    
         (* 10 *)
         let sol2 = converge sol0 sol1 sol2 in
-        loop discard sol1 brs1 sol2
+        loop false discard sol1 brs1 sol2
     with Fallback (more_discard, a, b, c) ->
       Format.printf "Fallback: more=@ %a@\n%!" pr_formula more_discard;
       let more_discard = list_diff more_discard discard in
       if more_discard = [] then raise (Contradiction (a,b,c))
-      else loop (more_discard @ discard) sol0 brs0 sol1 in
-  let sol = loop [] solT (sb_brs_pred q solT brs) solT in
+      else loop true (more_discard @ discard) sol0 brs0 sol1 in
+  let sol = loop true [] solT brsT solT in
   Format.printf "solve: checking assert false@\n%!"; (* *)
   List.iter (fun (cnj, loc) ->
     try
