@@ -261,3 +261,41 @@ let pop_assoc x l =
       if compare a x = 0 then b, List.rev_append acc l
       else aux (pair :: acc) l in
   aux [] l
+
+(** {2 Lazy lists} *)
+type 'a lazy_list = 'a lazy_list_ Lazy.t
+and 'a lazy_list_ = LazNil | LazCons of 'a * 'a lazy_list
+let rec laztake n = function
+ | lazy (LazCons (a, l)) when n > 0 ->
+   a::(laztake (n-1) l)
+ | _ -> []
+let rec append_aux l1 l2 =
+  match l1 with lazy LazNil -> Lazy.force l2
+  | lazy (LazCons (hd, tl)) ->
+    LazCons (hd, lazy (append_aux tl l2))
+let lazappend l1 l2 = lazy (append_aux l1 l2)
+let rec concat_map_aux f = function
+  | lazy LazNil -> LazNil
+  | lazy (LazCons (a, l)) ->
+    append_aux (f a) (lazy (concat_map_aux f l))
+let lazconcat_map f l = lazy (concat_map_aux f l)
+let rec map_aux f = function
+  | lazy LazNil -> LazNil
+  | lazy (LazCons (a, l)) ->
+    LazCons (f a, lazy (map_aux f l))
+let lazmap f l = lazy (map_aux f l)
+let rec laziter f = function
+  | lazy LazNil -> ()
+  | lazy (LazCons (a, l)) ->
+    let () = f a in
+    laziter f l
+let rec of_list_aux = function
+  | [] -> LazNil
+  | a::l -> LazCons (a, lazy (of_list_aux l))
+let laz_of_list l = lazy (of_list_aux l)
+let laznil = lazy LazNil
+let laz_single a = lazy (LazCons (a, lazy LazNil))
+(*
+let pr_lazy_list_aux f ppf = function
+  | lazy LazNil -> 
+*)

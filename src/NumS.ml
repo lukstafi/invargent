@@ -302,9 +302,11 @@ let fvs_w (vars, _, _) = vars_of_list (List.map fst vars)
 
 
 let abd_rotations = ref 2
-let abd_more_general = ref false
 
 exception Result of w_subst * ineqs
+
+let debug_dep = ref 0
+let no_pass_msg = "Could not solve numeric SCA (algorithm step 5b)"
 
 let implies cmp cmp_w uni_v eqs ineqs c_eqn c_ineqn =
   List.for_all
@@ -325,76 +327,88 @@ let implies cmp cmp_w uni_v eqs ineqs c_eqn c_ineqn =
 let abd_simple cmp cmp_w uni_v ~params ~alibi ~validate
     skip (eqs_i, ineqs_i) ((d_eqn, d_ineqn), (c_eqn, c_ineqn)) =
   let skip = ref skip in
+  (* 1 *)
+  let big_k = Array.init (!abd_rotations - 1) (fun k -> !/(k+2)) in
+  let big_k =
+    Array.append big_k (Array.map (fun k-> !/1 // k) big_k) in
+  let ks_eq = (* 1a1 *)
+    Array.to_list
+      (Array.append [|!/0; !/1; !/(-1)|]
+         (Array.append big_k (Array.map (fun k -> !/(-1) */ k) big_k))) in
+  let ks_ineq = (* 1b1 *)
+    Array.to_list (Array.append [|!/0; !/1|] big_k) in
+  let ks_eq = laz_of_list ks_eq
+  and ks_ineq = laz_of_list ks_ineq in
+  let zero = [], !/0, dummy_loc in
+  let eq_trs = List.fold_left
+    (fun eq_trs a ->
+      let kas = lazmap (fun k -> mult k a) ks_eq in
+      let add_kas tr = lazmap (fun ka -> sum_w cmp ka tr) kas in
+      lazconcat_map add_kas eq_trs)
+    (laz_single zero) d_eqn in
+  let ineq_trs = List.fold_left
+    (fun ineq_trs a ->
+      let kas = lazmap (fun k -> mult k a) ks_ineq in
+      let add_kas tr = lazmap (fun ka -> sum_w cmp ka tr) kas in
+      lazconcat_map add_kas ineq_trs)
+    eq_trs d_ineqn in
+  (* Format.printf
+     "NumS.abd_simple: [%d] 1. ks=%s@\n%!" ddepth
+     (String.concat "," (List.map Num.string_of_num ks));
+     * *)
   try
-    Format.printf
-      "NumS.abd_simple: eqs=@ %a@\nineqs=@ %a@\nd_eqn=@ %a@ d_ineqn=@ %a@\nc_eqn=@ %a@ c_ineqn=@ %a@\n%!"
-      pr_w_subst eqs_i pr_ineqs ineqs_i pr_eqn d_eqn pr_ineqn d_ineqn
-      pr_eqn c_eqn pr_ineqn c_ineqn;
-    (* *)
-    (* 1b *)
-    let rec loop eqs_acc ineqs_acc eq_trs ineq_trs eq_cands eq_retries
-        ineq_cands ineq_retries =
-      let a, iseq, isretry, eq_cands, eq_retries, ineq_cands, ineq_retries =
-        match eq_cands, eq_retries, ineq_cands, ineq_retries with
-        | a::eq_cands, eq_retries, ineq_cands, ineq_retries ->
-          a, true, false, eq_cands, eq_retries, ineq_cands, ineq_retries
-        | [], a::eq_retries, ineq_cands, ineq_retries ->
-          a, true, true, [], eq_retries, ineq_cands, ineq_retries
-        | [], [], a::ineq_cands, ineq_retries ->
-          a, false, false, [], [], ineq_cands, ineq_retries
-        | [], [], [], a::ineq_retries ->
-          a, false, true, [], [], [], ineq_retries
-        | [], [], [], [] ->
+    (* Format.printf
+       "NumS.abd_simple: 1. eqs=@ %a@\nineqs=@ %a@\nd_eqn=@ %a@ d_ineqn=@ %a@\nc_eqn=@ %a@ c_ineqn=@ %a@\n%!"
+       pr_w_subst eqs_i pr_ineqs ineqs_i pr_eqn d_eqn pr_ineqn d_ineqn
+       pr_eqn c_eqn pr_ineqn c_ineqn;
+       * *)
+    (* 2 *)
+    let rec loop eqs_acc ineqs_acc eq_cands ineq_cands =
+      let ddepth = incr debug_dep; !debug_dep in
+      let a, iseq, eq_cands, ineq_cands =
+        match eq_cands, ineq_cands with
+        | a::eq_cands, ineq_cands ->
+          a, true, eq_cands, ineq_cands
+        | [], a::ineq_cands ->
+          a, false, [], ineq_cands
+        | [], [] ->
           if !skip > 0 then
             (decr skip; raise
               (Contradiction ("Numeric SCA: skipping", None, dummy_loc)))
           else raise (Result (eqs_acc, ineqs_acc)) in
-      (* TODO: optimize *)
-      (* 2 *)
-      let eqn = eq_retries @ eq_cands @ d_eqn in
-      let ineqn = ineq_retries @ ineq_cands @ d_ineqn in
+      (* 3 *)
+      let eqn = eq_cands @ d_eqn in
+      let ineqn = ineq_cands @ d_ineqn in
       let b_eqs, (b_ineqs, b_implicits) =
         solve ~use_quants:false ~eqs:eqs_acc ~ineqs:ineqs_acc
           ~eqn ~ineqn cmp cmp_w uni_v in
       let b_eqs, (b_ineqs, _) =
         solve ~use_quants:false ~eqs:b_eqs ~ineqs:b_ineqs
           ~eqn:b_implicits cmp cmp_w uni_v in
-
-      Format.printf
-        "NumS.abd_simple-loop: iseq=%b isretry=%b@ a=@ %a@\nb_eqs=@ %a@\nb_ineqs=@ %a@\nineq_trs=@ %a@\n%!"
-        iseq isretry pr_w a pr_w_subst b_eqs pr_ineqs b_ineqs (pr_sep_list "," pr_w) ineq_trs;
-      (* *)
+      (* Format.printf
+         "NumS.abd_simple: [%d] 3. iseq=%b@ a=@ %a@\nb_eqs=@ %a@\nb_ineqs=@ %a@\n%!"
+         ddepth iseq pr_w a pr_w_subst b_eqs pr_ineqs b_ineqs;
+         * *)
       
       if implies cmp cmp_w uni_v b_eqs b_ineqs c_eqn c_ineqn
       then
-        (* 3 *)
-        let big_k = Array.init (!abd_rotations - 1) (fun k -> !/(k+2)) in
-        let ks =
-          (* 3b1 *)
-          if iseq then Array.to_list
-            (Array.append big_k (Array.map (fun k-> !/1 // k) big_k))
-          (* 3c1 *)
-          else Array.to_list big_k in
-        let ks =
-          if !abd_more_general then ks @ [!/1; !/0]
-          else !/0 :: !/1 :: ks in
-        let kas = List.map (fun k -> mult k a) ks in
-        let add_kas tr = List.map (fun ka -> sum_w cmp ka tr) kas in
-        let eq_trs, ineq_trs =
-          (* 3b2 *)
-          if iseq then concat_map add_kas eq_trs, concat_map add_kas ineq_trs
-          (* 3c2 *)
-          else eq_trs, concat_map add_kas ineq_trs in
-        loop eqs_acc ineqs_acc eq_trs ineq_trs eq_cands eq_retries
-          ineq_cands ineq_retries
+        loop eqs_acc ineqs_acc eq_cands ineq_cands
       else
-        (* 4 *)
+        (* 5 *)
         (* [ineq_trs] include [eq_trs]! *)
         let trs = if iseq then eq_trs else ineq_trs in
-        let passes = List.fold_left (fun passes tr ->
+        (* Format.printf
+           "NumS.abd_simple: [%d] 5. a=@ %a@\n%!" ddepth pr_w a;
+           * *)
+        let passes = ref false in
+        laziter (fun tr ->
           try
-            (* 4a *)
+            (* 5a *)
             let a' = sum_w cmp tr a in
+            (* Format.printf
+               "NumS.abd_simple: [%d] 5a. trying a'=@ %a@ ...@\n%!"
+               ddepth pr_w a';
+               * *)
             let eqn, ineqn = if iseq then [a'], [] else [], [a'] in
             let eqs_acc, (ineqs_acc, acc_implicits) =
               solve ~use_quants:true ~params ~alibi
@@ -405,41 +419,32 @@ let abd_simple cmp cmp_w uni_v ~params ~alibi ~validate
                 ~eqs:eqs_acc ~ineqs:ineqs_acc
                 ~eqn:acc_implicits cmp cmp_w uni_v in
             ignore (validate eqs_acc ineqs_acc);
-            (* 4d TODO *)
+            passes := true;
+            (* Format.printf "NumS.abd_simple: [%d] 5a. validated@\n%!" ddepth;
+             * *)
+            (* 5c TODO *)
             (*let ineq_trs =
               if !passing_ineq_trs then
               else ineq_trs in*)
-            (* 4e *)
-            (try                        (* choice point *)
-               loop eqs_acc ineqs_acc eq_trs ineq_trs eq_cands eq_retries
-                 ineq_cands ineq_retries
-             with Contradiction _ -> ());
-            true
-          with Contradiction _ -> passes
-        ) false trs in
-        if not passes then
-          if not isretry
-          then
-            (* 4b *)
-            let eq_retries, ineq_retries =
-              if iseq then eq_retries @ [a], ineq_retries
-              else eq_retries, ineq_retries @ [a] in
-            loop eqs_acc ineqs_acc eq_trs ineq_trs eq_cands eq_retries
-              ineq_cands ineq_retries
-          else
-            (* 4c *)
-            raise (Contradiction ("Could not solve numeric SCA",
-                                  None, dummy_loc))
-          
-    in
-    (* 1a *)
-    let zero = [], !/0, dummy_loc in
-    try loop eqs_i ineqs_i [zero] [zero] (c_eqn @ d_eqn) []
-          (c_ineqn @ d_ineqn) []; None
+            (* 5d *)
+            (* (try                         *)
+               loop eqs_acc ineqs_acc eq_cands ineq_cands
+            (* with Contradiction _ -> ()) *)
+          with Contradiction (msg,_,_) when msg != no_pass_msg -> ()
+        (* Format.printf "NumS.abd_simple: [%d] 4a. invalid@\n%!" ddepth;
+         * *)
+        ) trs;
+        if not !passes then (
+          (* 5b *)
+          (* Format.printf
+             "NumS.abd_simple: [%d] 4c. failed a=@ %a@ ...@\n%!"
+             ddepth pr_w a;
+             * *)
+          raise (Contradiction (no_pass_msg, None, dummy_loc))) in
+    (* 2 *)
+    try loop eqs_i ineqs_i c_eqn c_ineqn; None
     with Result (ans_eqs, ans_ineqs) -> Some (ans_eqs, ans_ineqs)
   with Contradiction _ -> None
-
-let debug_dep = ref 0
 
 let abd cmp_v uni_v ~bparams ~zparams ?(alien_vs=VarSet.empty) brs =
   let cmp_v v1 v2 =

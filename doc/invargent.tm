@@ -557,49 +557,42 @@
   Our algorithm follows a familiar incrementally-generate-and-test scheme:
 
   <\enumerate>
-    <item>Start from <math|A\<assign\>C\<wedge\>D,Acc\<assign\><around*|{||}>>.
-    Try atoms <math|A=a A<rprime|'>> in some order.
-
-    <item>Let <math|B=A<rsub|i>\<wedge\>D\<wedge\>A<rprime|'>\<wedge\>Acc>.
-
-    <item>If <math|B\<Rightarrow\>C>, remove <math|a> and store a linear
-    combination involving <math|a> as a possible transformation.
+    <item>Build a lazy list of possible transformations with linear
+    combinations involving <math|a\<in\>D>.
 
     <\enumerate>
-      <item>We perform the combinations lazily: we collect a stack of
-      transformations. If <verbatim|abd_more_general> is set, stack bigger
-      transformations (bigger <math|<around*|\||k|\|>>) before smaller.
-
       <item>For equations <math|a>, add combinations <math|k<rsup|s>*a+b> for
       <math|k=-n\<ldots\>n,s=-1,1> to the stack of transformations to be
-      tried for all remaining atoms <math|b\<in\>A<rprime|'>>.
+      tried for atoms <math|b\<in\>C>.
 
       <item>For inequalities <math|a>, add combinations <math|k<rsup|s>*a+b>
       for <math|k=0\<ldots\>n,s=-1,1> to the stack of trasformations to be
-      tried only for remaining inequalities <math|b\<in\>A<rprime|'>>.
+      tried only for inequalities <math|b\<in\>C>.
     </enumerate>
+
+    <item>Start from <math|A\<assign\>C,Acc\<assign\><around*|{||}>>. Try
+    atoms <math|A=a A<rprime|'>> in some order.
+
+    <item>Let <math|B=A<rsub|i>\<wedge\>D\<wedge\>A<rprime|'>\<wedge\>Acc>.
+
+    <item>If <math|B\<Rightarrow\>C>, repeat with
+    <math|A\<assign\>A<rprime|'>>.
 
     <item>If <math|B\<nRightarrow\>C>, for a transformation
     <math|a<rprime|'>> of <math|a> which passes validation against other
     branches in a joint problem: <math|Acc\<assign\>Acc\<cup\><around*|{|a<rprime|'>|}>>,
-    or if all <math|a<rprime|'>> fail, keep <math|a> for a retry.
+    or fail if all <math|a<rprime|'>> fail.
 
     <\enumerate>
       <item>Let <math|a<rprime|'>> be <math|a> with some transformations
       applied.
 
       <item>If <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|'>|}>|)>>
-      does not pass <verbatim|validate> for all <math|a<rprime|'>> (not a
-      retry), repeat with <math|A\<assign\>A<rprime|'> a> (where <math|a> is
-      at the end).
-
-      <item>If <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|'>|}>|)>>
-      does not pass <verbatim|validate> for all <math|a<rprime|'>> of a retry
-      of <math|a>, fail.
+      does not pass <verbatim|validate> for all <math|a<rprime|'>>, fail.
 
       <item>Optionally, if <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|'>|}>|)>>
       passes <verbatim|validate> for inequality <math|a>, add combinations to
-      the stack of transformations as in step (3c).
+      the stack of transformations as in step (1b).
 
       <item>If <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|'>|}>|)>>
       passes <verbatim|validate>, repeat with
@@ -614,12 +607,9 @@
   <math|a+b\<wedge\>Acc> would remain equivalent to original
   <math|b\<wedge\>Acc>. For inequalities <math|a\<in\>Acc>, combinations
   <math|a+b\<wedge\>Acc> are weaker than <math|b\<wedge\>Acc>, thus the
-  optional step (4d). We precompute the tranformation variants to try out.
+  optional step (5c). We precompute the tranformation variants to try out.
   The parameter <math|n> is called <verbatim|abd_rotations> and defaults to a
   small value (2 or 3).
-
-  The order of atoms in <math|A\<assign\>DC<rprime|'>> is lexically:
-  equations before inequalities, conclusion before premise.
 
   To check whether <math|B\<Rightarrow\>C>, we check for each
   <math|c\<in\>C>:
