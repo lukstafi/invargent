@@ -149,7 +149,8 @@ let expand_atom equ (vars, cst, loc) =
   let denoms =
     List.map (fun (_,k) -> Ratio.denominator_ratio k) vars in
   let denoms = Ratio.denominator_ratio cst :: denoms in
-  let sc = List.fold_left Big_int.mult_big_int
+  let sc = List.fold_left
+    Big_int.(fun a b -> div_big_int (mult_big_int a b) (gcd_big_int a b))
     (Big_int.big_int_of_int 1) denoms in
   let vars = List.map
     (fun (v,k) -> v, Ratio.int_of_ratio (Ratio.mult_big_int_ratio sc k))
