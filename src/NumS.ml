@@ -200,6 +200,7 @@ let solve ?(use_quants=false) ?(params=VarSet.empty)
     (fun (vars, cst, loc) ->
       List.filter (fun (v,k)->k <>/ !/0) vars, cst, loc) eqn in
   let eqn = List.sort cmp_w eqn in
+  Format.printf "NumS.solve: eqn=@ %a@\n%!" pr_eqn eqn; (* *)
   let rec elim acc = function
     | [] -> List.rev acc
     | ((v, k)::vars, cst, loc)::eqn
@@ -218,7 +219,9 @@ let solve ?(use_quants=false) ?(params=VarSet.empty)
       elim (w_sb::acc) eqn
     | ([], cst, loc)::eqn when cst =/ !/0 -> elim acc eqn
     | ([], cst, loc)::eqn ->
-      raise (Contradiction ("Failed numeric equation", None, loc)) in
+      let msg =
+        "Failed numeric equation ("^Num.string_of_num cst^"=0)" in
+      raise (Contradiction (msg, None, loc)) in
   let eqn = List.rev (elim [] eqn) in
   let ineqn = if eqn=[] then ineqn else List.map (subst_w cmp eqn) ineqn in
   let eqs = if eqn=[] then eqs else List.map
@@ -353,16 +356,13 @@ let abd_simple cmp cmp_w uni_v ~params ~alibi ~validate
       let add_kas tr = lazmap (fun ka -> sum_w cmp ka tr) kas in
       lazconcat_map add_kas ineq_trs)
     eq_trs d_ineqn in
-  (* Format.printf
-     "NumS.abd_simple: [%d] 1. ks=%s@\n%!" ddepth
-     (String.concat "," (List.map Num.string_of_num ks));
-     * *)
   try
-    (* Format.printf
-       "NumS.abd_simple: 1. eqs=@ %a@\nineqs=@ %a@\nd_eqn=@ %a@ d_ineqn=@ %a@\nc_eqn=@ %a@ c_ineqn=@ %a@\n%!"
-       pr_w_subst eqs_i pr_ineqs ineqs_i pr_eqn d_eqn pr_ineqn d_ineqn
+    Format.printf
+       "NumS.abd_simple: 1. alibi=%s@\neqs=@ %a@\nineqs=@ %a@\nd_eqn=@ %a@ d_ineqn=@ %a@\nc_eqn=@ %a@ c_ineqn=@ %a@\n%!"
+      (String.concat "," (List.map var_str (VarSet.elements alibi)))
+      pr_w_subst eqs_i pr_ineqs ineqs_i pr_eqn d_eqn pr_ineqn d_ineqn
        pr_eqn c_eqn pr_ineqn c_ineqn;
-       * *)
+       (* *)
     (* 2 *)
     let rec loop eqs_acc ineqs_acc eq_cands ineq_cands =
       let ddepth = incr debug_dep; !debug_dep in
@@ -386,10 +386,10 @@ let abd_simple cmp cmp_w uni_v ~params ~alibi ~validate
       let b_eqs, (b_ineqs, _) =
         solve ~use_quants:false ~eqs:b_eqs ~ineqs:b_ineqs
           ~eqn:b_implicits cmp cmp_w uni_v in
-      (* Format.printf
+      Format.printf
          "NumS.abd_simple: [%d] 3. iseq=%b@ a=@ %a@\nb_eqs=@ %a@\nb_ineqs=@ %a@\n%!"
          ddepth iseq pr_w a pr_w_subst b_eqs pr_ineqs b_ineqs;
-         * *)
+         (* *)
       
       if implies cmp cmp_w uni_v b_eqs b_ineqs c_eqn c_ineqn
       then
@@ -398,18 +398,18 @@ let abd_simple cmp cmp_w uni_v ~params ~alibi ~validate
         (* 5 *)
         (* [ineq_trs] include [eq_trs]! *)
         let trs = if iseq then eq_trs else ineq_trs in
-        (* Format.printf
+        Format.printf
            "NumS.abd_simple: [%d] 5. a=@ %a@\n%!" ddepth pr_w a;
-           * *)
+           (* *)
         let passes = ref false in
         laziter (fun tr ->
           try
             (* 5a *)
             let a' = sum_w cmp tr a in
-            (* Format.printf
+            Format.printf
                "NumS.abd_simple: [%d] 5a. trying a'=@ %a@ ...@\n%!"
                ddepth pr_w a';
-               * *)
+               (* *)
             let eqn, ineqn = if iseq then [a'], [] else [], [a'] in
             let eqs_acc, (ineqs_acc, acc_implicits) =
               solve ~use_quants:true ~params ~alibi
@@ -421,8 +421,8 @@ let abd_simple cmp cmp_w uni_v ~params ~alibi ~validate
                 ~eqn:acc_implicits cmp cmp_w uni_v in
             ignore (validate eqs_acc ineqs_acc);
             passes := true;
-            (* Format.printf "NumS.abd_simple: [%d] 5a. validated@\n%!" ddepth;
-             * *)
+            Format.printf "NumS.abd_simple: [%d] 5a. validated@\n%!" ddepth;
+             (* *)
             (* 5c TODO *)
             (*let ineq_trs =
               if !passing_ineq_trs then
@@ -431,16 +431,22 @@ let abd_simple cmp cmp_w uni_v ~params ~alibi ~validate
             (* (try                         *)
                loop eqs_acc ineqs_acc eq_cands ineq_cands
             (* with Contradiction _ -> ()) *)
-          with Contradiction (msg,_,_) when msg != no_pass_msg -> ()
-        (* Format.printf "NumS.abd_simple: [%d] 4a. invalid@\n%!" ddepth;
-         * *)
+          with Contradiction (msg,tys,_) when msg != no_pass_msg ->
+            Format.printf
+              "NumS.abd_simple: [%d] 4a. invalid (%s)@\n%!" ddepth msg;
+            match tys with None -> ()
+            | Some (t1, t2) ->
+              Format.printf "types involved:@ t1=%a@ t2=%a@\n%!"
+                (pr_ty false) t1 (pr_ty false) t2;
+            (* *)
+            ()
         ) trs;
         if not !passes then (
           (* 5b *)
-          (* Format.printf
+          Format.printf
              "NumS.abd_simple: [%d] 4c. failed a=@ %a@ ...@\n%!"
              ddepth pr_w a;
-             * *)
+             (* *)
           raise (Contradiction (no_pass_msg, None, dummy_loc))) in
     (* 2 *)
     try loop eqs_i ineqs_i c_eqn c_ineqn; None
@@ -469,6 +475,8 @@ let abd cmp_v uni_v ~bparams ~zparams ?(alien_vs=VarSet.empty) brs =
     (fun acc (_,ps) -> VarSet.union acc ps) VarSet.empty bparams in
   let alibi = List.fold_left
     (fun acc (_,ps) -> VarSet.union acc ps) alien_vs zparams in
+  (* Parameters can match up with anything. *)
+  let alibi = VarSet.union params alibi in
   Format.printf "NumS.abd: brs=@ %a@\n%!" Infer.pr_rbrs brs; (* *)
   let brs = List.map
     (fun (prem, concl) ->
@@ -731,7 +739,7 @@ let empty_state = [], []
 let formula_of_state (eqs, ineqs) = expand_eqineqs eqs ineqs
   
 
-let holds cmp_v uni_v (eqs, ineqs : state) cnj : state =
+let holds cmp_v uni_v ?params (eqs, ineqs : state) cnj : state =
   let cmp_v v1 v2 =
     match cmp_v v1 v2 with
     | Upstream -> 1
@@ -744,7 +752,12 @@ let holds cmp_v uni_v (eqs, ineqs : state) cnj : state =
     | _, [] -> -1
     | [], _ -> 1
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
+  (*let params = map_opt params
+    (List.fold_left
+       (fun acc (_,ps) -> VarSet.union acc ps) VarSet.empty) in*)
   let eqs, (ineqs, implicits) =
-    solve ~eqs ~ineqs ~cnj cmp cmp_w uni_v in
-  let eqs, _ = solve ~eqs ~eqn:implicits cmp cmp_w uni_v in
+    solve ~use_quants:true ?params ?alibi:params
+      ~eqs ~ineqs ~cnj cmp cmp_w uni_v in
+  let eqs, _ = solve ~use_quants:true ?params ?alibi:params
+    ~eqs ~eqn:implicits cmp cmp_w uni_v in
   eqs, ineqs

@@ -62,11 +62,10 @@ let new_q cmp_v uni_v =
     let v1 = try Hashtbl.find same_q v1 with Not_found -> v1 in
     let v2 = try Hashtbl.find same_q v2 with Not_found -> v2 in
     cmp_v v1 v2 in
-  let b_is_uni = ref true in
   let uni_v v =
     if Hashtbl.mem same_q v then
       let bv = Hashtbl.find same_q v in
-      not (Hashtbl.mem posi_b bv) && !b_is_uni
+      not (Hashtbl.mem posi_b bv)
     else uni_v v in
   let positive_b v = Hashtbl.mem posi_b v in
   let b_vs = Hashtbl.create 16 in
@@ -91,6 +90,8 @@ let new_q cmp_v uni_v =
     assert (Hashtbl.mem b_chi b);
     List.iter (fun v -> Hashtbl.add same_q v b) vs;
     q.allbvs <- VarSet.union q.allbvs (vars_of_list vs);
+    if Hashtbl.mem posi_b b
+    then List.iter (fun v -> Hashtbl.add posi_b v ()) vs;
     try
       let ovs = Hashtbl.find b_vs b in
       Hashtbl.replace b_vs b (VarSet.union ovs (vars_of_list vs));
@@ -112,23 +113,26 @@ let new_q cmp_v uni_v =
    needed and adding them as locals of [b] in [q]. *)
 let matchup_vars q b nvs =
   let rec loop acc = function
-    | [], [] -> acc
+    | [], [] ->
+      Format.printf "matchup_vars: renaming=@ %a@\n%!"
+        pr_subst acc; (* *)
+      acc
     | [], locals ->
-      (*Format.printf "matchup_vars: error locals=@ %s@\n%!"
-        (String.concat ", " (List.map var_str locals));*)
+      (* Format.printf "matchup_vars: error locals=@ %s@\n%!"
+        (String.concat ", " (List.map var_str locals)); * *)
       assert false
     | nvs, [] ->
-      (*Format.printf "matchup_vars: remaining nvs= %s@\n%!"
-        (String.concat ", " (List.map var_str nvs));*)
+      Format.printf "matchup_vars: remaining nvs= %s; mem(n202)@\n%!"
+        (String.concat ", " (List.map var_str nvs)); (* *)
       let ovs = List.map Infer.freshen_var nvs in
       q.add_b_vs b ovs; loop acc (nvs, ovs)
     | nv::nvs, ov::ovs -> loop ((nv, (TVar ov, dummy_loc))::acc) (nvs, ovs)
   in
   let locals = try Hashtbl.find q.b_qvs b with Not_found -> assert false in
-  (*Format.printf "matchup_vars: b=%s;@ nvs=%s;@ locals=%s@\n%!"
+  Format.printf "matchup_vars: b=%s;@ nvs=%s;@ locals=%s@\n%!"
     (var_str b)
     (String.concat ", " (List.map var_str nvs))
-    (String.concat ", " (List.map var_str locals));*)
+    (String.concat ", " (List.map var_str locals)); (* *)
   match List.rev locals with
   | [] -> assert false
   | lvb::locals ->
@@ -183,7 +187,7 @@ let empty_state : state = [], NumS.empty_state
 let holds q ?params (ty_st, num_st) cnj =
   let ty_st, num_cnj, _ =
     unify ~use_quants:true ?params ~sb:ty_st q.cmp_v q.uni_v cnj in
-  let num_st = NumS.holds q.cmp_v q.uni_v num_st num_cnj in
+  let num_st = NumS.holds q.cmp_v q.uni_v ?params num_st num_cnj in
   ty_st, num_st
 
 (* 4 *)
@@ -489,7 +493,7 @@ let solve cmp_v uni_v brs =
           else
             let gvs = VarSet.elements
               (VarSet.inter (vars_of_list (gvs @ gvs')) (fvs_formula g_ans)) in
-            (* freshened [gvs] will be added to [q] by substitution *)
+            (* FIXME: add [gvs] to [q]! *)
             Some (i, (gvs @ vs, g_ans' @ ans))
       ) gK in
     Format.printf "solve: loop; #gK=%d@\n%!" (List.length gK); (* *)
@@ -531,9 +535,10 @@ let solve cmp_v uni_v brs =
           | _ -> ()); (* *)
           true)
       neg_cns1 in
-    let sol1, brs1 =
-      if neg_cl_check then sol1, brs1
-      else sol0, brs0 in
+    let dissociate, sol1, brs1 =
+      if neg_cl_check then dissociate, sol1, brs1
+      (* FIXME: shouldn't raise Fallback instead? *)
+      else true, sol0, brs0 in
     (* 5 *)
     (* let params = Hashtbl.fold
       (fun b bvs acc ->
@@ -567,6 +572,8 @@ let solve cmp_v uni_v brs =
       pr_ans (vs, ans); (* *)
     try
       let ans_res, more_discard, sol2 = split vs ans params zparams q in
+      (* Add new variables to [q] *)
+      List.iter (fun (b, (vs,_)) -> q.add_b_vs b vs) sol2;
       Format.printf "solve: loop -- answer split@ more_discard=@ %a@\nans_res=@ %a@\nsol=@ %a@\n%!"
         pr_formula more_discard pr_formula ans_res pr_bchi_subst sol2; (* *)
       let discard = more_discard @ discard in

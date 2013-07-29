@@ -49,4 +49,6 @@ val formula_of_state : state -> Terms.formula
 val holds :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
+  ?params:Terms.VarSet.t ->
+  (* ?params:(Terms.var_name * Terms.VarSet.t) list -> *)
   state -> Terms.formula -> state
