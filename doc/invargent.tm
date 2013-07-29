@@ -495,19 +495,8 @@
   with variables and performing joint constraint abduction on resulting
   implications. The ability to ``outsource'' constraints to the alien sorts
   enables more general answers to the target sort, in our case the term
-  algebra <math|T<around*|(|F|)>>. Consider a case where one of the
-  implications, for example <math|\<beta\><wide|=|\<dot\>>f<around*|(|\<beta\><rsub|1>,\<beta\><rsub|2>|)>\<Rightarrow\>\<beta\><rsub|1><wide|=|\<dot\>>\<beta\><rsub|2>>,
-  requires <math|\<exists\>\<alpha\>.\<beta\><wide|=|\<dot\>>f<around*|(|\<alpha\>,\<alpha\>|)>>
-  in the answer. Under JCAQPAS, we can instead answer
-  <math|\<exists\>\<alpha\><rsub|1>\<alpha\><rsub|2>.\<beta\><wide|=|\<dot\>>f<around*|(|N<around*|(|\<alpha\><rsub|1>|)>,N<around*|(|\<alpha\><rsub|2>|)>|)>,<around*|(|\<alpha\><rsub|1><wide|=|\<dot\>>\<alpha\><rsub|2>,\<ldots\>|)>>,
-  where we output <math|\<alpha\><rsub|1><wide|=|\<dot\>>\<alpha\><rsub|2>>
-  as alien subterm equation required for this particular branch. Note that
-  the resulting answer is just as general and is independent of which
-  <math|N:s<rprime|'>\<rightarrow\>s<rsub|ty>\<in\>F> we pick. As in joint
-  constraint abduction in general, the proliferation of simple abduction
-  answers is not problematic in itself, but because it enlarges the search
-  space when looking for a solution of the joint constraints. Term abduction
-  will offer answers that cannot be extended to multisort answers.
+  algebra <math|T<around*|(|F|)>>. Term abduction will offer answers that
+  cannot be extended to multisort answers.
 
   One might mitigate the problem by preserving the joint abduction for terms
   algorithm, and after a solution <math|\<exists\><wide|\<alpha\>|\<bar\>>.A>
@@ -516,8 +505,8 @@
   <math|A> (including variables, even parameters) with a fresh variable
   <math|\<alpha\><rsub|s>>, which results in <math|A<rprime|'>> (in
   particular <math|A<rprime|'><around*|[|<wide|\<alpha\><rsub|s>|\<bar\>>\<assign\><wide|n<rsub|s>|\<bar\>>|]>=A>).
-  Subsets <math|A<rsub|i>\<subset\><wide|\<alpha\><rsub|s><wide|=|\<dot\>>n<rsub|s>|\<bar\>>>
-  such that <math|\<exists\><wide|\<alpha\>|\<bar\>><wide|\<alpha\><rsub|s>|\<bar\>>.A<rprime|'>,<wide|A<rsub|i>|\<bar\>>>
+  Subsets <math|A<rsup|i><rsub|p>\<wedge\>A<rsup|i><rsub|c>=A<rsup|i>\<subset\><wide|\<alpha\><rsub|s><wide|=|\<dot\>>n<rsub|s>|\<bar\>>>
+  such that <math|\<exists\><wide|\<alpha\>|\<bar\>><wide|\<alpha\><rsub|s>|\<bar\>>.A<rprime|'>,<wide|A<rsup|i><rsub|p>,A<rsup|i><rsub|c>|\<bar\>>>
   is a JCAQPAS answer will be recovered automatically by a residuum-finding
   process at the end of <verbatim|ans_typ>. This process is needed regardless
   of the ``dissociation'' issue, to uncover the full content of numeric sort

@@ -581,7 +581,7 @@ let abd_typ cmp_v uni_v ~params ~bparams ~zparams
         Format.printf "abd_typ-num: res_ty=%a@ res_num=%a@\ncnj_num=%a@\n%!"
           pr_subst res_ty pr_formula res_num pr_formula cnj_num; (* *)
         assert (res_ty = []);
-        cnj_num @ res_num
+        cnj_num, res_num
       with Contradiction _ -> assert false)
     brs in
   vs, ans, num  
@@ -628,7 +628,8 @@ let abd_mockup_num cmp_v uni_v ~params ~bparams ~zparams brs =
       abd_typ cmp_v uni_v ~params ~bparams ~zparams
         ~validate ~discard:[] brs_typ in
     Some (List.map2
-            (fun (prem,concl) more -> prem, more @ concl)
+            (fun (prem,concl) (more_p, more_c) ->
+              more_p @ prem, more_c @ concl)
             brs_num more_num)
   with Suspect _ -> None
 
@@ -697,7 +698,8 @@ let abd cmp_v uni_v ~params ~bparams ~zparams ?(dissociate=false) ~discard
     abd_typ cmp_v uni_v ~params ~bparams ~zparams
       ~dissociate ~validate ~discard:discard_typ brs_typ in
   let brs_num = List.map2
-    (fun (prem,concl) more -> prem, more @ concl)
+    (fun (prem,concl) (more_p, more_c) ->
+      more_p @ prem, more_c @ concl)
     brs_num more_num in
   Format.printf "abd: solve for numbers@\n%!"; (* *)
   (* FIXME: add [discard] to NumS.abd *)

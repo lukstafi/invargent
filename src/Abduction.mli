@@ -37,7 +37,7 @@ val abd_typ :
   validate:(Terms.VarSet.t option -> Terms.var_name list -> Terms.subst -> unit) ->
   discard:Terms.subst ->
   (Terms.subst * Terms.subst) list ->
-  Terms.var_name list * Terms.subst * Terms.formula list
+  Terms.var_name list * Terms.subst * (Terms.formula * Terms.formula) list
 (* Raises [Suspect] if no answer can be found. Uses [fallback]
   branches if preparing main branches detects contradiction. *)
 val abd :
