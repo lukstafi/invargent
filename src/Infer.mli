@@ -81,5 +81,7 @@ val nicevars_struct_item : Terms.struct_item -> Terms.struct_item
 val pr_cnstrnt : Format.formatter -> cnstrnt -> unit
 val pr_brs : Format.formatter -> branch list -> unit
 val pr_rbrs : Format.formatter -> (Terms.formula * Terms.formula) list -> unit
+val pr_rbrs3 :
+  Format.formatter -> (bool * Terms.formula * Terms.formula) list -> unit
 
 val reset_state : unit -> unit

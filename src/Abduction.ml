@@ -574,6 +574,7 @@ let abd_typ cmp_v uni_v ~params ~bparams ~zparams
   let num = List.map
     (fun (prem, concl) ->
       try
+        (* FIXME: rethink, JCAQPAS *)
         let cnj_ty, cnj_num =
           combine_sbs ~use_quants:false cmp_v uni_v [prem; ans] in
         let res_ty, res_num =
@@ -633,8 +634,9 @@ let abd_mockup_num cmp_v uni_v ~params ~bparams ~zparams brs =
             brs_num more_num)
   with Suspect _ -> None
 
-let abd cmp_v uni_v ~params ~bparams ~zparams ?(dissociate=false) ~discard
+let abd cmp_v uni_v ~params ~bparams ~zparams ?(iter_no=2) ~discard
     ~fallback brs =
+  let dissociate = iter_no <= 0 in
   (* Do not change the order and no. of branches afterwards. *)
   Format.printf "abd: prepare branches@\n%!"; (* *)
   let discard_typ, discard_num = List.partition
@@ -644,7 +646,7 @@ let abd cmp_v uni_v ~params ~bparams ~zparams ?(dissociate=false) ~discard
     (function Eqty (TVar v, t, lc) -> v, (t, lc) | _ -> assert false)
     discard_typ in
   let prepare_brs brs = Aux.split3
-    (Aux.map_some (fun (prem, concl) ->
+    (Aux.map_some (fun (nonrec, prem, concl) ->
       let prems_opt =
         try Some (unify ~use_quants:false cmp_v uni_v prem)
         with Contradiction _ -> None in
@@ -661,10 +663,11 @@ let abd cmp_v uni_v ~params ~bparams ~zparams ?(dissociate=false) ~discard
             raise (Contradiction ("assert false is possible", None, loc))
           | _ -> ()) concl_so;
           if not (NumS.satisfiable prem_num) then None
-          else Some ((prem_typ, concl_typ), (prem_num, concl_num),
+          else Some ((prem_typ, concl_typ), (nonrec, prem_num, concl_num),
                      (prem_so, concl_so))
       | None -> None)
        brs) in
+  (* FIXME: remove handling of brs_so? *)
   let fallback, (brs_typ, brs_num, brs_so) =
     try false, prepare_brs brs
     with Contradiction _ as e ->
@@ -673,7 +676,7 @@ let abd cmp_v uni_v ~params ~bparams ~zparams ?(dissociate=false) ~discard
       Format.printf "abd: prepare fallback@\n%!"; (* *)
       true, prepare_brs fallback) in
   let validate params vs ans = List.iter2
-    (fun (prem_ty, concl_ty) (prem_num, concl_num) ->
+    (fun (prem_ty, concl_ty) (nonrec, prem_num, concl_num) ->
       (* Do not use quantifiers, because premise is in the conjunction. *)
       (* TODO: after cleanup optimized in abd_simple, pass clean_ans
          and remove cleanup here *)
@@ -693,13 +696,15 @@ let abd cmp_v uni_v ~params ~bparams ~zparams ?(dissociate=false) ~discard
     )
     brs_typ brs_num in
   Format.printf "abd: discard_typ=@ %a@\n%!" pr_subst discard_typ;
-     (* *)
+  (* *)
+  (* We do not remove nonrecursive branches for types -- it will help
+     other sorts do better validation. *)
   let tvs, ans_typ, more_num =
     abd_typ cmp_v uni_v ~params ~bparams ~zparams
       ~dissociate ~validate ~discard:discard_typ brs_typ in
   let brs_num = List.map2
-    (fun (prem,concl) (more_p, more_c) ->
-      more_p @ prem, more_c @ concl)
+    (fun (nonrec,prem,concl) (more_p, more_c) ->
+      nonrec, more_p @ prem, more_c @ concl)
     brs_num more_num in
   Format.printf "abd: solve for numbers@\n%!"; (* *)
   (* FIXME: add [discard] to NumS.abd *)
@@ -709,7 +714,7 @@ let abd cmp_v uni_v ~params ~bparams ~zparams ?(dissociate=false) ~discard
        | _ -> false) tvs) in
   let nvs, ans_num =
     if dissociate then [], []
-    else NumS.abd cmp_v uni_v ~bparams ~zparams ~alien_vs brs_num in
+    else NumS.abd cmp_v uni_v ~bparams ~zparams ~iter_no ~alien_vs brs_num in
   fallback,
   (nvs @ tvs,
    Aux.map_append (fun (v,(t,lc)) -> Eqty (TVar v,t,lc))

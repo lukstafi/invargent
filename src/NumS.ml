@@ -200,7 +200,7 @@ let solve ?(use_quants=false) ?(params=VarSet.empty)
     (fun (vars, cst, loc) ->
       List.filter (fun (v,k)->k <>/ !/0) vars, cst, loc) eqn in
   let eqn = List.sort cmp_w eqn in
-  Format.printf "NumS.solve: eqn=@ %a@\n%!" pr_eqn eqn; (* *)
+  (* Format.printf "NumS.solve: eqn=@ %a@\n%!" pr_eqn eqn; * *)
   let rec elim acc = function
     | [] -> List.rev acc
     | ((v, k)::vars, cst, loc)::eqn
@@ -337,10 +337,10 @@ let abd_simple cmp cmp_w uni_v ~params ~alibi ~validate
     Array.append big_k (Array.map (fun k-> !/1 // k) big_k) in
   let ks_eq = (* 1a1 *)
     Array.to_list
-      (Array.append [|!/0; !/1; !/(-1)|]
+      (Array.append [|!/1; !/0; !/(-1)|]
          (Array.append big_k (Array.map (fun k -> !/(-1) */ k) big_k))) in
   let ks_ineq = (* 1b1 *)
-    Array.to_list (Array.append [|!/0; !/1|] big_k) in
+    Array.to_list (Array.append [|!/1; !/0|] big_k) in
   let ks_eq = laz_of_list ks_eq
   and ks_ineq = laz_of_list ks_ineq in
   let zero = [], !/0, dummy_loc in
@@ -358,8 +358,7 @@ let abd_simple cmp cmp_w uni_v ~params ~alibi ~validate
     eq_trs d_ineqn in
   try
     Format.printf
-       "NumS.abd_simple: 1. alibi=%s@\neqs=@ %a@\nineqs=@ %a@\nd_eqn=@ %a@ d_ineqn=@ %a@\nc_eqn=@ %a@ c_ineqn=@ %a@\n%!"
-      (String.concat "," (List.map var_str (VarSet.elements alibi)))
+       "NumS.abd_simple: 1.@\neqs=@ %a@\nineqs=@ %a@\nd_eqn=@ %a@ d_ineqn=@ %a@\nc_eqn=@ %a@ c_ineqn=@ %a@\n%!"
       pr_w_subst eqs_i pr_ineqs ineqs_i pr_eqn d_eqn pr_ineqn d_ineqn
        pr_eqn c_eqn pr_ineqn c_ineqn;
        (* *)
@@ -453,7 +452,8 @@ let abd_simple cmp cmp_w uni_v ~params ~alibi ~validate
     with Result (ans_eqs, ans_ineqs) -> Some (ans_eqs, ans_ineqs)
   with Contradiction _ -> None
 
-let abd cmp_v uni_v ~bparams ~zparams ?(alien_vs=VarSet.empty) brs =
+let abd cmp_v uni_v ~bparams ~zparams ?(alien_vs=VarSet.empty)
+    ?(iter_no=2) brs =
   let cmp_v v1 v2 =
     let c1 = VarSet.mem v1 alien_vs
     and c2 = VarSet.mem v2 alien_vs in
@@ -477,21 +477,27 @@ let abd cmp_v uni_v ~bparams ~zparams ?(alien_vs=VarSet.empty) brs =
     (fun acc (_,ps) -> VarSet.union acc ps) alien_vs zparams in
   (* Parameters can match up with anything. *)
   let alibi = VarSet.union params alibi in
-  Format.printf "NumS.abd: brs=@ %a@\n%!" Infer.pr_rbrs brs; (* *)
+  Format.printf "NumS.abd: iter_no=%d@ alibi=%s@\nbrs=@ %a@\n%!"
+    iter_no
+    (String.concat "," (List.map var_str (VarSet.elements alibi)))
+    Infer.pr_rbrs3 brs; (* *)
   let brs = List.map
-    (fun (prem, concl) ->
+    (fun (nonrec, prem, concl) ->
+      nonrec,
       partition_map (flatten cmp) prem,
       partition_map (flatten cmp) concl)
     brs in
-
-  let br0 = 0, List.hd brs in
-  let more_brs = List.map (fun br -> -1, br) (List.tl brs) in
   let validate eqs ineqs = List.iter
-    (fun ((d_eqn, d_ineqn), (c_eqn, c_ineqn)) ->
+    (fun (_, (d_eqn, d_ineqn), (c_eqn, c_ineqn)) ->
       ignore (solve ~use_quants:false ~eqs ~ineqs
                 ~eqn:(d_eqn @ c_eqn) ~ineqn:(d_ineqn @ c_ineqn)
                 cmp cmp_w uni_v))
     brs in
+  let brs = map_some
+    (fun (nonrec, prem, concl) ->
+      if iter_no > 1 || nonrec then Some (prem, concl) else None) brs in
+  let br0 = 0, List.hd brs in
+  let more_brs = List.map (fun br -> -1, br) (List.tl brs) in
 
   let time = ref (Sys.time ()) in
   let rec loop acc runouts = function

@@ -50,7 +50,13 @@ let lhs8 = "(Term tD) = ta" and rhs8 = "tF = (tH, tI) ∧ tG = tb ∧
     tE = (Term (tC, tD) → tH, tI)"
 let lhs9 = "(tJ, tK) = tF ∧ (Term tD) = ta" and rhs9 = "tK = tG"
 
-
+let prepare_brs = List.map
+  (fun br ->
+    let prem, concl = Infer.br_to_formulas br in
+    List.for_all                        (* is_nonrec *)
+      (function PredVarU _ -> false | _ -> true) concl,
+    prem, concl)
+    
 let tests = "Abduction" >::: [
 
   "simple abduction: eval" >::
@@ -218,7 +224,7 @@ let rec filter =
         let cmp_v v1 v2 = Same_quant in*)
         todo "Test fails by looping inside abduction";
         let brs = Infer.simplify preserve cmp_v uni_v brs in
-        let brs = List.map Infer.br_to_formulas brs in
+        let brs = prepare_brs brs in
         let _, (vs, ans) =
           try abd cmp_v uni_v ~params:VarSet.empty
                 ~bparams:[]

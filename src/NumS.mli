@@ -16,7 +16,8 @@ val abd :
   bparams:(Terms.var_name * Terms.VarSet.t) list ->
   zparams:(Terms.var_name * Terms.VarSet.t) list ->
   ?alien_vs:Terms.VarSet.t ->
-  (Terms.formula * Terms.formula) list ->
+  ?iter_no:int ->
+  (bool * Terms.formula * Terms.formula) list ->
   Terms.var_name list * Terms.formula
 val abd_s :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->

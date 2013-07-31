@@ -522,7 +522,8 @@
   (see main algorithm in section <reference|MainAlgo>). They also have more
   information to work with, present in the instatiation of partial answers.
 
-  <subsection|Simple constraint abduction for linear arithmetic>
+  <subsection|Simple constraint abduction for linear
+  arithmetic><label|SCAlinear>
 
   We use <em|Fourier-Motzkin elimination>. To avoid complexities we initially
   only handle rational number domain, but if need arises we will extend to
@@ -625,6 +626,15 @@
   </itemize>
 
   We use the <verbatim|nums> library for exact precision rationals.
+
+  Our algorithm finds only fully maximal answers. Unfortunately this means
+  that for many invariant inference problems, some implication branches in
+  initial steps of the main algorithm are insolvable. That is, when the
+  instantiations of the invariants found so far are not informative enough,
+  the expected answer of the JCA problem is not a fully maximal SCA answer to
+  these branches. We mitigate this problem by removing, in the first two
+  iterations of the main algorithm, branches that contain unary predicate
+  variables in the conclusion.
 
   <subsection|Joint constraint abduction for linear arithmetic>
 
@@ -995,10 +1005,14 @@
   <math|\<cal-Q\>>, i.e. the first <verbatim|b> in the <verbatim|q.negbs>
   list, for which <math|x<rsub|\<prec\>><around*|(|<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>><wide|\<zeta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<cap\>FV<around*|(|c|)>|)>\<cap\><wide|\<beta\>|\<bar\>><rsup|\<chi\>><wide|\<zeta\>|\<bar\>><rsup|\<chi\>>\<neq\>\<varnothing\>>.
 
-  The main loop of the main algorithm also decides whether multisort
-  abduction should dissociate alien subterms -- in the first step of the loop
-  or during fallback -- or should perform abductions for other sorts -- in
-  subsequent steps. See discussion in subsection <reference|AlienSubterms>.
+  We count the number of iterations of the main loop, a fallback decreases
+  the iteration number to the previous value. The main loop decides whether
+  multisort abduction should dissociate alien subterms -- in the first
+  iteration of the loop -- or should perform abductions for other sorts -- in
+  subsequent iteration. See discussion in subsection
+  <reference|AlienSubterms>. In the first two iterations, we remove branches
+  that contain unary predicate variables in the conclusion, as discussed at
+  the end of subsection <reference|SCAlinear>.
 
   \;
 
@@ -1063,9 +1077,10 @@
 <\references>
   <\collection>
     <associate|1|<tuple|5.2|?>>
-    <associate|AlienSubterms|<tuple|3.3|?>>
+    <associate|AlienSubterms|<tuple|3.3|6>>
     <associate|ImplSubst|<tuple|4|2>>
-    <associate|MainAlgo|<tuple|5|?>>
+    <associate|MainAlgo|<tuple|5|9>>
+    <associate|SCAlinear|<tuple|3.4|?>>
     <associate|SepProp|<tuple|5|3>>
     <associate|SepProp2|<tuple|6|?>>
     <associate|SolSimpl|<tuple|8|10>>
@@ -1095,7 +1110,7 @@
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
     <associate|bib-ArithQuantElim|<tuple|1|11>>
-    <associate|bib-ConvexHull|<tuple|2|11>>
+    <associate|bib-ConvexHull|<tuple|2|12>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
     <associate|bib-disjelimTechRep|<tuple|6|12>>

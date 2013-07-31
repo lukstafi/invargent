@@ -6,3 +6,4 @@ Place for TODOs/FIXMEs, especially if not expressed in other places. See README.
 * FIXME: does solving for existentials require abduction? Fix (remove?) quantifier handling for [abd_s].
 * TODO: factor out joint constraint abduction scheme, available for use across sorts (v2.0).
 * TODO: numerical abduction -- optimize candidate substitution selection by working incrementally as in term abduction
+* FIXME: a separate fallback mechanism in the main loop for each sort

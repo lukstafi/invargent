@@ -46,10 +46,10 @@ val abd :
   params:Terms.VarSet.t ->
   bparams:vparams ->
   zparams:vparams ->
-  ?dissociate:bool ->
+  ?iter_no:int ->
   discard:Terms.formula ->
-  fallback:(Terms.formula * Terms.formula) list ->
-  (Terms.formula * Terms.formula) list ->
+  fallback:(bool * Terms.formula * Terms.formula) list ->
+  (bool * Terms.formula * Terms.formula) list ->
   bool * (Terms.var_name list * Terms.formula)
 val abd_mockup_num :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->

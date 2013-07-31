@@ -169,6 +169,8 @@ let sb_formula_pred q posi psb phi =
 
 let sb_brs_pred q psb brs = List.map
   (fun (prem,concl) ->
+    List.for_all                        (* is_nonrec *)
+      (function PredVarU _ -> false | _ -> true) concl,
     sb_formula_pred q false psb prem, sb_formula_pred q true psb concl)
   brs
 
@@ -464,7 +466,7 @@ let solve cmp_v uni_v brs =
            Some ((i,t2), Eqty (TVar delta, t1, dummy_loc) :: prem @ concl)
          | _ -> None) concl) brs) in
   let chiK = List.map (fun ((i,t2),cnjs) -> i, (t2, cnjs)) chiK in
-  let rec loop dissociate discard sol0 brs0 sol1 =
+  let rec loop iter_no discard sol0 brs0 sol1 =
     let gK = List.map
       (fun (i,(t2,cnjs)) ->
         i, connected delta (DisjElim.disjelim cmp_v uni_v cnjs)) chiK in
@@ -499,14 +501,15 @@ let solve cmp_v uni_v brs =
     Format.printf "solve: loop; #gK=%d@\n%!" (List.length gK); (* *)
     (* 4 *)
     let sol1 = replace_assocs ~repl:gK sol1 in
-    Format.printf "solve: before brs=@ %a@\n%!" Infer.pr_rbrs brs;
+    Format.printf "solve: iter_no=%d before brs=@ %a@\n%!"
+      iter_no Infer.pr_rbrs brs;
     (* *)
     let brs1 = sb_brs_pred q sol1 brs in
     let neg_cns1 = List.map
       (fun (prem,loc) -> sb_formula_pred q false sol1 prem, loc)
       neg_cns in
     Format.printf "solve: loop -- brs substituted@\n%!"; (* *)
-    Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs brs1; (* *)
+    Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs3 brs1; (* *)
     let neg_cl_check = not !neg_constrns ||
       List.for_all
       (fun (cnj, loc) ->
@@ -535,10 +538,10 @@ let solve cmp_v uni_v brs =
           | _ -> ()); (* *)
           true)
       neg_cns1 in
-    let dissociate, sol1, brs1 =
-      if neg_cl_check then dissociate, sol1, brs1
+    let iter_no, sol1, brs1 =
+      if neg_cl_check then iter_no, sol1, brs1
       (* FIXME: shouldn't raise Fallback instead? *)
-      else true, sol0, brs0 in
+      else iter_no-1, sol0, brs0 in
     (* 5 *)
     (* let params = Hashtbl.fold
       (fun b bvs acc ->
@@ -551,7 +554,7 @@ let solve cmp_v uni_v brs =
       VarSet.empty bparams zparams in
     let fallback, (vs, ans) =
       try Abduction.abd cmp_v uni_v ~params ~bparams ~zparams
-            ~dissociate ~discard ~fallback:brs0 brs1
+            ~iter_no ~discard ~fallback:brs0 brs1
       with Suspect (vs, phi, lc) ->
         try
           Format.printf "solve: abduction failed: phi=@ %a@\n%!"
@@ -586,7 +589,7 @@ let solve cmp_v uni_v brs =
         vs @ dvs, Eqty (TVar delta', TCons (CNam "Tuple", targs), dummy_loc) ::
           subst_formula [a2, (TVar delta', dummy_loc)] ans in
       (* 7 *)
-      if List.for_all (fun (_,(_,ans)) -> ans=[]) sol2
+      if iter_no > 1 && List.for_all (fun (_,(_,ans)) -> ans=[]) sol2
       then
         let sol = List.map
           (fun ((i,sol) as isol) ->
@@ -605,6 +608,10 @@ let solve cmp_v uni_v brs =
               ans in
             more @ ans_res, (i, (vs, ans)))
           ans_res sol
+      (* Do at least three iterations: 0, 1, 2. *)
+      else if iter_no <= 1 && List.for_all (fun (_,(_,ans)) -> ans=[]) sol2
+      then                              (* FIXME: sol0 brs0 sol1? *)
+        loop (iter_no+1) discard sol1 brs1 sol1
       else
         (* 9 *)
         let sol2 = List.map
@@ -626,13 +633,13 @@ let solve cmp_v uni_v brs =
           sol1 in    
         (* 10 *)
         let sol2 = converge sol0 sol1 sol2 in
-        loop false discard sol1 brs1 sol2
+        loop (iter_no+1) discard sol1 brs1 sol2
     with Fallback (more_discard, a, b, c) ->
       Format.printf "Fallback: more=@ %a@\n%!" pr_formula more_discard;
       let more_discard = list_diff more_discard discard in
       if more_discard = [] then raise (Contradiction (a,b,c))
-      else loop true (more_discard @ discard) sol0 brs0 sol1 in
-  let sol = loop true [] solT brsT solT in
+      else loop iter_no (more_discard @ discard) sol0 brs0 sol1 in
+  let sol = loop 0 [] solT brsT solT in
   Format.printf "solve: checking assert false@\n%!"; (* *)
   List.iter (fun (cnj, loc) ->
     try
