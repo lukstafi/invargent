@@ -22,7 +22,7 @@ Milestones: [x] - completed, [#] - finishing (75%-95%), [+] - in the middle (25%
 - [x] Disjunction elimination for linear systems.
 - [x] Solve for predicate variables related to recursive definitions. Iterate till fixpoint part 1.
 - [#] Solve for predicate variables related to existential types. Iterate till fixpoint part 2.
-- [_] Write convergence-enforcing heuristics for numeric constraints.
+- [_] Implement time-out integrated with error reporting (likely culprit).
 - [_] Export (print) OCaml source. Collect examples, test, write user documentation.
 
 And version 2.0 goals:
