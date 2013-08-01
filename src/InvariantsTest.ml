@@ -91,43 +91,6 @@ let rec eval = function
   t108 = (t46, t47) ∧ t109 = (t59, t60)"
     );
 
-  "filter" >::
-    (fun () ->
-      todo "existential";
-      test_case "list filter"
-"newtype Bool
-newtype List : type * num
-newcons True : Bool
-newcons False : Bool
-newcons LNil : ∀a. List(a, 0)
-newcons LCons : ∀n, a. a * List(a, n) ⟶ List(a, n+1)
-
-newtype Bar
-external f : Bar → Bool
-
-let rec filter =
-  efunction LNil -> LNil
-    | LCons (x, l) -> match f x with
-          True -> LCons (x, filter l)
-	| False -> filter l"
-        "" 1
-        ""
-(*
-" ⟹ 𝛘1(t2)
-| 𝛘1(t1) ⟹ t1 = (List (t6, n5) → Ex1 t4) ∧ t3 = (List (t6, n5))
-| (List (t8, n7)) = t3 ∧ 0 = n7 ∧ 𝛘1(t1) ⟹
-    t9 = (List (t11, n10)) ∧ 0 = n10 ∧ 𝛘2(t4, t9)
-| (List (t16, n15)) = t3 ∧ (n17 + 1) = n15 ∧ 𝛘1(t1) ⟹ t21 = Bool ∧
-    t22 = t18 ∧ t16 = Bar ∧ 𝛘2(t4, t18)
-| Bool = t21 ∧ (List (t16, n15)) = t3 ∧ (n17 + 1) = n15 ∧ 𝛘1(t1) ⟹
-    t22 = (List (t16, n23)) ∧
-    t27 = (List (t16, n17) → List (t16, n25)) ∧ (n25 + 1) = n23 ∧
-    𝛘1(t27)
-| Bool = t21 ∧ (List (t16, n15)) = t3 ∧ (n17 + 1) = n15 ∧ 𝛘1(t1) ⟹
-    t29 = (List (t16, n17) → t22) ∧ 𝛘1(t29)"
-*)
-    );
-
   "equal with test" >::
     (fun () ->
       todo "debug";
@@ -502,7 +465,7 @@ n202:=n19
 
   "binary plus with test" >::
     (fun () ->
-      (* todo "debug"; *)
+      todo "debug";
       test_case "binary plus test"
 "newtype Binary : num
 newtype Carry : num
@@ -596,5 +559,84 @@ test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
   0 = n189 ∧ 0 = n192 ∧ 0 = n190 ∧ 1 = n184 ∧ 0 = n186 ∧
   3 = n194 ∧ 1 = n177 ∧ 0 = n179 ∧ 0 = n300 ∧ 1 = n299 ∧ 2 = n298"
     );
+
+  "escape castle" >::
+    (fun () ->
+      (* todo "universal"; *)
+      test_case "escape castle"
+"newtype Room
+newtype Yard
+newtype Outside
+
+newtype Placement : type
+newcons Room : Room ⟶ Placement Room
+newcons Yard : Yard ⟶ Placement Yard
+newcons Outside : Outside ⟶ Placement Outside
+
+external leave : Room → ∃a. Placement a
+external enter : Yard → Room
+
+let rec escape = function Outside x -> x
+  | Room x -> escape (leave x)
+  | Yard x -> escape (leave (enter x))"
+        "" 1
+        ""
+
+    );
+
+  "find castle" >::
+    (fun () ->
+      todo "existential";
+      test_case "find castle"
+"newtype Room
+newtype Yard
+newtype Garden
+newtype Village
+
+newtype Castle : type
+newtype Placement : type
+newcons Room : Room ⟶ Castle Room
+newcons Yard : Yard ⟶ Castle Yard
+newcons CastleRoom : Room ⟶ Placement Room
+newcons CastleYard : Yard ⟶ Placement Yard
+newcons Garden : Garden ⟶ Placement Garden
+newcons Village : Village ⟶ Placement Village
+
+external wander : ∀a. Placement a → ∃b. Placement b
+
+let rec find = efunction
+  | CastleRoom x -> Room x
+  | CastleYard x -> Yard x
+  | Garden x -> find (wander x)
+  | Village x -> find (wander x)"
+        "" 1
+        ""
+
+    );
+
+  "filter" >::
+    (fun () ->
+      todo "existential";
+      test_case "list filter"
+"newtype Bool
+newtype List : type * num
+newcons True : Bool
+newcons False : Bool
+newcons LNil : ∀a. List(a, 0)
+newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+
+newtype Bar
+external f : Bar → Bool
+
+let rec filter =
+  efunction LNil -> LNil
+    | LCons (x, l) -> match f x with
+          True -> LCons (x, filter l)
+	| False -> filter l"
+        "" 1
+        ""
+
+    );
+
 
 ]
