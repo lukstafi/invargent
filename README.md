@@ -17,7 +17,7 @@ Milestones: [x] - completed, [#] - finishing (75%-95%), [+] - in the middle (25%
 - [x] Generate constraints.
 - [x] Normalize constraints.
 - [x] Abduction for terms. Multisort abduction part 1.
-- [#] Abduction for linear systems. Multisort abduction part 2.
+- [x] Abduction for linear systems. Multisort abduction part 2.
 - [x] Multisort disjunction elimination (includes anti-unification).
 - [x] Disjunction elimination for linear systems.
 - [x] Solve for predicate variables related to recursive definitions. Iterate till fixpoint part 1.
