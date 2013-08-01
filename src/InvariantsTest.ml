@@ -50,7 +50,7 @@ let tests = "Invariants" >::: [
 
   "eval" >::
     (fun () ->
-      todo "debug";
+      (* todo "debug"; *)
       test_case "eval term"
 "newtype Term : type
 newtype Int
@@ -562,7 +562,7 @@ test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
 
   "escape castle" >::
     (fun () ->
-      (* todo "universal"; *)
+      todo "universal";
       test_case "escape castle"
 "newtype Room
 newtype Yard
@@ -577,9 +577,13 @@ external leave : Room → ∃a. Placement a
 external enter : Yard → Room
 
 let rec escape = function Outside x -> x
-  | Room x -> escape (leave x)
-  | Yard x -> escape (leave (enter x))"
-        "" 1
+  | Room x ->
+    let y = leave x in
+    escape y
+  | Yard x ->
+    let y = leave (enter x) in
+    escape y"
+        "∃t5. δ = Placement t5 → Outside" 1
         ""
 
     );
@@ -587,7 +591,31 @@ let rec escape = function Outside x -> x
   "find castle" >::
     (fun () ->
       todo "existential";
-      test_case "find castle"
+      test_case "find castle small"
+"newtype Room
+newtype Yard
+newtype Village
+
+newtype Castle : type
+newtype Placement : type
+newcons Room : Room ⟶ Castle Room
+newcons Yard : Yard ⟶ Castle Yard
+newcons CastleRoom : Room ⟶ Placement Room
+newcons CastleYard : Yard ⟶ Placement Yard
+newcons Village : Village ⟶ Placement Village
+
+external wander : ∀a. Placement a → ∃b. Placement b
+
+let rec find = efunction
+  | CastleRoom x -> Room x
+  | CastleYard x -> Yard x
+  | Village x ->
+    let y = wander x in
+    find y"
+        "" 1
+        "";
+
+      test_case "find castle big"
 "newtype Room
 newtype Yard
 newtype Garden
@@ -607,8 +635,12 @@ external wander : ∀a. Placement a → ∃b. Placement b
 let rec find = efunction
   | CastleRoom x -> Room x
   | CastleYard x -> Yard x
-  | Garden x -> find (wander x)
-  | Village x -> find (wander x)"
+  | Garden x ->
+    let y = wander x in
+    find y
+  | Village x ->
+    let y = wander x in
+    find y"
         "" 1
         ""
 
