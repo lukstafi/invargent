@@ -98,8 +98,8 @@ let add_params vs = function
   | None -> None
   | Some params -> Some (add_vars vs params)
 
-type skip_kind = Subset_old_mod | Superset_old_mod | Equ_old_mod
-let skip_kind = ref Equ_old_mod
+type skip_kind = Superset_old_mod | Equ_old_mod
+let skip_kind = ref Superset_old_mod
 
 let more_general = ref false
 
@@ -197,8 +197,10 @@ let abd_simple cmp_v uni_v ?params ?bparams ?zparams
           (String.concat ","(List.map var_str vs))
           pr_subst ans; (* *)
         if implies_concl params ans then
-          let ans = List.sort compare ans in
-          Format.printf "abd_simple-abstract: go@\n%!";
+          let _, clean_ans = cleanup vs ans in
+          Format.printf "abd_simple-abstract:@\nclean_ans=%a@\n%!"
+            pr_subst clean_ans          (* skipped=%a@\n *)
+            (* (pr_line_list "|" pr_subst) !skipped *);
           allvs := add_vars vs !allvs;
           let repeated =
             try
@@ -207,18 +209,13 @@ let abd_simple cmp_v uni_v ?params ?bparams ?zparams
                 | Superset_old_mod ->
                   List.find
                     (fun xs ->
-                      List.for_all (fun (y,_) -> VarSet.mem y !allvs)
-                        (Aux.sorted_diff xs ans)) !skipped
-                | Subset_old_mod ->
-                  List.find
-                    (fun xs ->
-                      List.for_all (fun (y,_) -> VarSet.mem y !allvs)
-                        (Aux.sorted_diff ans xs)) !skipped
+                      List.for_all (fun sx -> List.mem sx clean_ans) xs)
+                    !skipped
                 | Equ_old_mod ->
                   List.find
                     (fun xs ->
-                      List.for_all (fun (y,_) -> VarSet.mem y !allvs)
-                        (Aux.sorted_diff ans xs @ Aux.sorted_diff xs ans))
+                      List.for_all (fun sx -> List.mem sx clean_ans) xs
+                      && List.for_all (fun sx -> List.mem sx xs) clean_ans)
                     !skipped in
               Format.printf "skipping: [%d] ans=@ %a --@ old_ans=@ %a...@\n%!"
                 ddepth pr_subst ans pr_subst old_ans; (* *)
@@ -230,12 +227,12 @@ let abd_simple cmp_v uni_v ?params ?bparams ?zparams
               ddepth !skip pr_subst ans; (* *)
             ())
           else if !skip > 0 then (
-            skipped := ans :: !skipped;
+            skipped := clean_ans :: !skipped;
             Format.printf "skipped: [%d]@ @[<2>%a@]@\n%!" ddepth pr_subst ans; (* *)
             decr skip)
           (* TODO: optimize by passing clean_ans along with ans *)
           else if List.exists (fun sx -> List.mem sx discard)
-              (snd (cleanup vs ans))
+              clean_ans
           then (
             Format.printf "discarding: [%d] skip=%d --@ @[<2>%a@]@\n%!"
               ddepth !skip pr_subst ans; (* *)

@@ -5,7 +5,7 @@
     @author Lukasz Stafiniak lukstafi (AT) gmail.com
     @since Mar 2013
 *)
-type skip_kind = Subset_old_mod | Superset_old_mod | Equ_old_mod
+type skip_kind = Superset_old_mod | Equ_old_mod
 val skip_kind : skip_kind ref
 
 (** If [more_general=false] works usually faster, if it doesn't work
