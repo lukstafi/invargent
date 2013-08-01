@@ -714,7 +714,7 @@ let abd cmp_v uni_v ~params ~bparams ~zparams ?(iter_no=2) ~discard
        | _ -> false) tvs) in
   let nvs, ans_num =
     if dissociate then [], []
-    else NumS.abd cmp_v uni_v ~bparams ~zparams ~iter_no ~alien_vs brs_num in
+    else NumS.abd cmp_v uni_v ~bparams ~iter_no ~alien_vs brs_num in
   fallback,
   (nvs @ tvs,
    Aux.map_append (fun (v,(t,lc)) -> Eqty (TVar v,t,lc))
