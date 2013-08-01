@@ -712,10 +712,38 @@ let disjelim cmp_v uni_v brs =
   [], List.map (expand_atom true) eqn
     @ List.map (expand_atom false) (redundant [] ineqn)
 
-(* TODO *)
-let simplify cmp_v vs cnj =
-  if vs = [] then [], cnj
-  else failwith "simplify: not implemented yet"
+let simplify cmp_v uni_v ?params elimvs cnj =
+  Format.printf "NumS.simplify: elimvs=%s;@\ncnj=@ %a@\n%!"
+    (String.concat "," (List.map var_str (VarSet.elements elimvs)))
+    pr_formula cnj;
+  if VarSet.is_empty elimvs then [], cnj
+  else
+    let cmp_v v1 v2 =
+      match cmp_v v1 v2 with
+      | Upstream -> 1
+      | Downstream -> -1
+      | _ -> compare v2 v1 in
+    let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
+    let cmp_w (vars1,_,_) (vars2,_,_) =
+      match vars1, vars2 with
+      | [], [] -> 0
+      | _, [] -> -1
+      | [], _ -> 1
+      | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
+  (*let params = map_opt params
+    (List.fold_left
+    (fun acc (_,ps) -> VarSet.union acc ps) VarSet.empty) in*)
+    let eqs, (ineqs, implicits) =
+      solve ~use_quants:true ?params
+        ~cnj cmp cmp_w uni_v in
+    let eqs, _ = solve ~use_quants:true ?params
+      ~eqs ~eqn:implicits cmp cmp_w uni_v in
+    let eqs =
+      List.filter (fun (v,_) -> not (VarSet.mem v elimvs)) eqs in
+    let ineqs =
+      List.filter (fun (v,_) -> not (VarSet.mem v elimvs)) ineqs in
+    [], ans_to_formula (eqs, ineqs)
+
 
 let satisfiable cnj =
   let cmp_v _ _ = Same_quant in

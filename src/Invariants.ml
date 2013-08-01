@@ -362,7 +362,7 @@ let connected v (vs, phi) =
 
 (** Perform quantifier elimination on provided variables and generally
     simplify the formula. *)
-let simplify cmp_v uni_v vs cnj =
+let simplify cmp_v uni_v ?params vs cnj =
   let ty_ans, num_ans, _ =
     unify ~use_quants:false ~params:(vars_of_list vs)
       cmp_v uni_v cnj in
@@ -372,9 +372,10 @@ let simplify cmp_v uni_v vs cnj =
   let vs = vars_of_list vs in
   let ty_vs = VarSet.inter vs (fvs_formula ty_ans)
   and num_vs = VarSet.inter vs (fvs_formula num_ans) in
-  let num_vs, num_ans =
-    NumS.simplify cmp_v (VarSet.elements num_vs) num_ans in
-  VarSet.elements (VarSet.union ty_vs (vars_of_list num_vs)),
+  let elimvs = VarSet.diff num_vs ty_vs in
+  let _, num_ans =
+    NumS.simplify cmp_v uni_v ?params elimvs num_ans in
+  VarSet.elements ty_vs,
   ty_ans @ num_ans
 
 let converge sol0 sol1 sol2 =

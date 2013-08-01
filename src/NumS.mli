@@ -37,7 +37,9 @@ val disjelim :
     elimination, always returns empty variable list. *)
 val simplify :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
-  Terms.var_name list -> Terms.formula -> 
+  (Terms.var_name -> bool) ->
+  ?params:Terms.VarSet.t ->
+  Terms.VarSet.t -> Terms.formula -> 
   Terms.var_name list * Terms.formula
 
 val satisfiable : Terms.atom list -> bool
