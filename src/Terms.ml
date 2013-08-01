@@ -727,11 +727,27 @@ let pr_to_str pr_f e =
 
 (** {2 Unification} *)
 
+(* If there are no parameters, the LHS variable has to be existential
+   and not upstream of any RHS variable. If there are parameters, every
+   universal variable must be upstream of some parameter.
+   (Note that a parameter that is sufficiently downstream is a
+   "savior".) *)
+let quant_viol cmp_v uni_v params v t =
+  let uv = uni_v v in
+  let pvs, npvs = List.partition (fun v->VarSet.mem v params)
+    (VarSet.elements (fvs_typ t)) in
+  if pvs = [] then uv ||
+    List.exists (fun v2 -> cmp_v v v2 = Upstream) npvs
+  else not
+    (List.for_all
+       (fun uv -> List.exists (fun pv -> cmp_v uv pv = Upstream) pvs)
+       (List.filter uni_v (v::npvs)))
+
 (** Separate type sort and number sort constraints,  *)
 let unify ~use_quants ?params ?(sb=[]) cmp_v uni_v cnj =
-  let check_param = match params with
-    | None -> fun _ -> false
-    | Some params -> fun v -> VarSet.mem v params in
+  let quant_viol = match params with
+    | None -> fun _ _ -> false
+    | Some params -> quant_viol cmp_v uni_v params in
   let cnj_typ, more_cnj = Aux.partition_map
     (function
     | Eqty (t1, t2, loc) when typ_sort_typ t1 && typ_sort_typ t2 ->
@@ -758,38 +774,15 @@ let unify ~use_quants ?params ?(sb=[]) cmp_v uni_v cnj =
       | (TVar v as tv, t | t, (TVar v as tv))
           when VarSet.mem v (fvs_typ t) ->
         raise (Contradiction ("Occurs check fail", Some (tv, t), loc))
-      | TVar v1, t when check_param v1 ->
-        aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj        
-      | t, TVar v1 when check_param v1 ->
-        aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj        
-      | TVar v1, (TVar v2 as t)
-        when not (use_quants && uni_v v1)
-          && List.mem (cmp_v v1 v2)
-            [Downstream; Same_quant; Not_in_scope] ->
-        aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
-      | (TVar v2 as t), TVar v1
-          when not (use_quants && uni_v v1)
-            && List.mem (cmp_v v1 v2)
-              [Downstream; Same_quant; Not_in_scope] ->
-        aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
-      | TVar v1, t
-          when not (use_quants && uni_v v1) &&
-            VarSet.for_all (fun v2 -> check_param v2 ||
-              List.mem (cmp_v v1 v2)
-              [Downstream; Same_quant; Not_in_scope]) (fvs_typ t) ->
-        aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
-      | t, TVar v1
-          when not (use_quants && uni_v v1) &&
-            VarSet.for_all (fun v2 -> check_param v2 ||
-              List.mem (cmp_v v1 v2)
-              [Downstream; Same_quant; Not_in_scope]) (fvs_typ t) ->
-        aux ((v1, (t, loc))::subst_one_sb v1 t sb) num_cn cnj
-      | (TVar v as tv, t | t, (TVar v as tv)) ->
-        if use_quants
-        then (
-          raise
-            (Contradiction ("Quantifier violation", Some (tv, t), loc)))
-        else aux ((v, (t, loc))::subst_one_sb v t sb) num_cn cnj
+      | (TVar v, t | t, TVar v) when use_quants && quant_viol v t ->
+        raise
+          (Contradiction ("Quantifier violation", Some (TVar v, t), loc))
+      | (TVar v1 as tv1, (TVar v2 as tv2)) ->
+        if cmp_v v1 v2 = Upstream
+        then aux ((v2, (tv1, loc))::subst_one_sb v2 tv1 sb) num_cn cnj
+        else aux ((v1, (tv2, loc))::subst_one_sb v1 tv2 sb) num_cn cnj
+      | (TVar v, t | t, TVar v) ->
+        aux ((v, (t, loc))::subst_one_sb v t sb) num_cn cnj
       | (TCons (f, f_args) as t1,
          (TCons (g, g_args) as t2)) when f=g ->
         let more_cnj =
