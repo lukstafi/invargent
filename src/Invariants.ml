@@ -553,7 +553,7 @@ let solve cmp_v uni_v brs =
       (fun pms (_, bpms) (_, zpms) ->
         VarSet.union pms (VarSet.union bpms zpms))
       VarSet.empty bparams zparams in
-    let fallback, (vs, ans) =
+    let alien_eqs, fallback, (vs, ans) =
       try Abduction.abd cmp_v uni_v ~params ~bparams ~zparams
             ~iter_no ~discard ~fallback:brs0 brs1
       with Suspect (vs, phi, lc) ->
@@ -576,6 +576,8 @@ let solve cmp_v uni_v brs =
       pr_ans (vs, ans); (* *)
     try
       let ans_res, more_discard, sol2 = split vs ans params zparams q in
+      let more_discard =
+        more_discard @ subst_formula alien_eqs more_discard in
       (* Add new variables to [q] *)
       List.iter (fun (b, (vs,_)) -> q.add_b_vs b vs) sol2;
       Format.printf "solve: loop -- answer split@ more_discard=@ %a@\nans_res=@ %a@\nsol=@ %a@\n%!"

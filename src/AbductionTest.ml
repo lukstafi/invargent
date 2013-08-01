@@ -98,7 +98,7 @@ let tests = "Abduction" >::: [
         let lhs8, rhs8 = br_simple lhs8 rhs8 in
         let lhs9, rhs9 = br_simple lhs9 rhs9 in
         let ans =
-          try let vs, ans_typ, _ = abd_typ cmp_v uni_v
+          try let alien_eqs, vs, ans_typ, _ = abd_typ cmp_v uni_v
                 ~params:VarSet.empty
                 ~bparams:[]
                 ~zparams:[]
@@ -225,7 +225,7 @@ let rec filter =
         todo "Test fails by looping inside abduction";
         let brs = Infer.simplify preserve cmp_v uni_v brs in
         let brs = prepare_brs brs in
-        let _, (vs, ans) =
+        let _, _, (vs, ans) =
           try abd cmp_v uni_v ~params:VarSet.empty
                 ~bparams:[]
                 ~zparams:[]
@@ -263,7 +263,7 @@ let rec filter =
         and vD = VNam (Type_sort, "tD") in
         let pms = vars_of_list [vA; vB; vC; vD] in
         let ans =
-          try let vs, ans_typ, _ =
+          try let alien_eqs, vs, ans_typ, _ =
                 abd_typ cmp_v uni_v ~params:pms
                   ~bparams:[vA, VarSet.singleton vA]
                   ~zparams:[vA, vars_of_list [vA; vB; vC]]

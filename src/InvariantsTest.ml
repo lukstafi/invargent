@@ -263,7 +263,7 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
 
   "binary plus" >::
     (fun () ->
-      (* todo "debug"; *)
+      todo "debug";
       test_case "binary plus"
 "newtype Binary : num
 newtype Carry : num
@@ -502,19 +502,19 @@ n202:=n19
 
   "binary plus with test" >::
     (fun () ->
-      todo "numeric";
+      (* todo "debug"; *)
       test_case "binary plus test"
 "newtype Binary : num
 newtype Carry : num
 newtype Bool
 
 newcons Zero : Binary 0
-newcons PZero : ∀n. Binary(n) ⟶ Binary(n+n)
-newcons POne : ∀n. Binary(n) ⟶ Binary(n+n+1)
+newcons PZero : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n)
+newcons POne : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n+1)
 newcons CZero : Carry 0
 newcons COne : Carry 1
 
-external eq_Binary :  ∀n. Binary(n) → Binary(n) → Bool
+external eq_Binary :  ∀n [0≤n]. Binary(n) → Binary(n) → Bool
 
 let rec plus =
   function CZero ->
@@ -540,9 +540,61 @@ let rec plus =
         (function Zero -> PZero (plus COne a1 Zero)
 	  | PZero b1 -> PZero (plus COne a1 b1)
 	  | POne b1 -> POne (plus COne a1 b1)))
-test (eq_Binary (plus (POne Zero) (PZero (POne Zero))) (POne (POne Zero)))"
-        "" 1
-        ""
+test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
+                   (POne (POne Zero)))"
+        "∃n224, n225, n226, n227.
+  δ = (Carry n227 → Binary n226 → Binary n225 → Binary n224) ∧
+  n224 = (n227 + n226 + n225)" 1
+        "(n24 + n16) = n26 ∧ 0 = n30 ∧ (n24 + n24 + n16 + n16) = n25 ∧
+  (n35 + n16) = n37 ∧ 0 = n41 ∧ (1 + n35 + n35 + n16 + n16) = n36 ∧
+  (n54 + n46) = n56 ∧ 0 = n60 ∧ (1 + n54 + n54 + n46 + n46) = n55 ∧
+  (1 + n65 + n46) = n67 ∧ 1 = n71 ∧ (2 + n65 + n65 + n46 + n46) = n66 ∧
+  0 = n85 ∧ 0 = n84 ∧ 1 = n83 ∧ n89 = n91 ∧ (1 + n89 + n89) = n90 ∧
+  (1 + n95) = n97 ∧ 1 = n102 ∧ 0 = n100 ∧ (2 + n95 + n95) = n96 ∧
+  n107 = n113 ∧ (1 + n107 + n107) = n112 ∧ (n117 + n107) = n119 ∧
+  0 = n123 ∧ (1 + n117 + n117 + n107 + n107) = n118 ∧
+  (1 + n128 + n107) = n130 ∧ 1 = n134 ∧
+  (2 + n128 + n128 + n107 + n107) = n129 ∧ (1 + n139) = n145 ∧
+  1 = n150 ∧ 0 = n147 ∧ (2 + n139 + n139) = n144 ∧
+  (1 + n155 + n139) = n157 ∧ 1 = n161 ∧
+  (2 + n155 + n155 + n139 + n139) = n156 ∧ (1 + n166 + n139) = n168 ∧
+  1 = n172 ∧ (3 + n166 + n166 + n139 + n139) = n167 ∧
+  t173 = (Carry n172 → Binary n139 → Binary n166 → Binary n168) ∧
+  t162 = (Carry n161 → Binary n139 → Binary n155 → Binary n157) ∧
+  t151 = (Carry n150 → Binary n139 → Binary n147 → Binary n145) ∧
+  t141 = (Binary n224) ∧ t140 = (Binary n142) ∧
+  t135 = (Carry n134 → Binary n107 → Binary n128 → Binary n130) ∧
+  t124 = (Carry n123 → Binary n107 → Binary n117 → Binary n119) ∧
+  t109 = (Binary n224) ∧ t108 = (Binary n110) ∧
+  t103 = (Carry n102 → Binary n100 → Binary n95 → Binary n97) ∧
+  t80 = (Binary n224) ∧ t79 = (Binary n81) ∧
+  t76 = (Binary n225 → Binary n224) ∧ t75 = (Binary n77) ∧
+  t72 = (Carry n71 → Binary n46 → Binary n65 → Binary n67) ∧
+  t61 = (Carry n60 → Binary n46 → Binary n54 → Binary n56) ∧
+  t48 = (Binary n224) ∧ t47 = (Binary n49) ∧
+  t42 = (Carry n41 → Binary n16 → Binary n35 → Binary n37) ∧
+  t31 = (Carry n30 → Binary n16 → Binary n24 → Binary n26) ∧
+  t18 = (Binary n224) ∧ t17 = (Binary n19) ∧ t12 = (Binary n225) ∧
+  t8 = (Binary n225 → Binary n224) ∧ t7 = (Binary n9) ∧
+  t4 = (Binary n226 → Binary n225 → Binary n224) ∧ t3 = (Carry n5) ∧
+  t2 = (Carry n296 → Binary n295 → Binary n294 → Binary n293) ∧
+  t193 = (Carry n192 → Binary n188 → Binary n182 → Binary n194) ∧
+  1 = n340 ∧ n139 = n339 ∧ n166 = n338 ∧ (1 + n166 + n139) = n337 ∧
+  1 = n336 ∧ n139 = n335 ∧ n155 = n334 ∧ (1 + n155 + n139) = n333 ∧
+  1 = n332 ∧ n139 = n331 ∧ 0 = n330 ∧ (1 + n139) = n329 ∧
+  n225 = n142 ∧ 1 = n328 ∧ n107 = n327 ∧ n128 = n326 ∧
+  (1 + n128 + n107) = n325 ∧ 0 = n324 ∧ n107 = n323 ∧ n117 = n322 ∧
+  (n117 + n107) = n321 ∧ n225 = n110 ∧ 1 = n320 ∧ 0 = n319 ∧
+  n95 = n318 ∧ (1 + n95) = n317 ∧ n225 = n81 ∧ n226 = n77 ∧
+  1 = n316 ∧ n46 = n315 ∧ n65 = n314 ∧ (1 + n65 + n46) = n313 ∧
+  0 = n312 ∧ n46 = n311 ∧ n54 = n310 ∧ (n54 + n46) = n309 ∧
+  n225 = n49 ∧ 0 = n308 ∧ n16 = n307 ∧ n35 = n306 ∧
+  (n35 + n16) = n305 ∧ 0 = n304 ∧ n16 = n303 ∧ n24 = n302 ∧
+  (n24 + n16) = n301 ∧ n225 = n19 ∧ n226 = n9 ∧ n227 = n5 ∧
+  3 = n297 ∧ n293 = (n296 + n295 + n294) ∧ 3 = n175 ∧ 0 = n178 ∧
+  1 = n176 ∧ 2 = n182 ∧ 0 = n185 ∧ 1 = n183 ∧ 1 = n188 ∧
+  0 = n189 ∧ 0 = n192 ∧ 0 = n190 ∧ 1 = n184 ∧ 0 = n186 ∧
+  3 = n194 ∧ 1 = n177 ∧ 0 = n179 ∧ 0 = n300 ∧ 1 = n299 ∧ 2 = n298"
     );
 
 ]

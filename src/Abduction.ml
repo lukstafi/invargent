@@ -579,13 +579,15 @@ let abd_typ cmp_v uni_v ~params ~bparams ~zparams
           combine_sbs ~use_quants:false cmp_v uni_v [prem; ans] in
         let res_ty, res_num =
           residuum cmp_v uni_v cnj_ty concl in
-        Format.printf "abd_typ-num: res_ty=%a@ res_num=%a@\ncnj_num=%a@\n%!"
+        Format.printf
+          "abd_typ-num:@ prem=%a@ concl=%a@ res_ty=%a@ res_num=%a@\ncnj_num=%a@\n%!"
+          pr_subst prem pr_subst concl
           pr_subst res_ty pr_formula res_num pr_formula cnj_num; (* *)
         assert (res_ty = []);
         cnj_num, res_num
       with Contradiction _ -> assert false)
     brs in
-  vs, ans, num  
+  !alien_eqs, vs, ans, num
 
 let abd_mockup_num cmp_v uni_v ~params ~bparams ~zparams brs =
   (* Do not change the order and no. of branches afterwards. *)
@@ -625,7 +627,7 @@ let abd_mockup_num cmp_v uni_v ~params ~bparams ~zparams brs =
                 NumS.empty_state cnj_num))
     brs_typ brs_num in
   try
-    let tvs, ans_typ, more_num =
+    let alien_eqs, tvs, ans_typ, more_num =
       abd_typ cmp_v uni_v ~params ~bparams ~zparams
         ~validate ~discard:[] brs_typ in
     Some (List.map2
@@ -670,10 +672,16 @@ let abd cmp_v uni_v ~params ~bparams ~zparams ?(iter_no=2) ~discard
   (* FIXME: remove handling of brs_so? *)
   let fallback, (brs_typ, brs_num, brs_so) =
     try false, prepare_brs brs
-    with Contradiction _ as e ->
+    with Contradiction (msg, tys, lc) as e ->
       if fallback == brs then raise e
       else (
-      Format.printf "abd: prepare fallback@\n%!"; (* *)
+        Format.printf "abd: prepare fallback msg=%s;@ loc=%a@\n%!"
+          msg pr_loc lc;
+        (match tys with None -> ()
+        | Some (t1, t2) ->
+          Format.printf "types involved:@ t1=%a@ t2=%a@\n%!"
+            (pr_ty false) t1 (pr_ty false) t2);
+      (* *)
       true, prepare_brs fallback) in
   let validate params vs ans = List.iter2
     (fun (prem_ty, concl_ty) (nonrec, prem_num, concl_num) ->
@@ -699,7 +707,7 @@ let abd cmp_v uni_v ~params ~bparams ~zparams ?(iter_no=2) ~discard
   (* *)
   (* We do not remove nonrecursive branches for types -- it will help
      other sorts do better validation. *)
-  let tvs, ans_typ, more_num =
+  let alien_eqs, tvs, ans_typ, more_num =
     abd_typ cmp_v uni_v ~params ~bparams ~zparams
       ~dissociate ~validate ~discard:discard_typ brs_typ in
   let brs_num = List.map2
@@ -715,7 +723,7 @@ let abd cmp_v uni_v ~params ~bparams ~zparams ?(iter_no=2) ~discard
   let nvs, ans_num =
     if dissociate then [], []
     else NumS.abd cmp_v uni_v ~bparams ~iter_no ~alien_vs brs_num in
-  fallback,
+  alien_eqs, fallback,
   (nvs @ tvs,
    Aux.map_append (fun (v,(t,lc)) -> Eqty (TVar v,t,lc))
     ans_typ ans_num)
