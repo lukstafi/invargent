@@ -247,12 +247,12 @@ let subst_typ sb =
   typ_map {typ_id_map with map_tvar =
       fun v -> try fst (List.assoc v sb) with Not_found -> TVar v}
 
-let subst_one v s =
-  typ_map {typ_id_map with map_tvar =
-      fun w -> if v = w then s else TVar w}
-
-let subst_one_sb v s =
-  List.map (fun (w,(t,loc)) -> w, (subst_one v s t, loc))
+let subst_one v s t =
+  let modif = ref false in
+  let res = typ_map
+    {typ_id_map with map_tvar =
+        fun w -> if v = w then (modif:=true; s) else TVar w} t in
+  !modif, res
 
 let subst_sb ~sb =
   List.map (fun (w,(t,loc)) -> w, (subst_typ sb t, loc))
@@ -767,6 +767,13 @@ let unify ?use_quants ?(sb=[]) cmp_v uni_v cnj =
     match use_quants with
     | None -> false, VarSet.empty, VarSet.empty
     | Some (bvs, zvs) -> true, bvs, zvs in
+  let subst_one_sb v s = List.map
+    (fun (w,(t,loc)) ->
+      let modif, t' = subst_one v s t in
+      if use_quants && modif && quant_viol cmp_v uni_v bvs zvs w t'
+      then raise
+        (Contradiction ("Quantifier violation", Some (TVar w, t'), loc));
+      w, (t', loc)) in
   let cnj_typ, more_cnj = Aux.partition_map
     (function
     | Eqty (t1, t2, loc) when typ_sort_typ t1 && typ_sort_typ t2 ->

@@ -73,7 +73,7 @@ let rec eval = function
   | Fst p -> (match eval p with x, y -> x)
   | Snd p -> (match eval p with x, y -> y)"
 
-        [1, "∃t98. δ = (Term t98 → t98)"]
+        [1, "∃t97. δ = (Term t97 → t97)"]
     );
 
   "equal with test" >::
@@ -177,7 +177,7 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
 
   "binary plus" >::
     (fun () ->
-      (* todo "debug"; *)
+      todo "debug";
       test_case "binary plus"
 "newtype Binary : num
 newtype Carry : num
@@ -334,6 +334,25 @@ test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
         [1,"∃n285, n286, n287, n288.
   δ = (Carry n288 → Binary n287 → Binary n286 → Binary n285) ∧
   n285 = (n288 + n287 + n286)"]
+    );
+
+  "flatten_pairs" >::
+    (fun () ->
+      (* todo "debug"; *)
+      test_case "list flatten_pairs"
+"newtype Bool
+newtype List : type * num
+newcons True : Bool
+newcons False : Bool
+newcons LNil : ∀a. List(a, 0)
+newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+
+let rec flatten_pairs =
+  function LNil -> LNil
+    | LCons ((x, y), l) ->
+      LCons (x, LCons (y, flatten_pairs l))"
+        [1,""];
+
     );
 
   "escape castle" >::
