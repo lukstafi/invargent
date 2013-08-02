@@ -314,7 +314,7 @@ let solve ?use_quants ?(strict=false)
 let fvs_w (vars, _, _) = vars_of_list (List.map fst vars)
 
 
-let abd_rotations = ref 1(* 2 *)
+let abd_rotations = ref (* 1 *)2
 
 exception Result of w_subst * ineqs
 
@@ -346,10 +346,10 @@ let abd_simple cmp cmp_w uni_v ~bvs ~validate
     Array.append big_k (Array.map (fun k-> !/1 // k) big_k) in
   let ks_eq = (* 1a1 *)
     Array.to_list
-      (Array.append [|!/1; !/0; !/(-1)|]
+      (Array.append [|!/0; !/1; !/(-1)|]
          (Array.append big_k (Array.map (fun k -> !/(-1) */ k) big_k))) in
   let ks_ineq = (* 1b1 *)
-    Array.to_list (Array.append [|!/1; !/0|] big_k) in
+    Array.to_list (Array.append [|!/0; !/1|] big_k) in
   let ks_eq = laz_of_list ks_eq
   and ks_ineq = laz_of_list ks_ineq in
   let zero = [], !/0, dummy_loc in
