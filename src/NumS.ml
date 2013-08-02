@@ -181,7 +181,12 @@ let eqineq_loc_union (eqn, ineqn) =
 
 (* Assumption: [v] is downstream of all [vars] *)
 let quant_viol uni_v bvs v vars =
-  uni_v v && not (VarSet.mem v bvs)
+  let res = uni_v v && not (VarSet.mem v bvs) in
+  if res then
+  Format.printf "NumS.quant_viol: v=%s; uni(v)=%b; bvs(v)=%b@\n%!"
+    (var_str v) (uni_v v) (VarSet.mem v bvs);
+  (* *)
+  res
 
 let solve ?use_quants ?(strict=false)
     ?(eqs=[]) ?(ineqs=[]) ?(eqs'=[])
@@ -309,7 +314,7 @@ let solve ?use_quants ?(strict=false)
 let fvs_w (vars, _, _) = vars_of_list (List.map fst vars)
 
 
-let abd_rotations = ref 2
+let abd_rotations = ref 1(* 2 *)
 
 exception Result of w_subst * ineqs
 
@@ -454,18 +459,16 @@ let abd_simple cmp cmp_w uni_v ~bvs ~validate
     with Result (ans_eqs, ans_ineqs) -> Some (ans_eqs, ans_ineqs)
   with Contradiction _ -> None
 
-let abd cmp_v uni_v ~bparams ?(alien_vs=VarSet.empty)
-    ?(iter_no=2) brs =
-  let cmp_v v1 v2 =
-    let c1 = VarSet.mem v1 alien_vs
-    and c2 = VarSet.mem v2 alien_vs in
-    if c1 && c2 then compare v2 v1
-    else if c1 then -1
-    else if c2 then 1
-    else match cmp_v v1 v2 with
-    | Upstream -> 1
-    | Downstream -> -1
-    | _ -> compare v2 v1 in
+let make_cmp cmp_v v1 v2 =
+  match cmp_v v1 v2 with
+  | Upstream -> 1
+  | Downstream -> -1
+  | _ -> compare v2 v1
+
+let abd cmp_v uni_v ~bparams ?(iter_no=2) brs =
+  let bvs = List.fold_left
+    (fun acc (_,ps) -> VarSet.union acc ps) VarSet.empty bparams in
+  let cmp_v = make_cmp cmp_v in
   let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
   let cmp_w (vars1,cst1,_) (vars2,cst2,_) =
     match vars1, vars2 with
@@ -473,8 +476,6 @@ let abd cmp_v uni_v ~bparams ?(alien_vs=VarSet.empty)
     | _, [] -> -1
     | [], _ -> 1
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
-  let bvs = List.fold_left
-    (fun acc (_,ps) -> VarSet.union acc ps) VarSet.empty bparams in
   Format.printf "NumS.abd: iter_no=%d@ bvs=%s@\nbrs=@ %a@\n%!"
     iter_no
     (String.concat "," (List.map var_str (VarSet.elements bvs)))
@@ -568,11 +569,7 @@ let abd cmp_v uni_v ~bparams ?(alien_vs=VarSet.empty)
   [], ans_to_formula (loop ([], []) [] (br0::more_brs))
 
 let abd_s cmp_v uni_v prem concl =
-  let cmp_v v1 v2 =
-    match cmp_v v1 v2 with
-    | Upstream -> 1
-    | Downstream -> -1
-    | _ -> compare v2 v1 in
+  let cmp_v = make_cmp cmp_v in
   let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
   let cmp_w (vars1,cst1,_) (vars2,cst2,_) =
     match vars1, vars2 with
@@ -604,14 +601,12 @@ let disjelim cmp_v uni_v brs =
     match vars with [] -> assert false
     | [vars] -> vars
     | hd::tl -> List.fold_left VarSet.inter hd tl in
+  let cmp_v = make_cmp cmp_v in
   let cmp_v v1 v2 =
     let v1c = VarSet.mem v1 common and v2c = VarSet.mem v2 common in
     if v1c && not v2c then 1
     else if v2c && not v1c then -1
-    else match cmp_v v1 v2 with
-    | Upstream -> 1
-    | Downstream -> -1
-    | _ -> compare v2 v1 in
+    else cmp_v v1 v2 in
   let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
   let cmp_w (vars1,cst1,_) (vars2,cst2,_) =
     match vars1, vars2 with
@@ -719,11 +714,13 @@ let simplify cmp_v uni_v ?bvs elimvs cnj =
     pr_formula cnj;
   if VarSet.is_empty elimvs then [], cnj
   else
+    let cmp_v = make_cmp cmp_v in
     let cmp_v v1 v2 =
-      match cmp_v v1 v2 with
-      | Upstream -> 1
-      | Downstream -> -1
-      | _ -> compare v2 v1 in
+      let c1 = VarSet.mem v1 elimvs and c2 = VarSet.mem v2 elimvs in
+      if c1 && c2 then 0
+      else if c1 then 1
+      else if c2 then -1
+      else cmp_v v1 v2 in
     let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
     let cmp_w (vars1,_,_) (vars2,_,_) =
       match vars1, vars2 with
@@ -755,13 +752,8 @@ let satisfiable ?state cnj =
   let eqs, ineqs = match state with
     | None -> None, None
     | Some (eqs, ineqs) -> Some eqs, Some ineqs in
-  let cmp_v _ _ = Same_quant in
   let uni_v _ = false in
-  let cmp_v v1 v2 =
-    match cmp_v v1 v2 with
-    | Upstream -> 1
-    | Downstream -> -1
-    | _ -> compare v2 v1 in
+  let cmp_v v1 v2 = compare v1 v2 in
   let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
   let cmp_w (vars1,_,_) (vars2,_,_) =
     match vars1, vars2 with
@@ -777,11 +769,7 @@ let satisfiable ?state cnj =
   with Contradiction _ as e -> Left e
 
 let holds cmp_v uni_v (eqs, ineqs : state) cnj : state =
-  let cmp_v v1 v2 =
-    match cmp_v v1 v2 with
-    | Upstream -> 1
-    | Downstream -> -1
-    | _ -> compare v2 v1 in
+  let cmp_v = make_cmp cmp_v in
   let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
   let cmp_w (vars1,_,_) (vars2,_,_) =
     match vars1, vars2 with

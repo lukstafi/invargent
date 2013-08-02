@@ -7,3 +7,4 @@ Place for TODOs/FIXMEs, especially if not expressed in other places. See README.
 * TODO: factor out joint constraint abduction scheme, available for use across sorts (v2.0).
 * TODO: numerical abduction -- optimize candidate substitution selection by working incrementally as in term abduction
 * FIXME: a separate fallback mechanism in the main loop for each sort
+* TODO: optimize abduction, especially numerical, use Best-First-Search

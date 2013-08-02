@@ -9,7 +9,7 @@ open OUnit
 open Terms
 open Aux
 
-let test_case msg test result chi residuum =
+let test_case msg test answers =
       Terms.reset_state ();
       Infer.reset_state ();
       let prog = Parser.program Lexer.token
@@ -28,19 +28,15 @@ let test_case msg test result chi residuum =
         let brs = List.map Infer.br_to_formulas brs in
         let _, _, (sol_res, sol_chi) =
           Invariants.solve cmp_v uni_v brs in
-        let vs, ans = List.assoc chi sol_chi in
-        ignore (Format.flush_str_formatter ());
-        Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
-          (pr_sep_list "," pr_tyvar) vs pr_formula ans;
-        assert_equal ~printer:(fun x -> x)
-          result
-          (Format.flush_str_formatter ());
-        ignore (Format.flush_str_formatter ());
-        Format.fprintf Format.str_formatter "@[<2>%a@]"
-          pr_formula sol_res;
-        assert_equal ~printer:(fun x -> x)
-          residuum
-          (Format.flush_str_formatter ());
+        let test_sol (chi, result) =
+          let vs, ans = List.assoc chi sol_chi in
+          ignore (Format.flush_str_formatter ());
+          Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
+            (pr_sep_list "," pr_tyvar) vs pr_formula ans;
+          assert_equal ~printer:(fun x -> x)
+            result
+            (Format.flush_str_formatter ()) in
+        List.iter test_sol answers
       with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
         Terms.pr_exception Format.str_formatter exn;
@@ -77,19 +73,7 @@ let rec eval = function
   | Fst p -> (match eval p with x, y -> x)
   | Snd p -> (match eval p with x, y -> y)"
 
-        "∃t98. δ = (Term t98 → t98)" 1
-        "t3 = (Term t98) ∧ t24 = (Term t98 → t98) ∧ t27 = (Term t98 → t98) ∧
-  t43 = (Term t37 → t37) ∧ t41 = (Term t36 → t36) ∧ t39 = t37 ∧
-  t38 = t36 ∧ t65 = t98 ∧ t67 = t98 ∧ t66 = t59 ∧
-  t64 = (t59, t60) ∧ t109 = (t59, t60) ∧
-  t63 = (Term (t59, t60) → t59, t60) ∧ t52 = t98 ∧ t53 = t98 ∧
-  t54 = t47 ∧ t51 = (t46, t47) ∧ t108 = (t46, t47) ∧
-  t50 = (Term (t46, t47) → t46, t47) ∧ t106 = t36 ∧ t107 = t37 ∧
-  t104 = t98 ∧ t105 = t98 ∧ t103 = Bool ∧
-  t30 = (Term Bool → Bool) ∧ t101 = Int ∧ t102 = Int ∧
-  t19 = (Term Int → Int) ∧ t16 = (Term Int → Int) ∧ t100 = Int ∧
-  t11 = (Term Int → Int) ∧ t5 = t98 ∧ t4 = t98 ∧
-  t2 = (Term t99 → t99)"
+        [1, "∃t98. δ = (Term t98 → t98)"]
     );
 
   "equal with test" >::
@@ -121,19 +105,7 @@ let rec equal = function
   | TList t, TList u -> forall2 (equal (t, u))
   | _ -> fun _ _ -> False
 test b_not (equal (TInt, TList TInt) Zero Nil)"
-        "∃t191, t192. δ = (Ty t191, Ty t192 → t191 → t192 → Bool)" 1
-        "t3 = (Ty t191, Ty t192) ∧ t4 = (t191 → t192 → Bool) ∧
-  t36 = (t33, t34 → Bool) ∧ t35 = (t30, t31) ∧ t38 = t31 ∧
-  t37 = t30 ∧ t41 = (t33, t34) ∧ t43 = t33 ∧ t44 = t34 ∧
-  t42 = Bool ∧ t77 = (Ty t70, Ty t72 → t70 → t72 → Bool) ∧
-  t79 = t72 ∧ t78 = t70 ∧ t129 = t70 ∧ t130 = t72 ∧ t125 = t30 ∧
-  t126 = t33 ∧ t127 = t31 ∧ t128 = t34 ∧
-  t60 = (Ty t30, Ty t33 → t30 → t33 → Bool) ∧
-  t53 = (Ty t31, Ty t34 → t31 → t34 → Bool) ∧ t7 = t191 ∧
-  t8 = t192 ∧ t80 = t191 ∧ t82 = t192 ∧ t123 = Int ∧ t86 = Int ∧
-  t124 = (List Int) ∧
-  t2 = (Ty t121, Ty t122 → t121 → t122 → Bool) ∧
-  t95 = (Ty Int, Ty (List Int) → Int → List Int → Bool)";
+        [1, "∃t191, t192. δ = (Ty t191, Ty t192 → t191 → t192 → Bool)"]
     );
 
   "equal with assert" >::
@@ -166,17 +138,7 @@ let rec equal = function
   | _ -> fun _ _ -> False
   | TInt, TList l -> (function Nil -> assert false)
   | TList l, TInt -> (fun _ -> function Nil -> assert false)"
-        "∃t204, t205. δ = (Ty t204, Ty t205 → t204 → t205 → Bool)" 1
-        "t3 = (Ty t204, Ty t205) ∧ t4 = (t204 → t205 → Bool) ∧
-  t36 = (t33, t34 → Bool) ∧ t35 = (t30, t31) ∧ t38 = t31 ∧
-  t37 = t30 ∧ t41 = (t33, t34) ∧ t43 = t33 ∧ t44 = t34 ∧
-  t42 = Bool ∧ t77 = (Ty t70, Ty t72 → t70 → t72 → Bool) ∧
-  t79 = t72 ∧ t78 = t70 ∧ t144 = t70 ∧ t145 = t72 ∧ t140 = t30 ∧
-  t141 = t33 ∧ t142 = t31 ∧ t143 = t34 ∧
-  t60 = (Ty t30, Ty t33 → t30 → t33 → Bool) ∧
-  t53 = (Ty t31, Ty t34 → t31 → t34 → Bool) ∧ t7 = t204 ∧
-  t8 = t205 ∧ t80 = t204 ∧ t82 = t205 ∧
-  t2 = (Ty t138, Ty t139 → t138 → t139 → Bool)";
+        [1, "∃t204, t205. δ = (Ty t204, Ty t205 → t204 → t205 → Bool)"]
     );
 
   "equal with assert and test" >::
@@ -210,19 +172,7 @@ let rec equal = function
   | TInt, TList l -> (function Nil -> assert false)
   | TList l, TInt -> (fun _ -> function Nil -> assert false)
 test b_not (equal (TInt, TList TInt) Zero Nil)"
-        "∃t221, t222. δ = (Ty t221, Ty t222 → t221 → t222 → Bool)" 1
-        "t3 = (Ty t221, Ty t222) ∧ t4 = (t221 → t222 → Bool) ∧
-  t36 = (t33, t34 → Bool) ∧ t35 = (t30, t31) ∧ t38 = t31 ∧
-  t37 = t30 ∧ t41 = (t33, t34) ∧ t43 = t33 ∧ t44 = t34 ∧
-  t42 = Bool ∧ t77 = (Ty t70, Ty t72 → t70 → t72 → Bool) ∧
-  t79 = t72 ∧ t78 = t70 ∧ t159 = t70 ∧ t160 = t72 ∧ t155 = t30 ∧
-  t156 = t33 ∧ t157 = t31 ∧ t158 = t34 ∧
-  t60 = (Ty t30, Ty t33 → t30 → t33 → Bool) ∧
-  t53 = (Ty t31, Ty t34 → t31 → t34 → Bool) ∧ t7 = t221 ∧
-  t8 = t222 ∧ t80 = t221 ∧ t82 = t222 ∧ t153 = Int ∧ t116 = Int ∧
-  t154 = (List Int) ∧
-  t2 = (Ty t151, Ty t152 → t151 → t152 → Bool) ∧
-  t125 = (Ty Int, Ty (List Int) → Int → List Int → Bool)";
+        [1, "∃t221, t222. δ = (Ty t221, Ty t222 → t221 → t222 → Bool)"]
     );
 
   "binary plus" >::
@@ -263,134 +213,9 @@ let rec plus =
         (function Zero -> PZero (plus COne a1 Zero)
 	  | PZero b1 -> PZero (plus COne a1 b1)
 	  | POne b1 -> POne (plus COne a1 b1)))"
-        "∃n202, n203, n204, n205.
-  δ = (Carry n205 → Binary n204 → Binary n203 → Binary n202) ∧
-  n202 = (n205 + n204 + n203)" 1
-        "n202 = (n5 + n204 + n203) ∧ n204 = (n9 + n205) ∧
-  (n16 + n16 + n203) = (n19 + n204) ∧
-  (n24 + n24 + n24 + n24 + n24 + n24 + n24 + n16) =
-    (n271 + n203 + n203 + n203) ∧
-  (n24 + n24 + n24) = (n272 + n203) ∧ (n24 + n24 + n16) = (n273 + n203) ∧
-  (n24 + n24 + n24 + n24) = (n274 + n203 + n203) ∧
-  (n24 + n24 + n24 + n24 + n24 + n16) = (n26 + n203 + n203) ∧
-  (n24 + n24) = (n30 + n203) ∧
-  (n24 + n24 + n24 + n24 + n24 + n24 + n24 + n24 + n24 + n24 + n24 + n24 +
-     n16 + n16)
-    = (n25 + n203 + n203 + n203 + n203 + n203) ∧
-  (3 + n35 + n35 + n35 + n35 + n35 + n35 + n35 + n16) =
-    (n275 + n203 + n203 + n203) ∧
-  (1 + n35 + n35 + n35) = (n276 + n203) ∧
-  (1 + n35 + n35 + n16) = (n277 + n203) ∧
-  (2 + n35 + n35 + n35 + n35) = (n278 + n203 + n203) ∧
-  (2 + n35 + n35 + n35 + n35 + n35 + n16) = (n37 + n203 + n203) ∧
-  (1 + n35 + n35) = (n41 + n203) ∧
-  (6 + n35 + n35 + n35 + n35 + n35 + n35 + n35 + n35 + n35 + n35 + n35 +
-     n35 + n16 + n16)
-    = (n36 + n203 + n203 + n203 + n203 + n203) ∧
-  (1 + n46 + n46 + n203) = (n49 + n204) ∧
-  (n54 + n54 + n54 + n54 + n54 + n54 + n54 + n46) =
-    (n279 + n203 + n203 + n203) ∧
-  (n54 + n54 + n54) = (n280 + n203) ∧ (n54 + n54 + n46) = (n281 + n203) ∧
-  (n54 + n54 + n54 + n54) = (n282 + n203 + n203) ∧
-  (n54 + n54 + n54 + n54 + n54 + n46) = (n56 + n203 + n203) ∧
-  (n54 + n54) = (n60 + n203) ∧
-  (1 + n54 + n54 + n54 + n54 + n54 + n54 + n54 + n54 + n54 + n54 + n54 +
-     n54 + n46 + n46)
-    = (n55 + n203 + n203 + n203 + n203 + n203) ∧
-  (4 + n65 + n65 + n65 + n65 + n65 + n65 + n65 + n46) =
-    (n283 + n203 + n203 + n203) ∧
-  (1 + n65 + n65 + n65) = (n284 + n203) ∧
-  (1 + n65 + n65 + n46) = (n285 + n203) ∧
-  (3 + n65 + n65 + n65 + n65) = (n286 + n203 + n203) ∧
-  (3 + n65 + n65 + n65 + n65 + n65 + n46) = (n67 + n203 + n203) ∧
-  (2 + n65 + n65) = (n71 + n203) ∧
-  (7 + n65 + n65 + n65 + n65 + n65 + n65 + n65 + n65 + n65 + n65 + n65 +
-     n65 + n46 + n46)
-    = (n66 + n203 + n203 + n203 + n203 + n203) ∧
-  (1 + n204) = (n77 + n205) ∧ n203 = (n81 + n204) ∧ 0 = (n85 + n203) ∧
-  0 = (n84 + n203 + n203) ∧
-  1 = (n83 + n203 + n203 + n203 + n203 + n203) ∧
-  (n89 + n89 + n89) = (n91 + n203) ∧
-  (1 + n89 + n89 + n89 + n89 + n89 + n89 + n89 + n89) =
-    (n90 + n203 + n203 + n203) ∧
-  (5 + n95 + n95 + n95 + n95 + n95 + n95 + n95 + n95 + n95) =
-    (n287 + n203 + n203 + n203 + n203) ∧
-  (1 + n95 + n95 + n95) = (n288 + n203) ∧
-  (2 + n95 + n95 + n95 + n95) = (n289 + n203 + n203) ∧
-  (3 + n95 + n95 + n95 + n95) = (n290 + n203 + n203) ∧
-  (4 + n95 + n95 + n95 + n95 + n95 + n95 + n95) = (n97 + n203 + n203 + n203) ∧
-  (2 + n95 + n95) = (n102 + n203) ∧ (1 + n95 + n95) = (n100 + n203) ∧
-  (9 + n95 + n95 + n95 + n95 + n95 + n95 + n95 + n95 + n95 + n95 + n95 +
-     n95 + n95 + n95 + n95 + n95)
-    = (n96 + n203 + n203 + n203 + n203 + n203 + n203 + n203) ∧
-  (n107 + n107 + n203) = (n110 + n204) ∧ n107 = (n113 + n203) ∧
-  (1 + n107 + n107) = (n112 + n203 + n203 + n203) ∧
-  (n117 + n117 + n117 + n117 + n117 + n117 + n117 + n107) =
-    (n291 + n203 + n203 + n203) ∧
-  (n117 + n117 + n117) = (n292 + n203) ∧
-  (n117 + n117 + n107) = (n293 + n203) ∧
-  (n117 + n117 + n117 + n117) = (n294 + n203 + n203) ∧
-  (n117 + n117 + n117 + n117 + n117 + n107) = (n119 + n203 + n203) ∧
-  (n117 + n117) = (n123 + n203) ∧
-  (1 + n117 + n117 + n117 + n117 + n117 + n117 + n117 + n117 + n117 + n117 +
-     n117 + n117 + n107 + n107)
-    = (n118 + n203 + n203 + n203 + n203 + n203) ∧
-  (4 + n128 + n128 + n128 + n128 + n128 + n128 + n128 + n107) =
-    (n295 + n203 + n203 + n203) ∧
-  (1 + n128 + n128 + n128) = (n296 + n203) ∧
-  (1 + n128 + n128 + n107) = (n297 + n203) ∧
-  (3 + n128 + n128 + n128 + n128) = (n298 + n203 + n203) ∧
-  (3 + n128 + n128 + n128 + n128 + n128 + n107) = (n130 + n203 + n203) ∧
-  (2 + n128 + n128) = (n134 + n203) ∧
-  (7 + n128 + n128 + n128 + n128 + n128 + n128 + n128 + n128 + n128 + n128 +
-     n128 + n128 + n107 + n107)
-    = (n129 + n203 + n203 + n203 + n203 + n203) ∧
-  (1 + n139 + n139 + n203) = (n142 + n204) ∧
-  (1 + n139) = (n299 + n203 + n203 + n203 + n203) ∧
-  0 = (n300 + n203 + n203) ∧ n139 = (n301 + n203) ∧
-  1 = (n302 + n203 + n203) ∧ (1 + n139) = (n145 + n203 + n203 + n203) ∧
-  1 = (n150 + n203) ∧ 0 = (n147 + n203) ∧
-  (2 + n139 + n139) = (n144 + n203 + n203 + n203 + n203 + n203 + n203 + n203) ∧
-  (1 + n155 + n155 + n155 + n155 + n155 + n155 + n155 + n139) =
-    (n303 + n203 + n203 + n203) ∧
-  (n155 + n155 + n155) = (n304 + n203) ∧
-  (n155 + n155 + n139) = (n305 + n203) ∧
-  (1 + n155 + n155 + n155 + n155) = (n306 + n203 + n203) ∧
-  (1 + n155 + n155 + n155 + n155 + n155 + n139) = (n157 + n203 + n203) ∧
-  (1 + n155 + n155) = (n161 + n203) ∧
-  (2 + n155 + n155 + n155 + n155 + n155 + n155 + n155 + n155 + n155 + n155 +
-     n155 + n155 + n139 + n139)
-    = (n156 + n203 + n203 + n203 + n203 + n203) ∧
-  (4 + n166 + n166 + n166 + n166 + n166 + n166 + n166 + n139) =
-    (n307 + n203 + n203 + n203) ∧
-  (1 + n166 + n166 + n166) = (n308 + n203) ∧
-  (1 + n166 + n166 + n139) = (n309 + n203) ∧
-  (3 + n166 + n166 + n166 + n166) = (n310 + n203 + n203) ∧
-  (3 + n166 + n166 + n166 + n166 + n166 + n139) = (n168 + n203 + n203) ∧
-  (2 + n166 + n166) = (n172 + n203) ∧
-  (8 + n166 + n166 + n166 + n166 + n166 + n166 + n166 + n166 + n166 + n166 +
-     n166 + n166 + n139 + n139)
-    = (n167 + n203 + n203 + n203 + n203 + n203) ∧
-  t173 = (Carry n172 → Binary n139 → Binary n166 → Binary n168) ∧
-  t162 = (Carry n161 → Binary n139 → Binary n155 → Binary n157) ∧
-  t151 = (Carry n150 → Binary n139 → Binary n147 → Binary n145) ∧
-  t141 = (Binary n202) ∧ t140 = (Binary n142) ∧
-  t135 = (Carry n134 → Binary n107 → Binary n128 → Binary n130) ∧
-  t124 = (Carry n123 → Binary n107 → Binary n117 → Binary n119) ∧
-  t109 = (Binary n202) ∧ t108 = (Binary n110) ∧
-  t103 = (Carry n102 → Binary n100 → Binary n95 → Binary n97) ∧
-  t80 = (Binary n202) ∧ t79 = (Binary n81) ∧
-  t76 = (Binary n203 → Binary n202) ∧ t75 = (Binary n77) ∧
-  t72 = (Carry n71 → Binary n46 → Binary n65 → Binary n67) ∧
-  t61 = (Carry n60 → Binary n46 → Binary n54 → Binary n56) ∧
-  t48 = (Binary n202) ∧ t47 = (Binary n49) ∧
-  t42 = (Carry n41 → Binary n16 → Binary n35 → Binary n37) ∧
-  t31 = (Carry n30 → Binary n16 → Binary n24 → Binary n26) ∧
-  t18 = (Binary n202) ∧ t17 = (Binary n19) ∧ t12 = (Binary n203) ∧
-  t8 = (Binary n203 → Binary n202) ∧ t7 = (Binary n9) ∧
-  t4 = (Binary n204 → Binary n203 → Binary n202) ∧ t3 = (Carry n5) ∧
-  t2 = (Carry n270 → Binary n269 → Binary n268 → Binary n267) ∧
-  n267 = (n270 + n269 + n268)"
+        [1,"∃n263, n264, n265, n266.
+  δ = (Carry n266 → Binary n265 → Binary n264 → Binary n263) ∧
+  n263 = (n266 + n265 + n264)"]
 (* 
    Binary addition legend:
    - t1: result
@@ -450,17 +275,17 @@ let rec plus =
    - n167=2*n168+1: C ends with 1
    - recursive call carry=n172=1, A=n139, B=n166, C=n168
    - alien subterm variables:
-n266:=n172; n265:=n139; n264:=n166; n263:=n168; n262:=n161;
-n261:=n139; n260:=n155; n259:=n157; n258:=n150; n257:=n139; n256:=n147;
-n255:=n145; n254:=n19; n253:=n142; n252:=n134; n251:=n107; n250:=n128;
-n249:=n130; n248:=n123; n247:=n107; n246:=n117; n245:=n119; n244:=n19;
-n243:=n110; n242:=n102; n241:=n100; n240:=n95; n239:=n97; n238:=n19;
-n237:=n81; n236:=n19; n235:=n19; n234:=n77; n233:=n71; n232:=n46; n231:=n65;
-n230:=n67; n229:=n60; n228:=n46; n227:=n54; n226:=n56; n225:=n19; n224:=n49;
-n223:=n41; n222:=n16; n221:=n35; n220:=n37; n219:=n30; n218:=n16; n217:=n24;
-n216:=n26; n215:=n19; n214:=n19; n213:=n19; n212:=n19; n211:=n19; n210:=n9;
-n209:=n9; n208:=n19; n207:=n19; n206:=n5; n205:=n5; n204:=n9; n203:=n19;
-n202:=n19
+n266:=n5; n265:=n9; n264:=n19; n263:=n19; n262:=n5; n261:=n9;
+n260:=n19; n259:=n19; n258:=n9; n257:=n19; n256:=n19; n255:=n19; n254:=n19;
+n253:=n19; n252:=n30; n251:=n16; n250:=n24; n249:=n26; n248:=n41; n247:=n16;
+n246:=n35; n245:=n37; n244:=n49; n243:=n19; n242:=n60; n241:=n46; n240:=n54;
+n239:=n56; n238:=n71; n237:=n46; n236:=n65; n235:=n67; n234:=n19; n233:=n19;
+n232:=n77; n231:=n81; n230:=n19; n229:=n102; n228:=n100; n227:=n95;
+n226:=n97; n225:=n110; n224:=n19; n223:=n123; n222:=n107; n221:=n117;
+n220:=n119; n219:=n134; n218:=n107; n217:=n128; n216:=n130; n215:=n142;
+n214:=n19; n213:=n150; n212:=n139; n211:=n147; n210:=n145; n209:=n161;
+n208:=n139; n207:=n155; n206:=n157; n205:=n172; n204:=n139; n203:=n166;
+n202:=n168
  *)
     );
 
@@ -506,59 +331,9 @@ let rec plus =
 	  | POne b1 -> POne (plus COne a1 b1)))
 test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
                    (POne (POne Zero)))"
-        "∃n224, n225, n226, n227.
-  δ = (Carry n227 → Binary n226 → Binary n225 → Binary n224) ∧
-  n224 = (n227 + n226 + n225)" 1
-        "(n24 + n16) = n26 ∧ 0 = n30 ∧ (n24 + n24 + n16 + n16) = n25 ∧
-  (n35 + n16) = n37 ∧ 0 = n41 ∧ (1 + n35 + n35 + n16 + n16) = n36 ∧
-  (n54 + n46) = n56 ∧ 0 = n60 ∧ (1 + n54 + n54 + n46 + n46) = n55 ∧
-  (1 + n65 + n46) = n67 ∧ 1 = n71 ∧ (2 + n65 + n65 + n46 + n46) = n66 ∧
-  0 = n85 ∧ 0 = n84 ∧ 1 = n83 ∧ n89 = n91 ∧ (1 + n89 + n89) = n90 ∧
-  (1 + n95) = n97 ∧ 1 = n102 ∧ 0 = n100 ∧ (2 + n95 + n95) = n96 ∧
-  n107 = n113 ∧ (1 + n107 + n107) = n112 ∧ (n117 + n107) = n119 ∧
-  0 = n123 ∧ (1 + n117 + n117 + n107 + n107) = n118 ∧
-  (1 + n128 + n107) = n130 ∧ 1 = n134 ∧
-  (2 + n128 + n128 + n107 + n107) = n129 ∧ (1 + n139) = n145 ∧
-  1 = n150 ∧ 0 = n147 ∧ (2 + n139 + n139) = n144 ∧
-  (1 + n155 + n139) = n157 ∧ 1 = n161 ∧
-  (2 + n155 + n155 + n139 + n139) = n156 ∧ (1 + n166 + n139) = n168 ∧
-  1 = n172 ∧ (3 + n166 + n166 + n139 + n139) = n167 ∧
-  t173 = (Carry n172 → Binary n139 → Binary n166 → Binary n168) ∧
-  t162 = (Carry n161 → Binary n139 → Binary n155 → Binary n157) ∧
-  t151 = (Carry n150 → Binary n139 → Binary n147 → Binary n145) ∧
-  t141 = (Binary n224) ∧ t140 = (Binary n142) ∧
-  t135 = (Carry n134 → Binary n107 → Binary n128 → Binary n130) ∧
-  t124 = (Carry n123 → Binary n107 → Binary n117 → Binary n119) ∧
-  t109 = (Binary n224) ∧ t108 = (Binary n110) ∧
-  t103 = (Carry n102 → Binary n100 → Binary n95 → Binary n97) ∧
-  t80 = (Binary n224) ∧ t79 = (Binary n81) ∧
-  t76 = (Binary n225 → Binary n224) ∧ t75 = (Binary n77) ∧
-  t72 = (Carry n71 → Binary n46 → Binary n65 → Binary n67) ∧
-  t61 = (Carry n60 → Binary n46 → Binary n54 → Binary n56) ∧
-  t48 = (Binary n224) ∧ t47 = (Binary n49) ∧
-  t42 = (Carry n41 → Binary n16 → Binary n35 → Binary n37) ∧
-  t31 = (Carry n30 → Binary n16 → Binary n24 → Binary n26) ∧
-  t18 = (Binary n224) ∧ t17 = (Binary n19) ∧ t12 = (Binary n225) ∧
-  t8 = (Binary n225 → Binary n224) ∧ t7 = (Binary n9) ∧
-  t4 = (Binary n226 → Binary n225 → Binary n224) ∧ t3 = (Carry n5) ∧
-  t2 = (Carry n296 → Binary n295 → Binary n294 → Binary n293) ∧
-  t193 = (Carry n192 → Binary n188 → Binary n182 → Binary n194) ∧
-  1 = n340 ∧ n139 = n339 ∧ n166 = n338 ∧ (1 + n166 + n139) = n337 ∧
-  1 = n336 ∧ n139 = n335 ∧ n155 = n334 ∧ (1 + n155 + n139) = n333 ∧
-  1 = n332 ∧ n139 = n331 ∧ 0 = n330 ∧ (1 + n139) = n329 ∧
-  n225 = n142 ∧ 1 = n328 ∧ n107 = n327 ∧ n128 = n326 ∧
-  (1 + n128 + n107) = n325 ∧ 0 = n324 ∧ n107 = n323 ∧ n117 = n322 ∧
-  (n117 + n107) = n321 ∧ n225 = n110 ∧ 1 = n320 ∧ 0 = n319 ∧
-  n95 = n318 ∧ (1 + n95) = n317 ∧ n225 = n81 ∧ n226 = n77 ∧
-  1 = n316 ∧ n46 = n315 ∧ n65 = n314 ∧ (1 + n65 + n46) = n313 ∧
-  0 = n312 ∧ n46 = n311 ∧ n54 = n310 ∧ (n54 + n46) = n309 ∧
-  n225 = n49 ∧ 0 = n308 ∧ n16 = n307 ∧ n35 = n306 ∧
-  (n35 + n16) = n305 ∧ 0 = n304 ∧ n16 = n303 ∧ n24 = n302 ∧
-  (n24 + n16) = n301 ∧ n225 = n19 ∧ n226 = n9 ∧ n227 = n5 ∧
-  3 = n297 ∧ n293 = (n296 + n295 + n294) ∧ 3 = n175 ∧ 0 = n178 ∧
-  1 = n176 ∧ 2 = n182 ∧ 0 = n185 ∧ 1 = n183 ∧ 1 = n188 ∧
-  0 = n189 ∧ 0 = n192 ∧ 0 = n190 ∧ 1 = n184 ∧ 0 = n186 ∧
-  3 = n194 ∧ 1 = n177 ∧ 0 = n179 ∧ 0 = n300 ∧ 1 = n299 ∧ 2 = n298"
+        [1,"∃n285, n286, n287, n288.
+  δ = (Carry n288 → Binary n287 → Binary n286 → Binary n285) ∧
+  n285 = (n288 + n287 + n286)"]
     );
 
   "escape castle" >::
@@ -584,8 +359,7 @@ let rec escape = function Outside x -> x
   | Yard x ->
     let y = leave (enter x) in
     escape y"
-        "∃t5. δ = Placement t5 → Outside" 1
-        ""
+        [1,"∃t5. δ = Placement t5 → Outside"]
 
     );
 
@@ -613,8 +387,8 @@ let rec find = efunction
   | Village x ->
     let y = wander x in
     find y"
-        "" 1
-        "";
+        [1,"";
+         2,""];
 
       test_case "find castle big"
 "newtype Room
@@ -642,8 +416,8 @@ let rec find = efunction
   | Village x ->
     let y = wander x in
     find y"
-        "" 1
-        ""
+        [1,"";
+         2,""];
 
     );
 
@@ -666,8 +440,8 @@ let rec filter =
     | LCons (x, l) -> match f x with
           True -> LCons (x, filter l)
 	| False -> filter l"
-        "" 1
-        ""
+        [1,"";
+         2,""];
 
     );
 
