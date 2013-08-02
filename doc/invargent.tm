@@ -319,6 +319,13 @@
   <math|\<b-U\><rsub|<wide|\<alpha\>|\<bar\>><wide|\<zeta\>|\<bar\>>><around*|(|\<cal-Q\>.A|)>>.
   <math|<wide|\<zeta\>|\<bar\>>> are potential parameters of the invariants.
 
+  In fact, when performing unification, we check more than
+  <math|\<b-U\><rsub|<wide|\<alpha\>|\<bar\>><wide|\<zeta\>|\<bar\>>><around*|(|\<cal-Q\>.A|)>>
+  requires. We also ensure that the use of already found parameters
+  (represented by <math|<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>>
+  in the main algorithm) will not cause problems in the <verbatim|split>
+  phase of the main algorithm.
+
   In implementing <cite|AbductionSolvMaher> p. 13, we follow top-down
   approach where bigger subterms are abstracted first -- replaced by fresh
   variable, \ together with an arbitrary selection of other occurrences of
@@ -357,6 +364,12 @@
     in the main algorithm) to which all variables of every atom in the answer
     for which <math|FV<around*|(|c|)>\<cap\><wide|\<zeta\>|\<bar\>>\<neq\>\<varnothing\>>
     should be <em|connected>;
+
+    <item>the quantifier <math|\<cal-Q\>> (source <verbatim|q>) so that the
+    partial answer <math|\<exists\><wide|\<alpha\>|\<bar\>>.A> (source
+    <verbatim|vs,ans>) can be checked for validity with parameters:
+    <math|\<vDash\>\<cal-Q\>.A<around*|[|<wide|\<alpha\>|\<bar\>>\<assign\><wide|t|\<bar\>>|]>>
+    for some <math|<wide|t|\<bar\>>>;
 
     <item>a discard list that contains answer atoms -- substitution terms --
     disallowed in the pursued solution. The main algorithm will pass the
@@ -427,10 +440,18 @@
     compute them incrementally and pass around.
 
     <item>Form initial candidates <math|\<b-U\><rsub|><around*|(|A<around*|(|D\<wedge\>C|)>|)>>.
-    Reorder substitutions <math|\<alpha\>\<assign\>\<beta\>> for
-    <math|\<beta\>\<in\><wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>>
-    to <math|\<beta\>\<assign\>\<alpha\>>. This optimization mitigates
-    quantifier violations.
+    Revert substitutions <math|\<alpha\>\<assign\>\<beta\>> for
+    <math|\<forall\>\<beta\>\<in\>\<cal-Q\>> and
+    <math|\<exists\>\<alpha\>\<in\>\<cal-Q\>> to
+    <math|\<beta\>\<assign\>\<alpha\>>. This optimization mitigates
+    quantifier violations later, although excludes
+    <math|\<alpha\>\<assign\>\<beta\>> from direct participation in the
+    answer.
+
+    <\itemize>
+      <item>Replace <math|\<alpha\><rsub|1>\<assign\>\<beta\>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<beta\>>
+      with <math|\<beta\>\<assign\>\<alpha\><rsub|1>,\<alpha\><rsub|2>\<assign\>\<alpha\><rsub|1>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<alpha\><rsub|1>>.
+    </itemize>
 
     <item>Sort the initial candidates by decreasing size.
   </itemize>

@@ -17,6 +17,7 @@ let residuum cmp_v uni_v prem concl =
 exception Result of var_name list * subst
 let debug_dep = ref 0
 
+(* FIXME: doesn't look nice, besides optimize its use *)
 let cleanup vs ans =
   let clean, ans = Aux.partition_map
     (function x, _ as sx when List.mem x vs -> Aux.Left sx
@@ -102,14 +103,26 @@ let skip_kind = ref Superset_old_mod
 
 let more_general = ref false
 
-let revert_bvs bvs cand =
+let revert_uni uni_v cmp_v cand =
   let more_sb, cand = Aux.partition_map
     (function
-    | v1, (TVar v2, loc) when VarSet.mem v2 bvs ->
+    | v1, (TVar v2, loc) when uni_v v2 && not (uni_v v1) ->
       Aux.Left (v2, (TVar v1, loc))
     | sv -> Aux.Right sv)
     cand in
-  update_sb ~more_sb cand
+  let more_sb = Aux.concat_map
+    (function (bv, (av, alc as a)::avs) ->
+      (bv, a)::List.map
+        (function (TVar cv, lc) -> cv, (av, lc) | _ -> assert false) avs
+    | (_, []) -> assert false)
+    (Aux.collect more_sb) in
+  let res = update_sb ~more_sb cand in
+  List.map
+    (function
+    | v1, (TVar v2, loc) when cmp_v v1 v2 = Upstream ->
+      v2, (TVar v1, loc)
+    | sv -> sv)
+    res
 
 (* Simple constraint abduction for terms
 
@@ -258,7 +271,7 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
         | Aux.Left cparams ->
           if implies_concl (ans @ cand) then (
           (* Choice 1: drop premise/conclusion atom from answer *)
-            Format.printf "abd_simple: [%d]@ choice 1@ drop %s =@ %a@\n%!"
+            Format.printf "abd_simple: [%d]@ choice 1@ drop %s = %a@\n%!"
               ddepth (var_str x) (pr_ty false) t; (* *)
             try abstract repls cparams zvs vs ans cand
             with Result (vs, ans) as e ->
@@ -457,7 +470,7 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
       let cnj_typ, _ = prem_and concl in
       let cnj_typ = Aux.list_diff cnj_typ discard in
       (* TODO: describe in doc *)
-      let cnj_typ = revert_bvs bvs cnj_typ in
+      let cnj_typ = revert_uni uni_v cmp_v cnj_typ in
       let cnj_typ = List.sort
         (fun (_,(t1,_)) (_,(t2,_)) -> typ_size t2 - typ_size t1)
         cnj_typ in

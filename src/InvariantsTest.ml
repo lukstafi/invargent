@@ -73,7 +73,7 @@ let rec eval = function
   | Fst p -> (match eval p with x, y -> x)
   | Snd p -> (match eval p with x, y -> y)"
 
-        [1, "∃t97. δ = (Term t97 → t97)"]
+        [1, "∃t93. δ = (Term t93 → t93)"]
     );
 
   "equal with test" >::
