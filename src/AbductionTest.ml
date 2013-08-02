@@ -15,15 +15,16 @@ let uni_v v = false
 
 let p_formula s = Parser.formula Lexer.token (Lexing.from_string s)
 let br_simple lhs rhs =
-  let lhs, _, _ = unify ~use_quants:false cmp_v uni_v lhs in
-  let rhs, _, _ = unify ~use_quants:false cmp_v uni_v rhs in
+  let lhs, _, _ = unify cmp_v uni_v lhs in
+  let rhs, _, _ = unify cmp_v uni_v rhs in
   lhs, rhs
 
-let test_simple lhs_m rhs_m ?(validate=(fun _ _ _ -> ())) skip res =
+let test_simple lhs_m rhs_m ?(validate=(fun _ _ -> ())) skip res =
   let lhs = p_formula lhs_m and rhs = p_formula rhs_m in
   let lhs, rhs = br_simple lhs rhs in
   let ans =
-    match abd_simple cmp_v uni_v
+    match abd_simple cmp_v uni_v ~without_quant:()
+      ~bvs:VarSet.empty ~zvs:VarSet.empty ~bparams:[] ~zparams:[]
       ~validate ~discard:[] skip ([],[]) (lhs, rhs) with
     | None _ -> "none"
     | Some (vs, ans_typ) ->
@@ -43,7 +44,7 @@ let tests = "Abduction" >::: [
 
   "simple abduction: eval" >::
     (fun () ->
-      todo "debug";
+      (* todo "debug"; *)
       let lhs1 = "(Term td) = ta ∧ Int = td" and rhs1 = "tb = Int" in
       Terms.reset_state ();
       Infer.reset_state ();
@@ -60,7 +61,7 @@ let tests = "Abduction" >::: [
 
   "term abduction: params" >::
     (fun () ->
-      todo "debug";
+      (* todo "debug"; *)
       Terms.reset_state ();
       Infer.reset_state ();
       try
@@ -72,13 +73,14 @@ let tests = "Abduction" >::: [
         and vB = VNam (Type_sort, "tB")
         and vC = VNam (Type_sort, "tC")
         and vD = VNam (Type_sort, "tD") in
-        let pms = vars_of_list [vA; vB; vC; vD] in
+        let zvs = vars_of_list [vA; vB; vC; vD] in
+        let bvs = VarSet.singleton vA in
         let ans =
           try let alien_eqs, vs, ans_typ, _ =
-                abd_typ cmp_v uni_v ~params:pms
-                  ~bparams:[vA, VarSet.singleton vA]
+                abd_typ cmp_v uni_v ~bvs ~zvs
+                  ~bparams:[vA, bvs]
                   ~zparams:[vA, vars_of_list [vA; vB; vC]]
-                  ~validate:(fun _ _ _ -> ()) ~discard:[]
+                  ~validate:(fun _ _ -> ()) ~discard:[]
                 [lhs0, rhs0; lhs1, rhs1] in
               pr_to_str pr_formula (to_formula ans_typ)
           with Suspect _ -> "none" in

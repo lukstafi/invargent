@@ -18,10 +18,10 @@ val pr_vparams : Format.formatter -> vparams -> unit
 val abd_simple :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
-  ?params:Terms.VarSet.t ->
-  ?bparams:vparams ->
-  ?zparams:vparams ->
-  validate:(Terms.VarSet.t option -> Terms.var_name list -> Terms.subst -> unit) ->
+  ?without_quant:unit ->
+  bvs:Terms.VarSet.t -> zvs:Terms.VarSet.t ->
+  bparams:vparams -> zparams:vparams ->
+  validate:(Terms.var_name list -> Terms.subst -> unit) ->
   discard:Terms.subst ->
   int ->
   Terms.var_name list * Terms.subst ->
@@ -30,11 +30,10 @@ val abd_simple :
 val abd_typ :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
-  params:Terms.VarSet.t ->
-  bparams:vparams ->
-  zparams:vparams ->
+  bvs:Terms.VarSet.t -> zvs:Terms.VarSet.t ->
+  bparams:vparams -> zparams:vparams ->
   ?dissociate:bool ->
-  validate:(Terms.VarSet.t option -> Terms.var_name list -> Terms.subst -> unit) ->
+  validate:(Terms.var_name list -> Terms.subst -> unit) ->
   discard:Terms.subst ->
   (Terms.subst * Terms.subst) list ->
   Terms.subst *                         (* alien_eqs *)
@@ -44,9 +43,8 @@ val abd_typ :
 val abd :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
-  params:Terms.VarSet.t ->
-  bparams:vparams ->
-  zparams:vparams ->
+  bvs:Terms.VarSet.t -> zvs:Terms.VarSet.t ->
+  bparams:vparams -> zparams:vparams ->
   ?iter_no:int ->
   discard:Terms.formula ->
   fallback:(bool * Terms.formula * Terms.formula) list ->
@@ -56,7 +54,8 @@ val abd :
 val abd_mockup_num :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
-  params:Terms.VarSet.t ->
+  bvs:Terms.VarSet.t ->
+  zvs:Terms.VarSet.t ->
   bparams:vparams ->
   zparams:vparams ->
   (Terms.formula * Terms.formula) list ->

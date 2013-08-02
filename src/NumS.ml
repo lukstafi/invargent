@@ -180,13 +180,16 @@ let eqineq_loc_union (eqn, ineqn) =
     (List.map (fun (_,_,lc) -> lc) (eqn @ ineqn))
 
 (* Assumption: [v] is downstream of all [vars] *)
-let quant_viol uni_v params v vars =
-  uni_v v && not (VarSet.mem v params)
+let quant_viol uni_v bvs v vars =
+  uni_v v && not (VarSet.mem v bvs)
 
-let solve ?(use_quants=false) ?(params=VarSet.empty) ?(strict=false)
+let solve ?use_quants ?(strict=false)
     ?(eqs=[]) ?(ineqs=[]) ?(eqs'=[])
     ?(eqn=[]) ?(ineqn=[]) ?(cnj=[])
     cmp cmp_w uni_v =
+  let use_quants, bvs = match use_quants with
+    | None -> false, VarSet.empty
+    | Some bvs -> true, bvs in
   let eqs = if eqs' = [] then eqs else List.map
       (fun (v,eq) -> v, subst_w cmp eqs' eq) eqs @ eqs' in
   let ineqs = if eqs' = [] then ineqs else List.map
@@ -207,7 +210,7 @@ let solve ?(use_quants=false) ?(params=VarSet.empty) ?(strict=false)
   let rec elim acc = function
     | [] -> List.rev acc
     | ((v, k)::vars, cst, loc)::eqn
-        when use_quants && quant_viol uni_v params v vars ->
+        when use_quants && quant_viol uni_v bvs v vars ->
       let t1, t2 =
         match expand_atom true ((v, k)::vars, cst, loc) with
         | Eqty (t1, t2, _) -> t1, t2
@@ -265,7 +268,7 @@ let solve ?(use_quants=false) ?(params=VarSet.empty) ?(strict=false)
     | ([], cst, loc)::_ ->
       raise (Contradiction ("Failed numeric inequality", None, loc))
     | ((v, k)::vars, cst, loc)::ineqn
-        when use_quants && quant_viol uni_v params v vars ->
+        when use_quants && quant_viol uni_v bvs v vars ->
       let t1, t2 =
         match expand_atom false ((v, k)::vars, cst, loc) with
         | Leq (t1, t2, _) -> t1, t2
@@ -329,7 +332,7 @@ let implies cmp cmp_w uni_v eqs ineqs c_eqn c_ineqn =
       with Contradiction _ -> true)
     c_ineqn
 
-let abd_simple cmp cmp_w uni_v ~params ~validate
+let abd_simple cmp cmp_w uni_v ~bvs ~validate
     skip (eqs_i, ineqs_i) ((d_eqn, d_ineqn), (c_eqn, c_ineqn)) =
   let skip = ref skip in
   (* 1 *)
@@ -381,11 +384,9 @@ let abd_simple cmp cmp_w uni_v ~params ~validate
       let eqn = eq_cands @ d_eqn in
       let ineqn = ineq_cands @ d_ineqn in
       let b_eqs, (b_ineqs, b_implicits) =
-        solve ~use_quants:false ~eqs:eqs_acc ~ineqs:ineqs_acc
-          ~eqn ~ineqn cmp cmp_w uni_v in
+        solve ~eqs:eqs_acc ~ineqs:ineqs_acc ~eqn ~ineqn cmp cmp_w uni_v in
       let b_eqs, (b_ineqs, _) =
-        solve ~use_quants:false ~eqs:b_eqs ~ineqs:b_ineqs
-          ~eqn:b_implicits cmp cmp_w uni_v in
+        solve ~eqs:b_eqs ~ineqs:b_ineqs ~eqn:b_implicits cmp cmp_w uni_v in
       Format.printf
          "NumS.abd_simple: [%d] 3. iseq=%b@ a=@ %a@\nb_eqs=@ %a@\nb_ineqs=@ %a@\n%!"
          ddepth iseq pr_w a pr_w_subst b_eqs pr_ineqs b_ineqs;
@@ -412,11 +413,11 @@ let abd_simple cmp cmp_w uni_v ~params ~validate
                (* *)
             let eqn, ineqn = if iseq then [a'], [] else [], [a'] in
             let eqs_acc, (ineqs_acc, acc_implicits) =
-              solve ~use_quants:true ~params
+              solve ~use_quants:bvs
                 ~eqs:eqs_acc ~ineqs:ineqs_acc
                 ~eqn ~ineqn cmp cmp_w uni_v in
             let eqs_acc, (ineqs_acc, _) =
-              solve ~use_quants:true ~params
+              solve ~use_quants:bvs
                 ~eqs:eqs_acc ~ineqs:ineqs_acc
                 ~eqn:acc_implicits cmp cmp_w uni_v in
             ignore (validate eqs_acc ineqs_acc);
@@ -472,11 +473,11 @@ let abd cmp_v uni_v ~bparams ?(alien_vs=VarSet.empty)
     | _, [] -> -1
     | [], _ -> 1
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
-  let params = List.fold_left
+  let bvs = List.fold_left
     (fun acc (_,ps) -> VarSet.union acc ps) VarSet.empty bparams in
-  Format.printf "NumS.abd: iter_no=%d@ params=%s@\nbrs=@ %a@\n%!"
+  Format.printf "NumS.abd: iter_no=%d@ bvs=%s@\nbrs=@ %a@\n%!"
     iter_no
-    (String.concat "," (List.map var_str (VarSet.elements params)))
+    (String.concat "," (List.map var_str (VarSet.elements bvs)))
     Infer.pr_rbrs3 brs; (* *)
   let brs = List.map
     (fun (nonrec, prem, concl) ->
@@ -486,7 +487,7 @@ let abd cmp_v uni_v ~bparams ?(alien_vs=VarSet.empty)
     brs in
   let validate eqs ineqs = List.iter
     (fun (_, (d_eqn, d_ineqn), (c_eqn, c_ineqn)) ->
-      ignore (solve ~use_quants:false ~eqs ~ineqs
+      ignore (solve ~eqs ~ineqs
                 ~eqn:(d_eqn @ c_eqn) ~ineqn:(d_ineqn @ c_ineqn)
                 cmp cmp_w uni_v))
     brs in
@@ -510,7 +511,7 @@ let abd cmp_v uni_v ~bparams ?(alien_vs=VarSet.empty)
       Format.printf
         "NumS.abd-loop: [%d] skip=%d, #runouts=%d@\n%a@\n%!"
         ddepth skip (List.length runouts) pr_eqineq_br br; (* *)
-      match abd_simple cmp cmp_w uni_v ~params
+      match abd_simple cmp cmp_w uni_v ~bvs
         ~validate skip acc br with
       | Some acc ->
         let ntime = Sys.time () in
@@ -530,7 +531,7 @@ let abd cmp_v uni_v ~bparams ?(alien_vs=VarSet.empty)
       Format.printf
         "NumS.abd-check_runouts: [%d] confls=%d, #done=%d@\n%a@\n%!"
         ddepth confls (List.length done_runouts) pr_eqineq_br br; (* *)
-      match abd_simple cmp cmp_w uni_v ~params
+      match abd_simple cmp cmp_w uni_v ~bvs
         ~validate 0 acc br with
       | Some acc ->
         let ntime = Sys.time () in
@@ -551,7 +552,7 @@ let abd cmp_v uni_v ~bparams ?(alien_vs=VarSet.empty)
       Format.printf
         "NumS.abd-check_brs: [%d] skip=%d, #done=%d@\n%a@\n%!"
         ddepth skip (List.length done_brs) pr_eqineq_br br; (* *)
-      match abd_simple cmp cmp_w uni_v ~params
+      match abd_simple cmp cmp_w uni_v ~bvs
         ~validate 0 acc br with
       | Some acc ->
         let ntime = Sys.time () in
@@ -581,7 +582,7 @@ let abd_s cmp_v uni_v prem concl =
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
   let validate eqs (ineqs : ineqs) = () in
   match abd_simple cmp cmp_w uni_v ~validate
-    ~params:VarSet.empty 0 ([], [])
+    ~bvs:VarSet.empty 0 ([], [])
     (partition_map (flatten cmp) prem,
      partition_map (flatten cmp) concl) with
   | Some (ans_eqs, ans_ineqs) ->
@@ -712,7 +713,7 @@ let disjelim cmp_v uni_v brs =
   [], List.map (expand_atom true) eqn
     @ List.map (expand_atom false) (redundant [] ineqn)
 
-let simplify cmp_v uni_v ?params elimvs cnj =
+let simplify cmp_v uni_v ?bvs elimvs cnj =
   Format.printf "NumS.simplify: elimvs=%s;@\ncnj=@ %a@\n%!"
     (String.concat "," (List.map var_str (VarSet.elements elimvs)))
     pr_formula cnj;
@@ -734,9 +735,9 @@ let simplify cmp_v uni_v ?params elimvs cnj =
     (List.fold_left
     (fun acc (_,ps) -> VarSet.union acc ps) VarSet.empty) in*)
     let eqs, (ineqs, implicits) =
-      solve ~use_quants:true ?params
+      solve ?use_quants:bvs
         ~cnj cmp cmp_w uni_v in
-    let eqs, _ = solve ~use_quants:true ?params
+    let eqs, _ = solve ?use_quants:bvs
       ~eqs ~eqn:implicits cmp cmp_w uni_v in
     let eqs =
       List.filter (fun (v,_) -> not (VarSet.mem v elimvs)) eqs in
@@ -745,7 +746,15 @@ let simplify cmp_v uni_v ?params elimvs cnj =
     [], ans_to_formula (eqs, ineqs)
 
 
-let satisfiable cnj =
+type state = w_subst * ineqs
+let empty_state = [], []
+
+let formula_of_state (eqs, ineqs) = expand_eqineqs eqs ineqs
+
+let satisfiable ?state cnj =
+  let eqs, ineqs = match state with
+    | None -> None, None
+    | Some (eqs, ineqs) -> Some eqs, Some ineqs in
   let cmp_v _ _ = Same_quant in
   let uni_v _ = false in
   let cmp_v v1 v2 =
@@ -760,16 +769,14 @@ let satisfiable cnj =
     | _, [] -> -1
     | [], _ -> 1
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
-  try ignore (solve ~cnj cmp cmp_w uni_v); true
-  with Contradiction _ -> false
+  try
+    let eqs, (ineqs, implicits) =
+      solve ?eqs ?ineqs ~cnj cmp cmp_w uni_v in
+    let eqs, _ = solve ~eqs ~eqn:implicits cmp cmp_w uni_v in
+    Right (eqs, ineqs)
+  with Contradiction _ as e -> Left e
 
-type state = w_subst * ineqs
-let empty_state = [], []
-
-let formula_of_state (eqs, ineqs) = expand_eqineqs eqs ineqs
-  
-
-let holds cmp_v uni_v ?params (eqs, ineqs : state) cnj : state =
+let holds cmp_v uni_v (eqs, ineqs : state) cnj : state =
   let cmp_v v1 v2 =
     match cmp_v v1 v2 with
     | Upstream -> 1
@@ -782,12 +789,9 @@ let holds cmp_v uni_v ?params (eqs, ineqs : state) cnj : state =
     | _, [] -> -1
     | [], _ -> 1
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
-  (*let params = map_opt params
-    (List.fold_left
-       (fun acc (_,ps) -> VarSet.union acc ps) VarSet.empty) in*)
   let eqs, (ineqs, implicits) =
-    solve ~use_quants:true ?params
+    solve ~use_quants:VarSet.empty
       ~eqs ~ineqs ~cnj cmp cmp_w uni_v in
-  let eqs, _ = solve ~use_quants:true ?params
+  let eqs, _ = solve ~use_quants:VarSet.empty
     ~eqs ~eqn:implicits cmp cmp_w uni_v in
   eqs, ineqs

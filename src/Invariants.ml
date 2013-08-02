@@ -186,10 +186,20 @@ type state = subst * NumS.state
 
 let empty_state : state = [], NumS.empty_state
 
-let holds q ?params (ty_st, num_st) cnj =
+let no_params = VarSet.empty, VarSet.empty
+
+let holds q (ty_st, num_st) cnj =
   let ty_st, num_cnj, _ =
-    unify ~use_quants:true ?params ~sb:ty_st q.cmp_v q.uni_v cnj in
-  let num_st = NumS.holds q.cmp_v q.uni_v ?params num_st num_cnj in
+    unify ~use_quants:no_params ~sb:ty_st q.cmp_v q.uni_v cnj in
+  let num_st = NumS.holds q.cmp_v q.uni_v num_st num_cnj in
+  ty_st, num_st
+
+let satisfiable q (ty_st, num_st) cnj =
+  let ty_st, num_cnj, _ =
+    unify ~sb:ty_st q.cmp_v q.uni_v cnj in
+  let num_st =
+    match NumS.satisfiable (* q.cmp_v q.uni_v *) ~state:num_st num_cnj with
+    | Right s -> s | Left e -> raise e in
   ty_st, num_st
 
 (* 4 *)
@@ -362,19 +372,24 @@ let connected v (vs, phi) =
 
 (** Perform quantifier elimination on provided variables and generally
     simplify the formula. *)
-let simplify cmp_v uni_v ?params vs cnj =
-  let ty_ans, num_ans, _ =
-    unify ~use_quants:false ~params:(vars_of_list vs)
-      cmp_v uni_v cnj in
-  let ty_sb, ty_ans = List.partition
-    (fun (v,_) -> List.mem v vs) ty_ans in
-  let ty_ans = subst_formula ty_sb (to_formula ty_ans) in
+let simplify cmp_v uni_v vs cnj =
   let vs = vars_of_list vs in
+  let cmp_v v1 v2 =
+    let c1 = VarSet.mem v1 vs and c2 = VarSet.mem v2 vs in
+    if c1 && c2 then Same_quant
+    else if c1 then Downstream
+    else if c2 then Upstream
+    else cmp_v v1 v2 in
+  let ty_ans, num_ans, _ =
+    unify cmp_v uni_v cnj in
+  let ty_sb, ty_ans = List.partition
+    (fun (v,_) -> VarSet.mem v vs) ty_ans in
+  let ty_ans = subst_formula ty_sb (to_formula ty_ans) in
   let ty_vs = VarSet.inter vs (fvs_formula ty_ans)
   and num_vs = VarSet.inter vs (fvs_formula num_ans) in
   let elimvs = VarSet.diff num_vs ty_vs in
   let _, num_ans =
-    NumS.simplify cmp_v uni_v ?params elimvs num_ans in
+    NumS.simplify cmp_v uni_v elimvs num_ans in
   VarSet.elements ty_vs,
   ty_ans @ num_ans
 
@@ -517,9 +532,8 @@ let solve cmp_v uni_v brs =
         try
           Format.printf "neg_cl_check: cnj=@ %a@\n%!" pr_formula
             cnj; (* *)
-          let ty_cn (*_*), num_cn, _ = unify ~use_quants:false
-            cmp_v uni_v cnj in
-          let res = not (NumS.satisfiable num_cn) in
+          let ty_cn (*_*), num_cn, _ = unify cmp_v uni_v cnj in
+          let res = not (Aux.is_right (NumS.satisfiable num_cn)) in
           Format.printf
             "neg_cl_check: res=%b@ ty_cn=@ %a@\nnum_cn=@ %a@\n%!"
             res pr_subst ty_cn pr_formula num_cn; (* *)
@@ -549,19 +563,21 @@ let solve cmp_v uni_v brs =
         if List.mem b q.negbs then VarSet.union bvs acc else acc)
       q.b_vs VarSet.empty in *)
     let bparams = bparams () in
-    let params = List.fold_left2
-      (fun pms (_, bpms) (_, zpms) ->
-        VarSet.union pms (VarSet.union bpms zpms))
-      VarSet.empty bparams zparams in
+    (* let bvs = VarSet.filter (fun v->not (q.positive_b v)) q.allbvs in *)
+    let bvs = List.fold_left            (* equivalent *)
+      (fun pms (_, bpms) -> VarSet.union pms bpms)
+      VarSet.empty bparams in
+    let zvs = List.fold_left
+      (fun pms (_, zpms) -> VarSet.union pms zpms)
+      VarSet.empty zparams in
+    let params = VarSet.union bvs zvs in
     let alien_eqs, fallback, (vs, ans) =
-      try Abduction.abd cmp_v uni_v ~params ~bparams ~zparams
+      try Abduction.abd cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
             ~iter_no ~discard ~fallback:brs0 brs1
       with Suspect (vs, phi, lc) ->
         try
           Format.printf "solve: abduction failed: phi=@ %a@\n%!"
             pr_formula phi; (* *)
-          ignore (holds q ~params:(add_vars vs params)
-                    empty_state phi);
           ignore (holds q empty_state phi);
           raise
             (Contradiction
@@ -648,7 +664,7 @@ let solve cmp_v uni_v brs =
     try
       let cnj = sb_formula_pred q false (snd sol) cnj in
       (* FIXME: should use [satisfiable], not [holds]! *)
-      ignore (holds q empty_state cnj);
+      ignore (satisfiable q empty_state cnj);
       raise (Contradiction ("A branch with \"assert false\" is possible",
                             None, loc))
     with Contradiction _ -> ()

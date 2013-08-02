@@ -422,11 +422,17 @@
     false reorders the choices into: 1, 4, 2, 3, 5 -- pushing 4 up minimizes
     the amount of branching in 5.
 
-    <item>We recompute modifications of parameters due to partial answer,
-    e.g. <verbatim|cparams>, for clarity of joint constraint abduction; we
-    could compute them incrementally and pass around.
+    <item>Recompute modifications of parameters due to partial answer, e.g.
+    <verbatim|cparams>, for clarity of joint constraint abduction; we could
+    compute them incrementally and pass around.
 
-    <item>We sort the initial candidates by decreasing size.
+    <item>Form initial candidates <math|\<b-U\><rsub|><around*|(|A<around*|(|D\<wedge\>C|)>|)>>.
+    Reorder substitutions <math|\<alpha\>\<assign\>\<beta\>> for
+    <math|\<beta\>\<in\><wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>>
+    to <math|\<beta\>\<assign\>\<alpha\>>. This optimization mitigates
+    quantifier violations.
+
+    <item>Sort the initial candidates by decreasing size.
   </itemize>
 
   The above ordering of choices ensures that more general answers are tried

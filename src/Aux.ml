@@ -226,6 +226,9 @@ let collect l =
 
 type ('a,'b) choice = Left of 'a | Right of 'b
 
+let is_right = function
+  | Right _ -> true | Left _ -> false
+
 let partition_choice l =
   let rec split laux raux = function
     | [] -> List.rev laux, List.rev raux

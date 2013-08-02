@@ -123,6 +123,7 @@ let vars_of_list l =
   List.fold_right VarSet.add l VarSet.empty
 let add_vars l vs =
   List.fold_right VarSet.add l vs
+let no_vs = VarSet.empty
 
 (** {3 Mapping and folding} *)
 
@@ -727,27 +728,45 @@ let pr_to_str pr_f e =
 
 (** {2 Unification} *)
 
-(* If there are no parameters, the LHS variable has to be existential
-   and not upstream of any RHS variable. If there are parameters, every
-   universal variable must be upstream of some parameter.
-   (Note that a parameter that is sufficiently downstream is a
-   "savior".) *)
-let quant_viol cmp_v uni_v params v t =
+(* If there are no [bvs] parameters, the LHS variable has to be
+   existential and not upstream of any RHS variable. If there are
+   [bvs] parameters, every universal variable must be upstream of some
+   [bv] parameter. (Note that a [bv] parameter that is sufficiently
+   downstream is a "savior".)
+
+   [zvs] parameters act like existential variables but are not
+   located anywhere in the quantifier -- do not contribute to
+   quantifier violation. *)
+let quant_viol cmp_v uni_v bvs zvs v t =
   let uv = uni_v v in
-  let pvs, npvs = List.partition (fun v->VarSet.mem v params)
+  let pvs, npvs = List.partition (fun v->VarSet.mem v bvs)
     (VarSet.elements (fvs_typ t)) in
+  let pvs = if VarSet.mem v bvs then v::pvs else pvs in
+  let uni_vs =
+    List.filter uni_v (if VarSet.mem v bvs then npvs else v::npvs) in
+  let res =
   if pvs = [] then uv ||
-    List.exists (fun v2 -> cmp_v v v2 = Upstream) npvs
-  else not
-    (List.for_all
-       (fun uv -> List.exists (fun pv -> cmp_v uv pv = Upstream) pvs)
-       (List.filter uni_v (v::npvs)))
+    not (VarSet.mem v zvs) && List.exists
+    (fun v2 -> not (VarSet.mem v2 zvs) && cmp_v v v2 = Upstream) npvs
+  else
+    not
+      (List.for_all
+         (fun uv -> List.exists (fun pv -> cmp_v uv pv = Upstream) pvs)
+         uni_vs) in
+  Format.printf
+    "quant_viol: %b;@ v=%s;@ t=%a;@ bvs=%a;@ zvs=%a;@ pvs=%a;@ uni_vs=%a@\n%!"
+    res (var_str v) (pr_ty false) t
+    pr_vars bvs pr_vars zvs pr_vars (vars_of_list pvs)
+    pr_vars (vars_of_list uni_vs);
+  (* *)
+  res  
 
 (** Separate type sort and number sort constraints,  *)
-let unify ~use_quants ?params ?(sb=[]) cmp_v uni_v cnj =
-  let quant_viol = match params with
-    | None -> fun _ _ -> false
-    | Some params -> quant_viol cmp_v uni_v params in
+let unify ?use_quants ?(sb=[]) cmp_v uni_v cnj =
+  let use_quants, bvs, zvs =
+    match use_quants with
+    | None -> false, VarSet.empty, VarSet.empty
+    | Some (bvs, zvs) -> true, bvs, zvs in
   let cnj_typ, more_cnj = Aux.partition_map
     (function
     | Eqty (t1, t2, loc) when typ_sort_typ t1 && typ_sort_typ t2 ->
@@ -774,7 +793,8 @@ let unify ~use_quants ?params ?(sb=[]) cmp_v uni_v cnj =
       | (TVar v as tv, t | t, (TVar v as tv))
           when VarSet.mem v (fvs_typ t) ->
         raise (Contradiction ("Occurs check fail", Some (tv, t), loc))
-      | (TVar v, t | t, TVar v) when use_quants && quant_viol v t ->
+      | (TVar v, t | t, TVar v)
+          when use_quants && quant_viol cmp_v uni_v bvs zvs v t ->
         raise
           (Contradiction ("Quantifier violation", Some (TVar v, t), loc))
       | (TVar v1 as tv1, (TVar v2 as tv2)) ->
@@ -801,19 +821,19 @@ let unify ~use_quants ?params ?(sb=[]) cmp_v uni_v cnj =
 let to_formula =
   List.map (fun (v,(t,loc)) -> Eqty (TVar v, t, loc))
 
-let combine_sbs ~use_quants ?params cmp_v uni_v ?(more_phi=[]) sbs =
+let combine_sbs ?use_quants cmp_v uni_v ?(more_phi=[]) sbs =
   let cnj_typ, cnj_num, cnj_so =
-    unify ~use_quants ?params cmp_v uni_v
+    unify ?use_quants cmp_v uni_v
       (more_phi @ Aux.concat_map to_formula sbs) in
   assert (cnj_so = []);
   cnj_typ, cnj_num
 
-let subst_solved ~use_quants ?params cmp_v uni_v sb ~cnj =
+let subst_solved ?use_quants cmp_v uni_v sb ~cnj =
   let cnj = List.map
     (fun (v,(t,lc)) -> Eqty (subst_typ sb (TVar v), subst_typ sb t, lc))
     cnj in
   let cnj_typ, cnj_num, cnj_so =
-    unify ~use_quants ?params cmp_v uni_v cnj in
+    unify ?use_quants cmp_v uni_v cnj in
   assert (cnj_so = []);
   cnj_typ, cnj_num
 

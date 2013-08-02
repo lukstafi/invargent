@@ -38,19 +38,16 @@ val disjelim :
 val simplify :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
-  ?params:Terms.VarSet.t ->
+  ?bvs:Terms.VarSet.t ->
   Terms.VarSet.t -> Terms.formula -> 
   Terms.var_name list * Terms.formula
-
-val satisfiable : Terms.atom list -> bool
 
 type state
 val empty_state : state
 val formula_of_state : state -> Terms.formula
+val satisfiable : ?state:state -> Terms.atom list -> (exn, state) Aux.choice
 (** Incremental check whether |= Q.A. Raises [Contradiction]. *)
 val holds :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
-  ?params:Terms.VarSet.t ->
-  (* ?params:(Terms.var_name * Terms.VarSet.t) list -> *)
   state -> Terms.formula -> state

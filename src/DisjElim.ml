@@ -129,9 +129,15 @@ let disjelim_typ cmp_v uni_v brs =
       avs, ty_ans @ eqv_ans, ty_eqs, List.map to_formula num_eqs
 
 let simplify cmp_v (vs, ty_ans, num_ans) =
+  let params = vars_of_list vs in
+  let cmp_v v1 v2 =
+    let c1 = VarSet.mem v1 params and c2 = VarSet.mem v2 params in
+    if c1 && c2 then Same_quant
+    else if c1 then Downstream
+    else if c2 then Upstream
+    else cmp_v v1 v2 in
   let ty_ans, ty_num, _ =
-    unify ~use_quants:false ~params:(vars_of_list vs) cmp_v
-    (fun _ -> false) (to_formula ty_ans) in
+    unify cmp_v (fun _ -> false) (to_formula ty_ans) in
   assert (ty_num = []);
   let ty_sb, ty_ans = List.partition
     (fun (v,_) -> List.mem v vs) ty_ans in
@@ -142,7 +148,7 @@ let disjelim cmp_v uni_v brs =
   (* (1) D_i,s *)
   let brs = Aux.map_some
     (fun br ->
-      try Some (unify ~use_quants:false cmp_v uni_v br)
+      try Some (unify cmp_v uni_v br)
       with Contradiction _ -> None) brs in
   (* [avs] contains variables introduced by anti-unification, also
   of sorts other than "type" *)

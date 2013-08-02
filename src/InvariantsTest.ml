@@ -50,7 +50,7 @@ let tests = "Invariants" >::: [
 
   "eval" >::
     (fun () ->
-      (* todo "debug"; *)
+      todo "debug";
       test_case "eval term"
 "newtype Term : type
 newtype Int
@@ -78,17 +78,18 @@ let rec eval = function
   | Snd p -> (match eval p with x, y -> y)"
 
         "∃t98. δ = (Term t98 → t98)" 1
-        "t65 = t60 ∧ t52 = t46 ∧ t43 = (Term t37 → t37) ∧
-  t41 = (Term t36 → t36) ∧ t39 = t37 ∧ t38 = t36 ∧
-  t27 = (Term t21 → t21) ∧ t24 = (Term t21 → t21) ∧
-  t3 = (Term t98) ∧ t2 = (Term t99 → t99) ∧ t4 = t98 ∧ t5 = t98 ∧
-  t11 = (Term Int → Int) ∧ t16 = (Term Int → Int) ∧
-  t19 = (Term Int → Int) ∧ t30 = (Term Bool → Bool) ∧
-  t50 = (Term (t46, t47) → t46, t47) ∧ t51 = (t46, t47) ∧ t53 = t46 ∧
-  t54 = t47 ∧ t63 = (Term (t59, t60) → t59, t60) ∧ t64 = (t59, t60) ∧
-  t66 = t59 ∧ t67 = t60 ∧ t100 = Int ∧ t101 = Int ∧ t102 = Int ∧
-  t103 = Bool ∧ t104 = t21 ∧ t105 = t21 ∧ t106 = t36 ∧ t107 = t37 ∧
-  t108 = (t46, t47) ∧ t109 = (t59, t60)"
+        "t3 = (Term t98) ∧ t24 = (Term t98 → t98) ∧ t27 = (Term t98 → t98) ∧
+  t43 = (Term t37 → t37) ∧ t41 = (Term t36 → t36) ∧ t39 = t37 ∧
+  t38 = t36 ∧ t65 = t98 ∧ t67 = t98 ∧ t66 = t59 ∧
+  t64 = (t59, t60) ∧ t109 = (t59, t60) ∧
+  t63 = (Term (t59, t60) → t59, t60) ∧ t52 = t98 ∧ t53 = t98 ∧
+  t54 = t47 ∧ t51 = (t46, t47) ∧ t108 = (t46, t47) ∧
+  t50 = (Term (t46, t47) → t46, t47) ∧ t106 = t36 ∧ t107 = t37 ∧
+  t104 = t98 ∧ t105 = t98 ∧ t103 = Bool ∧
+  t30 = (Term Bool → Bool) ∧ t101 = Int ∧ t102 = Int ∧
+  t19 = (Term Int → Int) ∧ t16 = (Term Int → Int) ∧ t100 = Int ∧
+  t11 = (Term Int → Int) ∧ t5 = t98 ∧ t4 = t98 ∧
+  t2 = (Term t99 → t99)"
     );
 
   "equal with test" >::
@@ -121,18 +122,18 @@ let rec equal = function
   | _ -> fun _ _ -> False
 test b_not (equal (TInt, TList TInt) Zero Nil)"
         "∃t191, t192. δ = (Ty t191, Ty t192 → t191 → t192 → Bool)" 1
-        "t79 = t72 ∧ t78 = t70 ∧
-  t77 = (Ty t70, Ty t72 → t70 → t72 → Bool) ∧ t44 = t34 ∧
-  t43 = t33 ∧ t42 = Bool ∧ t41 = (t33, t34) ∧ t38 = t31 ∧
-  t37 = t30 ∧ t36 = (t33, t34 → Bool) ∧ t35 = (t30, t31) ∧
-  t4 = (t191 → t192 → Bool) ∧ t3 = (Ty t191, Ty t192) ∧
-  t2 = (Ty t121, Ty t122 → t121 → t122 → Bool) ∧ t7 = t191 ∧
-  t8 = t192 ∧ t53 = (Ty t31, Ty t34 → t31 → t34 → Bool) ∧
-  t60 = (Ty t30, Ty t33 → t30 → t33 → Bool) ∧ t80 = t191 ∧
-  t82 = t192 ∧ t86 = Int ∧
-  t95 = (Ty Int, Ty (List Int) → Int → List Int → Bool) ∧
-  t123 = Int ∧ t124 = (List Int) ∧ t125 = t30 ∧ t126 = t33 ∧
-  t127 = t31 ∧ t128 = t34 ∧ t129 = t70 ∧ t130 = t72";
+        "t3 = (Ty t191, Ty t192) ∧ t4 = (t191 → t192 → Bool) ∧
+  t36 = (t33, t34 → Bool) ∧ t35 = (t30, t31) ∧ t38 = t31 ∧
+  t37 = t30 ∧ t41 = (t33, t34) ∧ t43 = t33 ∧ t44 = t34 ∧
+  t42 = Bool ∧ t77 = (Ty t70, Ty t72 → t70 → t72 → Bool) ∧
+  t79 = t72 ∧ t78 = t70 ∧ t129 = t70 ∧ t130 = t72 ∧ t125 = t30 ∧
+  t126 = t33 ∧ t127 = t31 ∧ t128 = t34 ∧
+  t60 = (Ty t30, Ty t33 → t30 → t33 → Bool) ∧
+  t53 = (Ty t31, Ty t34 → t31 → t34 → Bool) ∧ t7 = t191 ∧
+  t8 = t192 ∧ t80 = t191 ∧ t82 = t192 ∧ t123 = Int ∧ t86 = Int ∧
+  t124 = (List Int) ∧
+  t2 = (Ty t121, Ty t122 → t121 → t122 → Bool) ∧
+  t95 = (Ty Int, Ty (List Int) → Int → List Int → Bool)";
     );
 
   "equal with assert" >::
@@ -166,16 +167,16 @@ let rec equal = function
   | TInt, TList l -> (function Nil -> assert false)
   | TList l, TInt -> (fun _ -> function Nil -> assert false)"
         "∃t204, t205. δ = (Ty t204, Ty t205 → t204 → t205 → Bool)" 1
-        "t79 = t72 ∧ t78 = t70 ∧
-  t77 = (Ty t70, Ty t72 → t70 → t72 → Bool) ∧ t44 = t34 ∧
-  t43 = t33 ∧ t42 = Bool ∧ t41 = (t33, t34) ∧ t38 = t31 ∧
-  t37 = t30 ∧ t36 = (t33, t34 → Bool) ∧ t35 = (t30, t31) ∧
-  t4 = (t204 → t205 → Bool) ∧ t3 = (Ty t204, Ty t205) ∧
-  t2 = (Ty t138, Ty t139 → t138 → t139 → Bool) ∧ t7 = t204 ∧
-  t8 = t205 ∧ t53 = (Ty t31, Ty t34 → t31 → t34 → Bool) ∧
-  t60 = (Ty t30, Ty t33 → t30 → t33 → Bool) ∧ t80 = t204 ∧
-  t82 = t205 ∧ t140 = t30 ∧ t141 = t33 ∧ t142 = t31 ∧ t143 = t34 ∧
-  t144 = t70 ∧ t145 = t72";
+        "t3 = (Ty t204, Ty t205) ∧ t4 = (t204 → t205 → Bool) ∧
+  t36 = (t33, t34 → Bool) ∧ t35 = (t30, t31) ∧ t38 = t31 ∧
+  t37 = t30 ∧ t41 = (t33, t34) ∧ t43 = t33 ∧ t44 = t34 ∧
+  t42 = Bool ∧ t77 = (Ty t70, Ty t72 → t70 → t72 → Bool) ∧
+  t79 = t72 ∧ t78 = t70 ∧ t144 = t70 ∧ t145 = t72 ∧ t140 = t30 ∧
+  t141 = t33 ∧ t142 = t31 ∧ t143 = t34 ∧
+  t60 = (Ty t30, Ty t33 → t30 → t33 → Bool) ∧
+  t53 = (Ty t31, Ty t34 → t31 → t34 → Bool) ∧ t7 = t204 ∧
+  t8 = t205 ∧ t80 = t204 ∧ t82 = t205 ∧
+  t2 = (Ty t138, Ty t139 → t138 → t139 → Bool)";
     );
 
   "equal with assert and test" >::
@@ -210,23 +211,23 @@ let rec equal = function
   | TList l, TInt -> (fun _ -> function Nil -> assert false)
 test b_not (equal (TInt, TList TInt) Zero Nil)"
         "∃t221, t222. δ = (Ty t221, Ty t222 → t221 → t222 → Bool)" 1
-        "t79 = t72 ∧ t78 = t70 ∧
-  t77 = (Ty t70, Ty t72 → t70 → t72 → Bool) ∧ t44 = t34 ∧
-  t43 = t33 ∧ t42 = Bool ∧ t41 = (t33, t34) ∧ t38 = t31 ∧
-  t37 = t30 ∧ t36 = (t33, t34 → Bool) ∧ t35 = (t30, t31) ∧
-  t4 = (t221 → t222 → Bool) ∧ t3 = (Ty t221, Ty t222) ∧
-  t2 = (Ty t151, Ty t152 → t151 → t152 → Bool) ∧ t7 = t221 ∧
-  t8 = t222 ∧ t53 = (Ty t31, Ty t34 → t31 → t34 → Bool) ∧
-  t60 = (Ty t30, Ty t33 → t30 → t33 → Bool) ∧ t80 = t221 ∧
-  t82 = t222 ∧ t116 = Int ∧
-  t125 = (Ty Int, Ty (List Int) → Int → List Int → Bool) ∧
-  t153 = Int ∧ t154 = (List Int) ∧ t155 = t30 ∧ t156 = t33 ∧
-  t157 = t31 ∧ t158 = t34 ∧ t159 = t70 ∧ t160 = t72";
+        "t3 = (Ty t221, Ty t222) ∧ t4 = (t221 → t222 → Bool) ∧
+  t36 = (t33, t34 → Bool) ∧ t35 = (t30, t31) ∧ t38 = t31 ∧
+  t37 = t30 ∧ t41 = (t33, t34) ∧ t43 = t33 ∧ t44 = t34 ∧
+  t42 = Bool ∧ t77 = (Ty t70, Ty t72 → t70 → t72 → Bool) ∧
+  t79 = t72 ∧ t78 = t70 ∧ t159 = t70 ∧ t160 = t72 ∧ t155 = t30 ∧
+  t156 = t33 ∧ t157 = t31 ∧ t158 = t34 ∧
+  t60 = (Ty t30, Ty t33 → t30 → t33 → Bool) ∧
+  t53 = (Ty t31, Ty t34 → t31 → t34 → Bool) ∧ t7 = t221 ∧
+  t8 = t222 ∧ t80 = t221 ∧ t82 = t222 ∧ t153 = Int ∧ t116 = Int ∧
+  t154 = (List Int) ∧
+  t2 = (Ty t151, Ty t152 → t151 → t152 → Bool) ∧
+  t125 = (Ty Int, Ty (List Int) → Int → List Int → Bool)";
     );
 
   "binary plus" >::
     (fun () ->
-      todo "debug";
+      (* todo "debug"; *)
       test_case "binary plus"
 "newtype Binary : num
 newtype Carry : num
