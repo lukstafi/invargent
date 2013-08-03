@@ -674,11 +674,11 @@
   but put the branch that failed in front of the sequence. If a branch
   <math|i> is at front for <math|n<rsub|i>>th time, we skip the initial
   <math|n<rsub|i>-1> simple abduction answers in it. If no front branch
-  <math|i> has at least <math|n<rsub|i>> answers, the search fails. After an
-  answer working for all branches has been found, we perform additional
-  check, which encapsulates negative constraints introduced by
+  <math|i> has at least <math|n<rsub|i>> answers, the search fails. [FIXME:
+  After an answer working for all branches has been found, we perform
+  additional check, which encapsulates negative constraints introduced by
   <verbatim|assert false> construct. If the check fails, we increase the skip
-  count of the head branch and repeat the search.
+  count of the head branch and repeat the search. -- in term abduction only?]
 
   When a branch has no more solutions to offer -- its skip factor
   <math|n<rsub|i>> has reached the number of fully maximal solutions to that
@@ -689,6 +689,12 @@
   we increase its skip factor and repeat. We keep a count of conflicts for
   the runouts so that in case of overall failure, we can report a branch
   likely to be among those preventing abduction.
+
+  We remember SCA answers when skipping over them, not to return the same
+  answer for different skip factors. But we also remember all JCA partial
+  answers that led to resetting. If a partial answer becomes as strong as one
+  of them, we can reset without further checking. If an empty partial answer
+  led to resetting, no answer exists. [TODO: do the same for term abduction!]
 
   When searching for abduction answer fails, we raise exception
   <verbatim|Suspect> that contains the partial answer conjoined with
@@ -1107,36 +1113,36 @@
     <associate|AlienSubterms|<tuple|3.3|6>>
     <associate|ImplSubst|<tuple|4|2>>
     <associate|MainAlgo|<tuple|5|9>>
-    <associate|SCAlinear|<tuple|3.4|?>>
+    <associate|SCAlinear|<tuple|3.4|7>>
     <associate|SepProp|<tuple|5|3>>
     <associate|SepProp2|<tuple|6|?>>
-    <associate|SolSimpl|<tuple|8|10>>
+    <associate|SolSimpl|<tuple|8|11>>
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1>>
-    <associate|auto-10|<tuple|3.5|7>>
+    <associate|auto-10|<tuple|3.5|8>>
     <associate|auto-11|<tuple|4|8>>
-    <associate|auto-12|<tuple|4.1|8>>
+    <associate|auto-12|<tuple|4.1|9>>
     <associate|auto-13|<tuple|5|9>>
     <associate|auto-14|<tuple|5.1|9>>
-    <associate|auto-15|<tuple|5.2|9>>
-    <associate|auto-16|<tuple|5.3|10>>
-    <associate|auto-17|<tuple|5.4|11>>
-    <associate|auto-18|<tuple|5.4|11>>
+    <associate|auto-15|<tuple|5.2|10>>
+    <associate|auto-16|<tuple|5.3|11>>
+    <associate|auto-17|<tuple|5.4|12>>
+    <associate|auto-18|<tuple|5.4|12>>
     <associate|auto-2|<tuple|2|2>>
     <associate|auto-3|<tuple|2.1|3>>
     <associate|auto-4|<tuple|2.2|4>>
     <associate|auto-5|<tuple|3|4>>
     <associate|auto-6|<tuple|3.1|4>>
-    <associate|auto-7|<tuple|3.2|5>>
+    <associate|auto-7|<tuple|3.2|6>>
     <associate|auto-8|<tuple|3.3|6>>
-    <associate|auto-9|<tuple|3.4|6>>
+    <associate|auto-9|<tuple|3.4|7>>
     <associate|bib-AbductionSolvMaher|<tuple|3|12>>
     <associate|bib-AntiUnifAlg|<tuple|8|12>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
-    <associate|bib-ArithQuantElim|<tuple|1|11>>
+    <associate|bib-ArithQuantElim|<tuple|1|12>>
     <associate|bib-ConvexHull|<tuple|2|12>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
