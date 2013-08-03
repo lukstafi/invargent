@@ -44,9 +44,13 @@ type q_with_bvs = {
   cmp_v : var_name -> var_name -> var_scope;
   uni_v : var_name -> bool;
   positive_b : var_name -> bool;
-  add_b_vs : var_name -> var_name list -> unit;
+  (** Add local variables of [chi(b)] instance, paired with keys
+      -- corresponding variables of formal [chi(delta)]. *)
+  add_b_vs_of : var_name -> (var_name * var_name) list -> unit;
   b_vs : (var_name, VarSet.t) Hashtbl.t;
   b_qvs : (var_name, var_name list) Hashtbl.t;
+  (** Renaming into [b_qvs], redundant but more idiot-proof *)
+  b_renaming : (var_name, (var_name * var_name) list) Hashtbl.t;
   add_bchi : var_name -> int -> bool -> unit;
   find_b : int -> var_name list;
   find_chi : var_name -> int;
@@ -69,6 +73,7 @@ let new_q cmp_v uni_v =
     else uni_v v in
   let positive_b v = Hashtbl.mem posi_b v in
   let b_vs = Hashtbl.create 16 in
+  let b_renaming = Hashtbl.create 16 in
   let b_qvs = Hashtbl.create 16 in
   let chi_b = Hashtbl.create 16 in
   let b_chi = Hashtbl.create 16 in
@@ -78,88 +83,87 @@ let new_q cmp_v uni_v =
     if Hashtbl.mem b_chi b
     then assert (Hashtbl.find b_chi b = i)
     else (
-      (*Format.printf "add_bchi: chi%d(%s);@ posi=%b@\n%!"
-        i (var_str b) posi;*)
+      Format.printf "add_bchi: chi%d(%s);@ posi=%b@\n%!"
+        i (var_str b) posi; (* *)
       if posi then Hashtbl.add posi_b b ()
       else q.negbs <- b::q.negbs;
       q.allchi <- Ints.add i q.allchi;
       Hashtbl.add chi_b i b;
       Hashtbl.add b_chi b i;
-      q.add_b_vs b [b])
-  and add_b_vs b vs =
+      q.add_b_vs_of b [delta, b])
+  and add_b_vs_of b rvs =
     assert (Hashtbl.mem b_chi b);
+    let qvs = try Hashtbl.find b_qvs b with Not_found -> [] in
+    let rvs = List.filter
+      (fun (_,v) -> not (List.mem v qvs)) rvs in
+    let vs = List.map snd rvs in
+    let vss = vars_of_list vs in
     List.iter (fun v -> Hashtbl.add same_q v b) vs;
-    q.allbvs <- VarSet.union q.allbvs (vars_of_list vs);
+    q.allbvs <- VarSet.union q.allbvs vss;
     if Hashtbl.mem posi_b b
     then List.iter (fun v -> Hashtbl.add posi_b v ()) vs;
     try
       let ovs = Hashtbl.find b_vs b in
-      Hashtbl.replace b_vs b (VarSet.union ovs (vars_of_list vs));
-      let qvs = try Hashtbl.find b_qvs b with Not_found -> [] in
-      let vs = List.filter (fun v -> not (List.mem v qvs)) vs in
+      Hashtbl.replace b_vs b (VarSet.union ovs vss);
+      let orenaming = Hashtbl.find b_renaming b in
+      Hashtbl.replace b_renaming b (rvs @ orenaming);
       Hashtbl.replace b_qvs b (vs @ qvs);
     with Not_found ->
       (* FIXME: b_vs contains b, but b_qvs doesn't, right? *)
       Hashtbl.add b_vs b (vars_of_list (b::vs));
+      Hashtbl.add b_renaming b rvs;
       Hashtbl.add b_qvs b vs;
   and q = {
-    cmp_v; uni_v; add_b_vs;
+    cmp_v; uni_v; add_b_vs_of;
     allchi = Ints.empty;
-    b_vs; b_qvs; allbvs = VarSet.empty; add_bchi; find_b; find_chi;
+    b_vs; b_renaming; b_qvs; allbvs = VarSet.empty;
+    add_bchi; find_b; find_chi;
     positive_b; negbs = [];
   } in q
 
-(* Return renaming of [nvs] into [ovs], creating fresh [ovs] when
+(* Return renaming of [vs], creating fresh [rvs] pairs when
    needed and adding them as locals of [b] in [q]. *)
-let matchup_vars q b nvs =
-  let rec loop acc = function
-    | [], [] ->
-      Format.printf "matchup_vars: renaming=@ %a@\n%!"
-        pr_subst acc; (* *)
-      acc
-    | [], locals ->
-      (* Format.printf "matchup_vars: error locals=@ %s@\n%!"
-        (String.concat ", " (List.map var_str locals)); * *)
-      assert false
-    | nvs, [] ->
-      Format.printf "matchup_vars: remaining nvs= %s; mem(n202)@\n%!"
-        (String.concat ", " (List.map var_str nvs)); (* *)
-      let ovs = List.map Infer.freshen_var nvs in
-      q.add_b_vs b ovs; loop acc (nvs, ovs)
-    | nv::nvs, ov::ovs -> loop ((nv, (TVar ov, dummy_loc))::acc) (nvs, ovs)
-  in
-  let locals = try Hashtbl.find q.b_qvs b with Not_found -> assert false in
-  Format.printf "matchup_vars: b=%s;@ nvs=%s;@ locals=%s@\n%!"
+let matchup_vars self_owned q b vs =
+  let rvs =
+    try Hashtbl.find q.b_renaming b with Not_found -> assert false in
+  let orvs = Hashtbl.find q.b_renaming b in
+  let nvs = List.filter (fun v->not (List.mem_assoc v orvs)) vs in
+  let nrvs =
+    if self_owned
+    then List.map (fun v->v, v) nvs
+    else List.map (fun v->v, Infer.freshen_var v) nvs in
+  Format.printf "matchup_vars: b=%s;@ vs=%s;@ orvs=%s;@ rvs=%s;@ nrvs=%s@\n%!"
     (var_str b)
-    (String.concat ", " (List.map var_str nvs))
-    (String.concat ", " (List.map var_str locals)); (* *)
-  match List.rev locals with
-  | [] -> assert false
-  | lvb::locals ->
-    assert (Hashtbl.mem q.b_vs lvb);
-    (* loop in reverse to handle older variables first *)
-    loop [] (List.rev nvs, locals)
+    (String.concat ", " (List.map var_str vs))
+    (String.concat ", "
+       (List.map (fun (v,w)->var_str v^":="^var_str w) orvs))
+    (String.concat ", "
+       (List.map (fun (v,w)->var_str v^":="^var_str w) rvs))
+    (String.concat ", "
+       (List.map (fun (v,w)->var_str v^":="^var_str w) nrvs)); (* *)
+  q.add_b_vs_of b nrvs;
+  let res = nrvs @ rvs in
+  (* [rvs] stores a [delta] substitution, [delta] is absent from [vs] *)
+  assert (List.length res = List.length vs + 1);
+  List.map (fun (v,w) -> v, (TVar w, dummy_loc)) res
 
 let sb_atom_pred q posi psb = function
   | PredVarU (i, (TVar b as t)) as a ->
     (try
        let vs, phi = List.assoc i psb in
-       (*Format.printf
+       Format.printf
          "sb_atom_pred: U posi=%b@ chi%d(%s)=@ %a@\n%!"
-         posi i (var_str b) pr_ans (vs,phi);*)
-       if not posi
-       then sb_phi_unary t phi
-       else
-         let renaming = matchup_vars q b vs in
-         sb_phi_unary t (subst_formula renaming phi)
+         posi i (var_str b) pr_ans (vs,phi); (* *)
+       let renaming = matchup_vars (not posi) q b vs in
+       sb_phi_unary t (subst_formula renaming phi)
      with Not_found -> [a])  
   | PredVarB (i, (TVar b as t1), t2) as a ->
     (try
        let vs, phi = List.assoc i psb in
-       (*Format.printf
+       Format.printf
          "sb_atom_pred: B posi=%b@ chi%d(%s,%a)=@ %a@\n%!"
-         posi i (var_str b) (pr_ty false) t2 pr_ans (vs,phi);*)
-       let renaming = matchup_vars q b vs in
+         posi i (var_str b) (pr_ty false) t2 pr_ans (vs,phi); (* *)
+       let renaming = matchup_vars false q b vs in
        sb_phi_binary t1 t2 (subst_formula renaming phi)
      with Not_found -> [a])
   | a -> [a]
@@ -306,7 +310,8 @@ let split avs ans params zparams q =
         let (avs_p, ans_l, ans_r) = strat q b ans_p in
         Format.printf "select: ans_l(%s)=@ %a@\n%!"
           (var_str b) pr_formula ans_l; (* *)
-        q.add_b_vs b avs_p;
+        (* Negatively occurring [b] "owns" these formal parameters *)
+        q.add_b_vs_of b (List.map (fun v->v,v) avs_p);
         (* 6 *)
         let ans0 = List.assoc b sol in
         let ans = ans0 @ ans_l in
@@ -511,7 +516,8 @@ let solve cmp_v uni_v brs =
           else
             let gvs = VarSet.elements
               (VarSet.inter (vars_of_list (gvs @ gvs')) (fvs_formula g_ans)) in
-            (* FIXME: add [gvs] to [q]! *)
+            (* No [b] "owns" these formal parameters. Their instances
+               will be added to [q] by [sb_brs_pred]. *)
             Some (i, (gvs @ vs, g_ans' @ ans))
       ) gK in
     Format.printf "solve: loop; #gK=%d@\n%!" (List.length gK); (* *)
@@ -594,8 +600,8 @@ let solve cmp_v uni_v brs =
       let ans_res, more_discard, sol2 = split vs ans params zparams q in
       let more_discard =
         more_discard @ subst_formula alien_eqs more_discard in
-      (* Add new variables to [q] *)
-      List.iter (fun (b, (vs,_)) -> q.add_b_vs b vs) sol2;
+      (* FIXME: remove this. Add new variables to [q] *)
+      (* List.iter (fun (b, (vs,_)) -> q.add_b_vs b vs) sol2; *)
       Format.printf "solve: loop -- answer split@ more_discard=@ %a@\nans_res=@ %a@\nsol=@ %a@\n%!"
         pr_formula more_discard pr_formula ans_res pr_bchi_subst sol2; (* *)
       let discard = more_discard @ discard in
@@ -648,7 +654,11 @@ let solve cmp_v uni_v brs =
               ) ds in
             let dvs = concat_map (fun (_,(dvs,_))->dvs) ds in
             (* [dvs] must come before [vs] bc. of [matchup_vars] and [q] *)
-            i, (dvs @ vs, dans @ ans))
+            let i_res = dvs @ vs, dans @ ans in
+                Format.printf
+                  "solve-loop: res chi%d(.)=@ %a@\n%!"
+                  i pr_ans i_res; (* *)
+            i, i_res)
           sol1 in    
         (* 10 *)
         let sol2 = converge sol0 sol1 sol2 in
