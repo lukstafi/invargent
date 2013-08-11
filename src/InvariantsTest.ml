@@ -78,7 +78,7 @@ let rec eval = function
 
   "equal with test" >::
     (fun () ->
-      todo "debug";
+      (* todo "debug"; *)
       test_case "equal terms"
 "newtype Ty : type
 newtype Int
@@ -338,7 +338,7 @@ test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
 
   "flatten_pairs" >::
     (fun () ->
-      (* todo "debug"; *)
+      todo "debug";
       test_case "list flatten_pairs"
 "newtype Bool
 newtype List : type * num
@@ -351,7 +351,8 @@ let rec flatten_pairs =
   function LNil -> LNil
     | LCons ((x, y), l) ->
       LCons (x, LCons (y, flatten_pairs l))"
-        [1,""];
+        [1,"∃n41, n42, t43. δ = (List ((t43, t43), n42) → List (t43, n41)) ∧
+  n41 = (n42 + n42)"];
 
     );
 

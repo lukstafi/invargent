@@ -371,9 +371,9 @@
     <math|\<vDash\>\<cal-Q\>.A<around*|[|<wide|\<alpha\>|\<bar\>>\<assign\><wide|t|\<bar\>>|]>>
     for some <math|<wide|t|\<bar\>>>;
 
-    <item>a discard list that contains answer atoms -- substitution terms --
-    disallowed in the pursued solution. The main algorithm will pass the
-    answer atoms from previous iterations as a discard list.
+    <item>a discard list of partial answers to avoid (a tabu list) --
+    implements backtracking, with answers from abductions raising
+    ``fallback'' going there.
   </itemize>
 
   To ensure connected variables condition, if an atom
@@ -498,6 +498,13 @@
   we increase its skip factor and repeat. We keep a count of conflicts for
   the runouts so that in case of overall failure, we can report a branch
   likely to be among those preventing abduction.
+
+  We remember SCA answers when skipping over them, not to return the same
+  answer for different skip factors. But we also remember all JCA partial
+  answers that led to resetting. If a partial answer becomes as strong as one
+  of them, we can reset without further checking. If an empty partial answer
+  led to resetting, no answer exists. The failed partial answers are
+  initialized with the discarded answers, passed from the main algorithm.
 
   As described in <cite|jcaqpTechRep2>, to check validity of answers, we use
   a modified variant of unification under quantifiers: unification with
@@ -694,7 +701,8 @@
   answer for different skip factors. But we also remember all JCA partial
   answers that led to resetting. If a partial answer becomes as strong as one
   of them, we can reset without further checking. If an empty partial answer
-  led to resetting, no answer exists. [TODO: do the same for term abduction!]
+  led to resetting, no answer exists. The failed partial answers are
+  initialized with the discarded answers, passed from the main algorithm.
 
   When searching for abduction answer fails, we raise exception
   <verbatim|Suspect> that contains the partial answer conjoined with
@@ -940,8 +948,8 @@
 
   In the algorithm we operate on all predicate variables, and perform
   additional operations on existential type predicate variables; there are no
-  operations pertaining only to recursive definition predicate variables. The
-  final algorithm has the form:
+  operations pertaining only to recursive definition predicate variables.
+  Step <math|k> of the loop of the final algorithm:
 
   <\eqnarray*>
     <tformat|<cwith|9|9|2|2|cell-valign|c>|<table|<row|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.F<rsub|\<chi\>>|\<bar\>>>|<cell|=>|<cell|S<rsub|k>>>|<row|<cell|\<wedge\><rsub|i><around*|(|D<rsub|K><rsup|i>\<Rightarrow\>C<rsub|K><rsup|i>|)>>|<cell|=>|<cell|<with|mode|text|all
@@ -1002,19 +1010,26 @@
   turned <em|off> when a single iteration (plus fallback backtracking
   described below) is insufficient to solve for the invariants.
 
-  We implement a simple form of backtracking. When abduction detects
-  contradiction in the branches <math|S<rsub|k><around*|(|\<Phi\>|)>> passed
-  to it, it uses <verbatim|fallback> branches
-  <math|S<rsub|k-1><around*|(|\<Phi\>|)>>. Infinite loop is avoided because
-  the discard list for step <math|k> contains answers of step <math|k-1>. In
-  case abduction used the fallback branches, we set
-  <math|S<rsub|k>\<assign\>S<rsub|k-1>> before going on to compute
-  <math|S<rsub|k+1>>. Similarly, with checking for negative constraints
-  <em|on>, when the check of negative branches
+  We implement backtracking using a tabu-search-like discard list. When
+  abduction raises an exception: for example contradiction arises in the
+  branches <math|S<rsub|k><around*|(|\<Phi\>|)>> passed to it, or it cannot
+  find an answer and raises <verbatim|Suspect> with information on potential
+  problem, we fall-back to step <math|k-1>. Similarly, with checking for
+  negative constraints <em|on>, when the check of negative branches
   <math|<around*|(|D<rsub|i>,C<rsub|i>|)>\<in\>\<Phi\><rsub|\<b-F\>>>,
   \ <math|\<nvDash\>\<exists\>FV<around*|(|S<rsub|k><around*|(|D<rsub|i>|)>|)>.S<rsub|k><around*|(|D<rsub|i>|)>>
-  fails, we set <math|S<rsub|k>\<assign\>S<rsub|k-1>> before calling
-  abduction.
+  fails. In step <math|k-1>, we maintain a discard list of different answers
+  found in this step: initially empty, after fall-back we add there the
+  latest answer. We redo step <math|k-1> starting from
+  <math|S<rsub|k-1><around*|(|\<Phi\>|)>>. Infinite loop is avoided because
+  answers already attempted are discarded. When step <math|k-1> cannot find a
+  new answer, we fall back to step <math|k-2>, etc. We store discard lists
+  for distinct sorts separately and we only add to the discard list of the
+  sort that caused fallback. Unfortunately this means a slight loss of
+  completeness, as an error in another sort might be due to bad choice in the
+  sort of types. The loss is ``slight'' because of the dissociation step
+  described previously. Moreover, the sort information from checking negative
+  branches is likewise only approximate.
 
   <subsection|Implementation details>
 
@@ -1046,6 +1061,13 @@
   <reference|AlienSubterms>. In the first two iterations, we remove branches
   that contain unary predicate variables in the conclusion, as discussed at
   the end of subsection <reference|SCAlinear>.
+
+  Computing abduction is the ``axis'' of the main loop. If anything fails,
+  the previous abduction answer is the culprit. We add the previous answer to
+  the discard list and retry, without incrementing the iteration number. If
+  abduction and splitting succeeds, we reset the discard list and increment
+  the iteration number. We use recursion for backtracking, instead of making
+  <verbatim|loop> tail-recursive.
 
   \;
 

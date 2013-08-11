@@ -185,7 +185,14 @@ let replace_assocs ~repl l =
     | e1::(e2::_ as tl) when cmp e1 e2 = 0 -> idemp acc tl
     | e::tl -> idemp (e::acc) tl
     | [] -> acc in
-  idemp [] (List.rev (merge cmp (List.sort cmp repl) l))
+  (* [merge] puts first list elements first *)
+  idemp [] (List.rev (merge cmp l (List.sort cmp repl)))
+
+let rec update_assoc k0 v0 f = function
+  | [] -> [k0, f v0]
+  | (k,v)::l when k=k0 -> (k, f v)::l
+  | kv::l -> kv::update_assoc k0 v0 f l
+  
 
 let bind_opt t f =
   match t with

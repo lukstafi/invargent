@@ -225,7 +225,8 @@ let solve ?use_quants ?(strict=false)
         match expand_atom true ((v, k)::vars, cst, loc) with
         | Eqty (t1, t2, _) -> t1, t2
         | _ -> assert false in
-      raise (Contradiction ("Quantifier violation (numeric equation)",
+      raise (Contradiction (Num_sort,
+                            "Quantifier violation (numeric equation)",
                             Some (t1, t2), loc))
     | ((v, k)::vars, cst, loc)::eqn ->
       let w_sb = v, mult (!/(-1) // k) (vars, cst, loc) in
@@ -236,7 +237,7 @@ let solve ?use_quants ?(strict=false)
     | ([], cst, loc)::eqn ->
       let msg =
         "Failed numeric equation ("^Num.string_of_num cst^"=0)" in
-      raise (Contradiction (msg, None, loc)) in
+      raise (Contradiction (Num_sort, msg, None, loc)) in
   let eqn = List.rev (elim [] eqn) in
   let ineqn = if eqn=[] then ineqn else List.map (subst_w cmp eqn) ineqn in
   let eqs = if eqn=[] then eqs else List.map
@@ -265,7 +266,7 @@ let solve ?use_quants ?(strict=false)
         let a = expand_atom false w in
         let t1, t2 = match a with
           | Leq (t1, t2, _) -> t1, t2 | _ -> assert false in
-        raise (Contradiction ("Failed numeric strict inequality",
+        raise (Contradiction (Num_sort, "Failed numeric strict inequality",
                               Some (t1, t2), loc))
       else Right w
     else Left (diff cmp lhs rhs) in
@@ -276,14 +277,16 @@ let solve ?use_quants ?(strict=false)
         when (strict && cst </ !/0) || (not strict && cst <=/ !/0) ->
       proj ineqs implicits ineqn
     | ([], cst, loc)::_ ->
-      raise (Contradiction ("Failed numeric inequality", None, loc))
+      raise (Contradiction (Num_sort, "Failed numeric inequality",
+                            None, loc))
     | ((v, k)::vars, cst, loc)::ineqn
         when use_quants && quant_viol uni_v bvs v vars ->
       let t1, t2 =
         match expand_atom false ((v, k)::vars, cst, loc) with
         | Leq (t1, t2, _) -> t1, t2
         | _ -> assert false in
-      raise (Contradiction ("Quantifier violation (numeric inequality)",
+      raise (Contradiction (Num_sort,
+                            "Quantifier violation (numeric inequality)",
                             Some (t1, t2), loc))
     | ((v,k)::vars, cst, loc)::ineqn ->
       let (left, right), ineqs =
@@ -306,7 +309,7 @@ let solve ?use_quants ?(strict=false)
           let a = expand_atom false ([v, !/(-1)], cst, loc) in
           let t1, t2 = match a with
             | Leq (t1, t2, _) -> t1, t2 | _ -> assert false in
-          raise (Contradiction ("Failed numeric inequality",
+          raise (Contradiction (Num_sort, "Failed numeric inequality",
                                 Some (t1, t2), loc))
         | _ -> true)
         more_ineqn in
@@ -391,7 +394,8 @@ let abd_simple cmp cmp_w uni_v ~bvs ~validate
         | [], [] ->
           if !skip > 0 then
             (decr skip; raise
-              (Contradiction ("Numeric SCA: skipping", None, dummy_loc)))
+              (Contradiction (Num_sort,
+                              "Numeric SCA: skipping", None, dummy_loc)))
           else raise (Result (eqs_acc, ineqs_acc)) in
       (* 3 *)
       let eqn = eq_cands @ d_eqn in
@@ -445,7 +449,7 @@ let abd_simple cmp cmp_w uni_v ~bvs ~validate
             (* (try                         *)
                loop eqs_acc ineqs_acc eq_cands ineq_cands
             (* with Contradiction _ -> ()) *)
-          with Contradiction (msg,tys,_) when msg != no_pass_msg ->
+          with Contradiction (_,msg,tys,_) when msg != no_pass_msg ->
             Format.printf
               "NumS.abd_simple: [%d] 4a. invalid (%s)@\n%!" ddepth msg;
             match tys with None -> ()
@@ -461,7 +465,7 @@ let abd_simple cmp cmp_w uni_v ~bvs ~validate
              "NumS.abd_simple: [%d] 4c. failed a=@ %a@ ...@\n%!"
              ddepth pr_w a;
              (* *)
-          raise (Contradiction (no_pass_msg, None, dummy_loc))) in
+          raise (Contradiction (Num_sort, no_pass_msg, None, dummy_loc))) in
     (* 2 *)
     try loop eqs_i ineqs_i c_eqn c_ineqn; None
     with Result (ans_eqs, ans_ineqs) -> Some (ans_eqs, ans_ineqs)
@@ -473,7 +477,7 @@ let make_cmp cmp_v v1 v2 =
   | Downstream -> -1
   | _ -> compare v2 v1
 
-let abd cmp_v uni_v ~bparams ?(iter_no=2) brs =
+let abd cmp_v uni_v ~bparams ~discard ?(iter_no=2) brs =
   let bvs = List.fold_left
     (fun acc (_,ps) -> VarSet.union acc ps) VarSet.empty bparams in
   let cmp_v = make_cmp cmp_v in
@@ -494,6 +498,14 @@ let abd cmp_v uni_v ~bparams ?(iter_no=2) brs =
       partition_map (flatten cmp) prem,
       partition_map (flatten cmp) concl)
     brs in
+  (* Raise [Contradiction] from [abd] when constraints are not
+     satisfiable. *)
+  List.iter
+    (fun (_, (d_eqn, d_ineqn), (c_eqn, c_ineqn)) ->
+      ignore (solve
+                ~eqn:(d_eqn @ c_eqn) ~ineqn:(d_ineqn @ c_ineqn)
+                cmp cmp_w uni_v))
+    brs;
   let validate eqs ineqs = List.iter
     (fun (_, (d_eqn, d_ineqn), (c_eqn, c_ineqn)) ->
       ignore (solve ~eqs ~ineqs
@@ -511,8 +523,7 @@ let abd cmp_v uni_v ~bparams ?(iter_no=2) brs =
     | [] ->
       let _, (prem, concl) =
         Aux.maximum ~leq:(fun (i,_) (j,_) -> i<=j) runouts in
-      raise (Suspect ([],
-                      ans_to_formula acc
+      raise (Suspect (ans_to_formula acc
                       @ eqineq_to_formula prem @ eqineq_to_formula concl,
                       eqineq_loc_union concl))
     | (skip, br as obr)::more_brs ->
@@ -608,7 +619,9 @@ let abd cmp_v uni_v ~bparams ?(iter_no=2) brs =
         loop (un_ans acc::failed) ([], [])
           runouts ((skip+1, br)::List.rev_append done_brs more_brs) in
 
-  [], ans_to_formula (loop [] ([], []) [] (br0::more_brs))
+  let failed =
+    List.map (partition_map (flatten cmp)) discard in
+  [], ans_to_formula (loop failed ([], []) [] (br0::more_brs))
 
 let abd_s cmp_v uni_v prem concl =
   let cmp_v = make_cmp cmp_v in

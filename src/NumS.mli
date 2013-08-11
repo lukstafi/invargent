@@ -8,12 +8,14 @@
 
 (** Try four times as many linear combinations (k,-k,1/k,-1/k). *)
 val abd_rotations : int ref
-(** For uniformity, we return an empty list as introduced
-    variables. Raise [Suspect] if no answer can be found. *)
+(** For uniformity, return an empty list as introduced
+    variables. Raise [Contradiction] if constraints are contradictory
+    and [Suspect] if no answer can be found. *)
 val abd :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
   bparams:(Terms.var_name * Terms.VarSet.t) list ->
+  discard:Terms.formula list ->
   ?iter_no:int ->
   (bool * Terms.formula * Terms.formula) list ->
   Terms.var_name list * Terms.formula

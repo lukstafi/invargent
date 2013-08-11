@@ -179,14 +179,19 @@ type var_scope =
 
 val str_of_cmp : var_scope -> string
 
-exception Contradiction of string * (typ * typ) option * loc
-exception Suspect of var_name list * formula * loc
+exception Contradiction of sort * string * (typ * typ) option * loc
+exception NoAnswer of sort * string * (typ * typ) option * loc
+exception Suspect of formula * loc
+(** Change [Contradiction] to [NoAnswer] and vice-versa, identity on
+    other exceptions. *)
+val convert : exn -> exn
 
 val subst_typ : subst -> typ -> typ
 val subst_sb : sb:subst -> subst -> subst
 val update_sb : more_sb:subst -> subst -> subst
 val typ_sort_typ : typ -> bool
 val num_sort_typ : typ -> bool
+val split_sorts : formula -> (sort * formula) list
 
 (** [use_quants] is a pair of [bvs] variables and parameters. *)
 val unify : ?use_quants:(VarSet.t * VarSet.t) ->

@@ -83,5 +83,8 @@ val pr_brs : Format.formatter -> branch list -> unit
 val pr_rbrs : Format.formatter -> (Terms.formula * Terms.formula) list -> unit
 val pr_rbrs3 :
   Format.formatter -> (bool * Terms.formula * Terms.formula) list -> unit
+val pr_rbrs5 :
+  Format.formatter ->
+  (bool * 'a * 'b * Terms.formula * Terms.formula) list -> unit
 
 val reset_state : unit -> unit

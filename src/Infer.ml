@@ -70,6 +70,12 @@ let pr_rbrs3 ppf brs =
     fprintf ppf "@[<2>nonrec=%b;@ %a@ ⟹@ %a@]"
       nonrec pr_formula prem pr_formula concl) ppf brs
 
+let pr_rbrs5 ppf brs =
+  (* TODO: print the chiK *)
+  pr_line_list "| " (fun ppf (nonrec,_,_,prem,concl) ->
+    fprintf ppf "@[<2>nonrec=%b;@ %a@ ⟹@ %a@]"
+      nonrec pr_formula prem pr_formula concl) ppf brs
+
 (** {2 Constraint inference} *)
 
 let rec flat_and = function

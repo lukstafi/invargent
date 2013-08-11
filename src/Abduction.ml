@@ -124,6 +124,12 @@ let revert_uni uni_v cmp_v cand =
     | sv -> sv)
     res
 
+let implies_ans ans c_ans =
+  List.for_all (fun (v,(t,_)) ->
+    try fst (List.assoc v ans) = subst_typ ans t
+    with Not_found -> false
+  ) c_ans
+
 (* Simple constraint abduction for terms
 
    For purposes of invariant inference, we need to account for the
@@ -247,8 +253,7 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
             Format.printf "skipped: [%d]@ @[<2>%a@]@\n%!" ddepth pr_subst ans; (* *)
             decr skip)
           (* TODO: optimize by passing clean_ans along with ans *)
-          else if List.exists (fun sx -> List.mem sx discard)
-              clean_ans
+          else if List.exists (implies_ans clean_ans) discard
           then (
             Format.printf "discarding: [%d] skip=%d --@ @[<2>%a@]@\n%!"
               ddepth !skip pr_subst ans; (* *)
@@ -314,7 +319,7 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
           (try
              let xvs = VarSet.add x (fvs_typ t') in
              if disconnected cparams xvs
-             then raise (Contradiction ("Unconnected to params",
+             then raise (Contradiction (Type_sort, "Unconnected to params",
                                         Some (TVar x, t'), lc));
              let ans', _, so =
                unify ~use_quants:(bvs, zvs') ~sb:ans
@@ -353,7 +358,7 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
              let t = typ_out loc in
              let xvs = VarSet.add x (fvs_typ t) in
              if disconnected cparams xvs
-             then raise (Contradiction ("Unconnected to params",
+             then raise (Contradiction (Type_sort, "Unconnected to params",
                                         Some (TVar x, t), lc));
              let ans, _, so =
                unify ~use_quants:(bvs, zvs) ~sb:ans
@@ -364,7 +369,7 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
              Format.printf "abd_simple: [%d] choice 4 OK@\n%!" ddepth; (* *)
              assert (so = []);
              abstract repls cparams zvs vs ans cand
-           with Contradiction (msg, Some (ty1, ty2), _) ->
+           with Contradiction (_, msg, Some (ty1, ty2), _) ->
              (* FIXME: change to [with Contradiction _ -> ()] after debug  *)
              Format.printf
                "abd_simple: [%d] @ c.4 failed:@ %s@ %a@ %a@\n%!" ddepth
@@ -400,7 +405,7 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
             (try
                let xvs = VarSet.add x (fvs_typ t') in
                if disconnected cparams xvs
-               then raise (Contradiction ("Unconnected to params",
+               then raise (Contradiction (Type_sort, "Unconnected to params",
                                           Some (TVar x, t'), lc));
                Format.printf
                  "abd_simple: [%d]@ c.5 unify x=%s@ t'=%a@ sb=@ %a@\n%!"
@@ -468,8 +473,8 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
     if implies_concl ans then Some (vs, ans)
     else
       let cnj_typ, _ = prem_and concl in
-      let cnj_typ = Aux.list_diff cnj_typ discard in
-      (* TODO: describe in doc *)
+      (* FIXME: hmm... *)
+      (* let cnj_typ = Aux.list_diff cnj_typ discard in *)
       let cnj_typ = revert_uni uni_v cmp_v cnj_typ in
       let cnj_typ = List.sort
         (fun (_,(t1,_)) (_,(t2,_)) -> typ_size t2 - typ_size t1)
@@ -494,12 +499,11 @@ let abd_typ cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
   let br0 = 0, List.hd brs in
   let more_brs = List.map (fun br -> -1, br) (List.tl brs) in
   let time = ref (Sys.time ()) in
-  let rec loop acc runouts = function
+  let rec loop failed acc runouts = function
     | [] ->
       let _, (prem, concl) =
         Aux.maximum ~leq:(fun (i,_) (j,_) -> i<=j) runouts in
-      raise (Suspect (fst acc,
-                      to_formula (snd acc @ prem @ concl),
+      raise (Suspect (to_formula (snd acc @ prem @ concl),
                       List.fold_left loc_union dummy_loc
                         (List.map (fun (_,(_,lc))->lc) concl)))
     | (skip, br as obr)::more_brs ->
@@ -510,19 +514,29 @@ let abd_typ cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
      (snd br); (* *)
       match abd_simple cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
         ~validate ~discard skip acc br with
+      | Some acc when List.exists (implies_ans (snd acc)) failed ->
+        Format.printf "abd_typ: reset matching failed [%d]@\n%!" ddepth; (* *)
+        loop failed ([], []) runouts ((skip+1, br)::more_brs)
       | Some acc ->
         let ntime = Sys.time () in
           Format.printf "ans: [%d] (%.2fs)@ @[<2>%a@]@\n%!" ddepth (ntime -. !time)
           pr_subst (snd acc); time := ntime; (* *)
-        check_runouts acc obr more_brs [] runouts
+        check_runouts failed acc obr more_brs [] runouts
       | None ->
+        if skip <= 0 && acc = ([],[])
+        then (
+          Format.printf
+            "abd_typ-loop: quit failed [%d] at skip=%d failed=%d@ ans=%a@\n%!" ddepth
+          skip (List.length failed) pr_subst (snd acc); (* *)
+          ignore (loop failed acc (obr::runouts) []));
+        let failed = if skip <= 0 then snd acc::failed else failed in
         Format.printf "reset first [%d] at skip=%d@\n%!" ddepth
           skip; (* *)
-        loop ([], []) ((0, br)::runouts) more_brs
+        loop failed ([], []) ((0, br)::runouts) more_brs
 
-  and check_runouts acc (dskip, dbr as done_br)
+  and check_runouts failed acc (dskip, dbr as done_br)
       more_brs done_runouts = function
-    | [] -> check_brs acc (List.rev done_runouts) [done_br] more_brs
+    | [] -> check_brs failed acc (List.rev done_runouts) [done_br] more_brs
     | (confls, br as obr)::more_runouts ->
       let ddepth = incr debug_dep; !debug_dep in
       Format.printf
@@ -531,19 +545,31 @@ let abd_typ cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
      pr_subst (snd br); (* *)
       match abd_simple cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
         ~validate ~discard 0 acc br with
+      | Some acc when List.exists (implies_ans (snd acc)) failed ->
+        Format.printf "abd_typ: reset runouts matching failed [%d]@\n%!" ddepth; (* *)
+        loop failed ([], [])
+          ((confls+1, br)::List.rev_append done_runouts more_runouts)
+          ((dskip+1, dbr)::more_brs)
       | Some acc ->
         let ntime = Sys.time () in
           Format.printf "ans: [%d] (%.2fs)@ @[<2>%a@]@\n%!" ddepth (ntime -. !time)
           pr_subst (snd acc); time := ntime; (* *)
-        check_runouts acc done_br more_brs (obr::done_runouts) more_runouts
+        check_runouts failed acc done_br more_brs (obr::done_runouts) more_runouts
       | None ->
-        Format.printf "reset runouts [%d] at confls=%d@\n%!" ddepth
-          confls; (* *)
-        loop ([], [])
+        if acc = ([],[])
+        then (
+          Format.printf
+            "abd_typ-check_runouts: quit failed [%d] at failed=%d@ ans=%a@\n%!" ddepth
+          (List.length failed) pr_subst (snd acc); (* *)
+          ignore (loop failed acc (obr::done_runouts@more_runouts) []));
+        Format.printf
+          "abd_typ: reset runouts [%d] at confls=%d failed=%d@ ans=%a@\n%!" ddepth
+          confls (List.length failed + 1) pr_subst (snd acc); (* *)
+        loop (snd acc::failed) ([], [])
           ((confls+1, br)::List.rev_append done_runouts more_runouts)
           ((dskip+1, dbr)::more_brs)
       
-  and check_brs acc runouts done_brs = function
+  and check_brs failed acc runouts done_brs = function
     | [] -> acc
     | (skip, br as obr)::more_brs ->
       let ddepth = incr debug_dep; !debug_dep in
@@ -553,18 +579,29 @@ let abd_typ cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
         (snd br); (* *)
       match abd_simple cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
         ~validate ~discard 0 acc br with
+      | Some acc when List.exists (implies_ans (snd acc)) failed ->
+        Format.printf "abd_typ: reset check matching failed [%d]@\n%!" ddepth; (* *)
+        loop failed ([], [])
+          runouts ((skip+1, br)::List.rev_append done_brs more_brs)
       | Some acc ->
         let ntime = Sys.time () in
           Format.printf "ans: [%d] (%.2fs)@ @[<2>%a@]@\n%!" ddepth (ntime -. !time)
           pr_subst (snd acc); time := ntime; (* *)
-        check_brs acc runouts (obr::done_brs) more_brs
+        check_brs failed acc runouts (obr::done_brs) more_brs
       | None ->
-        Format.printf "reset check [%d] at skip=%d@\n%!" ddepth
-     skip; (* *)
-        loop ([], [])
+        if acc = ([],[])
+        then (
+          Format.printf
+            "NumS.abd-check_brs: quit failed [%d] at failed=%d@ ans=%a@\n%!" ddepth
+          (List.length failed) pr_subst (snd acc); (* *)
+          ignore (loop failed acc (obr::runouts) []));
+        Format.printf
+          "NumS.abd: reset check [%d] at skip=%d failed=%d@ ans=%a@\n%!" ddepth
+          skip (List.length failed + 1) pr_subst (snd acc); (* *)
+        loop (snd acc::failed) ([], [])
           runouts ((skip+1, br)::List.rev_append done_brs more_brs) in
 
-  let vs, ans = loop ([], []) [] (br0::more_brs) in
+  let vs, ans = loop discard ([], []) [] (br0::more_brs) in
   Format.printf "abd_typ: result vs=%s@\nans=%a@\n%!"
     (String.concat ","(List.map var_str vs))
     pr_subst ans; (* *)
@@ -622,7 +659,8 @@ let abd_mockup_num cmp_v uni_v ~bvs ~zvs ~bparams ~zparams brs =
             unify cmp_v uni_v concl in
           List.iter (function
           | CFalse loc ->
-            raise (Contradiction ("assert false is possible", None, loc))
+            raise (Contradiction (Type_sort,
+                                  "assert false is possible", None, loc))
           | _ -> ()) concl_so;
           if not (Aux.is_right (NumS.satisfiable concl_num)) then None
           else Some ((prem_typ, concl_typ), (prem_num, concl_num),
@@ -650,18 +688,20 @@ let abd_mockup_num cmp_v uni_v ~bvs ~zvs ~bparams ~zparams brs =
             brs_num more_num)
   with Suspect _ -> None
 
-let abd cmp_v uni_v ~bvs ~zvs ~bparams ~zparams ?(iter_no=2) ~discard
-    ~fallback brs =
+let abd cmp_v uni_v ~bvs ~zvs ~bparams ~zparams ?(iter_no=2)
+    ~discard brs =
   let dissociate = iter_no <= 0 in
   (* Do not change the order and no. of branches afterwards. *)
   Format.printf "abd: prepare branches@\n%!"; (* *)
-  let discard_typ, discard_num = List.partition
-    (function Eqty (_, t2, _) when typ_sort_typ t2 -> true | _ -> false)
-    discard in
+  let discard_typ =
+    try List.assoc Type_sort discard with Not_found -> [] in
+  let discard_num =
+    try List.assoc Num_sort discard with Not_found -> [] in
   let discard_typ = List.map
-    (function Eqty (TVar v, t, lc) -> v, (t, lc) | _ -> assert false)
+    (List.map
+       (function Eqty (TVar v, t, lc) -> v, (t, lc) | _ -> assert false))
     discard_typ in
-  let prepare_brs brs = Aux.split3
+  let brs_typ, brs_num, brs_so = Aux.split3
     (Aux.map_some (fun (nonrec, prem, concl) ->
       let prems_opt =
         try Some (unify cmp_v uni_v prem)
@@ -674,29 +714,13 @@ let abd cmp_v uni_v ~bvs ~zvs ~bparams ~zparams ?(iter_no=2) ~discard
         else                          (* can raise Contradiction *)
           let concl_typ, concl_num, concl_so =
             unify cmp_v uni_v concl in
-          List.iter (function
-          | CFalse loc ->
-            raise (Contradiction ("assert false is possible", None, loc))
-          | _ -> ()) concl_so;
+          assert (concl_so = []);
           if not (Aux.is_right (NumS.satisfiable prem_num)) then None
           else Some ((prem_typ, concl_typ), (nonrec, prem_num, concl_num),
                      (prem_so, concl_so))
       | None -> None)
        brs) in
-  (* FIXME: remove handling of brs_so? *)
-  let fallback, (brs_typ, brs_num, brs_so) =
-    try false, prepare_brs brs
-    with Contradiction (msg, tys, lc) as e ->
-      if fallback == brs then raise e
-      else (
-        Format.printf "abd: prepare fallback msg=%s;@ loc=%a@\n%!"
-          msg pr_loc lc;
-        (match tys with None -> ()
-        | Some (t1, t2) ->
-          Format.printf "types involved:@ t1=%a@ t2=%a@\n%!"
-            (pr_ty false) t1 (pr_ty false) t2);
-      (* *)
-      true, prepare_brs fallback) in
+  (* FIXME: remove the fallback mechanism, move it to [Invariants]. *)
   let validate vs ans = List.iter2
     (fun (prem_ty, concl_ty) (nonrec, prem_num, concl_num) ->
       (* Do not use quantifiers, because premise is in the conjunction. *)
@@ -707,35 +731,53 @@ let abd cmp_v uni_v ~bvs ~zvs ~bparams ~zparams ?(iter_no=2) ~discard
         combine_sbs cmp_v uni_v [prem_ty; concl_ty; ans] in
       let cnj_num = ans_num @ prem_num @ concl_num in
       (* Format.printf "validate-typ: sb_ty=@ %a@\ncnj_num=@ %a@\n%!"
-        pr_subst sb_ty pr_formula cnj_num; * *)
+         pr_subst sb_ty pr_formula cnj_num; * *)
       let (* num_state *) _ =
         NumS.holds (fun _ _ -> Same_quant) (fun _ -> false)
           NumS.empty_state cnj_num in
       (* Format.printf "validate-typ: num_state=@ %a@\n%!"
-        pr_formula (NumS.formula_of_state num_state); * *)
+         pr_formula (NumS.formula_of_state num_state); * *)
       ()
     )
     brs_typ brs_num in
-  Format.printf "abd: discard_typ=@ %a@\n%!" pr_subst discard_typ;
+  Format.printf "abd: discard_typ=@ %a@\n%!"
+    (pr_line_list "|" pr_subst) discard_typ;
   (* *)
   (* We do not remove nonrecursive branches for types -- it will help
      other sorts do better validation. *)
   let alien_eqs, tvs, ans_typ, more_num =
-    abd_typ cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
-      ~dissociate ~validate ~discard:discard_typ brs_typ in
+    try
+      abd_typ cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
+        ~dissociate ~validate ~discard:discard_typ brs_typ
+    with Suspect (cnj, lc) ->
+      Format.printf
+        "abd: fallback abd_typ loc=%a@\nsuspect=%a@\n%!"
+        pr_loc lc pr_formula cnj;
+      (* *)
+      raise (NoAnswer (Type_sort, "term abduction failed", None, lc)) in
   let brs_num = List.map2
     (fun (nonrec,prem,concl) (more_p, more_c) ->
       nonrec, more_p @ prem, more_c @ concl)
     brs_num more_num in
   Format.printf "abd: solve for numbers@\n%!"; (* *)
-  (* FIXME: add [discard] to NumS.abd? *)
   let nvs, ans_num =
-    if dissociate then [], []
-    else NumS.abd cmp_v uni_v ~bparams ~iter_no brs_num in
-  alien_eqs, fallback,
+    try
+      if dissociate then [], []
+      else NumS.abd cmp_v uni_v ~bparams
+        ~discard:discard_num
+        ~iter_no brs_num
+    with
+    | Suspect (cnj, lc) ->
+      Format.printf
+        "abd: fallback NumS.abd loc=%a@\nsuspect=%a@\n%!"
+        pr_loc lc pr_formula cnj;
+      (* *)
+      raise (NoAnswer (Num_sort, "numerical abduction failed",
+                       None, lc)) in
+  alien_eqs,
   (nvs @ tvs,
    Aux.map_append (fun (v,(t,lc)) -> Eqty (TVar v,t,lc))
-    ans_typ ans_num)
+     ans_typ ans_num)
 
 let abd_s cmp_v uni_v prem concl =
   (* Do not change the order and no. of branches afterwards. *)

@@ -353,8 +353,16 @@ let str_of_cmp = function
 | Downstream -> "downstream"
 | Not_in_scope -> "not_in_scope"
 
-exception Contradiction of string * (typ * typ) option * loc
-exception Suspect of var_name list * formula * loc
+exception Contradiction of sort * string * (typ * typ) option * loc
+exception NoAnswer of sort * string * (typ * typ) option * loc
+exception Suspect of formula * loc
+
+let convert = function
+  | NoAnswer (sort, msg, tys, lc) ->
+    Contradiction (sort, msg, tys, lc)
+  | Contradiction (sort, msg, tys, lc) ->
+    NoAnswer (sort, msg, tys, lc)
+  | e -> e
 
 let typ_sort_typ = function
   | TVar (VNam (Undefined_sort, _) | VId (Undefined_sort, _)) ->
@@ -370,6 +378,18 @@ let num_sort_typ = function
       TVar (VNam (Num_sort, _)
                  | VId (Num_sort, _)) -> true
   | _ -> false
+
+let split_sorts cnj =
+  let cnj_typ, cnj = List.partition
+    (function
+    | Eqty (_,t,_) when typ_sort_typ t -> true
+    | _ -> false) cnj in
+  let cnj_num, cnj = List.partition
+    (function
+    | Eqty (_,t,_) when num_sort_typ t -> true
+    | Leq _ -> true
+    | _ -> false) cnj in
+  [Type_sort, cnj_typ; Num_sort, cnj_num; Undefined_sort, cnj]
 
 (** {2 Printing} *)
 let current_file_name = ref ""
@@ -711,13 +731,24 @@ let pr_exception ppf = function
   | Report_toplevel (what, Some where) ->
     pr_loc_long ppf where;
     Format.fprintf ppf "%!\n%s\n%!" what
-  | Contradiction (what, None, where) ->
+  | Contradiction (sort, what, None, where) ->
     pr_loc_long ppf where;
-    Format.fprintf ppf "%!\n%s\n%!" what
-  | Contradiction (what, Some (ty1, ty2), where) ->
+    Format.fprintf ppf "%!\nContradiction in %s: %s\n%!"
+      (sort_str sort) what
+  | Contradiction (sort, what, Some (ty1, ty2), where) ->
     pr_loc_long ppf where;
-    Format.fprintf ppf "%!\n%s\ntypes involved:\n%a\n%a\n%!"
-      what (pr_ty false) ty1 (pr_ty false) ty2
+    Format.fprintf ppf
+      "%!\nContradiction in %s: %s\ntypes involved:\n%a\n%a\n%!"
+      (sort_str sort) what (pr_ty false) ty1 (pr_ty false) ty2
+  | NoAnswer (sort, what, None, where) ->
+    pr_loc_long ppf where;
+    Format.fprintf ppf "%!\nNo answer in %s: %s\n%!"
+      (sort_str sort) what
+  | NoAnswer (sort, what, Some (ty1, ty2), where) ->
+    pr_loc_long ppf where;
+    Format.fprintf ppf
+      "%!\nNo answer in %s: %s\ntypes involved:\n%a\n%a\n%!"
+      (sort_str sort) what (pr_ty false) ty1 (pr_ty false) ty2
   | exn -> raise exn
 
 
@@ -772,7 +803,8 @@ let unify ?use_quants ?(sb=[]) cmp_v uni_v cnj =
       let modif, t' = subst_one v s t in
       if use_quants && modif && quant_viol cmp_v uni_v bvs zvs w t'
       then raise
-        (Contradiction ("Quantifier violation", Some (TVar w, t'), loc));
+        (Contradiction (Type_sort, "Quantifier violation",
+                        Some (TVar w, t'), loc));
       w, (t', loc)) in
   let cnj_typ, more_cnj = Aux.partition_map
     (function
@@ -784,7 +816,8 @@ let unify ?use_quants ?(sb=[]) cmp_v uni_v cnj =
     | (CFalse _ | PredVarU _ | PredVarB _) as a ->
       Aux.Right (Aux.Right a)
     | Eqty (t1, t2, loc) -> raise
-      (Contradiction ("Type sort mismatch", Some (t1, t2), loc)))
+      (Contradiction (Type_sort, "Type sort mismatch",
+                      Some (t1, t2), loc)))
     cnj in
   let cnj_num, cnj_so = Aux.partition_choice more_cnj in
   let rec aux sb num_cn = function
@@ -796,14 +829,17 @@ let unify ?use_quants ?(sb=[]) cmp_v uni_v cnj =
       | t1, t2 when num_sort_typ t1 && num_sort_typ t2 ->
         aux sb (Eqty (t1, t2, loc)::num_cn) cnj
       | t1, t2 when num_sort_typ t1 || num_sort_typ t2 -> raise
-        (Contradiction ("Type sort mismatch", Some (t1, t2), loc))
+        (Contradiction (Type_sort, "Type sort mismatch",
+                        Some (t1, t2), loc))
       | (TVar v as tv, t | t, (TVar v as tv))
           when VarSet.mem v (fvs_typ t) ->
-        raise (Contradiction ("Occurs check fail", Some (tv, t), loc))
+        raise (Contradiction (Type_sort, "Occurs check fail",
+                              Some (tv, t), loc))
       | (TVar v, t | t, TVar v)
           when use_quants && quant_viol cmp_v uni_v bvs zvs v t ->
         raise
-          (Contradiction ("Quantifier violation", Some (TVar v, t), loc))
+          (Contradiction (Type_sort, "Quantifier violation",
+                          Some (TVar v, t), loc))
       | (TVar v1 as tv1, (TVar v2 as tv2)) ->
         if cmp_v v1 v2 = Upstream
         then aux ((v2, (tv1, loc))::subst_one_sb v2 tv1 sb) num_cn cnj
@@ -815,13 +851,15 @@ let unify ?use_quants ?(sb=[]) cmp_v uni_v cnj =
         let more_cnj =
           try List.combine f_args g_args
           with Invalid_argument _ -> raise
-            (Contradiction ("Type arity mismatch", Some (t1, t2), loc)) in
+            (Contradiction (Type_sort, "Type arity mismatch",
+                            Some (t1, t2), loc)) in
         aux sb num_cn (List.map (fun (t1,t2)->t1,t2,loc) more_cnj @ cnj)
       | Fun (f1, a1), Fun (f2, a2) ->
         let more_cnj = [f1, f2, loc; a1, a2, loc] in
         aux sb num_cn (more_cnj @ cnj)
       | t1, t2 -> raise
-        (Contradiction ("Type mismatch", Some (t1, t2), loc)) in
+        (Contradiction (Type_sort, "Type mismatch",
+                        Some (t1, t2), loc)) in
   let cnj_typ, cnj_num = aux sb cnj_num cnj_typ in
   cnj_typ, cnj_num, cnj_so
 

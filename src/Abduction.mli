@@ -22,7 +22,7 @@ val abd_simple :
   bvs:Terms.VarSet.t -> zvs:Terms.VarSet.t ->
   bparams:vparams -> zparams:vparams ->
   validate:(Terms.var_name list -> Terms.subst -> unit) ->
-  discard:Terms.subst ->
+  discard:Terms.subst list ->
   int ->
   Terms.var_name list * Terms.subst ->
   Terms.subst * Terms.subst ->
@@ -34,23 +34,22 @@ val abd_typ :
   bparams:vparams -> zparams:vparams ->
   ?dissociate:bool ->
   validate:(Terms.var_name list -> Terms.subst -> unit) ->
-  discard:Terms.subst ->
+  discard:Terms.subst list ->
   (Terms.subst * Terms.subst) list ->
   Terms.subst *                         (* alien_eqs *)
   Terms.var_name list * Terms.subst * (Terms.formula * Terms.formula) list
-(* Raises [Suspect] if no answer can be found. Uses [fallback]
-  branches if preparing main branches detects contradiction. *)
+(** Raises [Contradiction] if constraints are contradictory and
+    [NoAnswer] when no answer can be found. *)
 val abd :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
   bvs:Terms.VarSet.t -> zvs:Terms.VarSet.t ->
   bparams:vparams -> zparams:vparams ->
   ?iter_no:int ->
-  discard:Terms.formula ->
-  fallback:(bool * Terms.formula * Terms.formula) list ->
+  discard:(Terms.sort * Terms.formula list) list ->
   (bool * Terms.formula * Terms.formula) list ->
   Terms.subst *                         (* alien_eqs *)
-  bool * (Terms.var_name list * Terms.formula)
+  (Terms.var_name list * Terms.formula)
 val abd_mockup_num :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
