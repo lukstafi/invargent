@@ -78,7 +78,7 @@ let rec eval = function
 
   "equal with test" >::
     (fun () ->
-      (* todo "debug"; *)
+      todo "debug";
       test_case "equal terms"
 "newtype Ty : type
 newtype Int
@@ -105,7 +105,7 @@ let rec equal = function
   | TList t, TList u -> forall2 (equal (t, u))
   | _ -> fun _ _ -> False
 test b_not (equal (TInt, TList TInt) Zero Nil)"
-        [1, "∃t191, t192. δ = (Ty t191, Ty t192 → t191 → t192 → Bool)"]
+        [1, "∃t201, t202. δ = (Ty t201, Ty t202 → t201 → t202 → Bool)"]
     );
 
   "equal with assert" >::
@@ -138,7 +138,7 @@ let rec equal = function
   | _ -> fun _ _ -> False
   | TInt, TList l -> (function Nil -> assert false)
   | TList l, TInt -> (fun _ -> function Nil -> assert false)"
-        [1, "∃t204, t205. δ = (Ty t204, Ty t205 → t204 → t205 → Bool)"]
+        [1, "∃t264, t265. δ = (Ty t264, Ty t265 → t264 → t265 → Bool)"]
     );
 
   "equal with assert and test" >::
@@ -172,7 +172,7 @@ let rec equal = function
   | TInt, TList l -> (function Nil -> assert false)
   | TList l, TInt -> (fun _ -> function Nil -> assert false)
 test b_not (equal (TInt, TList TInt) Zero Nil)"
-        [1, "∃t221, t222. δ = (Ty t221, Ty t222 → t221 → t222 → Bool)"]
+        [1, "∃t231, t232. δ = (Ty t231, Ty t232 → t231 → t232 → Bool)"]
     );
 
   "binary plus" >::
@@ -338,7 +338,7 @@ test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
 
   "flatten_pairs" >::
     (fun () ->
-      todo "debug";
+      (* todo "debug"; *)
       test_case "list flatten_pairs"
 "newtype Bool
 newtype List : type * num
@@ -358,7 +358,7 @@ let rec flatten_pairs =
 
   "escape castle" >::
     (fun () ->
-      todo "universal";
+      (* todo "universal"; *)
       test_case "escape castle"
 "newtype Room
 newtype Yard

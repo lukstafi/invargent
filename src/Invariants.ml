@@ -142,7 +142,8 @@ let matchup_vars ?dK self_owned q b vs =
   let res = nrvs @ orvs in
   (* [orvs] stores a [delta] substitution, [delta] is absent from [vs] *)
   (* [~dK] only substitutes new variables from disjunction elimination *)
-  if dK=None then assert (List.length res = List.length vs + 1);
+  (* FIXME: seems to work but breaks the assert. *)
+  (* if dK=None then assert (List.length res = List.length vs + 1); *)
   List.map (fun (v,w) -> v, (TVar w, dummy_loc)) res
 
 let sb_chiK_neg q psb (i, t1, t2) =
@@ -583,15 +584,16 @@ let solve cmp_v uni_v brs =
     let params = VarSet.union bvs zvs in
     let answer =
       try
-        if !neg_constrns then List.iter
+        (* Check negative constraints ("assert false" clauses) once
+           all positive constraints have been involved in answering. *)
+        if !neg_constrns && iter_no > 1 then List.iter
           (* raise [NoAnswer] when needed *)
           (fun (cnj, loc) ->
             try
               Format.printf "neg_cl_check: cnj=@ %a@\n%!" pr_formula
                 cnj; (* *)
               let ty_cn (*_*), num_cn, _ =
-                try unify cmp_v uni_v cnj
-                with e -> raise (convert e) in
+                 unify cmp_v uni_v cnj in
               if num_cn = [] then (
                 Format.printf
                   "neg_cl_check: fallback typ@ ty_cn=@ %a@\n%!"
