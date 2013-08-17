@@ -10,36 +10,6 @@ open Aux
 
 type chi_subst = (int * (var_name list * formula)) list
 
-let sb_typ_unary arg =
-  typ_map {typ_id_map with map_tvar = fun v ->
-    if v = delta then arg else TVar v}  
-
-let sb_typ_binary arg1 arg2 =
-  typ_map {typ_id_map with map_tvar = fun v ->
-    if v = delta then arg1 else if v = delta' then arg2 else TVar v}  
-
-let sb_atom_unary arg = function
-  | Eqty (t1, t2, lc) ->
-    Eqty (sb_typ_unary arg t1, sb_typ_unary arg t2, lc)
-  | Leq (t1, t2, lc) ->
-    Leq (sb_typ_unary arg t1, sb_typ_unary arg t2, lc)
-  | CFalse _ as a -> a
-  | PredVarU (_, t) -> assert false
-  | PredVarB (_, t1, t2) -> assert false
-
-let sb_atom_binary arg1 arg2 = function
-  | Eqty (t1, t2, lc) ->
-    Eqty (sb_typ_binary arg1 arg2 t1, sb_typ_binary arg1 arg2 t2, lc)
-  | Leq (t1, t2, lc) ->
-    Leq (sb_typ_binary arg1 arg2 t1, sb_typ_binary arg1 arg2 t2, lc)
-  | CFalse _ as a -> a
-  | PredVarU (_, t) -> assert false
-  | PredVarB (_, t1, t2) -> assert false
-
-let sb_phi_unary arg = List.map (sb_atom_unary arg)
-
-let sb_phi_binary arg1 arg2 = List.map (sb_atom_binary arg1 arg2)
-
 type q_with_bvs = {
   cmp_v : var_name -> var_name -> var_scope;
   uni_v : var_name -> bool;
@@ -394,21 +364,6 @@ let split avs ans params zparams q =
   let solT = List.map (fun b->b, []) q.negbs in
   loop (vars_of_list avs) ans [] solT  
 
-let connected v (vs, phi) =
-  let nodes = List.map (fun c -> c, fvs_atom c) phi in
-  let rec loop acc vs nvs rem =
-    let more, rem = List.partition
-      (fun (c, cvs) -> List.exists (flip VarSet.mem cvs) nvs) rem in
-    let mvs = List.fold_left VarSet.union VarSet.empty
-      (List.map snd more) in
-    let nvs = VarSet.elements (VarSet.diff mvs vs) in
-    let acc = List.map fst more @ acc in
-    if nvs = [] then acc
-    else loop acc (VarSet.union mvs vs) nvs rem in
-  let ans = loop [] VarSet.empty [v] nodes in
-  VarSet.elements (VarSet.inter (fvs_formula ans) (vars_of_list vs)),
-  ans
-
 (** Perform quantifier elimination on provided variables and generally
     simplify the formula. *)
 let simplify cmp_v uni_v vs cnj =
@@ -523,14 +478,14 @@ let solve cmp_v uni_v brs =
       (concat_map
          (fun (_,_,chiK_pos,prem,concl) -> List.map
            (fun (i,t1,t2) ->
-             (i,t2), Eqty (TVar delta, t1, dummy_loc) :: prem @ concl)
+             (i,t2), Eqty (tdelta, t1, dummy_loc) :: prem @ concl)
            chiK_pos)
          brs1) in
     let chiK = List.map (fun ((i,t2),cnjs) -> i, (t2, cnjs)) chiK in
     (* 2 *)
     let dK = List.map
       (fun (i,(t2,cnjs)) ->
-        i, connected delta (DisjElim.disjelim cmp_v uni_v cnjs)) chiK in
+        i, connected [delta] (DisjElim.disjelim cmp_v uni_v cnjs)) chiK in
     let dK = map_some
       (fun (i,(gvs, g_ans)) ->
         let vs, ans = List.assoc i sol1 in
@@ -655,8 +610,8 @@ let solve cmp_v uni_v brs =
         let dvs = VarSet.elements (VarSet.diff fvs (vars_of_list vs)) in
         let targs = List.map (fun v -> TVar v) dvs in
         let a2 = match t2 with TVar a2 -> a2 | _ -> assert false in
-        vs @ dvs, Eqty (TVar delta', TCons (CNam "Tuple", targs), dummy_loc) ::
-          subst_formula [a2, (TVar delta', dummy_loc)] ans in
+        vs @ dvs, Eqty (tdelta', TCons (CNam "Tuple", targs), dummy_loc) ::
+          subst_formula [a2, (tdelta', dummy_loc)] ans in
       (* 7 *)
       let finish sol2 =
         (* start fresh at (iter_no+1) *)
@@ -706,7 +661,7 @@ let solve cmp_v uni_v brs =
                   i (var_str b) pr_ans (dvs,dans) pr_ans (vs,ans); (* *)
                 (* No need to substitute, because variables will be
                    freshened when predicate variable is instantiated. *)
-                subst_formula [b, (TVar delta, dummy_loc)] dans
+                subst_formula [b, (tdelta, dummy_loc)] dans
               ) ds in
             let dvs = concat_map (fun (_,(dvs,_))->dvs) ds in
             let i_res = dvs @ vs, dans @ ans in

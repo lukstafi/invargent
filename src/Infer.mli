@@ -24,29 +24,21 @@ val freshen_cns_scheme :
   Terms.var_name list * Terms.atom list * Terms.typ list *
   Terms.cns_name * Terms.var_name list
 val freshen_val_scheme : Terms.typ_scheme -> Terms.typ_scheme
-type sigma =
-  (string,
-   Terms.var_name list * Terms.atom list * Terms.typ list
-   * Terms.cns_name * Terms.var_name list)
-    Hashtbl.t
-val constr_gen_pat :
-  sigma -> Terms.pat -> Terms.typ -> cnstrnt
+val constr_gen_pat : Terms.pat -> Terms.typ -> cnstrnt
 type envfrag = Terms.VarSet.t * Terms.formula * (string * Terms.typ) list
 val typ_to_sch : 'a * Terms.typ -> 'a * Terms.typ_scheme
 val constr_gen_expr :
-  (string * Terms.typ_scheme) list -> sigma ->
-  (Terms.cns_name * (g:Terms.typ -> a:Terms.typ -> Terms.atom list) * Terms.loc)
-  list ref -> Terms.expr -> Terms.typ -> cnstrnt
+  (string * Terms.typ_scheme) list ->
+  Terms.expr -> Terms.typ -> cnstrnt
 type solution =
-  (Terms.subst * Terms.formula) *
-    (int * (Terms.typ -> Terms.subst * Terms.atom list)) list *
-    (int * (g:Terms.var_name -> a:Terms.var_name ->
-            Terms.subst * Terms.formula))
-    list
+  (Terms.var_name -> Terms.var_name -> Terms.var_scope) *
+    (Terms.var_name -> bool) * Terms.formula *
+    (int * (Terms.var_name list * Terms.formula)) list
 val infer_prog_mockup : Terms.struct_item list -> Terms.VarSet.t * cnstrnt
 val infer_prog :
   (preserve:Terms.VarSet.t -> cnstrnt -> solution) ->
-  Terms.struct_item list -> Terms.struct_item list
+  Terms.struct_item list ->
+  (string * Terms.typ_scheme) list * Terms.struct_item list
 
 (** {2 Normalization} *)
 type branch =
@@ -68,6 +60,12 @@ val simplify :
   (Terms.var_name -> bool)-> branch list -> branch list
 
 (** {2 Postprocessing and printing} *)
+
+val separate_subst :
+  (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
+  (Terms.var_name -> bool)-> Terms.formula ->
+  Terms.subst * Terms.formula
+
 (*
 type nicevars_env
 val nicevars_empty : nicevars_env

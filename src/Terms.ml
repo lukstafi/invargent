@@ -99,9 +99,14 @@ type cns_name =
 | CNam of string
 | Extype of int
 
+let delta = VId (Type_sort, -1)
+let delta' = VId (Type_sort, -2)
+
 let var_sort = function VNam (s,_) -> s | VId (s,_) -> s
 let var_str = function
   | VNam (_,v) -> v
+  | VId _ as d when d = delta -> "δ"
+  | VId _ as d when d = delta' -> "δ'"
   | VId (s,i) -> Char.escaped (sort_str s).[0]^string_of_int i
 let cns_str = function
   | CNam c -> c
@@ -114,8 +119,8 @@ type typ =
 | NCst of int
 | Nadd of typ list
 
-let delta = VId (Type_sort, -1)
-let delta' = VId (Type_sort, -2)
+let tdelta = TVar delta
+let tdelta' = TVar delta'
 
 module VarSet =
     Set.Make (struct type t = var_name let compare = Pervasives.compare end)
@@ -176,6 +181,16 @@ let typ_fold tfold t =
     | NCst i -> tfold.fold_ncst i
     | Nadd tys -> tfold.fold_nadd (List.map aux tys) in
   aux t
+
+
+let sb_typ_unary arg =
+  typ_map {typ_id_map with map_tvar = fun v ->
+    if v = delta then arg else TVar v}  
+
+let sb_typ_binary arg1 arg2 =
+  typ_map {typ_id_map with map_tvar = fun v ->
+    if v = delta then arg1 else if v = delta' then arg2 else TVar v}  
+
 
 (** {3 Zipper} *)
 type typ_dir =
@@ -290,6 +305,24 @@ let subst_atom sb = function
   | PredVarU (n, t) -> PredVarU (n, subst_typ sb t)
   | PredVarB (n, t1, t2) -> PredVarB (n, subst_typ sb t1, subst_typ sb t2)
 
+let sb_atom_unary arg = function
+  | Eqty (t1, t2, lc) ->
+    Eqty (sb_typ_unary arg t1, sb_typ_unary arg t2, lc)
+  | Leq (t1, t2, lc) ->
+    Leq (sb_typ_unary arg t1, sb_typ_unary arg t2, lc)
+  | CFalse _ as a -> a
+  | PredVarU (_, t) -> assert false
+  | PredVarB (_, t1, t2) -> assert false
+
+let sb_atom_binary arg1 arg2 = function
+  | Eqty (t1, t2, lc) ->
+    Eqty (sb_typ_binary arg1 arg2 t1, sb_typ_binary arg1 arg2 t2, lc)
+  | Leq (t1, t2, lc) ->
+    Leq (sb_typ_binary arg1 arg2 t1, sb_typ_binary arg1 arg2 t2, lc)
+  | CFalse _ as a -> a
+  | PredVarU (_, t) -> assert false
+  | PredVarB (_, t1, t2) -> assert false
+
 let subst_fo_atom sb = function
   | Eqty (t1, t2, loc) -> Eqty (subst_typ sb t1, subst_typ sb t2, loc)
   | Leq (t1, t2, loc) -> Leq (subst_typ sb t1, subst_typ sb t2, loc)
@@ -306,11 +339,18 @@ let fvs_sb sb =
     (vars_of_list (List.map fst sb))
     (List.map (fun (_,(t,_))->fvs_typ t) sb)
 
-let subst_formula sb phi = List.map (subst_atom sb) phi
+let subst_formula sb phi =
+  if sb=[] then phi else List.map (subst_atom sb) phi
 
-let subst_fo_formula sb phi = List.map (subst_fo_atom sb) phi
+let subst_fo_formula sb phi =
+  if sb=[] then phi else List.map (subst_fo_atom sb) phi
+
+let sb_phi_unary arg = List.map (sb_atom_unary arg)
+
+let sb_phi_binary arg1 arg2 = List.map (sb_atom_binary arg1 arg2)
 
 type typ_scheme = var_name list * formula * typ
+type answer = var_name list * formula
 
 let extype_id = ref 0
 let predvar_id = ref 0
@@ -390,6 +430,35 @@ let split_sorts cnj =
     | Leq _ -> true
     | _ -> false) cnj in
   [Type_sort, cnj_typ; Num_sort, cnj_num; Undefined_sort, cnj]
+
+
+let connected target (vs, phi) =
+  let nodes = List.map (fun c -> c, fvs_atom c) phi in
+  let rec loop acc vs nvs rem =
+    let more, rem = List.partition
+      (fun (c, cvs) -> List.exists (Aux.flip VarSet.mem cvs) nvs) rem in
+    let mvs = List.fold_left VarSet.union VarSet.empty
+      (List.map snd more) in
+    let nvs = VarSet.elements (VarSet.diff mvs vs) in
+    let acc = List.map fst more @ acc in
+    if nvs = [] then acc
+    else loop acc (VarSet.union mvs vs) nvs rem in
+  let ans = loop [] VarSet.empty target nodes in
+  VarSet.elements (VarSet.inter (fvs_formula ans) (vars_of_list vs)),
+  ans
+
+(** {2 Global tables} *)
+
+type sigma =
+  (string, var_name list * formula * typ list * cns_name * var_name list)
+    Hashtbl.t
+(* In [K :: ∀g,a[∃vs.phi].g⟶Ex_i(a)], [delta] is used for [g] and
+  [delta'] for [a]. *)
+type ex_types = (int * ((var_name list * formula) * loc)) list
+
+let sigma = Hashtbl.create 127
+let ex_types = ref []
+
 
 (** {2 Printing} *)
 let current_file_name = ref ""
@@ -580,11 +649,9 @@ and pr_formula ppf atoms =
   pr_sep_list " ∧" pr_atom ppf atoms
 
 and pr_ty comma ppf = function
-  | TVar d when d = delta -> fprintf ppf "δ"
-  | TVar d when d = delta' -> fprintf ppf "δ'"
   | TVar v -> fprintf ppf "%s" (var_str v)
   | NCst i -> fprintf ppf "%d" i
-  | TCons (x, []) -> fprintf ppf "%s" (cns_str x)
+  | TCons (CNam c, []) -> fprintf ppf "%s" c
   | TCons (CNam "Tuple", exps) ->
     if comma then
       fprintf ppf "@[<2>(%a)@]"
@@ -592,11 +659,15 @@ and pr_ty comma ppf = function
     else
       fprintf ppf "@[<2>%a@]"
 	(pr_sep_list "," (pr_ty true)) exps
-  | TCons (x, [ty]) ->
-    fprintf ppf "@[<2>%s@ %a@]" (cns_str x) pr_one_ty ty
-  | TCons (x, exps) ->
-    fprintf ppf "@[<2>%s@ (%a)@]" (cns_str x)
-      (pr_sep_list "," (pr_ty true)) exps
+  | TCons (CNam c, [ty]) ->
+    fprintf ppf "@[<2>%s@ %a@]" c pr_one_ty ty
+  | TCons (CNam c, exps) ->
+    fprintf ppf "@[<2>%s@ (%a)@]" c (pr_sep_list "," (pr_ty true)) exps
+  | TCons (Extype i, [ty]) ->
+    let (vs, phi), _ = List.assoc i !ex_types in
+    fprintf ppf "@[<2>∃%d:%a[%a].δ@]" i
+      (pr_sep_list "," pr_tyvar) vs pr_formula phi
+  | TCons (Extype i, _) -> assert false
   | Nadd []  -> fprintf ppf "0"
   | Nadd [ty] -> pr_ty comma ppf ty
   | Nadd (tys) ->
@@ -643,6 +714,8 @@ let pr_ans ppf = function
 let pr_subst ppf sb =
   pr_sep_list ";" (fun ppf (v,(t,_)) ->
     fprintf ppf "%s:=%a" (var_str v) (pr_ty false) t) ppf sb
+
+  
 
 let pr_typ_dir ppf = function
   | TCons_dir (n, ts_l, []) ->

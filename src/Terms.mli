@@ -75,9 +75,12 @@ type atom =
 | PredVarB of int * typ * typ
 type formula = atom list
 type typ_scheme = var_name list * formula * typ
+type answer = var_name list * formula
 
 val delta : var_name
 val delta' : var_name
+val tdelta : typ
+val tdelta' : typ
 
 val var_sort : var_name -> sort
 val var_str : var_name -> string
@@ -156,6 +159,14 @@ val subst_fo_atom : subst -> atom -> atom
 val subst_fo_formula : subst -> formula -> formula
 val fvs_sb : subst -> VarSet.t
 
+(** Substitutions of variables [delta] and [delta']. *)
+val sb_typ_unary : typ -> typ -> typ
+val sb_typ_binary : typ -> typ -> typ -> typ
+val sb_atom_unary : typ -> atom -> atom
+val sb_atom_binary : typ -> typ -> atom -> atom
+val sb_phi_unary : typ -> formula -> formula
+val sb_phi_binary : typ -> typ -> formula -> formula
+
 val enc_funtype : typ -> typ list -> typ
 val ty_add : typ -> typ -> typ
 val typ_scheme_of_item :
@@ -171,6 +182,10 @@ val collect_lambdas : expr -> pat list * expr
 (** Arguments and the resulting function in reverse order of
     application: turn [((a b) c) d] into [a; b; c; d] etc. *)
 val collect_apps : expr -> expr list
+
+(** Connected component(s) of the hypergraph spanned on variables,
+    containing the given variables. *)
+val connected : var_name list -> answer -> answer
 
 (** {2 Substitutions and unification} *)
 
@@ -211,6 +226,19 @@ val subst_solved : ?use_quants:(VarSet.t * VarSet.t) ->
 val infer_sorts_item : struct_item -> struct_item list
 val infer_sorts : program -> program
 
+(** {2 Global tables} *)
+
+type sigma =
+  (string, var_name list * formula * typ list * cns_name * var_name list)
+    Hashtbl.t
+(** Entry [i, (fun g a -> vs,phi), loc] stands for a constructor
+    formally introduced as [K :: ∀g,a[∃vs.phi].g⟶Ex_i(a)].
+    [delta] is used for [g] and [delta'] for [a]. *)
+type ex_types = (int * (answer * loc)) list
+
+val sigma : sigma
+val ex_types : ex_types ref
+
 (** {2 Printing} *)
 
 val sort_str : sort -> string
@@ -240,7 +268,7 @@ val pr_sort : Format.formatter -> sort -> unit
 val pr_typscheme :
   Format.formatter -> typ_scheme -> unit
 val pr_ans :
-  Format.formatter -> var_name list * formula -> unit
+  Format.formatter -> answer -> unit
 val pr_subst : Format.formatter -> subst -> unit
 val pr_typ_dir : Format.formatter -> typ_dir -> unit
 val pr_typ_loc : Format.formatter -> typ_loc -> unit

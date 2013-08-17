@@ -58,9 +58,10 @@
     >...<verbatim| in >... Constructor: <verbatim|Letrec>.
 
     <item*|<verbatim|Abs>><math|\<lambda\><around|(|c<rsub|1>\<ldots\>c<rsub|n>|)>:>
-    Function defined by cases. Concrete syntax: for single branching via
-    <verbatim|fun> keyword, e.g. <verbatim|fun x y -\<gtr\> f x y> translates
-    as <math|\<lambda\><around*|(|x.\<lambda\><around*|(|y.<around*|(|f x|)>
+    Function defined by cases. Concrete syntax: <verbatim|function
+    >...<verbatim| \| >...; for single branching via <verbatim|fun> keyword,
+    e.g. <verbatim|fun x y -\<gtr\> f x y> translates as
+    <math|\<lambda\><around*|(|x.\<lambda\><around*|(|y.<around*|(|f x|)>
     y|)>|)>>; for multiple branching via <verbatim|match> keyword, e.g.
     <verbatim|match e with >... translates as
     <math|\<lambda\><around*|(|\<ldots\>|)> e>. Constructor: <verbatim|Lam>.
@@ -74,8 +75,8 @@
 
     <item*|<verbatim|ExCases>><math|\<lambda\><around*|[|K|]><around|(|p<rsub|1>.e<rsub|1>\<ldots\>p<rsub|n>.e<rsub|n>|)>:>
     Function defined by cases and abstracting over the type of result.
-    Concrete syntax: <verbatim|function> and <verbatim|ematch> keywords --
-    e.g. <verbatim|function Nil -\<gtr\> >...<verbatim| \| Cons (x,xs)
+    Concrete syntax: <verbatim|efunction> and <verbatim|ematch> keywords --
+    e.g. <verbatim|efunction Nil -\<gtr\> >...<verbatim| \| Cons (x,xs)
     -\<gtr\> >...; <verbatim|ematch l with >... Parsing introduces a fresh
     identifier for <math|K>. Constructor: <verbatim|ExLam>.
 
@@ -90,14 +91,14 @@
   For type and formula connectives, we have ASCII and unicode syntactic
   variants (the difference is only in lexer). Quantified variables can be
   space or comma separated. The table below is analogous to information for
-  expressions above. Existential type construct introduces a fresh identifier
-  for <math|K>. The abstract syntax of types is not sort-safe, but type
-  variables carry sorts which are inferred after parsing. Existential type
-  occurrence in user code introduces a fresh identifier, a new type
-  constructor in global environment <verbatim|newtype_env>, and a new value
-  constructor in global environment <verbatim|newcons_env> -- the value
-  constructor purpose is to store the content of the existential type, it is
-  not used in the program.
+  expressions above. We decided to pass variables environment
+  <verbatim|gamma> as function parameters and to keep constructors
+  environment <verbatim|sigma> as a global table, although the judgement form
+  <math|C,\<Gamma\>,\<Sigma\>\<vdash\>e:\<tau\>> suggests passing both as
+  arguments. Existential type constructs introduce fresh identifiers
+  <math|K>, but we keep them separately in <verbatim|ex_types> rather than in
+  <verbatim|sigma>. The abstract syntax of types is not sort-safe, but type
+  variables carry sorts which are inferred after parsing.
 
   <block|<tformat|<cwith|1|1|2|2|cell-halign|c>|<cwith|1|1|1|1|cell-halign|l>|<table|<row|<cell|type
   variable>|<cell|<math|x>>|<cell|<verbatim|x>>|<cell|>|<cell|<verbatim|TVar>>>|<row|<cell|type
@@ -186,17 +187,24 @@
   <math|\<varepsilon\><rsub|K><around*|(|\<alpha\>|)>> were related with a
   predicate variable <math|\<chi\><rsub|K><around*|(|\<gamma\>,\<alpha\>|)>\<nosymbol\>>.
   In the implementation, we have user-defined existential types with explicit
-  constraints in addition to inferred existential types. We keep track of
-  existential types in cell <verbatim|ex_types>, storing arbitrary
-  constraints. For <verbatim|LetVal>, we form existential types after solving
-  the generated constraint, to have less intermediate variables in them. The
-  first argument of the predicate variable
-  <math|\<chi\><rsub|K><around*|(|\<gamma\>,\<alpha\>|)>\<nosymbol\>>
+  constraints in addition to inferred existential types. But we limit the
+  result type to a single parameter type applied to a variable
+  <math|\<delta\><rprime|'>>. The variable is equated with a tuple of
+  variables <math|\<delta\><rprime|'><wide|=|\<dot\>><around*|(|<wide|\<alpha\>|\<bar\>>|)>>,
+  which correspond to non-local variables of the existential type. Note that
+  the variables <math|<wide|\<alpha\>|\<bar\>>> in
+  <math|\<delta\><rprime|'><wide|=|\<dot\>><around*|(|<wide|\<alpha\>|\<bar\>>|)>>
+  are bound variables in the constructor, and they are instantiated whenever
+  the constructor is used. We keep track of existential types in cell
+  <verbatim|ex_types>, storing arbitrary constraints. For <verbatim|LetVal>,
+  we form existential types after solving the generated constraint, to have
+  less intermediate variables in them. The second argument of the predicate
+  variable <math|\<chi\><rsub|K><around*|(|\<gamma\>,\<alpha\>|)>\<nosymbol\>>
   provides an ``escape route'' for free variables, e.g. precondition
   variables used in postcondition. It is used for convenience in the
-  formalism. In the implementation, after the constraints are solved, we
-  expand it to pass each free variable as a separate parameter, to increase
-  readability of exported OCaml code.
+  formalism. TODO: In the implementation, after the constraints are solved,
+  we expand it to pass each free variable as a separate parameter, to
+  increase readability of exported OCaml code.
 
   For simplicity, only toplevel definitions accept type and invariant
   annotations from the user. The constraints are modified according to the
@@ -225,26 +233,31 @@
 
     <item>ask the user for decision;
 
+    <item>silently pick one solution, if the wrong one is picked the
+    subsequent program might fail;
+
     <item>perform backtracking search for the first solution that satisfies
     the subsequent program.
   </enumerate>
 
-  We use an enhanced variant of approach 1 as it is closest to traditional
-  type inference workflow. Upon ``multiple solutions'' failure the user can
-  add <verbatim|assert> clauses (e.g. <verbatim|assert false> stating that a
-  program branch is impossible), and <verbatim|test> clauses. The
-  <verbatim|test> clauses are boolean expressions with operational semantics
-  of run-time tests: the test clauses are executed right after the definition
-  is executed, and run-time error is reported when a clause returns
-  <verbatim|false>. The constraints from test clauses are included in the
-  constraint for the toplevel definition, thus propagate more efficiently
-  than backtracking would. The <verbatim|assert> clauses are:
-  <verbatim|assert = type e1 e2> which translates as equality of types of
-  <verbatim|e1> and <verbatim|e2>, <verbatim|assert false> which translates
-  as <verbatim|CFalse>, and <verbatim|assert e1 \<less\>= e2>, which
-  translates as inequality <math|n<rsub|1>\<leqslant\>n<rsub|2>> assuming
-  that <verbatim|e1> has type <verbatim|Num n1> and <verbatim|e2> has type
-  <verbatim|Num n2>.
+  We use approach 3 as it is simplest to implement. Traditional type
+  inference workflow rules out approach 2, approach 4 is computationally too
+  expensive. We might use approach 1 in a future version of the system. Upon
+  ``multiple solutions'' failure -- or currently, when a wrong type or
+  invariant is picked -- the user can add <verbatim|assert> clauses (e.g.
+  <verbatim|assert false> stating that a program branch is impossible), and
+  <verbatim|test> clauses. The <verbatim|test> clauses are boolean
+  expressions with operational semantics of run-time tests: the test clauses
+  are executed right after the definition is executed, and run-time error is
+  reported when a clause returns <verbatim|false>. The constraints from test
+  clauses are included in the constraint for the toplevel definition, thus
+  propagate more efficiently than backtracking would. The <verbatim|assert>
+  clauses are: <verbatim|assert = type e1 e2> which translates as equality of
+  types of <verbatim|e1> and <verbatim|e2>, <verbatim|assert false> which
+  translates as <verbatim|CFalse>, and <verbatim|assert e1 \<less\>= e2>,
+  which translates as inequality <math|n<rsub|1>\<leqslant\>n<rsub|2>>
+  assuming that <verbatim|e1> has type <verbatim|Num n1> and <verbatim|e2>
+  has type <verbatim|Num n2>.
 
   We treat a chain of single branch functions with only <verbatim|assert
   false> in the body of the last function specially. We put all information
@@ -274,7 +287,7 @@
   determining whether non-nested <verbatim|ImplOr2> constraints should be
   interpreted as eliminating existential types. While we could be more
   ``aggresive'' (we can modify the implementation to release the constraints
-  one-by-one), it shouldn't be problematic, because nesting of
+  one-by-one), it should not be problematic, because nesting of
   <verbatim|ImplOr2> corresponds to nesting of <verbatim|let>-<verbatim|in>
   definitions.
 
@@ -1159,21 +1172,21 @@
     <associate|auto-7|<tuple|3.2|6>>
     <associate|auto-8|<tuple|3.3|6>>
     <associate|auto-9|<tuple|3.4|7>>
-    <associate|bib-AbductionSolvMaher|<tuple|3|12>>
-    <associate|bib-AntiUnifAlg|<tuple|8|12>>
+    <associate|bib-AbductionSolvMaher|<tuple|3|13>>
+    <associate|bib-AntiUnifAlg|<tuple|8|13>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
     <associate|bib-ArithQuantElim|<tuple|1|12>>
-    <associate|bib-ConvexHull|<tuple|2|12>>
+    <associate|bib-ConvexHull|<tuple|2|13>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
-    <associate|bib-disjelimTechRep|<tuple|6|12>>
+    <associate|bib-disjelimTechRep|<tuple|6|13>>
     <associate|bib-jcaqpTechRep|<tuple|8|4>>
-    <associate|bib-jcaqpTechRep2|<tuple|7|12>>
-    <associate|bib-jcaqpUNIF|<tuple|4|12>>
+    <associate|bib-jcaqpTechRep2|<tuple|7|13>>
+    <associate|bib-jcaqpUNIF|<tuple|4|13>>
     <associate|bib-simonet-pottier-hmg-toplas|<tuple|6|4>>
-    <associate|bib-systemTechRep|<tuple|5|12>>
+    <associate|bib-systemTechRep|<tuple|5|13>>
   </collection>
 </references>
 

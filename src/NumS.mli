@@ -52,3 +52,8 @@ val holds :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
   state -> Terms.formula -> state
+
+val separate_subst :
+  (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
+  (Terms.var_name -> bool) ->
+  Terms.formula -> Terms.subst * Terms.formula

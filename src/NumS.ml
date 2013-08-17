@@ -146,7 +146,7 @@ let subst_one cmp (v, w) (vars, cst, loc as arg) =
 let subst_one_sb cmp w_sb sb =
   List.map (fun (v, w) -> v, subst_one cmp w_sb w) sb
 
-let expand_atom equ (vars, cst, loc) =
+let expand_w (vars, cst, loc) =
   let vars = List.map (fun (v,k) -> v, ratio_of_num k) vars in
   let cst = ratio_of_num cst in
   let denoms =
@@ -166,9 +166,22 @@ let expand_atom equ (vars, cst, loc) =
     @ concat_map expand left in
   let right = (if cst < 0 then [NCst (~-cst)] else [])
     @ concat_map expand right in
+  left, right
+
+let expand_atom equ (_,_,loc as w) =
+  let left, right = expand_w w in
   let left = match left with [t] -> t | _ -> Nadd left in
   let right = match right with [t] -> t | _ -> Nadd right in
   if equ then Eqty (left, right, loc) else Leq (left, right, loc)
+
+let expand_subst eqs =
+  let aux (v, (vars, cst, loc)) =
+    let w = (v, !/(-1))::vars, cst, loc in
+    match expand_w w with
+    | [TVar v], rhs | rhs, [TVar v] -> Aux.Right (v, (Nadd rhs, loc))
+    | _ -> Aux.Left w in
+  Aux.partition_map aux eqs    
+    
 
 let ans_to_formula (eqs, ineqs) =
   List.map (expand_atom true) (unsubst eqs)
@@ -488,10 +501,9 @@ let abd cmp_v uni_v ~bparams ~discard ?(iter_no=2) brs =
     | _, [] -> -1
     | [], _ -> 1
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
-  Format.printf "NumS.abd: iter_no=%d@ bvs=%s@\nbrs=@ %a@\n%!"
+  Format.printf "NumS.abd: iter_no=%d@ bvs=%s@\n%!"
     iter_no
-    (String.concat "," (List.map var_str (VarSet.elements bvs)))
-    Infer.pr_rbrs3 brs; (* *)
+    (String.concat "," (List.map var_str (VarSet.elements bvs))); (* *)
   let brs = List.map
     (fun (nonrec, prem, concl) ->
       nonrec,
@@ -838,3 +850,26 @@ let holds cmp_v uni_v (eqs, ineqs : state) cnj : state =
   let eqs, _ = solve ~use_quants:VarSet.empty
     ~eqs ~eqn:implicits cmp cmp_w uni_v in
   eqs, ineqs
+
+
+let separate_subst cmp_v uni_v cnj =
+  let cmp_v = make_cmp cmp_v in
+  let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
+  let cmp_w (vars1,_,_) (vars2,_,_) =
+    match vars1, vars2 with
+    | [], [] -> 0
+    | _, [] -> -1
+    | [], _ -> 1
+    | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
+  let eqs, (_, implicits) =
+    solve ~cnj cmp cmp_w uni_v in
+  let eqs, _ = solve
+    ~eqs ~eqn:implicits cmp cmp_w uni_v in
+  let _, ineqn = partition_map (flatten cmp) cnj in
+  let ineqn = List.map (subst_w cmp eqs) ineqn in
+  let ineqn = List.filter
+    (function [], cst, _ when cst <=/ !/0 -> false | _ -> true)
+    ineqn in
+  let eqn, sb = expand_subst eqs in
+  sb, eqineq_to_formula (eqn, ineqn)
+  

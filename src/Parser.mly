@@ -36,17 +36,29 @@ let parse_error s =
     "@[<2>%s@ %a@]@." s pr_loc (get_loc ())
   
 let more_items = parser_more_items
-let existential evs phi ty loc =
-  incr extype_id;
-  let n = Extype !extype_id in
-  let vs = VarSet.union (fvs_typ ty) (fvs_formula phi) in
-  let fvs = VarSet.elements (VarSet.diff vs (vars_of_list evs)) in
-  let sorts = List.map var_sort fvs in
-  let vs = VarSet.elements vs in
-  let exty = TCons (n, List.map (fun v->TVar v) fvs) in
-  let excns = ValConstr (n, vs, phi, [ty], n, fvs, loc) in
-  more_items := TypConstr (n, sorts, loc) :: excns :: !more_items;
-  exty
+let existential evs exphi ty loc =
+  let allvs = VarSet.union (fvs_typ ty) (fvs_formula exphi) in
+  let allvs = VarSet.diff allvs (vars_of_list [delta; delta']) in
+  let resvs = VarSet.elements (VarSet.diff allvs (vars_of_list evs)) in
+  let allvs = VarSet.elements allvs in
+  let targs = List.map (fun v -> TVar v) resvs in
+  let resty = TCons (CNam "Tuple", targs) in
+  let ety_id = incr extype_id; !extype_id in
+  let ety_cn = Extype ety_id in
+  let ety = TCons (ety_cn, [resty]) in
+  let sorts = List.map var_sort resvs in
+  let exphi =
+    Eqty (tdelta, ty, loc) :: Eqty (tdelta', resty, loc)
+    :: exphi in
+  let extydec =
+    TypConstr (ety_cn, sorts, loc) in
+  let extydef =
+    ValConstr (ety_cn, allvs, exphi, [ty], ety_cn, [delta'], loc) in
+  more_items := extydef :: extydec :: !more_items;
+  ex_types := (ety_id, ((allvs, exphi), loc)) :: !ex_types;
+  (* Here in [ety] the variables are free, unlike the
+     occurrences in [exphi]. *)
+  ety
 
 let unary_typs = parser_unary_typs
 let unary_vals = parser_unary_vals
@@ -392,7 +404,8 @@ lident_list:
 structure_item_raw:
   | NEWCONS UIDENT COLON opt_constr_intro typ_star_list LONGARROW typ
       { if List.length $5 = 1 then Hashtbl.add unary_vals $2 ();
-        let n = CNam $2 in
+        let x = $2 in
+        let n = CNam x in
         let vs, phi = $4 in
         let args = List.rev $5 in
         let res = $7 in
@@ -402,9 +415,10 @@ structure_item_raw:
                 (List.map fvs_typ args))) in
         let c_n, c_args, more_phi =
           extract_datatyp allvs (rhs_loc 7) res in
-        ValConstr (n, Aux.unique_sorted (c_args @ vs),
-                   (more_phi @ phi),
-	           args, c_n, c_args, get_loc ()) }
+        let vs = Aux.unique_sorted (c_args @ vs) in
+        let phi = more_phi @ phi in
+        Hashtbl.add sigma x (vs, phi, args, c_n, c_args);
+        ValConstr (n, vs, phi, args, c_n, c_args, get_loc ()) }
   | NEWCONS UIDENT COLON opt_constr_intro typ_star_list error
       { unclosed "newcons" 1 "-->" 6 }
   | NEWCONS UIDENT COLON opt_constr_intro LONGARROW
