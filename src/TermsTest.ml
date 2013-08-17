@@ -62,7 +62,7 @@ newcons IsZero : ∀a[Bool = a].Term Int ⟶ Term a
 
 newcons If : ∀a.Term Bool * Term a * Term a ⟶ Term a
 
-newcons Pair : ∀c, a, b[(a, b) = c].Term a * Term b ⟶ Term c
+newcons Pair : ∀a, b, c[(a, b) = c].Term a * Term b ⟶ Term c
 
 newcons Fst : ∀a, b.Term (a, b) ⟶ Term a
 
@@ -86,7 +86,6 @@ let rec eval =
 newcons LNil : all a. List(a, 0)
 newcons LCons : ∀n, a. a * List(a, n) ⟶ List(a, n+1)
 external filter : ∀n, a. List (a, n) → ∃k [k≤n]. List (a, k)") in
-      let prog = infer_sorts prog in
       ignore (Format.flush_str_formatter ());
       pr_program Format.str_formatter prog;
 
@@ -95,32 +94,14 @@ external filter : ∀n, a. List (a, n) → ∃k [k≤n]. List (a, k)") in
 
 newcons LNil : ∀n, a[0 = n]. List (a, n)
 
-newcons LCons : ∀k, a, n[(n + 1) = k].a * List (a, n) ⟶ List (a, k)
+newcons LCons : ∀k, n, a[(n + 1) = k].a * List (a, n) ⟶ List (a, k)
 
-newtype Ex1 : num * type
+newtype Ex1 : type
 
-newcons Ex1 : ∀n, a, k[k ≤ n].List (a, k) ⟶ Ex1 (n, a)
+newcons Ex1 : ∀k, n, a[δ' = (n, a) ∧ k ≤ n].List (a, k) ⟶ Ex1 δ'
 
-external filter : ∀n, a. List (a, n) → Ex1 (n, a)"
+external filter : ∀n, a. List (a, n) → ∃1:k[k ≤ n].List (a, k)"
         (Format.flush_str_formatter ());
-    );
-
-  "sort inference" >::
-    (fun () ->
-      let prog = Parser.program Lexer.token
-	(Lexing.from_string
-"newtype N : num
-newtype T : type
-external foo : ∀a,b. T a → N b → a") in
-      let prog = infer_sorts prog in
-      assert_equal ~msg:"a in ∀a,b. T a → N b → a" ~printer:sort_str
-        Type_sort (match List.rev prog with
-        | PrimVal (_, ([v1;v2], _, _), _) :: _ -> var_sort v1
-        | _ -> assert false);
-      assert_equal ~msg:"b in ∀a,b. T a → N b → a" ~printer:sort_str
-        Num_sort (match List.rev prog with
-        | PrimVal (_, ([v1;v2], _, _), _) :: _ -> var_sort v2
-        | _ -> assert false);
     );
 
   "zipper" >::

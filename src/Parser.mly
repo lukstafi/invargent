@@ -34,7 +34,18 @@ let syntax_error what where =
 let parse_error s =
   Format.printf
     "@[<2>%s@ %a@]@." s pr_loc (get_loc ())
-  
+
+let name_sort loc v =
+  if List.mem v.[0]
+      ['a';'b';'c';'r';'s';'t']
+  then Type_sort
+  else if List.mem v.[0]
+      ['i';'j';'k';'l';'m';'n']
+  then Num_sort
+  else syntax_error
+    ("variable <"^v^"> starts with a letter reserved for a future sort")
+    loc
+
 let more_items = parser_more_items
 let existential evs exphi ty loc =
   let allvs = VarSet.union (fvs_typ ty) (fvs_formula exphi) in
@@ -46,16 +57,13 @@ let existential evs exphi ty loc =
   let ety_id = incr extype_id; !extype_id in
   let ety_cn = Extype ety_id in
   let ety = TCons (ety_cn, [resty]) in
-  let sorts = List.map var_sort resvs in
-  let exphi =
-    Eqty (tdelta, ty, loc) :: Eqty (tdelta', resty, loc)
-    :: exphi in
+  let phi = Eqty (tdelta', resty, loc) :: exphi in
   let extydec =
-    TypConstr (ety_cn, sorts, loc) in
+    TypConstr (ety_cn, [Type_sort], loc) in
   let extydef =
-    ValConstr (ety_cn, allvs, exphi, [ty], ety_cn, [delta'], loc) in
+    ValConstr (ety_cn, allvs, phi, [ty], ety_cn, [delta'], loc) in
   more_items := extydef :: extydec :: !more_items;
-  ex_types := (ety_id, ((allvs, exphi), loc)) :: !ex_types;
+  ex_types := (ety_id, ((allvs, phi, ty), loc)) :: !ex_types;
   (* Here in [ety] the variables are free, unlike the
      occurrences in [exphi]. *)
   ety
@@ -74,16 +82,14 @@ let rec next_typ i fvs =
   let v s = VNam (s,
                 Char.escaped typvars.[ch] ^
                   (if n>0 then string_of_int n else "")) in
-  if VarSet.mem (v Num_sort) fvs || VarSet.mem (v Type_sort) fvs ||
-    VarSet.mem (v Undefined_sort) fvs
+  if VarSet.mem (v Num_sort) fvs || VarSet.mem (v Type_sort) fvs
   then next_typ (i+1) fvs else v Type_sort
 let rec next_num i fvs =
   let ch, n = i mod numvars_n, i / numvars_n in
   let v s = VNam (s,
                 Char.escaped numvars.[ch] ^
                   (if n>0 then string_of_int n else "")) in
-  if VarSet.mem (v Num_sort) fvs || VarSet.mem (v Type_sort) fvs ||
-    VarSet.mem (v Undefined_sort) fvs
+  if VarSet.mem (v Num_sort) fvs || VarSet.mem (v Type_sort) fvs
   then next_num (i+1) fvs else v Num_sort
 
 let extract_datatyp allvs loc = function
@@ -323,11 +329,7 @@ typ_comma_list:
 simple_typ:
   | simple_typ PLUS simple_typ
       { ty_add $1 $3 }
-  | LIDENT   { let v = $1 in
-               TVar (VNam (
-                 (if v.[0]='t' then Type_sort
-                  else if v.[0]='n' then Num_sort
-                  else Undefined_sort), $1)) }
+  | LIDENT   { TVar (VNam (name_sort 1 $1, $1)) }
   | UIDENT   { TCons (CNam $1, []) }
   | INT      { NCst $1 }
   | LPAREN typ RPAREN
@@ -394,11 +396,11 @@ opt_constr_intro:
 
 lident_list:
   | LIDENT
-      { [ VNam (Undefined_sort, $1) ] }
+      { [ VNam (name_sort 1 $1, $1) ] }
   | lident_list LIDENT
-      { VNam (Undefined_sort, $2) :: $1 }
+      { VNam (name_sort 2 $2, $2) :: $1 }
   | lident_list COMMA LIDENT
-      { VNam (Undefined_sort, $3) :: $1 }
+      { VNam (name_sort 3 $3, $3) :: $1 }
 ;
 
 structure_item_raw:
@@ -486,7 +488,7 @@ opt_tests:
 ;
 structure_item:
   | structure_item_raw
-      { let res = !more_items @ [ $1 ] in more_items := []; res }
+      { let res = List.rev !more_items @ [ $1 ] in more_items := []; res }
 
 typ_star_list:
   | typ

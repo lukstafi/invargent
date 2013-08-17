@@ -134,14 +134,15 @@ let freshen_cns_scheme (vs, phi, argtys, c_n, c_args) =
 
 (* The [a] variables are freshened at use site, the [g/delta] vars
    here. *)
-let freshen_excns_scheme ~g ~a (vs, phi as ans) =
+let freshen_excns_scheme ~g ~a (vs, phi, ty as ans) =
   if vs=[] then ans
   else
     let env0 = List.map (fun v->v, freshen_var v) vs in
     let env = (delta, g) :: (delta', a) :: env0 in
     let phi = List.map (freshen_atom env) phi in
+    let ty = freshen_typ env ty in
     let vs = List.map snd env0 in
-    vs, phi
+    vs, Eqty (freshen_typ env tdelta, ty, dummy_loc) :: phi, ty
 
 let freshen_val_scheme (vs, phi, res) =
   let env = List.map (fun v->v, freshen_var v) vs in
@@ -265,7 +266,7 @@ let constr_gen_expr gamma e t =
       let ety = TCons (ety_cn, [t2]) in
       incr fresh_chi_id;
       let ex_phi =
-        [], [PredVarB (!fresh_chi_id, tdelta, TVar delta')] in
+        [], [PredVarB (!fresh_chi_id, tdelta, tdelta')], tdelta in
       ex_types := (ety_id, (ex_phi, loc)) :: !ex_types;
       let cn = List.fold_left cn_and
         (A [Eqty (Fun (t1, ety), t, loc)])
@@ -325,7 +326,7 @@ let constr_gen_expr gamma e t =
       let t3 = TVar a3 in
       let local_vs, disj_prem = Aux.fold_map
         (fun allvs (ety_id, (sch, loc)) ->
-          let vs, phi =
+          let vs, phi, _ =
             freshen_excns_scheme ~g:a3 ~a:a2 sch in
           add_vars vs allvs,
           Eqty (TCons (Extype ety_id, [t2]), t0, loc) :: phi)
@@ -418,7 +419,7 @@ let infer_prog_mockup prog =
       let tres = TCons (CNam "Tuple", List.map (fun v->TVar v) c_args) in
       let ex_phi =
         [], Eqty (tdelta, arg, loc)
-          :: Eqty (tdelta', tres, loc) :: phi in
+          :: Eqty (tdelta', tres, loc) :: phi, arg in
       ex_types := (i, (ex_phi, loc)) :: !ex_types;
       VarSet.empty, And []
     | ValConstr (Extype _, _, _, _, _, _, _) -> assert false
@@ -473,7 +474,7 @@ let infer_prog_mockup prog =
           let ety = TCons (ety_cn, targs) in
           let ex_phi =
             [], Eqty (tdelta, res, loc)
-              :: Eqty (tdelta', ety, loc) :: exphi in
+              :: Eqty (tdelta', ety, loc) :: exphi, res in
           ex_types := (ety_id, (ex_phi, loc)) :: !ex_types;
           x, ([], [], ety) in
       gamma := Aux.map_append typ_sch_ex env !gamma;
@@ -489,10 +490,10 @@ let infer_prog solver prog =
   let update_new_ex_types cmp_v uni_v old_ex_types sb sb_chi =
     let more_items = ref [] in
     ex_types := Aux.map_upto old_ex_types
-      (fun (ety_id, ((vs, phi), loc)) ->
+      (fun (ety_id, ((vs, phi, ty), loc)) ->
         match phi with
         | [PredVarB (chi_id, TVar a3, TVar a2)]
-            when a3=delta && a2=delta' ->
+            when a3=delta && a2=delta' && ty=tdelta ->
           let vs, phi =
             try List.assoc chi_id sb_chi
             with Not_found -> assert false in
@@ -523,7 +524,7 @@ let infer_prog solver prog =
           let extydef = ValConstr
             (ety_cn, allvs, phi, [arg], ety_cn, [delta'], loc) in
           more_items := extydec :: extydef :: !more_items;
-          ety_id, ((allvs, phi), loc)
+          ety_id, ((allvs, phi, arg), loc)
         | _ -> assert false
       )
       !ex_types;
@@ -623,12 +624,13 @@ let infer_prog solver prog =
           let extydef =
             ValConstr (ety_cn, allvs, exphi, [res], ety_cn, [delta'], loc) in
           more_items := extydef :: extydec :: !more_items;
-          ex_types := (ety_id, ((allvs, exphi), loc)) :: !ex_types;
+          ex_types := (ety_id, ((allvs, exphi, res), loc)) :: !ex_types;
           (* Here in [ety] the variables are free, unlike the
              occurrences in [exphi]. *)
           x, (gvs, phi, ety) in
       gamma := Aux.map_append typ_sch_ex env !gamma;
-      ex_items @ !more_items @ [LetVal (p, e, Some typ_sch, tests, loc)]
+      ex_items @ List.rev !more_items
+      @ [LetVal (p, e, Some typ_sch, tests, loc)]
     ) prog in
   List.rev !gamma, items
 
@@ -871,8 +873,8 @@ let nicevars_cnstrnt c =
         (VarSet.elements vs) in
       let env = List.fold_left (fun env ->
         function Num_sort,id -> next_num env id
-        | Type_sort,id -> next_typ env id
-        | Undefined_sort,_ -> assert false) nicevars_empty vs' in
+        | Type_sort,id -> next_typ env id)
+        nicevars_empty vs' in
       let vs = List.map
         (function VNam _ as v -> v
         | VId (s, id) -> VNam (s, List.assoc id env.nvs_env))
@@ -884,8 +886,8 @@ let nicevars_cnstrnt c =
         (VarSet.elements vs) in
       let env = List.fold_left (fun env ->
         function Num_sort,id -> next_num env id
-        | Type_sort,id -> next_typ env id
-        | Undefined_sort,_ -> assert false) env vs' in
+        | Type_sort,id -> next_typ env id)
+        env vs' in
       let vs = List.map
         (function VNam _ as v -> v
         | VId (s, id) -> VNam (s, List.assoc id env.nvs_env))
@@ -898,8 +900,8 @@ let nicevars_vs vs =
     (function VNam _ -> None | VId (s,id) -> Some (s,id)) vs in
   let env = List.fold_left (fun env ->
     function Num_sort,id -> next_num env id
-    | Type_sort,id -> next_typ env id
-    | Undefined_sort,_ -> assert false) nicevars_empty vs' in
+    | Type_sort,id -> next_typ env id)
+    nicevars_empty vs' in
   let vs = List.map
     (function VNam _ as v -> v
     | VId (s, id) -> VNam (s, List.assoc id env.nvs_env)) vs in

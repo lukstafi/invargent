@@ -41,7 +41,6 @@ let rec eval = function
   | Fst p -> (match eval p with x, y -> x)
   | Snd p -> (match eval p with x, y -> y)") in
       try
-        let prog = Terms.infer_sorts prog in
         let preserve, cn = infer_prog_mockup prog in
         (* Format.printf "cn:@\n%a@\n" pr_cnstrnt cn; *)
         let cmp_v, uni_v, brs = normalize cn in
@@ -62,8 +61,8 @@ let rec eval = function
 | (Term t21) = t3 ∧ 𝛘1(t1) ⟹ t30 = (Term Bool → Bool) ∧
     t27 = (Term t21 → t4) ∧ t24 = (Term t21 → t4) ∧ 𝛘1(t30) ∧
     𝛘1(t27) ∧ 𝛘1(t24)
-| (Term t35) = t3 ∧ (t36, t37) = t35 ∧ 𝛘1(t1) ⟹ t4 = (t38, t39) ∧
-    t41 = (Term t36 → t38) ∧ t43 = (Term t37 → t39) ∧ 𝛘1(t41) ∧
+| (Term t37) = t3 ∧ (t35, t36) = t37 ∧ 𝛘1(t1) ⟹ t4 = (t38, t39) ∧
+    t41 = (Term t35 → t38) ∧ t43 = (Term t36 → t39) ∧ 𝛘1(t41) ∧
     𝛘1(t43)
 | (Term t46) = t3 ∧ 𝛘1(t1) ⟹ t51 = (t53, t54) ∧ t52 = t4 ∧
     t50 = (Term (t46, t47) → t53, t54) ∧ 𝛘1(t50)
@@ -101,7 +100,6 @@ let rec filter =
           True -> LCons (x, filter l)
 	| False -> filter l") in
       try
-        let prog = Terms.infer_sorts prog in
         let preserve, cn = infer_prog_mockup prog in
         let cmp_v, uni_v, brs = normalize cn in
         let uni_v v =

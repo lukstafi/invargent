@@ -82,12 +82,12 @@ let expr_loc = function
 let clause_loc (pat, exp) =
   loc_union (pat_loc pat) (expr_loc exp)
 
-type sort = Num_sort | Type_sort | Undefined_sort
+type sort = Num_sort | Type_sort
 
 let sort_str = function
   | Num_sort -> "num"
   | Type_sort -> "type"
-  | Undefined_sort -> "undefined"
+
 
 (** Type variables (and constants) remember their sort. Sort
     inference is performed on user-supplied types and constraints. *)
@@ -405,15 +405,11 @@ let convert = function
   | e -> e
 
 let typ_sort_typ = function
-  | TVar (VNam (Undefined_sort, _) | VId (Undefined_sort, _)) ->
-    assert false
   | TCons _ | Fun _ |
       TVar (VNam (Type_sort, _) | VId (Type_sort, _)) -> true
   | _ -> false
 
 let num_sort_typ = function
-  | TVar (VNam (Undefined_sort, _) | VId (Undefined_sort, _)) ->
-    assert false
   | NCst _ | Nadd _ |
       TVar (VNam (Num_sort, _)
                  | VId (Num_sort, _)) -> true
@@ -429,7 +425,8 @@ let split_sorts cnj =
     | Eqty (_,t,_) when num_sort_typ t -> true
     | Leq _ -> true
     | _ -> false) cnj in
-  [Type_sort, cnj_typ; Num_sort, cnj_num; Undefined_sort, cnj]
+  assert (cnj=[]);
+  [Type_sort, cnj_typ; Num_sort, cnj_num]
 
 
 let connected target (vs, phi) =
@@ -454,10 +451,10 @@ type sigma =
     Hashtbl.t
 (* In [K :: ∀g,a[∃vs.phi].g⟶Ex_i(a)], [delta] is used for [g] and
   [delta'] for [a]. *)
-type ex_types = (int * ((var_name list * formula) * loc)) list
+type ex_types = (int * (typ_scheme * loc)) list
 
 let sigma = Hashtbl.create 127
-let ex_types = ref []
+let (ex_types : ex_types ref) = ref []
 
 
 (** {2 Printing} *)
@@ -663,10 +660,16 @@ and pr_ty comma ppf = function
     fprintf ppf "@[<2>%s@ %a@]" c pr_one_ty ty
   | TCons (CNam c, exps) ->
     fprintf ppf "@[<2>%s@ (%a)@]" c (pr_sep_list "," (pr_ty true)) exps
-  | TCons (Extype i, [ty]) ->
-    let (vs, phi), _ = List.assoc i !ex_types in
-    fprintf ppf "@[<2>∃%d:%a[%a].δ@]" i
-      (pr_sep_list "," pr_tyvar) vs pr_formula phi
+  | TCons (Extype i, [rty]) ->
+    let (vs, phi, ty), _ = List.assoc i !ex_types in
+    let d_phi, phi = List.partition
+      (function Eqty (t1,_,_) when t1=tdelta' -> true | _ -> false)
+      phi in
+    let vs = VarSet.elements
+      (VarSet.diff (vars_of_list vs) (fvs_formula d_phi)) in
+    (* TODO: "@[<2>∃%d:%a[%a].%a@]" better? *)
+    fprintf ppf "∃%d:%a[%a].%a" i
+      (pr_sep_list "," pr_tyvar) vs pr_formula phi (pr_ty false) ty
   | TCons (Extype i, _) -> assert false
   | Nadd []  -> fprintf ppf "0"
   | Nadd [ty] -> pr_ty comma ppf ty
@@ -693,7 +696,6 @@ and pr_fun_ty ppf ty = match ty with
 let pr_sort ppf = function
   | Num_sort -> fprintf ppf "num"
   | Type_sort -> fprintf ppf "type"
-  | Undefined_sort -> fprintf ppf "undefined"
 
 let pr_typscheme ppf = function
   | [], [], ty -> pr_ty false ppf ty
@@ -757,6 +759,12 @@ let pr_struct_item ppf = function
   | TypConstr (name, sorts, _) ->
     fprintf ppf "@[<2>newtype@ %s@ :@ %a@]" (cns_str name)
       (pr_sep_list " *" pr_sort) sorts
+  | ValConstr (Extype _ as name, vs, phi, [arg],
+               Extype j, [c_arg], _) ->
+    fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a[%a].%a@ ⟶@ Ex%d %s@]"
+      (cns_str name)
+      (pr_sep_list "," pr_tyvar) vs
+      pr_formula phi (pr_ty true) arg j (var_str c_arg)
   | ValConstr (name, [], [], [], c_n, c_args, _) ->
     let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ %a@]" (cns_str name)
@@ -954,179 +962,6 @@ let subst_solved ?use_quants cmp_v uni_v sb ~cnj =
     unify ?use_quants cmp_v uni_v cnj in
   assert (cnj_so = []);
   cnj_typ, cnj_num
-
-(** {2 Sort inference} *)
-let newtype_env = Hashtbl.create 15
-
-let infer_sorts_item item =
-  let sorts = Hashtbl.create 15 in
-  let fresh_proxy = ref 0 in
-  let new_proxy () = incr fresh_proxy; Aux.Left !fresh_proxy in
-  let rec find v =
-    (* try *)
-      match Hashtbl.find sorts v with
-      | Aux.Left v' -> find (Aux.Left v')
-      | Aux.Right s -> s
-    (* with Not_found -> assert false *)
-  in
-  let rec add loc msg v s =
-    try
-      match Hashtbl.find sorts v with
-      | Aux.Left s'l -> add loc msg (Aux.Left s'l) s
-      | Aux.Right s'r as s' ->
-        if s'r = Undefined_sort
-        then Hashtbl.replace sorts v s
-        else if s' <> s
-        then match s with
-        | Aux.Left sl ->
-          add loc msg (Aux.Left sl) s'
-        | Aux.Right sr -> raise
-          (Report_toplevel ("Sort mismatch for "^
-                               msg^": sorts "^sort_str sr^" and " ^
-                               sort_str s'r, Some loc))
-    with Not_found -> Hashtbl.add sorts v s in
-  let find_v v =
-    try find (Aux.Right v)
-    with Not_found ->
-      match v with                      (* TODO: why? *)
-      | VNam (s, n) when s <> Type_sort && n.[0]='t' ->
-        find (Aux.Right (VNam (Type_sort, n)))          
-      | VNam (s, n) when s <> Num_sort && n.[0]='n' ->
-        find (Aux.Right (VNam (Num_sort, n)))          
-      | VNam (s, n) when s <> Undefined_sort ->
-        find (Aux.Right (VNam (Undefined_sort, n)))
-      | _ -> assert false in
-  let add_v loc v s =
-    if s <> Aux.Right Undefined_sort
-    then add loc (var_str v) (Aux.Right v) s in
-  let walk_var = function
-    | VId (_,id) as tv -> VId (find_v tv, id)
-    | VNam (_,v) as tv -> VNam (find_v tv, v) in
-  let walk_typ =
-    typ_map {typ_id_map with map_tvar =
-        fun tv -> TVar (walk_var tv)} in
-  let walk_atom = function
-    | Eqty (t1, t2, loc) ->
-      Eqty (walk_typ t1, walk_typ t2, loc)
-    | Leq (t1, t2, loc) -> Leq (walk_typ t1, walk_typ t2, loc)
-    | CFalse _ as a -> a
-    | PredVarU (id,ty) -> PredVarU (id, walk_typ ty)
-    | PredVarB (id,t1,t2) -> PredVarB (id, walk_typ t1, walk_typ t2) in
-  let rec infer_typ_ cur_loc s = function
-    | TVar tv -> add_v cur_loc tv s 
-    | TCons (CNam "Tuple", args) ->
-      List.iter (infer_typ cur_loc (Aux.Right Type_sort)) args
-    | TCons (CNam _ as n, args) ->
-      (try let argsorts = List.map
-             (fun s -> Aux.Right s) (Hashtbl.find newtype_env n) in
-           List.iter2 (infer_typ cur_loc) argsorts args
-       with
-       | Not_found -> raise
-         (Report_toplevel ("Undefined type constructor "^cns_str n,
-                           Some cur_loc))
-       | Invalid_argument _ ->
-         let sorts = List.map sort_str (Hashtbl.find newtype_env n) in
-         let sorts = String.concat ", " sorts in
-         let args = String.concat ", "
-           (List.map (pr_to_str (pr_ty true)) args) in
-         raise
-         (Report_toplevel ("Arity mismatch for type constructor "^
-                              cns_str n^": expected "^sorts^
-                              "; found "^args, Some cur_loc)))
-    | TCons (Extype _ as n, args) ->
-      (try let argsorts = List.map
-             (fun s -> Aux.Right s) (Hashtbl.find newtype_env n) in
-           List.iter2 (infer_typ cur_loc) argsorts args
-       with
-       | Not_found ->
-         List.iter (infer_typ cur_loc (Aux.Right Undefined_sort)) args
-       | Invalid_argument _ -> assert false)
-    | Fun (t1, t2) ->
-      (match s with
-      | Aux.Right s ->
-        if s <> Undefined_sort && s <> Type_sort then raise
-          (Report_toplevel ("Expected sort "^sort_str s^
-                               " but found sort type (function)",
-                            Some cur_loc));
-      | Aux.Left sl ->
-        add cur_loc "function type" (Aux.Left sl) (Aux.Right Type_sort));
-      infer_typ cur_loc (Aux.Right Type_sort) t1;
-      infer_typ cur_loc (Aux.Right Type_sort) t2
-    | NCst _ ->
-      (match s with
-      | Aux.Right s ->
-        if s <> Undefined_sort && s <> Num_sort then raise
-          (Report_toplevel ("Expected sort "^sort_str s^
-                               " but found sort num (constant)",
-                            Some cur_loc));
-      | Aux.Left sl ->
-        add cur_loc "num constant" (Aux.Left sl) (Aux.Right Num_sort));
-      ()
-    | Nadd args ->
-      (match s with
-      | Aux.Right s ->
-        if s <> Undefined_sort && s <> Num_sort then raise
-          (Report_toplevel ("Expected sort "^sort_str s^
-                               " but found sort num (addition)",
-                            Some cur_loc));
-      | Aux.Left sl ->
-        add cur_loc "num addition" (Aux.Left sl) (Aux.Right Num_sort));
-      List.iter (infer_typ cur_loc (Aux.Right Num_sort)) args
-  and infer_typ cur_loc s t =
-    infer_typ_ cur_loc s t
-  and infer_atom = function
-    | Eqty (t1, t2, loc) ->
-      let s = new_proxy () in
-      infer_typ loc s t1; infer_typ loc s t2
-    | Leq (t1, t2, loc) ->
-      infer_typ loc (Aux.Right Num_sort) t1;
-      infer_typ loc (Aux.Right Num_sort) t2
-    | CFalse _ -> ()
-    | PredVarU (id,ty) ->
-      infer_typ dummy_loc (Aux.Right Type_sort) ty
-    | PredVarB (id,t1, t2) ->
-      infer_typ dummy_loc (Aux.Right Type_sort) t1;
-      infer_typ dummy_loc (Aux.Right Type_sort) t2 in
-  match item with
-  | TypConstr (CNam _ as name, sorts, _) as item ->
-    Hashtbl.add newtype_env name sorts; [item]
-  | TypConstr (Extype _, _, _) ->
-    []                                  (* will be reintroduced *)
-  | ValConstr (CNam _ as name, vs, phi, args, c_n, c_args, loc) ->
-    let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
-    infer_typ loc (Aux.Right Type_sort) res;
-    List.iter (infer_typ loc (Aux.Right Type_sort)) args;
-    List.iter infer_atom phi;
-    let args = List.map walk_typ args in
-    let phi = List.map walk_atom phi in
-    let vs = List.map walk_var vs in
-    let c_args = List.map walk_var c_args in
-    [ValConstr (name, vs, phi, args, c_n, c_args, loc)]
-  | ValConstr (Extype _ as name, vs, phi, args,
-               c_n, c_args, loc) when name = c_n ->
-    let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
-    List.iter (infer_typ loc (Aux.Right Type_sort)) args;
-    List.iter infer_atom phi;
-    infer_typ loc (Aux.Right Type_sort) res;
-    let sorts = List.map (fun v -> find_v v) c_args in
-    let args = List.map walk_typ args in
-    let phi = List.map walk_atom phi in
-    let vs = List.map walk_var vs in
-    let c_args = List.map walk_var c_args in
-    [TypConstr (name, sorts, loc);
-     ValConstr (name, vs, phi, args, c_n, c_args, loc)]
-  | ValConstr (Extype _, _, _, _, _, _, _) -> assert false
-  | PrimVal (n, (vs, phi, ty), loc) ->
-    infer_typ loc (Aux.Right Type_sort) ty;
-    List.iter infer_atom phi;
-    let ty = walk_typ ty in
-    let phi = List.map walk_atom phi in
-    let vs = List.map walk_var vs in
-    [PrimVal (n, (vs, phi, ty), loc)]
-  | (LetRecVal _ | LetVal _) as item -> [item]
-
-let infer_sorts prog =
-  Aux.concat_map infer_sorts_item prog
 
 let parser_more_items = ref []
 let parser_unary_typs = Hashtbl.create 15

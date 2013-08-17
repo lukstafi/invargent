@@ -51,7 +51,7 @@ and clause = pat * expr
 val expr_loc : expr -> loc
 val clause_loc : clause -> loc
 
-type sort = Num_sort | Type_sort | Undefined_sort
+type sort = Num_sort | Type_sort
 (** Type variables (and constants) remember their sort. Sort
     inference is performed on user-supplied types and constraints. *)
 type var_name =
@@ -221,20 +221,18 @@ val subst_solved : ?use_quants:(VarSet.t * VarSet.t) ->
   (var_name -> var_name -> var_scope) -> (var_name -> bool) ->
   subst -> cnj:subst -> subst * atom list
 
-(** {2 Sort inference} *)
-
-val infer_sorts_item : struct_item -> struct_item list
-val infer_sorts : program -> program
-
 (** {2 Global tables} *)
 
 type sigma =
   (string, var_name list * formula * typ list * cns_name * var_name list)
     Hashtbl.t
-(** Entry [i, (fun g a -> vs,phi), loc] stands for a constructor
-    formally introduced as [K :: ∀g,a[∃vs.phi].g⟶Ex_i(a)].
-    [delta] is used for [g] and [delta'] for [a]. *)
-type ex_types = (int * (answer * loc)) list
+(** Entry [i, ((vs,phi,ty), loc)] stands for existential type scheme,
+    or a constructor formally introduced as
+    [K :: ∀gvs,delta'[∃vs.phi].ty⟶Ex_i(delta')], where [gvs] are [fvs(ty)\\vs].
+    Initially [K :: ∀delta,delta'[chiK(delta,delta')].delta⟶Ex_i(delta')]
+    is used, replaced by the solution to [chiK] later.
+    Predicate-variable parameters [delta] and [delta'] are fixed. *)
+type ex_types = (int * (typ_scheme * loc)) list
 
 val sigma : sigma
 val ex_types : ex_types ref

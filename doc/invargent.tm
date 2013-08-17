@@ -90,18 +90,22 @@
 
   For type and formula connectives, we have ASCII and unicode syntactic
   variants (the difference is only in lexer). Quantified variables can be
-  space or comma separated. The table below is analogous to information for
-  expressions above. We decided to pass variables environment
-  <verbatim|gamma> as function parameters and to keep constructors
-  environment <verbatim|sigma> as a global table, although the judgement form
-  <math|C,\<Gamma\>,\<Sigma\>\<vdash\>e:\<tau\>> suggests passing both as
-  arguments. Existential type constructs introduce fresh identifiers
-  <math|K>, but we keep them separately in <verbatim|ex_types> rather than in
-  <verbatim|sigma>. The abstract syntax of types is not sort-safe, but type
-  variables carry sorts which are inferred after parsing.
+  space or comma separated. Variables of various sorts have to start with
+  specific letters: <verbatim|a>,<verbatim|b>,<verbatim|c>,<verbatim|r>,<verbatim|s>,<verbatim|t>,
+  resp. <verbatim|i>,<verbatim|j>,<verbatim|k>,<verbatim|l>,<verbatim|m>,<verbatim|n>.
+  Remaining letters are reserved for future sorts. The table below is
+  analogous to information for expressions above. We decided to pass
+  variables environment <verbatim|gamma> as function parameters and to keep
+  constructors environment <verbatim|sigma> as a global table, although the
+  judgement form <math|C,\<Gamma\>,\<Sigma\>\<vdash\>e:\<tau\>> suggests
+  passing both as arguments. Existential type constructs introduce fresh
+  identifiers <math|K>, but we keep them separately in <verbatim|ex_types>
+  rather than in <verbatim|sigma>. The abstract syntax of types is not
+  sort-safe, but type variables carry sorts which are inferred after parsing.
 
-  <block|<tformat|<cwith|1|1|2|2|cell-halign|c>|<cwith|1|1|1|1|cell-halign|l>|<table|<row|<cell|type
-  variable>|<cell|<math|x>>|<cell|<verbatim|x>>|<cell|>|<cell|<verbatim|TVar>>>|<row|<cell|type
+  <block|<tformat|<cwith|1|1|2|2|cell-halign|c>|<cwith|1|1|1|1|cell-halign|l>|<cwith|2|2|2|2|cell-halign|c>|<cwith|2|2|1|1|cell-halign|l>|<table|<row|<cell|type
+  variable: types>|<cell|<math|\<alpha\>,\<beta\>,\<gamma\>,\<tau\>>>|<cell|<verbatim|a>,<verbatim|b>,<verbatim|c>,<verbatim|r>,<verbatim|s>,<verbatim|t>,<verbatim|a1>,...>|<cell|>|<cell|<tiny|<verbatim|TVar(VNam(Type_sort,>...<verbatim|))>>>>|<row|<cell|type
+  variable: nums>|<cell|<math|k,m,n>>|<cell|<verbatim|i>,<verbatim|j>,<verbatim|k>,<verbatim|l>,<verbatim|m>,<verbatim|n>,<verbatim|i1>,...>|<cell|>|<cell|<tiny|<verbatim|TVar(VNam(Num_sort,>...<verbatim|))>>>>|<row|<cell|type
   constructor>|<cell|<math|List>>|<cell|<verbatim|List>>|<cell|>|<cell|<verbatim|TCons(CNamed>...<verbatim|)>>>|<row|<cell|number
   (type)>|<cell|<math|7>>|<cell|<verbatim|7>>|<cell|>|<cell|<verbatim|NCst>>>|<row|<cell|numeral
   (expr.)>|<cell|<math|7>>|<cell|<verbatim|7>>|<cell|>|<cell|<verbatim|Num>>>|<row|<cell|numerical
@@ -205,6 +209,17 @@
   formalism. TODO: In the implementation, after the constraints are solved,
   we expand it to pass each free variable as a separate parameter, to
   increase readability of exported OCaml code.
+
+  Both during parsing and during inference, we inject new structure items to
+  the program, which capture the existential types. In parsing, they arise
+  only for <verbatim|ValConstr> and <verbatim|PrimVal> and are added by
+  <verbatim|Praser>. The inference happens only for <verbatim|LetRecVal> and
+  <verbatim|LetVal> and injection is performed in <verbatim|Infer>. Warning:
+  during printing existential types in concrete syntax
+  <math|\<exists\>i:<wide|\<beta\>|\<bar\>><around*|[|\<varphi\>|]>.t>, the
+  variables <math|<wide|\<alpha\>|\<bar\>>> coming from
+  <math|\<delta\><rprime|'><wide|=|\<dot\>><around*|(|<wide|\<alpha\>|\<bar\>>|)>>
+  are printed as free variables.
 
   For simplicity, only toplevel definitions accept type and invariant
   annotations from the user. The constraints are modified according to the
@@ -1159,13 +1174,13 @@
     <associate|auto-11|<tuple|4|8>>
     <associate|auto-12|<tuple|4.1|9>>
     <associate|auto-13|<tuple|5|9>>
-    <associate|auto-14|<tuple|5.1|9>>
+    <associate|auto-14|<tuple|5.1|10>>
     <associate|auto-15|<tuple|5.2|10>>
     <associate|auto-16|<tuple|5.3|11>>
     <associate|auto-17|<tuple|5.4|12>>
-    <associate|auto-18|<tuple|5.4|12>>
+    <associate|auto-18|<tuple|5.4|13>>
     <associate|auto-2|<tuple|2|2>>
-    <associate|auto-3|<tuple|2.1|3>>
+    <associate|auto-3|<tuple|2.1|4>>
     <associate|auto-4|<tuple|2.2|4>>
     <associate|auto-5|<tuple|3|4>>
     <associate|auto-6|<tuple|3.1|4>>
@@ -1177,7 +1192,7 @@
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
-    <associate|bib-ArithQuantElim|<tuple|1|12>>
+    <associate|bib-ArithQuantElim|<tuple|1|13>>
     <associate|bib-ConvexHull|<tuple|2|13>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
     <associate|bib-UnificationBaader|<tuple|1|4>>

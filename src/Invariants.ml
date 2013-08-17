@@ -618,7 +618,6 @@ let solve cmp_v uni_v brs =
         match loop (iter_no+1) [] sol1 sol2
         with Aux.Right _ as res -> res
         | Aux.Left (sort, e) ->
-          assert (sort <> Undefined_sort);
           let s_discard =
             List.assoc sort (split_sorts more_discard) in
           if s_discard = [] then raise e;

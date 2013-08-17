@@ -15,7 +15,6 @@ let test_case msg test answers =
       let prog = Parser.program Lexer.token
 	(Lexing.from_string test) in
       try
-        let prog = Terms.infer_sorts prog in
         let preserve, cn = Infer.infer_prog_mockup prog in
         Format.printf "cn: %s@\n%a@\n%!" msg Infer.pr_cnstrnt cn; (* *)
         let cmp_v, uni_v, brs = Infer.normalize cn in
@@ -287,7 +286,7 @@ let rec flatten_pairs =
 
   "escape castle" >::
     (fun () ->
-      (* todo "universal"; *)
+      todo "universal";
       test_case "escape castle"
 "newtype Room
 newtype Yard
@@ -308,13 +307,13 @@ let rec escape = function Outside x -> x
   | Yard x ->
     let y = leave (enter x) in
     escape y"
-        [1,"∃t5. δ = Placement t5 → Outside"]
+        [1,"∃t52. δ = (Placement t52 → Outside)"]
 
     );
 
   "find castle" >::
     (fun () ->
-      todo "existential";
+      (* todo "existential"; *)
       test_case "find castle small"
 "newtype Room
 newtype Yard
