@@ -75,8 +75,7 @@ let disjelim_typ cmp_v uni_v brs =
     (* (a) V *)
     let gs = List.map (fun (v,(t,lc)) -> v,([t],[lc])) br in
     let aux =
-      (Aux.inter_merge : (a -> b -> int) ->
-       (a -> b -> a) -> a list -> b list -> a list)
+      Aux.inter_merge
         cmp_k (fun (_,(ts,lcs)) (v,(t,lc)) -> v, (t::ts,lc::lcs)) in
     let gs = List.fold_left aux gs more_brs in
     if gs = [] then [], [], empty_brs, empty_brs
@@ -86,9 +85,23 @@ let disjelim_typ cmp_v uni_v brs =
       (* (b) G *)
       let gs = List.map
         (fun (v,(ts,lcs)) -> v, antiunif ts, lcs) gs in
+      let gs = List.filter
+        (fun (v,(gvs,gt,tss),lcs) -> tss<>[]) gs in
       let avs = Aux.concat_map (fun (_,(vs,_,_), _) -> vs) gs in
       (* A set of sequences position-matched with branches. *)
       (* (c) D^u_i *)
+      Format.printf "disjelim_typ: #brs=%d #gs=%d avs=%a@\n%!"
+        (List.length brs) (List.length gs)
+        pr_vars (vars_of_list avs);
+      List.iter
+        (fun (v,(gvs,gt,tss),lcs) ->
+          Format.printf
+            "disjelim_typ: v=%s@ gvs=%a@ gt=%a@ #tss=%d@ #tss[0]=%d@ #lcs=%d@\n%!"
+            (var_str v) pr_vars (vars_of_list gvs) (pr_ty false) gt
+            (List.length tss) (List.length (fst (List.hd tss)))
+            (List.length lcs);
+        ) gs;
+      (* *)
       let eqs = 
         List.map
           (fun (_,(_,_,tss),lcs) ->

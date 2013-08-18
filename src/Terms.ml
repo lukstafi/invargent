@@ -970,7 +970,8 @@ let parser_last_typ = ref 0
 let parser_last_num = ref 0
 
 let reset_state () =
-  extype_id := 0; predvar_id := 0;
+  extype_id := 0; ex_types := [];
+  predvar_id := 0; Hashtbl.clear sigma;
   parser_more_items := [];
   Hashtbl.clear parser_unary_typs;
   Hashtbl.clear parser_unary_vals;

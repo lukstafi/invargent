@@ -268,6 +268,10 @@ let constr_gen_expr gamma e t =
       let ex_phi =
         [], [PredVarB (!fresh_chi_id, tdelta, tdelta')], tdelta in
       ex_types := (ety_id, (ex_phi, loc)) :: !ex_types;
+      Format.printf "infer-ExLam-ex_types: id=%d@ phi=%a@ ty=%a@\n%!"
+        ety_id pr_formula [PredVarB (!fresh_chi_id, tdelta, tdelta')]
+        (pr_ty false) tdelta;
+      (* *)
       let cn = List.fold_left cn_and
         (A [Eqty (Fun (t1, ety), t, loc)])
         (List.map (aux_ex_cl gamma !fresh_chi_id t1 t2) cls) in
@@ -318,7 +322,10 @@ let constr_gen_expr gamma e t =
       let a2 = fresh_typ_var () in
       let t2 = TVar a2 in
       let disj = List.map
-        (fun (ety_id, (phi, loc)) ->
+        (fun (ety_id, ((vs,phi,ty), loc)) ->
+          Format.printf "infer-Letin-ex_types: id=%d@ phi=%a@ ty=%a@\n%!"
+            ety_id pr_formula phi (pr_ty false) ty;
+          (* *)
           Eqty (TCons (Extype ety_id, [t2]), t0, loc))
         !ex_types in
       let cn0 = aux gamma t0 e1 in
@@ -334,7 +341,7 @@ let constr_gen_expr gamma e t =
       let concl = aux_cl gamma t3 t (p, e2) in
       let altcn = aux gamma t (App (Lam ([p,e2],loc),e1,loc)) in
       Ex (vars_of_list [a0; a2],
-          cn_and (cn_and (A disj) cn0)
+          cn_and (cn_and (Or1 disj) cn0)
             (All (local_vs, ImplOr2 (disj_prem, concl, altcn))))
 
   and aux_cl_negcn gamma t1 t2 tcn (p, e) =
@@ -411,18 +418,8 @@ let infer_prog_mockup prog =
   let gamma = ref [] in
   let cns = List.map (function
     | TypConstr _ -> VarSet.empty, And []
-    | ValConstr (CNam x, vs, phi, args, c_n, c_args, loc) ->
-      Hashtbl.add sigma x (vs, phi, args, c_n, c_args);
+    | ValConstr _ ->
       VarSet.empty, And []
-    | ValConstr (Extype i, vs, phi, [arg],
-                 Extype _, c_args, loc) ->
-      let tres = TCons (CNam "Tuple", List.map (fun v->TVar v) c_args) in
-      let ex_phi =
-        [], Eqty (tdelta, arg, loc)
-          :: Eqty (tdelta', tres, loc) :: phi, arg in
-      ex_types := (i, (ex_phi, loc)) :: !ex_types;
-      VarSet.empty, And []
-    | ValConstr (Extype _, _, _, _, _, _, _) -> assert false
     | PrimVal (x, tsch, loc) ->
       gamma := (x, tsch) :: !gamma;
       VarSet.empty, And []
@@ -472,10 +469,14 @@ let infer_prog_mockup prog =
           let ety_id = incr extype_id; !extype_id in
           let ety_cn = Extype ety_id in
           let ety = TCons (ety_cn, targs) in
-          let ex_phi =
-            [], Eqty (tdelta, res, loc)
-              :: Eqty (tdelta', ety, loc) :: exphi, res in
+          let phi =
+            Eqty (tdelta, res, loc) :: Eqty (tdelta', ety, loc) :: exphi in
+          let ex_phi = [], phi, res in
           ex_types := (ety_id, (ex_phi, loc)) :: !ex_types;
+          Format.printf
+            "infer_mockup-LetVal-ex_types: id=%d@ phi=%a@ ty=%a@\n%!"
+            ety_id pr_formula phi (pr_ty false) res;
+          (* *)
           x, ([], [], ety) in
       gamma := Aux.map_append typ_sch_ex env !gamma;
       preserve, cn
@@ -491,6 +492,9 @@ let infer_prog solver prog =
     let more_items = ref [] in
     ex_types := Aux.map_upto old_ex_types
       (fun (ety_id, ((vs, phi, ty), loc)) ->
+        Format.printf "infer-update-ex_types: from id=%d@ phi=%a@ ty=%a@\n%!"
+          ety_id pr_formula phi (pr_ty false) ty;
+        (* *)
         match phi with
         | [PredVarB (chi_id, TVar a3, TVar a2)]
             when a3=delta && a2=delta' && ty=tdelta ->
@@ -524,6 +528,9 @@ let infer_prog solver prog =
           let extydef = ValConstr
             (ety_cn, allvs, phi, [arg], ety_cn, [delta'], loc) in
           more_items := extydec :: extydef :: !more_items;
+          Format.printf "infer-update-ex_types: to id=%d@ phi=%a@ ty=%a@\n%!"
+            ety_id pr_formula phi (pr_ty false) arg;
+          (* *)
           ety_id, ((allvs, phi, arg), loc)
         | _ -> assert false
       )
@@ -625,6 +632,9 @@ let infer_prog solver prog =
             ValConstr (ety_cn, allvs, exphi, [res], ety_cn, [delta'], loc) in
           more_items := extydef :: extydec :: !more_items;
           ex_types := (ety_id, ((allvs, exphi, res), loc)) :: !ex_types;
+          Format.printf "infer-LetVal-ex_types: id=%d@ phi=%a@ ty=%a@\n%!"
+            ety_id pr_formula exphi (pr_ty false) res;
+          (* *)
           (* Here in [ety] the variables are free, unlike the
              occurrences in [exphi]. *)
           x, (gvs, phi, ety) in

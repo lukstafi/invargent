@@ -64,6 +64,9 @@ let existential evs exphi ty loc =
     ValConstr (ety_cn, allvs, phi, [ty], ety_cn, [delta'], loc) in
   more_items := extydef :: extydec :: !more_items;
   ex_types := (ety_id, ((allvs, phi, ty), loc)) :: !ex_types;
+  Format.printf "Parser-existential-ex_types: id=%d@ phi=%a@ ty=%a@\n%!"
+    ety_id pr_formula exphi (pr_ty false) ty;
+  (* *)
   (* Here in [ety] the variables are free, unlike the
      occurrences in [exphi]. *)
   ety

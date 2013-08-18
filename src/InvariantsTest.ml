@@ -332,11 +332,11 @@ external wander : ∀a. Placement a → ∃b. Placement b
 let rec find = efunction
   | CastleRoom x -> Room x
   | CastleYard x -> Yard x
-  | Village x ->
+  | Village _ as x ->
     let y = wander x in
-    find y"
-        [1,"";
-         2,""];
+    find y"                             (* tentative *)
+        [1,"∃t40, t41. δ = (Placement t41 → ∃2:t60.Castle t60)";
+         2,"∃t60.δ' = Castle t60"];
 
       test_case "find castle big"
 "newtype Room
@@ -358,14 +358,14 @@ external wander : ∀a. Placement a → ∃b. Placement b
 let rec find = efunction
   | CastleRoom x -> Room x
   | CastleYard x -> Yard x
-  | Garden x ->
+  | Garden _ as x ->
     let y = wander x in
     find y
-  | Village x ->
+  | Village _ as x ->
     let y = wander x in
-    find y"
-        [1,"";
-         2,""];
+    find y"                             (* tentative *)
+        [1,"∃t40, t41. δ = (Placement t41 → ∃2:t60.Castle t60)";
+         2,"∃t60.δ' = Castle t60"];
 
     );
 
