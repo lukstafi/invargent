@@ -91,7 +91,8 @@ val predvar_id : int ref
 (** {3 Mapping and folding over types.} *)
 type typ_map = {
   map_tvar : var_name -> typ;
-  map_tcons : cns_name -> typ list -> typ;
+  map_tcons : string -> typ list -> typ;
+  map_exty : int -> typ -> typ;
   map_fun : typ -> typ -> typ;
   map_ncst : int -> typ;
   map_nadd : typ list -> typ
@@ -99,7 +100,8 @@ type typ_map = {
 
 type 'a typ_fold = {
   fold_tvar : var_name -> 'a;
-  fold_tcons : cns_name -> 'a list -> 'a;
+  fold_tcons : string -> 'a list -> 'a;
+  fold_exty : int -> 'a -> 'a;
   fold_fun : 'a -> 'a -> 'a;
   fold_ncst : int -> 'a;
   fold_nadd : 'a list -> 'a

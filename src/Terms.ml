@@ -134,7 +134,8 @@ let no_vs = VarSet.empty
 
 type typ_map = {
   map_tvar : var_name -> typ;
-  map_tcons : cns_name -> typ list -> typ;
+  map_tcons : string -> typ list -> typ;
+  map_exty : int -> typ -> typ;
   map_fun : typ -> typ -> typ;
   map_ncst : int -> typ;
   map_nadd : typ list -> typ
@@ -142,7 +143,8 @@ type typ_map = {
 
 type 'a typ_fold = {
   fold_tvar : var_name -> 'a;
-  fold_tcons : cns_name -> 'a list -> 'a;
+  fold_tcons : string -> 'a list -> 'a;
+  fold_exty : int -> 'a -> 'a;
   fold_fun : 'a -> 'a -> 'a;
   fold_ncst : int -> 'a;
   fold_nadd : 'a list -> 'a
@@ -150,7 +152,8 @@ type 'a typ_fold = {
 
 let typ_id_map = {
   map_tvar = (fun v -> TVar v);
-  map_tcons = (fun n tys -> TCons (n, tys));
+  map_tcons = (fun n tys -> TCons (CNam n, tys));
+  map_exty = (fun i ty -> TCons (Extype i, [ty]));
   map_fun = (fun t1 t2 -> Fun (t1, t2));
   map_ncst = (fun i -> NCst i);
   map_nadd = (fun tys -> Nadd tys)
@@ -159,6 +162,7 @@ let typ_id_map = {
 let typ_make_fold op base = {
   fold_tvar = (fun _ -> base);
   fold_tcons = (fun _ tys -> List.fold_left op base tys);
+  fold_exty = (fun _ ty -> ty);
   fold_fun = (fun t1 t2 -> op t1 t2);
   fold_ncst = (fun _ -> base);
   fold_nadd = (fun tys -> List.fold_left op base tys)
@@ -167,7 +171,9 @@ let typ_make_fold op base = {
 let typ_map tmap t =
   let rec aux = function
     | TVar v -> tmap.map_tvar v
-    | TCons (n, tys) -> tmap.map_tcons n (List.map aux tys)
+    | TCons (CNam n, tys) -> tmap.map_tcons n (List.map aux tys)
+    | TCons (Extype i, [ty]) -> tmap.map_exty i (aux ty)
+    | TCons (Extype i, _) -> assert false
     | Fun (t1, t2) -> tmap.map_fun (aux t1) (aux t2)
     | NCst i -> tmap.map_ncst i
     | Nadd tys -> tmap.map_nadd (List.map aux tys) in
@@ -176,7 +182,9 @@ let typ_map tmap t =
 let typ_fold tfold t =
   let rec aux = function
     | TVar v -> tfold.fold_tvar v
-    | TCons (n, tys) -> tfold.fold_tcons n (List.map aux tys)
+    | TCons (CNam n, tys) -> tfold.fold_tcons n (List.map aux tys)
+    | TCons (Extype i, [ty]) -> tfold.fold_exty i (aux ty)
+    | TCons (Extype i, _) -> assert false
     | Fun (t1, t2) -> tfold.fold_fun (aux t1) (aux t2)
     | NCst i -> tfold.fold_ncst i
     | Nadd tys -> tfold.fold_nadd (List.map aux tys) in
@@ -254,7 +262,7 @@ let typ_size = typ_fold (typ_make_fold (fun i j -> i+j+1) 1)
 
 let fvs_typ =
   typ_fold {(typ_make_fold VarSet.union VarSet.empty)
-  with fold_tvar = fun v -> VarSet.singleton v}
+  with fold_tvar = (fun v -> VarSet.singleton v)}
 
 type subst = (var_name * (typ * loc)) list
 
@@ -415,35 +423,6 @@ let num_sort_typ = function
                  | VId (Num_sort, _)) -> true
   | _ -> false
 
-let split_sorts cnj =
-  let cnj_typ, cnj = List.partition
-    (function
-    | Eqty (_,t,_) when typ_sort_typ t -> true
-    | _ -> false) cnj in
-  let cnj_num, cnj = List.partition
-    (function
-    | Eqty (_,t,_) when num_sort_typ t -> true
-    | Leq _ -> true
-    | _ -> false) cnj in
-  assert (cnj=[]);
-  [Type_sort, cnj_typ; Num_sort, cnj_num]
-
-
-let connected target (vs, phi) =
-  let nodes = List.map (fun c -> c, fvs_atom c) phi in
-  let rec loop acc vs nvs rem =
-    let more, rem = List.partition
-      (fun (c, cvs) -> List.exists (Aux.flip VarSet.mem cvs) nvs) rem in
-    let mvs = List.fold_left VarSet.union VarSet.empty
-      (List.map snd more) in
-    let nvs = VarSet.elements (VarSet.diff mvs vs) in
-    let acc = List.map fst more @ acc in
-    if nvs = [] then acc
-    else loop acc (VarSet.union mvs vs) nvs rem in
-  let ans = loop [] VarSet.empty target nodes in
-  VarSet.elements (VarSet.inter (fvs_formula ans) (vars_of_list vs)),
-  ans
-
 (** {2 Global tables} *)
 
 type sigma =
@@ -455,7 +434,6 @@ type ex_types = (int * (typ_scheme * loc)) list
 
 let sigma = Hashtbl.create 127
 let (ex_types : ex_types ref) = ref []
-
 
 (** {2 Printing} *)
 let current_file_name = ref ""
@@ -631,6 +609,7 @@ let collect_argtys ty =
     | res -> res::args in
   List.rev (aux [] ty)
 
+let pr_exty = ref (fun ppf (i, rty) -> failwith "not implemented")
 
 let rec pr_atom ppf = function
   | Eqty (t1, t2, _) ->
@@ -660,16 +639,7 @@ and pr_ty comma ppf = function
     fprintf ppf "@[<2>%s@ %a@]" c pr_one_ty ty
   | TCons (CNam c, exps) ->
     fprintf ppf "@[<2>%s@ (%a)@]" c (pr_sep_list "," (pr_ty true)) exps
-  | TCons (Extype i, [rty]) ->
-    let (vs, phi, ty), _ = List.assoc i !ex_types in
-    let d_phi, phi = List.partition
-      (function Eqty (t1,_,_) when t1=tdelta' -> true | _ -> false)
-      phi in
-    let vs = VarSet.elements
-      (VarSet.diff (vars_of_list vs) (fvs_formula d_phi)) in
-    (* TODO: "@[<2>∃%d:%a[%a].%a@]" better? *)
-    fprintf ppf "∃%d:%a[%a].%a" i
-      (pr_sep_list "," pr_tyvar) vs pr_formula phi (pr_ty false) ty
+  | TCons (Extype i, [rty]) -> !pr_exty ppf (i, rty)
   | TCons (Extype i, _) -> assert false
   | Nadd []  -> fprintf ppf "0"
   | Nadd [ty] -> pr_ty comma ppf ty
@@ -840,6 +810,37 @@ let pr_to_str pr_f e =
 
 (** {2 Unification} *)
 
+let split_sorts cnj =
+  let cnj_typ, cnj = List.partition
+    (function
+    | Eqty (_,t,_) when typ_sort_typ t -> true
+    | _ -> false) cnj in
+  let cnj_num, cnj = List.partition
+    (function
+    | Eqty (_,t,_) when num_sort_typ t -> true
+    | Leq _ -> true
+    | _ -> false) cnj in
+  assert (cnj=[]);
+  [Type_sort, cnj_typ; Num_sort, cnj_num]
+
+let connected target (vs, phi) =
+  let nodes = List.map (fun c -> c, fvs_atom c) phi in
+  let rec loop acc vs nvs rem =
+    let more, rem = List.partition
+      (fun (c, cvs) -> List.exists (Aux.flip VarSet.mem cvs) nvs) rem in
+    let mvs = List.fold_left VarSet.union VarSet.empty
+      (List.map snd more) in
+    let nvs = VarSet.elements (VarSet.diff mvs vs) in
+    let acc = List.map fst more @ acc in
+    if nvs = [] then acc
+    else loop acc (VarSet.union mvs vs) nvs rem in
+  let ans = loop [] VarSet.empty target nodes in
+  Format.printf "connected: target=%a@ vs=%a@ phi=%a@ ans=%a@\n%!"
+    pr_vars (vars_of_list target) pr_vars (vars_of_list vs) pr_formula phi
+    pr_formula ans; (* *)
+  VarSet.elements (VarSet.inter (fvs_formula ans) (vars_of_list vs)),
+  ans
+
 (* If there are no [bvs] parameters, the LHS variable has to be
    existential and not upstream of any RHS variable. If there are
    [bvs] parameters, every universal variable must be upstream of some
@@ -962,6 +963,31 @@ let subst_solved ?use_quants cmp_v uni_v sb ~cnj =
     unify ?use_quants cmp_v uni_v cnj in
   assert (cnj_so = []);
   cnj_typ, cnj_num
+
+let () = pr_exty :=
+  fun ppf (i, rty) ->
+    let (vs, phi, ty), _ = List.assoc i !ex_types in
+    let d_phi, phi = List.partition
+      (function Eqty (t1,_,_) when t1=tdelta' -> true | _ -> false)
+      phi in
+    let sb =
+      match d_phi, rty with
+      | [Eqty (_, TCons (f, d_args), loc)], TCons (g, r_args) when f=g ->
+        List.map2
+          (fun r -> function
+          | TVar v -> v, (r, loc)
+          | _ -> assert false)
+          r_args d_args
+      | _ -> [] in
+    let phi, ty =
+      if sb=[] then phi, ty
+      else subst_formula sb phi, subst_typ sb ty in
+    let vs = VarSet.elements
+      (VarSet.diff (vars_of_list vs) (fvs_formula d_phi)) in
+    (* TODO: "@[<2>∃%d:%a[%a].%a@]" better? *)
+    fprintf ppf "∃%d:%a[%a].%a" i
+      (pr_sep_list "," pr_tyvar) vs pr_formula phi (pr_ty false) ty
+
 
 let parser_more_items = ref []
 let parser_unary_typs = Hashtbl.create 15

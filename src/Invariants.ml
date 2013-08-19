@@ -210,14 +210,20 @@ let select check_max_b q ans ans_max =
     | c::cands ->
       try
         let state = holds q state [c] in
+        Format.printf "select: dropping@ %a@\n%!"
+          pr_atom c; (* *)
         loop state (c::ans_res) ans_p cands
       with Contradiction _ ->
         let vs = fvs_atom c in
+        Format.printf "select: preserving@ %a@\n%!" pr_atom c; (* *)
         let ans_p = List.map
           (fun (b,ans as b_ans) ->
-            let bs = Hashtbl.find q.b_vs b in
-            if check_max_b vs bs then b, c::ans else b_ans)
+            if check_max_b vs b then b, c::ans else b_ans)
           ans_p in
+        Format.printf "select: preserving ans_p=@\n%a@\n%!"
+          (pr_line_list "| " pr_formula)
+          (List.map (fun (b,ans) ->
+            Eqty (TVar b, TVar b, dummy_loc)::ans) ans_p); (* *)
         loop state ans_res ans_p cands in
   let ans_p = List.map (fun (b,_)->b,[]) ans_max in
   loop init_state init_res ans_p allmax
@@ -273,17 +279,24 @@ let split avs ans params zparams q =
       | _ -> true) ans in
     let ans0 = List.map (fun c -> c, fvs_atom c) ans0 in
     (* 3a *)
-    let check_max_b vs bs =
-      let vmax = minimal ~less:greater_v
-        (VarSet.elements (VarSet.inter vs params)) in
-      List.exists (fun v -> VarSet.mem v bs) vmax in
-    let ans_cap = List.map
+    let b_pms = List.map
       (fun b ->
         let pms = Hashtbl.find q.b_vs b in
         let pms = VarSet.union pms (List.assoc b zparams) in
+        b, pms)
+      q.negbs in
+    let check_max_b vs b =
+      let pms = List.assoc b b_pms in
+      let vmax = minimal ~less:greater_v
+        (VarSet.elements (VarSet.inter vs params)) in
+      Format.printf "check_max_b:@ vs=%a@ pms=%a@ vmax=%a@ max?=%b@\n%!"
+        pr_vars vs pr_vars pms pr_vars (vars_of_list vmax)
+        (List.exists (fun v -> VarSet.mem v pms) vmax); (* *)
+      List.exists (fun v -> VarSet.mem v pms) vmax in
+    let ans_cap = List.map
+      (fun b ->
         b, map_some
-          (fun (c, vs) ->
-            if check_max_b vs pms then Some c else None)
+          (fun (c, vs) -> if check_max_b vs b then Some c else None)
           ans0)
       q.negbs in
     (* 4, 9a *)
@@ -478,7 +491,11 @@ let solve cmp_v uni_v brs =
       (concat_map
          (fun (_,_,chiK_pos,prem,concl) -> List.map
            (fun (i,t1,t2) ->
-             (i,t2), Eqty (tdelta, t1, dummy_loc) :: prem @ concl)
+             let phi = Eqty (tdelta, t1, dummy_loc) :: prem @ concl in
+             Format.printf "chiK: i=%d@ t1=%a@ t2=%a@ phi=%a@\n%!"
+               i (pr_ty false) t1 (pr_ty false) t2 pr_formula phi;
+             (* *)
+             (i,t2), phi)
            chiK_pos)
          brs1) in
     let chiK = List.map (fun ((i,t2),cnjs) -> i, (t2, cnjs)) chiK in
@@ -496,20 +513,23 @@ let solve cmp_v uni_v brs =
           else if c1 then Downstream
           else if c2 then Upstream
           else cmp_v v1 v2 in
-        Format.printf "solve.loop.cmp_v': t1 t4 = %s@\n%!"
-          (str_of_cmp (cmp_v' [VId (Type_sort, 1)] (VId (Type_sort, 1))
-                         (VId (Type_sort, 4)))); (* *)
+        Format.printf "solve.loop-dK: before abd_s@ gvs=%a@ g_ans=%a@\n%!"
+          pr_vars (vars_of_list gvs) pr_formula g_ans; (* *)
         (* FIXME: what about quantifiers? parameters? *)
         match Abduction.abd_s (cmp_v' gvs) uni_v ans g_ans with
         | None -> None
         | Some (gvs', g_ans') ->
           (* 3 *)
+          Format.printf "solve.loop-dK: before simpl@ gvs'=%a@ g_ans'=%a@\n%!"
+            pr_vars (vars_of_list gvs') pr_formula g_ans'; (* *)
           let gvs', g_ans' =
             simplify (cmp_v' (gvs' @ gvs)) uni_v gvs' g_ans' in
           if g_ans' = [] then None
           else
             let gvs = VarSet.elements
-              (VarSet.inter (vars_of_list (gvs @ gvs')) (fvs_formula g_ans)) in
+              (VarSet.inter (vars_of_list (gvs @ gvs')) (fvs_formula g_ans')) in
+            Format.printf "solve.loop-dK: final@ gvs=%a@ g_ans=%a@\n%!"
+              pr_vars (vars_of_list gvs) pr_formula g_ans'; (* *)
             (* No [b] "owns" these formal parameters. Their instances
                will be added to [q] by [sb_brs_pred]. *)
             Some ((i, (gvs @ vs, g_ans' @ ans)),

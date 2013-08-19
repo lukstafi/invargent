@@ -214,12 +214,13 @@
   the program, which capture the existential types. In parsing, they arise
   only for <verbatim|ValConstr> and <verbatim|PrimVal> and are added by
   <verbatim|Praser>. The inference happens only for <verbatim|LetRecVal> and
-  <verbatim|LetVal> and injection is performed in <verbatim|Infer>. Warning:
-  during printing existential types in concrete syntax
-  <math|\<exists\>i:<wide|\<beta\>|\<bar\>><around*|[|\<varphi\>|]>.t>, the
-  variables <math|<wide|\<alpha\>|\<bar\>>> coming from
-  <math|\<delta\><rprime|'><wide|=|\<dot\>><around*|(|<wide|\<alpha\>|\<bar\>>|)>>
-  are printed as free variables.
+  <verbatim|LetVal> and injection is performed in <verbatim|Infer>. During
+  printing existential types in concrete syntax
+  <math|\<exists\>i:<wide|\<beta\>|\<bar\>><around*|[|\<varphi\>|]>.t> for an
+  occurrence <math|\<varepsilon\><rsub|K><around*|(|<around*|(|<wide|r|\<bar\>>|)>|)>>,
+  the variables <math|<wide|\<alpha\>|\<bar\>>> coming from
+  <math|\<delta\><rprime|'><wide|=|\<dot\>><around*|(|<wide|\<alpha\>|\<bar\>>|)>\<in\>\<varphi\>>
+  are substituted-out by <math|<around*|[|<wide|\<alpha\>|\<bar\>>\<assign\><wide|r|\<bar\>>|]>>.
 
   For simplicity, only toplevel definitions accept type and invariant
   annotations from the user. The constraints are modified according to the

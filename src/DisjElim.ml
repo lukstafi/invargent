@@ -152,8 +152,15 @@ let simplify cmp_v (vs, ty_ans, num_ans) =
   let ty_ans, ty_num, _ =
     unify cmp_v (fun _ -> false) (to_formula ty_ans) in
   assert (ty_num = []);
+  Format.printf "disjelim-simplify: after unif@ ty_ans=%a@ ty_num=%a@\n%!"
+    pr_subst ty_ans pr_formula ty_num;  (* *)
   let ty_sb, ty_ans = List.partition
     (fun (v,_) -> List.mem v vs) ty_ans in
+  Format.printf
+    "disjelim-simplify: parts@ ty_sb=%a@ ty_ans=%a@ phi=%a@ res=%a@\n%!"
+    pr_subst ty_sb pr_subst ty_ans
+    pr_formula (to_formula ty_ans)
+    pr_formula (subst_formula ty_sb (to_formula ty_ans));  (* *)
   let vs = List.filter (fun v -> not (List.mem_assoc v ty_sb)) vs in
   vs, subst_formula ty_sb (to_formula ty_ans) @ num_ans
 
@@ -178,5 +185,8 @@ let disjelim cmp_v uni_v brs =
   let num_brs = List.map (fun (a,b)->a@b)
     (List.combine (List.map Aux.snd3 brs) num_eqs) in
   let num_avs, num_ans = NumS.disjelim cmp_v uni_v num_brs in
+  Format.printf "disjelim: before simpl@ vs=%a@ ty_ans=%a@ num_ans=%a@\n%!"
+    pr_vars (vars_of_list (num_avs @ avs))
+    pr_subst ty_ans pr_formula num_ans; (* *)
   (* (4) *)
   simplify cmp_v (num_avs @ avs, ty_ans, num_ans)
