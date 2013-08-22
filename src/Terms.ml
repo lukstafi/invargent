@@ -948,20 +948,20 @@ let unify ?use_quants ?(sb=[]) cmp_v uni_v cnj =
 let to_formula =
   List.map (fun (v,(t,loc)) -> Eqty (TVar v, t, loc))
 
-let combine_sbs ?use_quants cmp_v uni_v ?(more_phi=[]) sbs =
+let combine_sbs ?ignore_so ?use_quants cmp_v uni_v ?(more_phi=[]) sbs =
   let cnj_typ, cnj_num, cnj_so =
     unify ?use_quants cmp_v uni_v
       (more_phi @ Aux.concat_map to_formula sbs) in
-  assert (cnj_so = []);
+  assert (ignore_so<>None || cnj_so = []);
   cnj_typ, cnj_num
 
-let subst_solved ?use_quants cmp_v uni_v sb ~cnj =
+let subst_solved ?ignore_so ?use_quants cmp_v uni_v sb ~cnj =
   let cnj = List.map
     (fun (v,(t,lc)) -> Eqty (subst_typ sb (TVar v), subst_typ sb t, lc))
     cnj in
   let cnj_typ, cnj_num, cnj_so =
     unify ?use_quants cmp_v uni_v cnj in
-  assert (cnj_so = []);
+  assert (ignore_so<>None || cnj_so = []);
   cnj_typ, cnj_num
 
 let () = pr_exty :=

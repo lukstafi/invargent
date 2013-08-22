@@ -406,7 +406,7 @@ let converge sol0 sol1 sol2 =
 
 let neg_constrns = ref true
 
-
+(* FIXME: remove t26 from pms for t1 *)
 let solve cmp_v uni_v brs =
   let q = new_q cmp_v uni_v in
   let cmp_v = q.cmp_v and uni_v = q.uni_v in
@@ -447,12 +447,17 @@ let solve cmp_v uni_v brs =
   let bparams () = List.map
     (fun b -> b, Hashtbl.find q.b_vs b) q.negbs in
   let zparams = List.map (fun b -> b, ref VarSet.empty) q.negbs in
+  Format.printf "zparams: init=@ %a@\n%!" Abduction.pr_vparams
+    (List.map (fun (v,p)->v,!p) zparams); (* *)
   let modified = ref true in
   let add_atom a =
     let avs = VarSet.filter
       (fun v -> not (uni_v v) || List.mem v q.negbs) (fvs_atom a) in
     List.iter
       (fun (b, zpms) ->
+        (* FIXME: [cmp_v b v = Upstream]? *)
+        let avs = VarSet.filter
+          (fun v->cmp_v b v <> Downstream) avs in
         let zvs = VarSet.add b !zpms in
         if VarSet.exists (fun a -> VarSet.mem a zvs) avs
           && not (VarSet.is_empty (VarSet.diff avs zvs))
@@ -473,7 +478,9 @@ let solve cmp_v uni_v brs =
       b1, List.fold_left
         (fun pms (b2, pms2) ->
           if cmp_v b1 b2 = Upstream
-          then VarSet.diff pms pms2 else pms)
+          then VarSet.diff pms
+            (VarSet.union (Hashtbl.find q.b_vs b2) pms2)
+          else pms)
         pms zparams)
     zparams in
   Format.printf "zparams: post=@ %a@\n%!" Abduction.pr_vparams zparams;

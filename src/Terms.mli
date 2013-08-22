@@ -216,10 +216,10 @@ val unify : ?use_quants:(VarSet.t * VarSet.t) ->
   (var_name -> var_name -> var_scope) -> (var_name -> bool) ->
   atom list -> subst * atom list * atom list
 val to_formula : subst -> atom list
-val combine_sbs : ?use_quants:(VarSet.t * VarSet.t) ->
+val combine_sbs : ?ignore_so:unit -> ?use_quants:(VarSet.t * VarSet.t) ->
   (var_name -> var_name -> var_scope) -> (var_name -> bool) ->
   ?more_phi:atom list -> subst list -> subst * atom list
-val subst_solved : ?use_quants:(VarSet.t * VarSet.t) ->
+val subst_solved : ?ignore_so:unit -> ?use_quants:(VarSet.t * VarSet.t) ->
   (var_name -> var_name -> var_scope) -> (var_name -> bool) ->
   subst -> cnj:subst -> subst * atom list
 

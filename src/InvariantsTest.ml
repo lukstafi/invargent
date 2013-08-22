@@ -307,7 +307,7 @@ let rec escape = function Outside x -> x
   | Yard x ->
     let y = leave (enter x) in
     escape y"
-        [1,"∃t52. δ = (Placement t52 → Outside)"]
+        [1,"∃t46. δ = (Placement t46 → Outside)"]
 
     );
 
@@ -334,7 +334,8 @@ let rec find = efunction
   | CastleYard x -> Yard x
   | Village _ as x ->
     let y = wander x in
-    find y"                             (* tentative *)
+    let z = find y in
+    z"                             (* tentative *)
         [1,"∃t40, t41. δ = (Placement t41 → ∃2:t60.Castle t60)";
          2,"∃t60.δ' = Castle t60"];
 
@@ -360,10 +361,12 @@ let rec find = efunction
   | CastleYard x -> Yard x
   | Garden _ as x ->
     let y = wander x in
-    find y
+    let z = find y in
+    z
   | Village _ as x ->
     let y = wander x in
-    find y"                             (* tentative *)
+    let z = find y in
+    z"                             (* tentative *)
         [1,"∃t40, t41. δ = (Placement t41 → ∃2:t60.Castle t60)";
          2,"∃t60.δ' = Castle t60"];
 

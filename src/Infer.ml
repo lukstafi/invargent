@@ -47,7 +47,7 @@ let rec pr_cnstrnt ppf = function
     pr_formula ppf prem; fprintf ppf "@ ⟹@ %a@]" pr_cnstrnt concl
   | ImplOr2 (disjs, concl, altcn) -> fprintf ppf "@[<2>[";
     pr_sep_list " ∨" pr_formula ppf disjs;
-    fprintf ppf "]@ ⟹@ %a@]@[<2>[or@ %a]@]"
+    fprintf ppf "]@ ⟹@ %a@]@[<2>[alt@ %a]@]"
       pr_cnstrnt concl pr_cnstrnt altcn
   | All (vs, cn) ->
     fprintf ppf "@[<0>∀%a.@ %a@]"
@@ -134,15 +134,23 @@ let freshen_cns_scheme (vs, phi, argtys, c_n, c_args) =
 
 (* The [a] variables are freshened at use site, the [g/delta] vars
    here. *)
-let freshen_excns_scheme ~g ~a (vs, phi, ty as ans) =
-  if vs=[] then ans
-  else
-    let env0 = List.map (fun v->v, freshen_var v) vs in
-    let env = (delta, g) :: (delta', a) :: env0 in
-    let phi = List.map (freshen_atom env) phi in
-    let ty = freshen_typ env ty in
-    let vs = List.map snd env0 in
-    vs, Eqty (freshen_typ env tdelta, ty, dummy_loc) :: phi, ty
+let freshen_excns_scheme ~g ~a (vs, phi, ty) =
+  Format.printf "freshen_excns_scheme: initial@ vs=%a@ phi=%a@ ty=%a@\n%!"
+    pr_vars (vars_of_list vs)
+    pr_formula phi (pr_ty false) ty;
+  (* *)
+  let env0 = List.map (fun v->v, freshen_var v) vs in
+  let env = (delta, g) :: (delta', a) :: env0 in
+  let phi = List.map (freshen_atom env) phi in
+  let ty = freshen_typ env ty in
+  let vs = List.map snd env0 in
+  let dty = freshen_typ env tdelta in
+  let phi = Eqty (dty, ty, dummy_loc) :: phi in
+  Format.printf "freshen_excns_scheme: g=%s a=%s@ vs=%a@ phi=%a@ ty=%a@\n%!"
+    (var_str g) (var_str a) pr_vars (vars_of_list vs)
+    pr_formula phi (pr_ty false) ty;
+    (* *)
+  vs, phi, ty
 
 let freshen_val_scheme (vs, phi, res) =
   let env = List.map (fun v->v, freshen_var v) vs in
@@ -214,7 +222,12 @@ let rec single_assert_false (_, e) =
     | _ -> false
 
 let constr_gen_expr gamma e t =
-  let rec aux gamma t = function
+  let rec aux gamma t e =
+    Format.printf "constr_gen: t=%a e=@\n%a@\n%!"
+      (pr_ty false) t (pr_expr false) e;
+    (* *)
+    match e with
+    (* function *)
     | Var (x, loc) when not (List.mem_assoc x gamma) ->
       raise (Report_toplevel ("Undefined variable "^x, Some loc))
     | Var (x, loc) ->
@@ -268,8 +281,10 @@ let constr_gen_expr gamma e t =
       let ex_phi =
         [], [PredVarB (!fresh_chi_id, tdelta, tdelta')], tdelta in
       ex_types := (ety_id, (ex_phi, loc)) :: !ex_types;
-      Format.printf "infer-ExLam-ex_types: id=%d@ phi=%a@ ty=%a@\n%!"
-        ety_id pr_formula [PredVarB (!fresh_chi_id, tdelta, tdelta')]
+      Format.printf
+        "infer-ExLam-ex_types: id=%d a1=%s a2=%s@ phi=%a@ ty=%a@\n%!"
+        ety_id (var_str a1) (var_str a2)
+        pr_formula [PredVarB (!fresh_chi_id, tdelta, tdelta')]
         (pr_ty false) tdelta;
       (* *)
       let cn = List.fold_left cn_and
@@ -323,8 +338,8 @@ let constr_gen_expr gamma e t =
       let t2 = TVar a2 in
       let disj = List.map
         (fun (ety_id, ((vs,phi,ty), loc)) ->
-          Format.printf "infer-Letin-ex_types: id=%d@ phi=%a@ ty=%a@\n%!"
-            ety_id pr_formula phi (pr_ty false) ty;
+          Format.printf "infer-Letin-ex_types: id=%d@ t=%a@ phi=%a@ ty=%a@\n%!"
+            ety_id (pr_ty false) t pr_formula phi (pr_ty false) ty;
           (* *)
           Eqty (TCons (Extype ety_id, [t2]), t0, loc))
         !ex_types in
@@ -340,6 +355,12 @@ let constr_gen_expr gamma e t =
         (VarSet.singleton a3) !ex_types in
       let concl = aux_cl gamma t3 t (p, e2) in
       let altcn = aux gamma t (App (Lam ([p,e2],loc),e1,loc)) in
+      Format.printf
+        "constr_gen-Letin: t3=%s t2=%s@ t=%a@ local_vs=%a@ concl=%a@ disj_prem=@\n| %a@\n%!"
+        (var_str a3) (var_str a2) (pr_ty false) t
+        pr_vars local_vs pr_cnstrnt concl
+        (pr_line_list "| " pr_formula) disj_prem;
+      (* *)
       Ex (vars_of_list [a0; a2],
           cn_and (cn_and (Or1 disj) cn0)
             (All (local_vs, ImplOr2 (disj_prem, concl, altcn))))
@@ -364,6 +385,8 @@ let constr_gen_expr gamma e t =
     let cn =
       if prem=[] || concl=And [] then concl else Impl (prem, concl) in
     let cn = if VarSet.is_empty bs then cn else All (bs, cn) in
+    Format.printf "constr_gen-aux_cl: t1=%a@ t2=%a@ cn=%a@\n%!"
+      (pr_ty false) t1 (pr_ty false) t2 pr_cnstrnt cn; (* *)
     cn_and pcns cn
 
   and aux_ex_cl gamma chi_id t1 t2 (p, e) =
@@ -373,6 +396,7 @@ let constr_gen_expr gamma e t =
     let t3 = TVar a3 in
     let concl = aux (List.map typ_to_sch env @ gamma) t3 e in
     let cn = cn_and (A [PredVarB (chi_id, t3, t2)]) concl in
+    let cn = Ex (VarSet.singleton a3, cn) in
     let cn =
       if prem=[] || concl=And [] then cn else Impl (prem, cn) in
     let cn = if VarSet.is_empty bs then cn else All (bs, cn) in
@@ -656,15 +680,15 @@ let br_to_formulas (prem, (cn_typ, cn_num, cn_so)) =
     cn_typ (cn_num @ cn_so)
 
 let normalize cn =
-  let quants = Hashtbl.create 2047 in
-  let univars = Hashtbl.create 127 in
+  let quants = Hashtbl.create 2048 in
+  let univars = Hashtbl.create 128 in
   let cmp_vars v1 v2 =
     try Hashtbl.find quants (v1, v2) with Not_found -> Not_in_scope in
   let is_uni_v  v =
     try Hashtbl.find univars v with Not_found -> false in
   let unify = unify cmp_vars is_uni_v in
   let combine_sbs =
-    combine_sbs cmp_vars is_uni_v in
+    combine_sbs ~ignore_so:() cmp_vars is_uni_v in
   let add_var_rels up_vars same_vars vs =
     VarSet.iter (fun uv ->
       VarSet.iter (fun dv ->
@@ -687,6 +711,8 @@ let normalize cn =
       and impls = List.concat impls
       and dsj_impls = List.concat dsj_impls in
       cnj, impls, dsj_impls
+    (* Drop [Or1] constraints, in the formalism enforcing the use of
+       let-in for existential elimination. *)
     | Or1 dsj -> [], [], []
     | Impl (prem, concl) ->
       [], [up_vars, same_vars, at_uni, prem, concl], []
@@ -715,16 +741,25 @@ let normalize cn =
     let more_impls, more_cns = Aux.partition_map
       (fun (up_vars, same_vars, at_uni, prems, concl, alt) ->
         try
+          Format.printf "normalize: search@ concl=%a@\n%!"
+            pr_cnstrnt concl;
+          (* *)
           let prem = List.find
-            (function eq_ex::_ ->
-              (try ignore (combine_sbs ~more_phi:[eq_ex]
-                            [cnj_typ; more_cnj_typ]);
+            (fun prem ->
+              (try ignore (combine_sbs ~more_phi:(prem @ more_prem)
+                             [cnj_typ; more_cnj_typ]);
                   true
-               with Contradiction _ -> false)
-            | [] -> assert false)
+               with Contradiction _ -> false))
             prems in
+          Format.printf "normalize: found@ prem=%a@\nof prems=@\n| %a@\n%!"
+            pr_formula prem (pr_line_list "| " pr_formula) prems;
+          (* *)
           Aux.Left (up_vars, same_vars, at_uni, prem, concl)
-        with Not_found -> Aux.Right (up_vars, same_vars, at_uni, alt)
+        with Not_found ->
+          Format.printf "normalize: not found@ alt=%a@\nof prems=@\n| %a@\n%!"
+            pr_cnstrnt alt (pr_line_list "| " pr_formula) prems;
+          (* *)
+          Aux.Right (up_vars, same_vars, at_uni, alt)
       ) dsj_impls in
     let impls = more_impls @ impls in
     let more_brs = List.map

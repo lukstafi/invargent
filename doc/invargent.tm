@@ -299,7 +299,7 @@
   Releasing constraints \ from under <verbatim|ImplOr2>, when the
   corresponding <verbatim|let>-<verbatim|in> is interpreted as standard
   binding (instead of eliminating existential type), violates
-  declarativeness. We cannot include all the released constraints in
+  declarativeness. FIXME We cannot include all the released constraints in
   determining whether non-nested <verbatim|ImplOr2> constraints should be
   interpreted as eliminating existential types. While we could be more
   ``aggresive'' (we can modify the implementation to release the constraints
@@ -833,8 +833,8 @@
   unfold until reaching fixpoint or contradiction. Another choice point
   besides abduction in the original algorithm is the selection of invariants
   that leaves a consistent subset of atoms as residuum. Here we also select
-  the first solution found. In future, we might introduce some form of
-  backtracking, if the loss of completeness outweighs the computational cost.
+  the first solution found. We introduce a form of backtracking, described in
+  section <reference|Details>.
 
   <subsection|Invariant Parameter Candidates>
 
@@ -1060,7 +1060,7 @@
   described previously. Moreover, the sort information from checking negative
   branches is likewise only approximate.
 
-  <subsection|Implementation details>
+  <subsection|Implementation details><label|Details>
 
   We represent <math|<wide|\<alpha\>|\<vect\>>> as a tuple type rather than
   as a function type. We modify the quantifier <math|\<cal-Q\>> imperatively,
@@ -1162,6 +1162,7 @@
   <\collection>
     <associate|1|<tuple|5.2|?>>
     <associate|AlienSubterms|<tuple|3.3|6>>
+    <associate|Details|<tuple|5.4|?>>
     <associate|ImplSubst|<tuple|4|2>>
     <associate|MainAlgo|<tuple|5|9>>
     <associate|SCAlinear|<tuple|3.4|7>>
