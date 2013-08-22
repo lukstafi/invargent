@@ -262,7 +262,7 @@ let split avs ans params zparams q =
       else if c1 then Downstream
       else if c2 then Upstream
       else Same_quant in
-  let greater_v v1 v2 = cmp_v v1 v2 = Upstream in
+  let smaller_v v1 v2 = cmp_v v1 v2 = Downstream in
   let rec loop avs ans discard sol =
     (* 2 *)
     Format.printf "split-loop: starting ans=@ %a@\nsol=@ %a@\n%!"
@@ -287,7 +287,8 @@ let split avs ans params zparams q =
       q.negbs in
     let check_max_b vs b =
       let pms = List.assoc b b_pms in
-      let vmax = minimal ~less:greater_v
+      (* most downstream *)
+      let vmax = minimal ~less:smaller_v
         (VarSet.elements (VarSet.inter vs params)) in
       Format.printf "check_max_b:@ vs=%a@ pms=%a@ vmax=%a@ max?=%b@\n%!"
         pr_vars vs pr_vars pms pr_vars (vars_of_list vmax)
@@ -634,11 +635,19 @@ let solve cmp_v uni_v brs =
       (* 6 *)
       let lift_ex_types t2 (vs, ans) =
         let fvs = fvs_formula ans in
-        let dvs = VarSet.elements (VarSet.diff fvs (vars_of_list vs)) in
+        let dvs = VarSet.elements
+          (VarSet.diff fvs (vars_of_list (delta::vs))) in
         let targs = List.map (fun v -> TVar v) dvs in
         let a2 = match t2 with TVar a2 -> a2 | _ -> assert false in
-        vs @ dvs, Eqty (tdelta', TCons (CNam "Tuple", targs), dummy_loc) ::
+        let phi =
+          Eqty (tdelta', TCons (CNam "Tuple", targs), dummy_loc) ::
           subst_formula [a2, (tdelta', dummy_loc)] ans in
+        Format.printf
+          "lift_ex_types: t2=%a@ vs=%a@ dvs=%a@ ans=%a@ phi=%a@\n%!"
+          (pr_ty false) t2 pr_vars (vars_of_list vs)
+          pr_vars (vars_of_list dvs) pr_formula ans pr_formula phi;
+        (* *)
+        vs @ dvs, phi in
       (* 7 *)
       let finish sol2 =
         (* start fresh at (iter_no+1) *)
@@ -660,14 +669,28 @@ let solve cmp_v uni_v brs =
                 i, lift_ex_types t2 sol
             with Not_found -> isol)
           sol1 in
+        (* FIXME: isn't all this simplification redundant? *)
         let res = fold_map
-          (fun ans_res (i,(vs,ans)) ->
-            let vs, ans = simplify cmp_v uni_v vs ans in
+          (fun ans_res (i,(vs0,ans0)) ->
+            let d_vs =
+              let d = Aux.map_some
+                (function Eqty (t1,t2,_) when t1=tdelta' ->
+                  Some t2 | _ -> None)
+                ans0 in
+              VarSet.elements (fvs_typ (TCons (CNam "", d))) in
+            let vs0, ans =
+              simplify cmp_v uni_v (list_diff vs0 d_vs) ans0 in
+            let vs = d_vs @ vs0 in
             let allbs = (* VarSet.union q.allbvs *)
               (vars_of_list (delta::vs)) in
             let more, ans = List.partition
               (fun c-> VarSet.is_empty (VarSet.inter allbs (fvs_atom c)))
               ans in
+            Format.printf
+              "finish: simplify i=%d@ vs0=%a@ ans0=%a@ vs=%a@ ans=%a@\n%!"
+              i pr_vars (vars_of_list vs0) pr_vars (vars_of_list vs)
+              pr_formula ans0 pr_formula ans;
+            (* *)
             more @ ans_res, (i, (vs, ans)))
           ans_res sol in
         Aux.Right res
@@ -692,15 +715,15 @@ let solve cmp_v uni_v brs =
             let dvs = concat_map (fun (_,(dvs,_))->dvs) ds in
             let i_res = dvs @ vs, dans @ ans in
             Format.printf
-              "solve-loop: res chi%d(.)=@ %a@\n%!"
-              i pr_ans i_res; (* *)
+              "solve-loop: vs=%a@ ans=%a@ chi%d(.)=@ %a@\n%!"
+              pr_vars (vars_of_list vs) pr_formula ans i pr_ans i_res; (* *)
             i, i_res)
           sol1 in    
         (* 10 *)
         finish (converge sol0 sol1 sol2) in
   match loop 0 [] solT solT with
   | Aux.Left (_, e) -> raise e
-  | Aux.Right sol ->
+  | Aux.Right (ans_res, ans_so as sol) ->
     Format.printf "solve: checking assert false@\n%!"; (* *)
     List.iter (fun (cnj, loc) ->
       try
@@ -713,5 +736,35 @@ let solve cmp_v uni_v brs =
           None, loc))
       with Contradiction _ -> ()
     ) neg_cns;
+    (* Substitute the solutions for existential types. *)
+    ex_types := List.map
+      (function
+      | ex_i, (([], [PredVarB (chi_i,t1,t2)], ty), loc) ->
+        let chi_vs, phi = List.assoc chi_i ans_so in
+        let sb, rphi = Infer.separate_subst cmp_v uni_v phi in
+        let ans_sb, _ = Infer.separate_subst cmp_v uni_v ans_res in
+        let sb = update_sb ~more_sb:ans_sb sb in
+        let sb = List.map
+          (function
+          | v, (TVar v2, lc) when v2=delta || v2=delta' -> v2, (TVar v, lc)
+          | sv -> sv) sb in
+        let vs = List.map
+          (fun v ->
+            try fst (List.assoc v sb) with Not_found -> TVar v) chi_vs in
+        let vs = VarSet.elements (fvs_typ (TCons (CNam "", vs))) in
+        let rty = subst_typ sb ty
+        and rphi = subst_formula sb rphi in
+        Format.printf
+          "solve-ex_types: ex_i=%d@ t1=%a@ t2=%a@ ty=%a@ chi_vs=%a@ rty=%a@ vs=%a@ rphi=%a@\nphi=%a@\n%!"
+          ex_i (pr_ty false) t1 (pr_ty false) t2 (pr_ty false) ty
+          pr_vars (vars_of_list chi_vs) (pr_ty false) rty
+          pr_vars (vars_of_list vs)
+          pr_formula rphi pr_formula phi;
+        (* *)
+        ex_i, ((vs, rphi, rty), loc)
+      | ex_i, _ as ex_ty ->
+        Format.printf "solve-ex_types: unchanged %d@\n%!" ex_i;
+        ex_ty
+    ) !ex_types;
     Format.printf "solve: returning@\n%!"; (* *)
     cmp_v, uni_v, sol

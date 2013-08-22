@@ -286,7 +286,7 @@ let rec flatten_pairs =
 
   "escape castle" >::
     (fun () ->
-      todo "universal";
+      todo "debug";
       test_case "escape castle"
 "newtype Room
 newtype Yard
@@ -313,7 +313,7 @@ let rec escape = function Outside x -> x
 
   "find castle" >::
     (fun () ->
-      (* todo "existential"; *)
+      todo "debug";
       test_case "find castle small"
 "newtype Room
 newtype Yard
@@ -335,9 +335,8 @@ let rec find = efunction
   | Village _ as x ->
     let y = wander x in
     let z = find y in
-    z"                             (* tentative *)
-        [1,"∃t40, t41. δ = (Placement t41 → ∃2:t60.Castle t60)";
-         2,"∃t60.δ' = Castle t60"];
+    z"
+        [1,"∃t59, t60. δ = (Placement t60 → ∃2:t173[].Castle t173)"];
 
       test_case "find castle big"
 "newtype Room
@@ -366,15 +365,14 @@ let rec find = efunction
   | Village _ as x ->
     let y = wander x in
     let z = find y in
-    z"                             (* tentative *)
-        [1,"∃t40, t41. δ = (Placement t41 → ∃2:t60.Castle t60)";
-         2,"∃t60.δ' = Castle t60"];
+    z"
+        [1,"∃t99, t100. δ = (Placement t100 → ∃2:t431[].Castle t431)"];
 
     );
 
   "filter" >::
     (fun () ->
-      todo "existential";
+      (* todo "existential"; *)
       test_case "list filter"
 "newtype Bool
 newtype List : type * num
@@ -391,8 +389,7 @@ let rec filter =
     | LCons (x, l) -> match f x with
           True -> LCons (x, filter l)
 	| False -> filter l"
-        [1,"";
-         2,""];
+        [1,""];
 
     );
 

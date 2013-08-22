@@ -966,7 +966,7 @@ let subst_solved ?ignore_so ?use_quants cmp_v uni_v sb ~cnj =
 
 let () = pr_exty :=
   fun ppf (i, rty) ->
-    let (vs, phi, ty), _ = List.assoc i !ex_types in
+    let (vs, phi, ty), loc = List.assoc i !ex_types in
     let d_phi, phi = List.partition
       (function Eqty (t1,_,_) when t1=tdelta' -> true | _ -> false)
       phi in
@@ -978,12 +978,14 @@ let () = pr_exty :=
           | TVar v -> v, (r, loc)
           | _ -> assert false)
           r_args d_args
-      | _ -> [] in
+      | _ -> [delta', (rty, loc)] in
     let phi, ty =
       if sb=[] then phi, ty
       else subst_formula sb phi, subst_typ sb ty in
+    let allvs = VarSet.union (fvs_formula phi) (fvs_typ ty) in
     let vs = VarSet.elements
       (VarSet.diff (vars_of_list vs) (fvs_formula d_phi)) in
+    let vs = if VarSet.mem delta allvs then delta::vs else vs in
     (* TODO: "@[<2>∃%d:%a[%a].%a@]" better? *)
     fprintf ppf "∃%d:%a[%a].%a" i
       (pr_sep_list "," pr_tyvar) vs pr_formula phi (pr_ty false) ty
