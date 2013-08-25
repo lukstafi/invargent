@@ -7,7 +7,13 @@
 *)
 open Terms
 open Aux
-
+(* TODO: variable splitting --
+   (1) check atom location to exclude atoms provably outside
+   the scope of a negative predicate variable;
+   (2) filter unconnected atoms from solutions; fail if any of them
+   in no solution;
+   (3) check why existential solutions have doubled delta-LHS without
+   equated RHS. *)
 type chi_subst = (int * (var_name list * formula)) list
 
 type q_with_bvs = {
@@ -116,7 +122,7 @@ let matchup_vars ?dK self_owned q b vs =
   (* if dK=None then assert (List.length res = List.length vs + 1); *)
   List.map (fun (v,w) -> v, (TVar w, dummy_loc)) res
 
-let sb_chiK_neg q psb (i, t1, t2) =
+let sb_chiK_neg q psb (i, t1, t2, lc) =
   match t1 with TVar b ->
     (try
        let vs, phi = List.assoc i psb in
@@ -124,28 +130,31 @@ let sb_chiK_neg q psb (i, t1, t2) =
          "sb_chiK_neg: chi%d(%s,%a)=@ %a@\n%!"
          i (var_str b) (pr_ty false) t2 pr_ans (vs,phi); (* *)
        let renaming = matchup_vars ~dK:() false q b vs in
-       sb_phi_binary t1 t2 (subst_formula renaming phi)
+       replace_loc lc
+         (sb_phi_binary t1 t2 (subst_formula renaming phi))
      with Not_found -> [])
   | _ -> []
 
 let sb_atom_pred q posi psb = function
-  | PredVarU (i, (TVar b as t)) as a ->
+  | PredVarU (i, (TVar b as t), loc) as a ->
     (try
        let vs, phi = List.assoc i psb in
        Format.printf
          "sb_atom_pred: U posi=%b@ chi%d(%s)=@ %a@\n%!"
          posi i (var_str b) pr_ans (vs,phi); (* *)
        let renaming = matchup_vars (not posi) q b vs in
-       sb_phi_unary t (subst_formula renaming phi)
+       replace_loc loc
+         (sb_phi_unary t (subst_formula renaming phi))
      with Not_found -> [a])  
-  | PredVarB (i, (TVar b as t1), t2) as a ->
+  | PredVarB (i, (TVar b as t1), t2, loc) as a ->
     (try
        let vs, phi = List.assoc i psb in
        Format.printf
          "sb_atom_pred: B posi=%b@ chi%d(%s,%a)=@ %a@\n%!"
          posi i (var_str b) (pr_ty false) t2 pr_ans (vs,phi); (* *)
        let renaming = matchup_vars false q b vs in
-       sb_phi_binary t1 t2 (subst_formula renaming phi)
+       replace_loc loc
+         (sb_phi_binary t1 t2 (subst_formula renaming phi))
      with Not_found -> [a])
   | a -> [a]
 
@@ -157,9 +166,9 @@ let sb_brs_allpred q psb brs = List.map
     List.for_all                        (* is_nonrec *)
       (function PredVarU _ -> false | _ -> true) concl,
     Aux.map_some                        (* chiK_neg *)
-      (function PredVarB (i,t1,t2) -> Some (i,t1,t2) | _ -> None) prem,
+      (function PredVarB (i,t1,t2,lc) -> Some (i,t1,t2,lc) | _ -> None) prem,
     Aux.map_some                        (* chiK_pos *)
-      (function PredVarB (i,t1,t2) -> Some (i,t1,t2) | _ -> None) concl,
+      (function PredVarB (i,t1,t2,lc) -> Some (i,t1,t2,lc) | _ -> None) concl,
     sb_formula_pred q false psb prem, sb_formula_pred q true psb concl)
   brs
 
@@ -250,7 +259,7 @@ let strat q b ans =
   let avs, ans_l = List.split ans in
   List.concat avs, ans_l, ans_r
   
-let split avs ans params zparams q =
+let split avs ans negchi_locs params zparams q =
   (* 1 FIXME: do we really need this? *)
   let cmp_v v1 v2 =
     let a = q.cmp_v v1 v2 in
@@ -407,7 +416,6 @@ let converge sol0 sol1 sol2 =
 
 let neg_constrns = ref true
 
-(* FIXME: remove t26 from pms for t1 *)
 let solve cmp_v uni_v brs =
   let q = new_q cmp_v uni_v in
   let cmp_v = q.cmp_v and uni_v = q.uni_v in
@@ -432,16 +440,18 @@ let solve cmp_v uni_v brs =
     neg_brs in
   Format.printf "solve: neg_cns=@ %a@\n%!" Infer.pr_rbrs
     (List.map (fun (cnj,_) -> cnj, []) neg_cns); (* *)
+  let negchi_locs = Hashtbl.create 8 in
   List.iter
     (fun (prem,concl) ->
       List.iter
         (function
-        | PredVarU (i, TVar b) | PredVarB (i, TVar b, _) ->
+        | PredVarU (i, TVar b, lc) | PredVarB (i, TVar b, _, lc) ->
+          Hashtbl.add negchi_locs b lc;
           q.add_bchi b i false
         | _ -> ()) prem;
       List.iter
         (function
-        | PredVarU (i, TVar b) | PredVarB (i, TVar b, _) ->
+        | PredVarU (i, TVar b, _) | PredVarB (i, TVar b, _, _) ->
           q.add_bchi b i true
         | _ -> ()) concl;
     ) brs;
@@ -498,8 +508,8 @@ let solve cmp_v uni_v brs =
     let chiK = collect
       (concat_map
          (fun (_,_,chiK_pos,prem,concl) -> List.map
-           (fun (i,t1,t2) ->
-             let phi = Eqty (tdelta, t1, dummy_loc) :: prem @ concl in
+           (fun (i,t1,t2,lc) ->
+             let phi = Eqty (tdelta, t1, lc) :: prem @ concl in
              Format.printf "chiK: i=%d@ t1=%a@ t2=%a@ phi=%a@\n%!"
                i (pr_ty false) t1 (pr_ty false) t2 pr_formula phi;
              (* *)
@@ -604,11 +614,16 @@ let solve cmp_v uni_v brs =
               ())
           neg_cns1;
         (* 5 *)
-        let res =
+        let alien_eqs, (vs, ans) =
           Abduction.abd cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
             ~iter_no ~discard brs1 in
         (* Beyond this point exceptions mean unsolvability. *)
-        Aux.Right res
+        let ans_res, more_discard, sol2 =
+          split vs ans negchi_locs params zparams q in
+        Format.printf
+        "solve: loop -- answer split@ more_discard=@ %a@\nans_res=@ %a@\nsol=@ %a@\n%!"
+          pr_formula more_discard pr_formula ans_res pr_chi_subst sol1; (* *)
+        Aux.Right (alien_eqs, ans_res, more_discard, sol2)
       with
       (* it does not seem to make a difference *)
       | (NoAnswer (sort, msg, tys, lc)
@@ -624,14 +639,10 @@ let solve cmp_v uni_v brs =
         Aux.Left (sort, e) in
     match answer with
     | Aux.Left _ as e -> e
-    | Aux.Right (alien_eqs, (vs, ans)) ->
-      let ans_res, more_discard, sol2 = split vs ans params zparams q in
+    | Aux.Right (alien_eqs, ans_res, more_discard, sol2) ->
       let more_discard =
         if alien_eqs = [] then more_discard
         else subst_formula alien_eqs more_discard in
-      Format.printf
-        "solve: loop -- answer split@ more_discard=@ %a@\nans_res=@ %a@\nsol=@ %a@\n%!"
-        pr_formula more_discard pr_formula ans_res pr_chi_subst sol1; (* *)
       (* 6 *)
       let lift_ex_types t2 (vs, ans) =
         let fvs = fvs_formula ans in
@@ -739,7 +750,7 @@ let solve cmp_v uni_v brs =
     (* Substitute the solutions for existential types. *)
     ex_types := List.map
       (function
-      | ex_i, (([], [PredVarB (chi_i,t1,t2)], ty), loc) ->
+      | ex_i, (([], [PredVarB (chi_i,t1,t2,_)], ty), loc) ->
         let chi_vs, phi = List.assoc chi_i ans_so in
         let sb, rphi = Infer.separate_subst cmp_v uni_v phi in
         let ans_sb, _ = Infer.separate_subst cmp_v uni_v ans_res in

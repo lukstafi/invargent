@@ -120,9 +120,9 @@ let freshen_atom env = function
   | Leq (t1, t2, loc) ->
     Leq (freshen_typ env t1, freshen_typ env t2, loc)
   | CFalse _ as a -> a
-  | PredVarU (i, t) -> PredVarU (i, freshen_typ env t)
-  | PredVarB (i, t1, t2) ->
-    PredVarB (i, freshen_typ env t1, freshen_typ env t2)
+  | PredVarU (i, t, lc) -> PredVarU (i, freshen_typ env t, lc)
+  | PredVarB (i, t1, t2, lc) ->
+    PredVarB (i, freshen_typ env t1, freshen_typ env t2, lc)
 
 let freshen_cns_scheme (vs, phi, argtys, c_n, c_args) =
   let env = List.map (fun v->v, freshen_var v) vs in
@@ -170,6 +170,10 @@ let constr_gen_pat p tau =
       let tupt = TCons (CNam "Tuple", argtys) in
       Ex (vars_of_list argvs, And (A [Eqty (tupt, tau, loc)]::cns))
     | PCons (k, args, loc) ->
+      Format.printf "constructors: %!";
+      Hashtbl.iter (fun k _ -> Format.printf "%s, " k) sigma;
+      Format.printf "@\n%!";
+      (* *)
       let abvs, phi, argtys, c_n, c_args =
         try freshen_cns_scheme (Hashtbl.find sigma k)
         with Not_found -> raise
@@ -279,12 +283,12 @@ let constr_gen_expr gamma e t =
       let ety = TCons (ety_cn, [t2]) in
       incr fresh_chi_id;
       let ex_phi =
-        [], [PredVarB (!fresh_chi_id, tdelta, tdelta')], tdelta in
+        [], [PredVarB (!fresh_chi_id, tdelta, tdelta', loc)], tdelta in
       ex_types := (ety_id, (ex_phi, loc)) :: !ex_types;
       Format.printf
         "infer-ExLam-ex_types: id=%d a1=%s a2=%s@ phi=%a@ ty=%a@\n%!"
         ety_id (var_str a1) (var_str a2)
-        pr_formula [PredVarB (!fresh_chi_id, tdelta, tdelta')]
+        pr_formula [PredVarB (!fresh_chi_id, tdelta, tdelta', loc)]
         (pr_ty false) tdelta;
       (* *)
       let cn = List.fold_left cn_and
@@ -323,8 +327,8 @@ let constr_gen_expr gamma e t =
       let b = fresh_typ_var () in
       incr fresh_chi_id;
       let tb = TVar b in
-      let chi_b = PredVarU (!fresh_chi_id, tb) in
-      let chi_a = PredVarU (!fresh_chi_id, TVar a) in
+      let chi_b = PredVarU (!fresh_chi_id, tb, expr_loc e1) in
+      let chi_a = PredVarU (!fresh_chi_id, TVar a, expr_loc e1) in
       let gamma = (x, ([b], [chi_b], tb))::gamma in
       let def_cn =
         All (vars_of_list [b],
@@ -395,7 +399,7 @@ let constr_gen_expr gamma e t =
     let a3 = fresh_typ_var () in
     let t3 = TVar a3 in
     let concl = aux (List.map typ_to_sch env @ gamma) t3 e in
-    let cn = cn_and (A [PredVarB (chi_id, t3, t2)]) concl in
+    let cn = cn_and (A [PredVarB (chi_id, t3, t2, expr_loc e)]) concl in
     let cn = Ex (VarSet.singleton a3, cn) in
     let cn =
       if prem=[] || concl=And [] then cn else Impl (prem, cn) in
@@ -414,8 +418,8 @@ let constr_gen_tests gamma tests =
 let constr_gen_letrec gamma x e sig_cn tb tests =
   let a = fresh_typ_var () in
   let chi_id = incr fresh_chi_id; !fresh_chi_id in
-  let chi_b = PredVarU (chi_id, tb) in
-  let chi_a = PredVarU (chi_id, TVar a) in
+  let chi_b = PredVarU (chi_id, tb, expr_loc e) in
+  let chi_a = PredVarU (chi_id, TVar a, expr_loc e) in
   let bvs = VarSet.union (fvs_typ tb) (fvs_formula sig_cn) in
   let def_typ = VarSet.elements bvs, [chi_b], tb in
   let gamma = (x, def_typ)::gamma in
@@ -520,7 +524,7 @@ let infer_prog solver prog =
           ety_id pr_formula phi (pr_ty false) ty;
         (* *)
         match phi with
-        | [PredVarB (chi_id, TVar a3, TVar a2)]
+        | [PredVarB (chi_id, TVar a3, TVar a2, loc)]
             when a3=delta && a2=delta' && ty=tdelta ->
           let vs, phi =
             try List.assoc chi_id sb_chi
@@ -801,8 +805,8 @@ let vs_hist_atom increase = function
   | Eqty (t1, t2, _) | Leq (t1, t2, _) ->
     vs_hist_typ increase t1; vs_hist_typ increase t2
   | CFalse _ -> ()
-  | PredVarU (_, t) -> vs_hist_typ increase t
-  | PredVarB (_, t1, t2) ->
+  | PredVarU (_, t, _) -> vs_hist_typ increase t
+  | PredVarB (_, t1, t2, _) ->
     vs_hist_typ increase t1; vs_hist_typ increase t2
 
 let vs_hist_sb increase sb =
@@ -898,9 +902,9 @@ let nicevars_atom env = function
   | Leq (t1, t2, loc) ->
     Leq (nicevars_typ env t1, nicevars_typ env t2, loc)
   | CFalse _ as a -> a
-  | PredVarU (i, t) -> PredVarU (i, nicevars_typ env t)
-  | PredVarB (i, t1, t2) ->
-    PredVarB (i, nicevars_typ env t1, nicevars_typ env t2)
+  | PredVarU (i, t, lc) -> PredVarU (i, nicevars_typ env t, lc)
+  | PredVarB (i, t1, t2, lc) ->
+    PredVarB (i, nicevars_typ env t1, nicevars_typ env t2, lc)
 
 let nicevars_cnstrnt c =
   let rec aux env = function

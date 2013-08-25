@@ -386,9 +386,13 @@ external f : Bar → Bool
 
 let rec filter =
   efunction LNil -> LNil
-    | LCons (x, l) -> match f x with
-          True -> LCons (x, filter l)
-	| False -> filter l"
+    | LCons (x, xs) -> match f x with
+        | True ->
+          let ys = filter xs in
+          LCons (x, ys)
+	| False ->
+          let ys = filter xs in
+          ys"
         [1,""];
 
     );

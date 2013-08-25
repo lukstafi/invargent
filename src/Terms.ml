@@ -290,28 +290,36 @@ type atom =
 | Eqty of typ * typ * loc
 | Leq of typ * typ * loc
 | CFalse of loc
-| PredVarU of int * typ
-| PredVarB of int * typ * typ
+| PredVarU of int * typ * loc
+| PredVarB of int * typ * typ * loc
 
 let fvs_atom = function
   | Eqty (t1, t2, _) | Leq (t1, t2, _) ->
     VarSet.union (fvs_typ t1) (fvs_typ t2)
   | CFalse _ -> VarSet.empty
-  | PredVarU (_, t) -> fvs_typ t
-  | PredVarB (_, t1, t2) ->
+  | PredVarU (_, t, _) -> fvs_typ t
+  | PredVarB (_, t1, t2, _) ->
     VarSet.union (fvs_typ t1) (fvs_typ t2)
 
 let atom_loc = function
-  | Eqty (_, _, loc) | Leq (_, _, loc)
-  | CFalse loc -> loc
-  | PredVarU (_, _) | PredVarB (_, _, _) -> dummy_loc
+  | Eqty (_, _, loc) | Leq (_, _, loc) | CFalse loc
+  | PredVarU (_, _, loc) | PredVarB (_, _, _, loc)
+    -> loc
+
+let replace_loc_atom loc = function
+  | Eqty (t1, t2, _) -> Eqty (t1, t2, loc)
+  | Leq (t1, t2, _) -> Leq (t1, t2, loc)
+  | CFalse _ -> CFalse loc
+  | PredVarU (n, t, _) -> PredVarU (n, t, loc)
+  | PredVarB (n, t1, t2, _) -> PredVarB (n, t1, t2, loc)
 
 let subst_atom sb = function
   | Eqty (t1, t2, loc) -> Eqty (subst_typ sb t1, subst_typ sb t2, loc)
   | Leq (t1, t2, loc) -> Leq (subst_typ sb t1, subst_typ sb t2, loc)
   | CFalse _ as a -> a
-  | PredVarU (n, t) -> PredVarU (n, subst_typ sb t)
-  | PredVarB (n, t1, t2) -> PredVarB (n, subst_typ sb t1, subst_typ sb t2)
+  | PredVarU (n, t, lc) -> PredVarU (n, subst_typ sb t, lc)
+  | PredVarB (n, t1, t2, lc) ->
+    PredVarB (n, subst_typ sb t1, subst_typ sb t2, lc)
 
 let sb_atom_unary arg = function
   | Eqty (t1, t2, lc) ->
@@ -319,8 +327,8 @@ let sb_atom_unary arg = function
   | Leq (t1, t2, lc) ->
     Leq (sb_typ_unary arg t1, sb_typ_unary arg t2, lc)
   | CFalse _ as a -> a
-  | PredVarU (_, t) -> assert false
-  | PredVarB (_, t1, t2) -> assert false
+  | PredVarU (_, t, _) -> assert false
+  | PredVarB (_, t1, t2, _) -> assert false
 
 let sb_atom_binary arg1 arg2 = function
   | Eqty (t1, t2, lc) ->
@@ -328,8 +336,8 @@ let sb_atom_binary arg1 arg2 = function
   | Leq (t1, t2, lc) ->
     Leq (sb_typ_binary arg1 arg2 t1, sb_typ_binary arg1 arg2 t2, lc)
   | CFalse _ as a -> a
-  | PredVarU (_, t) -> assert false
-  | PredVarB (_, t1, t2) -> assert false
+  | PredVarU (_, t, _) -> assert false
+  | PredVarB (_, t1, t2, _) -> assert false
 
 let subst_fo_atom sb = function
   | Eqty (t1, t2, loc) -> Eqty (subst_typ sb t1, subst_typ sb t2, loc)
@@ -349,6 +357,9 @@ let fvs_sb sb =
 
 let subst_formula sb phi =
   if sb=[] then phi else List.map (subst_atom sb) phi
+
+let replace_loc loc phi =
+  List.map (replace_loc_atom loc) phi
 
 let subst_fo_formula sb phi =
   if sb=[] then phi else List.map (subst_fo_atom sb) phi
@@ -617,8 +628,8 @@ let rec pr_atom ppf = function
   | Leq (t1, t2, _) ->
     fprintf ppf "@[<2>%a@ ≤@ %a@]" pr_one_ty t1 pr_one_ty t2
   | CFalse _ -> pp_print_string ppf "FALSE"
-  | PredVarU (i,ty) -> fprintf ppf "@[<2>𝛘%d(%a)@]" i (pr_ty false) ty
-  | PredVarB (i,t1,t2) ->
+  | PredVarU (i,ty,lc) -> fprintf ppf "@[<2>𝛘%d(%a)@]" i (pr_ty false) ty
+  | PredVarB (i,t1,t2,lc) ->
     fprintf ppf "@[<2>𝛘%d(%a,@ %a)@]" i (pr_ty true) t1 (pr_ty true) t2
 
 and pr_formula ppf atoms =

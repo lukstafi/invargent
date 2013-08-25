@@ -71,8 +71,8 @@ type atom =
 | Eqty of typ * typ * loc
 | Leq of typ * typ * loc
 | CFalse of loc
-| PredVarU of int * typ
-| PredVarB of int * typ * typ
+| PredVarU of int * typ * loc
+| PredVarB of int * typ * typ * loc
 type formula = atom list
 type typ_scheme = var_name list * formula * typ
 type answer = var_name list * formula
@@ -160,6 +160,9 @@ val subst_formula : subst -> formula -> formula
 val subst_fo_atom : subst -> atom -> atom
 val subst_fo_formula : subst -> formula -> formula
 val fvs_sb : subst -> VarSet.t
+
+val replace_loc_atom : loc -> atom -> atom
+val replace_loc : loc -> formula -> formula
 
 (** Substitutions of variables [delta] and [delta']. *)
 val sb_typ_unary : typ -> typ -> typ
