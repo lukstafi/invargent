@@ -527,6 +527,9 @@ let abd cmp_v uni_v ~bparams ~discard ?(iter_no=2) brs =
   let brs = map_some
     (fun (nonrec, prem, concl) ->
       if iter_no > 1 || nonrec then Some (prem, concl) else None) brs in
+  Format.printf "NumS.abd: brs=@\n| %a@\n%!"
+    (pr_line_list "| " pr_eqineq_br) brs;
+  (* *)
   let br0 = 0, List.hd brs in
   let more_brs = List.map (fun br -> -1, br) (List.tl brs) in
 

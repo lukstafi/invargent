@@ -430,16 +430,18 @@ structure_item_raw:
       { syntax_error
 	  "do not use --> for constructors without arguments" 5 }
   | NEWCONS UIDENT COLON opt_constr_intro typ
-      { let n = CNam $2 in
+      { let x = $2 in
+        let n = CNam x in
         let vs, phi = $4 in
         let res = $5 in
         let allvs = VarSet.union (vars_of_list vs)
           (VarSet.union (fvs_formula phi) (fvs_typ res)) in
         let c_n, c_args, more_phi =
           extract_datatyp allvs (rhs_loc 5) res in
-        ValConstr (n, Aux.unique_sorted (c_args @ vs),
-                   (more_phi @ phi),
-	           [], c_n, c_args, get_loc ()) }
+        let vs = Aux.unique_sorted (c_args @ vs) in
+        let phi = more_phi @ phi in
+        Hashtbl.add sigma x (vs, phi, [], c_n, c_args);
+        ValConstr (n, vs, phi, [], c_n, c_args, get_loc ()) }
   | NEWCONS UIDENT COLON opt_constr_intro typ_star_list LONGARROW error
       { syntax_error ("inside the constructor value type") 4 }
   | NEWCONS UIDENT COLON opt_constr_intro error

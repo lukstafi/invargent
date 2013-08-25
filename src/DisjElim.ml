@@ -29,6 +29,7 @@ let antiunif ts =
       vs1 @ vs2, Fun (s1, s2), gsb
     | Nadd t1s::ts when List.for_all
         (function Nadd _ -> true | _ -> false) ts ->
+      (* FIXME: why handling numbers? *)
       let vs, ss, gsb = auxn gsb
         (t1s::List.map
            (function Nadd tks -> tks | _ -> assert false) ts) in
@@ -36,7 +37,12 @@ let antiunif ts =
     | ts ->
       try [], TVar (List.assoc ts gsb), gsb
       with Not_found ->
-        let x = Infer.fresh_typ_var () in
+        let x =
+          if List.for_all typ_sort_typ ts
+          then Infer.fresh_typ_var ()
+          else if List.for_all num_sort_typ ts
+          then Infer.fresh_num_var ()
+          else assert false in
         [x], TVar x, (ts, x)::gsb
 
   and auxn gsb = function
