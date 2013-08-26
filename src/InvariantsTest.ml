@@ -370,9 +370,78 @@ let rec find = efunction
 
     );
 
+  "search castle shortcut" >::
+    (fun () ->
+      todo "existential";
+      test_case "search castle"
+"newtype Room
+newtype Yard
+newtype Village
+
+newtype Castle : type
+newtype Placement : type
+newcons Room : Room ⟶ Castle Room
+newcons Yard : Yard ⟶ Castle Yard
+newcons CastleRoom : Room ⟶ Placement Room
+newcons Village : Village ⟶ Placement Village
+
+newtype Explore
+newcons Ordinary : Explore
+newcons Shortcut : Yard ⟶ Explore
+
+external wander : ∀a. Placement a → ∃b. Placement b
+external check : ∀a. Placement a → Explore
+
+let rec search = efunction
+  | CastleRoom x -> Room x
+  | Village _ as x ->
+    let y = wander x in
+    let w = ematch check y with
+    | Ordinary -> let z = search y in z
+    | Shortcut z -> Yard z in
+    w"
+        [1,"∃t59, t60. δ = (Placement t60 → ∃2:t173[].Castle t173)"];
+
+    );
+
+  "search castle distance" >::
+    (fun () ->
+      todo "existential";
+      test_case "find castle small"
+"newtype Bool
+newcons True : Bool
+newcons False : Bool
+newtype Room
+newtype Yard
+newtype Village
+
+newtype Castle : type
+newtype Placement : type
+newcons Room : Room ⟶ Castle Room
+newcons Yard : Yard ⟶ Castle Yard
+newcons CastleRoom : Room ⟶ Placement Room
+newcons CastleYard : Yard ⟶ Placement Yard
+newcons Village : Village ⟶ Placement Village
+
+external wander : ∀a. Placement a → ∃b. Placement b
+external closer : ∀a. Placement a → Bool
+
+let rec search = efunction
+  | CastleRoom x -> Room x
+  | CastleYard x -> Yard x
+  | Village _ as x ->
+    let y = wander x in
+    let w = ematch closer y with
+    | True -> let z = search y in z
+    | False -> let z = search x in z in
+    w"
+        [1,"∃t59, t60. δ = (Placement t60 → ∃2:t173[].Castle t173)"];
+
+    );
+
   "filter" >::
     (fun () ->
-      (* todo "existential"; *)
+      todo "existential";
       test_case "list filter"
 "newtype Bool
 newtype List : type * num
@@ -386,13 +455,15 @@ external f : Bar → Bool
 
 let rec filter =
   efunction LNil -> LNil
-    | LCons (x, xs) -> match f x with
+    | LCons (x, xs) ->
+      let w = ematch f x with
         | True ->
           let ys = filter xs in
           LCons (x, ys)
 	| False ->
           let ys = filter xs in
-          ys"
+          ys in
+      w"
         [1,""];
 
     );

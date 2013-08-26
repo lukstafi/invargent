@@ -23,6 +23,8 @@ val max_pos : Lexing.position -> Lexing.position -> Lexing.position
 val loc_union : ?loc:loc -> loc -> loc -> loc
 (** The location with smaller span. *)
 val loc_tighter : loc -> loc -> loc
+(** The locations have nonempty intersection. *)
+val interloc : loc -> loc -> bool
 
 type pat =
     Zero

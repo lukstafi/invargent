@@ -35,6 +35,9 @@ let loc_tighter loc1 loc2 =
     loc2.end_pos.pos_cnum - loc2.beg_pos.pos_cnum &&
     loc1.beg_pos.pos_cnum <> -1
   then loc1 else loc2
+let interloc loc1 loc2 =
+  not (loc1.end_pos.pos_cnum < loc2.beg_pos.pos_cnum ||
+         loc1.beg_pos.pos_cnum > loc2.end_pos.pos_cnum)
 
 type pat =
 | Zero

@@ -206,38 +206,7 @@ let satisfiable q (ty_st, num_st) cnj =
     | Right s -> s | Left e -> raise e in
   ty_st, num_st
 
-(* 4 *)
-let select check_max_b q ans ans_max =
-  let allmax = concat_map snd ans_max in
-  let init_res = list_diff ans allmax in
-  Format.printf "select: allmax=@ %a@\ninit_res=@ %a@\n%!"
-      pr_formula allmax pr_formula init_res; (* *)
-  (* Raises [Contradiction] here if solution impossible. *)
-  let init_state = holds q empty_state init_res in
-  let rec loop state ans_res ans_p = function
-    | [] -> ans_res, ans_p
-    | c::cands ->
-      try
-        let state = holds q state [c] in
-        Format.printf "select: dropping@ %a@\n%!"
-          pr_atom c; (* *)
-        loop state (c::ans_res) ans_p cands
-      with Contradiction _ ->
-        let vs = fvs_atom c in
-        Format.printf "select: preserving@ %a@\n%!" pr_atom c; (* *)
-        let ans_p = List.map
-          (fun (b,ans as b_ans) ->
-            if check_max_b vs b then b, c::ans else b_ans)
-          ans_p in
-        Format.printf "select: preserving ans_p=@\n%a@\n%!"
-          (pr_line_list "| " pr_formula)
-          (List.map (fun (b,ans) ->
-            Eqty (TVar b, TVar b, dummy_loc)::ans) ans_p); (* *)
-        loop state ans_res ans_p cands in
-  let ans_p = List.map (fun (b,_)->b,[]) ans_max in
-  loop init_state init_res ans_p allmax
-
-(* 5 *)
+(* 10 *)
 let strat q b ans =
   let (_, ans_r), ans = fold_map
     (fun (pvs, ans_r) c ->
@@ -247,7 +216,7 @@ let strat q b ans =
       let loc = atom_loc c in
       if List.exists q.uni_v vs then
         (let bad = List.find q.uni_v vs in
-         raise (Contradiction
+         raise (NoAnswer
                   (var_sort bad, "Escaping universal variable",
                    Some (TVar b, TVar bad), loc)));
       let avs = List.map Infer.freshen_var vs in
@@ -271,7 +240,6 @@ let split avs ans negchi_locs params zparams q =
       else if c1 then Downstream
       else if c2 then Upstream
       else Same_quant in
-  let smaller_v v1 v2 = cmp_v v1 v2 = Downstream in
   let rec loop avs ans discard sol =
     (* 2 *)
     Format.printf "split-loop: starting ans=@ %a@\nsol=@ %a@\n%!"
@@ -286,71 +254,97 @@ let split avs ans negchi_locs params zparams q =
           when not (q.uni_v a) && VarSet.mem b q.allbvs &&
             cmp_v a b = Downstream -> false
       | _ -> true) ans in
-    let ans0 = List.map (fun c -> c, fvs_atom c) ans0 in
-    (* 3a *)
-    let b_pms = List.map
-      (fun b ->
-        let pms = Hashtbl.find q.b_vs b in
-        let pms = VarSet.union pms (List.assoc b zparams) in
-        b, pms)
+    (* 3 *)
+    let ans_cand = List.map
+      (fun b -> b,
+        snd (connected (VarSet.elements (Hashtbl.find q.b_vs b)) ([],ans0)))
       q.negbs in
-    let check_max_b vs b =
-      let pms = List.assoc b b_pms in
-      (* most downstream *)
-      let vmax = minimal ~less:smaller_v
-        (VarSet.elements (VarSet.inter vs params)) in
-      Format.printf "check_max_b:@ vs=%a@ pms=%a@ vmax=%a@ max?=%b@\n%!"
-        pr_vars vs pr_vars pms pr_vars (vars_of_list vmax)
-        (List.exists (fun v -> VarSet.mem v pms) vmax); (* *)
-      List.exists (fun v -> VarSet.mem v pms) vmax in
-    let ans_cap = List.map
-      (fun b ->
-        b, map_some
-          (fun (c, vs) -> if check_max_b vs b then Some c else None)
-          ans0)
-      q.negbs in
-    (* 4, 9a *)
-    let ans_res, ans_ps =
-      try select check_max_b q ans ans_cap
-      with Contradiction (sort,msg,tys,lc) ->
-        let cnj = concat_map snd ans_cap in
-        (* It would make sense to fallback from here, but for
-           efficiency these violations should have been already
-           detected by abduction. *)
-        (* raise
-          (NoAnswer (sort, cnj, msg, tys, lc)) *)
-        Format.printf
-          "split-NoAnswer: sort=%s;@ msg=%s;@ cnj=%a@\n%!"
-          (sort_str sort) msg pr_formula cnj;
-        (match tys with None -> ()
-        | Some (t1, t2) ->
-          Format.printf "types involved:@ t1=%a@ t2=%a@\n%!"
-            (pr_ty false) t1 (pr_ty false) t2);
-        (* *)
-        assert false in
-    let more_discard = concat_map snd ans_ps in
+    Format.printf "split-loop: ans1=@\n%a@\n%!"
+      pr_bchi_subst (List.map (fun (b,a)->b,(VarSet.elements (Hashtbl.find q.b_vs b),a))
+                       ans_cand); (* *)
+    (* 4 *)
+    let ans_cand = List.map
+      (fun (b,ans) -> b,
+       let chi_locs = Hashtbl.find_all negchi_locs b in
+       List.filter
+         (fun c -> let lc = atom_loc c in
+                   List.exists (interloc lc) chi_locs)
+         ans)
+      ans_cand in
+    Format.printf "split-loop: ans2=@\n%a@\n%!"
+      pr_bchi_subst (List.map (fun (b,a)->b,([],a))
+                       ans_cand); (* *)
     (* 5 *)
+    let ans_cand = List.map
+      (fun (b,ans) -> b,
+       List.filter
+         (fun c ->
+           List.for_all (fun (b',ans') ->
+             cmp_v b b' <> Upstream
+             || not (List.memq c ans')) ans_cand)
+         ans)
+      ans_cand in
+    Format.printf "split-loop: ans3=@\n%a@\n%!"
+      pr_bchi_subst (List.map (fun (b,a)->b,([],a))
+                       ans_cand); (* *)
+    (* 6 *)
+    let ans_cand = List.map
+      (fun (b,ans) ->
+        let bvs = Hashtbl.find q.b_vs b in
+        let res = snd
+          (connected (VarSet.elements bvs) ([],ans)) in
+        Format.printf "split-loop-6: b=%s;@ vs=%a;@ res=%a@\n%!"
+          (var_str b) pr_vars bvs pr_formula res;
+        b, res)
+      ans_cand in
+    Format.printf "split-loop: ans4=@\n%a@\n%!"
+      pr_bchi_subst (List.map (fun (b,a)->b,([],a))
+                       ans_cand); (* *)
+    (* 7 *)
+    let init_res = List.filter
+      (fun c -> not (List.exists (List.memq c % snd) ans_cand)) ans0 in
+    let init_state =
+      try holds q empty_state init_res
+      with Contradiction _ as e -> raise (convert e) in
+    (* 8 *)
+    let ans_res = ref init_res and state = ref init_state in
+    let ans_ps = List.map
+      (fun (b,ans) -> b,
+        List.filter (fun c ->
+          try
+            state := holds q !state [c];
+            ans_res := c :: !ans_res;
+            false
+          with Contradiction _ -> true) ans)
+      ans_cand in
+    Format.printf "split-loop: ans+=@\n%a@\n%!"
+      pr_bchi_subst (List.map (fun (b,a)->b,([],a))
+                       ans_ps); (* *)
+    let ans_res = !ans_res in    
+    let more_discard = concat_map snd ans_ps in
+    (* 9 *)
     let ans_strat = List.map
       (fun (b, ans_p) ->
         Format.printf "select: ans_chi(%s)=@ %a@\n%!"
           (var_str b) pr_formula ans_p; (* *)
+        (* 10 *)
         let (avs_p, ans_l, ans_r) = strat q b ans_p in
         Format.printf "select: ans_l(%s)=@ %a@\n%!"
           (var_str b) pr_formula ans_l; (* *)
         (* Negatively occurring [b] "owns" these formal parameters *)
         q.add_b_vs_of b (List.map (fun v->v,v) avs_p);
-        (* 6 *)
+        (* 11 *)
         let ans0 = List.assoc b sol in
         let ans = ans0 @ ans_l in
-        (* 7 *)
+        (* 12 *)
         let avs0 = VarSet.inter avs (fvs_formula ans) in
-        (* 8.a *)
+        (* 13.a *)
         let avs = VarSet.union avs0 (vars_of_list avs_p) in
         (b, avs), (b, ans), (avs_p, ans_r))
       ans_ps in
     let avss, sol', more = split3 ans_strat in
     let avs_ps, ans_rs = List.split more in
-    (* 8.b *)
+    (* 13.b *)
     let avss = List.map
       (fun (b, avs) ->
         let lbs = List.filter
@@ -359,7 +353,7 @@ let split avs ans negchi_locs params zparams q =
           (List.map (flip List.assoc avss) lbs) in
         VarSet.diff avs uvs)
       avss in
-    (* 9b *)
+    (* 14 *)
     let ans_p = List.concat ans_rs in
     Format.printf "split: ans_p=@ %a@ --@ ans_res=@ %a@\n%!"
       pr_subst ans_p pr_formula ans_res; (* *)
@@ -368,20 +362,20 @@ let split avs ans negchi_locs params zparams q =
       pr_formula ans_res; (* *)
     let avs_p = List.concat avs_ps in
     let avsl = List.map VarSet.elements avss in
-    (* 10 *)
+    (* 15 *)
     if avs_p <> []
     then
-      (* 11 *)
+      (* 16 *)
       let avs' = VarSet.diff avs
         (List.fold_left VarSet.union VarSet.empty avss) in
       let ans_res', discard', sol' =
         loop avs' ans_res (more_discard @ discard) sol' in
-      (* 12 *)
+      (* 17 *)
       ans_res', discard',
       List.map2
         (fun avs (b, (avs', ans')) -> b, (avs@avs', ans')) avsl sol'
     else
-      (* 13 *)
+      (* 18 *)
       ans_res, more_discard @ discard,
       List.map2 (fun avs (b, ans) -> b, (avs, ans)) avsl sol' in
   let solT = List.map (fun b->b, []) q.negbs in
