@@ -281,20 +281,36 @@ let constr_gen_expr gamma e t =
       let t2 = TVar a2 in
       let ety_cn = Extype ety_id in
       let ety = TCons (ety_cn, [t2]) in
-      incr fresh_chi_id;
-      let ex_phi =
-        [], [PredVarB (!fresh_chi_id, tdelta, tdelta', loc)], tdelta in
-      ex_types := (ety_id, (ex_phi, loc)) :: !ex_types;
-      Format.printf
-        "infer-ExLam-ex_types: id=%d a1=%s a2=%s@ phi=%a@ ty=%a@\n%!"
-        ety_id (var_str a1) (var_str a2)
-        pr_formula [PredVarB (!fresh_chi_id, tdelta, tdelta', loc)]
-        (pr_ty false) tdelta;
-      (* *)
-      let cn = List.fold_left cn_and
-        (A [Eqty (Fun (t1, ety), t, loc)])
-        (List.map (aux_ex_cl gamma !fresh_chi_id t1 t2) cls) in
-      Ex (vars_of_list [a1; a2], cn)      
+      (try
+         let ex_phi, _ = List.assoc ety_id !ex_types in
+         let chi_id = match ex_phi with
+           | [], PredVarB (id, _, _, _)::_, _ -> id
+           | _ -> assert false in
+         Format.printf
+           "infer-ExLam-ex_types-old: id=%d chi=%d a1=%s a2=%s@ phi=%a@ ty=%a@\n%!"
+           ety_id chi_id (var_str a1) (var_str a2)
+           pr_formula [PredVarB (chi_id, tdelta, tdelta', loc)]
+           (pr_ty false) tdelta;
+         (* *)
+         let cn = List.fold_left cn_and
+           (A [Eqty (Fun (t1, ety), t, loc)])
+           (List.map (aux_ex_cl gamma chi_id t1 t2) cls) in
+         Ex (vars_of_list [a1; a2], cn)         
+       with Not_found ->
+         let chi_id = incr fresh_chi_id; !fresh_chi_id in
+         let ex_phi =
+           [], [PredVarB (chi_id, tdelta, tdelta', loc)], tdelta in
+         ex_types := (ety_id, (ex_phi, loc)) :: !ex_types;
+         Format.printf
+           "infer-ExLam-ex_types-new: id=%d chi=%d a1=%s a2=%s@ phi=%a@ ty=%a@\n%!"
+           ety_id chi_id (var_str a1) (var_str a2)
+           pr_formula [PredVarB (chi_id, tdelta, tdelta', loc)]
+           (pr_ty false) tdelta;
+         (* *)
+         let cn = List.fold_left cn_and
+           (A [Eqty (Fun (t1, ety), t, loc)])
+           (List.map (aux_ex_cl gamma chi_id t1 t2) cls) in
+         Ex (vars_of_list [a1; a2], cn))      
     | AssertFalse loc -> A [CFalse loc]
     | AssertLeq (e1, e2, e3, loc) ->
       let a1 = fresh_typ_var () in
@@ -371,7 +387,7 @@ let constr_gen_expr gamma e t =
 
   and aux_cl_negcn gamma t1 t2 tcn (p, e) =
     (* Format.printf "aux_cl_negcn: p=@ %a ->@ e= %a@\n%!" (pr_pat false) p
-      (pr_expr false) e; * *)
+       (pr_expr false) e; * *)
     let pcns = constr_gen_pat p t1 in
     let bs, prem, env = envfrag_gen_pat p t1 in
     let concl = aux (List.map typ_to_sch env @ gamma) t2 e in
@@ -380,7 +396,7 @@ let constr_gen_expr gamma e t =
     let res = if VarSet.is_empty bs then cn else All (bs, cn) in
     (* Format.printf "aux_cl_negcn: res=@ %a@\n%!" pr_cnstrnt res; * *)
     res
-    
+      
 
   and aux_cl gamma t1 t2 (p, e) =
     let pcns = constr_gen_pat p t1 in

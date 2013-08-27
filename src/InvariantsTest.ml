@@ -22,7 +22,12 @@ let test_case msg test answers =
         let uni_v v =
           try Hashtbl.find uni_v v with Not_found -> false in
         let brs = Infer.simplify preserve cmp_v uni_v brs in
-        Format.printf "simpl-brs: %s@\n%a@\n%!" msg Infer.pr_brs brs;
+        Format.printf "simpl-brs: %s@\n%a@\nex_types:@\n%!"
+          msg Infer.pr_brs brs;
+        List.iter (fun (i,((vs,phi,t),loc)) ->
+          Format.printf "∃%d: vs=%a@ t=%a@ phi=%a@\n%!"
+            i pr_vars (vars_of_list vs) (pr_ty false) t pr_formula phi
+        ) !ex_types;
         (* *)
         let brs = List.map Infer.br_to_formulas brs in
         let _, _, (sol_res, sol_chi) =
@@ -372,7 +377,7 @@ let rec find = efunction
 
   "search castle shortcut" >::
     (fun () ->
-      todo "existential";
+      (* todo "existential"; *)
       test_case "search castle"
 "newtype Room
 newtype Yard

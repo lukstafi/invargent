@@ -55,6 +55,7 @@ let existential evs exphi ty loc =
   let targs = List.map (fun v -> TVar v) resvs in
   let resty = TCons (CNam "Tuple", targs) in
   let ety_id = incr extype_id; !extype_id in
+  assert (not (List.mem_assoc ety_id !ex_types));
   let ety_cn = Extype ety_id in
   let ety = TCons (ety_cn, [resty]) in
   let phi = Eqty (tdelta', resty, loc) :: exphi in

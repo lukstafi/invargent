@@ -10,6 +10,7 @@
 let debug = ref false
 
 open Lexing
+open Aux
 
 type loc = {beg_pos : position; end_pos : position}
 let dummy_loc =
@@ -240,17 +241,17 @@ let rec typ_next ?(same_level=false) t =
   match t.typ_ctx with
   | [] -> None
   | (TCons_dir (n, ts_l, []))::_ when not same_level ->
-    Aux.bind_opt (typ_down t) (typ_next ~same_level)
+    bind_opt (typ_down t) (typ_next ~same_level)
   | (TCons_dir (n, ts_l, []))::_ (* when same_level *) -> None
   | (TCons_dir (n, ts_l, t_r::ts_r))::ctx ->
     Some {typ_sub=t_r; typ_ctx=TCons_dir (n, ts_l@[t.typ_sub], ts_r)::ctx}
   | Fun_left t2::ctx ->
     Some {typ_sub = t2; typ_ctx = Fun_right t.typ_sub::ctx}
   | Fun_right _ :: _ when not same_level ->
-    Aux.bind_opt (typ_down t) (typ_next ~same_level)
+    bind_opt (typ_down t) (typ_next ~same_level)
   | Fun_right _ :: _ (* when same_level *) -> None
   | (Nadd_dir (ts_l, []))::_ when not same_level ->
-    Aux.bind_opt (typ_down t) (typ_next ~same_level)
+    bind_opt (typ_down t) (typ_next ~same_level)
   | (Nadd_dir (ts_l, []))::_ (* when same_level *) -> None
   | (Nadd_dir (ts_l, t_r::ts_r))::ctx ->
     Some {typ_sub=t_r; typ_ctx=Nadd_dir (ts_l@[t.typ_sub], ts_r)::ctx}
@@ -284,7 +285,7 @@ let subst_sb ~sb =
   List.map (fun (w,(t,loc)) -> w, (subst_typ sb t, loc))
 
 let update_sb ~more_sb sb =
-  Aux.map_append (fun (w,(t,loc)) -> w, (subst_typ more_sb t, loc)) sb
+  map_append (fun (w,(t,loc)) -> w, (subst_typ more_sb t, loc)) sb
     more_sb
 
 (** {3 Formulas} *)
@@ -363,6 +364,10 @@ let subst_formula sb phi =
 
 let replace_loc loc phi =
   List.map (replace_loc_atom loc) phi
+
+let formula_loc phi =
+  List.fold_left loc_union dummy_loc
+    (List.map atom_loc phi)
 
 let subst_fo_formula sb phi =
   if sb=[] then phi else List.map (subst_fo_atom sb) phi
@@ -453,6 +458,11 @@ let (ex_types : ex_types ref) = ref []
 let current_file_name = ref ""
 
 open Format
+
+let pr_loc_pos_only ppf loc =
+  let clbeg = loc.beg_pos.pos_cnum - loc.beg_pos.pos_bol in
+  fprintf ppf "@[<1>:%d@,-%d:@]"
+    loc.beg_pos.pos_cnum loc.end_pos.pos_cnum
 
 let pr_loc_short ppf loc =
   let clbeg = loc.beg_pos.pos_cnum - loc.beg_pos.pos_bol in
@@ -841,7 +851,7 @@ let connected target (vs, phi) =
   let nodes = List.map (fun c -> c, fvs_atom c) phi in
   let rec loop acc vs nvs rem =
     let more, rem = List.partition
-      (fun (c, cvs) -> List.exists (Aux.flip VarSet.mem cvs) nvs) rem in
+      (fun (c, cvs) -> List.exists (flip VarSet.mem cvs) nvs) rem in
     let mvs = List.fold_left VarSet.union VarSet.empty
       (List.map snd more) in
     let nvs = VarSet.elements (VarSet.diff mvs vs) in
@@ -902,20 +912,20 @@ let unify ?use_quants ?(sb=[]) cmp_v uni_v cnj =
         (Contradiction (Type_sort, "Quantifier violation",
                         Some (TVar w, t'), loc));
       w, (t', loc)) in
-  let cnj_typ, more_cnj = Aux.partition_map
+  let cnj_typ, more_cnj = partition_map
     (function
     | Eqty (t1, t2, loc) when typ_sort_typ t1 && typ_sort_typ t2 ->
-      Aux.Left (t1, t2, loc)
+      Left (t1, t2, loc)
     | Eqty (t1, t2, loc) as a when num_sort_typ t1 && num_sort_typ t2 ->
-      Aux.Right (Aux.Left a)
-    | Leq _ as a -> Aux.Right (Aux.Left a)
+      Right (Left a)
+    | Leq _ as a -> Right (Left a)
     | (CFalse _ | PredVarU _ | PredVarB _) as a ->
-      Aux.Right (Aux.Right a)
+      Right (Right a)
     | Eqty (t1, t2, loc) -> raise
       (Contradiction (Type_sort, "Type sort mismatch",
                       Some (t1, t2), loc)))
     cnj in
-  let cnj_num, cnj_so = Aux.partition_choice more_cnj in
+  let cnj_num, cnj_so = partition_choice more_cnj in
   let rec aux sb num_cn = function
     | [] -> sb, num_cn
     | (t1, t2, loc)::cnj when t1 = t2 -> aux sb num_cn cnj
@@ -965,7 +975,7 @@ let to_formula =
 let combine_sbs ?ignore_so ?use_quants cmp_v uni_v ?(more_phi=[]) sbs =
   let cnj_typ, cnj_num, cnj_so =
     unify ?use_quants cmp_v uni_v
-      (more_phi @ Aux.concat_map to_formula sbs) in
+      (more_phi @ concat_map to_formula sbs) in
   assert (ignore_so<>None || cnj_so = []);
   cnj_typ, cnj_num
 
@@ -980,6 +990,7 @@ let subst_solved ?ignore_so ?use_quants cmp_v uni_v sb ~cnj =
 
 let () = pr_exty :=
   fun ppf (i, rty) ->
+    assert (List.length (List.filter ((=) i % fst) !ex_types) = 1);
     let (vs, phi, ty), loc = List.assoc i !ex_types in
     let d_phi, phi = List.partition
       (function Eqty (t1,_,_) when t1=tdelta' -> true | _ -> false)

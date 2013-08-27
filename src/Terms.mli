@@ -147,6 +147,7 @@ val typ_size : typ -> int
 val fvs_typ : typ -> VarSet.t
 val fvs_atom : atom -> VarSet.t
 val fvs_formula : formula -> VarSet.t
+val formula_loc : formula -> loc
 val vars_of_list : var_name list -> VarSet.t
 val add_vars : var_name list -> VarSet.t -> VarSet.t
 val no_vs : VarSet.t
@@ -247,6 +248,7 @@ val ex_types : ex_types ref
 (** {2 Printing} *)
 
 val sort_str : sort -> string
+val pr_loc_pos_only : Format.formatter -> loc -> unit
 val pr_loc_short : Format.formatter -> loc -> unit
 val pr_loc_long : Format.formatter -> loc -> unit
 val pr_loc_emb : Format.formatter -> loc -> unit

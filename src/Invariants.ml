@@ -7,13 +7,6 @@
 *)
 open Terms
 open Aux
-(* TODO: variable splitting --
-   (1) check atom location to exclude atoms provably outside
-   the scope of a negative predicate variable;
-   (2) filter unconnected atoms from solutions; fail if any of them
-   in no solution;
-   (3) check why existential solutions have doubled delta-LHS without
-   equated RHS. *)
 type chi_subst = (int * (var_name list * formula)) list
 
 type q_with_bvs = {
@@ -262,12 +255,18 @@ let split avs ans negchi_locs params zparams q =
     Format.printf "split-loop: ans1=@\n%a@\n%!"
       pr_bchi_subst (List.map (fun (b,a)->b,(VarSet.elements (Hashtbl.find q.b_vs b),a))
                        ans_cand); (* *)
-    (* 4 *)
+    (* 4 DEBUG *)
     let ans_cand = List.map
       (fun (b,ans) -> b,
        let chi_locs = Hashtbl.find_all negchi_locs b in
+       Format.printf "chi_locs: b=%s@ locs=%a@\n%!"
+         (var_str b) (pr_sep_list "; " pr_loc_pos_only) chi_locs;
+       (* *)
        List.filter
          (fun c -> let lc = atom_loc c in
+                   Format.printf "ans_loc: c=%a@ loc=%a@\n%!"
+                     pr_atom c pr_loc_pos_only lc;
+                   (* *)
                    List.exists (interloc lc) chi_locs)
          ans)
       ans_cand in
@@ -439,8 +438,9 @@ let solve cmp_v uni_v brs =
     (fun (prem,concl) ->
       List.iter
         (function
-        | PredVarU (i, TVar b, lc) | PredVarB (i, TVar b, _, lc) ->
-          Hashtbl.add negchi_locs b lc;
+        | PredVarU (i, TVar b, lc_p) | PredVarB (i, TVar b, _, lc_p) ->
+          let lc_c = formula_loc concl in
+          Hashtbl.add negchi_locs b (loc_union lc_p lc_c);
           q.add_bchi b i false
         | _ -> ()) prem;
       List.iter
