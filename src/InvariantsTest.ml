@@ -339,8 +339,7 @@ let rec find = efunction
   | CastleYard x -> Yard x
   | Village _ as x ->
     let y = wander x in
-    let z = find y in
-    z"
+    find y"
         [1,"∃t59, t60. δ = (Placement t60 → ∃2:t173[].Castle t173)"];
 
       test_case "find castle big"
@@ -365,12 +364,10 @@ let rec find = efunction
   | CastleYard x -> Yard x
   | Garden _ as x ->
     let y = wander x in
-    let z = find y in
-    z
+    find y
   | Village _ as x ->
     let y = wander x in
-    let z = find y in
-    z"
+    find y"
         [1,"∃t99, t100. δ = (Placement t100 → ∃2:t431[].Castle t431)"];
 
     );
@@ -401,10 +398,9 @@ let rec search = efunction
   | CastleRoom x -> Room x
   | Village _ as x ->
     let y = wander x in
-    let w = ematch check y with
-    | Ordinary -> let z = search y in z
-    | Shortcut z -> Yard z in
-    w"
+    ematch check y with
+    | Ordinary -> search y
+    | Shortcut z -> Yard z"
         [1,"∃t59, t60. δ = (Placement t60 → ∃2:t173[].Castle t173)"];
 
     );
@@ -436,10 +432,9 @@ let rec search = efunction
   | CastleYard x -> Yard x
   | Village _ as x ->
     let y = wander x in
-    let w = ematch closer y with
-    | True -> let z = search y in z
-    | False -> let z = search x in z in
-    w"
+    ematch closer y with
+    | True -> search y
+    | False -> search x"
         [1,"∃t59, t60. δ = (Placement t60 → ∃2:t173[].Castle t173)"];
 
     );
@@ -461,14 +456,12 @@ external f : Bar → Bool
 let rec filter =
   efunction LNil -> LNil
     | LCons (x, xs) ->
-      let w = ematch f x with
+      ematch f x with
         | True ->
           let ys = filter xs in
           LCons (x, ys)
 	| False ->
-          let ys = filter xs in
-          ys in
-      w"
+          filter xs"
         [1,""];
 
     );
