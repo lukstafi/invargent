@@ -12,7 +12,7 @@ open Aux
 let test_case msg test answers =
       Terms.reset_state ();
       Infer.reset_state ();
-      let prog = Parser.program Lexer.token
+      let prog = (Infer.normalize_program % Parser.program Lexer.token)
 	(Lexing.from_string test) in
       try
         let preserve, cn = Infer.infer_prog_mockup prog in

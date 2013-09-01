@@ -7,6 +7,7 @@
 *)
 open OUnit
 open Infer
+open Aux
 
 let tests = "Infer" >::: [
 
@@ -14,7 +15,7 @@ let tests = "Infer" >::: [
     (fun () ->
       Terms.reset_state ();
       Infer.reset_state ();
-      let prog = Parser.program Lexer.token
+      let prog = (normalize_program % Parser.program Lexer.token)
 	(Lexing.from_string
 "newtype Term : type
 newtype Int
@@ -82,7 +83,7 @@ let rec eval = function
       todo "numeric";
       Terms.reset_state ();
       Infer.reset_state ();
-      let prog = Parser.program Lexer.token
+      let prog = (normalize_program % Parser.program Lexer.token)
 	(Lexing.from_string
 "newtype Bool
 newtype List : type * num

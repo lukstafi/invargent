@@ -16,7 +16,7 @@ let () =
     (* *)
     try
       (* *)
-      let prog = Parser.program Lexer.token
+      let prog = (Infer.normalize_program % Parser.program Lexer.token)
 	(Lexing.from_channel (open_in !current_file_name)) in
       pr_program Format.std_formatter prog
     (* *)

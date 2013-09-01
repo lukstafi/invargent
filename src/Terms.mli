@@ -86,6 +86,7 @@ val tdelta' : typ
 
 val var_sort : var_name -> sort
 val var_str : var_name -> string
+val cns_str : cns_name -> string
 
 val extype_id : int ref
 val predvar_id : int ref

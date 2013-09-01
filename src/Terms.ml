@@ -460,7 +460,6 @@ let current_file_name = ref ""
 open Format
 
 let pr_loc_pos_only ppf loc =
-  let clbeg = loc.beg_pos.pos_cnum - loc.beg_pos.pos_bol in
   fprintf ppf "@[<1>:%d@,-%d:@]"
     loc.beg_pos.pos_cnum loc.end_pos.pos_cnum
 

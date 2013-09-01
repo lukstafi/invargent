@@ -78,7 +78,9 @@
     Concrete syntax: <verbatim|efunction> and <verbatim|ematch> keywords --
     e.g. <verbatim|efunction Nil -\<gtr\> >...<verbatim| \| Cons (x,xs)
     -\<gtr\> >...; <verbatim|ematch l with >... Parsing introduces a fresh
-    identifier for <math|K>. Constructor: <verbatim|ExLam>.
+    identifier for <math|K>, but normalization keeps only one <math|K> for
+    nested <verbatim|ExCases> (unless nesting in body of local definition or
+    in argument of an application). Constructor: <verbatim|ExLam>.
 
     <item*|<verbatim|ExLetIn>><math|<with|math-font-series|bold|let>
     p=e<rsub|1> <with|math-font-series|bold|in> e<rsub|2>:> Elimination of
@@ -100,7 +102,9 @@
   judgement form <math|C,\<Gamma\>,\<Sigma\>\<vdash\>e:\<tau\>> suggests
   passing both as arguments. Existential type constructs introduce fresh
   identifiers <math|K>, but we keep them separately in <verbatim|ex_types>
-  rather than in <verbatim|sigma>. The abstract syntax of types is not
+  rather than in <verbatim|sigma>. Note that inferred existential types will
+  not be nested, thanks to normalization of nested occurrences of
+  <math|\<lambda\><around*|[|K|]>>. The abstract syntax of types is not
   sort-safe, but type variables carry sorts which are inferred after parsing.
 
   <block|<tformat|<cwith|1|1|2|2|cell-halign|c>|<cwith|1|1|1|1|cell-halign|l>|<cwith|2|2|2|2|cell-halign|c>|<cwith|2|2|1|1|cell-halign|l>|<table|<row|<cell|type

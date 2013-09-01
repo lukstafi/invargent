@@ -5,12 +5,19 @@
     @author Lukasz Stafiniak lukstafi (AT) gmail.com
     @since Mar 2013
 *)
+
+type ex_cnstr_case =
+| Existential of Terms.var_name list * Terms.formula
+| NotExistential | SameExistential
 type cnstrnt =
-| A of Terms.atom list
+| A of Terms.formula
 | And of cnstrnt list
-| Or1 of Terms.atom list
-| Impl of Terms.atom list * cnstrnt
-| ImplOr2 of Terms.atom list list * cnstrnt * cnstrnt
+| Impl of Terms.formula * cnstrnt
+| Or of Terms.cns_name * (Terms.formula * ex_cnstr_case) list
+  * (ex_cnstr_case -> cnstrnt)
+(** If the first formula holds, pass the second formula to get the
+    constraint. The constructor name is the existential type which
+    gives [SameExistential]. *)
 | All of Terms.VarSet.t * cnstrnt
 | Ex of Terms.VarSet.t * cnstrnt
 
@@ -41,6 +48,9 @@ val infer_prog :
   (string * Terms.typ_scheme) list * Terms.struct_item list
 
 (** {2 Normalization} *)
+val normalize_expr : Terms.expr -> Terms.expr
+val normalize_program : Terms.program -> Terms.program
+
 type branch =
   Terms.formula * (Terms.subst * Terms.formula * Terms.formula)
 val br_to_formulas : branch -> Terms.formula * Terms.formula
@@ -74,7 +84,6 @@ val next_num : nicevars_env -> int -> nicevars_env
 val nicevars_typ : nicevars_env -> Terms.typ -> Terms.typ
 val nicevars_atom : nicevars_env -> Terms.atom -> Terms.atom
 *)
-val nicevars_cnstrnt : cnstrnt -> cnstrnt
 val nicevars_struct_item : Terms.struct_item -> Terms.struct_item
 val pr_cnstrnt : Format.formatter -> cnstrnt -> unit
 val pr_brs : Format.formatter -> branch list -> unit
