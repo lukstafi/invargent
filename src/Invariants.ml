@@ -50,8 +50,12 @@ let new_q cmp_v uni_v =
   let find_chi b = Hashtbl.find b_chi b in
   let rec add_bchi b i posi =
     if Hashtbl.mem b_chi b
-    then assert (Hashtbl.find b_chi b = i)
-    else (
+    then (
+      let old = Hashtbl.find b_chi b in
+      Format.printf "add_bchi: exist old=%d chi%d(%s);@ posi=%b@\n%!"
+        old i (var_str b) posi; (* *)
+      assert (Hashtbl.find b_chi b = i)
+    ) else (
       Format.printf "add_bchi: chi%d(%s);@ posi=%b@\n%!"
         i (var_str b) posi; (* *)
       if posi then Hashtbl.add posi_b b ()
@@ -511,6 +515,11 @@ let solve cmp_v uni_v brs =
            chiK_pos)
          brs1) in
     let chiK = List.map (fun ((i,t2),cnjs) -> i, (t2, cnjs)) chiK in
+    Format.printf "solve: chiK keys=%a@\n%!"
+      (pr_sep_list "| " (fun ppf (i,(t,_)) ->
+        Format.fprintf ppf "%d,%a" i (pr_ty false) t)) chiK;
+    (* *)
+    assert (is_unique (List.map fst chiK));
     (* 2 *)
     let dK = List.map
       (fun (i,(t2,cnjs)) ->
