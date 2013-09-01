@@ -28,6 +28,13 @@ let unique_sorted ?(cmp = Pervasives.compare) l =
     | [] -> acc in
   idemp [] (List.sort (fun x y -> - (cmp x y)) l)
 
+let is_unique l =
+  let rec idemp = function
+    | e1::(e2::_) when e1 = e2 -> false
+    | e::tl -> idemp tl
+    | [] -> true in
+  idemp (List.sort Pervasives.compare l)
+
 let fold_map f acc l =
   let rec aux acc res =
     function
@@ -203,6 +210,9 @@ let map_opt t f =
   match t with
   | None -> None
   | Some t -> Some (f t)
+
+let default v0 f v =
+  match v with None -> v0 | Some v -> f v
 
 let unsome = function None -> invalid_arg "Aux.unsome" | Some e -> e
 
