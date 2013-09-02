@@ -185,15 +185,9 @@ let inter_merge (type a) (type b) (type c)
 let list_inter a b = List.filter (fun e -> List.mem e b) a
 let list_diff a b = List.filter (fun e -> not (List.mem e b)) a
 
-(* Second argument should be sorted. *)
-let replace_assocs ~repl l =
-  let cmp  (i,_) (j,_) = compare i j in
-  let rec idemp acc = function
-    | e1::(e2::_ as tl) when cmp e1 e2 = 0 -> idemp acc tl
-    | e::tl -> idemp (e::acc) tl
-    | [] -> acc in
-  (* [merge] puts first list elements first *)
-  idemp [] (List.rev (merge cmp l (List.sort cmp repl)))
+let replace_assocs ~repl l = List.map
+  (fun (k,_ as kv) -> try k, List.assoc k repl with Not_found -> kv)
+  l
 
 let rec update_assoc k0 v0 f = function
   | [] -> [k0, f v0]
