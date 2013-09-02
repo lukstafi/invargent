@@ -59,8 +59,3 @@ val abd_mockup_num :
   zparams:vparams ->
   (Terms.formula * Terms.formula) list ->
   (Terms.formula * Terms.formula) list option
-val abd_s :
-  (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
-  (Terms.var_name -> bool) ->
-  Terms.formula -> Terms.formula ->
-  (Terms.var_name list * Terms.formula) option

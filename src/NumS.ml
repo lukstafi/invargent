@@ -638,26 +638,6 @@ let abd cmp_v uni_v ~bparams ~discard ?(iter_no=2) brs =
     List.map (partition_map (flatten cmp)) discard in
   [], ans_to_formula (loop failed ([], []) [] (br0::more_brs))
 
-let abd_s cmp_v uni_v prem concl =
-  let cmp_v = make_cmp cmp_v in
-  let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
-  let cmp_w (vars1,cst1,_) (vars2,cst2,_) =
-    match vars1, vars2 with
-    | [], [] -> 0
-    | _, [] -> -1
-    | [], _ -> 1
-    | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
-  let validate eqs (ineqs : ineqs) = () in
-  match abd_simple cmp cmp_w uni_v ~validate
-    ~bvs:VarSet.empty 0 ([], [])
-    (partition_map (flatten cmp) prem,
-     partition_map (flatten cmp) concl) with
-  | Some (ans_eqs, ans_ineqs) ->
-    let ans = List.map (expand_atom true) (unsubst ans_eqs) in
-    let ans = ans @ List.map (expand_atom false) (unsolve ans_ineqs) in
-    Some ([], ans)
-  | None -> None
-
 let disjelim_rotations = ref 3
 
 let i2f = float_of_int

@@ -499,8 +499,8 @@ let solve cmp_v uni_v brs =
     (Ints.elements q.allchi) in
   let rec loop iter_no discard sol0 sol1 =
     let brs1 = sb_brs_allpred q sol1 brs in
-    Format.printf "solve: loop iter_no=%d -- brs substituted@\n%!"
-      iter_no; (* *)
+    Format.printf "solve: loop iter_no=%d@\nsol=@ %a@\n%!"
+      iter_no pr_chi_subst sol1; (* *)
     Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs5 brs1; (* *)
     (* 1 *)
     let chiK = collect
@@ -527,44 +527,38 @@ let solve cmp_v uni_v brs =
     let dK = map_some
       (fun (i,(gvs, g_ans)) ->
         let vs, ans = List.assoc i sol1 in
-        (* Adding to quantifier for [abd_s] and [simplify]. *)
+        (* Adding to quantifier for [simplify]. *)
         let cmp_v' gvs v1 v2 =
           let c1 = List.mem v1 gvs and c2 = List.mem v2 gvs in
           if c1 && c2 then Same_quant
           else if c1 then Downstream
           else if c2 then Upstream
           else cmp_v v1 v2 in
-        Format.printf "solve.loop-dK: before abd_s@ gvs=%a@ g_ans=%a@\n%!"
+        Format.printf "solve.loop-dK: before simplify@ gvs=%a@ g_ans=%a@\n%!"
           pr_vars (vars_of_list gvs) pr_formula g_ans; (* *)
-        (* FIXME: what about quantifiers? parameters? *)
-        match Abduction.abd_s (cmp_v' gvs) uni_v ans g_ans with
-        | None -> None
-        | Some (gvs', g_ans') ->
-          (* 3 *)
-          Format.printf "solve.loop-dK: before simpl@ gvs'=%a@ g_ans'=%a@\n%!"
-            pr_vars (vars_of_list gvs') pr_formula g_ans'; (* *)
-          let gvs', g_ans' =
-            simplify (cmp_v' (gvs' @ gvs)) uni_v gvs' g_ans' in
-          if g_ans' = [] then None
-          else
-            let gvs = VarSet.elements
-              (VarSet.inter (vars_of_list (gvs @ gvs')) (fvs_formula g_ans')) in
-            Format.printf "solve.loop-dK: final@ gvs=%a@ g_ans=%a@\n%!"
-              pr_vars (vars_of_list gvs) pr_formula g_ans'; (* *)
-            (* No [b] "owns" these formal parameters. Their instances
-               will be added to [q] by [sb_brs_pred]. *)
-            Some ((i, (gvs @ vs, g_ans' @ ans)),
-                  (i, (gvs, g_ans')))
+        (* 3 *)
+        if g_ans = [] then None
+        else
+          let gvs, ans' =
+            simplify (cmp_v' gvs) uni_v gvs (g_ans @ ans) in
+          Format.printf "solve.loop-dK: final@ gvs=%a@ ans'=%a@\n%!"
+            pr_vars (vars_of_list gvs) pr_formula ans'; (* *)
+          (* No [b] "owns" these formal parameters. Their instances
+             will be added to [q] by [sb_brs_pred]. *)
+          if list_diff ans' ans = [] then None
+          else Some ((i, (gvs @ vs, ans')), (i, (gvs, g_ans)))
       ) dK in
     let repl_dK, upd_dK = List.split dK in
     Format.printf "solve: loop; #dK=%d@ upd_dK=%a@\n%!"
       (List.length dK) pr_chi_subst upd_dK; (* *)
-    (* 4 *)
     let sol1 = replace_assocs ~repl:repl_dK sol1 in
     let brs1 = sb_brs_dK q upd_dK brs1 in
+    Format.printf "solve: loop iter_no=%d dK replaced @\nsol=@ %a@\n%!"
+      iter_no pr_chi_subst sol1; (* *)
     Format.printf "solve-loop: iter_no=%d -- ex. brs substituted@\n%!"
       iter_no; (* *)
     Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs3 brs1; (* *)
+    (* 4 *)
     let neg_cns1 = List.map
       (fun (prem,loc) -> sb_formula_pred q false sol1 prem, loc)
       neg_cns in
@@ -589,7 +583,7 @@ let solve cmp_v uni_v brs =
               Format.printf "neg_cl_check: cnj=@ %a@\n%!" pr_formula
                 cnj; (* *)
               let ty_cn (*_*), num_cn, _ =
-                 unify cmp_v uni_v cnj in
+                unify cmp_v uni_v cnj in
               if num_cn = [] then (
                 Format.printf
                   "neg_cl_check: fallback typ@ ty_cn=@ %a@\n%!"
@@ -624,8 +618,8 @@ let solve cmp_v uni_v brs =
         let ans_res, more_discard, sol2 =
           split vs ans negchi_locs params zparams q in
         Format.printf
-        "solve: loop -- answer split@ more_discard=@ %a@\nans_res=@ %a@\nsol=@ %a@\n%!"
-          pr_formula more_discard pr_formula ans_res pr_chi_subst sol1; (* *)
+          "solve: loop -- answer split@ more_discard=@ %a@\nans_res=@ %a@\n%!"
+          pr_formula more_discard pr_formula ans_res; (* *)
         Aux.Right (alien_eqs, ans_res, more_discard, sol2)
       with
       (* it does not seem to make a difference *)
@@ -655,7 +649,7 @@ let solve cmp_v uni_v brs =
         let a2 = match t2 with TVar a2 -> a2 | _ -> assert false in
         let phi =
           Eqty (tdelta', TCons (CNam "Tuple", targs), dummy_loc) ::
-          subst_formula [a2, (tdelta', dummy_loc)] ans in
+            subst_formula [a2, (tdelta', dummy_loc)] ans in
         Format.printf
           "lift_ex_types: t2=%a@ vs=%a@ dvs=%a@ ans=%a@ phi=%a@\n%!"
           (pr_ty false) t2 pr_vars (vars_of_list vs)
@@ -742,7 +736,7 @@ let solve cmp_v uni_v brs =
     List.iter (fun (cnj, loc) ->
       try
         let cnj = sb_formula_pred q false (snd sol) cnj in
-      (* FIXME: rethink. *)
+        (* FIXME: rethink. *)
         ignore (satisfiable q empty_state cnj);
         raise (Contradiction (
           (* FIXME *) Type_sort,
@@ -779,6 +773,6 @@ let solve cmp_v uni_v brs =
       | ex_i, _ as ex_ty ->
         Format.printf "solve-ex_types: unchanged %d@\n%!" ex_i;
         ex_ty
-    ) !ex_types;
+      ) !ex_types;
     Format.printf "solve: returning@\n%!"; (* *)
     cmp_v, uni_v, sol

@@ -779,48 +779,5 @@ let abd cmp_v uni_v ~bvs ~zvs ~bparams ~zparams ?(iter_no=2)
    Aux.map_append (fun (v,(t,lc)) -> Eqty (TVar v,t,lc))
      ans_typ ans_num)
 
-let abd_s cmp_v uni_v prem concl =
-  (* Do not change the order and no. of branches afterwards. *)
-  let prem_opt =
-    try Some (unify cmp_v uni_v prem)
-    with Contradiction _ -> None in
-  match prem_opt with
-  | Some (prem_typ, prem_num, prem_so) when
-      List.for_all (function CFalse _ -> false | _ -> true) prem_so ->
-    (try
-       let concl_typ, concl_num, concl_so =
-         unify cmp_v uni_v concl in
-       if List.exists (function CFalse _ -> true | _ -> false) prem_so
-       then None
-       else if not (Aux.is_right (NumS.satisfiable concl_num)) then None
-       else
-         Aux.bind_opt
-           (abd_simple cmp_v uni_v ~without_quant:()
-              ~bvs:VarSet.empty ~zvs:VarSet.empty
-              ~bparams:[] ~zparams:[]
-              ~validate:(fun _ _ -> ()) ~discard:[] 0 ([], [])
-              (prem_typ, concl_typ))
-           (fun ((tvs, ans_typ)) ->
-             let more_num =
-                 try
-                   let cnj_ty, cnj_num =
-                     combine_sbs
-                       cmp_v uni_v [prem_typ; ans_typ] in
-                   let res_ty, res_num =
-                     residuum cmp_v uni_v cnj_ty concl_typ in
-                   assert (res_ty = []);
-                   cnj_num @ res_num
-                 with Contradiction _ -> assert false in
-             let ans_num =
-               NumS.abd_s cmp_v uni_v
-                 prem_num (more_num @ concl_num) in
-             Aux.map_opt ans_num
-               (fun (nvs, ans_num) ->
-                 (nvs @ tvs,
-                  Aux.map_append (fun (v,(t,lc)) -> Eqty (TVar v,t,lc))
-                    ans_typ ans_num)))
-     with Contradiction _ -> None)
-  | _ -> Some ([], [])
-
 
 
