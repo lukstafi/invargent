@@ -284,9 +284,8 @@ let rec flatten_pairs =
   function LNil -> LNil
     | LCons ((x, y), l) ->
       LCons (x, LCons (y, flatten_pairs l))"
-        [1,"∃n41, n42, t43. δ = (List ((t43, t43), n42) → List (t43, n41)) ∧
+        [1,"∃n41, n42, t44. δ = (List ((t44, t44), n42) → List (t44, n41)) ∧
   n41 = (n42 + n42)"];
-
     );
 
   "escape castle" >::
@@ -340,7 +339,7 @@ let rec find = efunction
   | Village _ as x ->
     let y = wander x in
     find y"
-        [1,"∃t59, t60. δ = (Placement t60 → ∃2:t173[].Castle t173)"];
+        [1,"∃t50, t51. δ = (Placement t51 → ∃2:t41[].Castle t41)"];
 
       test_case "find castle big"
 "newtype Room
@@ -368,13 +367,12 @@ let rec find = efunction
   | Village _ as x ->
     let y = wander x in
     find y"
-        [1,"∃t99, t100. δ = (Placement t100 → ∃2:t431[].Castle t431)"];
-
+        [1,"∃t75, t76. δ = (Placement t76 → ∃2:t62[].Castle t62)"];
     );
 
   "search castle shortcut" >::
     (fun () ->
-      (* todo "existential"; *)
+      todo "debug";
       test_case "search castle"
 "newtype Room
 newtype Yard
@@ -401,8 +399,7 @@ let rec search = efunction
     ematch check y with
     | Ordinary -> search y
     | Shortcut z -> Yard z"
-        [1,"∃t59, t60. δ = (Placement t60 → ∃2:t173[].Castle t173)"];
-
+        [1,"∃t71, t72. δ = (Placement t72 → ∃3:t59[].Castle t59)"];
     );
 
   "search castle distance" >::
@@ -435,13 +432,12 @@ let rec search = efunction
     ematch closer y with
     | True -> search y
     | False -> search x"
-        [1,"∃t59, t60. δ = (Placement t60 → ∃2:t173[].Castle t173)"];
-
+        [1,"∃t81, t82. δ = (Placement t82 → ∃3:t69[].Castle t69)"];
     );
 
   "filter" >::
     (fun () ->
-      todo "existential";
+      (* todo "existential"; *)
       test_case "list filter"
 "newtype Bool
 newtype List : type * num

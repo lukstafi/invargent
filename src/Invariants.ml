@@ -419,6 +419,12 @@ let solve cmp_v uni_v brs =
   let neg_brs, brs = List.partition
     (fun (_,concl) -> List.exists
       (function CFalse _ -> true | _ -> false) concl) brs in
+  let cmp_v' gvs v1 v2 =
+    let c1 = List.mem v1 gvs and c2 = List.mem v2 gvs in
+    if c1 && c2 then Same_quant
+    else if c1 then Downstream
+    else if c2 then Upstream
+    else cmp_v v1 v2 in
   (* Enrich the negative branches -- they need it. *)
   let neg_brs = List.map
     (fun (prem,concl) ->
@@ -528,12 +534,6 @@ let solve cmp_v uni_v brs =
       (fun (i,(gvs, g_ans)) ->
         let vs, ans = List.assoc i sol1 in
         (* Adding to quantifier for [simplify]. *)
-        let cmp_v' gvs v1 v2 =
-          let c1 = List.mem v1 gvs and c2 = List.mem v2 gvs in
-          if c1 && c2 then Same_quant
-          else if c1 then Downstream
-          else if c2 then Upstream
-          else cmp_v v1 v2 in
         Format.printf "solve.loop-dK: before simplify@ gvs=%a@ g_ans=%a@\n%!"
           pr_vars (vars_of_list gvs) pr_formula g_ans; (* *)
         (* 3 *)
@@ -640,7 +640,7 @@ let solve cmp_v uni_v brs =
       let more_discard =
         if alien_eqs = [] then more_discard
         else subst_formula alien_eqs more_discard in
-      (* 6 *)
+      (* 7 *)
       let lift_ex_types t2 (vs, ans) =
         let fvs = fvs_formula ans in
         let dvs = VarSet.elements
@@ -656,7 +656,7 @@ let solve cmp_v uni_v brs =
           pr_vars (vars_of_list dvs) pr_formula ans pr_formula phi;
         (* *)
         vs @ dvs, phi in
-      (* 7 *)
+      (* 11 *)
       let finish sol2 =
         (* start fresh at (iter_no+1) *)
         match loop (iter_no+1) [] sol1 sol2
@@ -668,16 +668,44 @@ let solve cmp_v uni_v brs =
           let discard =
             update_assoc sort [] (fun dl -> s_discard::dl) discard in
           loop iter_no discard sol0 sol1 in
-      if iter_no > 1 && List.for_all (fun (_,(_,ans)) -> ans=[]) sol2
+      (* 6 *)
+      let sol2 = List.map
+        (fun (i, (vs, ans)) ->
+          let bs = List.filter (not % q.positive_b) (q.find_b i) in
+          let ds = List.map (fun b-> b, List.assoc b sol2) bs in
+          let dans = concat_map
+            (fun (b, (dvs, dans)) ->
+              Format.printf
+                "solve-loop-9: chi%d(%s)=@ %a@ +@ %a@\n%!"
+                i (var_str b) pr_ans (dvs,dans) pr_ans (vs,ans); (* *)
+              (* No need to substitute, because variables will be
+                 freshened when predicate variable is instantiated. *)
+              subst_formula [b, (tdelta, dummy_loc)] dans
+            ) ds in
+          let dvs = concat_map (fun (_,(dvs,_))->dvs) ds in
+          let dvs, ans' =
+            simplify (cmp_v' dvs) uni_v dvs (dans @ ans) in
+          let i_res = dvs @ vs, ans' in
+          Format.printf
+            "solve-loop: vs=%a@ ans=%a@ chi%d(.)=@ %a@\n%!"
+            pr_vars (vars_of_list vs) pr_formula ans i pr_ans i_res; (* *)
+          i, i_res)
+        sol1 in    
+      (* 8 *)
+      let finished = iter_no >= 1 && List.for_all2
+        (fun (i,(_,ans2)) (j,(_,ans1)) -> assert (i=j);
+          list_diff ans2 ans1 = [])
+        sol2 sol1 in
+      if iter_no > 1 && finished
       then                              (* final solution *)
         let sol = List.map
           (fun ((i,sol) as isol) ->
-            (* 8 *)
+            (* 9 *)
             try let t2, _ = List.assoc i chiK in
                 i, lift_ex_types t2 sol
             with Not_found -> isol)
           sol1 in
-        (* FIXME: isn't all this simplification redundant? *)
+        (* FIXME: redundant simplification. *)
         let res = fold_map
           (fun ans_res (i,(vs0,ans0)) ->
             let d_vs =
@@ -703,30 +731,9 @@ let solve cmp_v uni_v brs =
           ans_res sol in
         Aux.Right res
       (* Do at least three iterations: 0, 1, 2. *)
-      else if iter_no <= 1 && List.for_all (fun (_,(_,ans)) -> ans=[]) sol2
+      else if iter_no <= 1 && finished
       then loop (iter_no+1) [] sol0 sol1
       else
-        (* 9 *)
-        let sol2 = List.map
-          (fun (i, (vs, ans)) ->
-            let bs = List.filter (not % q.positive_b) (q.find_b i) in
-            let ds = List.map (fun b-> b, List.assoc b sol2) bs in
-            let dans = concat_map
-              (fun (b, (dvs, dans)) ->
-                Format.printf
-                  "solve-loop-9: chi%d(%s)=@ %a@ +@ %a@\n%!"
-                  i (var_str b) pr_ans (dvs,dans) pr_ans (vs,ans); (* *)
-                (* No need to substitute, because variables will be
-                   freshened when predicate variable is instantiated. *)
-                subst_formula [b, (tdelta, dummy_loc)] dans
-              ) ds in
-            let dvs = concat_map (fun (_,(dvs,_))->dvs) ds in
-            let i_res = dvs @ vs, dans @ ans in
-            Format.printf
-              "solve-loop: vs=%a@ ans=%a@ chi%d(.)=@ %a@\n%!"
-              pr_vars (vars_of_list vs) pr_formula ans i pr_ans i_res; (* *)
-            i, i_res)
-          sol1 in    
         (* 10 *)
         finish (converge sol0 sol1 sol2) in
   match loop 0 [] solT solT with
