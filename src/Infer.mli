@@ -8,7 +8,7 @@
 
 type ex_cnstr_case =
 | Existential of Terms.var_name list * Terms.formula
-| NotExistential | SameExistential
+| NotExistential | SameExistential of Terms.pat (* DEBUG: pattern *)
 type cnstrnt =
 | A of Terms.formula
 | And of cnstrnt list
@@ -51,9 +51,7 @@ val infer_prog :
 val normalize_expr : Terms.expr -> Terms.expr
 val normalize_program : Terms.program -> Terms.program
 
-type branch =
-  Terms.formula * (Terms.subst * Terms.formula * Terms.formula)
-val br_to_formulas : branch -> Terms.formula * Terms.formula
+type branch = Terms.formula * Terms.formula
 val fresh_typ_var : unit -> Terms.var_name
 val fresh_num_var : unit -> Terms.var_name
 val freshen_var : Terms.var_name -> Terms.var_name

@@ -289,27 +289,28 @@
 
   Rather than reducing to prenex-normal form as in our formalization, we
   preserve the scope relations and return a <verbatim|var_scope>-producing
-  variable comparison function. Also, since we use
-  <verbatim|let>-<verbatim|in> syntax to both eliminate existential types and
-  for traditional (but not polymorphic) binding, we drop the <verbatim|Or1>
-  constraints (in the formalism they ensure that <verbatim|let>-<verbatim|in>
-  binds an existential type). During normalization, we compute unifiers of
-  the type sort part of conclusions. This faciliates solving of the
-  disjunctions in <verbatim|ImplOr2> constraints. We monitor for
-  contradiction in conclusions, so that we can stop the
-  <verbatim|Contradiction> exception and remove an implication in case the
-  premise is also contradictory.
+  variable comparison function. During normalization, we compute unifiers of
+  the type sort part of conclusions.
 
-  Releasing constraints \ from under <verbatim|ImplOr2>, when the
-  corresponding <verbatim|let>-<verbatim|in> is interpreted as standard
-  binding (instead of eliminating existential type), violates
-  declarativeness. FIXME We cannot include all the released constraints in
-  determining whether non-nested <verbatim|ImplOr2> constraints should be
-  interpreted as eliminating existential types. While we could be more
-  ``aggresive'' (we can modify the implementation to release the constraints
-  one-by-one), it should not be problematic, because nesting of
-  <verbatim|ImplOr2> corresponds to nesting of <verbatim|let>-<verbatim|in>
-  definitions.
+  Releasing constraints \ from under <verbatim|Or> is done iteratively,
+  somewhat similar to how disjunction would be treated in constraint solvers.
+  The cases of <verbatim|Or>, which is called ``disjoint disjunction''
+  <math|<wide|\<vee\>|\<dot\>>> in the formalization, are characterized by a
+  set of single atoms of which at most one can hold, plus a case
+  <verbatim|NotExistential> when none of the atoms holds. Only the atoms are
+  checked for consistency with the remaining constraint, rather than the
+  whole sub-constraints that they guard. But releasing the sub-constraints is
+  essential for eliminating cases of further <verbatim|Or> constraints. The
+  remaining constraints might turn out too weak do disambiguate the
+  <verbatim|Or> constraint, especially if many other <verbatim|Or>
+  sub-constraints have not been released. Not to give up, we introduce
+  preferences: if there are only two cases left (one explicit and the other
+  <verbatim|NotExistential>), <verbatim|Existential> is preferred to
+  <verbatim|SameExistential> which is preferred to <verbatim|NotExistential>.
+  <verbatim|SameExistential> is introduced for
+  <math|\<lambda\><around*|[|K|]>> so that nested pattern matching can be
+  collapsed to form a single existential type. The preferrence ensures that
+  <verbatim|let-in> sub-constraints are released first.
 
   <subsection|Simplification>
 

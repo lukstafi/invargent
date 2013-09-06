@@ -29,7 +29,6 @@ let test_case msg test answers =
             i pr_vars (vars_of_list vs) (pr_ty false) t pr_formula phi
         ) !ex_types;
         (* *)
-        let brs = List.map Infer.br_to_formulas brs in
         let _, _, (sol_res, sol_chi) =
           Invariants.solve cmp_v uni_v brs in
         let test_sol (chi, result) =
@@ -50,7 +49,7 @@ let tests = "Invariants" >::: [
 
   "eval" >::
     (fun () ->
-      todo "debug";
+      (* todo "debug"; *)
       test_case "eval term"
 "newtype Term : type
 newtype Int
@@ -82,7 +81,7 @@ let rec eval = function
 
   "equal with test" >::
     (fun () ->
-      todo "debug";
+      (* todo "debug"; *)
       test_case "equal terms"
 "newtype Ty : type
 newtype Int
@@ -114,7 +113,7 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
 
   "equal with assert" >::
     (fun () ->
-      todo "debug";
+      (* todo "debug"; *)
       test_case "equal terms"
 "newtype Ty : type
 newtype Int
@@ -147,7 +146,7 @@ let rec equal = function
 
   "equal with assert and test" >::
     (fun () ->
-      todo "debug";
+      (* todo "debug"; *)
       test_case "equal terms"
 "newtype Ty : type
 newtype Int
@@ -181,7 +180,7 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
 
   "binary plus" >::
     (fun () ->
-      todo "debug";
+      (* todo "debug"; *)
       test_case "binary plus"
 "newtype Binary : num
 newtype Carry : num
@@ -224,7 +223,7 @@ let rec plus =
 
   "binary plus with test" >::
     (fun () ->
-      todo "debug";
+      (* todo "debug"; *)
       test_case "binary plus test"
 "newtype Binary : num
 newtype Carry : num
@@ -271,7 +270,7 @@ test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
 
   "flatten_pairs" >::
     (fun () ->
-      todo "debug";
+      (* todo "debug"; *)
       test_case "list flatten_pairs"
 "newtype Bool
 newtype List : type * num
@@ -437,7 +436,7 @@ let rec search = efunction
 
   "filter" >::
     (fun () ->
-      (* todo "existential"; *)
+      todo "existential";
       test_case "list filter"
 "newtype Bool
 newtype List : type * num

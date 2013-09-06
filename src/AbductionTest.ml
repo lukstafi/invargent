@@ -33,12 +33,11 @@ let test_simple lhs_m rhs_m ?(validate=(fun _ _ -> ())) skip res =
   assert_equal ~printer:(fun x -> x)
     ~msg:(string_of_int skip^":"^lhs_m^" ⟹ "^rhs_m) res ans
 
-let prepare_brs = List.map
-  (fun br ->
-    let prem, concl = Infer.br_to_formulas br in
+let prepare_brs (brs : Infer.branch list) = List.map
+  (fun (prem, concl) ->
     List.for_all                        (* is_nonrec *)
       (function PredVarU _ -> false | _ -> true) concl,
-    prem, concl)
+    prem, concl) brs
     
 let tests = "Abduction" >::: [
 
