@@ -134,6 +134,10 @@ let add_vars l vs =
   List.fold_right VarSet.add l vs
 let no_vs = VarSet.empty
 
+let rec return_type = function
+  | Fun (_, r) -> return_type r
+  | t -> t
+
 (** {3 Mapping and folding} *)
 
 type typ_map = {

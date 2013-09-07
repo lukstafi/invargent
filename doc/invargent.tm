@@ -312,6 +312,10 @@
   collapsed to form a single existential type. The preferrence ensures that
   <verbatim|let-in> sub-constraints are released first.
 
+  The unsolved constraints are particularly weak with regard to variables
+  constrained by predicate variables. We need to propagate which existential
+  type to select for result type of recursive functions, if any.
+
   <subsection|Simplification>
 
   After normalization, we simplify the constraints by [TODO: explain]
