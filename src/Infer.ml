@@ -855,22 +855,25 @@ let normalize cn =
       let cases = List.filter
         (fun (case, cn_arg) ->
           try
-            let sb, _, _ = unify (case @ more_prem) in
-            Format.printf "test: case prem=%a@\n%!"
-              pr_formula (case @ more_prem); (* *)
+            let sb, _, _ = unify case in
+            Format.printf "test: case=%a@\nsb=%a@\n%!"
+              pr_formula (case @ more_prem) pr_subst sb; (* *)
             (match cn_arg with SameExistential p ->
               Format.printf "cn_arg=SameEx: p=%a@\n%!" (pr_pat false) p
             | NotExistential -> Format.printf "cn_arg=NotEx@\n%!"
             | Existential (_,phi) ->
               Format.printf "cn_arg=Ex: phi=%a@\n%!" pr_formula phi);
             List.iter (fun (prem,concl) ->
+              Format.printf "test: br@ prem=%a@ concl=%a@\n%!"
+                pr_formula prem pr_formula concl; (* *)
               let sb', _, _ = unify ~sb (prem @ concl) in
-              Format.printf "test: br@ prem=%a@ concl=%a@ sb'=%a@\n%!"
-                pr_formula prem pr_formula concl pr_subst sb'; (* *)
+              Format.printf "test: br@ sb'=%a@\n%!"
+                pr_subst sb'; (* *)
             ) brs;
             true
-          with Contradiction _ ->
-            Format.printf "test rejected a disjunct!@\n%!"; (* *)
+          with Contradiction _ as e ->
+            Format.printf "test rejected a disjunct!@\nexn=%a@\n%!"
+              pr_exception e; (* *)
             false)
         cases in
       Format.printf "checking: result #cases=%d@\n%!"

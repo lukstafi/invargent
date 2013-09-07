@@ -49,7 +49,7 @@ let tests = "Invariants" >::: [
 
   "eval" >::
     (fun () ->
-      (* todo "debug"; *)
+      todo "debug";
       test_case "eval term"
 "newtype Term : type
 newtype Int
@@ -81,7 +81,7 @@ let rec eval = function
 
   "equal with test" >::
     (fun () ->
-      (* todo "debug"; *)
+      todo "debug";
       test_case "equal terms"
 "newtype Ty : type
 newtype Int
@@ -113,7 +113,7 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
 
   "equal with assert" >::
     (fun () ->
-      (* todo "debug"; *)
+      todo "debug";
       test_case "equal terms"
 "newtype Ty : type
 newtype Int
@@ -146,7 +146,7 @@ let rec equal = function
 
   "equal with assert and test" >::
     (fun () ->
-      (* todo "debug"; *)
+      todo "debug";
       test_case "equal terms"
 "newtype Ty : type
 newtype Int
@@ -180,7 +180,7 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
 
   "binary plus" >::
     (fun () ->
-      (* todo "debug"; *)
+      todo "debug";
       test_case "binary plus"
 "newtype Binary : num
 newtype Carry : num
@@ -223,7 +223,7 @@ let rec plus =
 
   "binary plus with test" >::
     (fun () ->
-      (* todo "debug"; *)
+      todo "debug";
       test_case "binary plus test"
 "newtype Binary : num
 newtype Carry : num
@@ -270,7 +270,7 @@ test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
 
   "flatten_pairs" >::
     (fun () ->
-      (* todo "debug"; *)
+      todo "debug";
       test_case "list flatten_pairs"
 "newtype Bool
 newtype List : type * num
@@ -310,13 +310,13 @@ let rec escape = function Outside x -> x
   | Yard x ->
     let y = leave (enter x) in
     escape y"
-        [1,"∃t46. δ = (Placement t46 → Outside)"]
+        [1,"∃t48. δ = (Placement t48 → Outside)"]
 
     );
 
   "find castle" >::
     (fun () ->
-      todo "debug";
+      (* todo "debug"; *)
       test_case "find castle small"
 "newtype Room
 newtype Yard
