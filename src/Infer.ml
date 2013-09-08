@@ -790,15 +790,25 @@ let normalize cn =
           | PredVarU (i, TVar b, _) ->
             (if List.mem_assoc b concl_typ
              then match return_type (fst (List.assoc b concl_typ)) with
-             | TCons (Extype j, _) -> Hashtbl.add chi_exchi i j
+             | TCons (Extype j, _) ->
+               Format.printf
+                 "chi-exchi: add chi_exchi b=%s i=%d->j=%d@ ty=%a@\n%!"
+                 (var_str b) i j
+                 (pr_ty false) (fst (List.assoc b concl_typ)); (* *)
+               Hashtbl.add chi_exchi i j
              | _ -> ())
           | _ -> ()) prem;
         List.iter
           (function
-          | PredVarU (i, TVar b, _) ->
+          | PredVarU (i, TVar b, _) when Hashtbl.mem chi_exchi i ->
             (if List.mem_assoc b concl_typ
              then match return_type (fst (List.assoc b concl_typ)) with
-             | TVar v -> Hashtbl.add v_exchi v i
+             | TVar v ->
+               Format.printf
+                 "chi-exchi: add v_exchi i=%d b=%s v=%s->j=%d@ ty=%a@\n%!"
+                 i (var_str b) (var_str v) (Hashtbl.find chi_exchi i)
+                 (pr_ty false) (fst (List.assoc b concl_typ)); (* *)
+               Hashtbl.add v_exchi v (Hashtbl.find chi_exchi i)
              | _ -> ())
           | _ -> ()) concl_so;
         prem,
@@ -910,16 +920,13 @@ let normalize cn =
                 (cns NotExistential))
       | [case, (Existential _ as cn_arg)] when step > 0 ->
         let brs, dsj_brs = flat_cn
-          up_vars same_vars at_uni more_prem (cns cn_arg) in
-        let brs = List.map
-          (fun (prem,concl) -> prem, case @ concl) brs in
-        (* FIXME: adding [case] above? What if [brs=[]]? *)
+          up_vars same_vars at_uni more_prem
+          (cn_and (A case) (cns cn_arg)) in
         Left (brs, dsj_brs)
       | [case, (SameExistential _ as cn_arg)] when step > 1 ->
         let brs, dsj_brs = flat_cn
-          up_vars same_vars at_uni more_prem (cns cn_arg) in
-        let brs = List.map
-          (fun (prem,concl) -> prem, case @ concl) brs in
+          up_vars same_vars at_uni more_prem
+          (cn_and (A case) (cns cn_arg)) in
         Left (brs, dsj_brs)
       | _ -> Right (more_prem,
                     (up_vars, same_vars, at_uni, sameK, cases, cns)) in
@@ -955,44 +962,6 @@ let vs_hist_atom increase = function
 
 let vs_hist_sb increase sb =
   List.iter (fun (v,(t,_)) -> increase v; vs_hist_typ increase t) sb
- 
-let simplify_old preserve cmp_v uni_v brs =
-  (* Prune "implies true" branches. *)
-  let brs = List.filter
-    (function _, ([], [], []) -> false | _ -> true) brs in
-  (* Prune uninformative variables. *)
-  let ht = Hashtbl.create 255 in
-  let increase v =
-    try
-      let n = Hashtbl.find ht v in
-      Hashtbl.replace ht v (n+1)
-    with Not_found -> Hashtbl.add ht v 1 in
-  let count v =
-    try Hashtbl.find ht v with Not_found -> 0 in
-  List.iter
-    (fun (prem,(cn_typ,cn_num,cn_so)) ->
-      List.iter (vs_hist_atom increase) prem;
-      vs_hist_sb increase cn_typ;
-      List.iter (vs_hist_atom increase) cn_num;
-      List.iter (vs_hist_atom increase) cn_so
-    ) brs;
-  let redundant_atom in_prem = function
-    | Eqty (TVar v, _, _) | Leq (TVar v, _, _)
-    | Eqty (_, TVar v, _) | Leq (_, TVar v, _) ->
-      not (VarSet.mem v preserve) && count v = 1
-      && (in_prem || not (uni_v v))       (* FIXME: use cmp_v? *)
-    | _ -> false in
-  let redundant_vsb (v,(t,_)) =
-    not (VarSet.mem v preserve) && count v = 1
-    && not (uni_v v) in    (* FIXME: use cmp_v? *)
-  let nonred_pr_atom a = not (redundant_atom true a) in
-  let nonred_atom a = not (redundant_atom false a) in
-  let nonred_vsb vsb = not (redundant_vsb vsb) in
-  List.map
-    (fun (prem,(cn_typ,cn_num,cn_so)) ->
-      List.filter nonred_pr_atom prem,
-      (List.filter nonred_vsb cn_typ,
-       List.filter nonred_atom cn_num, cn_so)) brs
 
 let simplify preserve cmp_v uni_v brs =
   (* Prune "implies true" branches. *)
