@@ -989,11 +989,13 @@ let simplify preserve cmp_v uni_v brs =
     | _ -> false in
   let nonred_pr_atom a = not (redundant_atom true a) in
   let nonred_atom a = not (redundant_atom false a) in
-  List.map
+  let brs = List.map
     (fun (prem,concl) ->
       List.filter nonred_pr_atom prem,
       List.filter nonred_atom concl)
-    brs
+    brs in
+  (* Join branches with the same premise. *)
+  map_reduce (@) [] brs
 
 (** {2 Postprocessing and printing} *)
 

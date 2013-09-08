@@ -316,7 +316,7 @@ let rec escape = function Outside x -> x
 
   "find castle" >::
     (fun () ->
-      (* todo "debug"; *)
+      todo "debug";
       test_case "find castle small"
 "newtype Room
 newtype Yard
@@ -338,7 +338,7 @@ let rec find = efunction
   | Village _ as x ->
     let y = wander x in
     find y"
-        [1,"∃t50, t51. δ = (Placement t51 → ∃2:t41[].Castle t41)"];
+        [1,"∃t51, t52. δ = (Placement t52 → ∃2:t41[].Castle t41)"];
 
       test_case "find castle big"
 "newtype Room
@@ -366,13 +366,13 @@ let rec find = efunction
   | Village _ as x ->
     let y = wander x in
     find y"
-        [1,"∃t75, t76. δ = (Placement t76 → ∃2:t62[].Castle t62)"];
+        [1,"∃t77, t78. δ = (Placement t78 → ∃2:t62[].Castle t62)"];
     );
 
   "search castle shortcut" >::
     (fun () ->
       todo "debug";
-      test_case "search castle"
+      test_case "search castle shortcut"
 "newtype Room
 newtype Yard
 newtype Village
@@ -398,13 +398,13 @@ let rec search = efunction
     ematch check y with
     | Ordinary -> search y
     | Shortcut z -> Yard z"
-        [1,"∃t71, t72. δ = (Placement t72 → ∃3:t59[].Castle t59)"];
+        [1,"∃t73, t74. δ = (Placement t74 → ∃3:t59[].Castle t59)"];
     );
 
   "search castle distance" >::
     (fun () ->
-      todo "existential";
-      test_case "find castle small"
+      todo "debug";
+      test_case "find castle distance"
 "newtype Bool
 newcons True : Bool
 newcons False : Bool
@@ -431,12 +431,12 @@ let rec search = efunction
     ematch closer y with
     | True -> search y
     | False -> search x"
-        [1,"∃t81, t82. δ = (Placement t82 → ∃3:t69[].Castle t69)"];
+        [1,"∃t84, t85. δ = (Placement t85 → ∃3:t69[].Castle t69)"];
     );
 
   "filter" >::
     (fun () ->
-      todo "existential";
+      (* todo "existential"; *)
       test_case "list filter"
 "newtype Bool
 newtype List : type * num

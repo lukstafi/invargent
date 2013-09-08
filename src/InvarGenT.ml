@@ -6,6 +6,7 @@
     @since Mar 2013
 *)
 open Terms
+open Aux
 
 let () =
   if Array.length Sys.argv <= 1 then (
