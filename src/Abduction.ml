@@ -763,7 +763,8 @@ let abd cmp_v uni_v ~bvs ~zvs ~bparams ~zparams ?(iter_no=2)
   let nvs, ans_num =
     try
       if dissociate then [], []
-      else NumS.abd cmp_v uni_v ~bparams
+      (* [tvs] includes alien variables! *)
+      else NumS.abd cmp_v uni_v ~paramvs:(vars_of_list tvs) ~bparams
         ~discard:discard_num
         ~iter_no brs_num
     with

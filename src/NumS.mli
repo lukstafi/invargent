@@ -10,10 +10,12 @@
 val abd_rotations : int ref
 (** For uniformity, return an empty list as introduced
     variables. Raise [Contradiction] if constraints are contradictory
-    and [Suspect] if no answer can be found. *)
+    and [Suspect] if no answer can be found. [paramvs] includes alien
+    variables, *)
 val abd :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
+  paramvs:Terms.VarSet.t ->
   bparams:(Terms.var_name * Terms.VarSet.t) list ->
   discard:Terms.formula list ->
   ?iter_no:int ->
@@ -34,9 +36,14 @@ val disjelim :
 val simplify :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
-  ?bvs:Terms.VarSet.t ->
   Terms.VarSet.t -> Terms.formula -> 
   Terms.var_name list * Terms.formula
+(*
+val equivalent :
+  (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
+  (Terms.var_name -> bool) -> Terms.formula ->  Terms.formula -> 
+  bool
+*)
 
 type state
 val empty_state : state
