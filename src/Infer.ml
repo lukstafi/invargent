@@ -263,6 +263,10 @@ let rec single_assert_false (_, e) =
     | Lam ([cl], loc) -> single_assert_false cl
     | _ -> false
 
+let impl prem concl =
+  if prem=[] || concl = A [] || concl = And []
+  then concl else Impl (prem, concl)
+
 let constr_gen_expr gamma e t =
   let chiK_t2 = ref [] in
   let rec aux gamma t e =
@@ -379,7 +383,7 @@ let constr_gen_expr gamma e t =
         | Existential (vs, phi) ->
           Format.printf "letin-impls: Existential a0=%s a3=%s@\n%!"
             (var_str a0) (var_str a3); (* *)
-          All (vars_of_list (a3::vs), Impl (phi, concl))
+          All (vars_of_list (a3::vs), impl phi concl)
         | NotExistential ->
           Format.printf "letin-impls: not ex. a0=%s@\n%!"
             (var_str a0); (* *)
@@ -443,8 +447,7 @@ let constr_gen_expr gamma e t =
     let pcns = constr_gen_pat p t1 in
     let bs, prem, env = envfrag_gen_pat p t1 in
     let concl = aux (List.map typ_to_sch env @ gamma) t2 e in
-    let cn =
-      if prem=[] || concl=And [] then concl else Impl (prem, concl) in
+    let cn = impl prem concl in
     let cn = if VarSet.is_empty bs then cn else All (bs, cn) in
     Format.printf "constr_gen-aux_cl: t1=%a@ t2=%a@ cn=%a@\n%!"
       (pr_ty false) t1 (pr_ty false) t2 pr_cnstrnt cn; (* *)
@@ -473,7 +476,7 @@ let constr_gen_expr gamma e t =
         (* Format.printf "ex_cl-impls: Existential t3=%a t5=%a t2=%a@\n%!"
           (pr_ty false) t3 (pr_ty false) t5 (pr_ty false) t2; * *)
         All (vars_of_list (a5::vs),
-             Impl (phi, A [PredVarB (chi_id, t5, t2, expr_loc e)]))
+             impl phi (A [PredVarB (chi_id, t5, t2, expr_loc e)]))
       | NotExistential ->
         (* Format.printf "ex_cl-impls: NotExistential t3=%a t2=%a@\n%!"
           (pr_ty false) t3 (pr_ty false) t2; * *)
@@ -486,8 +489,7 @@ let constr_gen_expr gamma e t =
         A [Eqty (t4, t2, expr_loc e)] in
     let cn = cn_and concl (Or (ety_cn, disjs, impls)) in
     let cn = Ex (vars_of_list [a3; a4], cn) in
-    let cn =
-      if prem=[] || concl=And [] then cn else Impl (prem, cn) in
+    let cn = impl prem cn in
     let cn = if VarSet.is_empty bs then cn else All (bs, cn) in
     Format.printf
       "infer-ex_cl: id=%s chi_id=%d@ t1=%a@ t2=%a@ a3=%s@ a4=%s@ a5=%s@ p=%a@\nconcl_cn=%a@\n%!"
@@ -565,14 +567,11 @@ let infer_prog_mockup prog =
         constr_gen_let !gamma p e t in
       let preserve = VarSet.union (fvs_typ t)
         (VarSet.union (fvs_formula sig_cn) (fvs_formula exphi)) in
-      let cn =
-        if sig_cn=[] || cn=And [] then cn else Impl (sig_cn, cn) in
+      let cn = impl sig_cn cn in
       let cn =
         if sig_vs <> [] then All (vars_of_list sig_vs, cn) else cn in
       let test_cn = constr_gen_tests !gamma tests in
-      let test_cn =
-        if exphi=[] || test_cn=And [] then test_cn
-        else Impl (exphi, test_cn) in
+      let test_cn = impl exphi test_cn in
       let test_cn =
         if not (VarSet.is_empty bs) && test_cn <> And []
         then All (bs, test_cn) else test_cn in
@@ -707,14 +706,11 @@ let infer_prog solver prog =
         constr_gen_let !gamma p e t in
       let preserve = VarSet.union (fvs_typ t)
         (VarSet.union (fvs_formula sig_cn) (fvs_formula exphi)) in
-      let cn =
-        if sig_cn=[] || cn=And [] then cn else Impl (sig_cn, cn) in
+      let cn = impl sig_cn cn in
       let cn =
         if sig_vs <> [] then All (vars_of_list sig_vs, cn) else cn in
       let test_cn = constr_gen_tests !gamma tests in
-      let test_cn =
-        if exphi=[] || test_cn=And [] then test_cn
-        else Impl (exphi, test_cn) in
+      let test_cn = impl exphi test_cn in
       let test_cn =
         if not (VarSet.is_empty bs) && test_cn <> And []
         then All (bs, test_cn) else test_cn in
@@ -840,6 +836,7 @@ let normalize cn =
       and impls = List.concat impls
       and dsjs = List.concat dsjs in
       cnj, impls, dsjs
+    | Impl ([], concl) -> flat_and up_vars same_vars at_uni concl
     | Impl (prem, concl) ->
       [], [up_vars, same_vars, at_uni, prem, concl], []
     | Or (sameK, cases, cns) ->
@@ -994,8 +991,41 @@ let simplify preserve cmp_v uni_v brs =
       List.filter nonred_pr_atom prem,
       List.filter nonred_atom concl)
     brs in
-  (* Join branches with the same premise. *)
-  map_reduce (@) [] brs
+  (* Merge branches with the same premise. *)
+  (* Roughly like [map_reduce (@) [] brs] *)
+  let equiv cnj1 cnj2 =
+    let c1_ty, c1_num, c1_so = unify cmp_v uni_v cnj1 in
+    let c2_ty, c2_num, c2_so = unify cmp_v uni_v cnj2 in
+    let c1_ty = List.map (fun (v,(t,_)) -> v,t) c1_ty
+    and c2_ty = List.map (fun (v,(t,_)) -> v,t) c2_ty
+    and c1_num = replace_loc dummy_loc c1_num
+    and c2_num = replace_loc dummy_loc c2_num
+    and c1_so = replace_loc dummy_loc c1_so
+    and c2_so = replace_loc dummy_loc c2_so in
+    let res =
+      List.sort compare c1_ty = List.sort compare c2_ty &&
+      (* NumS.equivalent cmp_v uni_v c1_num c2_num && *)
+      List.sort compare c1_num = List.sort compare c2_num &&
+      List.sort compare c1_so = List.sort compare c2_so in
+    Format.printf
+      "simplify: equiv? res=%b ty=%b num=%b so=%b@\nc1=%a@\nc2=%a@\n%!"
+      res (List.sort compare c1_ty = List.sort compare c2_ty)
+      (* (NumS.equivalent cmp_v uni_v c1_num c2_num)  *)
+      (List.sort compare c1_num = List.sort compare c2_num)
+      (List.sort compare c1_so = List.sort compare c2_so)
+      pr_formula cnj1 pr_formula cnj2; (* *)
+    res in
+  let rec meet prem concl = function
+    | [] -> raise Not_found
+    | (prem2, concl2 as br) :: brs ->
+      if equiv prem prem2 then (prem, concl @ concl2) :: brs
+      else br :: meet prem concl brs in
+  let rec merge acc = function
+    | [] -> List.rev acc
+    | (prem, concl as br) :: brs ->
+      try merge acc (meet prem concl brs)
+      with Not_found -> merge (br::acc) brs in
+  merge [] brs
 
 (** {2 Postprocessing and printing} *)
 
