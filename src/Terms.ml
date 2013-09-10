@@ -321,6 +321,19 @@ let replace_loc_atom loc = function
   | PredVarU (n, t, _) -> PredVarU (n, t, loc)
   | PredVarB (n, t1, t2, _) -> PredVarB (n, t1, t2, loc)
 
+let eq_atom a1 a2 =
+  match a1, a2 with
+  | Eqty (t1, t2, _), Eqty (t3, t4, _)
+    when t1=t3 && t2=t4 || t1=t4 && t2=t3 -> true
+  | Leq (t1, t2, _), Leq (t3, t4, _)
+    when t1=t3 && t2=t4 -> true
+  | CFalse _, CFalse _ -> true
+  | PredVarU (n1, t1, _), PredVarU (n2, t2, _)
+    when n1=n2 && t1=t2 -> true
+  | PredVarB (n1, t1, t2, _), PredVarB (n2, t3, t4, _)
+    when n1=n2 && t1=t3 && t2=t4 -> true
+  | _ -> false
+
 let subst_atom sb = function
   | Eqty (t1, t2, loc) -> Eqty (subst_typ sb t1, subst_typ sb t2, loc)
   | Leq (t1, t2, loc) -> Leq (subst_typ sb t1, subst_typ sb t2, loc)

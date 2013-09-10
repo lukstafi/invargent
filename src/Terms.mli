@@ -166,6 +166,7 @@ val subst_formula : subst -> formula -> formula
 val subst_fo_atom : subst -> atom -> atom
 val subst_fo_formula : subst -> formula -> formula
 val fvs_sb : subst -> VarSet.t
+val eq_atom : atom -> atom -> bool
 
 val replace_loc_atom : loc -> atom -> atom
 val replace_loc : loc -> formula -> formula

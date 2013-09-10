@@ -857,16 +857,26 @@ let normalize cn =
       if not at_uni
       then flat_and up_vars (VarSet.union vs same_vars) false cn
       else flat_and (VarSet.union up_vars same_vars) vs false cn in
-  let rec flat_cn up_vars same_vars at_uni prem cn =
+  let rec flat_cn up_vars same_vars at_uni prem guard_cnj cn =
     let cnj, impls, dsjs =
       flat_and up_vars same_vars at_uni cn in
+    let impls = List.map
+      (fun (up_vars, same_vars, at_uni, prem, concl) ->
+        let prem = List.filter
+          (function
+          | Eqty (t1, t2, _) when t1=t2 -> false
+          | a -> not (List.exists (eq_atom a) cnj
+                         || List.exists (eq_atom a) guard_cnj)) prem in
+        up_vars, same_vars, at_uni, prem, concl)
+      impls in
     let br0 = prem, cnj in
     let dsj_brs1 = List.map
-      (fun dsj -> prem, dsj) dsjs in
+      (fun dsj -> prem, cnj @ guard_cnj, dsj) dsjs in
     let brs, dsj_brs2 = List.split
       (List.map
          (fun (up_vars, same_vars, at_uni, more_prem, concl) ->
-           flat_cn up_vars same_vars at_uni (more_prem @ prem) concl)
+           flat_cn up_vars same_vars at_uni
+             (more_prem @ prem) (cnj @ guard_cnj) concl)
          impls) in
     br0 :: List.concat brs, List.concat (dsj_brs1 :: dsj_brs2) in
   let rec loop step (brs, dsj_brs) =
@@ -874,7 +884,7 @@ let normalize cn =
       "normalize-loop: init step=%d #dsj_brs=%d@\n%!"
       step (List.length dsj_brs);
     (* *)
-    let check_dsj (more_prem,
+    let check_dsj (more_prem, guard_cnj,
                    (up_vars, same_vars, at_uni, sameK, cases, cns)) =
       Format.printf "checking: init #cases=%d cns(NotEx)=%a@\n%!"
         (List.length cases) pr_cnstrnt (cns NotExistential); (* *)
@@ -913,19 +923,19 @@ let normalize cn =
         (List.length cases); (* *)
       match cases with
       | [] ->
-        Left (flat_cn up_vars same_vars at_uni more_prem
+        Left (flat_cn up_vars same_vars at_uni more_prem guard_cnj
                 (cns NotExistential))
       | [case, (Existential _ as cn_arg)] when step > 0 ->
         let brs, dsj_brs = flat_cn
-          up_vars same_vars at_uni more_prem
+          up_vars same_vars at_uni more_prem guard_cnj
           (cn_and (A case) (cns cn_arg)) in
         Left (brs, dsj_brs)
       | [case, (SameExistential _ as cn_arg)] when step > 1 ->
         let brs, dsj_brs = flat_cn
-          up_vars same_vars at_uni more_prem
+          up_vars same_vars at_uni more_prem guard_cnj
           (cn_and (A case) (cns cn_arg)) in
         Left (brs, dsj_brs)
-      | _ -> Right (more_prem,
+      | _ -> Right (more_prem, guard_cnj,
                     (up_vars, same_vars, at_uni, sameK, cases, cns)) in
     let more_brs, dsj_brs = partition_map check_dsj dsj_brs in
     let more_brs, more_dsj = List.split more_brs in
@@ -938,7 +948,7 @@ let normalize cn =
     if more_brs = [] then brs, dsj_brs
     else loop step (more_brs @ brs, dsj_brs) in
   let brs, dsj_brs =
-    flat_cn VarSet.empty VarSet.empty false [] cn in
+    flat_cn VarSet.empty VarSet.empty false [] [] cn in
   let brs_dsj_brs = ref (simplify_brs brs, dsj_brs) in
   for i=0 to 2 do brs_dsj_brs := loop i !brs_dsj_brs done;
   let brs, dsj_brs = !brs_dsj_brs in
@@ -1025,7 +1035,7 @@ let simplify preserve cmp_v uni_v brs =
     | (prem, concl as br) :: brs ->
       try merge acc (meet prem concl brs)
       with Not_found -> merge (br::acc) brs in
-  merge [] brs
+  merge [] brs  
 
 (** {2 Postprocessing and printing} *)
 

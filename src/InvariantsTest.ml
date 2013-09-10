@@ -398,7 +398,7 @@ let rec search = efunction
     ematch check y with
     | Ordinary -> search y
     | Shortcut z -> Yard z"
-        [1,"∃t73, t74. δ = (Placement t74 → ∃3:t59[].Castle t59)"];
+        [1,"∃t72, t73. δ = (Placement t73 → ∃3:t59[].Castle t59)"];
     );
 
   "search castle distance" >::
@@ -431,7 +431,7 @@ let rec search = efunction
     ematch closer y with
     | True -> search y
     | False -> search x"
-        [1,"∃t84, t85. δ = (Placement t85 → ∃3:t69[].Castle t69)"];
+        [1,"∃t83, t84. δ = (Placement t84 → ∃3:t69[].Castle t69)"];
     );
 
   "filter" >::

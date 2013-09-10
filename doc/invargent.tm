@@ -318,12 +318,18 @@
 
   <subsection|Simplification>
 
+  During normalization, we remove from a nested premise the atoms it is
+  conjoined with (as in ``modus ponens'').
+
   After normalization, we simplify the constraints by [TODO: explain]
   applying shared constraints, and removing redundant atoms. We remove atoms
   that bind variables not occurring anywhere else in the constraint, and in
   case of atoms not in premises, not universally quantified. The
   simplification step is not currently proven correct and might need
   refining.
+
+  At the end, we simplify the generated implications by merging implications
+  with the same premise.
 
   <section|Abduction>
 
