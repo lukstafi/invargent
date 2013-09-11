@@ -882,10 +882,11 @@ let connected target (vs, phi) =
   ans
 
 (* If there are no [bvs] parameters, the LHS variable has to be
-   existential and not upstream of any RHS variable. If there are
-   [bvs] parameters, every universal variable must be upstream of some
-   [bv] parameter. (Note that a [bv] parameter that is sufficiently
-   downstream is a "savior".)
+   existential and not upstream of any RHS variable.
+
+   If [v] is a [bvs] parameter, every universal variable must be
+   upstream of some [bv] parameter. (Note that a [bv] parameter that
+   is sufficiently downstream is a "savior".)
 
    [zvs] parameters act like existential variables but are not
    located anywhere in the quantifier -- do not contribute to
@@ -898,7 +899,7 @@ let quant_viol cmp_v uni_v bvs zvs v t =
   let uni_vs =
     List.filter uni_v (if VarSet.mem v bvs then npvs else v::npvs) in
   let res =
-  if pvs = [] then uv ||
+  if (* pvs = [] *) not (VarSet.mem v bvs) then uv ||
     not (VarSet.mem v zvs) && List.exists
     (fun v2 -> not (VarSet.mem v2 zvs) && cmp_v v v2 = Upstream) npvs
   else
