@@ -1035,7 +1035,10 @@ let simplify preserve cmp_v uni_v brs =
     | (prem, concl as br) :: brs ->
       try merge acc (meet prem concl brs)
       with Not_found -> merge (br::acc) brs in
-  merge [] brs  
+  let short_brs, long_brs = List.partition
+    (function [],_ | [_],_ | [_;_],_ -> true | _ -> false)
+    (merge [] brs) in
+  short_brs @ long_brs
 
 (** {2 Postprocessing and printing} *)
 
