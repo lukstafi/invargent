@@ -653,6 +653,8 @@ let expand_eqineqs eqs ineqs =
   ans @ List.map (expand_atom false) (unsolve ineqs)
 
 let disjelim cmp_v uni_v brs =
+  Format.printf "NumS.disjelim: brs=@ %a@\n%!"
+    (pr_line_list "| " pr_formula) brs;
   let vars = List.map fvs_formula brs in
   let common =
     match vars with [] -> assert false
@@ -790,7 +792,10 @@ let simplify cmp_v uni_v elimvs cnj =
       List.filter (fun (v,_) -> not (VarSet.mem v elimvs)) eqs in
     let ineqs =
       List.filter (fun (v,_) -> not (VarSet.mem v elimvs)) ineqs in
-    [], ans_to_formula (eqs, ineqs)
+    let ans = ans_to_formula (eqs, ineqs) in
+    let cmp a1 a2 = compare
+      (replace_loc_atom dummy_loc a1) (replace_loc_atom dummy_loc a2) in
+    [], unique_sorted ~cmp ans
 
 (*
 let equivalent cmp_v uni_v cnj1 cnj2 =

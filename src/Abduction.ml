@@ -352,10 +352,10 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
         match typ_next loc with
         | None ->
           (try
-             Format.printf
-               "abd_simple: [%d] trying choice 4 sb=@ %a@\n%!"
-               ddepth pr_subst ans; (* *)
              let t = typ_out loc in
+             Format.printf
+               "abd_simple: [%d] trying choice 4 a=%a@ sb=@ %a@\n%!"
+               ddepth pr_formula [Eqty (TVar x, t, lc)] pr_subst ans; (* *)
              let xvs = VarSet.add x (fvs_typ t) in
              if disconnected cparams xvs
              then raise (Contradiction (Type_sort, "Unconnected to params",
@@ -374,13 +374,15 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
              Format.printf
                "abd_simple: [%d] @ c.4 failed:@ %s@ %a@ %a@\n%!" ddepth
                msg (pr_ty true) ty1 (pr_ty true) ty2;
-             (match (ty1, ty2) with
-               TVar v1, TVar v2 ->
-                 Format.printf
-                   "uni_v %s=%b; uni_v %s=%b; cmp_v =%s@\n%!"
-                   (var_str v1) (uni_v v1)
-                   (var_str v2) (uni_v v2)
-                   (str_of_cmp (cmp_v v1 v2))
+             (match ty1 with
+               TVar v1 ->
+                 VarSet.iter (fun v2 ->
+                   Format.printf
+                     "uni_v %s=%b; uni_v %s=%b; cmp_v =%s@\n%!"
+                     (var_str v1) (uni_v v1)
+                     (var_str v2) (uni_v v2)
+                     (str_of_cmp (cmp_v v1 v2)))
+                   (fvs_typ ty2)
              | _ -> ()); 
              Format.printf "abd_simple: [%d] choice 4 failed@\n%!" ddepth; (* *)
              ())
@@ -592,12 +594,12 @@ let abd_typ cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
         if acc = ([],[])
         then (
           Format.printf
-            "NumS.abd-check_brs: quit failed [%d] at failed=%d@ ans=%a@\n%!" ddepth
+            "abd-check_brs: quit failed [%d] at failed=%d@ ans=%a@\n%!" ddepth
           (List.length failed) pr_subst (snd acc); (* *)
           ignore (loop failed acc (obr::runouts) []));
         Format.printf
-          "NumS.abd: reset check [%d] at skip=%d failed=%d@ ans=%a@\n%!" ddepth
-          skip (List.length failed + 1) pr_subst (snd acc); (* *)
+          "abd-check_brs: reset check [%d] at skip=%d failed=%d@ prem=%a@ concl=%a@ ans=%a@\n%!" ddepth
+          skip (List.length failed + 1) pr_subst (fst br) pr_subst (snd br) pr_subst (snd acc); (* *)
         loop (snd acc::failed) ([], [])
           runouts ((skip+1, br)::List.rev_append done_brs more_brs) in
 

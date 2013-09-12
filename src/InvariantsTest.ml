@@ -434,6 +434,95 @@ let rec search = efunction
         [1,"∃t83, t84. δ = (Placement t84 → ∃3:t69[].Castle t69)"];
     );
 
+  "castle not existential" >::
+    (fun () ->
+      todo "debug";
+      test_case "castle not existential"
+"newtype Yard
+newtype Village
+
+newtype Castle : type
+newtype Placement : type
+newcons Yard : Yard ⟶ Castle Yard
+newcons CastleYard : Yard ⟶ Placement Yard
+newcons Village : Village ⟶ Placement Village
+
+external wander : Village → ∃b. Placement b
+
+let rec search = efunction
+  | CastleYard x -> Yard x
+  | Village x ->
+    let y = wander x in
+    search y"
+        [1,"∃t38, t39. δ = (Placement t39 → ∃2:[].Castle Yard)"];
+    );
+
+  "castle nested not existential" >::
+    (fun () ->
+      todo "debug";
+      test_case "castle nested not existential"
+"newtype Answer
+newcons No : Answer
+newcons Nearby : Answer
+newtype Yard
+newtype Village
+
+newtype Castle : type
+newtype Placement : type
+newcons Closeby : Castle Yard
+newcons Yard : Yard ⟶ Castle Yard
+newcons CastleYard : Yard ⟶ Placement Yard
+newcons Village : Village ⟶ Placement Village
+
+external wander : Village → ∃b. Placement b
+external entrance : Village → Answer
+
+let rec search = efunction
+  | CastleYard x -> Yard x
+  | Village x ->
+    ematch entrance x with
+    | Nearby -> Closeby
+    | No ->
+      let y = wander x in
+      search y"
+        [1,"∃t52, t53. δ = (Placement t53 → ∃3:[].Castle Yard)"];
+    );
+
+  "castle nested existential" >::
+    (fun () ->
+      todo "debug";
+      test_case "castle nested existential"
+"newtype Answer
+newcons Yes : Answer
+newcons No : Answer
+newcons Nearby : Answer
+newtype Room
+newtype Yard
+newtype Village
+
+newtype Castle : type
+newtype Placement : type
+newcons Entrance : Castle Room
+newcons Closeby : Castle Yard
+newcons Yard : Yard ⟶ Castle Yard
+newcons CastleYard : Yard ⟶ Placement Yard
+newcons Village : Village ⟶ Placement Village
+
+external wander : Village → ∃b. Placement b
+external entrance : Village → Answer
+
+let rec search = efunction
+  | CastleYard x -> Yard x
+  | Village x ->
+    ematch entrance x with
+    | Nearby -> Closeby
+    | Yes -> Entrance
+    | No ->
+      let y = wander x in
+      search y"
+        [1,"∃t59, t60. δ = (Placement t60 → ∃3:t48[].Castle t48)"];
+    );
+
   "filter" >::
     (fun () ->
       (* todo "existential"; *)
