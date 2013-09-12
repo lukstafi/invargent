@@ -529,6 +529,8 @@ let solve cmp_v uni_v brs =
     (* 2 *)
     let dK = List.map
       (fun (i,(t2,cnjs)) ->
+        let cnjs = List.map
+          (fun cnj->snd (connected [delta] ([],cnj))) cnjs in
         i, connected [delta] (DisjElim.disjelim cmp_v uni_v cnjs)) chiK in
     let dK = map_some
       (fun (i,(gvs, g_ans)) ->
