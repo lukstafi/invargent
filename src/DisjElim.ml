@@ -90,29 +90,33 @@ let disjelim_typ cmp_v uni_v brs =
         (fun (v,(ts,lcs)) -> v, (List.rev ts, List.rev lcs)) gs in
       (* (b) G *)
       let gs = List.map
-        (fun (v,(ts,lcs)) -> v, antiunif ts, lcs) gs in
-      let gs = List.filter
-        (fun (v,(gvs,gt,tss),lcs) -> tss<>[]) gs in
-      let avs = Aux.concat_map (fun (_,(vs,_,_), _) -> vs) gs in
+        (fun (v,(ts,lcs)) ->
+          let gvs,gt,tss = antiunif ts in
+          v, gvs, gt, tss, lcs)
+        gs in
+      let avs = Aux.concat_map (fun (_,vs,_,_, _) -> vs) gs in
       (* A set of sequences position-matched with branches. *)
       (* (c) D^u_i *)
       Format.printf "disjelim_typ: #brs=%d #gs=%d avs=%a@\n%!"
         (List.length brs) (List.length gs)
         pr_vars (vars_of_list avs);
       List.iter
-        (fun (v,(gvs,gt,tss),lcs) ->
+        (fun (v,gvs,gt,tss,lcs) ->
           Format.printf
             "disjelim_typ: v=%s@ gvs=%a@ gt=%a@ #tss=%d@ #tss[0]=%d@ #lcs=%d@\n%!"
             (var_str v) pr_vars (vars_of_list gvs) (pr_ty false) gt
-            (List.length tss) (List.length (fst (List.hd tss)))
+            (List.length tss)
+            (if tss=[] then -1 else (List.length (fst (List.hd tss))))
             (List.length lcs);
         ) gs;
       (* *)
       let eqs = 
         List.map
-          (fun (_,(_,_,tss),lcs) ->
-            let brs = Aux.transpose_lists
-              (List.map (fun (ts, v) -> List.map (fun t->v,t) ts) tss) in
+          (fun (_,_,_,tss,lcs) ->
+            let brs =
+              if tss=[] then empty_brs
+              else Aux.transpose_lists
+                (List.map (fun (ts, v) -> List.map (fun t->v,t) ts) tss) in
             List.map (fun (eqs,lc) -> List.map (fun (v,t)->v,(t,lc)) eqs)
               (List.combine brs lcs))
           gs in
@@ -137,7 +141,7 @@ let disjelim_typ cmp_v uni_v brs =
         vbrs in
       (* (e) A_s_ty *)
       let ty_ans = List.map
-        (fun (v,(vs,u,_), lcs) ->
+        (fun (v,vs,u,_, lcs) ->
           v, (u, List.fold_left loc_union dummy_loc lcs)) gs in
       let eqvs = List.map eqs_of_list eqvs in
       let eqv_ans = EqsSet.elements
