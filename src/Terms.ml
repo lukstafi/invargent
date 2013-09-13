@@ -334,6 +334,10 @@ let eq_atom a1 a2 =
     when n1=n2 && t1=t3 && t2=t4 -> true
   | _ -> false
 
+(* TODO: optimize *)
+let subformula phi1 phi2 =
+  List.for_all (fun a1 -> List.exists (eq_atom a1) phi2) phi1
+
 let subst_atom sb = function
   | Eqty (t1, t2, loc) -> Eqty (subst_typ sb t1, subst_typ sb t2, loc)
   | Leq (t1, t2, loc) -> Leq (subst_typ sb t1, subst_typ sb t2, loc)

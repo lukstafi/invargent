@@ -1072,8 +1072,8 @@
   the final algorithm:
 
   <\eqnarray*>
-    <tformat|<cwith|8|8|2|2|cell-valign|c>|<table|<row|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.F<rsub|\<chi\>>|\<bar\>>>|<cell|=>|<cell|S<rsub|k>>>|<row|<cell|D<rsub|K><rsup|\<alpha\>>\<Rightarrow\>C<rsub|K><rsup|\<alpha\>>\<in\>S<rsub|k><around*|(|\<Phi\>|)>>|<cell|=>|<cell|<with|mode|text|all
-    such that >\<chi\><rsub|K><around*|(|\<alpha\>,\<alpha\><rsub|2><rsup|K>|)>\<in\>C<rsub|K><rsup|\<alpha\>>,\<alpha\>=\<alpha\><rsub|3><rsup|i,K><eq-number>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>.G<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|DisjElim<around*|(|<wide|Connected<around*|(|\<delta\>,S<rsub|k><around*|(|D<rsup|\<alpha\>><rsub|K>\<wedge\>C<rsup|\<alpha\>><rsub|K>|)>\<wedge\>\<delta\><wide|=|\<dot\>>\<alpha\>|)>|\<bar\>>|)><eq-number>>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|G<rsub|\<chi\><rsub|K>>\<neq\>\<top\>>>|<row|<cell|<with|mode|text|then
+    <tformat|<cwith|9|9|2|2|cell-valign|c>|<table|<row|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.F<rsub|\<chi\>>|\<bar\>>>|<cell|=>|<cell|S<rsub|k>>>|<row|<cell|D<rsub|K><rsup|\<alpha\>>\<Rightarrow\>C<rsub|K><rsup|\<alpha\>>\<in\>S<rsub|k><around*|(|\<Phi\>|)>>|<cell|=>|<cell|<with|mode|text|all
+    such that >\<chi\><rsub|K><around*|(|\<alpha\>,\<alpha\><rsub|2><rsup|K>|)>\<in\>C<rsub|K><rsup|\<alpha\>>,\<alpha\>=\<alpha\><rsub|3><rsup|i,K>,<eq-number>>>|<row|<cell|>|<cell|>|<cell|<wide|C<rsup|\<alpha\>><rsub|j>|\<bar\>>=<around*|{|C<mid|\|>D\<Rightarrow\>C\<in\>S<rsub|k><around*|(|\<Phi\>|)>\<wedge\>D\<subseteq\>D<rsup|\<alpha\>><rsub|K>|}>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>.G<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|DisjElim<around*|(|<wide|Connected<around*|(|\<delta\>,\<delta\><wide|=|\<dot\>>\<alpha\>\<wedge\>D<rsup|\<alpha\>><rsub|K>\<wedge\><rsub|j>C<rsup|\<alpha\>><rsub|j>|)>|\<bar\>><rsub|\<alpha\>\<in\><wide|\<alpha\><rsub|3><rsup|i,K>|\<bar\>>>|)><eq-number>>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|G<rsub|\<chi\><rsub|K>>\<neq\>\<top\>>>|<row|<cell|<with|mode|text|then
     >\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rsub|K>,k>.F<rsub|\<chi\><rsub|K>>\<assign\>>|<cell|>|<cell|S<rsub|k><around*|(|\<chi\><rsub|K>|)>\<assign\>\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rsub|K>,k>.Simpl<around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>>.F<rsub|\<chi\><rsub|K>>\<wedge\>G<rsub|\<chi\><rsub|K>>|)><eq-number>>>|<row|<cell|\<cal-Q\><rprime|'>.\<wedge\><rsub|i><around*|(|D<rsub|i>\<Rightarrow\>C<rsub|i>|)>>|<cell|=>|<cell|S<rsub|k><around*|(|\<Phi\>|)>>>|<row|<cell|>|<cell|>|<cell|<with|mode|text|At
     later iterations, check negative constraints.><eq-number>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>>.A>|<cell|=>|<cell|Abd<around*|(|\<cal-Q\><rprime|'>\\<wide|\<forall\>\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>,<wide|\<zeta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|D<rsub|i>,C<rsub|i>|\<bar\>>|)><eq-number>>>|<row|<cell|<around*|(|\<cal-Q\><rsup|k+1>,<wide|<wide|\<alpha\>|\<bar\>><rsup|\<chi\>><rsub|+>|\<bar\>>,A<rsub|res>,<wide|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<beta\><rsub|\<chi\>>>.A<rsub|\<beta\><rsub|\<chi\>>>|\<bar\>>|)>>|<cell|=>|<cell|Split<around*|(|\<cal-Q\><rprime|'>,<wide|\<alpha\>|\<bar\>>,A,<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|<wide|\<zeta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>|)>>>|<row|<cell|S<rsub|k><rprime|'><around*|(|\<chi\>|)>>|<cell|=>|<cell|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.Simpl<around*|(|\<exists\><wide|<wide|\<alpha\>|\<bar\>><rsup|\<beta\><rsub|\<chi\>>>|\<bar\>>.F<rsub|\<chi\>>\<wedge\><rsub|\<beta\><rsub|\<chi\>>>A<rsub|\<beta\><rsub|\<chi\>>><around*|[|<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<assign\><wide|\<delta\><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>,k>|\<bar\>>|]>|)><eq-number>>>|<row|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.F<rsub|\<chi\><rsub|K>>|)>>|<cell|=>|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>FV<around*|(|F<rsub|\<chi\><rsub|K>>|)>.\<delta\><rprime|'><wide|=|\<dot\>><wide|FV<around*|(|F<rsub|\<chi\><rsub|K>>|)>\\<wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>|\<vect\>>\<wedge\>F<rsub|\<chi\><rsub|K>><around*|[|\<alpha\><rsub|2><rsup|K>\<assign\>\<delta\><rprime|'>|]><eq-number>>>|<row|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.F<rsub|\<chi\>>|)>>|<cell|=>|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.F<rsub|\<chi\>><with|mode|text|
     \ otherwise, i.e. for >\<chi\>\<in\>PV<rsup|1><around*|(|\<Phi\>|)>>>|<row|<cell|<with|mode|text|if
@@ -1259,10 +1259,10 @@
 <\references>
   <\collection>
     <associate|1|<tuple|5.2|?>>
-    <associate|AlienSubterms|<tuple|3.3|6>>
+    <associate|AlienSubterms|<tuple|3.3|7>>
     <associate|Details|<tuple|5.4|13>>
     <associate|ImplSubst|<tuple|4|2>>
-    <associate|MainAlgo|<tuple|5|9>>
+    <associate|MainAlgo|<tuple|5|10>>
     <associate|SCAlinear|<tuple|3.4|7>>
     <associate|SepProp|<tuple|5|3>>
     <associate|SepProp2|<tuple|6|?>>
@@ -1271,9 +1271,9 @@
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1>>
     <associate|auto-10|<tuple|3.5|8>>
-    <associate|auto-11|<tuple|4|8>>
+    <associate|auto-11|<tuple|4|9>>
     <associate|auto-12|<tuple|4.1|9>>
-    <associate|auto-13|<tuple|5|9>>
+    <associate|auto-13|<tuple|5|10>>
     <associate|auto-14|<tuple|5.1|10>>
     <associate|auto-15|<tuple|5.2|10>>
     <associate|auto-16|<tuple|5.3|12>>
@@ -1285,7 +1285,7 @@
     <associate|auto-5|<tuple|3|4>>
     <associate|auto-6|<tuple|3.1|4>>
     <associate|auto-7|<tuple|3.2|6>>
-    <associate|auto-8|<tuple|3.3|6>>
+    <associate|auto-8|<tuple|3.3|7>>
     <associate|auto-9|<tuple|3.4|7>>
     <associate|bib-AbductionSolvMaher|<tuple|3|14>>
     <associate|bib-AntiUnifAlg|<tuple|8|14>>

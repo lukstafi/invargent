@@ -511,14 +511,22 @@ let solve cmp_v uni_v brs =
     (* 1 *)
     let chiK = collect
       (concat_map
-         (fun (_,_,chiK_pos,prem,concl) -> List.map
-           (fun (i,t1,t2,lc) ->
-             let phi = Eqty (tdelta, t1, lc) :: prem @ concl in
-             Format.printf "chiK: i=%d@ t1=%a@ t2=%a@ phi=%a@\n%!"
-               i (pr_ty false) t1 (pr_ty false) t2 pr_formula phi;
-             (* *)
-             (i,t2), phi)
-           chiK_pos)
+         (fun (_,_,chiK_pos,prem,_) ->
+           let concls =
+             if chiK_pos = [] then []
+             else
+               concat_map
+                 (fun (_,_,_,prem2,concl2) ->
+                   if subformula prem2 prem then concl2 else [])
+                 brs1 in
+           List.map
+             (fun (i,t1,t2,lc) ->
+               let phi = Eqty (tdelta, t1, lc) :: prem @ concls in
+               Format.printf "chiK: i=%d@ t1=%a@ t2=%a@ phi=%a@\n%!"
+                 i (pr_ty false) t1 (pr_ty false) t2 pr_formula phi;
+               (* *)
+               (i,t2), phi)
+             chiK_pos)
          brs1) in
     let chiK = List.map (fun ((i,t2),cnjs) -> i, (t2, cnjs)) chiK in
     Format.printf "solve: chiK keys=%a@\n%!"
