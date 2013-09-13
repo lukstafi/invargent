@@ -6,15 +6,12 @@
     @since Mar 2013
 *)
 
-type ex_cnstr_case =
-| Existential of Terms.var_name list * Terms.formula
-| NotExistential | SameExistential of Terms.pat (* DEBUG: pattern *)
 type cnstrnt =
 | A of Terms.formula
 | And of cnstrnt list
 | Impl of Terms.formula * cnstrnt
-| Or of Terms.cns_name * (Terms.formula * ex_cnstr_case) list
-  * (ex_cnstr_case -> cnstrnt)
+| Or of Terms.cns_name * (Terms.formula * Terms.answer) list
+  * (Terms.answer option -> cnstrnt)
 (** If the first formula holds, pass the second formula to get the
     constraint. The constructor name is the existential type which
     gives [SameExistential]. *)

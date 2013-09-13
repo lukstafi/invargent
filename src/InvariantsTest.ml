@@ -316,7 +316,7 @@ let rec escape = function Outside x -> x
 
   "find castle" >::
     (fun () ->
-      todo "debug";
+      (* todo "existential"; *)
       test_case "find castle small"
 "newtype Room
 newtype Yard
@@ -338,7 +338,7 @@ let rec find = efunction
   | Village _ as x ->
     let y = wander x in
     find y"
-        [1,"∃t51, t52. δ = (Placement t52 → ∃2:t41[].Castle t41)"];
+        [1,"∃t50, t51. δ = (Placement t51 → ∃2:t41[].Castle t41)"];
 
       test_case "find castle big"
 "newtype Room
@@ -371,7 +371,7 @@ let rec find = efunction
 
   "search castle shortcut" >::
     (fun () ->
-      todo "debug";
+      todo "existential";
       test_case "search castle shortcut"
 "newtype Room
 newtype Yard
@@ -403,7 +403,7 @@ let rec search = efunction
 
   "search castle distance" >::
     (fun () ->
-      todo "debug";
+      todo "existential";
       test_case "find castle distance"
 "newtype Bool
 newcons True : Bool
@@ -436,7 +436,7 @@ let rec search = efunction
 
   "castle not existential" >::
     (fun () ->
-      todo "debug";
+      todo "existential";
       test_case "castle not existential"
 "newtype Yard
 newtype Village
@@ -459,7 +459,7 @@ let rec search = efunction
 
   "castle nested not existential" >::
     (fun () ->
-      todo "debug";
+      todo "existential";
       test_case "castle nested not existential"
 "newtype Answer
 newcons No : Answer
@@ -490,33 +490,32 @@ let rec search = efunction
 
   "castle nested existential" >::
     (fun () ->
-      todo "debug";
+      todo "existential";
       test_case "castle nested existential"
 "newtype Answer
 newcons Yes : Answer
 newcons No : Answer
-newcons Nearby : Answer
 newtype Room
 newtype Yard
 newtype Village
 
 newtype Castle : type
 newtype Placement : type
-newcons Entrance : Castle Room
-newcons Closeby : Castle Yard
 newcons Yard : Yard ⟶ Castle Yard
 newcons CastleYard : Yard ⟶ Placement Yard
 newcons Village : Village ⟶ Placement Village
 
 external wander : Village → ∃b. Placement b
 external entrance : Village → Answer
+external enter : ∀a. Placement a → Castle a
 
 let rec search = efunction
   | CastleYard x -> Yard x
   | Village x ->
     ematch entrance x with
-    | Nearby -> Closeby
-    | Yes -> Entrance
+    | Yes ->
+      let y = wander x in
+      enter y
     | No ->
       let y = wander x in
       search y"
@@ -525,7 +524,7 @@ let rec search = efunction
 
   "filter" >::
     (fun () ->
-      (* todo "existential"; *)
+      todo "existential";
       test_case "list filter"
 "newtype Bool
 newtype List : type * num

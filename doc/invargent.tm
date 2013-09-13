@@ -181,14 +181,14 @@
   variable is a separate entry to the global environment, therefore the
   connection between them is lost.
 
-  The formalism (in interests of parsimony) requires that only values of
-  existential types be bound using <verbatim|Letin> syntax. The
-  implementation is enhanced in this regard: if the normalization step cannot
-  determine which existential type is being eliminated, the constraint is
-  replaced by one that would be generated for a pattern matching branch. This
-  recovers the common use of the <verbatim|let>...<verbatim|in> syntax, with
-  exception of polymorphic <verbatim|let> cases, where <verbatim|let rec>
-  still needs to be used.
+  The <verbatim|Letin> syntax has two uses: binding values of existential
+  types means ``eliminating the quantification'' -- the programmer has
+  control over the scope of the existential constraint. The second use is if
+  the value is not of existential type, the constraint is replaced by one
+  that would be generated for a pattern matching branch. This recovers the
+  common use of the <verbatim|let>...<verbatim|in> syntax, with exception of
+  polymorphic <verbatim|let> cases, where <verbatim|let rec> needs to be
+  used, for parsimony reasons.
 
   In the formalism, we use <math|\<cal-E\>=<around*|{|\<varepsilon\><rsub|K>,\<chi\><rsub|K><mid|\|>K\<colons\>\<forall\>\<alpha\>\<gamma\><around|[|\<chi\><rsub|K><around*|(|\<gamma\>,\<alpha\>|)>|]>.\<gamma\>\<rightarrow\>\<varepsilon\><rsub|K><around*|(|\<alpha\>|)>\<in\>\<Sigma\>|}>>
   for brevity, as if all existential types
@@ -296,21 +296,20 @@
   somewhat similar to how disjunction would be treated in constraint solvers.
   The cases of <verbatim|Or>, which is called ``disjoint disjunction''
   <math|<wide|\<vee\>|\<dot\>>> in the formalization, are characterized by a
-  set of single atoms of which at most one can hold, plus a case
-  <verbatim|NotExistential> when none of the atoms holds. Only the atoms are
-  checked for consistency with the remaining constraint, rather than the
-  whole sub-constraints that they guard. But releasing the sub-constraints is
-  essential for eliminating cases of further <verbatim|Or> constraints. The
-  remaining constraints might turn out too weak do disambiguate the
-  <verbatim|Or> constraint, especially if many other <verbatim|Or>
-  sub-constraints have not been released. Not to give up, we introduce
-  preferences: if there are only two cases left (one explicit and the other
-  <verbatim|NotExistential>), <verbatim|Existential> is preferred to
-  <verbatim|SameExistential> which is preferred to <verbatim|NotExistential>.
-  <verbatim|SameExistential> is introduced for
-  <math|\<lambda\><around*|[|K|]>> so that nested pattern matching can be
-  collapsed to form a single existential type. The preferrence ensures that
-  <verbatim|let-in> sub-constraints are released first.
+  set of single atoms of which at most one can hold, plus a case when none of
+  the atoms holds. Only the atoms are checked for consistency with the
+  remaining constraint, rather than the whole sub-constraints that they
+  guard. But releasing the sub-constraints is essential for eliminating cases
+  of further <verbatim|Or> constraints. The remaining constraints might turn
+  out too weak do disambiguate the <verbatim|Or> constraint, especially if
+  many other <verbatim|Or> sub-constraints have not been released. When at
+  the end a single atom in a given set remains, we assume it is existential
+  type case.
+
+  When one <math|\<lambda\><around*|[|K|]>> expression is a branch of another
+  <math|\<lambda\><around*|[|K|]>> expression, the corresponding branch does
+  not introduce an <verbatim|Or> constraint -- the case is settled
+  syntactically to be the same existential type.
 
   The unsolved constraints are particularly weak with regard to variables
   constrained by predicate variables. We need to propagate which existential
