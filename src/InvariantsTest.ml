@@ -316,7 +316,7 @@ let rec escape = function Outside x -> x
 
   "find castle" >::
     (fun () ->
-      (* todo "existential"; *)
+      todo "existential";
       test_case "find castle small"
 "newtype Room
 newtype Yard
@@ -338,7 +338,7 @@ let rec find = efunction
   | Village _ as x ->
     let y = wander x in
     find y"
-        [1,"∃t50, t51. δ = (Placement t51 → ∃2:t41[].Castle t41)"];
+        [1,"∃t51, t52. δ = (Placement t52 → ∃2:t40[].Castle t40)"];
 
       test_case "find castle big"
 "newtype Room
@@ -366,12 +366,12 @@ let rec find = efunction
   | Village _ as x ->
     let y = wander x in
     find y"
-        [1,"∃t77, t78. δ = (Placement t78 → ∃2:t62[].Castle t62)"];
+        [1,"∃t78, t79. δ = (Placement t79 → ∃2:t61[].Castle t61)"];
     );
 
   "search castle shortcut" >::
     (fun () ->
-      todo "existential";
+      (* todo "existential"; *)
       test_case "search castle shortcut"
 "newtype Room
 newtype Yard

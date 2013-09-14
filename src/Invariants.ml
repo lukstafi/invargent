@@ -161,7 +161,9 @@ let sb_formula_pred q posi psb phi =
 let sb_brs_allpred q psb brs = List.map
   (fun (prem,concl) ->
     List.for_all                        (* is_nonrec *)
-      (function PredVarU _ -> false | _ -> true) concl,
+      (function PredVarU _ -> false | _ -> true) concl &&
+      List.for_all
+      (function PredVarB _ -> false | _ -> true) prem,
     Aux.map_some                        (* chiK_neg *)
       (function PredVarB (i,t1,t2,lc) -> Some (i,t1,t2,lc) | _ -> None) prem,
     Aux.map_some                        (* chiK_pos *)
@@ -511,22 +513,25 @@ let solve cmp_v uni_v brs =
     (* 1 *)
     let chiK = collect
       (concat_map
-         (fun (_,_,chiK_pos,prem,_) ->
-           let concls =
-             if chiK_pos = [] then []
-             else
-               concat_map
-                 (fun (_,_,_,prem2,concl2) ->
-                   if subformula prem2 prem then concl2 else [])
-                 brs1 in
-           List.map
-             (fun (i,t1,t2,lc) ->
-               let phi = Eqty (tdelta, t1, lc) :: prem @ concls in
-               Format.printf "chiK: i=%d@ t1=%a@ t2=%a@ phi=%a@\n%!"
-                 i (pr_ty false) t1 (pr_ty false) t2 pr_formula phi;
-               (* *)
-               (i,t2), phi)
-             chiK_pos)
+         (fun (nonrec,_,chiK_pos,prem,_) ->
+           if nonrec || iter_no > 1
+           then
+             let concls =
+               if chiK_pos = [] then []
+               else
+                 concat_map
+                   (fun (_,_,_,prem2,concl2) ->
+                     if subformula prem2 prem then concl2 else [])
+                   brs1 in
+             List.map
+               (fun (i,t1,t2,lc) ->
+                 let phi = Eqty (tdelta, t1, lc) :: prem @ concls in
+                 Format.printf "chiK: i=%d@ t1=%a@ t2=%a@ phi=%a@\n%!"
+                   i (pr_ty false) t1 (pr_ty false) t2 pr_formula phi;
+                 (* *)
+                 (i,t2), phi)
+               chiK_pos
+           else [])
          brs1) in
     let chiK = List.map (fun ((i,t2),cnjs) -> i, (t2, cnjs)) chiK in
     Format.printf "solve: chiK keys=%a@\n%!"

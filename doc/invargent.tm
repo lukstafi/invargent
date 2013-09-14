@@ -709,9 +709,9 @@
   initial steps of the main algorithm are insolvable. That is, when the
   instantiations of the invariants found so far are not informative enough,
   the expected answer of the JCA problem is not a fully maximal SCA answer to
-  these branches. We mitigate this problem by removing, in the first two
-  iterations of the main algorithm, branches that contain unary predicate
-  variables in the conclusion.
+  these branches. We mitigate this problem by removing, in the first call to
+  numerical abduction (the second iteration of the main algorithm), branches
+  that contain unary predicate variables in the conclusion.
 
   <subsection|Joint constraint abduction for linear arithmetic>
 
@@ -838,6 +838,21 @@
   and implicit inequalities which contain a variable not shared by all
   <math|D<rsub|i>>, by substituting out such variables. We pass the resulting
   inequalities to the convex hull algorithm.
+
+  <subsection|Convergence issues in solving for predicate
+  variables><label|NumConv>
+
+  Although not a problem of disjunction elimination itself, issues of
+  convergence are more prominent for predicate variables solved by
+  disjunction elimination than by abduction. The main algorithm starts by
+  performing disjunction elimination only on implication branches
+  corresponding to non-recursive cases, i.e. without binary predicate
+  variables in premise (or unary predicate variables in conclusion). This
+  generates a stronger constraint than the correct one. Subsequent iterations
+  weaken the constraint. To ensure quick convergence of the numerical part,
+  we compare consecutive solutions and extrapolate the trend. Currently we
+  simply intersect the sets of atoms, but first we expand equations into
+  pairs of inequalities.
 
   <section|Solving for Predicate Variables><label|MainAlgo>
 
@@ -1072,12 +1087,12 @@
   the final algorithm:
 
   <\eqnarray*>
-    <tformat|<cwith|9|9|2|2|cell-valign|c>|<table|<row|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.F<rsub|\<chi\>>|\<bar\>>>|<cell|=>|<cell|S<rsub|k>>>|<row|<cell|D<rsub|K><rsup|\<alpha\>>\<Rightarrow\>C<rsub|K><rsup|\<alpha\>>\<in\>S<rsub|k><around*|(|\<Phi\>|)>>|<cell|=>|<cell|<with|mode|text|all
-    such that >\<chi\><rsub|K><around*|(|\<alpha\>,\<alpha\><rsub|2><rsup|K>|)>\<in\>C<rsub|K><rsup|\<alpha\>>,\<alpha\>=\<alpha\><rsub|3><rsup|i,K>,<eq-number>>>|<row|<cell|>|<cell|>|<cell|<wide|C<rsup|\<alpha\>><rsub|j>|\<bar\>>=<around*|{|C<mid|\|>D\<Rightarrow\>C\<in\>S<rsub|k><around*|(|\<Phi\>|)>\<wedge\>D\<subseteq\>D<rsup|\<alpha\>><rsub|K>|}>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>.G<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|DisjElim<around*|(|<wide|Connected<around*|(|\<delta\>,\<delta\><wide|=|\<dot\>>\<alpha\>\<wedge\>D<rsup|\<alpha\>><rsub|K>\<wedge\><rsub|j>C<rsup|\<alpha\>><rsub|j>|)>|\<bar\>><rsub|\<alpha\>\<in\><wide|\<alpha\><rsub|3><rsup|i,K>|\<bar\>>>|)><eq-number>>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|G<rsub|\<chi\><rsub|K>>\<neq\>\<top\>>>|<row|<cell|<with|mode|text|then
-    >\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rsub|K>,k>.F<rsub|\<chi\><rsub|K>>\<assign\>>|<cell|>|<cell|S<rsub|k><around*|(|\<chi\><rsub|K>|)>\<assign\>\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rsub|K>,k>.Simpl<around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>>.F<rsub|\<chi\><rsub|K>>\<wedge\>G<rsub|\<chi\><rsub|K>>|)><eq-number>>>|<row|<cell|\<cal-Q\><rprime|'>.\<wedge\><rsub|i><around*|(|D<rsub|i>\<Rightarrow\>C<rsub|i>|)>>|<cell|=>|<cell|S<rsub|k><around*|(|\<Phi\>|)>>>|<row|<cell|>|<cell|>|<cell|<with|mode|text|At
-    later iterations, check negative constraints.><eq-number>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>>.A>|<cell|=>|<cell|Abd<around*|(|\<cal-Q\><rprime|'>\\<wide|\<forall\>\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>,<wide|\<zeta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|D<rsub|i>,C<rsub|i>|\<bar\>>|)><eq-number>>>|<row|<cell|<around*|(|\<cal-Q\><rsup|k+1>,<wide|<wide|\<alpha\>|\<bar\>><rsup|\<chi\>><rsub|+>|\<bar\>>,A<rsub|res>,<wide|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<beta\><rsub|\<chi\>>>.A<rsub|\<beta\><rsub|\<chi\>>>|\<bar\>>|)>>|<cell|=>|<cell|Split<around*|(|\<cal-Q\><rprime|'>,<wide|\<alpha\>|\<bar\>>,A,<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|<wide|\<zeta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>|)>>>|<row|<cell|S<rsub|k><rprime|'><around*|(|\<chi\>|)>>|<cell|=>|<cell|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.Simpl<around*|(|\<exists\><wide|<wide|\<alpha\>|\<bar\>><rsup|\<beta\><rsub|\<chi\>>>|\<bar\>>.F<rsub|\<chi\>>\<wedge\><rsub|\<beta\><rsub|\<chi\>>>A<rsub|\<beta\><rsub|\<chi\>>><around*|[|<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<assign\><wide|\<delta\><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>,k>|\<bar\>>|]>|)><eq-number>>>|<row|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.F<rsub|\<chi\><rsub|K>>|)>>|<cell|=>|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>FV<around*|(|F<rsub|\<chi\><rsub|K>>|)>.\<delta\><rprime|'><wide|=|\<dot\>><wide|FV<around*|(|F<rsub|\<chi\><rsub|K>>|)>\\<wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>|\<vect\>>\<wedge\>F<rsub|\<chi\><rsub|K>><around*|[|\<alpha\><rsub|2><rsup|K>\<assign\>\<delta\><rprime|'>|]><eq-number>>>|<row|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.F<rsub|\<chi\>>|)>>|<cell|=>|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.F<rsub|\<chi\>><with|mode|text|
-    \ otherwise, i.e. for >\<chi\>\<in\>PV<rsup|1><around*|(|\<Phi\>|)>>>|<row|<cell|<with|mode|text|if
-    >\<forall\>\<chi\>>|<cell|>|<cell|S<rsub|k><rprime|'><around*|(|\<chi\>|)>\\S<rsub|k><around*|(|\<chi\>|)>=\<varnothing\><eq-number>>>|<row|<cell|<with|mode|text|then:>>|<cell|>|<cell|>>|<row|<cell|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>><rprime|'>.F<rsub|\<chi\>><rprime|'>>|<cell|=>|<cell|\<Xi\><around*|(|S<rsub|k><rprime|'><around*|(|\<chi\>|)>|)><eq-number><label|SolSimpl>>>|<row|<cell|A<rsub|sel>>|<cell|=>|<cell|<around*|{|c\<in\>\<wedge\><rsub|\<chi\>>F<rsub|\<chi\>><rprime|'><mid|\|>FV<around*|(|c|)>\<cap\>\<delta\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>=\<varnothing\>|}>>>|<row|<cell|<with|mode|text|return>>|<cell|>|<cell|A<rsub|res>\<wedge\>A<rsub|sel>,<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>><rprime|'>.F<rprime|'><rsub|\<chi\>>\\A<rsub|sel>|\<bar\>>>>|<row|<cell|<with|mode|text|else:>>|<cell|>|<cell|>>|<row|<cell|S<rsub|k+1>>|<cell|=>|<cell|H<around*|(|S<rsub|k-1>,S<rsub|k>,S<rsub|k><rprime|'>|)><eq-number>>>|<row|<cell|<wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>,k+1>>|<cell|=>|<cell|<wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>,k><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>>>|<row|<cell|<with|mode|text|repeat>>|<cell|>|<cell|k\<assign\>k+1<eq-number>>>>>
+    <tformat|<cwith|8|8|2|2|cell-valign|c>|<table|<row|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.F<rsub|\<chi\>>|\<bar\>>>|<cell|=>|<cell|S<rsub|k>>>|<row|<cell|D<rsub|K><rsup|\<alpha\>>\<Rightarrow\>C<rsub|K><rsup|\<alpha\>>\<in\>R<rsub|k><rsup|->S<rsub|k><around*|(|\<Phi\>|)>>|<cell|=>|<cell|<with|mode|text|all
+    such that >\<chi\><rsub|K><around*|(|\<alpha\>,\<alpha\><rsub|2><rsup|K>|)>\<in\>C<rsub|K><rsup|\<alpha\>>,\<alpha\>=\<alpha\><rsub|3><rsup|i,K>,<eq-number>>>|<row|<cell|>|<cell|>|<cell|<wide|C<rsup|\<alpha\>><rsub|j>|\<bar\>>=<around*|{|C<mid|\|>D\<Rightarrow\>C\<in\>S<rsub|k><around*|(|\<Phi\>|)>\<wedge\>D\<subseteq\>D<rsup|\<alpha\>><rsub|K>|}>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>.G<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|DisjElim<around*|(|<wide|Connected<around*|(|\<delta\>,\<delta\><wide|=|\<dot\>>\<alpha\>\<wedge\>D<rsup|\<alpha\>><rsub|K>\<wedge\><rsub|j>C<rsup|\<alpha\>><rsub|j>|)>|\<bar\>><rsub|\<alpha\>\<in\><wide|\<alpha\><rsub|3><rsup|i,K>|\<bar\>>>|)><eq-number>>>|<row|<cell|R<rsub|k+1><around*|(|\<chi\><rsub|K>|)>>|<cell|=>|<cell|H<around*|(|R<rsub|k-1><around*|(|\<chi\><rsub|K>|)>,R<rsub|k><around*|(|\<chi\><rsub|K>|)>,\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rsub|K>,k>.Simpl<around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>>.G<rsub|\<chi\><rsub|K>>|)>|)><eq-number>>>|<row|<cell|\<cal-Q\><rprime|'>.\<wedge\><rsub|i><around*|(|D<rsub|i>\<Rightarrow\>C<rsub|i>|)>>|<cell|=>|<cell|R<rsub|k+1><rsup|->S<rsub|k><around*|(|\<Phi\>|)>>>|<row|<cell|>|<cell|>|<cell|<with|mode|text|At
+    later iterations, check negative constraints.><eq-number>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>>.A>|<cell|=>|<cell|Abd<around*|(|\<cal-Q\><rprime|'>\\<wide|\<forall\>\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>,<wide|\<zeta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|D<rsub|i>,C<rsub|i>|\<bar\>>|)><eq-number>>>|<row|<cell|<around*|(|\<cal-Q\><rsup|k+1>,<wide|<wide|\<alpha\>|\<bar\>><rsup|\<chi\>><rsub|+>|\<bar\>>,A<rsub|res>,<wide|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<beta\><rsub|\<chi\>>>.A<rsub|\<beta\><rsub|\<chi\>>>|\<bar\>>|)>>|<cell|=>|<cell|Split<around*|(|\<cal-Q\><rprime|'>,<wide|\<alpha\>|\<bar\>>,A,<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|<wide|\<zeta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>|)>>>|<row|<cell|<with|mode|text|if
+    >\<exists\>\<beta\><rsub|\<chi\><rsub|K>>>|<cell|>|<cell|A<rsub|\<beta\><rsub|\<chi\><rsub|K>>>\<neq\>\<top\>>>|<row|<cell|<with|mode|text|then
+    return>>|<cell|>|<cell|\<bot\>>>|<row|<cell|S<rsub|k+1><around*|(|\<chi\>|)>>|<cell|=>|<cell|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.Simpl<around*|(|\<exists\><wide|<wide|\<alpha\>|\<bar\>><rsup|\<beta\><rsub|\<chi\>>>|\<bar\>>.F<rsub|\<chi\>>\<wedge\>A<rsub|\<beta\><rsub|\<chi\>>><around*|[|<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<assign\><wide|\<delta\><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>,k>|\<bar\>>|]>|)><eq-number>>>|<row|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.G<rsub|\<chi\><rsub|K>>|)>>|<cell|=>|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>FV<around*|(|G<rsub|\<chi\><rsub|K>>|)>.\<delta\><rprime|'><wide|=|\<dot\>><wide|FV<around*|(|G<rsub|\<chi\><rsub|K>>|)>\\<wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>|\<vect\>>\<wedge\>G<rsub|\<chi\><rsub|K>><around*|[|\<alpha\><rsub|2><rsup|K>\<assign\>\<delta\><rprime|'>|]><eq-number>>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|<around*|(|\<forall\>\<chi\>|)>S<rsub|k+1><around*|(|\<chi\>|)>\\S<rsub|k><around*|(|\<chi\>|)>=\<varnothing\>,<eq-number>>>|<row|<cell|>|<cell|>|<cell|<around*|(|\<forall\>\<chi\><rsub|K>|)>R<rsub|k+1><around*|(|\<chi\><rsub|K>|)>\\R<rsub|k><around*|(|\<chi\><rsub|K>|)>=\<varnothing\>>>|<row|<cell|<with|mode|text|then
+    return>>|<cell|>|<cell|A<rsub|res>,S<rsub|k+1>,\<Xi\><around*|(|R<rsub|k+1>|)>>>|<row|<cell|<with|mode|text|repeat>>|<cell|>|<cell|k\<assign\>k+1<eq-number>>>>>
   </eqnarray*>
 
   Note that <math|Split> returns <math|<wide|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<beta\><rsub|\<chi\>>>.A<rsub|\<beta\><rsub|\<chi\>>>|\<bar\>>>
@@ -1087,37 +1102,40 @@
   <math|\<chi\><rsub|K><around*|(|\<beta\><rsub|\<chi\><rsub|K>>,\<cdummy\>|)>>
   with different <math|\<beta\><rsub|\<chi\><rsub|K>>> when the corresponding
   value is used in multiple <math|<with|math-font-series|bold|let> \<ldots\>
-  <with|math-font-series|bold|in>> expressions.
-  <math|\<wedge\><rsub|\<beta\><rsub|\<chi\>>>A<rsub|\<beta\><rsub|\<chi\>>>>
-  is a conjunction that spans all such occurrences. The variant of the
-  algorithm to achieve completeness as conjectured in
-  <cite|InvariantsTechRep2> would compute all answers for variants of
-  <math|Abd> and <math|Split> algorithms that return multiple answers. Unary
-  predicate variables <math|\<chi\><around*|(|\<beta\><rsub|\<chi\>>|)>> can
-  also have multiple negative occurrences in the normalized form, but always
-  with the same argument <math|\<beta\><rsub|\<chi\>>>.
+  <with|math-font-series|bold|in>> expressions. The variant of the algorithm
+  to achieve completeness as conjectured in <cite|InvariantsTechRep2> would
+  compute all answers for variants of <math|Abd> and <math|Split> algorithms
+  that return multiple answers. Unary predicate variables
+  <math|\<chi\><around*|(|\<beta\><rsub|\<chi\>>|)>> can also have multiple
+  negative occurrences in the normalized form, but always with the same
+  argument <math|\<beta\><rsub|\<chi\>>>. Upon detecting
+  <math|A<rsub|\<beta\><rsub|\<chi\><rsub|K>>>\<neq\>\<top\>> we report that
+  the postcondition <math|R<rsub|k+1><around*|(|\<chi\><rsub|K>|)>> is weaker
+  than the requirement <math|A<rsub|\<beta\><rsub|\<chi\><rsub|K>>>>.
+  <math|R<rsub|k><rsup|->> substitutes only negative occurrences of predicate
+  variables.
 
-  Note that even for a fixed <math|K>, the same branch
+  Even for a fixed <math|K>, the same branch
   <math|D<rsub|K><rsup|\<alpha\>>\<Rightarrow\>C<rsub|K><rsup|\<alpha\>>> can
-  occur multiple times, with different <math|\<alpha\>=\<alpha\><rsub|3><rsup|i,K>>.
+  contribute to multiple disjuncts, with different
+  <math|\<alpha\>=\<alpha\><rsub|3><rsup|i,K>>.
 
-  We start with <math|S<rsub|0>\<assign\><wide|\<top\>|\<bar\>>>.
+  We start with <math|S<rsub|0>\<assign\><wide|\<top\>|\<bar\>>> and
+  <math|R<rsub|0>\<assign\><wide|\<top\>|\<bar\>>>. <math|S<rsub|k>> grow in
+  strength by definition. <math|R<rsub|1>> and <math|R<rsub|2>> are computed
+  from non-recusrive branches only. Starting from <math|R<rsub|2>>,
+  <math|R<rsub|k>> are expected to decrease in strength, but monotonicity is
+  not guaranteed because of contributions from <math|S<rsub|k>>. Solutions
+  <math|S<rsub|k>> growing with <math|k> introduce opportunity fo`r
+  simplifications not captured when the incremental improvements
+  <math|A<rsub|\<beta\><rsub|\<chi\>>>> are derived.
+
   <math|Connected<around*|(|\<alpha\>,G|)>> is the connected component of
   hypergraph <math|G> containing node <math|\<alpha\>>, where nodes are
   variables <math|FV<around*|(|G|)>> and hyperedges are atoms
-  <math|c\<in\>G>. <math|H<around*|(|S<rsub|a>,S<rsub|b>,S<rsub|c>|)>> is a
+  <math|c\<in\>G>. <math|H<around*|(|R<rsub|a>,R<rsub|b>,R<rsub|c>|)>> is a
   convergence improving heuristic, a dummy implementation is
-  <math|H<around*|(|S<rsub|a>,S<rsub|b>,S<rsub|c>|)>=S<rsub|c>>.
-  <math|<wide|S|~>> is the substitution of predicate variables
-  <math|<wide|\<chi\>|\<bar\>>> corresponding to <math|S>.
-
-  Solutions <math|S<rsub|k>> growing with <math|k> introduce opportunity for
-  simplifications not captured when the incremental improvements
-  <math|A<rsub|\<beta\><rsub|\<chi\>>>> are derived. In step
-  <reference|SolSimpl> we simplify and then prune each
-  <math|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>>.F<rsub|\<chi\>>>. The
-  updated residuum <math|\<cal-Q\><rprime|'>.A<rsub|res>\<wedge\>A<rsub|sel>>
-  is checked for validity at a later stage.
+  <math|H<around*|(|R<rsub|a>,R<rsub|b>,R<rsub|c>|)>=R<rsub|c>>.
 
   We introduced the <verbatim|assert false> construct into the programming
   language to indicate that a branch of code should not be reached. Type
@@ -1162,12 +1180,7 @@
   We represent <math|<wide|\<alpha\>|\<vect\>>> as a tuple type rather than
   as a function type. We modify the quantifier <math|\<cal-Q\>> imperatively,
   because it mostly grows monotonically, and when variables are dropped they
-  do not conflict with fresh variables generated later. Variables introduced
-  by predicate variable substitution are always existential for positive
-  occurrences, but for negative occurrences some parts of the algorithm
-  assume they are universal, and some use a variant of the quantifier, e.g.
-  <math|\<cal-Q\><rprime|'><around*|[|<wide|\<forall\>\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<assign\><wide|\<exists\>\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>|]>>,
-  where they are existential.
+  do not conflict with fresh variables generated later.
 
   The code that selects <math|\<wedge\><rsub|\<chi\>><around*|(|A<rsub|\<chi\>><rsup|+>\<subset\>A<rsub|\<chi\>><rsup|cap>|)>\<wedge\>\<vDash\>\<cal-Q\>.A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>>
   is an incremental validity checker. It starts with
@@ -1185,8 +1198,12 @@
   iteration of the loop -- or should perform abductions for other sorts -- in
   subsequent iteration. See discussion in subsection
   <reference|AlienSubterms>. In the first two iterations, we remove branches
-  that contain unary predicate variables in the conclusion, as discussed at
-  the end of subsection <reference|SCAlinear>.
+  that contain unary predicate variables in the conclusion (or binary
+  predicate variables in the premise, keeping only <verbatim|nonrec>
+  branches), as discussed at the end of subsection <reference|SCAlinear> and
+  beginning of subsection <reference|NumConv>. As discussed in subsection
+  <reference|NumConv>, starting from the fourth iteration (<math|k=3>), we
+  enforce convergence on solutions for binary predicate variables.
 
   Computing abduction is the ``axis'' of the main loop. If anything fails,
   the previous abduction answer is the culprit. We add the previous answer to
@@ -1194,8 +1211,6 @@
   abduction and splitting succeeds, we reset the discard list and increment
   the iteration number. We use recursion for backtracking, instead of making
   <verbatim|loop> tail-recursive.
-
-  \;
 
   <\bibliography|bib|tm-plain|biblio.bib>
     <\bib-list|8>
@@ -1263,6 +1278,7 @@
     <associate|Details|<tuple|5.4|13>>
     <associate|ImplSubst|<tuple|4|2>>
     <associate|MainAlgo|<tuple|5|10>>
+    <associate|NumConv|<tuple|4.2|?>>
     <associate|SCAlinear|<tuple|3.4|7>>
     <associate|SepProp|<tuple|5|3>>
     <associate|SepProp2|<tuple|6|?>>
@@ -1273,12 +1289,13 @@
     <associate|auto-10|<tuple|3.5|8>>
     <associate|auto-11|<tuple|4|9>>
     <associate|auto-12|<tuple|4.1|9>>
-    <associate|auto-13|<tuple|5|10>>
-    <associate|auto-14|<tuple|5.1|10>>
-    <associate|auto-15|<tuple|5.2|10>>
-    <associate|auto-16|<tuple|5.3|12>>
-    <associate|auto-17|<tuple|5.4|13>>
+    <associate|auto-13|<tuple|4.2|10>>
+    <associate|auto-14|<tuple|5|10>>
+    <associate|auto-15|<tuple|5.1|10>>
+    <associate|auto-16|<tuple|5.2|12>>
+    <associate|auto-17|<tuple|5.3|13>>
     <associate|auto-18|<tuple|5.4|14>>
+    <associate|auto-19|<tuple|5.4|?>>
     <associate|auto-2|<tuple|2|2>>
     <associate|auto-3|<tuple|2.1|4>>
     <associate|auto-4|<tuple|2.2|4>>
