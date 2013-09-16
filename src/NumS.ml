@@ -822,6 +822,36 @@ let equivalent cmp_v uni_v cnj1 cnj2 =
   and eqs2 = List.map (fun (v,w) -> v, unloc w) eqs2 in
 *) (* and now what... *)
 
+let converge cmp_v uni_v cnj1 cnj2 =
+  Format.printf "NumS.converge:@\ncnj1=@ %a@\ncnj2=@ %a@\n%!"
+    pr_formula cnj1 pr_formula cnj2;
+  let cmp_v = make_cmp VarSet.empty cmp_v in
+  let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
+  let cmp_w (vars1,_,_) (vars2,_,_) =
+    match vars1, vars2 with
+    | [], [] -> 0
+    | _, [] -> -1
+    | [], _ -> 1
+    | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
+    (*let params = map_opt params
+      (List.fold_left
+      (fun acc (_,ps) -> VarSet.union acc ps) VarSet.empty) in*)
+    let eqs1, (ineqs1, implicits1) =
+      solve ~cnj:cnj1 cmp cmp_w uni_v in
+    let eqs1, _ = solve ~eqs:eqs1 ~eqn:implicits1 cmp cmp_w uni_v in
+    let eqs2, (ineqs2, implicits2) =
+      solve ~cnj:cnj2 cmp cmp_w uni_v in
+    let eqs2, _ = solve ~eqs:eqs2 ~eqn:implicits2 cmp cmp_w uni_v in
+    let ans1 = ans_to_formula (eqs1, ineqs1) in
+    let ans2 = ans_to_formula (eqs2, ineqs2) in
+    let eq2ineq = function
+      | Eqty (t1, t2, lc) -> [Leq (t1, t2, lc); Leq (t2, t1, lc)]
+      | a -> [a] in
+    let ans1 = concat_map eq2ineq ans1
+    and ans2 = concat_map eq2ineq ans2 in
+    formula_inter ans1 ans2
+
+
 type state = w_subst * ineqs
 let empty_state = [], []
 

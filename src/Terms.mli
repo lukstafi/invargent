@@ -168,6 +168,7 @@ val subst_fo_formula : subst -> formula -> formula
 val fvs_sb : subst -> VarSet.t
 val eq_atom : atom -> atom -> bool
 val subformula : formula -> formula -> bool
+val formula_inter : formula -> formula -> formula
 
 val replace_loc_atom : loc -> atom -> atom
 val replace_loc : loc -> formula -> formula
@@ -219,6 +220,8 @@ val subst_sb : sb:subst -> subst -> subst
 val update_sb : more_sb:subst -> subst -> subst
 val typ_sort_typ : typ -> bool
 val num_sort_typ : typ -> bool
+val typ_sort_atom : atom -> bool
+val num_sort_atom : atom -> bool
 val split_sorts : formula -> (sort * formula) list
 
 (** [use_quants] is a pair of [bvs] variables and parameters. *)

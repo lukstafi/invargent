@@ -44,6 +44,13 @@ val equivalent :
   (Terms.var_name -> bool) -> Terms.formula ->  Terms.formula -> 
   bool
 *)
+(** Intersect atoms of the formulas, but only after generating
+    consequences via Fourier elimination and turning equations into
+    pairs of inequalities. *)
+val converge :
+  (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
+  (Terms.var_name -> bool) ->
+  Terms.formula -> Terms.formula -> Terms.formula
 
 type state
 val empty_state : state

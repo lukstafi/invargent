@@ -13,6 +13,8 @@ type q_with_bvs = {
   cmp_v : var_name -> var_name -> var_scope;
   uni_v : var_name -> bool;
   positive_b : var_name -> bool;
+  (** Whether a binary predicate variable. *)
+  is_chiK : int -> bool;
   (** Add local variables of [chi(b)] instance, paired with keys
       -- corresponding variables of formal [chi(delta)]. *)
   add_b_vs_of : var_name -> (var_name * var_name) list -> unit;
@@ -20,7 +22,7 @@ type q_with_bvs = {
   b_qvs : (var_name, var_name list) Hashtbl.t;
   (** Renaming into [b_qvs], redundant but more idiot-proof *)
   b_renaming : (var_name, (var_name * var_name) list) Hashtbl.t;
-  add_bchi : var_name -> int -> bool -> unit;
+  add_bchi : var_name -> int -> posi:bool -> chiK:bool -> unit;
   find_b : int -> var_name list;
   find_chi : var_name -> int;
   mutable allbvs : VarSet.t;
@@ -31,6 +33,7 @@ type q_with_bvs = {
 let new_q cmp_v uni_v =
   let same_q = Hashtbl.create 32 in
   let posi_b = Hashtbl.create 16 in
+  let chiK_i = Hashtbl.create 16 in
   let cmp_v v1 v2 =
     let v1 = try Hashtbl.find same_q v1 with Not_found -> v1 in
     let v2 = try Hashtbl.find same_q v2 with Not_found -> v2 in
@@ -41,6 +44,7 @@ let new_q cmp_v uni_v =
       not (Hashtbl.mem posi_b bv)
     else uni_v v in
   let positive_b v = Hashtbl.mem posi_b v in
+  let is_chiK i = Hashtbl.mem chiK_i i in
   let b_vs = Hashtbl.create 16 in
   let b_renaming = Hashtbl.create 16 in
   let b_qvs = Hashtbl.create 16 in
@@ -48,7 +52,7 @@ let new_q cmp_v uni_v =
   let b_chi = Hashtbl.create 16 in
   let find_b i = Hashtbl.find_all chi_b i in
   let find_chi b = Hashtbl.find b_chi b in
-  let rec add_bchi b i posi =
+  let rec add_bchi b i ~posi ~chiK =
     if Hashtbl.mem b_chi b
     then (
       let old = Hashtbl.find b_chi b in
@@ -60,6 +64,7 @@ let new_q cmp_v uni_v =
         i (var_str b) posi; (* *)
       if posi then Hashtbl.add posi_b b ()
       else q.negbs <- b::q.negbs;
+      if chiK then Hashtbl.add chiK_i i ();
       q.allchi <- Ints.add i q.allchi;
       Hashtbl.add chi_b i b;
       Hashtbl.add b_chi b i;
@@ -90,13 +95,15 @@ let new_q cmp_v uni_v =
     cmp_v; uni_v; add_b_vs_of;
     allchi = Ints.empty;
     b_vs; b_renaming; b_qvs; allbvs = VarSet.empty;
-    add_bchi; find_b; find_chi;
+    add_bchi; find_b; find_chi; is_chiK;
     positive_b; negbs = [];
   } in q
 
 (* Return renaming of [vs], creating fresh [rvs] pairs when
-   needed and adding them as locals of [b] in [q]. *)
-let matchup_vars ?dK self_owned q b vs =
+   needed and adding them as locals of [b] in [q].
+   [self_owned] means variables will not be generated for parameters
+   already introduced for [b]. *)
+let matchup_vars ~self_owned q b vs =
   let orvs =
     try Hashtbl.find q.b_renaming b with Not_found -> assert false in
   let nvs = List.filter (fun v->not (List.mem_assoc v orvs)) vs in
@@ -114,51 +121,26 @@ let matchup_vars ?dK self_owned q b vs =
   q.add_b_vs_of b nrvs;
   let res = nrvs @ orvs in
   (* [orvs] stores a [delta] substitution, [delta] is absent from [vs] *)
-  (* [~dK] only substitutes new variables from disjunction elimination *)
-  (* FIXME: seems to work but breaks the assert. *)
-  (* if dK=None then assert (List.length res = List.length vs + 1); *)
   List.map (fun (v,w) -> v, (TVar w, dummy_loc)) res
 
-let sb_chiK_neg q psb (i, t1, t2, lc) =
-  match t1 with TVar b ->
-    (try
-       let vs, phi = List.assoc i psb in
-       Format.printf
-         "sb_chiK_neg: chi%d(%s,%a)=@ %a@\n%!"
-         i (var_str b) (pr_ty false) t2 pr_ans (vs,phi); (* *)
-       let renaming = matchup_vars ~dK:() false q b vs in
-       replace_loc lc
-         (sb_phi_binary t1 t2 (subst_formula renaming phi))
-     with Not_found -> [])
-  | _ -> []
-
-let sb_atom_pred q posi psb = function
+let sb_atom_PredU q posi psb = function
   | PredVarU (i, (TVar b as t), loc) as a ->
     (try
        let vs, phi = List.assoc i psb in
        Format.printf
          "sb_atom_pred: U posi=%b@ chi%d(%s)=@ %a@\n%!"
          posi i (var_str b) pr_ans (vs,phi); (* *)
-       let renaming = matchup_vars (not posi) q b vs in
+       let renaming = matchup_vars ~self_owned:(not posi) q b vs in
        replace_loc loc
          (sb_phi_unary t (subst_formula renaming phi))
      with Not_found -> [a])  
-  | PredVarB (i, (TVar b as t1), t2, loc) as a ->
-    (try
-       let vs, phi = List.assoc i psb in
-       Format.printf
-         "sb_atom_pred: B posi=%b@ chi%d(%s,%a)=@ %a@\n%!"
-         posi i (var_str b) (pr_ty false) t2 pr_ans (vs,phi); (* *)
-       let renaming = matchup_vars false q b vs in
-       replace_loc loc
-         (sb_phi_binary t1 t2 (subst_formula renaming phi))
-     with Not_found -> [a])
+  | PredVarB _ -> []
   | a -> [a]
 
-let sb_formula_pred q posi psb phi =
-  concat_map (sb_atom_pred q posi psb) phi
+let sb_formula_PredU q posi psb phi =
+  concat_map (sb_atom_PredU q posi psb) phi
 
-let sb_brs_allpred q psb brs = List.map
+let sb_brs_PredU q sol brs = List.map
   (fun (prem,concl) ->
     List.for_all                        (* is_nonrec *)
       (function PredVarU _ -> false | _ -> true) concl &&
@@ -168,14 +150,56 @@ let sb_brs_allpred q psb brs = List.map
       (function PredVarB (i,t1,t2,lc) -> Some (i,t1,t2,lc) | _ -> None) prem,
     Aux.map_some                        (* chiK_pos *)
       (function PredVarB (i,t1,t2,lc) -> Some (i,t1,t2,lc) | _ -> None) concl,
-    sb_formula_pred q false psb prem, sb_formula_pred q true psb concl)
+    sb_formula_PredU q false sol prem,
+    sb_formula_PredU q true sol concl)
   brs
 
-let sb_brs_dK q psb brs = List.map
+let sb_PredB q psb (i, t1, t2, lc) =
+  match t1 with TVar b ->
+    (try
+       let vs, phi = List.assoc i psb in
+       Format.printf
+         "sb_chiK_neg: chi%d(%s,%a)=@ %a@\n%!"
+         i (var_str b) (pr_ty false) t2 pr_ans (vs,phi); (* *)
+       let renaming = matchup_vars ~self_owned:false q b vs in
+       replace_loc lc
+         (sb_phi_binary t1 t2 (subst_formula renaming phi))
+     with Not_found -> [])
+  | _ -> []
+
+let sb_brs_PredB q rol brs = List.map
   (fun (nonrec,chiK_neg,chiK_pos,prem,concl) ->
     nonrec,
-    concat_map (sb_chiK_neg q psb) chiK_neg @ prem, concl)
+    chiK_pos,
+    concat_map (sb_PredB q rol) chiK_neg @ prem,
+    concl)
   brs
+
+let sb_atom_pred q posi rol sol = function
+  | PredVarU (i, (TVar b as t), loc) as a ->
+    (try
+       let vs, phi = List.assoc i sol in
+       Format.printf
+         "sb_atom_pred: U posi=%b@ chi%d(%s)=@ %a@\n%!"
+         posi i (var_str b) pr_ans (vs,phi); (* *)
+       let renaming = matchup_vars (not posi) q b vs in
+       replace_loc loc
+         (sb_phi_unary t (subst_formula renaming phi))
+     with Not_found -> [a])  
+  | PredVarB (i, (TVar b as t1), t2, loc) as a ->
+    (try
+       let vs, phi = List.assoc i rol in
+       Format.printf
+         "sb_atom_pred: B posi=%b@ chi%d(%s,%a)=@ %a@\n%!"
+         posi i (var_str b) (pr_ty false) t2 pr_ans (vs,phi); (* *)
+       let renaming = matchup_vars false q b vs in
+       replace_loc loc
+         (sb_phi_binary t1 t2 (subst_formula renaming phi))
+     with Not_found -> [a])
+  | a -> [a]
+
+let sb_formula_pred q posi rol sol phi =
+  concat_map (sb_atom_pred q posi rol sol) phi
 
 let pr_chi_subst ppf chi_sb =
   pr_sep_list ";" (fun ppf (i,ans) ->
@@ -409,9 +433,33 @@ let simplify cmp_v uni_v vs cnj =
   VarSet.elements ty_vs,
   ty_ans @ num_ans
 
-let converge sol0 sol1 sol2 =
-  (* TODO *)
-  sol2
+let converge cmp_v uni_v ~check_only (vs1, cnj1) (vs2, cnj2) =
+  let c1_ty, c1_num, c1_so = unify cmp_v uni_v cnj1 in
+  let c2_ty, c2_num, c2_so = unify cmp_v uni_v cnj2 in
+  assert (c1_so = []); assert (c2_so = []);
+  let cnj_tys = inter_merge (fun (v1,_) (v2,_) -> compare v1 v2)
+    (fun (_,(t1,_)) (_,(t2,_)) -> Eqty (t1,t2,dummy_loc)) c1_ty c2_ty in
+  let renaming, _, _ = unify cmp_v uni_v cnj_tys in
+  let vs = vars_of_list vs1 in
+  (* Recover old variable names where they are easy to match. *)
+  let renaming = map_some
+    (function
+    | _, (TVar v2, _) as sx when VarSet.mem v2 vs -> Some sx
+    | v1, (TVar v2, lc) when VarSet.mem v1 vs -> Some (v2, (TVar v1, lc))
+    | _ -> None)
+    renaming in
+  let c2_ty = subst_sb ~sb:renaming c2_ty
+  and c2_num = subst_formula renaming c2_num
+  and vs2 = List.map
+    (fun v ->
+      try match List.assoc v renaming with
+      | TVar v2, _ -> v2 | _ -> assert false
+      with Not_found -> v)
+    vs2 in
+  let c_num =
+    if check_only then c2_num
+    else NumS.converge cmp_v uni_v c1_num c2_num in
+  vs2, to_formula c2_ty @ c_num
 
 let neg_constrns = ref true
 
@@ -450,15 +498,21 @@ let solve cmp_v uni_v brs =
     (fun (prem,concl) ->
       List.iter
         (function
-        | PredVarU (i, TVar b, lc_p) | PredVarB (i, TVar b, _, lc_p) ->
+        | PredVarU (i, TVar b, lc_p) ->
           let lc_c = formula_loc concl in
           Hashtbl.add negchi_locs b (loc_union lc_p lc_c);
-          q.add_bchi b i false
+          q.add_bchi b i ~posi:false ~chiK:false
+        | PredVarB (i, TVar b, _, lc_p) ->
+          let lc_c = formula_loc concl in
+          Hashtbl.add negchi_locs b (loc_union lc_p lc_c);
+          q.add_bchi b i ~posi:false ~chiK:true
         | _ -> ()) prem;
       List.iter
         (function
-        | PredVarU (i, TVar b, _) | PredVarB (i, TVar b, _, _) ->
-          q.add_bchi b i true
+        | PredVarU (i, TVar b, _) ->
+          q.add_bchi b i ~posi:true ~chiK:false
+        | PredVarB (i, TVar b, _, _) ->
+          q.add_bchi b i ~posi:true ~chiK:true
         | _ -> ()) concl;
     ) brs;
   let bparams () = List.map
@@ -505,22 +559,24 @@ let solve cmp_v uni_v brs =
   let solT = List.map
     (fun i -> i, ([], []))
     (Ints.elements q.allchi) in
-  let rec loop iter_no discard sol0 sol1 =
-    let brs1 = sb_brs_allpred q sol1 brs in
+  let rolT, solT = List.partition (q.is_chiK % fst) solT in
+  let rec loop iter_no discard rol1 sol1 =
+    let brs0 = sb_brs_PredU q sol1 brs in
+    let brs1 = sb_brs_PredB q rol1 brs0 in
     Format.printf "solve: loop iter_no=%d@\nsol=@ %a@\n%!"
       iter_no pr_chi_subst sol1; (* *)
-    Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs5 brs1; (* *)
+    Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs4 brs1; (* *)
     (* 1 *)
-    let chiK = collect
+    let rol2 = collect
       (concat_map
-         (fun (nonrec,_,chiK_pos,prem,_) ->
+         (fun (nonrec,chiK_pos,prem,_) ->
            if nonrec || iter_no > 1
            then
              let concls =
                if chiK_pos = [] then []
                else
                  concat_map
-                   (fun (_,_,_,prem2,concl2) ->
+                   (fun (_,_,prem2,concl2) ->
                      if subformula prem2 prem then concl2 else [])
                    brs1 in
              List.map
@@ -533,49 +589,46 @@ let solve cmp_v uni_v brs =
                chiK_pos
            else [])
          brs1) in
-    let chiK = List.map (fun ((i,t2),cnjs) -> i, (t2, cnjs)) chiK in
-    Format.printf "solve: chiK keys=%a@\n%!"
+    let rol2 = List.map (fun ((i,t2),cnjs) -> i, (t2, cnjs)) rol2 in
+    Format.printf "solve: rol2 keys=%a@\n%!"
       (pr_sep_list "| " (fun ppf (i,(t,_)) ->
-        Format.fprintf ppf "%d,%a" i (pr_ty false) t)) chiK;
+        Format.fprintf ppf "%d,%a" i (pr_ty false) t)) rol2;
     (* *)
-    assert (is_unique (List.map fst chiK));
+    assert (is_unique (List.map fst rol2));
     (* 2 *)
-    let dK = List.map
+    let rol2 = List.map
       (fun (i,(t2,cnjs)) ->
         let cnjs = List.map
           (fun cnj->snd (connected [delta] ([],cnj))) cnjs in
-        i, connected [delta] (DisjElim.disjelim cmp_v uni_v cnjs)) chiK in
-    let dK = map_some
-      (fun (i,(gvs, g_ans)) ->
-        let vs, ans = List.assoc i sol1 in
-        (* Adding to quantifier for [simplify]. *)
-        Format.printf "solve.loop-dK: before simplify@ gvs=%a@ g_ans=%a@\n%!"
-          pr_vars (vars_of_list gvs) pr_formula g_ans; (* *)
-        (* 3 *)
-        if g_ans = [] then None
-        else
-          let gvs, ans' =
-            simplify (cmp_v' gvs) uni_v gvs (g_ans @ ans) in
-          Format.printf "solve.loop-dK: final@ gvs=%a@ ans'=%a@\n%!"
-            pr_vars (vars_of_list gvs) pr_formula ans'; (* *)
+        (i, connected [delta] (DisjElim.disjelim cmp_v uni_v cnjs)),
+        (i, t2))
+      rol2 in
+    let rol2, chiK = List.split rol2 in
+    Format.printf "solve: iter_no=%d@\nrol2.A=%a@\n%!"
+      iter_no pr_chi_subst rol2;
+    (* *)
+    (* 3 *)
+    let rol2 = List.map2
+      (fun (i,ans1) (j,ans2) ->
+        assert (i = j);
+        let g_cmp_v = cmp_v' (fst ans2) in
+        let ans2 =
+          converge g_cmp_v uni_v ~check_only:(iter_no > 2) ans1 ans2 in
+        Format.printf "solve.loop-dK: final@ ans2=%a@\n%!"
+          pr_ans ans2; (* *)
           (* No [b] "owns" these formal parameters. Their instances
              will be added to [q] by [sb_brs_pred]. *)
-          if list_diff ans' ans = [] then None
-          else Some ((i, (gvs @ vs, ans')), (i, (gvs, g_ans)))
-      ) dK in
-    let repl_dK, upd_dK = List.split dK in
-    Format.printf "solve: loop; #dK=%d@ upd_dK=%a@\n%!"
-      (List.length dK) pr_chi_subst upd_dK; (* *)
-    let sol1 = replace_assocs ~repl:repl_dK sol1 in
-    let brs1 = sb_brs_dK q upd_dK brs1 in
-    Format.printf "solve: loop iter_no=%d dK replaced @\nsol=@ %a@\n%!"
-      iter_no pr_chi_subst sol1; (* *)
+        i, ans2
+      ) rol1 rol2 in
+    let brs1 = sb_brs_PredB q rol2 brs0 in
+    Format.printf "solve: loop iter_no=%d@\nrol2.B=@ %a@\n%!"
+      iter_no pr_chi_subst rol2; (* *)
     Format.printf "solve-loop: iter_no=%d -- ex. brs substituted@\n%!"
       iter_no; (* *)
-    Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs3 brs1; (* *)
+    Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs4 brs1; (* *)
     (* 4 *)
     let neg_cns1 = List.map
-      (fun (prem,loc) -> sb_formula_pred q false sol1 prem, loc)
+      (fun (prem,loc) -> sb_formula_pred q false rol2 sol1 prem, loc)
       neg_cns in
     let bparams = bparams () in
     (* let bvs =
@@ -626,12 +679,29 @@ let solve cmp_v uni_v brs =
               ())
           neg_cns1;
         (* 5 *)
+        let brs1 = List.map
+          (fun (nonrec,_,prem,concl) -> nonrec,prem,concl) brs1 in
         let alien_eqs, (vs, ans) =
           Abduction.abd cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
             ~iter_no ~discard brs1 in
-        (* Beyond this point exceptions mean unsolvability. *)
         let ans_res, more_discard, sol2 =
           split vs ans negchi_locs params zparams q in
+        (* 6 *)
+        let sol2 = List.filter
+          (fun (b, (_,ans)) ->
+            not (q.is_chiK (q.find_chi b)) ||
+              if ans <> []
+              then
+                let sort =
+                  if List.exists typ_sort_atom ans then Type_sort
+                  else Num_sort in
+                let msg =
+                  "Unsatisfiable requirement on existential type "
+                    ^ (string_of_int (q.find_chi b)) in
+                let loc = formula_loc ans in
+                raise (NoAnswer (sort, msg, None, loc))
+              else false)
+          sol2 in
         Format.printf
           "solve: loop -- answer split@ more_discard=@ %a@\nans_res=@ %a@\n%!"
           pr_formula more_discard pr_formula ans_res; (* *)
@@ -655,7 +725,7 @@ let solve cmp_v uni_v brs =
       let more_discard =
         if alien_eqs = [] then more_discard
         else subst_formula alien_eqs more_discard in
-      (* 7 *)
+      (* 8 *)
       let lift_ex_types t2 (vs, ans) =
         let fvs = fvs_formula ans in
         let dvs = VarSet.elements
@@ -671,10 +741,10 @@ let solve cmp_v uni_v brs =
           pr_vars (vars_of_list dvs) pr_formula ans pr_formula phi;
         (* *)
         vs @ dvs, phi in
-      (* 11 *)
+      (* 10 *)
       let finish sol2 =
         (* start fresh at (iter_no+1) *)
-        match loop (iter_no+1) [] sol1 sol2
+        match loop (iter_no+1) [] rol2 sol2
         with Aux.Right _ as res -> res
         | Aux.Left (sort, e) ->
           let s_discard =
@@ -682,22 +752,19 @@ let solve cmp_v uni_v brs =
           if s_discard = [] then raise e;
           let discard =
             update_assoc sort [] (fun dl -> s_discard::dl) discard in
-          loop iter_no discard sol0 sol1 in
-      (* 6 *)
+          loop iter_no discard rol1 sol1 in
+      (* 7 *)
       let sol2 = List.map
         (fun (i, (vs, ans)) ->
           let bs = List.filter (not % q.positive_b) (q.find_b i) in
-          let ds = List.map (fun b-> b, List.assoc b sol2) bs in
-          let dans = concat_map
-            (fun (b, (dvs, dans)) ->
-              Format.printf
-                "solve-loop-9: chi%d(%s)=@ %a@ +@ %a@\n%!"
-                i (var_str b) pr_ans (dvs,dans) pr_ans (vs,ans); (* *)
-              (* No need to substitute, because variables will be
-                 freshened when predicate variable is instantiated. *)
-              subst_formula [b, (tdelta, dummy_loc)] dans
-            ) ds in
-          let dvs = concat_map (fun (_,(dvs,_))->dvs) ds in
+          let b = match bs with [b] -> b | _ -> assert false in
+          let dvs, dans = List.assoc b sol2 in
+          Format.printf
+            "solve-loop-9: chi%d(%s)=@ %a@ +@ %a@\n%!"
+            i (var_str b) pr_ans (dvs,dans) pr_ans (vs,ans); (* *)
+          (* No need to substitute, because variables will be
+             freshened when predicate variable is instantiated. *)
+          let dans = subst_formula [b, (tdelta, dummy_loc)] dans in
           let dvs, ans' =
             simplify (cmp_v' dvs) uni_v dvs (dans @ ans) in
           let i_res = dvs @ vs, ans' in
@@ -706,22 +773,26 @@ let solve cmp_v uni_v brs =
             pr_vars (vars_of_list vs) pr_formula ans i pr_ans i_res; (* *)
           i, i_res)
         sol1 in    
-      (* 8 *)
-      let finished = iter_no >= 1 && List.for_all2
+      (* 9 *)
+      let finished_sol = iter_no >= 1 && List.for_all2
         (fun (i,(_,ans2)) (j,(_,ans1)) -> assert (i=j);
-          list_diff ans2 ans1 = [])
+          subformula ans2 ans1)
         sol2 sol1 in
+      let finished = finished_sol && List.for_all2
+        (fun (i,(_,ans2)) (j,(_,ans1)) -> assert (i=j);
+          subformula ans1 ans2)
+        rol2 rol1 in
       if iter_no > 1 && finished
       then                              (* final solution *)
-        let sol = List.map
+        let rol2 = List.map
           (fun ((i,sol) as isol) ->
             (* 9 *)
-            try let t2, _ = List.assoc i chiK in
+            try let t2 = List.assoc i chiK in
                 i, lift_ex_types t2 sol
             with Not_found -> isol)
-          sol1 in
+          rol2 in
         (* FIXME: redundant simplification. *)
-        let res = fold_map
+        (*let res = fold_map
           (fun ans_res (i,(vs0,ans0)) ->
             let d_vs =
               let d = Aux.map_some
@@ -743,21 +814,19 @@ let solve cmp_v uni_v brs =
               pr_formula ans0 pr_formula ans;
             (* *)
             more @ ans_res, (i, (vs, ans)))
-          ans_res sol in
-        Aux.Right res
+          ans_res sol in*)
+        Aux.Right (ans_res, rol2, sol2)
       (* Do at least three iterations: 0, 1, 2. *)
       else if iter_no <= 1 && finished
-      then loop (iter_no+1) [] sol0 sol1
-      else
-        (* 10 *)
-        finish (converge sol0 sol1 sol2) in
-  match loop 0 [] solT solT with
+      then loop (iter_no+1) [] rol2 sol1
+      else finish sol2 in
+  match loop 0 [] rolT solT with
   | Aux.Left (_, e) -> raise e
-  | Aux.Right (ans_res, ans_so as sol) ->
+  | Aux.Right (ans_res, rol, sol as ans) ->
     Format.printf "solve: checking assert false@\n%!"; (* *)
     List.iter (fun (cnj, loc) ->
       try
-        let cnj = sb_formula_pred q false (snd sol) cnj in
+        let cnj = sb_formula_pred q false rol sol cnj in
         (* FIXME: rethink. *)
         ignore (satisfiable q empty_state cnj);
         raise (Contradiction (
@@ -770,7 +839,7 @@ let solve cmp_v uni_v brs =
     ex_types := List.map
       (function
       | ex_i, (([], [PredVarB (chi_i,t1,t2,_)], ty), loc) ->
-        let chi_vs, phi = List.assoc chi_i ans_so in
+        let chi_vs, phi = List.assoc chi_i rol in
         let sb, rphi = Infer.separate_subst cmp_v uni_v phi in
         let ans_sb, _ = Infer.separate_subst cmp_v uni_v ans_res in
         let sb = update_sb ~more_sb:ans_sb sb in
@@ -797,4 +866,4 @@ let solve cmp_v uni_v brs =
         ex_ty
       ) !ex_types;
     Format.printf "solve: returning@\n%!"; (* *)
-    cmp_v, uni_v, sol
+    cmp_v, uni_v, ans

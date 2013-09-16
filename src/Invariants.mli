@@ -14,4 +14,4 @@ val solve :
   (Terms.formula * Terms.formula) list ->
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) *
     (Terms.var_name -> bool) *
-    (Terms.formula * chi_subst)
+    (Terms.formula * chi_subst * chi_subst)

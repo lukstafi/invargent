@@ -29,10 +29,10 @@ let test_case msg test answers =
             i pr_vars (vars_of_list vs) (pr_ty false) t pr_formula phi
         ) !ex_types;
         (* *)
-        let _, _, (sol_res, sol_chi) =
+        let _, _, (res, rol, sol) =
           Invariants.solve cmp_v uni_v brs in
         let test_sol (chi, result) =
-          let vs, ans = List.assoc chi sol_chi in
+          let vs, ans = List.assoc chi sol in
           ignore (Format.flush_str_formatter ());
           Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
             (pr_sep_list "," pr_tyvar) vs pr_formula ans;
@@ -76,7 +76,7 @@ let rec eval = function
   | Fst p -> (match eval p with x, y -> x)
   | Snd p -> (match eval p with x, y -> y)"
 
-        [1, "∃t93. δ = (Term t93 → t93)"]
+        [1, "∃t94. δ = (Term t94 → t94)"]
     );
 
   "equal with test" >::
@@ -316,7 +316,7 @@ let rec escape = function Outside x -> x
 
   "find castle" >::
     (fun () ->
-      todo "existential";
+      todo "debug";
       test_case "find castle small"
 "newtype Room
 newtype Yard
@@ -371,7 +371,7 @@ let rec find = efunction
 
   "search castle shortcut" >::
     (fun () ->
-      (* todo "existential"; *)
+      todo "debug";
       test_case "search castle shortcut"
 "newtype Room
 newtype Yard
@@ -398,12 +398,12 @@ let rec search = efunction
     ematch check y with
     | Ordinary -> search y
     | Shortcut z -> Yard z"
-        [1,"∃t72, t73. δ = (Placement t73 → ∃3:t59[].Castle t59)"];
+        [1,"∃t67, t68. δ = (Placement t68 → ∃3:t88[].Castle t88)"];
     );
 
   "search castle distance" >::
     (fun () ->
-      todo "existential";
+      todo "debug";
       test_case "find castle distance"
 "newtype Bool
 newcons True : Bool
@@ -431,12 +431,12 @@ let rec search = efunction
     ematch closer y with
     | True -> search y
     | False -> search x"
-        [1,"∃t83, t84. δ = (Placement t84 → ∃3:t69[].Castle t69)"];
+        [1,"∃t81, t82. δ = (Placement t82 → ∃3:t65[].Castle t65)"];
     );
 
   "castle not existential" >::
     (fun () ->
-      todo "existential";
+      todo "debug";
       test_case "castle not existential"
 "newtype Yard
 newtype Village
@@ -459,7 +459,7 @@ let rec search = efunction
 
   "castle nested not existential" >::
     (fun () ->
-      todo "existential";
+      todo "debug";
       test_case "castle nested not existential"
 "newtype Answer
 newcons No : Answer
@@ -485,12 +485,12 @@ let rec search = efunction
     | No ->
       let y = wander x in
       search y"
-        [1,"∃t52, t53. δ = (Placement t53 → ∃3:[].Castle Yard)"];
+        [1,"∃t48, t49. δ = (Placement t49 → ∃3:[].Castle Yard)"];
     );
 
   "castle nested existential" >::
     (fun () ->
-      todo "existential";
+      (* todo "existential"; *)
       test_case "castle nested existential"
 "newtype Answer
 newcons Yes : Answer

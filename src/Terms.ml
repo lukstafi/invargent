@@ -337,6 +337,9 @@ let eq_atom a1 a2 =
 (* TODO: optimize *)
 let subformula phi1 phi2 =
   List.for_all (fun a1 -> List.exists (eq_atom a1) phi2) phi1
+let formula_inter cnj1 cnj2 =
+    List.filter (fun a -> List.exists (eq_atom a) cnj2) cnj1
+
 
 let subst_atom sb = function
   | Eqty (t1, t2, loc) -> Eqty (subst_typ sb t1, subst_typ sb t2, loc)
@@ -462,6 +465,20 @@ let num_sort_typ = function
       TVar (VNam (Num_sort, _)
                  | VId (Num_sort, _)) -> true
   | _ -> false
+
+let typ_sort_atom = function
+  | Eqty (t1, t2, _) -> typ_sort_typ t1 || typ_sort_typ t2
+  | Leq _ -> false
+  | CFalse _ -> false
+  | PredVarU _ -> true
+  | PredVarB _ -> true
+
+let num_sort_atom = function
+  | Eqty (t1, t2, _) -> num_sort_typ t1 || num_sort_typ t2
+  | Leq _ -> true
+  | CFalse _ -> false
+  | PredVarU _ -> false
+  | PredVarB _ -> false
 
 (** {2 Global tables} *)
 
