@@ -896,9 +896,9 @@ let connected target (vs, phi) =
     if nvs = [] then acc
     else loop acc (VarSet.union mvs vs) nvs rem in
   let ans = loop [] VarSet.empty target nodes in
-  Format.printf "connected: target=%a@ vs=%a@ phi=%a@ ans=%a@\n%!"
+  (* Format.printf "connected: target=%a@ vs=%a@ phi=%a@ ans=%a@\n%!"
     pr_vars (vars_of_list target) pr_vars (vars_of_list vs) pr_formula phi
-    pr_formula ans; (* *)
+    pr_formula ans; * *)
   VarSet.elements (VarSet.inter (fvs_formula ans) (vars_of_list vs)),
   ans
 

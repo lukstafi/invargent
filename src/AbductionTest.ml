@@ -26,7 +26,7 @@ let test_simple lhs_m rhs_m ?(validate=(fun _ _ -> ())) skip res =
     match abd_simple cmp_v uni_v ~without_quant:()
       ~bvs:VarSet.empty ~zvs:VarSet.empty ~bparams:[] ~zparams:[]
       ~validate ~discard:[] skip ([],[]) (lhs, rhs) with
-    | None _ -> "none"
+    | None -> "none"
     | Some (vs, ans_typ) ->
       pr_to_str pr_formula
         (to_formula ans_typ) in

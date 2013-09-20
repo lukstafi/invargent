@@ -849,7 +849,10 @@ let converge cmp_v uni_v cnj1 cnj2 =
       | a -> [a] in
     let ans1 = concat_map eq2ineq ans1
     and ans2 = concat_map eq2ineq ans2 in
-    formula_inter ans1 ans2
+  Format.printf "NumS.converge:@\nans1=@ %a@\nans2=@ %a@\n%!"
+    pr_formula ans1 pr_formula ans2;
+  (* FIXME: Actually, include transitivity! *)
+  formula_inter (cnj1 @ ans1) (cnj2 @ ans2)
 
 
 type state = w_subst * ineqs

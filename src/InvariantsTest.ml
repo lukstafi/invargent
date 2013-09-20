@@ -490,8 +490,37 @@ let rec search = efunction
 
   "castle nested existential" >::
     (fun () ->
-      (* todo "existential"; *)
-      test_case "castle nested existential"
+      todo "debug";
+      test_case "castle nested existential 1"
+"newtype Answer
+newcons Yes : Answer
+newcons No : Answer
+newtype Room
+newtype Yard
+newtype Village
+
+newtype Castle : type
+newtype Placement : type
+newcons Yard : Yard ⟶ Castle Yard
+newcons CastleYard : Yard ⟶ Placement Yard
+newcons Village : Village ⟶ Placement Village
+
+external wander : Village → ∃b. Placement b
+external entrance : Village → Answer
+external enter : ∀a. Placement a → Castle a
+
+let rec search = efunction
+  | CastleYard x -> Yard x
+  | Village x ->
+    let y = wander x in
+    ematch entrance x with
+    | Yes ->
+      enter y
+    | No ->
+      search y"
+        [1,"∃t64, t65. δ = (Placement t65 → ∃3:t84[].Castle t84)"];
+
+      test_case "castle nested existential 2"
 "newtype Answer
 newcons Yes : Answer
 newcons No : Answer
@@ -515,16 +544,16 @@ let rec search = efunction
     ematch entrance x with
     | Yes ->
       let y = wander x in
-      enter y
+      (ematch y with z -> enter z)
     | No ->
       let y = wander x in
       search y"
-        [1,"∃t59, t60. δ = (Placement t60 → ∃3:t48[].Castle t48)"];
+        [1,"∃t75, t76. δ = (Placement t76 → ∃4:t61[].Castle t61)"];
     );
 
   "filter" >::
     (fun () ->
-      todo "existential";
+      (* todo "existential"; *)
       test_case "list filter"
 "newtype Bool
 newtype List : type * num
@@ -542,7 +571,7 @@ let rec filter =
       ematch f x with
         | True ->
           let ys = filter xs in
-          LCons (x, ys)
+          (ematch ys with zs -> LCons (x, zs))
 	| False ->
           filter xs"
         [1,""];
