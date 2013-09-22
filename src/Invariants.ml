@@ -203,13 +203,14 @@ let sb_atom_pred q posi rol sol = function
 let sb_formula_pred q posi rol sol phi =
   concat_map (sb_atom_pred q posi rol sol) phi
 
+(* Using "script kappa" because "script chi" is not available. *)
 let pr_chi_subst ppf chi_sb =
   pr_sep_list ";" (fun ppf (i,ans) ->
-    Format.fprintf ppf "𝛘%d:=%a" i pr_ans ans) ppf chi_sb
+    Format.fprintf ppf "ϰ%d:=%a" i pr_ans ans) ppf chi_sb
 
 let pr_bchi_subst ppf chi_sb =
   pr_sep_list ";" (fun ppf (v,ans) ->
-    Format.fprintf ppf "𝛘(%s):=%a" (var_str v) pr_ans ans) ppf chi_sb
+    Format.fprintf ppf "ϰ(%s):=%a" (var_str v) pr_ans ans) ppf chi_sb
 
 type state = subst * NumS.state
 
@@ -338,6 +339,8 @@ let split avs ans negchi_locs params zparams q =
       try holds q empty_state init_res
       with Contradiction _ as e -> raise (convert e) in
     (* 8 *)
+    (* TODO: would it be better to implement it through
+       [connected ~validate]? *)
     let ans_res = ref init_res and state = ref init_state in
     let ans_ps = List.map
       (fun (b,ans) -> b,
@@ -624,9 +627,9 @@ let solve cmp_v uni_v brs =
              List.map
                (fun (i,t1,t2,lc) ->
                  let phi = Eqty (tdelta, t1, lc) :: prem @ concls in
-                 let _, phi = connected [delta] ([],phi) in
-                 Format.printf "chiK: i=%d@ t1=%a@ t2=%a@ phi=%a@\n%!"
-                   i (pr_ty false) t1 (pr_ty false) t2 pr_formula phi;
+                 Format.printf "chiK: i=%d@ t1=%a@ t2=%a@ prem=%a@\nphi=%a@\n%!"
+                   i (pr_ty false) t1 (pr_ty false) t2
+                   pr_formula prem pr_formula phi;
                  (* *)
                  (i,t2), phi)
                chiK_pos
@@ -639,9 +642,25 @@ let solve cmp_v uni_v brs =
     (* *)
     assert (is_unique (List.map fst g_rol));
     (* 2 *)
+    let validate ans = List.iter
+        (fun (nonrec, _, prem, concl) ->
+           (* Do not use quantifiers, because premise is in the conjunction. *)
+           if not nonrec then (
+             Format.printf "validate-postcond: ans=%a@ prem=%a@ concl=%a@\n%!"
+               pr_formula ans pr_formula prem pr_formula concl; (* *)
+             let sb_ty, ans_num, ans_so =
+               unify cmp_v uni_v (ans @ prem @ concl) in
+             Format.printf "validate-postcond: sb_ty=@ %a@\nans_num=@ %a@\n%!"
+               pr_subst sb_ty pr_formula ans_num; (* *)
+             let num_state (* _ *) =
+               NumS.satisfiable_exn ans_num in
+             Format.printf "validate-postcond: num_state=@ %a@\n%!"
+               pr_formula (NumS.formula_of_state num_state); (* *)
+             ()))
+    brs1 in
     let g_rol = List.map
       (fun (i,(t2,cnjs)) ->
-        (i, connected [delta] (DisjElim.disjelim cmp_v uni_v cnjs)),
+        (i, connected ~validate [delta] (DisjElim.disjelim cmp_v uni_v cnjs)),
         (i, t2))
       g_rol in
     let g_rol, chiK = List.split g_rol in

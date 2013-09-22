@@ -892,6 +892,24 @@ let satisfiable ?state cnj =
     Right (eqs, ineqs)
   with Contradiction _ as e -> Left e
 
+let satisfiable_exn ?state cnj =
+  let eqs, ineqs = match state with
+    | None -> None, None
+    | Some (eqs, ineqs) -> Some eqs, Some ineqs in
+  let uni_v _ = false in
+  let cmp_v v1 v2 = compare v1 v2 in
+  let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
+  let cmp_w (vars1,_,_) (vars2,_,_) =
+    match vars1, vars2 with
+    | [], [] -> 0
+    | _, [] -> -1
+    | [], _ -> 1
+    | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
+  let eqs, (ineqs, implicits) =
+    solve ?eqs ?ineqs ~cnj cmp cmp_w uni_v in
+  let eqs, _ = solve ~eqs ~eqn:implicits cmp cmp_w uni_v in
+  eqs, ineqs
+
 let holds cmp_v uni_v (eqs, ineqs : state) cnj : state =
   let cmp_v = make_cmp VarSet.empty cmp_v in
   let cmp (v1,_) (v2,_) = cmp_v v1 v2 in

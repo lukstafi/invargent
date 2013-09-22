@@ -839,8 +839,7 @@
   <math|D<rsub|i>>, by substituting out such variables. We pass the resulting
   inequalities to the convex hull algorithm.
 
-  <subsection|Convergence issues in solving for predicate
-  variables><label|NumConv>
+  <subsection|Issues in inferring postconditions><label|NumConv>
 
   Although finding recursive function invariants -- predicate variables
   solved by abduction -- could theoretically fail to converge for both the
@@ -858,6 +857,19 @@
   some step of the main loop, we compare consecutive solutions and
   extrapolate the trend. Currently we simply intersect the sets of atoms, but
   first we expand equations into pairs of inequalities.
+
+  Disjunction elimination limited to non-recursive branches, the initial
+  iteration of postcondition inference, will often generate constraints that
+  contradict other branches. For another iteration to go through, the partial
+  solutions need to be consistent. Therefore we filter the constraints using
+  the same validation mechanism as in abduction. We add atoms to a constraint
+  greedily, but to favor relevant atoms, we do the filtering while computing
+  the connected component of disjunction elimination result. See the details
+  of the main algorithm in section <reference|MainAlgoBody>.
+
+  While reading section <reference|MainAlgoBody>, you will notice that
+  postconditions are not subjected to stratification. This is because the
+  type system does not support nested existential types.
 
   <section|Solving for Predicate Variables><label|MainAlgo>
 
@@ -1069,7 +1081,8 @@
   The complete algorithm for solving predicate variables is presented in the
   next section.
 
-  <subsection|Solving for Existential Types Predicates and Main Algorithm>
+  <subsection|Solving for Existential Types Predicates and Main
+  Algorithm><label|MainAlgoBody>
 
   The general scheme is that we perform disjunction elimination on branches
   with positive occurrences of existential type predicate variables on each
@@ -1093,7 +1106,7 @@
 
   <\eqnarray*>
     <tformat|<cwith|8|8|2|2|cell-valign|c>|<table|<row|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.F<rsub|\<chi\>>|\<bar\>>>|<cell|=>|<cell|S<rsub|k>>>|<row|<cell|D<rsub|K><rsup|\<alpha\>>\<Rightarrow\>C<rsub|K><rsup|\<alpha\>>\<in\>R<rsub|k><rsup|->S<rsub|k><around*|(|\<Phi\>|)>>|<cell|=>|<cell|<with|mode|text|all
-    such that >\<chi\><rsub|K><around*|(|\<alpha\>,\<alpha\><rsub|2><rsup|K>|)>\<in\>C<rsub|K><rsup|\<alpha\>>,\<alpha\>=\<alpha\><rsub|3><rsup|i,K>,<eq-number>>>|<row|<cell|>|<cell|>|<cell|<wide|C<rsup|\<alpha\>><rsub|j>|\<bar\>>=<around*|{|C<mid|\|>D\<Rightarrow\>C\<in\>S<rsub|k><around*|(|\<Phi\>|)>\<wedge\>D\<subseteq\>D<rsup|\<alpha\>><rsub|K>|}>>>|<row|<cell|R<rsub|g><around*|(|\<chi\><rsub|K>|)>=\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>.G<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|DisjElim<around*|(|<wide|Connected<around*|(|\<delta\>,\<delta\><wide|=|\<dot\>>\<alpha\>\<wedge\>D<rsup|\<alpha\>><rsub|K>\<wedge\><rsub|j>C<rsup|\<alpha\>><rsub|j>|)>|\<bar\>><rsub|\<alpha\>\<in\><wide|\<alpha\><rsub|3><rsup|i,K>|\<bar\>>>|)><eq-number>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.F<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|Simpl<around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>>.H<around*|(|R<rsub|k><around*|(|\<chi\><rsub|K>|)>,G<rsub|\<chi\><rsub|K>>|)>|)><eq-number>>>|<row|<cell|\<cal-Q\><rprime|'>.\<wedge\><rsub|i><around*|(|D<rsub|i>\<Rightarrow\>C<rsub|i>|)>>|<cell|=>|<cell|R<rsub|g><rsup|->S<rsub|k><around*|(|\<Phi\>|)>>>|<row|<cell|>|<cell|>|<cell|<with|mode|text|At
+    such that >\<chi\><rsub|K><around*|(|\<alpha\>,\<alpha\><rsub|2><rsup|K>|)>\<in\>C<rsub|K><rsup|\<alpha\>>,\<alpha\>=\<alpha\><rsub|3><rsup|i,K>,<eq-number>>>|<row|<cell|>|<cell|>|<cell|<wide|C<rsup|\<alpha\>><rsub|j>|\<bar\>>=<around*|{|C<mid|\|>D\<Rightarrow\>C\<in\>S<rsub|k><around*|(|\<Phi\>|)>\<wedge\>D\<subseteq\>D<rsup|\<alpha\>><rsub|K>|}>>>|<row|<cell|R<rsub|g><around*|(|\<chi\><rsub|K>|)>=\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>.G<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|Connected<around*|(|\<delta\>,DisjElim<around*|(|<wide|\<delta\><wide|=|\<dot\>>\<alpha\>\<wedge\>D<rsup|\<alpha\>><rsub|K>\<wedge\><rsub|j>C<rsup|\<alpha\>><rsub|j>|\<bar\>><rsub|\<alpha\>\<in\><wide|\<alpha\><rsub|3><rsup|i,K>|\<bar\>>>|)>|)><eq-number>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.F<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|Simpl<around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>>.H<around*|(|R<rsub|k><around*|(|\<chi\><rsub|K>|)>,G<rsub|\<chi\><rsub|K>>|)>|)><eq-number>>>|<row|<cell|\<cal-Q\><rprime|'>.\<wedge\><rsub|i><around*|(|D<rsub|i>\<Rightarrow\>C<rsub|i>|)>>|<cell|=>|<cell|R<rsub|g><rsup|->S<rsub|k><around*|(|\<Phi\>|)>>>|<row|<cell|>|<cell|>|<cell|<with|mode|text|At
     later iterations, check negative constraints.><eq-number>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>>.A>|<cell|=>|<cell|Abd<around*|(|\<cal-Q\><rprime|'>\\<wide|\<forall\>\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>,<wide|\<zeta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|D<rsub|i>,C<rsub|i>|\<bar\>>|)><eq-number>>>|<row|<cell|<around*|(|\<cal-Q\><rsup|k+1>,<wide|<wide|\<alpha\>|\<bar\>><rsup|\<chi\>><rsub|+>|\<bar\>>,A<rsub|res>,<wide|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<beta\><rsub|\<chi\>>>.A<rsub|\<beta\><rsub|\<chi\>>>|\<bar\>>|)>>|<cell|=>|<cell|Split<around*|(|\<cal-Q\><rprime|'>,<wide|\<alpha\>|\<bar\>>,A,<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|<wide|\<zeta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>|)>>>|<row|<cell|R<rsub|k+1><around*|(|\<chi\><rsub|K>|)>>|<cell|=>|<cell|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rsub|K>,k>.Simpl<around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><wide|<wide|\<alpha\>|\<bar\>><rsup|\<beta\><rsub|\<chi\><rsub|K>>>|\<bar\>>.F<rsub|\<chi\><rsub|K>><next-line><with|mode|text|
     \ \ \ >\<wedge\><rsub|\<chi\><rsub|K>>A<rsub|\<beta\><rsub|\<chi\><rsub|K>>><around*|[|<wide|\<beta\><rsub|\<chi\><rsub|K>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<beta\><rsub|\<chi\><rsub|K>>>|\<bar\>>\<assign\><wide|\<delta\><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\><rsub|K>,k>|\<bar\>>|]>|)><eq-number>>>|<row|<cell|S<rsub|k+1><around*|(|\<chi\>|)>>|<cell|=>|<cell|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.Simpl<around*|(|\<exists\><wide|<wide|\<alpha\>|\<bar\>><rsup|\<beta\><rsub|\<chi\>>>|\<bar\>>.F<rsub|\<chi\>>\<wedge\>A<rsub|\<beta\><rsub|\<chi\>>><around*|[|<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<assign\><wide|\<delta\><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>,k>|\<bar\>>|]>|)><eq-number>>>|<row|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.G<rsub|\<chi\><rsub|K>>|)>>|<cell|=>|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>FV<around*|(|G<rsub|\<chi\><rsub|K>>|)>.\<delta\><rprime|'><wide|=|\<dot\>><wide|FV<around*|(|G<rsub|\<chi\><rsub|K>>|)>\\<wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>|\<vect\>>\<wedge\>G<rsub|\<chi\><rsub|K>><around*|[|\<alpha\><rsub|2><rsup|K>\<assign\>\<delta\><rprime|'>|]><eq-number>>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|<around*|(|\<forall\>\<chi\>|)>S<rsub|k+1><around*|(|\<chi\>|)>\<subseteq\>S<rsub|k><around*|(|\<chi\>|)>,<eq-number>>>|<row|<cell|>|<cell|>|<cell|<around*|(|\<forall\>\<chi\><rsub|K>|)>R<rsub|k+1><around*|(|\<chi\><rsub|K>|)>=R<rsub|k><around*|(|\<chi\><rsub|K>|)>,>>|<row|<cell|>|<cell|>|<cell|k\<gtr\>1>>|<row|<cell|<with|mode|text|then
     return>>|<cell|>|<cell|A<rsub|res>,S<rsub|k+1>,\<Xi\><around*|(|R<rsub|k+1>|)>>>|<row|<cell|<with|mode|text|repeat>>|<cell|>|<cell|k\<assign\>k+1<eq-number>>>>>
@@ -1138,10 +1151,15 @@
   <math|Connected<around*|(|\<alpha\>,G|)>> is the connected component of
   hypergraph <math|G> containing node <math|\<alpha\>>, where nodes are
   variables <math|FV<around*|(|G|)>> and hyperedges are atoms
-  <math|c\<in\>G>. <math|H<around*|(|R<rsub|k>,R<rsub|k+1>|)>> is a
-  convergence improving heuristic, with <math|H<around*|(|R<rsub|k>,R<rsub|k+1>|)>=R<rsub|k+1>>
-  for <math|k=0,1,2> and ``roughly'' <math|H<around*|(|R<rsub|k>,R<rsub|k+1>|)>=R<rsub|k>\<cap\>R<rsub|k+1>>
-  for <math|k\<gtr\>2>.
+  <math|c\<in\>G>. In initial iterations <math|k=0,1> when the branches
+  <math|D<rsub|K><rsup|\<alpha\>>\<Rightarrow\>C<rsub|K><rsup|\<alpha\>>> are
+  selected from non-recursive branches only, we include a connected atom only
+  if it is satisfiable in all branches. <math|H<around*|(|R<rsub|k>,R<rsub|k+1>|)>>
+  is a convergence improving heuristic, with
+  <math|H<around*|(|R<rsub|k>,R<rsub|k+1>|)>=R<rsub|k+1>> for <math|k=0,1,2>
+  and ``roughly'' <math|H<around*|(|R<rsub|k>,R<rsub|k+1>|)>=R<rsub|k>\<cap\>R<rsub|k+1>>
+  for <math|k\<gtr\>2>. Note that we expect iteration <math|k=3> to find the
+  final answer and iteration <math|k=4> to verify it.
 
   We introduced the <verbatim|assert false> construct into the programming
   language to indicate that a branch of code should not be reached. Type
@@ -1283,7 +1301,9 @@
     <associate|AlienSubterms|<tuple|3.3|6>>
     <associate|Details|<tuple|5.4|13>>
     <associate|ImplSubst|<tuple|4|2>>
+    <associate|Main Algo|<tuple|5.3|?>>
     <associate|MainAlgo|<tuple|5|10>>
+    <associate|MainAlgoBody|<tuple|5.3|?>>
     <associate|NumConv|<tuple|4.2|9>>
     <associate|SCAlinear|<tuple|3.4|7>>
     <associate|SepProp|<tuple|5|3>>

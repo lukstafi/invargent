@@ -198,8 +198,10 @@ val collect_lambdas : expr -> pat list * expr
 val collect_apps : expr -> expr list
 
 (** Connected component(s) of the hypergraph spanned on variables,
-    containing the given variables. *)
-val connected : var_name list -> answer -> answer
+    containing the given variables. [validate] should raise
+    [Contradiction] when a result is incorrect. *)
+val connected :
+  ?validate:(formula -> unit) -> var_name list -> answer -> answer
 
 (** {2 Substitutions and unification} *)
 

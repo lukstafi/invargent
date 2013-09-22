@@ -672,15 +672,16 @@ let collect_argtys ty =
 
 let pr_exty = ref (fun ppf (i, rty) -> failwith "not implemented")
 
+(* Using "script kappa" because "script chi" is not available. *)
 let rec pr_atom ppf = function
   | Eqty (t1, t2, _) ->
     fprintf ppf "@[<2>%a@ =@ %a@]" pr_one_ty t1 pr_one_ty t2
   | Leq (t1, t2, _) ->
     fprintf ppf "@[<2>%a@ ≤@ %a@]" pr_one_ty t1 pr_one_ty t2
   | CFalse _ -> pp_print_string ppf "FALSE"
-  | PredVarU (i,ty,lc) -> fprintf ppf "@[<2>𝛘%d(%a)@]" i (pr_ty false) ty
+  | PredVarU (i,ty,lc) -> fprintf ppf "@[<2>ϰ%d(%a)@]" i (pr_ty false) ty
   | PredVarB (i,t1,t2,lc) ->
-    fprintf ppf "@[<2>𝛘%d(%a,@ %a)@]" i (pr_ty true) t1 (pr_ty true) t2
+    fprintf ppf "@[<2>ϰ%d(%a,@ %a)@]" i (pr_ty true) t1 (pr_ty true) t2
 
 and pr_formula ppf atoms =
   pr_sep_list " ∧" pr_atom ppf atoms
@@ -884,7 +885,7 @@ let split_sorts cnj =
   assert (cnj=[]);
   [Type_sort, cnj_typ; Num_sort, cnj_num]
 
-let connected target (vs, phi) =
+let connected ?(validate=fun _ -> ()) target (vs, phi) =
   let nodes = List.map (fun c -> c, fvs_atom c) phi in
   let rec loop acc vs nvs rem =
     let more, rem = List.partition
@@ -892,7 +893,12 @@ let connected target (vs, phi) =
     let mvs = List.fold_left VarSet.union VarSet.empty
       (List.map snd more) in
     let nvs = VarSet.elements (VarSet.diff mvs vs) in
-    let acc = List.map fst more @ acc in
+    let acc = List.fold_left
+        (fun acc (c,_) ->
+           let acc' = c::acc in
+           try validate acc'; acc'
+           with Contradiction _ -> acc)
+        acc more in
     if nvs = [] then acc
     else loop acc (VarSet.union mvs vs) nvs rem in
   let ans = loop [] VarSet.empty target nodes in

@@ -56,6 +56,7 @@ type state
 val empty_state : state
 val formula_of_state : state -> Terms.formula
 val satisfiable : ?state:state -> Terms.atom list -> (exn, state) Aux.choice
+val satisfiable_exn : ?state:state -> Terms.atom list -> state
 (** Incremental check whether |= Q.A. Raises [Contradiction]. *)
 val holds :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
