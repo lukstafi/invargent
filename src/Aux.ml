@@ -210,9 +210,9 @@ let default v0 f v =
 
 let unsome = function None -> invalid_arg "Aux.unsome" | Some e -> e
 
-let map_reduce ?mapf redf red0 l =
+let map_reduce ?(cmp=fun x y -> compare (fst x) (fst y)) ?mapf redf red0 l =
   let l = match mapf with None -> l | Some f -> List.map f l in
-  match List.sort (fun x y -> compare (fst x) (fst y)) l with
+  match List.sort cmp l with
       | [] -> []
       | (k0, v0)::tl ->
         let k0, vs, l =
@@ -223,8 +223,8 @@ let map_reduce ?mapf redf red0 l =
         List.rev_map (fun (k,vs) -> k, List.fold_left redf red0 vs)
           ((k0,vs)::l)
 
-let collect l =
-  match List.sort (fun x y -> compare (fst x) (fst y)) l with
+let collect ?(cmp=fun x y -> compare (fst x) (fst y)) l =
+  match List.sort cmp l with
     | [] -> []
     | (k0, v0)::tl ->
 	let k0, vs, l = List.fold_left (fun (k0, vs, l) (kn, vn) ->

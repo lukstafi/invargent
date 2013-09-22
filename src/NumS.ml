@@ -751,6 +751,18 @@ let disjelim cmp_v uni_v brs =
     | [] -> eqn, ineqn in
   let eqn, ineqn =
     idemp [] [] (List.sort compare result) in
+  let redundant_eqn =
+    collect ~cmp:(fun (c1,_) (c2,_) -> Num.compare_num c1 c2)
+      (List.map (fun (vars,cst,lc) -> cst,(vars,lc)) eqn) in
+  let redundant_eqn =
+    Aux.concat_map
+      (fun (_,ws) -> List.map
+          (fun ((w1,lc1),(w2,lc2)) ->
+             diff cmp (w1, !/0, lc1) (w2, !/0, lc2))
+          (Aux.triangle ws))
+      redundant_eqn in
+  Format.printf "NumS.disjelim:@\neqn=%a@\nredundant=%a@\n%!"
+    pr_eqn eqn pr_eqn redundant_eqn; (* *)
   let check face ptope =
     let eqs, (ineqs, implicits) =
       solve ~eqn ~ineqn:ptope cmp cmp_w uni_v in
@@ -764,7 +776,7 @@ let disjelim cmp_v uni_v brs =
       if check face (p1 @ p2) then redundant p1 p2
       else redundant (face::p1) p2
     | [] -> p1 in
-  [], List.map (expand_atom true) eqn
+  [], List.map (expand_atom true) (eqn @ redundant_eqn)
     @ List.map (expand_atom false) (redundant [] ineqn)
 
 let simplify cmp_v uni_v elimvs cnj =

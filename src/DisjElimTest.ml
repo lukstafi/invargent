@@ -43,7 +43,7 @@ let tests = "DisjElim" >::: [
       test_case "abstract arg" " ⟹ ta = F A
 | ⟹ ta = F B" "∃t1. ta = (F t1)";
       test_case "infer eq" " ⟹ ta = A ∧ tb = A
-| ⟹ ta = B ∧ tb = B" "∃. ta = tb";
+| ⟹ ta = B ∧ tb = B" "∃. tb = ta ∧ ta = tb";
       test_case "abstract bigger" " ⟹ ta = G (A, C)
 | ⟹ ta = G (B, C)" "∃t1. ta = (G (t1, C))";
       test_case "abstract & infer" " ⟹ ta = G (A, C) ∧ C = tb
@@ -61,7 +61,7 @@ let tests = "DisjElim" >::: [
 | (Term tc5) = tc ∧ (tc6, tc7) = tc5 ⟹ td = (tc8, tc9) ∧ td1 = td3 ∧
     td1 = (Term tc6 → tc8) ∧ td3 = (Term tc7 → tc9) ∧ ta = (Term te →
     td) ∧ tc = (Term te)"
-        "∃. tc = (Term te) ∧ ta = (Term te → td)"
+        "∃. ta = (Term te → td) ∧ tc = (Term te)"
     );
 
 ]
