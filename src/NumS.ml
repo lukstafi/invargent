@@ -783,31 +783,29 @@ let simplify cmp_v uni_v elimvs cnj =
   Format.printf "NumS.simplify: elimvs=%s;@\ncnj=@ %a@\n%!"
     (String.concat "," (List.map var_str (VarSet.elements elimvs)))
     pr_formula cnj;
-  if VarSet.is_empty elimvs then [], cnj
-  else
-    (* FIXME: does [elimvs] give correct order of vars? Write test. *)
-    let cmp_v = make_cmp elimvs cmp_v in
-    let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
-    let cmp_w (vars1,_,_) (vars2,_,_) =
-      match vars1, vars2 with
-      | [], [] -> 0
-      | _, [] -> -1
-      | [], _ -> 1
-      | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
+  (* FIXME: does [elimvs] give correct order of vars? Write test. *)
+  let cmp_v = make_cmp elimvs cmp_v in
+  let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
+  let cmp_w (vars1,_,_) (vars2,_,_) =
+    match vars1, vars2 with
+    | [], [] -> 0
+    | _, [] -> -1
+    | [], _ -> 1
+    | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
   (*let params = map_opt params
     (List.fold_left
     (fun acc (_,ps) -> VarSet.union acc ps) VarSet.empty) in*)
-    let eqs, (ineqs, implicits) =
-      solve ~cnj cmp cmp_w uni_v in
-    let eqs, _ = solve ~eqs ~eqn:implicits cmp cmp_w uni_v in
-    let eqs =
-      List.filter (fun (v,_) -> not (VarSet.mem v elimvs)) eqs in
-    let ineqs =
-      List.filter (fun (v,_) -> not (VarSet.mem v elimvs)) ineqs in
-    let ans = ans_to_formula (eqs, ineqs) in
-    let cmp a1 a2 = compare
+  let eqs, (ineqs, implicits) =
+    solve ~cnj cmp cmp_w uni_v in
+  let eqs, _ = solve ~eqs ~eqn:implicits cmp cmp_w uni_v in
+  let eqs =
+    List.filter (fun (v,_) -> not (VarSet.mem v elimvs)) eqs in
+  let ineqs =
+    List.filter (fun (v,_) -> not (VarSet.mem v elimvs)) ineqs in
+  let ans = ans_to_formula (eqs, ineqs) in
+  let cmp a1 a2 = compare
       (replace_loc_atom dummy_loc a1) (replace_loc_atom dummy_loc a2) in
-    [], unique_sorted ~cmp ans
+  [], unique_sorted ~cmp ans
 
 (*
 let equivalent cmp_v uni_v cnj1 cnj2 =
