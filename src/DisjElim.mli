@@ -9,5 +9,6 @@
 val disjelim :
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool) ->
+  do_num:bool ->
   Terms.formula list ->
   Terms.var_name list * Terms.atom list

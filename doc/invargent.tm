@@ -1151,15 +1151,14 @@
   <math|Connected<around*|(|\<alpha\>,G|)>> is the connected component of
   hypergraph <math|G> containing node <math|\<alpha\>>, where nodes are
   variables <math|FV<around*|(|G|)>> and hyperedges are atoms
-  <math|c\<in\>G>. In initial iterations <math|k=0,1> when the branches
+  <math|c\<in\>G>. In initial iterations, when the branches
   <math|D<rsub|K><rsup|\<alpha\>>\<Rightarrow\>C<rsub|K><rsup|\<alpha\>>> are
   selected from non-recursive branches only, we include a connected atom only
   if it is satisfiable in all branches. <math|H<around*|(|R<rsub|k>,R<rsub|k+1>|)>>
   is a convergence improving heuristic, with
-  <math|H<around*|(|R<rsub|k>,R<rsub|k+1>|)>=R<rsub|k+1>> for <math|k=0,1,2>
-  and ``roughly'' <math|H<around*|(|R<rsub|k>,R<rsub|k+1>|)>=R<rsub|k>\<cap\>R<rsub|k+1>>
-  for <math|k\<gtr\>2>. Note that we expect iteration <math|k=3> to find the
-  final answer and iteration <math|k=4> to verify it.
+  <math|H<around*|(|R<rsub|k>,R<rsub|k+1>|)>=R<rsub|k+1>> for early
+  iterations and ``roughly'' <math|H<around*|(|R<rsub|k>,R<rsub|k+1>|)>=R<rsub|k>\<cap\>R<rsub|k+1>>
+  later.
 
   We introduced the <verbatim|assert false> construct into the programming
   language to indicate that a branch of code should not be reached. Type
@@ -1198,6 +1197,51 @@
   sort of types. The loss is ``slight'' because of the dissociation step
   described previously. Moreover, the sort information from checking negative
   branches is likewise only approximate.
+
+  <subsection|Stages of iteration>
+
+  Changes in the algorithm between iterations were mentioned above but not
+  clearly exposed. Invariant inference and postcondition inference go through
+  similar stages. Invariants, solved by abduction:
+
+  <\enumerate>
+    <item><math|k=0> Only term abduction -- invariants of type shapes -- is
+    performed, for all branches.
+
+    <item><math|k=1> Both term abduction and numerical abduction are
+    performed, but numerical abduction only for non-recursive branches.
+
+    <item><math|k=2> Abduction is performed on all branches -- type and
+    numerical invariants are found.
+  </enumerate>
+
+  In a single iteration, disjunction elimination precedes abduction.
+
+  <\enumerate>
+    <item><math|k<rsub|0>\<leqslant\>k\<less\>k<rsub|1>> Term disjunction
+    elimination -- invariants of type shapes -- is performed, only for
+    non-recursive branches.
+
+    <item><math|k<rsub|1>\<leqslant\>k\<less\>k<rsub|2>> Both term and
+    numerical disjunction elimination are performed, but only for
+    non-recursive branches.
+
+    <item><math|k<rsub|2>\<leqslant\>k\<less\>k<rsub|3>> Disjunction
+    elimination is performed on all branches -- type and numerical
+    postconditions are found.
+
+    <item><math|k<rsub|3>\<leqslant\>k> Additionally, we enforce convergence
+    by intersecting the result with the previous-iteration result.
+  </enumerate>
+
+  Our current choice of parameters is <math|<around*|[|k<rsub|0>;k<rsub|1>;k<rsub|2>;k<rsub|3>|]>=><verbatim|disj_step
+  = [\|0;1;2;4\|]>.
+
+  When existential types are used, the expected number of iterations is
+  <math|k=5> (six iterations), because the last iteration needs to verify
+  that the last-but-one iteration has found the correct answer. The minimal
+  number of iterations is <math|k=2> (three iterations), so that all branches
+  are considered.
 
   <subsection|Implementation details><label|Details>
 
@@ -1298,13 +1342,13 @@
 <\references>
   <\collection>
     <associate|1|<tuple|5.2|?>>
-    <associate|AlienSubterms|<tuple|3.3|6>>
-    <associate|Details|<tuple|5.4|13>>
+    <associate|AlienSubterms|<tuple|3.3|7>>
+    <associate|Details|<tuple|5.5|15>>
     <associate|ImplSubst|<tuple|4|2>>
     <associate|Main Algo|<tuple|5.3|?>>
     <associate|MainAlgo|<tuple|5|10>>
-    <associate|MainAlgoBody|<tuple|5.3|?>>
-    <associate|NumConv|<tuple|4.2|9>>
+    <associate|MainAlgoBody|<tuple|5.3|12>>
+    <associate|NumConv|<tuple|4.2|10>>
     <associate|SCAlinear|<tuple|3.4|7>>
     <associate|SepProp|<tuple|5|3>>
     <associate|SepProp2|<tuple|6|?>>
@@ -1313,38 +1357,39 @@
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1>>
     <associate|auto-10|<tuple|3.5|8>>
-    <associate|auto-11|<tuple|4|8>>
+    <associate|auto-11|<tuple|4|9>>
     <associate|auto-12|<tuple|4.1|9>>
-    <associate|auto-13|<tuple|4.2|9>>
+    <associate|auto-13|<tuple|4.2|10>>
     <associate|auto-14|<tuple|5|10>>
     <associate|auto-15|<tuple|5.1|10>>
     <associate|auto-16|<tuple|5.2|10>>
     <associate|auto-17|<tuple|5.3|12>>
-    <associate|auto-18|<tuple|5.4|13>>
-    <associate|auto-19|<tuple|5.4|14>>
+    <associate|auto-18|<tuple|5.4|14>>
+    <associate|auto-19|<tuple|5.5|15>>
     <associate|auto-2|<tuple|2|2>>
-    <associate|auto-3|<tuple|2.1|3>>
+    <associate|auto-20|<tuple|5.5|15>>
+    <associate|auto-3|<tuple|2.1|4>>
     <associate|auto-4|<tuple|2.2|4>>
     <associate|auto-5|<tuple|3|4>>
     <associate|auto-6|<tuple|3.1|4>>
     <associate|auto-7|<tuple|3.2|6>>
-    <associate|auto-8|<tuple|3.3|6>>
+    <associate|auto-8|<tuple|3.3|7>>
     <associate|auto-9|<tuple|3.4|7>>
-    <associate|bib-AbductionSolvMaher|<tuple|3|14>>
-    <associate|bib-AntiUnifAlg|<tuple|8|14>>
+    <associate|bib-AbductionSolvMaher|<tuple|3|15>>
+    <associate|bib-AntiUnifAlg|<tuple|8|15>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
-    <associate|bib-ArithQuantElim|<tuple|1|14>>
-    <associate|bib-ConvexHull|<tuple|2|14>>
+    <associate|bib-ArithQuantElim|<tuple|1|15>>
+    <associate|bib-ConvexHull|<tuple|2|15>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
-    <associate|bib-disjelimTechRep|<tuple|6|14>>
+    <associate|bib-disjelimTechRep|<tuple|6|15>>
     <associate|bib-jcaqpTechRep|<tuple|8|4>>
-    <associate|bib-jcaqpTechRep2|<tuple|7|14>>
-    <associate|bib-jcaqpUNIF|<tuple|4|14>>
+    <associate|bib-jcaqpTechRep2|<tuple|7|15>>
+    <associate|bib-jcaqpUNIF|<tuple|4|15>>
     <associate|bib-simonet-pottier-hmg-toplas|<tuple|6|4>>
-    <associate|bib-systemTechRep|<tuple|5|14>>
+    <associate|bib-systemTechRep|<tuple|5|15>>
   </collection>
 </references>
 
@@ -1432,8 +1477,8 @@
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-12>>
 
-      <with|par-left|<quote|1.5fn>|4.2<space|2spc>Convergence issues in
-      solving for predicate variables <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <with|par-left|<quote|1.5fn>|4.2<space|2spc>Issues in inferring
+      postconditions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-13>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|5<space|2spc>Solving
@@ -1453,13 +1498,17 @@
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-17>>
 
-      <with|par-left|<quote|1.5fn>|5.4<space|2spc>Implementation details
+      <with|par-left|<quote|1.5fn>|5.4<space|2spc>Stages of iteration
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-18>>
 
+      <with|par-left|<quote|1.5fn>|5.5<space|2spc>Implementation details
+      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-19>>
+
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-19><vspace|0.5fn>
+      <no-break><pageref|auto-20><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>

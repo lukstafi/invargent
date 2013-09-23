@@ -165,32 +165,37 @@ let simplify (vs, ty_ans, num_ans) =
     "disjelim-simplify: parts@ ty_sb=%a@ ty_ans=%a@\n%!"
     pr_subst ty_sb pr_formula ty_ans;  (* *)
   let vs = List.filter (fun v -> not (List.mem_assoc v ty_sb)) vs in
-  vs, ty_ans @ num_ans
+  vs, num_ans @ ty_ans
 
-let disjelim cmp_v uni_v brs =
+let disjelim cmp_v uni_v ~do_num brs =
   (* (1) D_i,s *)
   let brs = Aux.map_some
-    (fun br ->
-      try Some (unify cmp_v uni_v br)
-      with Contradiction _ -> None) brs in
+      (fun br ->
+         try Some (unify cmp_v uni_v br)
+         with Contradiction _ -> None) brs in
   (* [avs] contains variables introduced by anti-unification, also
-  of sorts other than "type" *)
+     of sorts other than "type" *)
   (* (2) *)
   let avs, ty_ans, ty_eqs, num_eqs =
     disjelim_typ cmp_v uni_v (List.map Aux.fst3 brs) in
-  let cmp_v v1 v2 =
-    let av1 = List.mem v1 avs and av2 = List.mem v2 avs in
-    if av1 && av2 then Same_quant
-    else if av1 then Downstream
-    else if av2 then Upstream
-    else cmp_v v1 v2 in
-  (* (3) *)
-  let num_brs = List.map (fun (a,b)->a@b)
-    (List.combine (List.map Aux.snd3 brs) num_eqs) in
-  let num_avs, num_ans = NumS.disjelim cmp_v uni_v num_brs in
-  Format.printf "disjelim: before simpl@ vs=%a@ ty_ans=%a@ num_ans=%a@\n%!"
-    pr_vars (vars_of_list (num_avs @ avs))
-    pr_subst ty_ans pr_formula num_ans; (* *)
-  (* (4) *)
-  (* Dooes not simplify redundancy. *)
-  simplify (num_avs @ avs, ty_ans, num_ans)
+  if do_num
+  then
+    let cmp_v v1 v2 =
+      let av1 = List.mem v1 avs and av2 = List.mem v2 avs in
+      if av1 && av2 then Same_quant
+      else if av1 then Downstream
+      else if av2 then Upstream
+      else cmp_v v1 v2 in
+    (* (3) *)
+    let num_brs = List.map (fun (a,b)->a@b)
+        (List.combine (List.map Aux.snd3 brs) num_eqs) in
+    let num_avs, num_ans = NumS.disjelim cmp_v uni_v num_brs in
+    Format.printf "disjelim: before simpl@ vs=%a@ ty_ans=%a@ num_ans=%a@\n%!"
+      pr_vars (vars_of_list (num_avs @ avs))
+      pr_subst ty_ans pr_formula num_ans; (* *)
+    (* (4) *)
+    (* Dooes not simplify redundancy. *)
+    simplify (num_avs @ avs, ty_ans, num_ans)
+  else
+    simplify (avs, ty_ans, [])
+    

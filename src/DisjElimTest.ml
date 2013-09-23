@@ -19,7 +19,7 @@ let test_case msg test result =
     let uni_v _ = false in
     let brs = Parser.cn_branches Lexer.token
       (Lexing.from_string test) in
-    let vs, ans = DisjElim.disjelim cmp_v uni_v
+    let vs, ans = DisjElim.disjelim cmp_v uni_v ~do_num:true
       (List.map (uncurry (@)) brs) in
     ignore (Format.flush_str_formatter ());
     Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
