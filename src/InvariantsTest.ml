@@ -22,6 +22,13 @@ let test_case msg test answers =
         let uni_v v =
           try Hashtbl.find uni_v v with Not_found -> false in
         let brs = Infer.simplify preserve cmp_v uni_v brs in
+        let pruned = Infer.prune_cn cmp_v uni_v brs cn in
+        Format.printf "pruned_cn: %s@\n%a@\n%!"
+          msg Infer.pr_cnstrnt pruned; (* *)
+        let cmp_v, uni_v, brs = Infer.normalize pruned in
+        let uni_v v =
+          try Hashtbl.find uni_v v with Not_found -> false in
+        let brs = Infer.simplify preserve cmp_v uni_v brs in
         Format.printf "simpl-brs: %s@\n%a@\nex_types:@\n%!"
           msg Infer.pr_brs brs;
         List.iter (fun (i,((vs,phi,t),loc)) ->
@@ -488,10 +495,10 @@ let rec search = efunction
         [1,"∃t48, t49. δ = (Placement t49 → ∃3:[].Castle Yard)"];
     );
 
-  "castle nested existential" >::
+  "castle nested existential factored" >::
     (fun () ->
       todo "debug";
-      test_case "castle nested existential 1"
+      test_case "castle nested existential factored"
 "newtype Answer
 newcons Yes : Answer
 newcons No : Answer
@@ -519,24 +526,26 @@ let rec search = efunction
     | No ->
       search y"
         [1,"∃t64, t65. δ = (Placement t65 → ∃3:t84[].Castle t84)"];
+    );
 
-      test_case "castle nested existential 2"
+  "castle nested existential" >::
+    (fun () ->
+      (* todo "existential"; *)
+      test_case "castle nested existential"
 "newtype Answer
 newcons Yes : Answer
 newcons No : Answer
-newtype Room
 newtype Yard
 newtype Village
-
-newtype Castle : type
+newtype Castle
 newtype Placement : type
-newcons Yard : Yard ⟶ Castle Yard
+newcons Yard : Yard ⟶ Castle
 newcons CastleYard : Yard ⟶ Placement Yard
 newcons Village : Village ⟶ Placement Village
 
 external wander : Village → ∃b. Placement b
 external entrance : Village → Answer
-external enter : ∀a. Placement a → Castle a
+external enter : ∀a. Placement a → Castle
 
 let rec search = efunction
   | CastleYard x -> Yard x
@@ -544,16 +553,16 @@ let rec search = efunction
     ematch entrance x with
     | Yes ->
       let y = wander x in
-      (ematch y with z -> enter z)
+      enter y
     | No ->
       let y = wander x in
       search y"
-        [1,"∃t75, t76. δ = (Placement t76 → ∃4:t61[].Castle t61)"];
+        [1,"∃t65, t66. δ = (Placement t66 → ∃3:[].Castle)"];
     );
 
   "filter" >::
     (fun () ->
-      (* todo "existential"; *)
+      todo "existential";
       test_case "list filter"
 "newtype Bool
 newtype List : type * num
@@ -571,7 +580,7 @@ let rec filter =
       ematch f x with
         | True ->
           let ys = filter xs in
-          (ematch ys with zs -> LCons (x, zs))
+          LCons (x, ys)
 	| False ->
           filter xs"
         [1,""];

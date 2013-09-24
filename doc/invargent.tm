@@ -315,6 +315,14 @@
   constrained by predicate variables. We need to propagate which existential
   type to select for result type of recursive functions, if any.
 
+  The online process described above might still fail to find the correct
+  disjuncts. After the constraints are normalized using the online
+  <verbatim|Or>-solving described above, and simplified as described below,
+  we use them to prune the initial constraints by removing disjuncts that are
+  unsatisfiable under some of the branches. The resulting constraints, now
+  without <verbatim|Or> subconstraints, are normalized, simplified and passed
+  to the predicate variable solver.
+
   <subsection|Simplification>
 
   During normalization, we remove from a nested premise the atoms it is

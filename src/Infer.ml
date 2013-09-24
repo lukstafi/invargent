@@ -1043,6 +1043,30 @@ let simplify preserve cmp_v uni_v brs =
     (merge [] brs) in
   short_brs @ long_brs
 
+let prune_cn cmp_v uni_v brs cn =
+  let rec aux = function
+    | A _ as a -> a
+    | And cns -> And (List.map aux cns)
+    | Impl (prem, concl) -> Impl (prem, aux concl)
+    | Or (n, conds, cn) ->
+      (* of cns_name * (formula * answer) list * (answer option -> cnstrnt) *)
+      let conds = List.filter
+          (fun (c,_) ->
+             try
+               List.iter (fun (prem,concl) ->
+                   ignore (unify cmp_v uni_v (c@prem@concl)))
+                 brs;
+               true
+             with Contradiction _ -> false)
+          conds in
+      (match conds with
+       | [] -> cn None
+       | [_, ans] -> cn (Some ans)
+       | _ -> assert false)
+    | All (vs, cn) -> All (vs, aux cn)
+    | Ex (vs, cn) -> Ex (vs, aux cn) in
+  aux cn
+
 (** {2 Postprocessing and printing} *)
 
 type nicevars_env = {

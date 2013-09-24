@@ -63,6 +63,9 @@ val simplify :
   Terms.VarSet.t ->
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool)-> branch list -> branch list
+val prune_cn :
+  (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
+  (Terms.var_name -> bool)-> branch list -> cnstrnt -> cnstrnt
 
 (** {2 Postprocessing and printing} *)
 
