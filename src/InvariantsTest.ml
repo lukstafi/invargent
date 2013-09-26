@@ -409,7 +409,7 @@ let rec search = efunction
 
   "search castle distance" >::
     (fun () ->
-      (* todo "debug"; *)
+      (* todo "existential"; *)
       test_case "find castle distance"
 "newtype Bool
 newcons True : Bool
@@ -438,6 +438,42 @@ let rec search = efunction
     | True -> search y
     | False -> search x"
         [1,"∃t81, t82. δ = (Placement t82 → ∃3:t65[].Castle t65)"];
+    );
+
+  "search castle distance A/B" >::
+    (fun () ->
+      todo "existential";
+      test_case "find castle distance A/B"
+"newtype Bool : type
+newtype A
+newtype B
+newcons True : Bool A
+newcons False : Bool B
+newtype Room
+newtype Yard
+newtype Village
+
+newtype Castle : type
+newtype Placement : type
+newcons Room : Room ⟶ Castle Room
+newcons Yard : Yard ⟶ Castle Yard
+newcons CastleRoom : Room ⟶ Placement Room
+newcons CastleYard : Yard ⟶ Placement Yard
+newcons Village : Village ⟶ Placement Village
+
+external wander : ∀a. Placement a → ∃b. Placement b
+external closer : ∀a. Placement a → ∃b. Bool b
+
+let rec search = efunction
+  | CastleRoom x -> Room x
+  | CastleYard x -> Yard x
+  | Village _ as x ->
+    let y = wander x in
+    let b = closer y in
+    ematch b with
+    | True -> search y
+    | False -> search x"
+        [1,"∃t214, t215. δ = (Placement t215 → ∃4:t216[].Castle t216)"];
     );
 
   "castle not existential" >::

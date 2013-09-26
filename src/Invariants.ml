@@ -939,6 +939,8 @@ let solve cmp_v uni_v brs =
         with Contradiction _ -> ()
       ) neg_cns;
     (* Substitute the solutions for existential types. *)
+    (* FIXME: duplicate with the code at beginning of
+       [infer_prog]. Clean up handling of ex. type parameters. *)
     ex_types := List.map
         (function
           | ex_i, (([], [PredVarB (chi_i,t1,t2,_)], ty), loc) ->
@@ -956,14 +958,19 @@ let solve cmp_v uni_v brs =
             let vs = VarSet.elements (fvs_typ (TCons (CNam "", vs))) in
             let rty = subst_typ sb ty
             and rphi = subst_formula sb rphi in
+            let pvs =
+              try VarSet.elements (fvs_typ (fst (List.assoc delta' sb)))
+              with Not_found -> [] in
+            let pvs = List.map (fun v -> TVar v) pvs in
+            let param = Eqty (tdelta', TCons (CNam "Tuple", pvs), loc) in
             Format.printf
-              "solve-ex_types: ex_i=%d@ t1=%a@ t2=%a@ ty=%a@ chi_vs=%a@ rty=%a@ vs=%a@ rphi=%a@\nphi=%a@\n%!"
+              "solve-ex_types: ex_i=%d@ t1=%a@ t2=%a@ ty=%a@ chi_vs=%a@ rty=%a@ vs=%a@ rphi=%a@ param=%a@\nphi=%a@\n%!"
               ex_i (pr_ty false) t1 (pr_ty false) t2 (pr_ty false) ty
               pr_vars (vars_of_list chi_vs) (pr_ty false) rty
               pr_vars (vars_of_list vs)
-              pr_formula rphi pr_formula phi;
+              pr_formula rphi pr_formula [param] pr_formula phi;
             (* *)
-            ex_i, ((vs, rphi, rty), loc)
+            ex_i, ((vs, param::rphi, rty), loc)
           | ex_i, _ as ex_ty ->
             Format.printf "solve-ex_types: unchanged %d@\n%!" ex_i;
             ex_ty

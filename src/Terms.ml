@@ -1063,6 +1063,10 @@ let () = pr_exty :=
       if sb=[] then phi, ty
       else subst_formula sb phi, subst_typ sb ty in
     let allvs = VarSet.union (fvs_formula phi) (fvs_typ ty) in
+    (* Format.printf
+      "@\npr_exty: i=%d ty=%a@ vs=%a@ d_vs=%a@ rty=%a@ phi=%a@\n%!"
+      i (pr_ty false) ty pr_vars (vars_of_list vs) pr_vars (fvs_formula d_phi)
+      (pr_ty false) rty pr_formula phi; * *)
     let vs = VarSet.elements
       (VarSet.diff (vars_of_list vs) (fvs_formula d_phi)) in
     let vs = if VarSet.mem delta allvs then delta::vs else vs in

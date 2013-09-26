@@ -608,6 +608,8 @@ let infer_prog solver prog =
   let gamma = ref [] in
   let update_new_ex_types cmp_v uni_v old_ex_types sb sb_chi =
     let more_items = ref [] in
+    (* FIXME: duplicate with code at the end of [solve].  Clean up
+       handling of ex. type parameters. *)
     ex_types := map_upto old_ex_types
       (fun (ety_id, ((vs, phi, ty), loc)) ->
         Format.printf "infer-update-ex_types: from id=%d@ phi=%a@ ty=%a@\n%!"
@@ -1057,7 +1059,7 @@ let prune_cn cmp_v uni_v brs cn =
           conds in
       (match conds with
        | [] -> aux (cn None)
-       | [_, ans] -> aux (cn (Some ans))
+       | [guard, ans] -> aux (cn_and (A guard) (cn (Some ans)))
        | _ ->
          Format.printf "prune_cn: ambiguous disjunction, cases=@\n%a@\n%!"
            (pr_line_list "| " pr_formula) (List.map fst conds); (* *)
