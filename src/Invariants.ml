@@ -789,8 +789,10 @@ let solve cmp_v uni_v brs =
       (* 8 *)
       let lift_ex_types t2 (vs, ans) =
         let fvs = fvs_formula ans in
-        let dvs = VarSet.elements
-            (VarSet.diff fvs (vars_of_list (delta::vs))) in
+        let dvs =
+            VarSet.diff fvs (vars_of_list (delta::vs)) in
+        let dvs = VarSet.diff dvs (fvs_typ t2) in
+        let dvs = VarSet.elements dvs in
         let targs = List.map (fun v -> TVar v) dvs in
         let a2 = match t2 with TVar a2 -> a2 | _ -> assert false in
         let phi =

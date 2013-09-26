@@ -889,15 +889,23 @@ let split_sorts cnj =
   [Type_sort, cnj_typ; Num_sort, cnj_num]
 
 let connected ?(validate=fun _ -> ()) target (vs, phi) =
-  let nodes = List.map (fun c -> c, fvs_atom c) phi in
+  let nodes = List.map
+      (function
+        | Eqty (TVar _, TVar _, _) as c ->
+          let cvs = fvs_atom c in c, cvs, cvs
+        | (Eqty (TVar v, t, _) | Eqty (t, TVar v, _)) as c
+          when typ_sort_typ t ->
+          c, VarSet.singleton v, fvs_typ t
+        | c -> let cvs = fvs_atom c in c, cvs, cvs)
+      phi in
   let rec loop acc vs nvs rem =
     let more, rem = List.partition
-      (fun (c, cvs) -> List.exists (flip VarSet.mem cvs) nvs) rem in
+      (fun (c, ivs, ovs) -> List.exists (flip VarSet.mem ivs) nvs) rem in
     let mvs = List.fold_left VarSet.union VarSet.empty
-      (List.map snd more) in
+      (List.map thr3 more) in
     let nvs = VarSet.elements (VarSet.diff mvs vs) in
     let acc = List.fold_left
-        (fun acc (c,_) ->
+        (fun acc (c,_,_) ->
            let acc' = c::acc in
            try validate acc'; acc'
            with Contradiction _ -> acc)
