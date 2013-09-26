@@ -42,6 +42,7 @@ type expr =
 | App of expr * expr * loc
 | Lam of clause list * loc
 | ExLam of int * clause list * loc
+| ExCase of int * expr * loc
 | Letrec of string * expr * expr * loc
 | Letin of pat * expr * expr * loc
 | AssertFalse of loc

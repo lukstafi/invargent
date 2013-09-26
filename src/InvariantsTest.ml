@@ -21,7 +21,6 @@ let test_case msg test answers =
         Format.printf "brs: %s@\n%a@\n%!" msg Infer.pr_brs brs; (* *)
         let uni_v v =
           try Hashtbl.find uni_v v with Not_found -> false in
-        let brs = Infer.simplify preserve cmp_v uni_v brs in
         let pruned = Infer.prune_cn cmp_v uni_v brs cn in
         Format.printf "pruned_cn: %s@\n%a@\n%!"
           msg Infer.pr_cnstrnt pruned; (* *)
@@ -410,7 +409,7 @@ let rec search = efunction
 
   "search castle distance" >::
     (fun () ->
-      todo "debug";
+      (* todo "debug"; *)
       test_case "find castle distance"
 "newtype Bool
 newcons True : Bool
@@ -461,7 +460,7 @@ let rec search = efunction
   | Village x ->
     let y = wander x in
     search y"
-        [1,"∃t38, t39. δ = (Placement t39 → ∃2:[].Castle Yard)"];
+        [1,"∃t56, t57. δ = (Placement t57 → ∃2:[].Castle Yard)"];
     );
 
   "castle nested not existential" >::
@@ -492,7 +491,7 @@ let rec search = efunction
     | No ->
       let y = wander x in
       search y"
-        [1,"∃t48, t49. δ = (Placement t49 → ∃3:[].Castle Yard)"];
+        [1,"∃t74, t75. δ = (Placement t75 → ∃3:[].Castle Yard)"];
     );
 
   "castle nested existential factored" >::
@@ -525,27 +524,28 @@ let rec search = efunction
       enter y
     | No ->
       search y"
-        [1,"∃t64, t65. δ = (Placement t65 → ∃3:t84[].Castle t84)"];
+        [1,"∃t90, t91. δ = (Placement t91 → ∃3:t107[].Castle t107)"];
     );
 
   "castle nested existential" >::
     (fun () ->
-      (* todo "existential"; *)
+      todo "debug";
       test_case "castle nested existential"
 "newtype Answer
 newcons Yes : Answer
 newcons No : Answer
 newtype Yard
 newtype Village
-newtype Castle
+newtype Room
+newtype Castle : type
 newtype Placement : type
-newcons Yard : Yard ⟶ Castle
+newcons Yard : Yard ⟶ Castle Yard
 newcons CastleYard : Yard ⟶ Placement Yard
 newcons Village : Village ⟶ Placement Village
 
 external wander : Village → ∃b. Placement b
 external entrance : Village → Answer
-external enter : ∀a. Placement a → Castle
+external enter : ∀a. Placement a → Castle Room
 
 let rec search = efunction
   | CastleYard x -> Yard x
@@ -557,7 +557,7 @@ let rec search = efunction
     | No ->
       let y = wander x in
       search y"
-        [1,"∃t65, t66. δ = (Placement t66 → ∃3:[].Castle)"];
+        [1,"∃t99, t100. δ = (Placement t100 → ∃3:t87[].Castle t87)"];
     );
 
   "filter" >::

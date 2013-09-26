@@ -61,6 +61,7 @@ type expr =
 | App of expr * expr * loc
 | Lam of clause list * loc
 | ExLam of int * clause list * loc
+| ExCase of int * expr * loc
 | Letrec of string * expr * expr * loc
 | Letin of pat * expr * expr * loc
 | AssertFalse of loc
@@ -76,6 +77,7 @@ let expr_loc = function
   | App (_, _, loc)
   | Lam (_, loc)
   | ExLam (_, _, loc)
+  | ExCase (_, _, loc)
   | Letrec (_, _, _, loc)
   | Letin (_, _, _, loc)
   | AssertFalse loc
@@ -632,6 +634,7 @@ let rec pr_expr comma ppf = function
   | ExLam (_, cs, _) ->
       fprintf ppf "@[<0>efunction@ %a@]"
 	(pr_pre_sep_list "| " pr_clause) cs
+  | ExCase (_, e, _) -> pr_expr comma ppf e
   | App (Lam ([(v,body)], _), def, _) ->
       fprintf ppf "@[<0>let@ @[<4>%a@] =@ @[<2>%a@]@ in@ @[<0>%a@]@]"
 	(pr_more_pat false) v (pr_expr false) def (pr_expr false) body
