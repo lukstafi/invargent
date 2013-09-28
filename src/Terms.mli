@@ -98,7 +98,7 @@ val predvar_id : int ref
 type typ_map = {
   map_tvar : var_name -> typ;
   map_tcons : string -> typ list -> typ;
-  map_exty : int -> typ -> typ;
+  map_exty : int -> typ list -> typ;
   map_fun : typ -> typ -> typ;
   map_ncst : int -> typ;
   map_nadd : typ list -> typ
@@ -107,7 +107,7 @@ type typ_map = {
 type 'a typ_fold = {
   fold_tvar : var_name -> 'a;
   fold_tcons : string -> 'a list -> 'a;
-  fold_exty : int -> 'a -> 'a;
+  fold_exty : int -> 'a list -> 'a;
   fold_fun : 'a -> 'a -> 'a;
   fold_ncst : int -> 'a;
   fold_nadd : 'a list -> 'a
@@ -242,19 +242,19 @@ val subst_solved : ?ignore_so:unit -> ?use_quants:(VarSet.t * VarSet.t) ->
 
 (** {2 Global tables} *)
 
-type sigma =
-  (string, var_name list * formula * typ list * cns_name * var_name list)
+type 'a sigma =
+  ('a , var_name list * formula * typ list * cns_name * var_name list)
     Hashtbl.t
-(** Entry [i, ((vs,phi,ty), loc)] stands for existential type scheme,
-    or a constructor formally introduced as
-    [K :: ∀gvs,delta'[∃vs.phi].ty⟶Ex_i(delta')], where [gvs] are [fvs(ty)\\vs].
-    Initially [K :: ∀delta,delta'[chiK(delta,delta')].delta⟶Ex_i(delta')]
-    is used, replaced by the solution to [chiK] later.
-    Predicate-variable parameters [delta] and [delta'] are fixed. *)
-type ex_types = (int * (typ_scheme * loc)) list
 
-val sigma : sigma
-val ex_types : ex_types ref
+val sigma : string sigma
+val ex_types : int sigma
+(** [ex_types] uses [sigma] but is restricted to a
+    single [typ] in place of [typ list] and [Extype i] in place of
+    [cns_name]. Although it is a bit cumbersome, we stick to [sigma]
+    semantics, i.e. the first entry is a list of all variables and
+    the last entry is a list of parameters. Existential variables
+    are all variables minus parameters. *)
+val new_ex_types : (int * loc) list ref
 
 (** {2 Printing} *)
 

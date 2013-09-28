@@ -145,7 +145,7 @@ let rec return_type = function
 type typ_map = {
   map_tvar : var_name -> typ;
   map_tcons : string -> typ list -> typ;
-  map_exty : int -> typ -> typ;
+  map_exty : int -> typ list -> typ;
   map_fun : typ -> typ -> typ;
   map_ncst : int -> typ;
   map_nadd : typ list -> typ
@@ -154,7 +154,7 @@ type typ_map = {
 type 'a typ_fold = {
   fold_tvar : var_name -> 'a;
   fold_tcons : string -> 'a list -> 'a;
-  fold_exty : int -> 'a -> 'a;
+  fold_exty : int -> 'a list -> 'a;
   fold_fun : 'a -> 'a -> 'a;
   fold_ncst : int -> 'a;
   fold_nadd : 'a list -> 'a
@@ -163,7 +163,7 @@ type 'a typ_fold = {
 let typ_id_map = {
   map_tvar = (fun v -> TVar v);
   map_tcons = (fun n tys -> TCons (CNam n, tys));
-  map_exty = (fun i ty -> TCons (Extype i, [ty]));
+  map_exty = (fun i tys -> TCons (Extype i, tys));
   map_fun = (fun t1 t2 -> Fun (t1, t2));
   map_ncst = (fun i -> NCst i);
   map_nadd = (fun tys -> Nadd tys)
@@ -172,7 +172,7 @@ let typ_id_map = {
 let typ_make_fold op base = {
   fold_tvar = (fun _ -> base);
   fold_tcons = (fun _ tys -> List.fold_left op base tys);
-  fold_exty = (fun _ ty -> ty);
+  fold_exty = (fun _ tys -> List.fold_left op base tys);
   fold_fun = (fun t1 t2 -> op t1 t2);
   fold_ncst = (fun _ -> base);
   fold_nadd = (fun tys -> List.fold_left op base tys)
@@ -182,8 +182,7 @@ let typ_map tmap t =
   let rec aux = function
     | TVar v -> tmap.map_tvar v
     | TCons (CNam n, tys) -> tmap.map_tcons n (List.map aux tys)
-    | TCons (Extype i, [ty]) -> tmap.map_exty i (aux ty)
-    | TCons (Extype i, _) -> assert false
+    | TCons (Extype i, tys) -> tmap.map_exty i (List.map aux tys)
     | Fun (t1, t2) -> tmap.map_fun (aux t1) (aux t2)
     | NCst i -> tmap.map_ncst i
     | Nadd tys -> tmap.map_nadd (List.map aux tys) in
@@ -193,8 +192,7 @@ let typ_fold tfold t =
   let rec aux = function
     | TVar v -> tfold.fold_tvar v
     | TCons (CNam n, tys) -> tfold.fold_tcons n (List.map aux tys)
-    | TCons (Extype i, [ty]) -> tfold.fold_exty i (aux ty)
-    | TCons (Extype i, _) -> assert false
+    | TCons (Extype i, tys) -> tfold.fold_exty i (List.map aux tys)
     | Fun (t1, t2) -> tfold.fold_fun (aux t1) (aux t2)
     | NCst i -> tfold.fold_ncst i
     | Nadd tys -> tfold.fold_nadd (List.map aux tys) in
@@ -484,15 +482,13 @@ let num_sort_atom = function
 
 (** {2 Global tables} *)
 
-type sigma =
-  (string, var_name list * formula * typ list * cns_name * var_name list)
+type 'a sigma =
+  ('a, var_name list * formula * typ list * cns_name * var_name list)
     Hashtbl.t
-(* In [K :: ∀g,a[∃vs.phi].g⟶Ex_i(a)], [delta] is used for [g] and
-  [delta'] for [a]. *)
-type ex_types = (int * (typ_scheme * loc)) list
 
-let sigma = Hashtbl.create 127
-let (ex_types : ex_types ref) = ref []
+let sigma : string sigma = Hashtbl.create 128
+let ex_types : int sigma = Hashtbl.create 64
+let new_ex_types = ref []
 
 (** {2 Printing} *)
 let current_file_name = ref ""
@@ -704,8 +700,7 @@ and pr_ty comma ppf = function
     fprintf ppf "@[<2>%s@ %a@]" c pr_one_ty ty
   | TCons (CNam c, exps) ->
     fprintf ppf "@[<2>%s@ (%a)@]" c (pr_sep_list "," (pr_ty true)) exps
-  | TCons (Extype i, [rty]) -> !pr_exty ppf (i, rty)
-  | TCons (Extype i, _) -> assert false
+  | TCons (Extype i, args) -> !pr_exty ppf (i, args)
   | Nadd []  -> fprintf ppf "0"
   | Nadd [ty] -> pr_ty comma ppf ty
   | Nadd (tys) ->
@@ -1044,35 +1039,22 @@ let subst_solved ?ignore_so ?use_quants cmp_v uni_v sb ~cnj =
   cnj_typ, cnj_num
 
 let () = pr_exty :=
-  fun ppf (i, rty) ->
-    assert (List.length (List.filter ((=) i % fst) !ex_types) = 1);
-    let (vs, phi, ty), loc = List.assoc i !ex_types in
-    let d_phi, phi = List.partition
-      (function Eqty (t1,_,_) when t1=tdelta' -> true | _ -> false)
-      phi in
-    let sb =
-      match d_phi, rty with
-      | [Eqty (_, TCons (f, d_args), loc)], TCons (g, r_args) when f=g ->
-        List.map2
-          (fun r -> function
-          | TVar v -> v, (r, loc)
-          | _ -> assert false)
-          r_args d_args
-      | _ -> [delta', (rty, loc)] in
+  fun ppf (i, args) ->
+    let vs, phi, ty, ety_n, pvs = Hashtbl.find ex_types i in
+    let ty = match ty with [ty] -> ty | _ -> assert false in
+    let sb = List.map2 (fun v t -> v, (t, dummy_loc)) pvs args in
     let phi, ty =
       if sb=[] then phi, ty
       else subst_formula sb phi, subst_typ sb ty in
-    let allvs = VarSet.union (fvs_formula phi) (fvs_typ ty) in
-    (* Format.printf
-      "@\npr_exty: i=%d ty=%a@ vs=%a@ d_vs=%a@ rty=%a@ phi=%a@\n%!"
-      i (pr_ty false) ty pr_vars (vars_of_list vs) pr_vars (fvs_formula d_phi)
-      (pr_ty false) rty pr_formula phi; * *)
-    let vs = VarSet.elements
-      (VarSet.diff (vars_of_list vs) (fvs_formula d_phi)) in
-    let vs = if VarSet.mem delta allvs then delta::vs else vs in
+    (*Format.printf
+      "@\npr_exty: i=%d ty=%a@ vs=%a@ pvs=%a@ phi=%a@\n%!"
+      i (pr_ty false) ty pr_vars (vars_of_list vs) pr_vars
+       (vars_of_list pvs) pr_formula phi; * *)
+    let evs = VarSet.elements
+        (VarSet.diff (vars_of_list vs) (vars_of_list pvs)) in
     (* TODO: "@[<2>∃%d:%a[%a].%a@]" better? *)
     fprintf ppf "∃%d:%a[%a].%a" i
-      (pr_sep_list "," pr_tyvar) vs pr_formula phi (pr_ty false) ty
+      (pr_sep_list "," pr_tyvar) evs pr_formula phi (pr_ty false) ty
 
 
 let parser_more_items = ref []
@@ -1082,8 +1064,8 @@ let parser_last_typ = ref 0
 let parser_last_num = ref 0
 
 let reset_state () =
-  extype_id := 0; ex_types := [];
-  predvar_id := 0; Hashtbl.clear sigma;
+  extype_id := 0; new_ex_types := [];
+  predvar_id := 0; Hashtbl.clear sigma; Hashtbl.clear ex_types;
   parser_more_items := [];
   Hashtbl.clear parser_unary_typs;
   Hashtbl.clear parser_unary_vals;

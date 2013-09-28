@@ -30,13 +30,24 @@ let test_case msg test answers =
         let brs = Infer.simplify preserve cmp_v uni_v brs in
         Format.printf "simpl-brs: %s@\n%a@\nex_types:@\n%!"
           msg Infer.pr_brs brs;
-        List.iter (fun (i,((vs,phi,t),loc)) ->
-          Format.printf "∃%d: vs=%a@ t=%a@ phi=%a@\n%!"
-            i pr_vars (vars_of_list vs) (pr_ty false) t pr_formula phi
-        ) !ex_types;
+        Hashtbl.iter
+          (fun i (allvs, phi, ty, n, pvs) ->
+            let ty = match ty with [ty] -> ty | _ -> assert false in
+            Format.printf "∃%d: pvs=%a@ allvs=%a@ t=%a@ phi=%a@\n%!"
+              i pr_vars (vars_of_list pvs) pr_vars (vars_of_list allvs)
+              (pr_ty false) ty pr_formula phi)
+          ex_types;
         (* *)
         let _, _, (res, rol, sol) =
           Invariants.solve cmp_v uni_v brs in
+        Hashtbl.iter
+          (fun i (allvs, phi, ty, n, pvs) ->
+            let ty = match ty with [ty] -> ty | _ -> assert false in
+            Format.printf "solved-∃%d: pvs=%a@ allvs=%a@ t=%a@ phi=%a@\n%!"
+              i pr_vars (vars_of_list pvs) pr_vars (vars_of_list allvs)
+              (pr_ty false) ty pr_formula phi)
+          ex_types;
+        (* *)
         let test_sol (chi, result) =
           let vs, ans = List.assoc chi sol in
           ignore (Format.flush_str_formatter ());

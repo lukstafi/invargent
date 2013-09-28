@@ -96,9 +96,10 @@ newcons LNil : ∀n, a[0 = n]. List (a, n)
 
 newcons LCons : ∀k, n, a[(n + 1) = k].a * List (a, n) ⟶ List (a, k)
 
-newtype Ex1 : type
+newtype Ex1 : num * type
 
-newcons Ex1 : ∀k, n, a[δ' = (n, a) ∧ k ≤ n].List (a, k) ⟶ Ex1 δ'
+newcons Ex1 : ∀k, n, a[k ≤ n].List (a, k) ⟶
+   ∃1:k[k ≤ n].List (a, k)
 
 external filter : ∀n, a. List (a, n) → ∃1:k[k ≤ n].List (a, k)"
         (Format.flush_str_formatter ());

@@ -50,21 +50,20 @@ let more_items = parser_more_items
 let existential evs exphi ty loc =
   let allvs = VarSet.union (fvs_typ ty) (fvs_formula exphi) in
   let allvs = VarSet.diff allvs (vars_of_list [delta; delta']) in
-  let resvs = VarSet.elements (VarSet.diff allvs (vars_of_list evs)) in
+  let pvs = VarSet.elements (VarSet.diff allvs (vars_of_list evs)) in
   let allvs = VarSet.elements allvs in
-  let targs = List.map (fun v -> TVar v) resvs in
-  let resty = TCons (CNam "Tuple", targs) in
+  let targs = List.map (fun v -> TVar v) pvs in
   let ety_id = incr extype_id; !extype_id in
-  assert (not (List.mem_assoc ety_id !ex_types));
+  assert (not (Hashtbl.mem ex_types ety_id));
   let ety_cn = Extype ety_id in
-  let ety = TCons (ety_cn, [resty]) in
-  let phi = Eqty (tdelta', resty, loc) :: exphi in
+  let ety = TCons (ety_cn, targs) in
   let extydec =
-    TypConstr (ety_cn, [Type_sort], loc) in
+    TypConstr (ety_cn, List.map var_sort pvs, loc) in
   let extydef =
-    ValConstr (ety_cn, allvs, phi, [ty], ety_cn, [delta'], loc) in
+    ValConstr (ety_cn, allvs, exphi, [ty], ety_cn, pvs, loc) in
   more_items := extydef :: extydec :: !more_items;
-  ex_types := (ety_id, ((allvs, phi, ty), loc)) :: !ex_types;
+  let ex_sch = allvs, exphi, [ty], ety_cn, pvs in
+  Hashtbl.add ex_types ety_id ex_sch;
   Format.printf "Parser-existential-ex_types: id=%d@ phi=%a@ ty=%a@\n%!"
     ety_id pr_formula exphi (pr_ty false) ty;
   (* *)
