@@ -510,7 +510,7 @@ let converge cmp_v uni_v ~check_only (vs1, cnj1) (vs2, cnj2) =
 let neg_constrns = ref true
 
 (* Captures where the repeat step is/are. *)
-let disj_step = [|0; 1; 2; 5|]
+let disj_step = [|0; 0; 0; 5|]
 
 let solve cmp_v uni_v brs =
   let q = new_q cmp_v uni_v in

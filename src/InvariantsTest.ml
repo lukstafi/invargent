@@ -43,7 +43,7 @@ let test_case msg test answers =
         Hashtbl.iter
           (fun i (allvs, phi, ty, n, pvs) ->
             let ty = match ty with [ty] -> ty | _ -> assert false in
-            Format.printf "solved-∃%d: pvs=%a@ allvs=%a@ t=%a@ phi=%a@\n%!"
+            Format.printf "so∃%d: pvs=%a@ allvs=%a@ t=%a@ phi=%a@\n%!"
               i pr_vars (vars_of_list pvs) pr_vars (vars_of_list allvs)
               (pr_ty false) ty pr_formula phi)
           ex_types;
@@ -420,7 +420,7 @@ let rec search = efunction
 
   "search castle distance" >::
     (fun () ->
-      (* todo "existential"; *)
+      todo "existential";
       test_case "find castle distance"
 "newtype Bool
 newcons True : Bool
@@ -605,6 +605,29 @@ let rec search = efunction
       let y = wander x in
       search y"
         [1,"∃t99, t100. δ = (Placement t100 → ∃3:t87[].Castle t87)"];
+    );
+
+  "existential with param" >::
+    (fun () ->
+      (* todo "existential"; *)
+      test_case "existential with param"
+"newtype Place : type
+newtype Nearby : type * type
+newcons Here : ∀a. Place a ⟶ Nearby (a, a)
+external transitive : ∀a,b,c. Nearby (a, b) → Nearby (b, c) → Nearby (a, c)
+external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
+newtype Bool
+newcons True : Bool
+newcons False : Bool
+external finish : ∀a. Place a → Bool
+let rec walk = fun x ->
+  ematch finish x with
+  | True -> Here x
+  | False ->
+    let y, to_y = wander x in
+    let to_z = walk y in
+    transitive to_y to_z"
+        [1,"∃t99, t29. δ = (Place t129 → ∃3:t147[].Nearby (t29,t147)"];
     );
 
   "filter" >::
