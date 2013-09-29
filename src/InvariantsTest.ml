@@ -331,6 +331,52 @@ let rec escape = function Outside x -> x
 
     );
 
+  "less nested universal" >::
+    (fun () ->
+      (* todo "nested"; *)
+      test_case "less nested universal"
+"newtype Place : type
+newtype Nearby : type * type
+newcons Here : ∀a. Place a ⟶ Nearby (a, a)
+newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
+external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
+newtype Meet : type * type
+newcons Same : ∀a,b [a=b]. Meet (a, b)
+newcons NotSame : ∀a, b. Meet (a, b)
+external compare : ∀a,b. Place a → Place b → Meet (a, b)
+let rec walk = fun x goal ->
+  match compare x goal with
+  | Same -> Here goal
+  | NotSame ->
+    let y, to_y = wander x in
+    Transitive (to_y, walk y goal)"
+        [1,"∃t1, t2. δ = (Place t1 → Place t2 → Nearby (t1,t2)"];
+    );
+
+
+  "nested universal" >::
+    (fun () ->
+      todo "nested";
+      test_case "nested universal"
+"newtype Place : type
+newtype Nearby : type * type
+newcons Here : ∀a. Place a ⟶ Nearby (a, a)
+newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
+external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
+newtype Meet : type * type
+newcons Same : ∀a,b [a=b]. Meet (a, b)
+newcons NotSame : ∀a, b. Meet (a, b)
+external compare : ∀a,b. Place a → Place b → Meet (a, b)
+let rec walk = fun x goal ->
+  match compare x goal with
+  | True -> Here goal
+  | False ->
+    let y, to_y = wander x in
+    let to_z = walk y goal in
+    Transitive (to_y, to_z)"
+        [1,"∃t1, t2. δ = (Place t1 → Place t2 → Nearby (t1,t2)"];
+    );
+
   "find castle" >::
     (fun () ->
       todo "debug";
@@ -609,12 +655,12 @@ let rec search = efunction
 
   "existential with param" >::
     (fun () ->
-      (* todo "existential"; *)
+      todo "existential";
       test_case "existential with param"
 "newtype Place : type
 newtype Nearby : type * type
 newcons Here : ∀a. Place a ⟶ Nearby (a, a)
-external transitive : ∀a,b,c. Nearby (a, b) → Nearby (b, c) → Nearby (a, c)
+newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
 external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
 newtype Bool
 newcons True : Bool
@@ -626,8 +672,8 @@ let rec walk = fun x ->
   | False ->
     let y, to_y = wander x in
     let to_z = walk y in
-    transitive to_y to_z"
-        [1,"∃t99, t29. δ = (Place t129 → ∃3:t147[].Nearby (t29,t147)"];
+    Transitive (to_y, to_z)"
+        [1,"∃t1. δ = (Place t1 → ∃3:t2[].Nearby (t1,t2)"];
     );
 
   "filter" >::

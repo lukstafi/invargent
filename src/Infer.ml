@@ -871,6 +871,7 @@ let normalize cn =
         (List.length cases); (* *)
       match cases with
       | [] ->
+        Format.printf "checking-Or: not ex.@\n%!"; (* *)
         Left (flat_cn up_vars same_vars at_uni more_prem guard_cnj
                 (cns None))
       | [case, cn_arg] when step > 0 ->
@@ -992,6 +993,15 @@ let prune_cn cmp_v uni_v brs cn =
               if subformula prem2 prem then concl else [])
            brs)
       brs in
+  let test_brs = List.filter
+      (fun (prem,concl) ->
+         try ignore (unify cmp_v uni_v (prem@concl)); true
+         with Contradiction _ as e ->
+           Format.printf
+             "prune_cn: discarded branch@\n%a@ ⟹@ %a@\nreason: %a@\n%!"
+             pr_formula prem pr_formula concl pr_exception e; (* *)
+           false)
+      brs in
   let rec aux = function
     | A _ as a -> a
     | And cns -> And (List.map aux cns)
@@ -1000,16 +1010,29 @@ let prune_cn cmp_v uni_v brs cn =
       (* of cns_name * (formula * answer) list * (answer option -> cnstrnt) *)
       let conds = List.filter
           (fun (c,_) ->
+             Format.printf "prune_cn: trying=@ %a...@\n%!"
+               pr_formula c; (* *)
              try
                List.iter (fun (prem,concl) ->
+                   Format.printf "prune_cn: at@ %a@\n%!"
+                     pr_formula (c@prem@concl); (* *)
                    ignore (unify cmp_v uni_v (c@prem@concl)))
-                 brs;
+                 test_brs;
+               Format.printf "prune_cn: passed@\n%!"; (* *)
                true
-             with Contradiction _ -> false)
+             with Contradiction _ ->
+               Format.printf "prune_cn: rejected@\n%!"; (* *)
+               false)
           conds in
       (match conds with
-       | [] -> aux (cn None)
-       | [guard, ans] -> aux (cn_and (A guard) (cn (Some ans)))
+       | [] ->
+         Format.printf "prune_cn: as not ex., result=@\n%a@\n%!"
+           pr_cnstrnt (cn None); (* *)
+         aux (cn None)
+       | [guard, ans] ->
+         Format.printf "prune_cn: as guard=@ %a@\n%!"
+           pr_formula guard; (* *)
+         aux (cn_and (A guard) (cn (Some ans)))
        | _ ->
          Format.printf "prune_cn: ambiguous disjunction, cases=@\n%a@\n%!"
            (pr_line_list "| " pr_formula) (List.map fst conds); (* *)

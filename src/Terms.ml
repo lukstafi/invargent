@@ -1013,9 +1013,19 @@ let unify ?use_quants ?(sb=[]) cmp_v uni_v cnj =
       | Fun (f1, a1), Fun (f2, a2) ->
         let more_cnj = [f1, f2, loc; a1, a2, loc] in
         aux sb num_cn (more_cnj @ cnj)
-      | t1, t2 -> raise
-        (Contradiction (Type_sort, "Type mismatch",
-                        Some (t1, t2), loc)) in
+      | (TCons (f, _) as t1,
+         (TCons (g, _) as t2)) ->
+        Format.printf "unify: mismatch f=%s g=%s@ t1=%a@ t2=%a@\n%!"
+          (cns_str f) (cns_str g) (pr_ty false) t1 (pr_ty false) t2; (* *)
+        raise
+          (Contradiction (Type_sort, "Type mismatch",
+                          Some (t1, t2), loc))
+      | t1, t2 ->
+        Format.printf "unify: mismatch@ t1=%a@ t2=%a@\n%!"
+          (pr_ty false) t1 (pr_ty false) t2; (* *)
+        raise
+          (Contradiction (Type_sort, "Type mismatch",
+                          Some (t1, t2), loc)) in
   let cnj_typ, cnj_num = aux sb cnj_num cnj_typ in
   cnj_typ, cnj_num, cnj_so
 
