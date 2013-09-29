@@ -883,13 +883,13 @@ let split_sorts cnj =
   assert (cnj=[]);
   [Type_sort, cnj_typ; Num_sort, cnj_num]
 
-let connected ?(validate=fun _ -> ()) target (vs, phi) =
+let connected ?(validate=fun _ -> ()) ~directed target (vs, phi) =
   let nodes = List.map
       (function
         | Eqty (TVar _, TVar _, _) as c ->
           let cvs = fvs_atom c in c, cvs, cvs
         | (Eqty (TVar v, t, _) | Eqty (t, TVar v, _)) as c
-          when typ_sort_typ t ->
+          when directed && typ_sort_typ t ->
           c, VarSet.singleton v, fvs_typ t
         | c -> let cvs = fvs_atom c in c, cvs, cvs)
       phi in

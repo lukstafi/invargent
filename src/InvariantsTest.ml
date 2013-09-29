@@ -66,7 +66,7 @@ let tests = "Invariants" >::: [
 
   "eval" >::
     (fun () ->
-      todo "debug";
+      skip_if true "debug";
       test_case "eval term"
 "newtype Term : type
 newtype Int
@@ -98,7 +98,7 @@ let rec eval = function
 
   "equal with test" >::
     (fun () ->
-      todo "debug";
+      skip_if true "debug";
       test_case "equal terms"
 "newtype Ty : type
 newtype Int
@@ -130,7 +130,7 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
 
   "equal with assert" >::
     (fun () ->
-      todo "debug";
+      skip_if true "debug";
       test_case "equal terms"
 "newtype Ty : type
 newtype Int
@@ -163,7 +163,7 @@ let rec equal = function
 
   "equal with assert and test" >::
     (fun () ->
-      todo "debug";
+      skip_if true "debug";
       test_case "equal terms"
 "newtype Ty : type
 newtype Int
@@ -197,7 +197,7 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
 
   "binary plus" >::
     (fun () ->
-      todo "debug";
+      skip_if true "debug";
       test_case "binary plus"
 "newtype Binary : num
 newtype Carry : num
@@ -240,7 +240,7 @@ let rec plus =
 
   "binary plus with test" >::
     (fun () ->
-      todo "debug";
+      skip_if true "debug";
       test_case "binary plus test"
 "newtype Binary : num
 newtype Carry : num
@@ -287,7 +287,7 @@ test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
 
   "flatten_pairs" >::
     (fun () ->
-      todo "debug";
+      skip_if true "debug";
       test_case "list flatten_pairs"
 "newtype Bool
 newtype List : type * num
@@ -306,7 +306,7 @@ let rec flatten_pairs =
 
   "escape castle" >::
     (fun () ->
-      todo "debug";
+      skip_if true "debug";
       test_case "escape castle"
 "newtype Room
 newtype Yard
@@ -331,13 +331,40 @@ let rec escape = function Outside x -> x
 
     );
 
-  "less nested universal" >::
+  "easy nested universal" >::
     (fun () ->
       (* todo "nested"; *)
       test_case "less nested universal"
 "newtype Place : type
 newtype Nearby : type * type
-newcons Here : ∀a. Place a ⟶ Nearby (a, a)
+newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
+external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
+newtype Meet : type * type
+newcons Close : ∀a,b. Nearby (a, b) ⟶ Meet (a, b)
+newcons NotClose : ∀a, b. Meet (a, b)
+external compare : ∀a,b. Place a → Place b → Meet (a, b)
+let rec walk = fun x goal ->
+  match compare x goal with
+  | Close g -> g
+  | NotClose ->
+    let y, to_y = wander x in
+    Transitive (to_y, walk y goal)"
+        [1,"∃t68, t70. δ = (Place t68 → Place t70 → Nearby (t68, t70))"];
+    );
+
+  "equational nested universal" >::
+    (fun () ->
+      todo "equational";
+      test_case "less nested universal"
+"newtype Place : type
+newtype Nearby : type * type
+newtype A
+newtype B
+newcons LocA : Place A
+newcons LocB : Place B
+newtype Bool
+external is_nearby : ∀a,b. Nearby (a, b) → Bool
+newcons Here : ∀a. Place a * Place a ⟶ Nearby (a, a)
 newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
 external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
 newtype Meet : type * type
@@ -346,40 +373,47 @@ newcons NotSame : ∀a, b. Meet (a, b)
 external compare : ∀a,b. Place a → Place b → Meet (a, b)
 let rec walk = fun x goal ->
   match compare x goal with
-  | Same -> Here goal
+  | Same -> Here (x, goal)
   | NotSame ->
     let y, to_y = wander x in
-    Transitive (to_y, walk y goal)"
+    Transitive (to_y, walk y goal)
+test (is_nearby (walk LocA LocB))"
         [1,"∃t1, t2. δ = (Place t1 → Place t2 → Nearby (t1,t2)"];
     );
 
 
-  "nested universal" >::
+  "double nested universal" >::
     (fun () ->
       todo "nested";
-      test_case "nested universal"
+      test_case "double nested universal"
 "newtype Place : type
 newtype Nearby : type * type
-newcons Here : ∀a. Place a ⟶ Nearby (a, a)
+newtype A
+newtype B
+newcons LocA : Place A
+newcons LocB : Place B
+newtype Bool
+external is_nearby : ∀a,b. Nearby (a, b) → Bool
 newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
 external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
 newtype Meet : type * type
-newcons Same : ∀a,b [a=b]. Meet (a, b)
-newcons NotSame : ∀a, b. Meet (a, b)
+newcons Close : ∀a,b. Nearby (a, b) ⟶ Meet (a, b)
+newcons NotClose : ∀a, b. Meet (a, b)
 external compare : ∀a,b. Place a → Place b → Meet (a, b)
 let rec walk = fun x goal ->
   match compare x goal with
-  | True -> Here goal
-  | False ->
+  | Close g -> g
+  | NotClose ->
     let y, to_y = wander x in
     let to_z = walk y goal in
-    Transitive (to_y, to_z)"
-        [1,"∃t1, t2. δ = (Place t1 → Place t2 → Nearby (t1,t2)"];
+    Transitive (to_y, to_z)
+test (is_nearby (walk LocA LocB))"
+        [1,"∃t77, t79. δ = (Place t77 → Place t79 → Nearby (t77, t79))"];
     );
 
   "find castle" >::
     (fun () ->
-      todo "debug";
+      skip_if true "debug";
       test_case "find castle small"
 "newtype Room
 newtype Yard
@@ -434,7 +468,7 @@ let rec find = efunction
 
   "search castle shortcut" >::
     (fun () ->
-      todo "debug";
+      skip_if true "debug";
       test_case "search castle shortcut"
 "newtype Room
 newtype Yard
@@ -535,7 +569,7 @@ let rec search = efunction
 
   "castle not existential" >::
     (fun () ->
-      todo "debug";
+      skip_if true "debug";
       test_case "castle not existential"
 "newtype Yard
 newtype Village
@@ -558,7 +592,7 @@ let rec search = efunction
 
   "castle nested not existential" >::
     (fun () ->
-      todo "debug";
+      skip_if true "debug";
       test_case "castle nested not existential"
 "newtype Answer
 newcons No : Answer
@@ -589,7 +623,7 @@ let rec search = efunction
 
   "castle nested existential factored" >::
     (fun () ->
-      todo "debug";
+      skip_if true "debug";
       test_case "castle nested existential factored"
 "newtype Answer
 newcons Yes : Answer
@@ -622,7 +656,7 @@ let rec search = efunction
 
   "castle nested existential" >::
     (fun () ->
-      todo "debug";
+      skip_if true "debug";
       test_case "castle nested existential"
 "newtype Answer
 newcons Yes : Answer

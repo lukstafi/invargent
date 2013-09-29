@@ -283,7 +283,8 @@ let split avs ans negchi_locs params zparams q =
     (* 3 *)
     let ans_cand = List.map
       (fun b -> b,
-        snd (connected (VarSet.elements (Hashtbl.find q.b_vs b)) ([],ans0)))
+        snd (connected ~directed:false
+               (VarSet.elements (Hashtbl.find q.b_vs b)) ([],ans0)))
       q.negbs in
     Format.printf "split-loop: ans1=@\n%a@\n%!"
       pr_bchi_subst (List.map (fun (b,a)->b,(VarSet.elements (Hashtbl.find q.b_vs b),a))
@@ -324,7 +325,7 @@ let split avs ans negchi_locs params zparams q =
       (fun (b,ans) ->
         let bvs = Hashtbl.find q.b_vs b in
         let res = snd
-          (connected (VarSet.elements bvs) ([],ans)) in
+          (connected ~directed:false (VarSet.elements bvs) ([],ans)) in
         Format.printf "split-loop-6: b=%s;@ vs=%a;@ res=%a@\n%!"
           (var_str b) pr_vars bvs pr_formula res;
         b, res)
@@ -683,7 +684,7 @@ let solve cmp_v uni_v brs =
         (* 2 *)
         let g_rol = List.map
             (fun (i,(t2,cnjs)) ->
-               i, t2, connected ~validate [delta]
+               i, t2, connected ~validate ~directed:true [delta]
                   (DisjElim.disjelim cmp_v uni_v
                      ~do_num:(disj_step.(1) <= iter_no) cnjs))
             g_rol in
@@ -858,7 +859,7 @@ let solve cmp_v uni_v brs =
                let dvs = gvs @ concat_map (fun (_,(dvs,_))->dvs) ds in
                let i_res =
                  simplify (cmp_v' dvs) uni_v
-                   (connected [delta] (dvs, dans @ g_ans)) in
+                   (connected ~directed:true [delta] (dvs, dans @ g_ans)) in
                Format.printf
                  "solve-loop: dans=%a@ chi%d(.)=@ %a@\n%!"
                  pr_formula dans i pr_ans i_res; (* *)
