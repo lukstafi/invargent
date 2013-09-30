@@ -692,7 +692,7 @@ let rec search = efunction
   "existential by hand" >::
     (fun () ->
       (* skip_if !debug "debug"; *)
-      test_case "existential with param"
+      test_case "existential by hand"
 "newtype Place : type
 newtype Nearby : type * type
 newtype Near : type

@@ -20,6 +20,12 @@
 
   <section|Data Structures and Concrete Syntax>
 
+  TODO: redo everything! Remove <verbatim|CstrIntro>, <verbatim|ExCases> and
+  <verbatim|ExCase>, only <verbatim|LetIn> and <verbatim|ExLetIn> remain.
+  Expression <math|\<lambda\><around*|[|K|]><wide|c|\<bar\>>> remains, but is
+  eliminated by preprocessing <math|n<around*|(|\<cdummy\>|)>>. Expression
+  <math|\<varepsilon\><around*|[|K|]>e> is simply <math|K e>.
+
   Following <cite|systemTechRep>, we have the following nodes in the abstract
   syntax of patterns and expressions:
 
