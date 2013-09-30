@@ -9,6 +9,8 @@ open OUnit
 open Terms
 open Aux
 
+let debug = ref true
+
 let test_case msg test answers =
       Terms.reset_state ();
       Infer.reset_state ();
@@ -66,7 +68,7 @@ let tests = "Invariants" >::: [
 
   "eval" >::
     (fun () ->
-      skip_if true "debug";
+      skip_if !debug "debug";
       test_case "eval term"
 "newtype Term : type
 newtype Int
@@ -98,7 +100,7 @@ let rec eval = function
 
   "equal with test" >::
     (fun () ->
-      skip_if true "debug";
+      skip_if !debug "debug";
       test_case "equal terms"
 "newtype Ty : type
 newtype Int
@@ -130,7 +132,7 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
 
   "equal with assert" >::
     (fun () ->
-      skip_if true "debug";
+      skip_if !debug "debug";
       test_case "equal terms"
 "newtype Ty : type
 newtype Int
@@ -163,7 +165,7 @@ let rec equal = function
 
   "equal with assert and test" >::
     (fun () ->
-      skip_if true "debug";
+      skip_if !debug "debug";
       test_case "equal terms"
 "newtype Ty : type
 newtype Int
@@ -197,7 +199,7 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
 
   "binary plus" >::
     (fun () ->
-      skip_if true "debug";
+      skip_if !debug "debug";
       test_case "binary plus"
 "newtype Binary : num
 newtype Carry : num
@@ -240,7 +242,7 @@ let rec plus =
 
   "binary plus with test" >::
     (fun () ->
-      skip_if true "debug";
+      skip_if !debug "debug";
       test_case "binary plus test"
 "newtype Binary : num
 newtype Carry : num
@@ -287,7 +289,7 @@ test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
 
   "flatten_pairs" >::
     (fun () ->
-      skip_if true "debug";
+      skip_if !debug "debug";
       test_case "list flatten_pairs"
 "newtype Bool
 newtype List : type * num
@@ -306,7 +308,7 @@ let rec flatten_pairs =
 
   "escape castle" >::
     (fun () ->
-      skip_if true "debug";
+      skip_if !debug "debug";
       test_case "escape castle"
 "newtype Room
 newtype Yard
@@ -333,7 +335,7 @@ let rec escape = function Outside x -> x
 
   "easy nested universal" >::
     (fun () ->
-      (* todo "nested"; *)
+      todo "nested";
       test_case "less nested universal"
 "newtype Place : type
 newtype Nearby : type * type
@@ -413,7 +415,7 @@ test (is_nearby (walk LocA LocB))"
 
   "find castle" >::
     (fun () ->
-      skip_if true "debug";
+      skip_if !debug "debug";
       test_case "find castle small"
 "newtype Room
 newtype Yard
@@ -468,7 +470,7 @@ let rec find = efunction
 
   "search castle shortcut" >::
     (fun () ->
-      skip_if true "debug";
+      skip_if !debug "debug";
       test_case "search castle shortcut"
 "newtype Room
 newtype Yard
@@ -569,7 +571,7 @@ let rec search = efunction
 
   "castle not existential" >::
     (fun () ->
-      skip_if true "debug";
+      skip_if !debug "debug";
       test_case "castle not existential"
 "newtype Yard
 newtype Village
@@ -592,7 +594,7 @@ let rec search = efunction
 
   "castle nested not existential" >::
     (fun () ->
-      skip_if true "debug";
+      skip_if !debug "debug";
       test_case "castle nested not existential"
 "newtype Answer
 newcons No : Answer
@@ -623,7 +625,7 @@ let rec search = efunction
 
   "castle nested existential factored" >::
     (fun () ->
-      skip_if true "debug";
+      skip_if !debug "debug";
       test_case "castle nested existential factored"
 "newtype Answer
 newcons Yes : Answer
@@ -656,7 +658,7 @@ let rec search = efunction
 
   "castle nested existential" >::
     (fun () ->
-      skip_if true "debug";
+      skip_if !debug "debug";
       test_case "castle nested existential"
 "newtype Answer
 newcons Yes : Answer
@@ -685,6 +687,32 @@ let rec search = efunction
       let y = wander x in
       search y"
         [1,"∃t99, t100. δ = (Placement t100 → ∃3:t87[].Castle t87)"];
+    );
+
+  "existential by hand" >::
+    (fun () ->
+      (* skip_if !debug "debug"; *)
+      test_case "existential with param"
+"newtype Place : type
+newtype Nearby : type * type
+newtype Near : type
+newcons Here : ∀a. Place a ⟶ Nearby (a, a)
+newcons Near : ∀a,b. Nearby (a, b) ⟶ Near a
+newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
+external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
+newtype Bool
+newcons True : Bool
+newcons False : Bool
+external finish : ∀a. Place a → Bool
+let rec walk = fun x ->
+  match finish x with
+  | True -> Near (Here x)
+  | False ->
+    let y, to_y = wander x in
+    match walk y with
+    | Near to_z ->
+      Near (Transitive (to_y, to_z))"
+        [1,"∃t75. δ = (Place t75 → Near t75)"];
     );
 
   "existential with param" >::

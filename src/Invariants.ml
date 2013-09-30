@@ -283,7 +283,7 @@ let split avs ans negchi_locs params zparams q =
     (* 3 *)
     let ans_cand = List.map
       (fun b -> b,
-        snd (connected ~directed:false
+        snd (connected ~directed:(q.is_chiK (q.find_chi b))
                (VarSet.elements (Hashtbl.find q.b_vs b)) ([],ans0)))
       q.negbs in
     Format.printf "split-loop: ans1=@\n%a@\n%!"
@@ -325,7 +325,8 @@ let split avs ans negchi_locs params zparams q =
       (fun (b,ans) ->
         let bvs = Hashtbl.find q.b_vs b in
         let res = snd
-          (connected ~directed:false (VarSet.elements bvs) ([],ans)) in
+          (connected ~directed:(q.is_chiK (q.find_chi b))
+             (VarSet.elements bvs) ([],ans)) in
         Format.printf "split-loop-6: b=%s;@ vs=%a;@ res=%a@\n%!"
           (var_str b) pr_vars bvs pr_formula res;
         b, res)
@@ -429,7 +430,7 @@ let simplify cmp_v uni_v (vs, cnj) =
   let ty_ans, num_ans, _ =
     unify cmp_v uni_v cnj in
   let ty_sb, ty_ans = List.partition
-    (fun (v,_) -> VarSet.mem v vs) ty_ans in
+    (fun (v,_) -> VarSet.mem v vs && v <> delta && v <> delta') ty_ans in
   let ty_ans = subst_formula ty_sb (to_formula ty_ans) in
   let ty_vs = VarSet.inter vs (fvs_formula ty_ans)
   and num_vs = VarSet.inter vs (fvs_formula num_ans) in
@@ -684,7 +685,7 @@ let solve cmp_v uni_v brs =
         (* 2 *)
         let g_rol = List.map
             (fun (i,(t2,cnjs)) ->
-               i, t2, connected ~validate ~directed:true [delta]
+               i, t2, connected ~validate ~directed:true [delta; delta']
                   (DisjElim.disjelim cmp_v uni_v
                      ~do_num:(disj_step.(1) <= iter_no) cnjs))
             g_rol in
@@ -859,7 +860,8 @@ let solve cmp_v uni_v brs =
                let dvs = gvs @ concat_map (fun (_,(dvs,_))->dvs) ds in
                let i_res =
                  simplify (cmp_v' dvs) uni_v
-                   (connected ~directed:true [delta] (dvs, dans @ g_ans)) in
+                   (connected ~directed:true [delta; delta']
+                      (dvs, dans @ g_ans)) in
                Format.printf
                  "solve-loop: dans=%a@ chi%d(.)=@ %a@\n%!"
                  pr_formula dans i pr_ans i_res; (* *)
@@ -950,7 +952,9 @@ let solve cmp_v uni_v brs =
          and rphi = subst_formula sb rphi in
          (* FIXME: We ignore the "predicted" parameters and instead
             collect the free variables as actual parameters. *)
-         let pvs = fvs_typ (fst (List.assoc delta' sb)) in
+         let pvs =
+           try fvs_typ (fst (List.assoc delta' sb))
+           with Not_found -> VarSet.singleton delta' in
          let allvs = VarSet.union (fvs_formula rphi) (fvs_typ rty) in
          Format.printf
            "solve-ex_types: ex_i=%d@ t1=%a@ t2=%a@ ty=%a@ chi_vs=%a@ rty=%a@ allvs=%a@ pvs=%a@ rphi=%a@ @\nphi=%a@\n%!"
