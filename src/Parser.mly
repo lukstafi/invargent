@@ -54,7 +54,7 @@ let existential evs exphi ty loc =
   let allvs = VarSet.elements allvs in
   let targs = List.map (fun v -> TVar v) pvs in
   let ety_id = incr extype_id; !extype_id in
-  assert (not (Hashtbl.mem ex_types ety_id));
+  assert (not (List.mem_assoc ety_id !all_ex_types));
   let ety_cn = Extype ety_id in
   let ety = TCons (ety_cn, targs) in
   let extydec =
@@ -63,7 +63,8 @@ let existential evs exphi ty loc =
     ValConstr (ety_cn, allvs, exphi, [ty], ety_cn, pvs, loc) in
   more_items := extydef :: extydec :: !more_items;
   let ex_sch = allvs, exphi, [ty], ety_cn, pvs in
-  Hashtbl.add ex_types ety_id ex_sch;
+  all_ex_types := (ety_id, loc) :: !all_ex_types;
+  Hashtbl.add sigma ety_cn ex_sch;
   Format.printf "Parser-existential-ex_types: id=%d@ phi=%a@ ty=%a@\n%!"
     ety_id pr_formula exphi (pr_ty false) ty;
   (* *)
@@ -201,7 +202,7 @@ expr:
   | ASSERT EQUAL TYPE expr expr SEMICOLON expr
       { AssertEqty ($4, $5, $7, get_loc ()) }
   | expr COMMA expr_comma_list %prec below_COMMA
-      { Cons ("Tuple", ($1 :: List.rev $3), get_loc ()) }
+      { Cons (tuple, ($1 :: List.rev $3), get_loc ()) }
   | simple_expr
       { $1 }
   | simple_expr_list
@@ -210,7 +211,7 @@ expr:
 	  | [] | [_] -> assert false
 	  | [f; a] ->
 	      (match f, a with
-		| Cons (x, [], _), Cons ("Tuple", args, _)
+		| Cons (x, [], _), Cons (tuple, args, _)
 		    (* syntax... *)
 		    when not (Hashtbl.mem unary_vals x) ->
 		    Cons (x, args, loc)
@@ -224,7 +225,7 @@ simple_expr:
   | LIDENT
       { Var ($1, get_loc ()) }
   | UIDENT
-      { Cons ($1, [], get_loc ()) }
+      { Cons (CNam $1, [], get_loc ()) }
   | INT
       { Num ($1, get_loc ()) }
   | LPAREN expr RPAREN
@@ -269,15 +270,15 @@ pattern:
       { $1 }
   | UIDENT pattern %prec prec_constr_appl
       { match $2 with
-	| PCons ("Tuple", args, _)
+	| PCons (CNam "Tuple", args, _)
 	    (* syntax... *)
-	    when not (Hashtbl.mem unary_vals $1) ->
-	    PCons ($1, args, get_loc ())
-	| _ -> PCons ($1, [ $2 ], get_loc ()) }
+	    when not (Hashtbl.mem unary_vals (CNam $1)) ->
+	    PCons (CNam $1, args, get_loc ())
+	| _ -> PCons (CNam $1, [ $2 ], get_loc ()) }
   | pattern AS pattern
       { PAnd ($1, $3, get_loc ()) }
   | pattern_comma_list  %prec below_COMMA
-      { PCons ("Tuple", List.rev $1, get_loc ()) }
+      { PCons (CNam "Tuple", List.rev $1, get_loc ()) }
 ;
 pattern_comma_list:
   | pattern COMMA pattern
@@ -291,7 +292,7 @@ simple_pattern:
   | UNDERSCORE                              { One (get_loc ())}
   | EXCLAMATION                             { Zero }
   | UIDENT
-      { PCons ($1, [], get_loc ()) }
+      { PCons (CNam $1, [], get_loc ()) }
   | LPAREN pattern RPAREN
       { $2 }
 ;
@@ -312,7 +313,7 @@ typ:
   | typ ARROW typ
       { Fun ($1, $3) }
   | typ_comma_list %prec below_COMMA
-      { TCons (CNam "Tuple", List.rev $1) }
+      { TCons (tuple, List.rev $1) }
   | UIDENT simple_typ
       { match $2 with
 	| TCons (CNam "Tuple", args)
@@ -408,9 +409,8 @@ lident_list:
 
 structure_item_raw:
   | NEWCONS UIDENT COLON opt_constr_intro typ_star_list LONGARROW typ
-      { if List.length $5 = 1 then Hashtbl.add unary_vals $2 ();
-        let x = $2 in
-        let n = CNam x in
+      { let n = CNam $2 in
+        if List.length $5 = 1 then Hashtbl.add unary_vals n ();
         let vs, phi = $4 in
         let args = List.rev $5 in
         let res = $7 in
@@ -422,7 +422,7 @@ structure_item_raw:
           extract_datatyp allvs (rhs_loc 7) res in
         let vs = Aux.unique_sorted (c_args @ vs) in
         let phi = more_phi @ phi in
-        Hashtbl.add sigma x (vs, phi, args, c_n, c_args);
+        Hashtbl.add sigma n (vs, phi, args, c_n, c_args);
         ValConstr (n, vs, phi, args, c_n, c_args, get_loc ()) }
   | NEWCONS UIDENT COLON opt_constr_intro typ_star_list error
       { unclosed "newcons" 1 "-->" 6 }
@@ -430,8 +430,7 @@ structure_item_raw:
       { syntax_error
 	  "do not use --> for constructors without arguments" 5 }
   | NEWCONS UIDENT COLON opt_constr_intro typ
-      { let x = $2 in
-        let n = CNam x in
+      { let n = CNam $2 in
         let vs, phi = $4 in
         let res = $5 in
         let allvs = VarSet.union (vars_of_list vs)
@@ -440,7 +439,7 @@ structure_item_raw:
           extract_datatyp allvs (rhs_loc 5) res in
         let vs = Aux.unique_sorted (c_args @ vs) in
         let phi = more_phi @ phi in
-        Hashtbl.add sigma x (vs, phi, [], c_n, c_args);
+        Hashtbl.add sigma n (vs, phi, [], c_n, c_args);
         ValConstr (n, vs, phi, [], c_n, c_args, get_loc ()) }
   | NEWCONS UIDENT COLON opt_constr_intro typ_star_list LONGARROW error
       { syntax_error ("inside the constructor value type") 4 }

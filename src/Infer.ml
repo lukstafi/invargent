@@ -12,10 +12,7 @@ type cnstrnt =
 | A of formula
 | And of cnstrnt list
 | Impl of formula * cnstrnt
-| Or of (formula * answer) list * (answer option -> cnstrnt)
-(** If the first formula holds, pass the second formula to get the
-    constraint. The constructor name is the existential type which
-    gives [SameExistential]. *)
+| Or of cnstrnt list
 | All of VarSet.t * cnstrnt
 | Ex of VarSet.t * cnstrnt
 
@@ -45,10 +42,8 @@ let rec pr_cnstrnt ppf = function
     pr_sep_list " ∧" pr_cnstrnt ppf cns; fprintf ppf "@]"
   | Impl (prem,concl) -> fprintf ppf "@[<2>";
     pr_formula ppf prem; fprintf ppf "@ ⟹@ %a@]" pr_cnstrnt concl
-  | Or (cases, cns) -> fprintf ppf "@[<2>[";
-    let disjs = List.map
-      (fun (cond,arg) -> And [A cond; cns (Some arg)]) cases in
-    pr_sep_list " ∨" pr_cnstrnt ppf disjs;
+  | Or cns -> fprintf ppf "@[<2>[";
+    pr_sep_list " ∨" pr_cnstrnt ppf cns;
     fprintf ppf "]@]"
   | All (vs, cn) ->
     fprintf ppf "@[<0>∀%a.@ %a@]"
@@ -102,7 +97,6 @@ let ex_intro_elim e =
     | App (e1, _, _) -> aux e1
     | Lam _ -> false
     | ExLam _ -> true
-    | ExCase _ -> true
     | Letrec (_, _, e2, _) -> aux e2
     | Letin (_, _, e2, _) -> true
     | AssertFalse _
@@ -110,30 +104,42 @@ let ex_intro_elim e =
     | AssertEqty _ -> false in
   aux e
 
+(* Global state for fresh variable guarantees: not re-entrant. *)
+let fresh_var_id = ref 0
+let fresh_chi_id = ref 0
 let fresh_expr_var_id = ref 0
 
 let normalize_expr e =
-  let rec aux k' = function
-    | e when k' <> None && not (ex_intro_elim e) ->
+  let rec aux k' e =
+    match k', e with
+    | Some k, e when not (ex_intro_elim e) ->
       let lc = expr_loc e in
       Letin (PVar ("xcase", lc), aux None e,
-             ExCase (unsome k', Var ("xcase", lc), lc), lc)
-    | (Var _ | Num _) as x -> x
-    | Cons (k, es, lc) -> Cons (k, List.map (aux None) es, lc)
-    | App (e1, e2, lc) -> App (aux k' e1, aux None e2, lc)
-    | Lam (cls, lc) -> Lam (List.map (aux_cl k') cls, lc)
-    | ExLam (k, cls, lc) when k' = None ->
-      ExLam (k, List.map (aux_cl (Some k)) cls, lc)
-    | ExLam (k, cls, lc) ->
-      ExLam (unsome k', List.map (aux_cl k') cls, lc)
-    | ExCase (k, e, lc) -> assert false
-    | Letrec (x, e1, e2, lc) ->
+             Cons (Extype k, [Var ("xcase", lc)], lc), lc)
+    | _, ((Var _ | Num _) as x) -> x
+    | _, Cons (k, es, lc) -> Cons (k, List.map (aux None) es, lc)
+    | _, App (e1, e2, lc) -> App (aux k' e1, aux None e2, lc)
+    | _, Lam (cls, lc) -> Lam (List.map (aux_cl k') cls, lc)
+    | None, ExLam (k, cls, lc) ->
+      let chi_id = incr fresh_chi_id; !fresh_chi_id in
+      let ety_cn = Extype k in
+      let ex_sch =
+        [delta; delta'],
+        [PredVarB (chi_id, tdelta, tdelta', lc)],
+        [tdelta], ety_cn, [delta'] in
+      (* FIXME: go to [sigma] altogether *)
+      Hashtbl.add sigma ety_cn ex_sch;
+      new_ex_types := (k, lc) :: !new_ex_types;
+      Lam (List.map (aux_cl (Some k)) cls, lc)
+    | Some _, ExLam (_, cls, lc) ->
+      Lam (List.map (aux_cl k') cls, lc)
+    | _, Letrec (x, e1, e2, lc) ->
       Letrec (x, aux None e1, aux k' e2, lc)
-    | Letin (p, e1, e2, lc) -> Letin (p, aux None e1, aux k' e2, lc)
-    | AssertFalse _ as e -> e
-    | AssertLeq (e1, e2, range, lc) ->
+    | _, Letin (p, e1, e2, lc) -> Letin (p, aux None e1, aux k' e2, lc)
+    | _, (AssertFalse _ as e) -> e
+    | _, AssertLeq (e1, e2, range, lc) ->
       AssertLeq (e1, e2, aux k' range, lc)
-    | AssertEqty (e1, e2, range, lc) ->
+    | _, AssertEqty (e1, e2, range, lc) ->
       AssertEqty (e1, e2, aux k' range, lc)
   and aux_cl k' (p, e) = p, aux k' e in
   aux None e
@@ -153,10 +159,6 @@ let rec flat_and = function
   | cn -> [cn]
 
 let cn_and cn1 cn2 = And (flat_and cn1 @ flat_and cn2)
-
-(* Global state for fresh variable guarantees: not re-entrant. *)
-let fresh_var_id = ref 0
-let fresh_chi_id = ref 0
 
 
 let fresh_typ_var () =
@@ -205,21 +207,21 @@ let constr_gen_pat p tau =
   let rec aux tau = function
     | Zero | One _ | PVar _ -> And []
     | PAnd (p1, p2, _) -> cn_and (aux tau p1) (aux tau p2)
-    | PCons ("Tuple", args, loc) ->
+    | PCons (CNam "Tuple", args, loc) ->
       let argvs = List.map (fun _ -> fresh_typ_var ()) args in
       let argtys = List.map (fun v -> TVar v) argvs in
       let cns = List.map2 aux argtys args in
-      let tupt = TCons (CNam "Tuple", argtys) in
+      let tupt = TCons (tuple, argtys) in
       Ex (vars_of_list argvs, And (A [Eqty (tupt, tau, loc)]::cns))
     | PCons (k, args, loc) ->
       Format.printf "constructors: %!";
-      Hashtbl.iter (fun k _ -> Format.printf "%s, " k) sigma;
+      Hashtbl.iter (fun k _ -> Format.printf "%s, " (cns_str k)) sigma;
       Format.printf "@\n%!";
       (* *)
       let abvs, phi, argtys, c_n, c_args =
         try freshen_cns_scheme (Hashtbl.find sigma k)
         with Not_found -> raise
-          (Report_toplevel ("Undefined constructor "^k, Some loc)) in
+          (Report_toplevel ("Undefined constructor "^cns_str k, Some loc)) in
       let avs = vars_of_list c_args in
       let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
       let bvs = VarSet.diff (vars_of_list abvs) avs in
@@ -245,17 +247,17 @@ let rec envfrag_gen_pat p t =
     | PVar (x, _) -> VarSet.empty, [], [x, t]
     | PAnd (p1, p2, _) ->
       envfrag_x (aux t p1) (aux t p2)
-    | PCons ("Tuple", ps, loc) ->
+    | PCons (CNam "Tuple", ps, loc) ->
       let argvs = List.map (fun _ -> fresh_typ_var ()) ps in
       let argtys = List.map (fun v -> TVar v) argvs in
-      let res = TCons (CNam "Tuple", argtys) in
+      let res = TCons (tuple, argtys) in
       let ef0 = vars_of_list argvs, [Eqty (res, t, loc)], [] in
       List.fold_left envfrag_x ef0 (List.map2 aux argtys ps)
     | PCons (k, ps, loc) ->
       let vs, phi, args, c_n, c_args =
         try freshen_cns_scheme (Hashtbl.find sigma k)
         with Not_found -> raise
-          (Report_toplevel ("Undefined constructor "^k, Some loc)) in
+          (Report_toplevel ("Undefined constructor "^cns_str k, Some loc)) in
       let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
       let ef0 = vars_of_list vs, Eqty (res, t, loc)::phi, [] in
       List.fold_left envfrag_x ef0 (List.map2 aux args ps) in
@@ -272,8 +274,7 @@ let impl prem concl =
   then concl else Impl (prem, concl)
 
 let constr_gen_expr gamma e t =
-  let chiK_t2 = ref [] in
-  let rec aux gamma excase_env t e =
+  let rec aux gamma t e =
     Format.printf "constr_gen: t=%a e=@\n%a@\n%!"
       (pr_ty false) t (pr_expr false) e;
     (* *)
@@ -285,33 +286,33 @@ let constr_gen_expr gamma e t =
       let vs, phi, res = freshen_val_scheme (List.assoc x gamma) in
       Ex (vars_of_list vs, cn_and (A [Eqty (res, t, loc)]) (A phi))
     | Num (i, loc) -> A [Eqty (TCons (CNam "Num", [NCst i]), t, loc)]
-    | Cons ("Tuple", args, loc)->
+    | Cons (CNam "Tuple", args, loc)->
       let argvs = List.map (fun _ -> fresh_typ_var ()) args in
       let argtys = List.map (fun v -> TVar v) argvs in
-      let cns = List.map2 (aux gamma excase_env) argtys args in
-      let tupt = TCons (CNam "Tuple", argtys) in
+      let cns = List.map2 (aux gamma) argtys args in
+      let tupt = TCons (tuple, argtys) in
       Ex (vars_of_list argvs, And (A [Eqty (t, tupt, loc)]::cns))
     | Cons (k, args, loc) when not (Hashtbl.mem sigma k)->
-      raise (Report_toplevel ("Undefined constructor "^k, Some loc))
+      raise (Report_toplevel ("Undefined constructor "^cns_str k, Some loc))
     | Cons (k, args, loc)->
       let vs, phi, argtys, c_n, c_args =
         freshen_cns_scheme (Hashtbl.find sigma k) in
       let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
       let cn = List.fold_left cn_and (A (Eqty (res, t, loc)::phi))
-        (List.map2 (aux gamma excase_env) argtys args) in
+        (List.map2 (aux gamma) argtys args) in
       Ex (vars_of_list vs, cn)
     | App (e1, e2, loc) ->
       let a = fresh_typ_var () in
       Ex (VarSet.singleton a,
-          cn_and (aux gamma excase_env (Fun (TVar a, t)) e1)
-            (aux gamma excase_env (TVar a) e2))
+          cn_and (aux gamma (Fun (TVar a, t)) e1)
+            (aux gamma (TVar a) e2))
     | Lam ([cl], loc) when single_assert_false cl ->
       let a1 = fresh_typ_var () in
       let t1 = TVar a1 in
       let a2 = fresh_typ_var () in
       let t2 = TVar a2 in
       let cn =
-        aux_cl_negcn gamma excase_env t1 t2
+        aux_cl_negcn gamma t1 t2
           (Eqty (Fun (t1, t2), t, loc)) cl in
       Ex (vars_of_list [a1; a2], cn)
     | Lam (cls, loc) ->
@@ -321,7 +322,7 @@ let constr_gen_expr gamma e t =
       let t2 = TVar a2 in
       let cn = List.fold_left cn_and
         (A [Eqty (Fun (t1, t2), t, loc)])
-        (List.map (aux_cl gamma excase_env t1 t2) cls) in
+        (List.map (aux_cl gamma t1 t2) cls) in
       Ex (vars_of_list [a1; a2], cn)
     | AssertFalse loc -> A [CFalse loc]
     | AssertLeq (e1, e2, e3, loc) ->
@@ -335,9 +336,9 @@ let constr_gen_expr gamma e t =
       let nt2 = TCons (CNam "Num", [t2]) in
       let cn =
         cn_and (A [Leq (t1, t2, loc)])
-          (cn_and (aux gamma excase_env nt1 e1)
-             (cn_and (aux gamma excase_env nt2 e2)
-                (aux gamma excase_env t3 e3))) in
+          (cn_and (aux gamma nt1 e1)
+             (cn_and (aux gamma nt2 e2)
+                (aux gamma t3 e3))) in
       Ex (vars_of_list [a1; a2; a3], cn)
     | AssertEqty (e1, e2, e3, loc) ->
       let a1 = fresh_typ_var () in
@@ -348,9 +349,9 @@ let constr_gen_expr gamma e t =
       let t3 = TVar a3 in
       let cn =
         cn_and (A [Eqty (t1, t2, loc)])
-          (cn_and (aux gamma excase_env t1 e1)
-             (cn_and (aux gamma excase_env t2 e2)
-                (aux gamma excase_env t3 e3))) in
+          (cn_and (aux gamma t1 e1)
+             (cn_and (aux gamma t2 e2)
+                (aux gamma t3 e3))) in
       Ex (vars_of_list [a1; a2; a3], cn)
     | Letrec (x, e1, e2, loc) ->
       let a = fresh_typ_var () in
@@ -362,137 +363,48 @@ let constr_gen_expr gamma e t =
       let gamma = (x, ([b], [chi_b], tb))::gamma in
       let def_cn =
         All (vars_of_list [b],
-             Impl ([chi_b], aux gamma excase_env tb e1)) in
+             Impl ([chi_b], aux gamma tb e1)) in
       cn_and def_cn (cn_and (Ex (vars_of_list [a], A [chi_a]))
-                       (aux gamma excase_env t e2))
+                       (aux gamma t e2))
     | Letin (p, e1, e2, loc) ->
       let a0 = fresh_typ_var () in
       let t0 = TVar a0 in
-      let cn0 = aux gamma excase_env t0 e1 in
-      let a3 = fresh_typ_var () in
-      let t3 = TVar a3 in
-      let disjs =
-        Hashtbl.fold
-          (fun i sch disjs ->
-             let vs, phi, ty, c_n, pvs = freshen_cns_scheme sch in
-             let ty = match ty with [ty] -> ty | _ -> assert false in
-             let phi = Eqty (t3, ty, loc)::phi in
-             let evs = list_diff vs pvs in
-             (pvs,
-              ([Eqty (TCons (c_n, List.map (fun v->TVar v) pvs), t0, loc)],
-               (evs, phi)))
-             ::disjs)
-          ex_types [] in
-      let allpvs, disjs = List.split disjs in
-      let concl = aux_cl gamma excase_env t3 t (p, e2) in
-      let altcn = aux gamma excase_env t (App (Lam ([p,e2],loc),e1,loc)) in
+      let cn0 = aux gamma t0 e1 in
+      let disjs = List.map
+        (fun (i, loc) ->
+          aux_cl gamma t0 t (PCons (Extype i, [p], loc), e2))
+        !all_ex_types in
+      let altcn = aux_cl gamma t0 t (p,e2) in
       Format.printf
-        "constr_gen-Letin: t3=%s t0=%s@ t=%a@ concl=%a@ disj_prem=@\n| %a@\n%!"
-        (var_str a3) (var_str a0) (pr_ty false) t
-        pr_cnstrnt concl
-        (pr_sep_list "| " pr_formula) (List.map fst disjs);
+        "constr_gen-Letin: t0=%s@ t=%a@ cn0=%a@\n%!"
+        (var_str a0) (pr_ty false) t pr_cnstrnt cn0;
       (* *)
-      let impls = function
-        | Some (evs, phi) ->
-          Format.printf "letin-impls: Existential a0=%s a3=%s@\n%!"
-            (var_str a0) (var_str a3); (* *)
-          All (vars_of_list (a3::evs), impl phi concl)
-        | None ->
-          Format.printf "letin-impls: not ex. a0=%s@\n%!"
-            (var_str a0); (* *)
-          altcn  in
-      (* We need to quantify [allpvs] outside rather than each [pvs]
-         inside disjunction because the variables need already be in
-         [q] when the guards are checked. *)
-      Ex (vars_of_list (a0::List.concat allpvs),
-          cn_and cn0 (Or (disjs, impls)))
-    | ExLam (ety_id, cls, loc) ->
-      let a1 = fresh_typ_var () in
-      let t1 = TVar a1 in
-      let (a2, t2), nu_a2 =
-        try List.assoc ety_id !chiK_t2, false
-        with Not_found ->
-          let a2 = fresh_typ_var () in
-          let t2 = TVar a2 in
-          (* push on top *)
-          chiK_t2 := (ety_id, (a2, t2)) :: !chiK_t2;
-          (a2, t2), true in
-      let ety_cn = Extype ety_id in
-      let ety = TCons (ety_cn, [t2]) in
-      let chi_id =
-        try
-          let _, ex_phi, _, _, _ = Hashtbl.find ex_types ety_id in
-          match ex_phi with
-          | PredVarB (id, _, _, _)::_ -> id
-          | _ -> assert false
-        with Not_found ->
-          let chi_id = incr fresh_chi_id; !fresh_chi_id in
-          let ex_sch =
-            [delta; delta'],
-            [PredVarB (chi_id, tdelta, tdelta', loc)],
-            [tdelta], ety_cn, [delta'] in
-          Hashtbl.add ex_types ety_id ex_sch;
-          new_ex_types := (ety_id, loc) :: !new_ex_types;
-          chi_id in
-      Format.printf
-        "infer-ExLam-ex_types: id=%d chi_id=%d a1=%s a2=%s@ nu_a2=%b@\n%!"
-        ety_id chi_id (var_str a1) (var_str a2) nu_a2;
-      (* *)
-      let cn = List.fold_left cn_and
-        (A [Eqty (Fun (t1, ety), t, loc)])
-        (List.map (aux_ex_cl gamma excase_env ety_id chi_id t1 t2) cls) in
-      (* pop when done *)
-      if nu_a2 then (
-        match !chiK_t2 with
-        | (ety_id', (a2', _)) :: tl when ety_id' = ety_id && a2' = a2 ->
-          chiK_t2 := tl
-        | _ -> assert false);
-      Ex (vars_of_list (if nu_a2 then [a1; a2] else [a1]), cn)         
-    | ExCase (ety_id, e, lc) ->
-      let cn = aux gamma excase_env t e in
-      let chi_id, t1, t2 = List.assoc ety_id excase_env in
-      cn_and cn (A [PredVarB (chi_id, t1, t2, lc)])
+      Ex (vars_of_list [a0], cn_and cn0 (Or (altcn::disjs)))
+    | ExLam (ety_id, cls, loc) -> assert false
 
-  and aux_cl_negcn gamma excase_env t1 t2 tcn (p, e) =
+  and aux_cl_negcn gamma t1 t2 tcn (p, e) =
     (* Format.printf "aux_cl_negcn: p=@ %a ->@ e= %a@\n%!" (pr_pat false) p
        (pr_expr false) e; * *)
     let pcns = constr_gen_pat p t1 in
     let bs, prem, env = envfrag_gen_pat p t1 in
-    let concl = aux (List.map typ_to_sch env @ gamma) excase_env t2 e in
+    let concl = aux (List.map typ_to_sch env @ gamma) t2 e in
     let cn = atoms_of_cnstrnt
       (fun pcns -> Impl (tcn::pcns @ prem, concl)) pcns in
     let res = if VarSet.is_empty bs then cn else All (bs, cn) in
     (* Format.printf "aux_cl_negcn: res=@ %a@\n%!" pr_cnstrnt res; * *)
     res
       
-
-  and aux_cl gamma excase_env t1 t2 (p, e) =
+  and aux_cl gamma t1 t2 (p, e) =
     let pcns = constr_gen_pat p t1 in
     let bs, prem, env = envfrag_gen_pat p t1 in
-    let concl = aux (List.map typ_to_sch env @ gamma) excase_env t2 e in
+    let concl = aux (List.map typ_to_sch env @ gamma) t2 e in
     let cn = impl prem concl in
     let cn = if VarSet.is_empty bs then cn else All (bs, cn) in
     Format.printf "constr_gen-aux_cl: t1=%a@ t2=%a@ cn=%a@\n%!"
       (pr_ty false) t1 (pr_ty false) t2 pr_cnstrnt cn; (* *)
-    cn_and pcns cn
-
-  and aux_ex_cl gamma excase_env ety_id chi_id t1 t2 (p, e) =
-    let pcns = constr_gen_pat p t1 in
-    let bs, prem, env = envfrag_gen_pat p t1 in
-    let a3 = fresh_typ_var () in
-    let t3 = TVar a3 in
-    let concl =
-      aux (List.map typ_to_sch env @ gamma)
-        ((ety_id,(chi_id,t3,t2))::excase_env) t3 e in
-    let cn = impl prem (Ex (VarSet.singleton a3, concl)) in
-    let cn = if VarSet.is_empty bs then cn else All (bs, cn) in
-    Format.printf
-      "constr_gen-aux_ex_cl: ety=%d chi=%d t1=%a@ t2=%a @ t3=%a@ cn=%a@\n%!"
-      ety_id chi_id (pr_ty false) t1 (pr_ty false) t2 (pr_ty false) t3
-      pr_cnstrnt cn; (* *)
     cn_and pcns cn in
   
-  aux gamma [] t e
+  aux gamma t e
 
 let constr_gen_tests gamma tests =
   let cns = List.map
@@ -582,7 +494,8 @@ let infer_prog_mockup prog =
           let ety_cn = Extype ety_id in
           let ety = TCons (ety_cn, targs) in
           let ex_sch = VarSet.elements vs, exphi, [res], ety_cn, resvs in
-          Hashtbl.add ex_types ety_id ex_sch;
+          Hashtbl.add sigma ety_cn ex_sch;
+          all_ex_types := (ety_id, loc) :: !all_ex_types;
           Format.printf
             "infer_mockup-LetVal-ex_types: id=%d@ exphi=%a@ ty=%a@\n%!"
             ety_id pr_formula exphi (pr_ty false) res;
@@ -604,7 +517,8 @@ let infer_prog solver prog =
        handling of ex. type parameters. *)
     List.iter
       (fun (ety_id, loc) ->
-         let vs, phi, ty, ety_n, pvs = Hashtbl.find ex_types ety_id in
+         let vs, phi, ty, ety_n, pvs =
+           Hashtbl.find sigma (Extype ety_id) in
          Format.printf "infer-update-ex_types: from id=%d@ phi=%a@ ty=%a@\n%!"
            ety_id pr_formula phi (pr_ty false) (List.hd ty);
          (* *)
@@ -698,7 +612,8 @@ let infer_prog solver prog =
                   (ety_n, allvs, phi, [res], ety_n, pvs, loc) in
               more_items := extydef :: extydec :: !more_items;
               let ex_sch = allvs, exphi, [res], ety_n, pvs in
-              Hashtbl.add ex_types ety_id ex_sch;
+              Hashtbl.add sigma (ety_n) ex_sch;
+              all_ex_types := (ety_id, loc) :: !all_ex_types;
               Format.printf "infer-LetVal-ex_types: id=%d@ phi=%a@ ty=%a@\n%!"
                 ety_id pr_formula exphi (pr_ty false) res;
               (* *)
@@ -716,6 +631,8 @@ let infer_prog solver prog =
 
 type branch = Terms.formula * Terms.formula
 
+(* Physically identifying selected disjuncts. *)
+let selected_disj = ref []
 
 let normalize cn =
   let quants = Hashtbl.create 2048 in
@@ -726,59 +643,54 @@ let normalize cn =
     try Hashtbl.find univars v with Not_found -> false in
   let unify ?sb cnj = unify ?sb cmp_v uni_v cnj in
   (* From unary predicate variable to the existential type of its result. *)
-  let chi_exchi = Hashtbl.create 2 in
+  let chi_exty = Hashtbl.create 2 in
   (* Existential type compatible with the variable. *)
   let v_exchi = Hashtbl.create 4 in
+  (* Raises [Contradiction] *)
   let simplify_brs = List.map
-    (fun (prem,concl as br) ->
-      try
-        let concl_typ, concl_num, concl_so = unify concl in
-        List.iter
-          (function
-          | PredVarU (i, TVar b, _) ->
-            (if List.mem_assoc b concl_typ
-             then match return_type (fst (List.assoc b concl_typ)) with
-             | TCons (Extype j, _) ->
-               Format.printf
-                 "chi-exchi: add chi_exchi b=%s i=%d->j=%d@ ty=%a@\n%!"
-                 (var_str b) i j
-                 (pr_ty false) (fst (List.assoc b concl_typ)); (* *)
-               Hashtbl.add chi_exchi i j
-             | _ -> ())
-          | _ -> ()) prem;
-        List.iter
-          (function
-          | PredVarU (i, TVar b, _) when Hashtbl.mem chi_exchi i ->
-            (if List.mem_assoc b concl_typ
-             then match return_type (fst (List.assoc b concl_typ)) with
-             | TVar v ->
-               Format.printf
-                 "chi-exchi: add v_exchi i=%d b=%s v=%s->j=%d@ ty=%a@\n%!"
-                 i (var_str b) (var_str v) (Hashtbl.find chi_exchi i)
-                 (pr_ty false) (fst (List.assoc b concl_typ)); (* *)
-               Hashtbl.add v_exchi v (Hashtbl.find chi_exchi i)
-             | _ -> ())
-          | _ -> ()) concl_so;
-        prem,
-        to_formula concl_typ @ concl_num @ concl_so
-      with Contradiction _ ->
-        (* We could replace the conclusion with [CFalse] if it weren't
-           reserved to represent [assert false] -- i.e. expected
-           falsehood, negated constraint. *)
-        br) in
+      (fun (prem,concl) ->
+         let concl_typ, concl_num, concl_so = unify concl in
+         List.iter
+           (function
+             | PredVarU (i, TVar b, _) ->
+               (if List.mem_assoc b concl_typ
+                then match return_type (fst (List.assoc b concl_typ)) with
+                  | TCons (Extype j, _) ->
+                    Format.printf
+                      "chi-exty: add chi_exty b=%s i=%d->j=%d@ ty=%a@\n%!"
+                      (var_str b) i j
+                      (pr_ty false) (fst (List.assoc b concl_typ)); (* *)
+                    Hashtbl.add chi_exty i j
+                  | _ -> ())
+             | _ -> ()) prem;
+         List.iter
+           (function
+             | PredVarU (i, TVar b, _) when Hashtbl.mem chi_exty i ->
+               (if List.mem_assoc b concl_typ
+                then match return_type (fst (List.assoc b concl_typ)) with
+                  | TVar v ->
+                    Format.printf
+                      "chi-exty: add v_exchi i=%d b=%s v=%s->j=%d@ ty=%a@\n%!"
+                      i (var_str b) (var_str v) (Hashtbl.find chi_exty i)
+                      (pr_ty false) (fst (List.assoc b concl_typ)); (* *)
+                    Hashtbl.add v_exchi v (Hashtbl.find chi_exty i)
+                  | _ -> ())
+             | _ -> ()) concl_so;
+         prem,
+         to_formula concl_typ @ concl_num @ concl_so) in
   let add_var_rels up_vars same_vars vs =
     VarSet.iter (fun uv ->
-      VarSet.iter (fun dv ->
-        Hashtbl.add quants (uv,dv) Upstream;
-        Hashtbl.add quants (dv,uv) Downstream
-      ) vs) up_vars;
+        VarSet.iter (fun dv ->
+            Hashtbl.add quants (uv,dv) Upstream;
+            Hashtbl.add quants (dv,uv) Downstream
+          ) vs) up_vars;
     VarSet.iter (fun av ->
-      VarSet.iter (fun bv ->
-        Hashtbl.add quants (av,bv) Same_quant;
-        Hashtbl.add quants (bv,av) Same_quant) vs) same_vars;
+        VarSet.iter (fun bv ->
+            Hashtbl.add quants (av,bv) Same_quant;
+            Hashtbl.add quants (bv,av) Same_quant) vs) same_vars;
     VarSet.iter (fun av ->
-      VarSet.iter (fun bv ->
-        Hashtbl.add quants (av,bv) Same_quant) vs) vs in
+        VarSet.iter (fun bv ->
+            Hashtbl.add quants (av,bv) Same_quant) vs) vs in
   let rec flat_and up_vars same_vars at_uni = function
     | A cns -> cns, [], []
     | And cns ->
@@ -791,8 +703,8 @@ let normalize cn =
     | Impl ([], concl) -> flat_and up_vars same_vars at_uni concl
     | Impl (prem, concl) ->
       [], [up_vars, same_vars, at_uni, prem, concl], []
-    | Or (cases, cns) ->
-      [], [], [up_vars, same_vars, at_uni, cases, cns]      
+    | Or cns ->
+      [], [], [up_vars, same_vars, at_uni, cns]      
     | All (vs, cn) ->
       if at_uni
       then add_var_rels up_vars same_vars vs
@@ -813,87 +725,97 @@ let normalize cn =
     let cnj, impls, dsjs =
       flat_and up_vars same_vars at_uni cn in
     let impls = List.map
-      (fun (up_vars, same_vars, at_uni, prem, concl) ->
-        let prem = List.filter
-          (function
-          | Eqty (t1, t2, _) when t1=t2 -> false
-          | a -> not (List.exists (eq_atom a) cnj
-                         || List.exists (eq_atom a) guard_cnj)) prem in
-        up_vars, same_vars, at_uni, prem, concl)
-      impls in
+        (fun (up_vars, same_vars, at_uni, prem, concl) ->
+           let prem = List.filter
+               (function
+                 | Eqty (t1, t2, _) when t1=t2 -> false
+                 | a -> not (List.exists (eq_atom a) cnj
+                             || List.exists (eq_atom a) guard_cnj)) prem in
+           up_vars, same_vars, at_uni, prem, concl)
+        impls in
     let br0 = prem, cnj in
     let dsj_brs1 = List.map
-      (fun dsj -> prem, cnj @ guard_cnj, dsj) dsjs in
+        (fun dsj -> prem, cnj @ guard_cnj, dsj) dsjs in
     let brs, dsj_brs2 = List.split
-      (List.map
-         (fun (up_vars, same_vars, at_uni, more_prem, concl) ->
-           flat_cn up_vars same_vars at_uni
-             (more_prem @ prem) (cnj @ guard_cnj) concl)
-         impls) in
+        (List.map
+           (fun (up_vars, same_vars, at_uni, more_prem, concl) ->
+              flat_cn up_vars same_vars at_uni
+                (more_prem @ prem) (cnj @ guard_cnj) concl)
+           impls) in
     br0 :: List.concat brs, List.concat (dsj_brs1 :: dsj_brs2) in
+  let flat_dsj (more_prem, guard_cnj, (up_vars, same_vars, at_uni, cns)) =
+    guard_cnj, List.map
+      (fun cn ->
+         cn, flat_cn up_vars same_vars at_uni more_prem guard_cnj cn)
+      cns in
+  let check_chi_exty =
+    List.for_all
+      (function
+        | v, (TCons (cn, _), _) when Hashtbl.mem v_exchi v ->
+          Format.printf "dsj-test: ex case =%s v=%s v_chi=%d@\n%!"
+            (cns_str cn) (var_str v) (Hashtbl.find v_exchi v); (* *)
+          cn = Extype (Hashtbl.find v_exchi v)
+        | _ -> true) in
+  let solve_dsj step (guard_cnj, dsjs) =
+    let sb, _, _ = unify guard_cnj in
+    Format.printf "dsj-checking: init #dsjs=%d@ sb=%a@\n%!"
+      (List.length dsjs) pr_subst sb; (* *)
+    let first_exn = ref None in
+    let check_dsj (_, (brs, dsjs)) =
+      Format.printf "dsj-test: starting case.%!"; (* *)
+      try
+        List.for_all
+          (fun (prem,concl) ->
+             List.exists (function CFalse _ -> true | _ -> false) concl
+             || (
+               Format.printf "dsj-test: br@ prem=%a@ concl=%a@\n%!"
+                 pr_formula prem pr_formula concl; (* *)
+               let sb', _, _ = unify ~sb (prem @ concl) in
+               Format.printf "dsj-test: br@ sb'=%a@\n%!"
+                 pr_subst sb'; (* *)
+               check_chi_exty sb')
+          ) brs
+      with Contradiction _ as e ->
+        Format.printf "test rejected a disjunct!@\nexn=%a@\n%!"
+          pr_exception e; (* *)
+        if !first_exn = None then first_exn := Some e;
+        false in
+    let dsjs = List.filter check_dsj dsjs in
+    Format.printf "checking: result #dsjs=%d@\n%!"
+      (List.length dsjs); (* *)
+    match dsjs with
+    | [] ->
+      Format.printf "checking-Or: none passes@\n%!"; (* *)
+      raise (unsome !first_exn)
+    | [cn, sol] ->
+      selected_disj := cn:: !selected_disj; Left sol
+    | (cn, sol)::_ when step > 0 ->
+      selected_disj := cn:: !selected_disj; Left sol
+    | _ -> Right (guard_cnj, dsjs) in
+  let concat_brs more_brs =
+    let brs, dsjs = List.split more_brs in
+    List.concat brs, List.concat dsjs in
+  let prepare_brs (brs, dsjs) =
+    let dsjs = List.map flat_dsj dsjs in
+    let brs = simplify_brs brs in
+    brs, dsjs in
   let rec loop step (brs, dsj_brs) =
     Format.printf
       "normalize-loop: init step=%d #dsj_brs=%d@\n%!"
       step (List.length dsj_brs);
     (* *)
-    let check_dsj (more_prem, guard_cnj,
-                   (up_vars, same_vars, at_uni, cases, cns)) =
-      Format.printf "checking: init #cases=%d cns(NotEx)=%a@\n%!"
-        (List.length cases) pr_cnstrnt (cns None); (* *)
-      let cases = List.filter
-        (function
-        | (Eqty (TCons (Extype i, _), TVar v, _) :: _, _
-              | Eqty (TVar v, TCons (Extype i, _), _) :: _, _)
-            when Hashtbl.mem v_exchi v ->
-          Format.printf "test: ex case i=%d v=%s v_chi=%d@\n%!"
-            i (var_str v) (Hashtbl.find v_exchi v); (* *)
-          Hashtbl.find v_exchi v = i
-        | case, (_, phi) ->
-          try
-            let sb, _, _ = unify case in
-            Format.printf "test: case=%a@\nsb=%a@\n%!"
-              pr_formula (case @ more_prem) pr_subst sb; (* *)
-            Format.printf "cn_arg=Ex: phi=%a@\n%!" pr_formula phi;
-            List.iter (fun (prem,concl) ->
-              Format.printf "test: br@ prem=%a@ concl=%a@\n%!"
-                pr_formula prem pr_formula concl; (* *)
-              let sb', _, _ = unify ~sb (prem @ concl) in
-              Format.printf "test: br@ sb'=%a@\n%!"
-                pr_subst sb'; (* *)
-            ) brs;
-            true
-          with Contradiction _ as e ->
-            Format.printf "test rejected a disjunct!@\nexn=%a@\n%!"
-              pr_exception e; (* *)
-            false)
-        cases in
-      Format.printf "checking: result #cases=%d@\n%!"
-        (List.length cases); (* *)
-      match cases with
-      | [] ->
-        Format.printf "checking-Or: not ex.@\n%!"; (* *)
-        Left (flat_cn up_vars same_vars at_uni more_prem guard_cnj
-                (cns None))
-      | [case, cn_arg] when step > 0 ->
-        let brs, dsj_brs = flat_cn
-          up_vars same_vars at_uni more_prem guard_cnj
-          (cn_and (A case) (cns (Some cn_arg))) in
-        Left (brs, dsj_brs)
-      | _ -> Right (more_prem, guard_cnj,
-                    (up_vars, same_vars, at_uni, cases, cns)) in
-    let more_brs, dsj_brs = partition_map check_dsj dsj_brs in
-    let more_brs, more_dsj = List.split more_brs in
-    let more_brs = simplify_brs (List.concat more_brs)
-    and dsj_brs = List.concat (more_dsj @ [dsj_brs]) in
+    let more_brs, dsj_brs = partition_map (solve_dsj step) dsj_brs in
+    let more_brs, more_dsj = prepare_brs (concat_brs more_brs) in
+    let dsj_brs = more_dsj @ dsj_brs in
     Format.printf
       "normalize-loop: step=%d #dsj_brs=%d brs=@\n%a@\nmore_brs=@\n%a@\n%!"
       step (List.length dsj_brs) pr_brs brs pr_brs more_brs;
     (* *)
     if more_brs = [] then brs, dsj_brs
     else loop step (more_brs @ brs, dsj_brs) in
-  let brs, dsj_brs =
+  let sol0 =
     flat_cn VarSet.empty VarSet.empty false [] [] cn in
-  let brs_dsj_brs = ref (simplify_brs brs, dsj_brs) in
+  let brs_dsj_brs = ref (prepare_brs sol0) in
   for i=0 to 1 do brs_dsj_brs := loop i !brs_dsj_brs done;
   let brs, dsj_brs = !brs_dsj_brs in
   assert (dsj_brs = []);
@@ -984,59 +906,12 @@ let simplify preserve cmp_v uni_v brs =
     (merge [] brs) in
   short_brs @ long_brs
 
-let prune_cn cmp_v uni_v brs cn =
-  let brs = List.map
-      (fun (prem, _) ->
-         prem,
-         concat_map
-           (fun (prem2,concl) ->
-              if subformula prem2 prem then concl else [])
-           brs)
-      brs in
-  let test_brs = List.filter
-      (fun (prem,concl) ->
-         try ignore (unify cmp_v uni_v (prem@concl)); true
-         with Contradiction _ as e ->
-           Format.printf
-             "prune_cn: discarded branch@\n%a@ ⟹@ %a@\nreason: %a@\n%!"
-             pr_formula prem pr_formula concl pr_exception e; (* *)
-           false)
-      brs in
+let prune_cn cn =
   let rec aux = function
     | A _ as a -> a
     | And cns -> And (List.map aux cns)
     | Impl (prem, concl) -> Impl (prem, aux concl)
-    | Or (conds, cn) ->
-      (* of cns_name * (formula * answer) list * (answer option -> cnstrnt) *)
-      let conds = List.filter
-          (fun (c,_) ->
-             Format.printf "prune_cn: trying=@ %a...@\n%!"
-               pr_formula c; (* *)
-             try
-               List.iter (fun (prem,concl) ->
-                   Format.printf "prune_cn: at@ %a@\n%!"
-                     pr_formula (c@prem@concl); (* *)
-                   ignore (unify cmp_v uni_v (c@prem@concl)))
-                 test_brs;
-               Format.printf "prune_cn: passed@\n%!"; (* *)
-               true
-             with Contradiction _ ->
-               Format.printf "prune_cn: rejected@\n%!"; (* *)
-               false)
-          conds in
-      (match conds with
-       | [] ->
-         Format.printf "prune_cn: as not ex., result=@\n%a@\n%!"
-           pr_cnstrnt (cn None); (* *)
-         aux (cn None)
-       | [guard, ans] ->
-         Format.printf "prune_cn: as guard=@ %a@\n%!"
-           pr_formula guard; (* *)
-         aux (cn_and (A guard) (cn (Some ans)))
-       | _ ->
-         Format.printf "prune_cn: ambiguous disjunction, cases=@\n%a@\n%!"
-           (pr_line_list "| " pr_formula) (List.map fst conds); (* *)
-         assert false)
+    | Or cns -> List.find (flip List.memq !selected_disj) cns
     | All (vs, cn) -> All (vs, aux cn)
     | Ex (vs, cn) -> Ex (vs, aux cn) in
   aux cn
@@ -1136,4 +1011,5 @@ let nicevars_struct_item = function
     LetVal (p, e, Some (vs, phi, ty), tests, loc)  
 
 let reset_state () =
+  selected_disj := [];
   fresh_expr_var_id := 0; fresh_var_id := 0; fresh_chi_id := 0

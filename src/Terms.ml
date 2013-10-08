@@ -40,12 +40,18 @@ let interloc loc1 loc2 =
   not (loc1.end_pos.pos_cnum < loc2.beg_pos.pos_cnum ||
          loc1.beg_pos.pos_cnum > loc2.end_pos.pos_cnum)
 
+type cns_name =
+| CNam of string
+| Extype of int
+
+let tuple = CNam "Tuple"
+
 type pat =
 | Zero
 | One of loc
 | PVar of string * loc
 | PAnd of pat * pat * loc
-| PCons of string * pat list * loc
+| PCons of cns_name * pat list * loc
 
 let pat_loc = function
   | Zero -> dummy_loc
@@ -57,11 +63,10 @@ let pat_loc = function
 type expr =
 | Var of string * loc
 | Num of int * loc
-| Cons of string * expr list * loc
+| Cons of cns_name * expr list * loc
 | App of expr * expr * loc
 | Lam of clause list * loc
 | ExLam of int * clause list * loc
-| ExCase of int * expr * loc
 | Letrec of string * expr * expr * loc
 | Letin of pat * expr * expr * loc
 | AssertFalse of loc
@@ -77,7 +82,6 @@ let expr_loc = function
   | App (_, _, loc)
   | Lam (_, loc)
   | ExLam (_, _, loc)
-  | ExCase (_, _, loc)
   | Letrec (_, _, _, loc)
   | Letin (_, _, _, loc)
   | AssertFalse loc
@@ -100,10 +104,6 @@ let sort_str = function
 type var_name =
 | VNam of sort * string
 | VId of sort * int
-
-type cns_name =
-| CNam of string
-| Extype of int
 
 let delta = VId (Type_sort, -1)
 let delta' = VId (Type_sort, -2)
@@ -482,12 +482,12 @@ let num_sort_atom = function
 
 (** {2 Global tables} *)
 
-type 'a sigma =
-  ('a, var_name list * formula * typ list * cns_name * var_name list)
+type sigma =
+  (cns_name, var_name list * formula * typ list * cns_name * var_name list)
     Hashtbl.t
 
-let sigma : string sigma = Hashtbl.create 128
-let ex_types : int sigma = Hashtbl.create 64
+let sigma : sigma = Hashtbl.create 128
+let all_ex_types = ref []
 let new_ex_types = ref []
 
 (** {2 Printing} *)
@@ -554,7 +554,7 @@ let rec pr_pat comma ppf = function
   | PAnd (pat1, pat2, _) ->
       fprintf ppf "@[<2>%a@ as@ %a@]"
 	(pr_pat false) pat1 (pr_more_pat false) pat2
-  | PCons ("Tuple", pats, _) ->
+  | PCons (CNam "Tuple", pats, _) ->
       if comma then
 	fprintf ppf "@[<2>(%a)@]"
 	  (pr_sep_list "," ~pr_hd:(pr_pat true)
@@ -564,11 +564,11 @@ let rec pr_pat comma ppf = function
 	  (pr_sep_list "," ~pr_hd:(pr_pat true)
 	      (pr_more_pat true)) pats
   | PCons (x, [], _) ->
-      fprintf ppf "%s" x
+      fprintf ppf "%s" (cns_str x)
   | PCons (x, [pat], _) ->
-      fprintf ppf "@[<2>%s@ %a@]" x pr_one_pat pat
+      fprintf ppf "@[<2>%s@ %a@]" (cns_str x) pr_one_pat pat
   | PCons (x, pats, _) ->
-      fprintf ppf "@[<2>%s@ (%a)@]" x
+      fprintf ppf "@[<2>%s@ (%a)@]" (cns_str x)
 	(pr_sep_list "," ~pr_hd:(pr_pat true) (pr_more_pat true)) pats
 
 and pr_more_pat comma ppf = function
@@ -581,7 +581,7 @@ and pr_one_pat ppf = function
   | One _ -> fprintf ppf "%s" "_"
   | PVar (x, _) -> fprintf ppf "%s" x
   | PCons (x, [], _) ->
-      fprintf ppf "%s" x
+      fprintf ppf "%s" (cns_str x)
   | p -> fprintf ppf "(%a)" (pr_pat false) p
 
 
@@ -605,7 +605,7 @@ let pr_vars ppf vs =
 let rec pr_expr comma ppf = function
   | Var (s, _) -> fprintf ppf "%s" s
   | Num (i, _) -> fprintf ppf "%d" i
-  | Cons ("Tuple", exps, _) ->
+  | Cons (CNam "Tuple", exps, _) ->
       if comma then
 	fprintf ppf "@[<2>(%a)@]"
 	  (pr_sep_list "," (pr_expr true)) exps
@@ -613,11 +613,11 @@ let rec pr_expr comma ppf = function
 	fprintf ppf "@[<2>%a@]"
 	  (pr_sep_list "," (pr_expr true)) exps
   | Cons (x, [], _) ->
-      fprintf ppf "%s" x
+      fprintf ppf "%s" (cns_str x)
   | Cons (x, [exp], _) ->
-      fprintf ppf "@[<2>%s@ %a@]" x pr_one_expr exp
+      fprintf ppf "@[<2>%s@ %a@]" (cns_str x) pr_one_expr exp
   | Cons (x, exps, _) ->
-      fprintf ppf "@[<2>%s@ (%a)@]" x
+      fprintf ppf "@[<2>%s@ (%a)@]" (cns_str x)
 	(pr_sep_list "," (pr_expr true)) exps
   | Lam ([_], _) as exp ->
       let pats, expr = collect_lambdas exp in
@@ -630,7 +630,6 @@ let rec pr_expr comma ppf = function
   | ExLam (_, cs, _) ->
       fprintf ppf "@[<0>efunction@ %a@]"
 	(pr_pre_sep_list "| " pr_clause) cs
-  | ExCase (_, e, _) -> pr_expr comma ppf e
   | App (Lam ([(v,body)], _), def, _) ->
       fprintf ppf "@[<0>let@ @[<4>%a@] =@ @[<2>%a@]@ in@ @[<0>%a@]@]"
 	(pr_more_pat false) v (pr_expr false) def (pr_expr false) body
@@ -1050,7 +1049,7 @@ let subst_solved ?ignore_so ?use_quants cmp_v uni_v sb ~cnj =
 
 let () = pr_exty :=
   fun ppf (i, args) ->
-    let vs, phi, ty, ety_n, pvs = Hashtbl.find ex_types i in
+    let vs, phi, ty, ety_n, pvs = Hashtbl.find sigma (Extype i) in
     let ty = match ty with [ty] -> ty | _ -> assert false in
     let sb = List.map2 (fun v t -> v, (t, dummy_loc)) pvs args in
     let phi, ty =
@@ -1074,8 +1073,8 @@ let parser_last_typ = ref 0
 let parser_last_num = ref 0
 
 let reset_state () =
-  extype_id := 0; new_ex_types := [];
-  predvar_id := 0; Hashtbl.clear sigma; Hashtbl.clear ex_types;
+  extype_id := 0; new_ex_types := []; all_ex_types := [];
+  predvar_id := 0; Hashtbl.clear sigma;
   parser_more_items := [];
   Hashtbl.clear parser_unary_typs;
   Hashtbl.clear parser_unary_vals;

@@ -20,13 +20,7 @@
 
   <section|Data Structures and Concrete Syntax>
 
-  TODO: redo everything! Remove <verbatim|CstrIntro>, <verbatim|ExCases> and
-  <verbatim|ExCase>, only <verbatim|LetIn> and <verbatim|ExLetIn> remain.
-  Expression <math|\<lambda\><around*|[|K|]><wide|c|\<bar\>>> remains, but is
-  eliminated by preprocessing <math|n<around*|(|\<cdummy\>|)>>. Expression
-  <math|\<varepsilon\><around*|[|K|]>e> is simply <math|K e>.
-
-  Following <cite|systemTechRep>, we have the following nodes in the abstract
+  Following <cite|ESOP2014>, we have the following nodes in the abstract
   syntax of patterns and expressions:
 
   <\description>
@@ -88,14 +82,10 @@
     nested <verbatim|ExCases> (unless nesting in body of local definition or
     in argument of an application). Constructor: <verbatim|ExLam>.
 
-    <item*|<verbatim|ExLetIn>><math|<with|math-font-series|bold|let>
+    <item*|<verbatim|LetIn>, <verbatim|ExLetIn>><math|<with|math-font-series|bold|let>
     p=e<rsub|1> <with|math-font-series|bold|in> e<rsub|2>:> Elimination of
     existentially quantified type. \ Concrete syntax: e.g. <verbatim|let v =
     f e >...<verbatim| in >... Constructor: <verbatim|Letin>.
-
-    <item*|<verbatim|ExCase>><math|\<varepsilon\><around*|[|K|]>e>: Locates
-    the existential witness check so that it is in scope of relevant
-    premises. Does not have concrete syntax. Constructor: <verbatim|ExCase>.
   </description>
 
   We also have one sort-specific type of expression, numerals.
@@ -106,17 +96,16 @@
   specific letters: <verbatim|a>,<verbatim|b>,<verbatim|c>,<verbatim|r>,<verbatim|s>,<verbatim|t>,
   resp. <verbatim|i>,<verbatim|j>,<verbatim|k>,<verbatim|l>,<verbatim|m>,<verbatim|n>.
   Remaining letters are reserved for future sorts. The table below is
-  analogous to information for expressions above. We decided to pass
-  variables environment <verbatim|gamma> as function parameters and to keep
-  constructors environment <verbatim|sigma> as a global table, although the
-  judgement form <math|C,\<Gamma\>,\<Sigma\>\<vdash\>e:\<tau\>> suggests
-  passing both as arguments. Existential type constructs introduce fresh
-  identifiers <math|K>, but we keep them separately in <verbatim|ex_types>
-  rather than in <verbatim|sigma>. Note that inferred existential types will
-  not be nested, thanks to normalization of nested occurrences of
-  <math|\<lambda\><around*|[|K|]>>. The abstract syntax of types is not
-  sort-safe, but type variables carry sorts determined by first letter of the
-  variable. In the future, sorts could be inferred after parsing.
+  analogous to information for expressions above. We pass variables
+  environment <verbatim|gamma> as function parameters. We keep constructors
+  environment <verbatim|sigma> as a global table. Existential type constructs
+  introduce fresh identifiers <math|K>, we remember the identifiers in
+  <verbatim|ex_types> but store the information in <verbatim|sigma>. Note
+  that inferred existential types will not be nested, thanks to normalization
+  of nested occurrences of <math|\<lambda\><around*|[|K|]>>. The abstract
+  syntax of types is not sort-safe, but type variables carry sorts determined
+  by first letter of the variable. In the future, sorts could be inferred
+  after parsing.
 
   <block|<tformat|<cwith|1|1|2|2|cell-halign|c>|<cwith|1|1|1|1|cell-halign|l>|<cwith|2|2|2|2|cell-halign|c>|<cwith|2|2|1|1|cell-halign|l>|<table|<row|<cell|type
   variable: types>|<cell|<math|\<alpha\>,\<beta\>,\<gamma\>,\<tau\>>>|<cell|<verbatim|a>,<verbatim|b>,<verbatim|c>,<verbatim|r>,<verbatim|s>,<verbatim|t>,<verbatim|a1>,...>|<cell|>|<cell|<tiny|<verbatim|TVar(VNam(Type_sort,>...<verbatim|))>>>>|<row|<cell|type
@@ -162,15 +151,13 @@
 
   We inject the existential type and value constructors during parsing for
   user-provided existential types, and during constraint generation for
-  inferred existential types, into the list of toplevel items, which allows
-  to follow <cite|systemTechRep> despite removing <verbatim|extype> construct
-  from the language. It also faciliates exporting inference results as OCaml
-  source code.
+  inferred existential types, into the list of toplevel items. It faciliates
+  exporting inference results as OCaml source code.
 
   Functions <verbatim|constr_gen_pat> and <verbatim|envfrag_gen_pat> compute
-  formulas according to table 2 in <cite|systemTechRep>, and
-  <verbatim|constr_gen_expr> computes table 3. Due to the presentation of the
-  type system, we ensure in <verbatim|ValConstr> that bounds on type
+  formulas according to table [?] in <cite|ESOP2014>, and
+  <verbatim|constr_gen_expr> computes table [?]. Due to the presentation of
+  the type system, we ensure in <verbatim|ValConstr> that bounds on type
   parameters are introduced in the formula rather than being substituted into
   the result type. We preserve the FOL language presentation in the type
   <verbatim|cnstrnt>, only limiting the expressivity in ways not requiring
@@ -199,26 +186,22 @@
   that would be generated for a pattern matching branch. This recovers the
   common use of the <verbatim|let>...<verbatim|in> syntax, with exception of
   polymorphic <verbatim|let> cases, where <verbatim|let rec> needs to be
-  used, for parsimony reasons.
+  used.
 
-  In the formalism, we use <math|\<cal-E\>=<around*|{|\<varepsilon\><rsub|K>,\<chi\><rsub|K><mid|\|>K\<colons\>\<forall\>\<alpha\>\<gamma\><around|[|\<chi\><rsub|K><around*|(|\<gamma\>,\<alpha\>|)>|]>.\<gamma\>\<rightarrow\>\<varepsilon\><rsub|K><around*|(|\<alpha\>|)>\<in\>\<Sigma\>|}>>
-  for brevity, as if all existential types
-  <math|\<varepsilon\><rsub|K><around*|(|\<alpha\>|)>> were related with a
-  predicate variable <math|\<chi\><rsub|K><around*|(|\<gamma\>,\<alpha\>|)>\<nosymbol\>>.
   The second argument of the predicate variable
   <math|\<chi\><rsub|K><around*|(|\<gamma\>,\<alpha\>|)>\<nosymbol\>>
   provides an ``escape route'' for free variables, i.e. precondition
   variables used in postcondition. In the implementation, we have
   user-defined existential types with explicit constraints in addition to
-  inferred existential types. Moreover, we expand the inferred existential
-  types after they are solved into the fuller format. In the inferred form,
-  the result type has a single parameter <math|\<delta\><rprime|'>>, without
-  loss of generality because the actual parameters are passed as a tuple
-  type. In the full format we store in cell <verbatim|ex_types>, we extract
-  the parameters <math|\<delta\><rprime|'><wide|=|\<dot\>><around*|(|<wide|\<beta\>|\<bar\>>|)>>,
+  inferred existential types. We expand the inferred existential types after
+  they are solved into the fuller format. In the inferred form, the result
+  type has a single parameter <math|\<delta\><rprime|'>>, without loss of
+  generality because the actual parameters are passed as a tuple type. In the
+  full format we recover after inference, we extract the parameters
+  <math|\<delta\><rprime|'><wide|=|\<dot\>><around*|(|<wide|\<beta\>|\<bar\>>|)>>,
   the non-local variables of the existential type, and the partially abstract
   type <math|\<delta\><wide|=|\<dot\>>\<tau\>>, and store them separately,
-  i.e. <math|\<varepsilon\><rsub|K><around*|(|<wide|\<beta\>|\<bar\>>|)>=\<forall\><wide|\<beta\>|\<bar\>>\<exists\><wide|\<alpha\>|\<bar\>><around*|[|D|]>.\<tau\>\<in\>><verbatim|ex_types>.
+  i.e. <math|\<varepsilon\><rsub|K><around*|(|<wide|\<beta\>|\<bar\>>|)>=\<forall\><wide|\<beta\>|\<bar\>>\<exists\><wide|\<alpha\>|\<bar\>><around*|[|D|]>.\<tau\>>.
   The variables <math|<wide|\<beta\>|\<bar\>>> are instantiated whenever the
   constructor is used. For <verbatim|LetVal>, we form existential types after
   solving the generated constraint, to have less intermediate variables in
@@ -299,54 +282,53 @@
 
   Rather than reducing to prenex-normal form as in our formalization, we
   preserve the scope relations and return a <verbatim|var_scope>-producing
-  variable comparison function. During normalization, we compute unifiers of
-  the type sort part of conclusions.
+  variable comparison function. The branches we return from normalization
+  have unified conclusions, since we need them for solving disjunctions
+  anyway.
 
   Releasing constraints \ from under <verbatim|Or> is done iteratively,
   somewhat similar to how disjunction would be treated in constraint solvers.
-  The cases of <verbatim|Or>, which is called ``disjoint disjunction''
-  <math|<wide|\<vee\>|\<dot\>>> in the formalization, are characterized by a
-  set of single atoms of which at most one can hold, plus a case when none of
-  the atoms holds. Only the atoms are checked for consistency with the
-  remaining constraint, rather than the whole sub-constraints that they
-  guard. But releasing the sub-constraints is essential for eliminating cases
-  of further <verbatim|Or> constraints. The remaining constraints might turn
-  out too weak do disambiguate the <verbatim|Or> constraint, especially if
-  many other <verbatim|Or> sub-constraints have not been released. When at
-  the end a single atom in a given set remains, we assume it is existential
-  type case.
+  Releasing the sub-constraints is essential for eliminating cases of further
+  <verbatim|Or> constraints. When at the end more than one disjunct remains,
+  we assume it is the traditional <verbatim|LetIn> rule and select its
+  disjunct (the first one in the implementation).
 
   When one <math|\<lambda\><around*|[|K|]>> expression is a branch of another
   <math|\<lambda\><around*|[|K|]>> expression, the corresponding branch does
   not introduce an <verbatim|Or> constraint -- the case is settled
   syntactically to be the same existential type.
 
+  <subsubsection|Implementation details>
+
   The unsolved constraints are particularly weak with regard to variables
   constrained by predicate variables. We need to propagate which existential
-  type to select for result type of recursive functions, if any.
-
-  The online process described above might still fail to find the correct
-  disjuncts. After the constraints are normalized using the online
-  <verbatim|Or>-solving described above, and simplified as described below,
-  we use them to prune the initial constraints by removing disjuncts that are
-  unsatisfiable under some of the branches. The resulting constraints, now
-  without <verbatim|Or> subconstraints, are normalized, simplified and passed
-  to the predicate variable solver.
+  type to select for result type of recursive functions, if any. The
+  information is collected from implication branches by
+  <verbatim|simplify_brs> in <verbatim|normalize>; it is used by
+  <verbatim|check_chi_exty>. <verbatim|normalize> starts by flattening
+  constraints into implications with conjunctions of atoms as premises and
+  conclusions, and disjunctions with disjuncts and additional information.
+  <verbatim|flat_dsj> is used to flatten each disjunct in a disjunction, the
+  additional information kept is <verbatim|guard_cnj>, conjunction of atoms
+  that hold together with the disjunction. <verbatim|solve_dsj> takes the
+  result of <verbatim|flat_dsj> and tries to eliminate disjuncts. If only one
+  disjunct is left, or we decide to pick <verbatim|LetIn> anyway
+  (<verbatim|step\<gtr\>0>), we return it. Otherwise we return the filtered
+  disjunction. <verbatim|prepare_brs> cleans up the initial flattened
+  constraints or the constraints released from disjunctions: it calls
+  <verbatim|simplify_brs> on implications and <verbatim|flat_dsj> on each
+  disjunction.
 
   <subsection|Simplification>
 
   During normalization, we remove from a nested premise the atoms it is
   conjoined with (as in ``modus ponens'').
 
-  After normalization, we simplify the constraints by [TODO: explain]
-  applying shared constraints, and removing redundant atoms. We remove atoms
-  that bind variables not occurring anywhere else in the constraint, and in
-  case of atoms not in premises, not universally quantified. The
-  simplification step is not currently proven correct and might need
-  refining.
-
-  At the end, we simplify the generated implications by merging implications
-  with the same premise.
+  After normalization, we simplify the constraints by removing redundant
+  atoms. We remove atoms that bind variables not occurring anywhere else in
+  the constraint, and in case of atoms not in premises, not universally
+  quantified. The simplification step is not currently proven correct and
+  might need refining. We merge implications with the same premise.
 
   <section|Abduction>
 
@@ -1374,25 +1356,26 @@
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1>>
-    <associate|auto-10|<tuple|3.5|8>>
-    <associate|auto-11|<tuple|4|9>>
-    <associate|auto-12|<tuple|4.1|9>>
-    <associate|auto-13|<tuple|4.2|10>>
-    <associate|auto-14|<tuple|5|10>>
-    <associate|auto-15|<tuple|5.1|10>>
-    <associate|auto-16|<tuple|5.2|10>>
-    <associate|auto-17|<tuple|5.3|12>>
-    <associate|auto-18|<tuple|5.4|14>>
-    <associate|auto-19|<tuple|5.5|14>>
+    <associate|auto-10|<tuple|3.4|8>>
+    <associate|auto-11|<tuple|3.5|9>>
+    <associate|auto-12|<tuple|4|9>>
+    <associate|auto-13|<tuple|4.1|10>>
+    <associate|auto-14|<tuple|4.2|10>>
+    <associate|auto-15|<tuple|5|10>>
+    <associate|auto-16|<tuple|5.1|10>>
+    <associate|auto-17|<tuple|5.2|12>>
+    <associate|auto-18|<tuple|5.3|14>>
+    <associate|auto-19|<tuple|5.4|14>>
     <associate|auto-2|<tuple|2|2>>
     <associate|auto-20|<tuple|5.5|15>>
+    <associate|auto-21|<tuple|5.5|?>>
     <associate|auto-3|<tuple|2.1|4>>
-    <associate|auto-4|<tuple|2.2|4>>
-    <associate|auto-5|<tuple|3|4>>
-    <associate|auto-6|<tuple|3.1|4>>
-    <associate|auto-7|<tuple|3.2|6>>
-    <associate|auto-8|<tuple|3.3|7>>
-    <associate|auto-9|<tuple|3.4|7>>
+    <associate|auto-4|<tuple|2.1.1|4>>
+    <associate|auto-5|<tuple|2.2|4>>
+    <associate|auto-6|<tuple|3|4>>
+    <associate|auto-7|<tuple|3.1|6>>
+    <associate|auto-8|<tuple|3.2|7>>
+    <associate|auto-9|<tuple|3.3|7>>
     <associate|bib-AbductionSolvMaher|<tuple|3|15>>
     <associate|bib-AntiUnifAlg|<tuple|8|15>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
@@ -1414,11 +1397,9 @@
 <\auxiliary>
   <\collection>
     <\associate|bib>
-      systemTechRep
+      ESOP2014
 
-      systemTechRep
-
-      systemTechRep
+      ESOP2014
 
       jcaqpUNIF
 

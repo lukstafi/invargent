@@ -11,7 +11,7 @@ open Aux
 
 let debug = ref true
 
-let test_case msg test answers =
+let test_case ?(more_general=false) msg test answers =
       Terms.reset_state ();
       Infer.reset_state ();
       let prog = (Infer.normalize_program % Parser.program Lexer.token)
@@ -23,32 +23,34 @@ let test_case msg test answers =
         Format.printf "brs: %s@\n%a@\n%!" msg Infer.pr_brs brs; (* *)
         let uni_v v =
           try Hashtbl.find uni_v v with Not_found -> false in
-        let pruned = Infer.prune_cn cmp_v uni_v brs cn in
+        let pruned = Infer.prune_cn cn in
         Format.printf "pruned_cn: %s@\n%a@\n%!"
           msg Infer.pr_cnstrnt pruned; (* *)
-        let cmp_v, uni_v, brs = Infer.normalize pruned in
-        let uni_v v =
-          try Hashtbl.find uni_v v with Not_found -> false in
         let brs = Infer.simplify preserve cmp_v uni_v brs in
         Format.printf "simpl-brs: %s@\n%a@\nex_types:@\n%!"
           msg Infer.pr_brs brs;
-        Hashtbl.iter
-          (fun i (allvs, phi, ty, n, pvs) ->
+        List.iter
+          (fun (i,loc) ->
+            let (allvs, phi, ty, n, pvs) =
+              Hashtbl.find sigma (Extype i) in
             let ty = match ty with [ty] -> ty | _ -> assert false in
             Format.printf "∃%d: pvs=%a@ allvs=%a@ t=%a@ phi=%a@\n%!"
               i pr_vars (vars_of_list pvs) pr_vars (vars_of_list allvs)
               (pr_ty false) ty pr_formula phi)
-          ex_types;
+          !all_ex_types;
         (* *)
+        Abduction.more_general := more_general;
         let _, _, (res, rol, sol) =
           Invariants.solve cmp_v uni_v brs in
-        Hashtbl.iter
-          (fun i (allvs, phi, ty, n, pvs) ->
+        List.iter
+          (fun (i,loc) ->
+            let (allvs, phi, ty, n, pvs) =
+              Hashtbl.find sigma (Extype i) in
             let ty = match ty with [ty] -> ty | _ -> assert false in
             Format.printf "so∃%d: pvs=%a@ allvs=%a@ t=%a@ phi=%a@\n%!"
               i pr_vars (vars_of_list pvs) pr_vars (vars_of_list allvs)
               (pr_ty false) ty pr_formula phi)
-          ex_types;
+          !all_ex_types;
         (* *)
         let test_sol (chi, result) =
           let vs, ans = List.assoc chi sol in
@@ -65,6 +67,30 @@ let test_case msg test answers =
         assert_failure (Format.flush_str_formatter ())
 
 let tests = "Invariants" >::: [
+
+  "simple eval" >::
+    (fun () ->
+      skip_if !debug "debug";
+      test_case "eval term"
+"newtype Term : type
+newtype Int
+newtype Bool
+external plus : Int → Int → Int
+external is_zero : Int → Bool
+external if : ∀a. Bool → a → a → a
+newcons Lit : Int ⟶ Term Int
+newcons Plus : Term Int * Term Int ⟶ Term Int
+newcons IsZero : Term Int ⟶ Term Bool
+newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+
+let rec eval = function
+  | Lit i -> i
+  | IsZero x -> is_zero (eval x)
+  | Plus (x, y) -> plus (eval x) (eval y)
+  | If (b, t, e) -> if (eval b) (eval t) (eval e)"
+
+        [1, "∃t43. δ = (Term t43 → t43)"]
+    );
 
   "eval" >::
     (fun () ->
@@ -96,6 +122,37 @@ let rec eval = function
   | Snd p -> (match eval p with x, y -> y)"
 
         [1, "∃t94. δ = (Term t94 → t94)"]
+    );
+
+  "equal1 wrong type" >::
+    (fun () ->
+      skip_if !debug "debug";
+      test_case "equal1 wrong type"
+"newtype Ty : type
+newtype Int
+newtype List : type
+newcons Zero : Int
+newcons Nil : ∀a. List a
+newcons TInt : Ty Int
+newcons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
+newcons TList : ∀a. Ty a ⟶ Ty (List a)
+newtype Bool
+newcons True : Bool
+newcons False : Bool
+external eq_int : Int → Int → Bool
+external b_and : Bool → Bool → Bool
+external b_not : Bool → Bool
+external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool
+
+let rec equal1 = function
+  | TInt, TInt -> fun x y -> eq_int x y
+  | TPair (t1, t2), TPair (u1, u2) ->  
+    (fun (x1, x2) (y1, y2) ->
+        b_and (equal1 (t1, u1) x1 y1)
+              (equal1 (t2, u2) x2 y2))
+  | TList t, TList u -> forall2 (equal1 (t, u))
+  | _ -> fun _ _ -> False"
+        [1, "∃t106, t107. δ = (Ty t106, Ty t107 → t107 → t107 → Bool)"]
     );
 
   "equal with test" >::
@@ -308,7 +365,7 @@ let rec flatten_pairs =
 
   "escape castle" >::
     (fun () ->
-      skip_if !debug "debug";
+      (* skip_if !debug "debug"; *)
       test_case "escape castle"
 "newtype Room
 newtype Yard
@@ -431,12 +488,12 @@ newcons Village : Village ⟶ Placement Village
 
 external wander : ∀a. Placement a → ∃b. Placement b
 
-let rec find = efunction
+let rec find_castle = efunction
   | CastleRoom x -> Room x
   | CastleYard x -> Yard x
   | Village _ as x ->
     let y = wander x in
-    find y"
+    find_castle y"
         [1,"∃t51, t52. δ = (Placement t52 → ∃2:t40[].Castle t40)"];
 
       test_case "find castle big"
@@ -691,7 +748,7 @@ let rec search = efunction
 
   "existential by hand" >::
     (fun () ->
-      (* skip_if !debug "debug"; *)
+      skip_if !debug "debug";
       test_case "existential by hand"
 "newtype Place : type
 newtype Nearby : type * type
@@ -761,6 +818,30 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
+        [1,""];
+
+    );
+
+  "poly filter" >::
+    (fun () ->
+      todo "existential";
+      test_case "polymorphic list filter"
+"newtype Bool
+newtype List : type * num
+newcons True : Bool
+newcons False : Bool
+newcons LNil : ∀a. List(a, 0)
+newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+
+let rec filter = fun f ->
+  efunction LNil -> LNil
+    | LCons (x, xs) ->
+      ematch f x with
+        | True ->
+          let ys = filter f xs in
+          LCons (x, ys)
+	| False ->
+          filter f xs"
         [1,""];
 
     );

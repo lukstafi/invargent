@@ -26,23 +26,27 @@ val loc_tighter : loc -> loc -> loc
 (** The locations have nonempty intersection. *)
 val interloc : loc -> loc -> bool
 
+type cns_name =
+| CNam of string
+| Extype of int
+val tuple : cns_name
+
 type pat =
     Zero
   | One of loc
   | PVar of string * loc
   | PAnd of pat * pat * loc
-  | PCons of string * pat list * loc
+  | PCons of cns_name * pat list * loc
 
 val pat_loc : pat -> loc
 
 type expr =
 | Var of string * loc
 | Num of int * loc
-| Cons of string * expr list * loc
+| Cons of cns_name * expr list * loc
 | App of expr * expr * loc
 | Lam of clause list * loc
 | ExLam of int * clause list * loc
-| ExCase of int * expr * loc
 | Letrec of string * expr * expr * loc
 | Letin of pat * expr * expr * loc
 | AssertFalse of loc
@@ -60,9 +64,6 @@ type sort = Num_sort | Type_sort
 type var_name =
 | VNam of sort * string
 | VId of sort * int
-type cns_name =
-| CNam of string
-| Extype of int
 
 type typ =
 | TVar of var_name
@@ -243,18 +244,12 @@ val subst_solved : ?ignore_so:unit -> ?use_quants:(VarSet.t * VarSet.t) ->
 
 (** {2 Global tables} *)
 
-type 'a sigma =
-  ('a , var_name list * formula * typ list * cns_name * var_name list)
+type sigma =
+  (cns_name, var_name list * formula * typ list * cns_name * var_name list)
     Hashtbl.t
 
-val sigma : string sigma
-val ex_types : int sigma
-(** [ex_types] uses [sigma] but is restricted to a
-    single [typ] in place of [typ list] and [Extype i] in place of
-    [cns_name]. Although it is a bit cumbersome, we stick to [sigma]
-    semantics, i.e. the first entry is a list of all variables and
-    the last entry is a list of parameters. Existential variables
-    are all variables minus parameters. *)
+val sigma : sigma
+val all_ex_types : (int * loc) list ref
 val new_ex_types : (int * loc) list ref
 
 (** {2 Printing} *)
@@ -298,6 +293,6 @@ val pr_to_str : (Format.formatter -> 'a -> unit) -> 'a -> string
 
 val parser_more_items : struct_item list ref
 val parser_unary_typs : (string, unit) Hashtbl.t
-val parser_unary_vals : (string, unit) Hashtbl.t
+val parser_unary_vals : (cns_name, unit) Hashtbl.t
 val parser_last_typ : int ref
 val parser_last_num : int ref

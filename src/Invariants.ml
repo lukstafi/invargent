@@ -707,7 +707,7 @@ let solve cmp_v uni_v brs =
             | [targ] ->
               Eqty (tdelta', targ, dummy_loc) :: g_ans
             | _ ->
-              Eqty (tdelta', TCons (CNam "Tuple", targs), dummy_loc)
+              Eqty (tdelta', TCons (tuple, targs), dummy_loc)
               :: g_ans in
           Format.printf
             "lift_ex_types: pvs=%a@ g_vs=%a@ g_ans=%a@ phi=%a@\n%!"
@@ -932,7 +932,7 @@ let solve cmp_v uni_v brs =
     (* Substitute the solutions for existential types. *)
     List.iter
       (fun (ex_i, loc) ->
-         let _, exphi, ty, _, pvs = Hashtbl.find ex_types ex_i in
+         let _, exphi, ty, _, pvs = Hashtbl.find sigma (Extype ex_i) in
          let ty = match ty with [ty] -> ty | _ -> assert false in
          let chi_i, t1, t2 =
            match exphi with
@@ -964,7 +964,7 @@ let solve cmp_v uni_v brs =
            pr_formula rphi pr_formula phi;
          (* *)
          let pvs = VarSet.elements pvs and ety_n = Extype ex_i in
-         Hashtbl.replace ex_types ex_i
+         Hashtbl.replace sigma (Extype ex_i)
            (VarSet.elements allvs, rphi, [rty], ety_n, pvs)) !new_ex_types;
     Format.printf "solve: returning@\n%!"; (* *)
     cmp_v, uni_v, ans

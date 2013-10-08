@@ -10,11 +10,7 @@ type cnstrnt =
 | A of Terms.formula
 | And of cnstrnt list
 | Impl of Terms.formula * cnstrnt
-| Or of (Terms.formula * Terms.answer) list
-  * (Terms.answer option -> cnstrnt)
-(** If the first formula holds, pass the second formula to get the
-    constraint. The constructor name is the existential type which
-    gives [SameExistential]. *)
+| Or of cnstrnt list
 | All of Terms.VarSet.t * cnstrnt
 | Ex of Terms.VarSet.t * cnstrnt
 
@@ -63,9 +59,8 @@ val simplify :
   Terms.VarSet.t ->
   (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
   (Terms.var_name -> bool)-> branch list -> branch list
-val prune_cn :
-  (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
-  (Terms.var_name -> bool)-> branch list -> cnstrnt -> cnstrnt
+(* A dirty way to get the constraints with pruned disjunctions. *)
+val prune_cn : cnstrnt -> cnstrnt
 
 (** {2 Postprocessing and printing} *)
 
