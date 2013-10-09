@@ -512,7 +512,7 @@ let converge cmp_v uni_v ~check_only (vs1, cnj1) (vs2, cnj2) =
 let neg_constrns = ref true
 
 (* Captures where the repeat step is/are. *)
-let disj_step = [|0; 0; 0; 5|]
+let disj_step = [|0; 1; 2; 4|]
 
 let solve cmp_v uni_v brs =
   (* DEBUG *)
@@ -659,6 +659,7 @@ let solve cmp_v uni_v brs =
       if iter_no < disj_step.(0) then brs1, rol1
       else
         (* 1 *)
+        (* The [t2] arguments should in the solution become equal! *)
         let g_rol = collect
             (concat_map
                (fun (nonrec,chiK_pos,prem,concl) ->
@@ -672,25 +673,19 @@ let solve cmp_v uni_v brs =
                            i (pr_ty false) t1 (pr_ty false) t2
                            pr_formula prem pr_formula phi;
                          (* *)
-                         (i,t2), phi)
+                         i, phi)
                       chiK_pos
                   else [])
                verif_brs) in
-        let g_rol = List.map (fun ((i,t2),cnjs) -> i, (t2, cnjs)) g_rol in
-        Format.printf "solve: g_rol keys=%a@\n%!"
-          (pr_sep_list "| " (fun ppf (i,(t,_)) ->
-               Format.fprintf ppf "%d,%a" i (pr_ty false) t)) g_rol;
-        (* *)
-        assert (is_unique (List.map fst g_rol));
         (* 2 *)
         let g_rol = List.map
-            (fun (i,(t2,cnjs)) ->
-               i, t2, connected ~validate ~directed:true [delta; delta']
+            (fun (i,cnjs) ->
+               i, connected ~validate ~directed:true [delta; delta']
                   (DisjElim.disjelim cmp_v uni_v
                      ~do_num:(disj_step.(1) <= iter_no) cnjs))
             g_rol in
         Format.printf "solve: iter_no=%d@\ng_rol.A=%a@\n%!"
-          iter_no pr_chi_subst (List.map (fun (i,_,a)->i,a) g_rol);
+          iter_no pr_chi_subst g_rol;
         (* *)
         (* 3 *)
         let lift_ex_types cmp_v (g_vs, g_ans) =
@@ -717,19 +712,20 @@ let solve cmp_v uni_v brs =
           pvs @ g_vs, phi in
         (* 4 *)
         let g_rol = List.map2
-            (fun (i,ans1) (j,t2,(g_vs,g_ans)) ->
+            (fun (i,ans1) (j,(g_vs,g_ans)) ->
                assert (i = j);
                let g_cmp_v = cmp_v' g_vs in
-               let g_ans = List.filter
+               (* FIXME: preserve [t2]? *)
+               (*let g_ans = List.filter
                    (function Eqty (t, _, _) when t=t2 -> false
-                           | _ -> true) g_ans in
+                           | _ -> true) g_ans in*)
                let ans2 =
                  converge g_cmp_v uni_v
                    ~check_only:(iter_no < disj_step.(3)) ans1 (g_vs, g_ans) in
                let ans2 =
                  (* simplify g_cmp_v uni_v *) (lift_ex_types g_cmp_v ans2) in
-               Format.printf "solve.loop-dK: t2=%a final@ ans2=%a@\n%!"
-                 (pr_ty false) t2 pr_ans ans2; (* *)
+               Format.printf "solve.loop-dK: final@ ans2=%a@\n%!"
+                 pr_ans ans2; (* *)
                (* No [b] "owns" these formal parameters. Their instances
                   will be added to [q] by [sb_brs_pred]. *)
                i, ans2
