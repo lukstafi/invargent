@@ -127,6 +127,17 @@
   && b=a>>|<cell|<verbatim|a=b <math|\<wedge\>> b=a>>|<cell|built-in
   lists>>>>>
 
+  Parts of the logic hidden from the user:
+
+  <block|<tformat|<table|<row|<cell|unary predicate
+  variable>|<cell|<math|\<chi\><around*|(|\<beta\>|)>>>|<cell|<verbatim|PredVarU(chi,TVar
+  "b",loc)>>>|<row|<cell|binary predicate
+  variable>|<cell|<math|\<chi\><rsub|K><around*|(|\<gamma\>,\<alpha\>|)>>>|<cell|<verbatim|PredVarB(chi,TVar
+  "g", TVar "a",loc)>>>|<row|<cell|not an existential
+  type>|<cell|<math|<neg|E><around*|(|\<alpha\>|)>>>|<cell|<verbatim|NotEx(TVar
+  "a",loc)>>>|<row|<cell|negation <verbatim|assert
+  false>>|<cell|<math|\<b-F\>>>|<cell|<verbatim|CFalse loc>>>>>>
+
   Toplevel expressions (corresponding to structure items in OCaml) introduce
   types, type and value constructors, global variables with given type
   \ (external names) or inferred type (definitions).
@@ -1356,25 +1367,25 @@
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1>>
-    <associate|auto-10|<tuple|3.4|8>>
-    <associate|auto-11|<tuple|3.5|9>>
+    <associate|auto-10|<tuple|3.4|7>>
+    <associate|auto-11|<tuple|3.5|8>>
     <associate|auto-12|<tuple|4|9>>
-    <associate|auto-13|<tuple|4.1|10>>
+    <associate|auto-13|<tuple|4.1|9>>
     <associate|auto-14|<tuple|4.2|10>>
     <associate|auto-15|<tuple|5|10>>
     <associate|auto-16|<tuple|5.1|10>>
-    <associate|auto-17|<tuple|5.2|12>>
-    <associate|auto-18|<tuple|5.3|14>>
+    <associate|auto-17|<tuple|5.2|10>>
+    <associate|auto-18|<tuple|5.3|12>>
     <associate|auto-19|<tuple|5.4|14>>
     <associate|auto-2|<tuple|2|2>>
-    <associate|auto-20|<tuple|5.5|15>>
-    <associate|auto-21|<tuple|5.5|?>>
+    <associate|auto-20|<tuple|5.5|14>>
+    <associate|auto-21|<tuple|5.5|15>>
     <associate|auto-3|<tuple|2.1|4>>
     <associate|auto-4|<tuple|2.1.1|4>>
     <associate|auto-5|<tuple|2.2|4>>
     <associate|auto-6|<tuple|3|4>>
-    <associate|auto-7|<tuple|3.1|6>>
-    <associate|auto-8|<tuple|3.2|7>>
+    <associate|auto-7|<tuple|3.1|4>>
+    <associate|auto-8|<tuple|3.2|6>>
     <associate|auto-9|<tuple|3.3|7>>
     <associate|bib-AbductionSolvMaher|<tuple|3|15>>
     <associate|bib-AntiUnifAlg|<tuple|8|15>>
@@ -1440,74 +1451,78 @@
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-3>>
 
-      <with|par-left|<quote|1.5fn>|2.2<space|2spc>Simplification
+      <with|par-left|<quote|3fn>|2.1.1<space|2spc>Implementation details
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-4>>
 
+      <with|par-left|<quote|1.5fn>|2.2<space|2spc>Simplification
+      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-5>>
+
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|3<space|2spc>Abduction>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-5><vspace|0.5fn>
+      <no-break><pageref|auto-6><vspace|0.5fn>
 
       <with|par-left|<quote|1.5fn>|3.1<space|2spc>Simple constraint abduction
       for terms <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-6>>
+      <no-break><pageref|auto-7>>
 
       <with|par-left|<quote|1.5fn>|3.2<space|2spc>Joint constraint abduction
       for terms <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-7>>
+      <no-break><pageref|auto-8>>
 
       <with|par-left|<quote|1.5fn>|3.3<space|2spc>Abduction for terms with
       Alien Subterms <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-8>>
+      <no-break><pageref|auto-9>>
 
       <with|par-left|<quote|1.5fn>|3.4<space|2spc>Simple constraint abduction
       for linear arithmetic <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-9>>
+      <no-break><pageref|auto-10>>
 
       <with|par-left|<quote|1.5fn>|3.5<space|2spc>Joint constraint abduction
       for linear arithmetic <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-10>>
+      <no-break><pageref|auto-11>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|4<space|2spc>Disjunction
       Elimination> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-11><vspace|0.5fn>
+      <no-break><pageref|auto-12><vspace|0.5fn>
 
       <with|par-left|<quote|1.5fn>|4.1<space|2spc>Extended convex hull
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-12>>
+      <no-break><pageref|auto-13>>
 
       <with|par-left|<quote|1.5fn>|4.2<space|2spc>Issues in inferring
       postconditions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-13>>
+      <no-break><pageref|auto-14>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|5<space|2spc>Solving
       for Predicate Variables> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-14><vspace|0.5fn>
+      <no-break><pageref|auto-15><vspace|0.5fn>
 
       <with|par-left|<quote|1.5fn>|5.1<space|2spc>Invariant Parameter
       Candidates <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-15>>
+      <no-break><pageref|auto-16>>
 
       <with|par-left|<quote|1.5fn>|5.2<space|2spc>Solving for Predicates in
       Negative Positions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-16>>
+      <no-break><pageref|auto-17>>
 
       <with|par-left|<quote|1.5fn>|5.3<space|2spc>Solving for Existential
       Types Predicates and Main Algorithm
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-17>>
+      <no-break><pageref|auto-18>>
 
       <with|par-left|<quote|1.5fn>|5.4<space|2spc>Stages of iteration
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-18>>
+      <no-break><pageref|auto-19>>
 
       <with|par-left|<quote|1.5fn>|5.5<space|2spc>Implementation details
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-19>>
+      <no-break><pageref|auto-20>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-20><vspace|0.5fn>
+      <no-break><pageref|auto-21><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>

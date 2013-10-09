@@ -187,6 +187,7 @@ let freshen_atom env = function
   | PredVarU (i, t, lc) -> PredVarU (i, freshen_typ env t, lc)
   | PredVarB (i, t1, t2, lc) ->
     PredVarB (i, freshen_typ env t1, freshen_typ env t2, lc)
+  | NotEx (t, lc) -> NotEx (freshen_typ env t, lc)
 
 let freshen_cns_scheme (vs, phi, argtys, c_n, c_args) =
   let env = List.map (fun v->v, freshen_var v) vs in
@@ -303,9 +304,10 @@ let constr_gen_expr gamma e t =
       Ex (vars_of_list vs, cn)
     | App (e1, e2, loc) ->
       let a = fresh_typ_var () in
+      let ta = TVar a in
       Ex (VarSet.singleton a,
-          cn_and (aux gamma (Fun (TVar a, t)) e1)
-            (aux gamma (TVar a) e2))
+          cn_and (aux gamma (Fun (ta, t)) e1)
+            (cn_and (aux gamma (ta) e2) (A [NotEx (ta, loc)])))
     | Lam ([cl], loc) when single_assert_false cl ->
       let a1 = fresh_typ_var () in
       let t1 = TVar a1 in
@@ -374,7 +376,8 @@ let constr_gen_expr gamma e t =
         (fun (i, loc) ->
           aux_cl gamma t0 t (PCons (Extype i, [p], loc), e2))
         !all_ex_types in
-      let altcn = aux_cl gamma t0 t (p,e2) in
+      let altcn =
+        cn_and (aux_cl gamma t0 t (p,e2)) (A [NotEx (t0, loc)]) in
       Format.printf
         "constr_gen-Letin: t0=%s@ t=%a@ cn0=%a@\n%!"
         (var_str a0) (pr_ty false) t pr_cnstrnt cn0;
@@ -662,6 +665,7 @@ let normalize cn =
                       (pr_ty false) (fst (List.assoc b concl_typ)); (* *)
                     Hashtbl.add chi_exty i j
                   | _ -> ())
+             | NotEx _ -> assert false
              | _ -> ()) prem;
          List.iter
            (function
@@ -675,7 +679,10 @@ let normalize cn =
                       (pr_ty false) (fst (List.assoc b concl_typ)); (* *)
                     Hashtbl.add v_exchi v (Hashtbl.find chi_exty i)
                   | _ -> ())
+             | NotEx (TVar v, _) -> register_notex v
              | _ -> ()) concl_so;
+         let concl_so = List.filter
+             (function NotEx _ -> false | _ -> true) concl_so in
          prem,
          to_formula concl_typ @ concl_num @ concl_so) in
   let add_var_rels up_vars same_vars vs =
@@ -832,6 +839,7 @@ let vs_hist_atom increase = function
   | PredVarU (_, t, _) -> vs_hist_typ increase t
   | PredVarB (_, t1, t2, _) ->
     vs_hist_typ increase t1; vs_hist_typ increase t2
+  | NotEx (t, _) -> vs_hist_typ increase t
 
 let vs_hist_sb increase sb =
   List.iter (fun (v,(t,_)) -> increase v; vs_hist_typ increase t) sb
@@ -971,6 +979,7 @@ let nicevars_atom env = function
   | PredVarU (i, t, lc) -> PredVarU (i, nicevars_typ env t, lc)
   | PredVarB (i, t1, t2, lc) ->
     PredVarB (i, nicevars_typ env t1, nicevars_typ env t2, lc)
+  | NotEx (t, lc) -> NotEx (nicevars_typ env t, lc)
 
 let nicevars_vs vs =
   let vs' = map_some

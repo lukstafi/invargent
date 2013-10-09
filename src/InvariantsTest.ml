@@ -365,7 +365,7 @@ let rec flatten_pairs =
 
   "escape castle" >::
     (fun () ->
-      (* skip_if !debug "debug"; *)
+      skip_if !debug "debug";
       test_case "escape castle"
 "newtype Room
 newtype Yard
@@ -386,13 +386,13 @@ let rec escape = function Outside x -> x
   | Yard x ->
     let y = leave (enter x) in
     escape y"
-        [1,"∃t48. δ = (Placement t48 → Outside)"]
+        [1,"∃t35. δ = (Placement t35 → Outside)"]
 
     );
 
   "easy nested universal" >::
     (fun () ->
-      todo "nested";
+      skip_if !debug "debug";
       test_case "less nested universal"
 "newtype Place : type
 newtype Nearby : type * type
@@ -408,12 +408,12 @@ let rec walk = fun x goal ->
   | NotClose ->
     let y, to_y = wander x in
     Transitive (to_y, walk y goal)"
-        [1,"∃t68, t70. δ = (Place t68 → Place t70 → Nearby (t68, t70))"];
+        [1,"∃t63, t65. δ = (Place t63 → Place t65 → Nearby (t63, t65))"];
     );
 
   "equational nested universal" >::
     (fun () ->
-      todo "equational";
+      skip_if !debug "debug";
       test_case "less nested universal"
 "newtype Place : type
 newtype Nearby : type * type
@@ -437,14 +437,14 @@ let rec walk = fun x goal ->
     let y, to_y = wander x in
     Transitive (to_y, walk y goal)
 test (is_nearby (walk LocA LocB))"
-        [1,"∃t1, t2. δ = (Place t1 → Place t2 → Nearby (t1,t2)"];
+        [1,"∃t74, t75. δ = (Place t75 → Place t74 → Nearby (t75, t74))"];
     );
 
 
   "double nested universal" >::
     (fun () ->
-      todo "nested";
-      test_case "double nested universal"
+       skip_if !debug "debug";
+       test_case "double nested universal"
 "newtype Place : type
 newtype Nearby : type * type
 newtype A
@@ -467,13 +467,14 @@ let rec walk = fun x goal ->
     let to_z = walk y goal in
     Transitive (to_y, to_z)
 test (is_nearby (walk LocA LocB))"
-        [1,"∃t77, t79. δ = (Place t77 → Place t79 → Nearby (t77, t79))"];
+        [1,"∃t89, t91. δ = (Place t89 → Place t91 → Nearby (t89, t91))"];
     );
 
   "find castle" >::
     (fun () ->
-      skip_if !debug "debug";
-      test_case "find castle small"
+       (* skip_if !debug "debug"; *)
+       todo "existential";
+       test_case "find castle small"
 "newtype Room
 newtype Yard
 newtype Village
@@ -527,7 +528,8 @@ let rec find = efunction
 
   "search castle shortcut" >::
     (fun () ->
-      skip_if !debug "debug";
+      (* skip_if !debug "debug"; *)
+       todo "existential";
       test_case "search castle shortcut"
 "newtype Room
 newtype Yard
@@ -628,8 +630,9 @@ let rec search = efunction
 
   "castle not existential" >::
     (fun () ->
-      skip_if !debug "debug";
-      test_case "castle not existential"
+       (* skip_if !debug "debug"; *)
+       todo "existential";
+       test_case "castle not existential"
 "newtype Yard
 newtype Village
 
@@ -651,8 +654,9 @@ let rec search = efunction
 
   "castle nested not existential" >::
     (fun () ->
-      skip_if !debug "debug";
-      test_case "castle nested not existential"
+       (* skip_if !debug "debug"; *)
+       todo "existential";
+       test_case "castle nested not existential"
 "newtype Answer
 newcons No : Answer
 newcons Nearby : Answer
@@ -682,8 +686,9 @@ let rec search = efunction
 
   "castle nested existential factored" >::
     (fun () ->
-      skip_if !debug "debug";
-      test_case "castle nested existential factored"
+       (* skip_if !debug "debug"; *)
+       todo "existential";
+       test_case "castle nested existential factored"
 "newtype Answer
 newcons Yes : Answer
 newcons No : Answer
@@ -715,8 +720,9 @@ let rec search = efunction
 
   "castle nested existential" >::
     (fun () ->
-      skip_if !debug "debug";
-      test_case "castle nested existential"
+       (* skip_if !debug "debug"; *)
+       todo "existential";
+       test_case "castle nested existential"
 "newtype Answer
 newcons Yes : Answer
 newcons No : Answer
@@ -748,8 +754,8 @@ let rec search = efunction
 
   "existential by hand" >::
     (fun () ->
-      skip_if !debug "debug";
-      test_case "existential by hand"
+       skip_if !debug "debug";
+       test_case "existential by hand"
 "newtype Place : type
 newtype Nearby : type * type
 newtype Near : type
@@ -769,13 +775,13 @@ let rec walk = fun x ->
     match walk y with
     | Near to_z ->
       Near (Transitive (to_y, to_z))"
-        [1,"∃t75. δ = (Place t75 → Near t75)"];
+        [1,"∃t70. δ = (Place t70 → Near t70)"];
     );
 
   "existential with param" >::
     (fun () ->
-      todo "existential";
-      test_case "existential with param"
+       todo "existential";
+       test_case "existential with param"
 "newtype Place : type
 newtype Nearby : type * type
 newcons Here : ∀a. Place a ⟶ Nearby (a, a)
@@ -797,8 +803,8 @@ let rec walk = fun x ->
 
   "filter" >::
     (fun () ->
-      todo "existential";
-      test_case "list filter"
+       todo "existential";
+       test_case "list filter"
 "newtype Bool
 newtype List : type * num
 newcons True : Bool

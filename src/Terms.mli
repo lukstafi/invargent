@@ -77,6 +77,7 @@ type atom =
 | CFalse of loc
 | PredVarU of int * typ * loc
 | PredVarB of int * typ * typ * loc
+| NotEx of typ * loc
 type formula = atom list
 type typ_scheme = var_name list * formula * typ
 type answer = var_name list * formula
@@ -229,7 +230,13 @@ val typ_sort_atom : atom -> bool
 val num_sort_atom : atom -> bool
 val split_sorts : formula -> (sort * formula) list
 
-(** [use_quants] is a pair of [bvs] variables and parameters. *)
+(** Register variable as [NotEx]. *)
+val register_notex : var_name -> unit
+(** [use_quants] is a pair of [bvs] variables and parameters. The
+    first element of returned triple is the unifier, the second are
+    numeric constraints including equations, the third one are
+    predicate variables and [NotEx] atoms. The substitution is not
+    applied to the third element atoms! *)
 val unify : ?use_quants:(VarSet.t * VarSet.t) ->
   ?sb:subst ->
   (var_name -> var_name -> var_scope) -> (var_name -> bool) ->

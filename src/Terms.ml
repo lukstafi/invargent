@@ -300,6 +300,7 @@ type atom =
 | CFalse of loc
 | PredVarU of int * typ * loc
 | PredVarB of int * typ * typ * loc
+| NotEx of typ * loc
 
 let fvs_atom = function
   | Eqty (t1, t2, _) | Leq (t1, t2, _) ->
@@ -308,10 +309,11 @@ let fvs_atom = function
   | PredVarU (_, t, _) -> fvs_typ t
   | PredVarB (_, t1, t2, _) ->
     VarSet.union (fvs_typ t1) (fvs_typ t2)
+  | NotEx (t, _) -> fvs_typ t
 
 let atom_loc = function
   | Eqty (_, _, loc) | Leq (_, _, loc) | CFalse loc
-  | PredVarU (_, _, loc) | PredVarB (_, _, _, loc)
+  | PredVarU (_, _, loc) | PredVarB (_, _, _, loc) | NotEx (_, loc)
     -> loc
 
 let replace_loc_atom loc = function
@@ -320,6 +322,7 @@ let replace_loc_atom loc = function
   | CFalse _ -> CFalse loc
   | PredVarU (n, t, _) -> PredVarU (n, t, loc)
   | PredVarB (n, t1, t2, _) -> PredVarB (n, t1, t2, loc)
+  | NotEx (t, _) -> NotEx (t, loc)
 
 let eq_atom a1 a2 =
   match a1, a2 with
@@ -348,6 +351,7 @@ let subst_atom sb = function
   | PredVarU (n, t, lc) -> PredVarU (n, subst_typ sb t, lc)
   | PredVarB (n, t1, t2, lc) ->
     PredVarB (n, subst_typ sb t1, subst_typ sb t2, lc)
+  | NotEx (t, lc) -> NotEx (subst_typ sb t, lc)
 
 let sb_atom_unary arg = function
   | Eqty (t1, t2, lc) ->
@@ -357,6 +361,7 @@ let sb_atom_unary arg = function
   | CFalse _ as a -> a
   | PredVarU (_, t, _) -> assert false
   | PredVarB (_, t1, t2, _) -> assert false
+  | NotEx _ -> assert false
 
 let sb_atom_binary arg1 arg2 = function
   | Eqty (t1, t2, lc) ->
@@ -366,12 +371,13 @@ let sb_atom_binary arg1 arg2 = function
   | CFalse _ as a -> a
   | PredVarU (_, t, _) -> assert false
   | PredVarB (_, t1, t2, _) -> assert false
+  | NotEx _ -> assert false
 
 let subst_fo_atom sb = function
   | Eqty (t1, t2, loc) -> Eqty (subst_typ sb t1, subst_typ sb t2, loc)
   | Leq (t1, t2, loc) -> Leq (subst_typ sb t1, subst_typ sb t2, loc)
   | CFalse _ as a -> a
-  | (PredVarU _ | PredVarB _) as a -> a
+  | (PredVarU _ | PredVarB _ | NotEx _) as a -> a
 
 type formula = atom list
 
@@ -472,6 +478,7 @@ let typ_sort_atom = function
   | CFalse _ -> false
   | PredVarU _ -> true
   | PredVarB _ -> true
+  | NotEx _ -> true
 
 let num_sort_atom = function
   | Eqty (t1, t2, _) -> num_sort_typ t1 || num_sort_typ t2
@@ -479,6 +486,7 @@ let num_sort_atom = function
   | CFalse _ -> false
   | PredVarU _ -> false
   | PredVarB _ -> false
+  | NotEx _ -> false
 
 (** {2 Global tables} *)
 
@@ -680,6 +688,8 @@ let rec pr_atom ppf = function
   | PredVarU (i,ty,lc) -> fprintf ppf "@[<2>ϰ%d(%a)@]" i (pr_ty false) ty
   | PredVarB (i,t1,t2,lc) ->
     fprintf ppf "@[<2>ϰ%d(%a,@ %a)@]" i (pr_ty true) t1 (pr_ty true) t2
+  | NotEx (t,lc) ->
+    fprintf ppf "@[<2>NotEx(%a)@]" (pr_ty false) t
 
 and pr_formula ppf atoms =
   pr_sep_list " ∧" pr_atom ppf atoms
@@ -947,33 +957,40 @@ let quant_viol cmp_v uni_v bvs zvs v t =
   (* *)
   res  
 
+let registered_notex_vars = Hashtbl.create 32
+let register_notex v = Hashtbl.add registered_notex_vars v ()
+let is_old_notex v = Hashtbl.mem registered_notex_vars v
+
 (** Separate type sort and number sort constraints,  *)
 let unify ?use_quants ?(sb=[]) cmp_v uni_v cnj =
+  let new_notex = ref false in
   let use_quants, bvs, zvs =
     match use_quants with
     | None -> false, VarSet.empty, VarSet.empty
     | Some (bvs, zvs) -> true, bvs, zvs in
   let subst_one_sb v s = List.map
-    (fun (w,(t,loc)) ->
-      let modif, t' = subst_one v s t in
-      if use_quants && modif && quant_viol cmp_v uni_v bvs zvs w t'
-      then raise
-        (Contradiction (Type_sort, "Quantifier violation",
-                        Some (TVar w, t'), loc));
-      w, (t', loc)) in
+      (fun (w,(t,loc)) ->
+         let modif, t' = subst_one v s t in
+         if use_quants && modif && quant_viol cmp_v uni_v bvs zvs w t'
+         then raise
+             (Contradiction (Type_sort, "Quantifier violation",
+                             Some (TVar w, t'), loc));
+         w, (t', loc)) in
   let cnj_typ, more_cnj = partition_map
-    (function
-    | Eqty (t1, t2, loc) when typ_sort_typ t1 && typ_sort_typ t2 ->
-      Left (t1, t2, loc)
-    | Eqty (t1, t2, loc) as a when num_sort_typ t1 && num_sort_typ t2 ->
-      Right (Left a)
-    | Leq _ as a -> Right (Left a)
-    | (CFalse _ | PredVarU _ | PredVarB _) as a ->
-      Right (Right a)
-    | Eqty (t1, t2, loc) -> raise
-      (Contradiction (Type_sort, "Type sort mismatch",
-                      Some (t1, t2), loc)))
-    cnj in
+      (function
+        | Eqty (t1, t2, loc) when typ_sort_typ t1 && typ_sort_typ t2 ->
+          Left (t1, t2, loc)
+        | Eqty (t1, t2, loc) as a when num_sort_typ t1 && num_sort_typ t2 ->
+          Right (Left a)
+        | Leq _ as a -> Right (Left a)
+        | (CFalse _ | PredVarU _ | PredVarB _) as a ->
+          Right (Right a)
+        | NotEx _ as a -> new_notex := true; Right (Right a)
+        | Eqty (t1, t2, loc) ->
+          raise
+            (Contradiction (Type_sort, "Type sort mismatch",
+                            Some (t1, t2), loc)))
+      cnj in
   let cnj_num, cnj_so = partition_choice more_cnj in
   let rec aux sb num_cn = function
     | [] -> sb, num_cn
@@ -983,15 +1000,21 @@ let unify ?use_quants ?(sb=[]) cmp_v uni_v cnj =
       | t1, t2 when t1 = t2 -> aux sb num_cn cnj
       | t1, t2 when num_sort_typ t1 && num_sort_typ t2 ->
         aux sb (Eqty (t1, t2, loc)::num_cn) cnj
-      | t1, t2 when num_sort_typ t1 || num_sort_typ t2 -> raise
-        (Contradiction (Type_sort, "Type sort mismatch",
-                        Some (t1, t2), loc))
+      | t1, t2 when num_sort_typ t1 || num_sort_typ t2 ->
+        raise
+          (Contradiction (Type_sort, "Type sort mismatch",
+                          Some (t1, t2), loc))
+      | (TVar v as tv, (TCons (Extype _, _) as t)
+                 | (TCons (Extype _, _) as t), (TVar v as tv))
+        when is_old_notex v ->
+        raise (Contradiction (Type_sort, "Should not be existential",
+                              Some (tv, t), loc))        
       | (TVar v as tv, t | t, (TVar v as tv))
-          when VarSet.mem v (fvs_typ t) ->
+        when VarSet.mem v (fvs_typ t) ->
         raise (Contradiction (Type_sort, "Occurs check fail",
                               Some (tv, t), loc))
       | (TVar v, t | t, TVar v)
-          when use_quants && quant_viol cmp_v uni_v bvs zvs v t ->
+        when use_quants && quant_viol cmp_v uni_v bvs zvs v t ->
         raise
           (Contradiction (Type_sort, "Quantifier violation",
                           Some (TVar v, t), loc))
@@ -1002,18 +1025,19 @@ let unify ?use_quants ?(sb=[]) cmp_v uni_v cnj =
       | (TVar v, t | t, TVar v) ->
         aux ((v, (t, loc))::subst_one_sb v t sb) num_cn cnj
       | (TCons (f, f_args) as t1,
-         (TCons (g, g_args) as t2)) when f=g ->
+                              (TCons (g, g_args) as t2)) when f=g ->
         let more_cnj =
           try List.combine f_args g_args
-          with Invalid_argument _ -> raise
-            (Contradiction (Type_sort, "Type arity mismatch",
-                            Some (t1, t2), loc)) in
+          with Invalid_argument _ ->
+            raise
+              (Contradiction (Type_sort, "Type arity mismatch",
+                              Some (t1, t2), loc)) in
         aux sb num_cn (List.map (fun (t1,t2)->t1,t2,loc) more_cnj @ cnj)
       | Fun (f1, a1), Fun (f2, a2) ->
         let more_cnj = [f1, f2, loc; a1, a2, loc] in
         aux sb num_cn (more_cnj @ cnj)
       | (TCons (f, _) as t1,
-         (TCons (g, _) as t2)) ->
+                         (TCons (g, _) as t2)) ->
         Format.printf "unify: mismatch f=%s g=%s@ t1=%a@ t2=%a@\n%!"
           (cns_str f) (cns_str g) (pr_ty false) t1 (pr_ty false) t2; (* *)
         raise
@@ -1026,6 +1050,15 @@ let unify ?use_quants ?(sb=[]) cmp_v uni_v cnj =
           (Contradiction (Type_sort, "Type mismatch",
                           Some (t1, t2), loc)) in
   let cnj_typ, cnj_num = aux sb cnj_num cnj_typ in
+  if !new_notex then List.iter
+      (function
+        | NotEx (t, loc) ->
+          (match subst_typ cnj_typ t with
+           | TCons (Extype _, _) as st ->
+             raise (Contradiction (Type_sort, "Should not be existential",
+                                   Some (t, st), loc))        
+           | _ -> ())
+        | _ -> ()) cnj_so;
   cnj_typ, cnj_num, cnj_so
 
 let to_formula =
@@ -1078,5 +1111,6 @@ let reset_state () =
   parser_more_items := [];
   Hashtbl.clear parser_unary_typs;
   Hashtbl.clear parser_unary_vals;
+  Hashtbl.clear registered_notex_vars;
   parser_last_typ := 0;
   parser_last_num := 0
