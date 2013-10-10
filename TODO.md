@@ -7,3 +7,4 @@ Place for TODOs/FIXMEs, especially if not expressed in other places. See README.
 * TODO: try using all branches for numerical abduction from the beginning, and only if this fails, starting without recursive branches.
 * TODO: try to find the maximally general type `equal1 : all a,b,c. (a,b)->c->c->Bool`. Currently, setting `Abduction.more_general := true` explodes the solver.
 * FIXME: we are smuggling through a theoretical shortcoming in ESOP2014 paper regarding multi-parameter existential types. Sort it out both in implementation and in theory.
+* FIXME: fix handling of arity of parameters of existential types, in particular the mismatch between `sigma` signature and actual occurrences of existential type.

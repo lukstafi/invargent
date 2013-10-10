@@ -1084,7 +1084,9 @@ let () = pr_exty :=
   fun ppf (i, args) ->
     let vs, phi, ty, ety_n, pvs = Hashtbl.find sigma (Extype i) in
     let ty = match ty with [ty] -> ty | _ -> assert false in
-    let sb = List.map2 (fun v t -> v, (t, dummy_loc)) pvs args in
+    let sb =
+      try List.map2 (fun v t -> v, (t, dummy_loc)) pvs args
+      with Invalid_argument("List.map2") -> (* assert false *) [] in
     let phi, ty =
       if sb=[] then phi, ty
       else subst_formula sb phi, subst_typ sb ty in

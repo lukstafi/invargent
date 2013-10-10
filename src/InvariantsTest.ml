@@ -472,8 +472,7 @@ test (is_nearby (walk LocA LocB))"
 
   "find castle" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
-       todo "existential";
+       skip_if !debug "debug";
        test_case "find castle small"
 "newtype Room
 newtype Yard
@@ -495,9 +494,14 @@ let rec find_castle = efunction
   | Village _ as x ->
     let y = wander x in
     find_castle y"
-        [1,"∃t51, t52. δ = (Placement t52 → ∃2:t40[].Castle t40)"];
+        [2,"∃t115, t116. δ = (Placement t116 → ∃2:t145[].Castle t145)"];
+    );
 
-      test_case "find castle big"
+  "find castle big" >::
+    (fun () ->
+       (* skip_if !debug "debug"; *)
+       todo "existential";
+       test_case "find castle big"
 "newtype Room
 newtype Yard
 newtype Garden

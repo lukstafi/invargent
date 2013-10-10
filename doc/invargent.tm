@@ -330,6 +330,32 @@
   <verbatim|simplify_brs> on implications and <verbatim|flat_dsj> on each
   disjunction.
 
+  We collect information about existential return types of recursive
+  definitions in <verbatim|simplify_brs>:
+
+  <\enumerate>
+    <item>solving the conclusion of a branch together with additional
+    conclusions <verbatim|guard_cnj>, to know the return types of variables,
+
+    <item>registering existential return types for all variables in the
+    substitution,
+
+    <item>traversing the premise and conclusion to find new variables that
+    are types of recursive definitions,
+
+    <item>registering as ``type of recursive definition'' the return types
+    for all variables in the substitution registered as types of recursive
+    definitions,
+
+    <item>traversing all variables known to be types of recursive
+    definitions, and registering existential type with recursive definition
+    (i.e. unary predicate variable) if it has been learned,
+
+    <item>traversing all variables known to be types of recursive definitions
+    again, and registering existential type of the recursive definition (if
+    any) with the variable.
+  </enumerate>
+
   <subsection|Simplification>
 
   During normalization, we remove from a nested premise the atoms it is
@@ -1380,7 +1406,7 @@
     <associate|auto-2|<tuple|2|2>>
     <associate|auto-20|<tuple|5.5|14>>
     <associate|auto-21|<tuple|5.5|15>>
-    <associate|auto-3|<tuple|2.1|4>>
+    <associate|auto-3|<tuple|2.1|3>>
     <associate|auto-4|<tuple|2.1.1|4>>
     <associate|auto-5|<tuple|2.2|4>>
     <associate|auto-6|<tuple|3|4>>
