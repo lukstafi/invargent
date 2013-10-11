@@ -499,8 +499,7 @@ let rec find_castle = efunction
 
   "find castle big" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
-       todo "existential";
+       skip_if !debug "debug";
        test_case "find castle big"
 "newtype Room
 newtype Yard
@@ -527,13 +526,12 @@ let rec find = efunction
   | Village _ as x ->
     let y = wander x in
     find y"
-        [1,"∃t78, t79. δ = (Placement t79 → ∃2:t61[].Castle t61)"];
+        [2,"∃t178, t179. δ = (Placement t179 → ∃2:t219[].Castle t219)"];
     );
 
   "search castle shortcut" >::
     (fun () ->
-      (* skip_if !debug "debug"; *)
-       todo "existential";
+      skip_if !debug "debug";
       test_case "search castle shortcut"
 "newtype Room
 newtype Yard
@@ -560,12 +558,12 @@ let rec search = efunction
     ematch check y with
     | Ordinary -> search y
     | Shortcut z -> Yard z"
-        [1,"∃t67, t68. δ = (Placement t68 → ∃3:t88[].Castle t88)"];
+        [2,"∃t150, t151. δ = (Placement t151 → ∃3:t175[].Castle t175)"];
     );
 
   "search castle distance" >::
     (fun () ->
-      todo "existential";
+      skip_if !debug "debug";
       test_case "find castle distance"
 "newtype Bool
 newcons True : Bool
@@ -593,12 +591,12 @@ let rec search = efunction
     ematch closer y with
     | True -> search y
     | False -> search x"
-        [1,"∃t81, t82. δ = (Placement t82 → ∃3:t65[].Castle t65)"];
+        [2,"∃t181, t182. δ = (Placement t182 → ∃3:t221[].Castle t221)"];
     );
 
   "search castle distance A/B" >::
     (fun () ->
-      todo "existential";
+      skip_if !debug "debug";
       test_case "find castle distance A/B"
 "newtype Bool : type
 newtype A
@@ -629,13 +627,12 @@ let rec search = efunction
     ematch b with
     | True -> search y
     | False -> search x"
-        [1,"∃t214, t215. δ = (Placement t215 → ∃4:t216[].Castle t216)"];
+        [2,"∃t852, t853. δ = (Placement t853 → ∃4:t894[].Castle t894)"];
     );
 
   "castle not existential" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
-       todo "existential";
+       skip_if !debug "debug";
        test_case "castle not existential"
 "newtype Yard
 newtype Village
@@ -653,13 +650,12 @@ let rec search = efunction
   | Village x ->
     let y = wander x in
     search y"
-        [1,"∃t56, t57. δ = (Placement t57 → ∃2:[].Castle Yard)"];
+        [2,"∃t87, t88. δ = (Placement t88 → ∃2:[].Castle Yard)"];
     );
 
   "castle nested not existential" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
-       todo "existential";
+       skip_if !debug "debug";
        test_case "castle nested not existential"
 "newtype Answer
 newcons No : Answer
@@ -685,13 +681,12 @@ let rec search = efunction
     | No ->
       let y = wander x in
       search y"
-        [1,"∃t74, t75. δ = (Placement t75 → ∃3:[].Castle Yard)"];
+        [2,"∃t109, t110. δ = (Placement t110 → ∃3:[].Castle Yard)"];
     );
 
   "castle nested existential factored" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
-       todo "existential";
+       skip_if !debug "debug";
        test_case "castle nested existential factored"
 "newtype Answer
 newcons Yes : Answer
@@ -719,13 +714,12 @@ let rec search = efunction
       enter y
     | No ->
       search y"
-        [1,"∃t90, t91. δ = (Placement t91 → ∃3:t107[].Castle t107)"];
+        [2,"∃t148, t149. δ = (Placement t149 → ∃3:t172[].Castle t172)"];
     );
 
   "castle nested existential" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
-       todo "existential";
+       skip_if !debug "debug";
        test_case "castle nested existential"
 "newtype Answer
 newcons Yes : Answer
@@ -753,7 +747,7 @@ let rec search = efunction
     | No ->
       let y = wander x in
       search y"
-        [1,"∃t99, t100. δ = (Placement t100 → ∃3:t87[].Castle t87)"];
+        [2,"∃t149, t151. δ = (Placement t151 → ∃3:t175[].Castle t175)"];
     );
 
   "existential by hand" >::
@@ -784,7 +778,7 @@ let rec walk = fun x ->
 
   "existential with param" >::
     (fun () ->
-       todo "existential";
+       skip_if !debug "debug";
        test_case "existential with param"
 "newtype Place : type
 newtype Nearby : type * type
@@ -802,7 +796,7 @@ let rec walk = fun x ->
     let y, to_y = wander x in
     let to_z = walk y in
     Transitive (to_y, to_z)"
-        [1,"∃t1. δ = (Place t1 → ∃3:t2[].Nearby (t1,t2)"];
+        [2,"∃t322. δ = (Place t322 → ∃2:t396[].Nearby (t322, t396))"];
     );
 
   "filter" >::
