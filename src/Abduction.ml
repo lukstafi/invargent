@@ -140,17 +140,16 @@ let revert_cst_n_uni uni_v cmp_v cand =
           Left (c, (v1, loc))
         | sv -> Right sv)
       cand in
-  let u_sb = List.map (fun (v,(w,lc)) -> w, (TVar v, lc)) uni_sb in
-  let c_sb = List.map (fun (t,(w,lc)) -> w, (t, lc)) cst_sb in
   let uni_sb =
     concat_map
       (fun (bv, avs) ->
          let leq (v1,_) (v2,_) = not (cmp_v v1 v2 = Upstream) in
          let ov, olc = maximum ~leq avs in
          let o = TVar ov in
-         (bv, (o, olc))::map_some
-             (fun (cv, lc) -> if cv=ov then None else Some (cv, (o, lc)))
-             avs)
+         map_some
+           (fun (cv, lc) -> if cv=ov then None else Some (cv, (o, lc)))
+           avs
+         @ [bv, (o, olc)])
       (collect uni_sb) in
   let cst_sb =
     concat_map
@@ -158,12 +157,19 @@ let revert_cst_n_uni uni_v cmp_v cand =
          let leq (v1,_) (v2,_) = not (cmp_v v1 v2 = Upstream) in
          let ov, olc = maximum ~leq avs in
          let o = TVar ov in
-         (c, (o, olc))::map_some
-             (fun (v, lc) -> if v=ov then None else Some (TVar v, (o, lc)))
-             avs)
+         map_some
+           (fun (v, lc) -> if v=ov then None else Some (TVar v, (o, lc)))
+           avs
+         @ [c, (o, olc)])
       (collect cst_sb) in
+  let c_sb = List.map
+      (function
+        | TVar v, s -> v, s
+        | t, (TVar v, lc) -> v, (t, lc)
+        | _ -> assert false)
+      cst_sb in
   let old_cand =
-    u_sb @ c_sb @
+    uni_sb @ c_sb @
       if !revert_uni_in_all
       then
         List.map (fun (w,(t,loc)) ->
@@ -171,21 +177,52 @@ let revert_cst_n_uni uni_v cmp_v cand =
           cand
       else cand in
   let new_cand =
-    u_sb @ c_sb @
+    uni_sb @ c_sb @
       List.map (fun (w,(t,loc)) ->
           w, (subst_typ uni_sb (c_subst_typ cst_sb t), loc))
         cand in
-  let old_cand = List.map
+  let old_cand = map_some
       (function
+        | v1, (TVar v2, loc) when uni_v v1 && cmp_v v1 v2 = Downstream ->
+          Format.printf "cand: a v1=%s v2=%s@\n%!"
+            (var_str v1) (var_str v2); (* *)
+          None
+        | v1, (TVar v2, loc) when uni_v v2 && cmp_v v1 v2 = Upstream ->
+          Format.printf "cand: b v1=%s v2=%s@\n%!"
+            (var_str v1) (var_str v2); (* *)
+          None
         | v1, (TVar v2, loc) when cmp_v v1 v2 = Upstream ->
-          v2, (TVar v1, loc)
-        | sv -> sv)
+          Format.printf "cand: c v1=%s v2=%s@\n%!"
+            (var_str v1) (var_str v2); (* *)
+          Some (v2, (TVar v1, loc))
+        | v1, (TVar v2, loc) as sv ->
+          Format.printf
+            "cand: d uni(%s)=%b uni(%s)=%b v1<v2=%b v2<v1=%b@\n%!"
+            (var_str v1) (uni_v v1) (var_str v2) (uni_v v2)
+            (cmp_v v1 v2 = Downstream) (cmp_v v1 v2 = Upstream); (* *)
+          Some sv
+        | sv ->
+          Some sv)
       old_cand in
-  let new_cand = List.map
+  let new_cand = map_some
       (function
+        | v1, (TVar v2, loc) when uni_v v1 && cmp_v v1 v2 = Downstream ->
+          Format.printf "cand: e v1=%s v2=%s@\n%!"
+            (var_str v1) (var_str v2); (* *)
+          None
+        | v1, (TVar v2, loc) when uni_v v2 && cmp_v v1 v2 = Upstream ->
+          Format.printf "cand: f v1=%s v2=%s@\n%!"
+            (var_str v1) (var_str v2); (* *)
+          None
         | v1, (TVar v2, loc) when cmp_v v1 v2 = Upstream ->
-          v2, (TVar v1, loc)
-        | sv -> sv)
+          Format.printf "cand: g v1=%s v2=%s@\n%!"
+            (var_str v1) (var_str v2); (* *)
+          Some (v2, (TVar v1, loc))
+        | v1, (TVar v2, loc) as sv ->
+          Format.printf "cand: h v1=%s v2=%s uni(v1)=%b uni(v2)=%b@\n%!"
+            (var_str v1) (var_str v2) (uni_v v1) (uni_v v2); (* *)
+          Some sv
+        | sv -> Some sv)
       new_cand in
   old_cand, new_cand
 
@@ -354,9 +391,9 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
              "abd_simple: [%d]@ recover after choice 1@ %s =@ %a@\n%!"
              ddepth (var_str x) (pr_ty false) t; (* *)
            (* Choice 6: preserve atom in a "generalized" form *)
-           if false && not !more_general && implies_concl (ans @ c6x::cand)
+           if not !more_general && implies_concl (ans @ c6x::cand)
            then (
-             Format.printf "abd_simple: [%d]@ choice 1@ drop %s = %a@\n%!"
+             Format.printf "abd_simple: [%d]@ choice 6@ keep %s = %a@\n%!"
                ddepth (var_str x) (pr_ty false) t; (* *)
              try abstract repls cparams zvs vs (c6x::ans) (cand, c6cand)
              with Result (vs, ans) as e ->
@@ -556,7 +593,7 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
       | Some () -> [] in
     if implies_concl ans then Some (vs, ans)
     else
-      let cnj_typ, _ = prem_and concl in
+      let cnj_typ, _ = prem_and (ans @ concl) in
       (* FIXME: hmm... *)
       (* let cnj_typ = list_diff cnj_typ discard in *)
       let init_cand = revert_cst_n_uni uni_v cmp_v cnj_typ in

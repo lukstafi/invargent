@@ -89,12 +89,12 @@ let rec eval = function
   | Plus (x, y) -> plus (eval x) (eval y)
   | If (b, t, e) -> if (eval b) (eval t) (eval e)"
 
-        [1, "∃t37. δ = (Term t37 → t37)"]
+        [1, "∃t33. δ = (Term t33 → t33)"]
     );
 
   "eval" >::
     (fun () ->
-      skip_if !debug "debug";
+      (* skip_if !debug "debug"; *)
       test_case "eval term"
 "newtype Term : type
 newtype Int

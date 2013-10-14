@@ -46,10 +46,10 @@ let rec pr_cnstrnt ppf = function
     pr_sep_list " ∨" pr_cnstrnt ppf cns;
     fprintf ppf "]@]"
   | All (vs, cn) ->
-    fprintf ppf "@[<0>∀%a.@ %a@]"
+    fprintf ppf "@[<0>∀%a.[@ %a]@]"
       (pr_sep_list "," pr_tyvar) (VarSet.elements vs) pr_cnstrnt cn
   | Ex (vs, cn) ->
-    fprintf ppf "@[<0>∃%a.@ %a@]"
+    fprintf ppf "@[<0>∃%a.[@ %a]@]"
       (pr_sep_list "," pr_tyvar) (VarSet.elements vs) pr_cnstrnt cn
 
 let pr_brs_old ppf brs =
@@ -978,7 +978,7 @@ let simplify preserve cmp_v uni_v brs =
       try merge acc (meet prem concl brs)
       with Not_found -> merge (br::acc) brs in
   let short_brs, long_brs = List.partition
-    (function [],_ | [_],_ | [_;_],_ -> true | _ -> false)
+    (function [],_  | [_],_ (* | [_;_],_ *) -> true | _ -> false)
     (merge [] brs) in
   short_brs @ long_brs
 
