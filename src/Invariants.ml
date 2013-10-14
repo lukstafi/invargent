@@ -630,6 +630,7 @@ let solve cmp_v uni_v brs =
       (Ints.elements q.allchi) in
   let rolT, solT = List.partition (q.is_chiK % fst) solT in
   let rec loop iter_no discard rol1 sol1 =
+    (* 1 *)
     let sol1 = List.map
         (fun (i,(vs,ans)) -> i,(vs,remove_alphaK ans)) sol1 in
     let brs0 = sb_brs_PredU q sol1 brs in
@@ -709,14 +710,9 @@ let solve cmp_v uni_v brs =
           let pvs = VarSet.elements
               (VarSet.diff (vars_of_list vs) (vars_of_list g_vs)) in
           let targs = List.map (fun v -> TVar v) pvs in
-          (* FIXME *)
           let phi =
-            match targs with
-            | [targ] ->
-              Eqty (tdelta', targ, dummy_loc) :: g_ans
-            | _ ->
-              Eqty (tdelta', TCons (tuple, targs), dummy_loc)
-              :: g_ans in
+            Eqty (tdelta', TCons (tuple, targs), dummy_loc)
+            :: g_ans in
           Format.printf
             "lift_ex_types: pvs=%a@ g_vs=%a@ g_ans=%a@ phi=%a@\n%!"
             pr_vars (vars_of_list pvs)
@@ -728,10 +724,6 @@ let solve cmp_v uni_v brs =
             (fun (i,ans1) (j,(g_vs,g_ans)) ->
                assert (i = j);
                let g_cmp_v = cmp_v' g_vs in
-               (* FIXME: preserve [t2]? *)
-               (*let g_ans = List.filter
-                   (function Eqty (t, _, _) when t=t2 -> false
-                           | _ -> true) g_ans in*)
                let ans2 =
                  converge g_cmp_v uni_v
                    ~check_only:(iter_no < disj_step.(3)) ans1 (g_vs, g_ans) in
