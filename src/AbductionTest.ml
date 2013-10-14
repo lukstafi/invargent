@@ -9,9 +9,11 @@ open OUnit
 open Terms
 open Abduction
 
+let debug = ref true
 
 let cmp_v v1 v2 = Same_quant
-let uni_v v = false
+let uni_v v = v=VNam (Type_sort, "tx")
+              || v=VNam (Type_sort, "ty")
 
 let p_formula s = Parser.formula Lexer.token (Lexing.from_string s)
 let br_simple lhs rhs =
@@ -43,7 +45,7 @@ let tests = "Abduction" >::: [
 
   "simple abduction: eval" >::
     (fun () ->
-      (* todo "debug"; *)
+       skip_if !debug "debug";
       let lhs1 = "(Term td) = ta ∧ Int = td" and rhs1 = "tb = Int" in
       Terms.reset_state ();
       Infer.reset_state ();
@@ -58,9 +60,25 @@ let tests = "Abduction" >::: [
         assert_failure (Format.flush_str_formatter ())
     );
 
+  "simple abduction: avoid subst" >::
+    (fun () ->
+       skip_if !debug "debug";
+      let lhs1 = "tx = F(ty) ∧ ta = A" and rhs1 = "tb = G(ta)" in
+      Terms.reset_state ();
+      Infer.reset_state ();
+      try
+        test_simple lhs1 rhs1 0 "tb = (G A)"; 
+        test_simple lhs1 rhs1 1 "tb = (G ta)";
+        test_simple lhs1 rhs1 2 "none";
+      with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+        ignore (Format.flush_str_formatter ());
+        Terms.pr_exception Format.str_formatter exn;
+        assert_failure (Format.flush_str_formatter ())
+    );
+
   "term abduction: params" >::
     (fun () ->
-      (* todo "debug"; *)
+       skip_if !debug "debug";
       Terms.reset_state ();
       Infer.reset_state ();
       try

@@ -505,15 +505,19 @@
       earlier occurrence; branch over all matching parameters; if at the root
       of the atom, check connected and validate before proceeding to
       remaining candidates.
+
+      <item>Keep a variant of the original atom, but with universal variables
+      and constants substituted-out. Redundant, and optional: only when
+      <verbatim|more_general> is false.
     </enumerate>
 
-    <item>Choices 2-5 are guarded by <verbatim|try>-<verbatim|with>, as tests
+    <item>Choices 2-6 are guarded by <verbatim|try>-<verbatim|with>, as tests
     raise <verbatim|Contradiction> if they fail, choice 1 only tests
     <verbatim|implies_concl> which returns a boolean.
 
     <item>We provide an option <verbatim|more_general>, which when set to
-    false reorders the choices into: 1, 4, 2, 3, 5 -- pushing 4 up minimizes
-    the amount of branching in 5.
+    false reorders the choices into: 1, 6, 4, 2, 3, 5 -- pushing 4 up
+    minimizes the amount of branching in 5.
 
     <item>Recompute modifications of parameters due to partial answer, e.g.
     <verbatim|cparams>, for clarity of joint constraint abduction; we could
@@ -530,8 +534,16 @@
 
     <\itemize>
       <item>Replace <math|\<alpha\><rsub|1>\<assign\>\<beta\>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<beta\>>
-      with <math|\<beta\>\<assign\>\<alpha\><rsub|1>,\<alpha\><rsub|2>\<assign\>\<alpha\><rsub|1>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<alpha\><rsub|1>>.
+      with <math|\<beta\>\<assign\>\<alpha\><rsub|i>,\<alpha\><rsub|2>\<assign\>\<alpha\><rsub|i>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<alpha\><rsub|i>>
+      [where <math|\<alpha\><rsub|i>> is the most upstream existential
+      variable?].
     </itemize>
+
+    <item>Form the choice-6 counterparts of initial candidate atoms. Replace
+    <math|\<alpha\><rsub|1>\<assign\>\<tau\>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<tau\>>
+    with <math|\<tau\>\<assign\>\<alpha\><rsub|i>,\<alpha\><rsub|2>\<assign\>\<alpha\><rsub|i>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<alpha\><rsub|i>>
+    where <math|\<alpha\><rsub|i>> is the most upstream existential variable
+    and <math|\<tau\>> is a universal variable or constant.
 
     <item>Sort the initial candidates by decreasing size.
   </itemize>
@@ -788,6 +800,10 @@
   <verbatim|Suspect> that contains the partial answer conjoined with
   conclusion of an implication that failed to produce an answer compatible
   with remaining implications.
+
+  <subsubsection|The need to bootstrap from non-recursive branches>
+
+  TODO: about fully-maximal problems and <verbatim|flatten_pairs>.
 
   <section|Disjunction Elimination>
 
@@ -1180,8 +1196,8 @@
   <math|\<chi\><rsub|K>>, i.e. it affects only the premises. Substitution
   <math|P<rsub|g><rsup|+>> substitutes only positive occurrences of
   <math|\<chi\><rsub|K>>, i.e. it affects only the conclusions.
-  <math|P<rsub|g><rsup|+>> ensures that the parameters of the postcondition
-  are instantiated as the variables from which they were derived. At position
+  <math|P<rsub|g><rsup|+>> ensures that the parameter instances of the
+  postcondition are connected with the argument variables. At position
   <reference|Skp> we remove the parameter constraints from solutions, since
   they will be reintroduced by <math|P<rsub|g>> with values adjusted to the
   postconditions derived in the next step.
@@ -1253,17 +1269,19 @@
   similar stages. Invariants, solved by abduction:
 
   <\enumerate>
-    <item><math|k=0> Only term abduction -- invariants of type shapes -- is
-    performed, for all branches.
+    <item><math|k=j<rsub|0>=0> Only term abduction -- invariants of type
+    shapes -- is performed, for all branches.
 
-    <item><math|k=1> Both term abduction and numerical abduction are
-    performed, but numerical abduction only for non-recursive branches.
+    <item><math|k=j<rsub|1>=1> Both term abduction and numerical abduction
+    are performed, but numerical abduction only for non-recursive branches.
 
-    <item><math|k=2> Abduction is performed on all branches -- type and
-    numerical invariants are found.
+    <item><math|k\<geqslant\>j<rsub|2>=2> Abduction is performed on all
+    branches -- type and numerical invariants are found.
   </enumerate>
 
-  In a single iteration, disjunction elimination precedes abduction.
+  For testing purposes, we have option <verbatim|early_num_abduction> that
+  sets <math|j<rsub|2>=1>. In a single iteration, disjunction elimination
+  precedes abduction.
 
   <\enumerate>
     <item><math|k<rsub|0>\<leqslant\>k\<less\>k<rsub|1>> Term disjunction
@@ -1409,17 +1427,18 @@
     <associate|auto-1|<tuple|1|1>>
     <associate|auto-10|<tuple|3.4|7>>
     <associate|auto-11|<tuple|3.5|8>>
-    <associate|auto-12|<tuple|4|9>>
-    <associate|auto-13|<tuple|4.1|9>>
-    <associate|auto-14|<tuple|4.2|10>>
-    <associate|auto-15|<tuple|5|10>>
-    <associate|auto-16|<tuple|5.1|10>>
-    <associate|auto-17|<tuple|5.2|11>>
-    <associate|auto-18|<tuple|5.3|13>>
-    <associate|auto-19|<tuple|5.4|14>>
+    <associate|auto-12|<tuple|3.5.1|9>>
+    <associate|auto-13|<tuple|4|10>>
+    <associate|auto-14|<tuple|4.1|10>>
+    <associate|auto-15|<tuple|4.2|10>>
+    <associate|auto-16|<tuple|5|11>>
+    <associate|auto-17|<tuple|5.1|11>>
+    <associate|auto-18|<tuple|5.2|13>>
+    <associate|auto-19|<tuple|5.3|14>>
     <associate|auto-2|<tuple|2|2>>
-    <associate|auto-20|<tuple|5.5|15>>
+    <associate|auto-20|<tuple|5.4|15>>
     <associate|auto-21|<tuple|5.5|15>>
+    <associate|auto-22|<tuple|5.5|?>>
     <associate|auto-3|<tuple|2.1|4>>
     <associate|auto-4|<tuple|2.1.1|4>>
     <associate|auto-5|<tuple|2.2|4>>
@@ -1428,7 +1447,7 @@
     <associate|auto-8|<tuple|3.2|6>>
     <associate|auto-9|<tuple|3.3|7>>
     <associate|bib-AbductionSolvMaher|<tuple|3|15>>
-    <associate|bib-AntiUnifAlg|<tuple|8|15>>
+    <associate|bib-AntiUnifAlg|<tuple|8|16>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
@@ -1436,12 +1455,12 @@
     <associate|bib-ConvexHull|<tuple|2|15>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
-    <associate|bib-disjelimTechRep|<tuple|6|15>>
+    <associate|bib-disjelimTechRep|<tuple|6|16>>
     <associate|bib-jcaqpTechRep|<tuple|8|4>>
-    <associate|bib-jcaqpTechRep2|<tuple|7|15>>
-    <associate|bib-jcaqpUNIF|<tuple|4|15>>
+    <associate|bib-jcaqpTechRep2|<tuple|7|16>>
+    <associate|bib-jcaqpUNIF|<tuple|4|16>>
     <associate|bib-simonet-pottier-hmg-toplas|<tuple|6|4>>
-    <associate|bib-systemTechRep|<tuple|5|15>>
+    <associate|bib-systemTechRep|<tuple|5|16>>
   </collection>
 </references>
 
@@ -1523,46 +1542,50 @@
       for linear arithmetic <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-11>>
 
+      <with|par-left|<quote|3fn>|3.5.1<space|2spc>The need to bootstrap from
+      non-recursive branches <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-12>>
+
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|4<space|2spc>Disjunction
       Elimination> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-12><vspace|0.5fn>
+      <no-break><pageref|auto-13><vspace|0.5fn>
 
       <with|par-left|<quote|1.5fn>|4.1<space|2spc>Extended convex hull
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-13>>
+      <no-break><pageref|auto-14>>
 
       <with|par-left|<quote|1.5fn>|4.2<space|2spc>Issues in inferring
       postconditions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-14>>
+      <no-break><pageref|auto-15>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|5<space|2spc>Solving
       for Predicate Variables> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-15><vspace|0.5fn>
+      <no-break><pageref|auto-16><vspace|0.5fn>
 
       <with|par-left|<quote|1.5fn>|5.1<space|2spc>Invariant Parameter
       Candidates <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-16>>
+      <no-break><pageref|auto-17>>
 
       <with|par-left|<quote|1.5fn>|5.2<space|2spc>Solving for Predicates in
       Negative Positions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-17>>
+      <no-break><pageref|auto-18>>
 
       <with|par-left|<quote|1.5fn>|5.3<space|2spc>Solving for Existential
       Types Predicates and Main Algorithm
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-18>>
+      <no-break><pageref|auto-19>>
 
       <with|par-left|<quote|1.5fn>|5.4<space|2spc>Stages of iteration
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-19>>
+      <no-break><pageref|auto-20>>
 
       <with|par-left|<quote|1.5fn>|5.5<space|2spc>Implementation details
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-20>>
+      <no-break><pageref|auto-21>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-21><vspace|0.5fn>
+      <no-break><pageref|auto-22><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>

@@ -89,7 +89,7 @@ let rec eval = function
   | Plus (x, y) -> plus (eval x) (eval y)
   | If (b, t, e) -> if (eval b) (eval t) (eval e)"
 
-        [1, "∃t43. δ = (Term t43 → t43)"]
+        [1, "∃t37. δ = (Term t37 → t37)"]
     );
 
   "eval" >::
@@ -121,7 +121,7 @@ let rec eval = function
   | Fst p -> (match eval p with x, y -> x)
   | Snd p -> (match eval p with x, y -> y)"
 
-        [1, "∃t94. δ = (Term t94 → t94)"]
+        [1, "∃t80. δ = (Term t80 → t80)"]
     );
 
   "equal1 wrong type" >::
@@ -152,7 +152,7 @@ let rec equal1 = function
               (equal1 (t2, u2) x2 y2))
   | TList t, TList u -> forall2 (equal1 (t, u))
   | _ -> fun _ _ -> False"
-        [1, "∃t106, t107. δ = (Ty t106, Ty t107 → t107 → t107 → Bool)"]
+        [1, "∃t96, t97. δ = (Ty t96, Ty t97 → t97 → t97 → Bool)"]
     );
 
   "equal with test" >::
@@ -184,7 +184,7 @@ let rec equal = function
   | TList t, TList u -> forall2 (equal (t, u))
   | _ -> fun _ _ -> False
 test b_not (equal (TInt, TList TInt) Zero Nil)"
-        [1, "∃t201, t202. δ = (Ty t201, Ty t202 → t201 → t202 → Bool)"]
+        [1, "∃t189, t190. δ = (Ty t189, Ty t190 → t189 → t190 → Bool)"]
     );
 
   "equal with assert" >::
@@ -217,7 +217,7 @@ let rec equal = function
   | _ -> fun _ _ -> False
   | TInt, TList l -> (function Nil -> assert false)
   | TList l, TInt -> (fun _ -> function Nil -> assert false)"
-        [1, "∃t264, t265. δ = (Ty t264, Ty t265 → t264 → t265 → Bool)"]
+        [1, "∃t203, t204. δ = (Ty t203, Ty t204 → t203 → t204 → Bool)"]
     );
 
   "equal with assert and test" >::
@@ -251,7 +251,7 @@ let rec equal = function
   | TInt, TList l -> (function Nil -> assert false)
   | TList l, TInt -> (fun _ -> function Nil -> assert false)
 test b_not (equal (TInt, TList TInt) Zero Nil)"
-        [1, "∃t231, t232. δ = (Ty t231, Ty t232 → t231 → t232 → Bool)"]
+        [1, "∃t219, t220. δ = (Ty t219, Ty t220 → t219 → t220 → Bool)"]
     );
 
   "binary plus" >::
@@ -292,9 +292,9 @@ let rec plus =
         (function Zero -> PZero (plus COne a1 Zero)
 	  | PZero b1 -> PZero (plus COne a1 b1)
 	  | POne b1 -> POne (plus COne a1 b1)))"
-        [1,"∃n263, n264, n265, n266.
-  δ = (Carry n266 → Binary n265 → Binary n264 → Binary n263) ∧
-  n263 = (n266 + n265 + n264)"]
+        [1,"∃n235, n236, n237, n238.
+  δ = (Carry n238 → Binary n237 → Binary n236 → Binary n235) ∧
+  n235 = (n238 + n237 + n236)"]
     );
 
   "binary plus with test" >::
@@ -339,9 +339,9 @@ let rec plus =
 	  | POne b1 -> POne (plus COne a1 b1)))
 test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
                    (POne (POne Zero)))"
-        [1,"∃n285, n286, n287, n288.
-  δ = (Carry n288 → Binary n287 → Binary n286 → Binary n285) ∧
-  n285 = (n288 + n287 + n286)"]
+        [1,"∃n256, n257, n258, n259.
+  δ = (Carry n259 → Binary n258 → Binary n257 → Binary n256) ∧
+  n256 = (n259 + n258 + n257)"]
     );
 
   "flatten_pairs" >::
@@ -359,8 +359,8 @@ let rec flatten_pairs =
   function LNil -> LNil
     | LCons ((x, y), l) ->
       LCons (x, LCons (y, flatten_pairs l))"
-        [1,"∃n41, n42, t44. δ = (List ((t44, t44), n42) → List (t44, n41)) ∧
-  n41 = (n42 + n42)"];
+        [1,"∃n50, n51, t53. δ = (List ((t53, t53), n51) → List (t53, n50)) ∧
+  n50 = (n51 + n51)"];
     );
 
   "escape castle" >::
@@ -386,7 +386,7 @@ let rec escape = function Outside x -> x
   | Yard x ->
     let y = leave (enter x) in
     escape y"
-        [1,"∃t35. δ = (Placement t35 → Outside)"]
+        [1,"∃t28. δ = (Placement t28 → Outside)"]
 
     );
 
@@ -408,7 +408,7 @@ let rec walk = fun x goal ->
   | NotClose ->
     let y, to_y = wander x in
     Transitive (to_y, walk y goal)"
-        [1,"∃t63, t65. δ = (Place t63 → Place t65 → Nearby (t63, t65))"];
+        [1,"∃t49, t50. δ = (Place t49 → Place t50 → Nearby (t49, t50))"];
     );
 
   "equational nested universal" >::
@@ -437,7 +437,7 @@ let rec walk = fun x goal ->
     let y, to_y = wander x in
     Transitive (to_y, walk y goal)
 test (is_nearby (walk LocA LocB))"
-        [1,"∃t74, t75. δ = (Place t75 → Place t74 → Nearby (t75, t74))"];
+        [1,"∃t62, t63. δ = (Place t62 → Place t63 → Nearby (t62, t63))"];
     );
 
 
@@ -467,12 +467,13 @@ let rec walk = fun x goal ->
     let to_z = walk y goal in
     Transitive (to_y, to_z)
 test (is_nearby (walk LocA LocB))"
-        [1,"∃t89, t91. δ = (Place t89 → Place t91 → Nearby (t89, t91))"];
+        [1,"∃t73, t74. δ = (Place t73 → Place t74 → Nearby (t73, t74))"];
     );
 
   "find castle" >::
     (fun () ->
-       skip_if !debug "debug";
+       (* skip_if !debug "debug"; *)
+       todo "existential";
        test_case "find castle small"
 "newtype Room
 newtype Yard
@@ -499,7 +500,8 @@ let rec find_castle = efunction
 
   "find castle big" >::
     (fun () ->
-       skip_if !debug "debug";
+       (* skip_if !debug "debug"; *)
+       todo "existential";
        test_case "find castle big"
 "newtype Room
 newtype Yard
@@ -558,12 +560,13 @@ let rec search = efunction
     ematch check y with
     | Ordinary -> search y
     | Shortcut z -> Yard z"
-        [2,"∃t150, t151. δ = (Placement t151 → ∃3:t175[].Castle t175)"];
+        [2,"∃t134. δ = (Placement t134 → ∃3:t137[].Castle t137)"];
     );
 
   "search castle distance" >::
     (fun () ->
-      skip_if !debug "debug";
+      (* skip_if !debug "debug"; *)
+       todo "existential";
       test_case "find castle distance"
 "newtype Bool
 newcons True : Bool
@@ -596,7 +599,8 @@ let rec search = efunction
 
   "search castle distance A/B" >::
     (fun () ->
-      skip_if !debug "debug";
+      (* skip_if !debug "debug"; *)
+       todo "existential";
       test_case "find castle distance A/B"
 "newtype Bool : type
 newtype A
@@ -650,7 +654,7 @@ let rec search = efunction
   | Village x ->
     let y = wander x in
     search y"
-        [2,"∃t87, t88. δ = (Placement t88 → ∃2:[].Castle Yard)"];
+        [2,"∃t76. δ = (Placement t76 → ∃2:[].Castle Yard)"];
     );
 
   "castle nested not existential" >::
@@ -681,7 +685,7 @@ let rec search = efunction
     | No ->
       let y = wander x in
       search y"
-        [2,"∃t109, t110. δ = (Placement t110 → ∃3:[].Castle Yard)"];
+        [2,"∃t94. δ = (Placement t94 → ∃3:[].Castle Yard)"];
     );
 
   "castle nested existential factored" >::
@@ -714,7 +718,7 @@ let rec search = efunction
       enter y
     | No ->
       search y"
-        [2,"∃t148, t149. δ = (Placement t149 → ∃3:t172[].Castle t172)"];
+        [2,"∃t133. δ = (Placement t133 → ∃3:t136[].Castle t136)"];
     );
 
   "castle nested existential" >::
@@ -747,7 +751,7 @@ let rec search = efunction
     | No ->
       let y = wander x in
       search y"
-        [2,"∃t149, t151. δ = (Placement t151 → ∃3:t175[].Castle t175)"];
+        [2,"∃t133. δ = (Placement t133 → ∃3:t136[].Castle t136)"];
     );
 
   "existential by hand" >::
@@ -773,12 +777,13 @@ let rec walk = fun x ->
     match walk y with
     | Near to_z ->
       Near (Transitive (to_y, to_z))"
-        [1,"∃t70. δ = (Place t70 → Near t70)"];
+        [1,"∃t56. δ = (Place t56 → Near t56)"];
     );
 
   "existential with param" >::
     (fun () ->
-       skip_if !debug "debug";
+       (* skip_if !debug "debug"; *)
+       todo "existential";
        test_case "existential with param"
 "newtype Place : type
 newtype Nearby : type * type
@@ -797,6 +802,32 @@ let rec walk = fun x ->
     let to_z = walk y in
     Transitive (to_y, to_z)"
         [2,"∃t322. δ = (Place t322 → ∃2:t396[].Nearby (t322, t396))"];
+    );
+
+  "mono filter" >::
+    (fun () ->
+       todo "existential";
+       test_case "monomorphic list filter"
+"newtype Bool
+newtype Bar
+newtype List : num
+newcons True : Bool
+newcons False : Bool
+newcons LNil : List 0
+newcons LCons : ∀n [0≤n]. Bar * List n ⟶ List(n+1)
+external f : Bar → Bool
+
+let rec filter =
+  efunction LNil -> LNil
+    | LCons (x, xs) ->
+      ematch f x with
+        | True ->
+          let ys = filter xs in
+          LCons (x, ys)
+	| False ->
+          filter xs"
+        [1,""];
+
     );
 
   "filter" >::

@@ -497,6 +497,8 @@ let make_cmp paramvs cmp_v v1 v2 =
   | Downstream -> -1
   | _ -> compare v2 v1
 
+let early_num_abduction = ref false (* true *)
+
 let abd cmp_v uni_v ~paramvs ~bparams ~discard ?(iter_no=2) brs =
   let bvs = List.fold_left
     (fun acc (_,ps) -> VarSet.union acc ps) VarSet.empty bparams in
@@ -533,7 +535,8 @@ let abd cmp_v uni_v ~paramvs ~bparams ~discard ?(iter_no=2) brs =
     brs in
   let brs = map_some
     (fun (nonrec, prem, concl) ->
-      if iter_no > 1 || nonrec then Some (prem, concl) else None) brs in
+      if iter_no > 1 || nonrec || !early_num_abduction
+      then Some (prem, concl) else None) brs in
   Format.printf "NumS.abd: brs=@\n| %a@\n%!"
     (pr_line_list "| " pr_eqineq_br) brs;
   (* *)

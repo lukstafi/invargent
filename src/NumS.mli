@@ -8,6 +8,8 @@
 
 (** Try four times as many linear combinations (k,-k,1/k,-1/k). *)
 val abd_rotations : int ref
+(** Start abduction on all branches rather than only non-recursive. *)
+val early_num_abduction : bool ref
 (** For uniformity, return an empty list as introduced
     variables. Raise [Contradiction] if constraints are contradictory
     and [Suspect] if no answer can be found. [paramvs] includes alien

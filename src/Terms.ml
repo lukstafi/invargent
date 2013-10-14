@@ -292,6 +292,19 @@ let update_sb ~more_sb sb =
   map_append (fun (w,(t,loc)) -> w, (subst_typ more_sb t, loc)) sb
     more_sb
 
+let c_subst_typ sb t =
+  let rec aux t =
+    try fst (List.assoc t sb)
+    with Not_found ->
+      match t with
+      | TVar _ -> t
+      | TCons (n, args) -> TCons (n, List.map aux args)
+      | Fun (t1, t2) -> Fun (aux t1, aux t2)
+      | NCst _ -> t
+      | Nadd args -> Nadd (List.map aux args) in
+  aux t
+
+
 (** {3 Formulas} *)
 
 type atom =
