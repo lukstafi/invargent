@@ -460,7 +460,7 @@ type var_scope =
 type cmp_v = var_name -> var_name -> var_scope
 type uni_v = var_name -> bool
 
-let str_of_cmp = function
+let var_scope_str = function
 | Left_of -> "left_of"
 | Same_quant -> "same_quant"
 | Right_of -> "right_of"
@@ -955,20 +955,25 @@ let quant_viol cmp_v uni_v bvs zvs v t =
   let pvs = if VarSet.mem v bvs then v::pvs else pvs in
   let uni_vs =
     List.filter uni_v (if VarSet.mem v bvs then npvs else v::npvs) in
+  Format.printf "quant_viol: vrels %!"; (* *)
   let res =
   if (* pvs = [] *) not (VarSet.mem v bvs) then uv ||
     not (VarSet.mem v zvs) && List.exists
-    (fun v2 -> not (VarSet.mem v2 zvs) && cmp_v v v2 = Left_of) npvs
+    (fun v2 ->
+      Format.printf "%s %s %s; " (var_str v)
+        (var_scope_str (cmp_v v v2)) (var_str v2); (* *)
+      not (VarSet.mem v2 zvs) && cmp_v v v2 = Left_of) npvs
   else
     not
       (List.for_all
          (fun uv -> List.exists (fun pv -> cmp_v uv pv = Left_of) pvs)
          uni_vs) in
   Format.printf
-    "quant_viol: %b;@ v=%s;@ t=%a;@ bvs=%a;@ zvs=%a;@ pvs=%a;@ uni_vs=%a@\n%!"
-    res (var_str v) (pr_ty false) t
+    "@\nquant_viol: %b; v=%s; uv=%b;@ t=%a;@ bvs=%a;@ zvs=%a;@ pvs=%a;@
+   uni_vs=%a; npvs=%a@\n%!"
+    res (var_str v) uv (pr_ty false) t
     pr_vars bvs pr_vars zvs pr_vars (vars_of_list pvs)
-    pr_vars (vars_of_list uni_vs);
+    pr_vars (vars_of_list uni_vs) pr_vars (vars_of_list npvs);
   (* *)
   res  
 

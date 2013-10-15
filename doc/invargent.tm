@@ -291,11 +291,12 @@
 
   <subsection|Normalization>
 
-  Rather than reducing to prenex-normal form as in our formalization, we
-  preserve the scope relations and return a <verbatim|var_scope>-producing
-  variable comparison function. The branches we return from normalization
-  have unified conclusions, since we need them for solving disjunctions
-  anyway.
+  We reduce the constraint to alternation-minimizing prenex-normal form, as
+  in the formalization. We explored the option to preserve the scope
+  relations, but it was less suited for determining quantifier violations. We
+  return a <verbatim|var_scope>-producing variable comparison function. The
+  branches we return from normalization have unified conclusions, since we
+  need to unify for solving disjunctions anyway.
 
   Releasing constraints \ from under <verbatim|Or> is done iteratively,
   somewhat similar to how disjunction would be treated in constraint solvers.

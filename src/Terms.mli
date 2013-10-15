@@ -212,7 +212,7 @@ val connected :
 type var_scope =
 | Left_of | Same_quant | Right_of
 
-val str_of_cmp : var_scope -> string
+val var_scope_str : var_scope -> string
 
 exception Contradiction of sort * string * (typ * typ) option * loc
 exception NoAnswer of sort * string * (typ * typ) option * loc

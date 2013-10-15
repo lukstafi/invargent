@@ -46,10 +46,10 @@ let rec pr_cnstrnt ppf = function
     pr_sep_list " ∨" pr_cnstrnt ppf cns;
     fprintf ppf "]@]"
   | All (vs, cn) ->
-    fprintf ppf "@[<0>∀%a.[@ %a]@]"
+    fprintf ppf "@[<0>∀%a.@ %a@]"
       (pr_sep_list "," pr_tyvar) (VarSet.elements vs) pr_cnstrnt cn
   | Ex (vs, cn) ->
-    fprintf ppf "@[<0>∃%a.[@ %a]@]"
+    fprintf ppf "@[<0>∃%a.@ %a@]"
       (pr_sep_list "," pr_tyvar) (VarSet.elements vs) pr_cnstrnt cn
 
 let pr_brs_old ppf brs =
@@ -682,7 +682,9 @@ let prenexize cn =
     same_vars := VarSet.empty;
     change := false; at_uni := not !at_uni in
   let rec aux = function
-    | All (vs, cn) when !at_uni -> add_var_rels vs; aux cn
+    | All (vs, cn) when !at_uni ->
+      VarSet.iter (fun v -> Hashtbl.add univars v true) vs;
+      add_var_rels vs; aux cn
     | Ex (vs, cn) when not !at_uni -> add_var_rels vs; aux cn
     | (All _ | Ex _ | A _) as cn -> cn
     | And cns -> And (List.map aux cns)
