@@ -91,7 +91,7 @@ let rec eval = function
 
   "eval" >::
     (fun () ->
-      (* skip_if !debug "debug"; *)
+      skip_if !debug "debug";
       test_case "eval term"
 "newtype Term : type
 newtype Int
@@ -118,7 +118,7 @@ let rec eval = function
   | Fst p -> (match eval p with x, y -> x)
   | Snd p -> (match eval p with x, y -> y)"
 
-        [1, "∃t71. δ = (Term t71 → t71)"]
+        [1, "∃t73. δ = (Term t73 → t73)"]
     );
 
   "equal1 wrong type" >::
@@ -181,7 +181,7 @@ let rec equal = function
   | TList t, TList u -> forall2 (equal (t, u))
   | _ -> fun _ _ -> False
 test b_not (equal (TInt, TList TInt) Zero Nil)"
-        [1, "∃t189, t190. δ = (Ty t189, Ty t190 → t189 → t190 → Bool)"]
+        [1, "∃t224, t225. δ = (Ty t224, Ty t225 → t224 → t225 → Bool)"]
     );
 
   "equal with assert" >::
@@ -214,7 +214,7 @@ let rec equal = function
   | _ -> fun _ _ -> False
   | TInt, TList l -> (function Nil -> assert false)
   | TList l, TInt -> (fun _ -> function Nil -> assert false)"
-        [1, "∃t203, t204. δ = (Ty t203, Ty t204 → t203 → t204 → Bool)"]
+        [1, "∃t240, t241. δ = (Ty t240, Ty t241 → t240 → t241 → Bool)"]
     );
 
   "equal with assert and test" >::
@@ -248,12 +248,12 @@ let rec equal = function
   | TInt, TList l -> (function Nil -> assert false)
   | TList l, TInt -> (fun _ -> function Nil -> assert false)
 test b_not (equal (TInt, TList TInt) Zero Nil)"
-        [1, "∃t219, t220. δ = (Ty t219, Ty t220 → t219 → t220 → Bool)"]
+        [1, "∃t254, t255. δ = (Ty t254, Ty t255 → t254 → t255 → Bool)"]
     );
 
   "binary plus" >::
     (fun () ->
-      skip_if !debug "debug";
+      (* skip_if !debug "debug"; *)
       test_case "binary plus"
 "newtype Binary : num
 newtype Carry : num

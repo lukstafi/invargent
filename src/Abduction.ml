@@ -371,7 +371,9 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
            then (
              Format.printf "abd_simple: [%d]@ choice 1@ drop %s = %a@\n%!"
                ddepth (var_str x) (pr_ty false) t; (* *)
-             try abstract repls cparams zvs vs ans (cand, c6cand)
+             try abstract repls cparams zvs vs ans (cand, c6cand);
+               Format.printf "abd_simple: [%d]@ choice 1 failed@\n%!"
+                 ddepth; (* *)               
              with Result (vs, ans) as e ->
                (* FIXME: remove try-with after debug over *)
                Format.printf "abd_simple: [%d]@ preserve choice 1@ %s =@ %a@ -- returned@ ans=%a@\n%!"
@@ -395,12 +397,14 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
                Format.printf "abd_simple: [%d] choice 6 OK@\n%!" ddepth; (* *)
                assert (so = []);
                abstract repls cparams zvs vs ans' (cand, c6cand)
-             with Result (vs, ans) as e ->
-               (* FIXME: remove try-with after debug over *)
+             with
+             | Result (vs, ans) as e ->
+               (* FIXME: remove try-with case after debug over *)
                Format.printf "abd_simple: [%d]@ preserve choice 6@ %s =@ %a@ -- returned@ ans=%a@\n%!"
                  ddepth (var_str c6x)
                  (pr_ty false) c6t pr_subst ans; (* *)
-               raise e);
+               raise e
+             | Contradiction _ -> ());
            Format.printf
              "abd_simple: [%d]@ recover after choice 6@ %s =@ %a@\n%!"
              ddepth (var_str c6x) (pr_ty false) c6t; (* *)
