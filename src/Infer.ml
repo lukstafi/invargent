@@ -458,8 +458,7 @@ let constr_gen_let gamma p e ta =
   bs, exphi, env, cn_and pcns cn
 
 type solution =
-  (Terms.var_name -> Terms.var_name -> Terms.var_scope) *
-    (Terms.var_name -> bool) * Terms.formula *
+  cmp_v * uni_v * Terms.formula *
     (int * (Terms.var_name list * Terms.formula)) list
 
 let infer_prog_mockup prog =
@@ -653,16 +652,49 @@ let infer_prog solver prog =
 
 type branch = Terms.formula * Terms.formula
 
-(* Physically identifying selected disjuncts. *)
-let selected_disj = ref []
-
-let normalize cn =
+let prenexize cn =
   let quants = Hashtbl.create 2048 in
   let univars = Hashtbl.create 128 in
   let cmp_v v1 v2 =
-    try Hashtbl.find quants (v1, v2) with Not_found -> Not_in_scope in
-  let uni_v  v =
+    try Hashtbl.find quants (v1, v2) with Not_found -> assert false in
+  let uni_v v =
     try Hashtbl.find univars v with Not_found -> false in
+  let up_vars = ref VarSet.empty and same_vars = ref VarSet.empty
+  and change = ref true and at_uni = ref true in
+  let add_var_rels vs =
+    VarSet.iter (fun uv ->
+        VarSet.iter (fun dv ->
+            Hashtbl.add quants (uv,dv) Left_of;
+            Hashtbl.add quants (dv,uv) Right_of
+          ) vs) !up_vars;
+    VarSet.iter (fun av ->
+        VarSet.iter (fun bv ->
+            Hashtbl.add quants (av,bv) Same_quant;
+            Hashtbl.add quants (bv,av) Same_quant) vs) !same_vars;
+    VarSet.iter (fun av ->
+        VarSet.iter (fun bv ->
+            Hashtbl.add quants (av,bv) Same_quant) vs) vs;
+    change := true; same_vars := VarSet.union vs !same_vars in
+  let alternate () =
+    Format.printf "alternate: %s.%a@\n%!" (if !at_uni then "∀" else "∃")
+      pr_vars !same_vars;
+    up_vars := VarSet.union !same_vars !up_vars;
+    same_vars := VarSet.empty;
+    change := false; at_uni := not !at_uni in
+  let rec aux = function
+    | All (vs, cn) when !at_uni -> add_var_rels vs; aux cn
+    | Ex (vs, cn) when not !at_uni -> add_var_rels vs; aux cn
+    | (All _ | Ex _ | A _) as cn -> cn
+    | And cns -> And (List.map aux cns)
+    | Or cns -> Or (List.map aux cns)
+    | Impl (prem, concl) -> Impl (prem, aux concl) in
+  let rec loop cn =
+    if !change then (alternate (); loop (aux cn))
+    else cn in
+  (* Start the prefix from existential quantifiers. *)
+  cmp_v, uni_v, loop cn
+
+let normalize cmp_v uni_v cn =
   let unify ?sb cnj = unify ?sb cmp_v uni_v cnj in
   (* From unary predicate variable to the existential type of its result. *)
   let chi_exty = Hashtbl.create 2 in
@@ -737,76 +769,47 @@ let normalize cn =
                v_chi;
            prem,
            to_formula concl_typ @ concl_num @ concl_so) in
-  let add_var_rels up_vars same_vars vs =
-    VarSet.iter (fun uv ->
-        VarSet.iter (fun dv ->
-            Hashtbl.add quants (uv,dv) Upstream;
-            Hashtbl.add quants (dv,uv) Downstream
-          ) vs) up_vars;
-    VarSet.iter (fun av ->
-        VarSet.iter (fun bv ->
-            Hashtbl.add quants (av,bv) Same_quant;
-            Hashtbl.add quants (bv,av) Same_quant) vs) same_vars;
-    VarSet.iter (fun av ->
-        VarSet.iter (fun bv ->
-            Hashtbl.add quants (av,bv) Same_quant) vs) vs in
-  let rec flat_and up_vars same_vars at_uni = function
+  let rec flat_and = function
     | A cns -> cns, [], []
     | And cns ->
-      let cnj, impls, dsjs =
-        split3 (List.map (flat_and up_vars same_vars at_uni) cns) in
+      let cnj, impls, dsjs = split3 (List.map flat_and cns) in
       let cnj = List.concat cnj
       and impls = List.concat impls
       and dsjs = List.concat dsjs in
       cnj, impls, dsjs
-    | Impl ([], concl) -> flat_and up_vars same_vars at_uni concl
+    | Impl ([], concl) -> flat_and concl
     | Impl (prem, concl) ->
-      [], [up_vars, same_vars, at_uni, prem, concl], []
+      [], [prem, concl], []
     | Or cns ->
-      [], [], [up_vars, same_vars, at_uni, cns]      
-    | All (vs, cn) ->
-      if at_uni
-      then add_var_rels up_vars same_vars vs
-      else add_var_rels (VarSet.union up_vars same_vars) VarSet.empty vs;
-      VarSet.iter (fun v->Hashtbl.add univars v true) vs;
-      if at_uni
-      then flat_and up_vars (VarSet.union vs same_vars) true cn
-      else flat_and (VarSet.union up_vars same_vars) vs true cn
-    | Ex (vs, cn) ->
-      if not at_uni
-      then add_var_rels up_vars same_vars vs
-      else add_var_rels (VarSet.union up_vars same_vars) VarSet.empty vs;
-      VarSet.iter (fun v->Hashtbl.add univars v false) vs;
-      if not at_uni
-      then flat_and up_vars (VarSet.union vs same_vars) false cn
-      else flat_and (VarSet.union up_vars same_vars) vs false cn in
-  let rec flat_cn up_vars same_vars at_uni prem guard_cnj cn =
+      [], [], [cns]      
+    | All _ | Ex _ -> assert false in
+  let rec flat_cn prem guard_cnj cn =
     let cnj, impls, dsjs =
-      flat_and up_vars same_vars at_uni cn in
+      flat_and cn in
     let guard_cnj = cnj @ guard_cnj in
     let impls = List.map
-        (fun (up_vars, same_vars, at_uni, prem, concl) ->
+        (fun (prem, concl) ->
            let prem = List.filter
                (function
                  | Eqty (t1, t2, _) when t1=t2 -> false
                  | a -> not (List.exists (eq_atom a) cnj
                              || List.exists (eq_atom a) guard_cnj)) prem in
-           up_vars, same_vars, at_uni, prem, concl)
+           prem, concl)
         impls in
     let br0 = guard_cnj, prem, cnj in
     let dsj_brs1 = List.map
         (fun dsj -> prem, cnj @ guard_cnj, dsj) dsjs in
     let brs, dsj_brs2 = List.split
         (List.map
-           (fun (up_vars, same_vars, at_uni, more_prem, concl) ->
-              flat_cn up_vars same_vars at_uni
+           (fun (more_prem, concl) ->
+              flat_cn
                 (more_prem @ prem) guard_cnj concl)
            impls) in
     br0 :: List.concat brs, List.concat (dsj_brs1 :: dsj_brs2) in
-  let flat_dsj (more_prem, guard_cnj, (up_vars, same_vars, at_uni, cns)) =
+  let flat_dsj (more_prem, guard_cnj, cns) =
     guard_cnj, List.map
       (fun cn ->
-         cn, flat_cn up_vars same_vars at_uni more_prem guard_cnj cn)
+         cn, flat_cn more_prem guard_cnj cn)
       cns in
   let check_chi_exty =
     List.for_all
@@ -862,10 +865,11 @@ let normalize cn =
       Format.printf "checking-Or: none passes@\n%!"; (* *)
       raise (unsome !first_exn)
     | [cn, sol] ->
-      selected_disj := cn:: !selected_disj;
-      Left (sol : (formula * formula * formula) list * 'a)
+      (* selected_disj := cn:: !selected_disj; *)
+      Left sol
     | (cn, sol)::_ when step > 0 ->
-      selected_disj := cn:: !selected_disj; Left sol
+      (* selected_disj := cn:: !selected_disj; *)
+      Left sol
     | _ -> Right (guard_cnj, dsjs) in
   let concat_brs more_brs =
     let brs, dsjs = List.split more_brs in
@@ -888,13 +892,12 @@ let normalize cn =
     (* *)
     if more_brs = [] then brs, dsj_brs
     else loop step (more_brs @ brs, dsj_brs) in
-  let sol0 =
-    flat_cn VarSet.empty VarSet.empty false [] [] cn in
+  let sol0 = flat_cn [] [] cn in
   let brs_dsj_brs = ref (prepare_brs sol0) in
   for i=0 to 1 do brs_dsj_brs := loop i !brs_dsj_brs done;
   let brs, dsj_brs = !brs_dsj_brs in
   assert (dsj_brs = []);
-  cmp_v, univars, brs
+  brs
 
 let vs_hist_typ increase =
   typ_fold {(typ_make_fold (fun _ _ -> ()) ())
@@ -981,16 +984,6 @@ let simplify preserve cmp_v uni_v brs =
     (function [],_  | [_],_ (* | [_;_],_ *) -> true | _ -> false)
     (merge [] brs) in
   short_brs @ long_brs
-
-let prune_cn cn =
-  let rec aux = function
-    | A _ as a -> a
-    | And cns -> And (List.map aux cns)
-    | Impl (prem, concl) -> Impl (prem, aux concl)
-    | Or cns -> aux (List.find (flip List.memq !selected_disj) cns)
-    | All (vs, cn) -> All (vs, aux cn)
-    | Ex (vs, cn) -> Ex (vs, aux cn) in
-  aux cn
 
 (** {2 Postprocessing and printing} *)
 
@@ -1088,5 +1081,4 @@ let nicevars_struct_item = function
     LetVal (p, e, Some (vs, phi, ty), tests, loc)  
 
 let reset_state () =
-  selected_disj := [];
   fresh_expr_var_id := 0; fresh_var_id := 0; fresh_chi_id := 0

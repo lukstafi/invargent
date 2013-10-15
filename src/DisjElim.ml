@@ -183,8 +183,8 @@ let disjelim cmp_v uni_v ~do_num brs =
     let cmp_v v1 v2 =
       let av1 = List.mem v1 avs and av2 = List.mem v2 avs in
       if av1 && av2 then Same_quant
-      else if av1 then Downstream
-      else if av2 then Upstream
+      else if av1 then Right_of
+      else if av2 then Left_of
       else cmp_v v1 v2 in
     (* (3) *)
     let num_brs = List.map (fun (a,b)->a@b)

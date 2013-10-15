@@ -17,15 +17,12 @@ let test_case ?(more_general=false) msg test answers =
       let prog = (Infer.normalize_program % Parser.program Lexer.token)
 	(Lexing.from_string test) in
       try
-        let preserve, cn = Infer.infer_prog_mockup prog in
-        Format.printf "cn: %s@\n%a@\n%!" msg Infer.pr_cnstrnt cn; (* *)
-        let cmp_v, uni_v, brs = Infer.normalize cn in
+        let preserve, orig_cn = Infer.infer_prog_mockup prog in
+        Format.printf "orig_cn: %s@\n%a@\n%!" msg
+          Infer.pr_cnstrnt orig_cn; (* *)
+        let cmp_v, uni_v, cn = Infer.prenexize orig_cn in
+        let brs = Infer.normalize cmp_v uni_v cn in
         Format.printf "brs: %s@\n%a@\n%!" msg Infer.pr_brs brs; (* *)
-        let uni_v v =
-          try Hashtbl.find uni_v v with Not_found -> false in
-        let pruned = Infer.prune_cn cn in
-        Format.printf "pruned_cn: %s@\n%a@\n%!"
-          msg Infer.pr_cnstrnt pruned; (* *)
         let brs = Infer.simplify preserve cmp_v uni_v brs in
         Format.printf "simpl-brs: %s@\n%a@\nex_types:@\n%!"
           msg Infer.pr_brs brs;
@@ -94,7 +91,7 @@ let rec eval = function
 
   "eval" >::
     (fun () ->
-      (* skip_if !debug "debug"; *)
+      skip_if !debug "debug";
       test_case "eval term"
 "newtype Term : type
 newtype Int
@@ -121,12 +118,12 @@ let rec eval = function
   | Fst p -> (match eval p with x, y -> x)
   | Snd p -> (match eval p with x, y -> y)"
 
-        [1, "∃t80. δ = (Term t80 → t80)"]
+        [1, "∃t71. δ = (Term t71 → t71)"]
     );
 
   "equal1 wrong type" >::
     (fun () ->
-      skip_if !debug "debug";
+      (* skip_if !debug "debug"; *)
       test_case "equal1 wrong type"
 "newtype Ty : type
 newtype Int

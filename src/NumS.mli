@@ -15,8 +15,7 @@ val early_num_abduction : bool ref
     and [Suspect] if no answer can be found. [paramvs] includes alien
     variables, *)
 val abd :
-  (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
-  (Terms.var_name -> bool) ->
+  Terms.cmp_v -> Terms.uni_v ->
   paramvs:Terms.VarSet.t ->
   bparams:(Terms.var_name * Terms.VarSet.t) list ->
   discard:Terms.formula list ->
@@ -28,30 +27,27 @@ val abd :
 val disjelim_rotations : int ref
 (** For uniformity, we return an empty list as introduced variables. *)
 val disjelim :
-  (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
-  (Terms.var_name -> bool) ->
+  Terms.cmp_v -> Terms.uni_v ->
   Terms.formula list -> Terms.var_name list * Terms.formula
 
 (** Perform quantifier elimination on provided variables and generally
     simplify the formula. Since linear arithmetic has quantifier
     elimination, always returns empty variable list. *)
 val simplify :
-  (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
-  (Terms.var_name -> bool) ->
+  Terms.cmp_v -> Terms.uni_v ->
   Terms.VarSet.t -> Terms.formula -> 
   Terms.var_name list * Terms.formula
 (*
 val equivalent :
-  (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
-  (Terms.var_name -> bool) -> Terms.formula ->  Terms.formula -> 
+  Terms.cmp_v -> Terms.uni_v ->
+  Terms.formula ->  Terms.formula -> 
   bool
 *)
 (** Intersect atoms of the formulas, but only after generating
     consequences via Fourier elimination and turning equations into
     pairs of inequalities. *)
 val converge :
-  (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
-  (Terms.var_name -> bool) ->
+  Terms.cmp_v -> Terms.uni_v ->
   Terms.formula -> Terms.formula -> Terms.formula
 
 type state
@@ -61,11 +57,9 @@ val satisfiable : ?state:state -> Terms.atom list -> (exn, state) Aux.choice
 val satisfiable_exn : ?state:state -> Terms.atom list -> state
 (** Incremental check whether |= Q.A. Raises [Contradiction]. *)
 val holds :
-  (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
-  (Terms.var_name -> bool) ->
+  Terms.cmp_v -> Terms.uni_v ->
   state -> Terms.formula -> state
 
 val separate_subst :
-  (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
-  (Terms.var_name -> bool) ->
+  Terms.cmp_v -> Terms.uni_v ->
   Terms.formula -> Terms.subst * Terms.formula

@@ -210,7 +210,7 @@ val connected :
 (** {2 Substitutions and unification} *)
 
 type var_scope =
-| Upstream | Same_quant | Downstream | Not_in_scope
+| Left_of | Same_quant | Right_of
 
 val str_of_cmp : var_scope -> string
 
@@ -233,6 +233,9 @@ val typ_sort_atom : atom -> bool
 val num_sort_atom : atom -> bool
 val split_sorts : formula -> (sort * formula) list
 
+type cmp_v = var_name -> var_name -> var_scope
+type uni_v = var_name -> bool
+
 (** Register variable as [NotEx]. *)
 val register_notex : var_name -> unit
 (** [use_quants] is a pair of [bvs] variables and parameters. The
@@ -241,15 +244,14 @@ val register_notex : var_name -> unit
     predicate variables and [NotEx] atoms. The substitution is not
     applied to the third element atoms! *)
 val unify : ?use_quants:(VarSet.t * VarSet.t) ->
-  ?sb:subst ->
-  (var_name -> var_name -> var_scope) -> (var_name -> bool) ->
+  ?sb:subst -> cmp_v -> uni_v ->
   atom list -> subst * atom list * atom list
 val to_formula : subst -> atom list
 val combine_sbs : ?ignore_so:unit -> ?use_quants:(VarSet.t * VarSet.t) ->
-  (var_name -> var_name -> var_scope) -> (var_name -> bool) ->
+  cmp_v -> uni_v ->
   ?more_phi:atom list -> subst list -> subst * atom list
 val subst_solved : ?ignore_so:unit -> ?use_quants:(VarSet.t * VarSet.t) ->
-  (var_name -> var_name -> var_scope) -> (var_name -> bool) ->
+  cmp_v -> uni_v ->
   subst -> cnj:subst -> subst * atom list
 
 (** {2 Global tables} *)

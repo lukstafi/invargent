@@ -486,6 +486,7 @@ let abd_simple cmp cmp_w uni_v ~paramvs ~bvs ~validate
   with Contradiction _ -> None
 
 let make_cmp paramvs cmp_v v1 v2 =
+  (* FIXME: comment probably wrong, check usages and fix. *)
   (* Order: return positive if [v1] should be more to the right: more
   upstream, or if only [v2] is a parameter. *)
   let c1 = VarSet.mem v1 paramvs and c2 = VarSet.mem v2 paramvs in
@@ -493,9 +494,9 @@ let make_cmp paramvs cmp_v v1 v2 =
   else if c1 then -1
   else if c2 then 1
   else match cmp_v v1 v2 with
-  | Upstream -> 1
-  | Downstream -> -1
-  | _ -> compare v2 v1
+  | Left_of -> 1
+  | Right_of -> -1
+  | Same_quant -> compare v2 v1
 
 let early_num_abduction = ref false (* true *)
 

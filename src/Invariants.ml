@@ -10,8 +10,8 @@ open Aux
 type chi_subst = (int * (var_name list * formula)) list
 
 type q_with_bvs = {
-  cmp_v : var_name -> var_name -> var_scope;
-  uni_v : var_name -> bool;
+  cmp_v : cmp_v;
+  uni_v : uni_v;
   positive_b : var_name -> bool;
   (** Whether a binary predicate variable. *)
   is_chiK : int -> bool;
@@ -237,8 +237,9 @@ let strat q b ans =
   let (_, ans_r), ans = fold_map
     (fun (pvs, ans_r) c ->
       let vs = VarSet.elements (VarSet.diff (fvs_atom c) pvs) in
+      (* FIXME: after prenexization, this does not do much! *)
       let vs = List.filter
-        (fun v -> q.cmp_v b v = Upstream) vs in
+        (fun v -> q.cmp_v b v = Left_of) vs in
       let loc = atom_loc c in
       if List.exists q.uni_v vs then
         (let bad = List.find q.uni_v vs in
@@ -258,13 +259,13 @@ let split avs ans negchi_locs params zparams q =
   (* 1 FIXME: do we really need this? *)
   let cmp_v v1 v2 =
     let a = q.cmp_v v1 v2 in
-    if a <> Same_quant && a <> Not_in_scope then a
+    if a <> Same_quant then a
     else
       let c1 = VarSet.mem v1 q.allbvs
       and c2 = VarSet.mem v2 q.allbvs in
       if c1 && c2 then Same_quant
-      else if c1 then Downstream
-      else if c2 then Upstream
+      else if c1 then Left_of
+      else if c2 then Right_of
       else Same_quant in
   let rec loop avs ans discard sol =
     (* 2 *)
@@ -275,10 +276,10 @@ let split avs ans negchi_locs params zparams q =
       (function
       | Eqty (TVar a, TVar b, _)
           when not (q.uni_v a) && VarSet.mem b q.allbvs &&
-            cmp_v a b = Downstream -> false
+            cmp_v a b = Right_of -> false
       | Eqty (TVar b, TVar a, _)
           when not (q.uni_v a) && VarSet.mem b q.allbvs &&
-            cmp_v a b = Downstream -> false
+            cmp_v a b = Right_of -> false
       | _ -> true) ans in
     (* 3 *)
     let ans_cand = List.map
@@ -313,7 +314,7 @@ let split avs ans negchi_locs params zparams q =
        List.filter
          (fun c ->
            List.for_all (fun (b',ans') ->
-             cmp_v b b' <> Upstream
+             cmp_v b b' <> Left_of
              || not (List.memq c ans')) ans_cand)
          ans)
       ans_cand in
@@ -384,7 +385,7 @@ let split avs ans negchi_locs params zparams q =
     let avss = List.map
       (fun (b, avs) ->
         let lbs = List.filter
-          (fun b' -> q.cmp_v b b' = Downstream) q.negbs in
+          (fun b' -> q.cmp_v b b' = Right_of) q.negbs in
         let uvs = List.fold_left VarSet.union VarSet.empty
           (List.map (flip List.assoc avss) lbs) in
         VarSet.diff avs uvs)
@@ -424,8 +425,8 @@ let simplify cmp_v uni_v (vs, cnj) =
   let cmp_v v1 v2 =
     let c1 = VarSet.mem v1 vs and c2 = VarSet.mem v2 vs in
     if c1 && c2 then Same_quant
-    else if c1 then Downstream
-    else if c2 then Upstream
+    else if c1 then Right_of
+    else if c2 then Left_of
     else cmp_v v1 v2 in
   let ty_ans, num_ans, _ =
     unify cmp_v uni_v cnj in
@@ -533,8 +534,8 @@ let solve cmp_v uni_v brs =
   let cmp_v' gvs v1 v2 =
     let c1 = List.mem v1 gvs and c2 = List.mem v2 gvs in
     if c1 && c2 then Same_quant
-    else if c1 then Downstream
-    else if c2 then Upstream
+    else if c1 then Right_of
+    else if c2 then Left_of
     else cmp_v v1 v2 in
   (* Enrich the negative branches -- they need it. *)
   let neg_brs = List.map
@@ -597,7 +598,7 @@ let solve cmp_v uni_v brs =
       (fun (b, zpms) ->
          (* FIXME: [cmp_v b v = Upstream]? *)
          let avs = VarSet.filter
-             (fun v->cmp_v b v <> Downstream) avs in
+             (fun v->cmp_v b v <> Right_of) avs in
          let zvs = VarSet.add b !zpms in
          if VarSet.exists (fun a -> VarSet.mem a zvs) avs
          && not (VarSet.is_empty (VarSet.diff avs zvs))
@@ -617,7 +618,7 @@ let solve cmp_v uni_v brs =
       (fun (b1, pms) ->
          b1, List.fold_left
            (fun pms (b2, pms2) ->
-              if cmp_v b1 b2 = Upstream
+              if cmp_v b1 b2 = Left_of
               then VarSet.diff pms
                   (VarSet.union (Hashtbl.find q.b_vs b2) pms2)
               else pms)

@@ -31,8 +31,7 @@ val constr_gen_expr :
   (string * Terms.typ_scheme) list ->
   Terms.expr -> Terms.typ -> cnstrnt
 type solution =
-  (Terms.var_name -> Terms.var_name -> Terms.var_scope) *
-    (Terms.var_name -> bool) * Terms.formula *
+  Terms.cmp_v * Terms.uni_v * Terms.formula *
     (int * (Terms.var_name list * Terms.formula)) list
 val infer_prog_mockup : Terms.struct_item list -> Terms.VarSet.t * cnstrnt
 val infer_prog :
@@ -49,24 +48,18 @@ val fresh_typ_var : unit -> Terms.var_name
 val fresh_num_var : unit -> Terms.var_name
 val freshen_var : Terms.var_name -> Terms.var_name
 
-val normalize : cnstrnt ->
-  (Terms.var_name -> Terms.var_name -> Terms.var_scope) *
-    (Terms.var_name, bool) Hashtbl.t *
-    branch list
+val prenexize : cnstrnt -> Terms.cmp_v * Terms.uni_v * cnstrnt
+val normalize : Terms.cmp_v -> Terms.uni_v -> cnstrnt -> branch list
 
 (* Eliminate shared conclusions during {!simplify}. *)
 val simplify :
   Terms.VarSet.t ->
-  (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
-  (Terms.var_name -> bool)-> branch list -> branch list
-(* A dirty way to get the constraints with pruned disjunctions. *)
-val prune_cn : cnstrnt -> cnstrnt
+  Terms.cmp_v -> Terms.uni_v -> branch list -> branch list
 
 (** {2 Postprocessing and printing} *)
 
 val separate_subst :
-  (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
-  (Terms.var_name -> bool)-> Terms.formula ->
+  Terms.cmp_v -> Terms.uni_v -> Terms.formula ->
   Terms.subst * Terms.formula
 
 (*

@@ -120,7 +120,7 @@ let revert_uni uni_v cmp_v cand =
   let res = update_sb ~more_sb cand in
   List.map
     (function
-    | v1, (TVar v2, loc) when cmp_v v1 v2 = Upstream ->
+    | v1, (TVar v2, loc) when cmp_v v1 v2 = Left_of ->
       v2, (TVar v1, loc)
     | sv -> sv)
     res
@@ -143,7 +143,8 @@ let revert_cst_n_uni uni_v cmp_v cand =
   let uni_sb =
     concat_map
       (fun (bv, avs) ->
-         let leq (v1,_) (v2,_) = not (cmp_v v1 v2 = Upstream) in
+         (* Maximum should be the leftmost here. *)
+         let leq (v1,_) (v2,_) = not (cmp_v v1 v2 = Left_of) in
          let ov, olc = maximum ~leq avs in
          let o = TVar ov in
          map_some
@@ -154,7 +155,7 @@ let revert_cst_n_uni uni_v cmp_v cand =
   let cst_sb =
     concat_map
       (fun (c, avs) ->
-         let leq (v1,_) (v2,_) = not (cmp_v v1 v2 = Upstream) in
+         let leq (v1,_) (v2,_) = not (cmp_v v1 v2 = Left_of) in
          let ov, olc = maximum ~leq avs in
          let o = TVar ov in
          map_some
@@ -183,15 +184,15 @@ let revert_cst_n_uni uni_v cmp_v cand =
         cand in
   let old_cand = map_some
       (function
-        | v1, (TVar v2, loc) when uni_v v1 && cmp_v v1 v2 = Downstream ->
+        | v1, (TVar v2, loc) when uni_v v1 && cmp_v v1 v2 = Right_of ->
           Format.printf "cand: a v1=%s v2=%s@\n%!"
             (var_str v1) (var_str v2); (* *)
           None
-        | v1, (TVar v2, loc) when uni_v v2 && cmp_v v1 v2 = Upstream ->
+        | v1, (TVar v2, loc) when uni_v v2 && cmp_v v1 v2 = Left_of ->
           Format.printf "cand: b v1=%s v2=%s@\n%!"
             (var_str v1) (var_str v2); (* *)
           None
-        | v1, (TVar v2, loc) when cmp_v v1 v2 = Upstream ->
+        | v1, (TVar v2, loc) when cmp_v v1 v2 = Left_of ->
           Format.printf "cand: c v1=%s v2=%s@\n%!"
             (var_str v1) (var_str v2); (* *)
           Some (v2, (TVar v1, loc))
@@ -199,22 +200,22 @@ let revert_cst_n_uni uni_v cmp_v cand =
           Format.printf
             "cand: d uni(%s)=%b uni(%s)=%b v1<v2=%b v2<v1=%b@\n%!"
             (var_str v1) (uni_v v1) (var_str v2) (uni_v v2)
-            (cmp_v v1 v2 = Downstream) (cmp_v v1 v2 = Upstream); (* *)
+            (cmp_v v1 v2 = Left_of) (cmp_v v1 v2 = Right_of); (* *)
           Some sv
         | sv ->
           Some sv)
       old_cand in
   let new_cand = map_some
       (function
-        | v1, (TVar v2, loc) when uni_v v1 && cmp_v v1 v2 = Downstream ->
+        | v1, (TVar v2, loc) when uni_v v1 && cmp_v v1 v2 = Right_of ->
           Format.printf "cand: e v1=%s v2=%s@\n%!"
             (var_str v1) (var_str v2); (* *)
           None
-        | v1, (TVar v2, loc) when uni_v v2 && cmp_v v1 v2 = Upstream ->
+        | v1, (TVar v2, loc) when uni_v v2 && cmp_v v1 v2 = Left_of ->
           Format.printf "cand: f v1=%s v2=%s@\n%!"
             (var_str v1) (var_str v2); (* *)
           None
-        | v1, (TVar v2, loc) when cmp_v v1 v2 = Upstream ->
+        | v1, (TVar v2, loc) when cmp_v v1 v2 = Left_of ->
           Format.printf "cand: g v1=%s v2=%s@\n%!"
             (var_str v1) (var_str v2); (* *)
           Some (v2, (TVar v1, loc))

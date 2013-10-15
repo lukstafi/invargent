@@ -9,9 +9,6 @@
 type chi_subst = (int * (Terms.var_name list * Terms.formula)) list
 val neg_constrns : bool ref
 val solve :
-  (Terms.var_name -> Terms.var_name -> Terms.var_scope) ->
-  (Terms.var_name -> bool)->
+  Terms.cmp_v -> Terms.uni_v ->
   (Terms.formula * Terms.formula) list ->
-  (Terms.var_name -> Terms.var_name -> Terms.var_scope) *
-    (Terms.var_name -> bool) *
-    (Terms.formula * chi_subst * chi_subst)
+  Terms.cmp_v * Terms.uni_v * (Terms.formula * chi_subst * chi_subst)

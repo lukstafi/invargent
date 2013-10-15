@@ -455,13 +455,15 @@ let typ_scheme_of_item ?(env=[]) = function
 | LetVal _ -> raise Not_found
 
 type var_scope =
-| Upstream | Same_quant | Downstream | Not_in_scope
+| Left_of | Same_quant | Right_of
+
+type cmp_v = var_name -> var_name -> var_scope
+type uni_v = var_name -> bool
 
 let str_of_cmp = function
-| Upstream -> "upstream"
+| Left_of -> "left_of"
 | Same_quant -> "same_quant"
-| Downstream -> "downstream"
-| Not_in_scope -> "not_in_scope"
+| Right_of -> "right_of"
 
 exception Contradiction of sort * string * (typ * typ) option * loc
 exception NoAnswer of sort * string * (typ * typ) option * loc
@@ -937,7 +939,7 @@ let connected ?(validate=fun _ -> ()) ~directed target (vs, phi) =
   ans
 
 (* If there are no [bvs] parameters, the LHS variable has to be
-   existential and not upstream of any RHS variable.
+   existential and not upstream (i.e. left of) of any RHS variable.
 
    If [v] is a [bvs] parameter, every universal variable must be
    upstream of some [bv] parameter. (Note that a [bv] parameter that
@@ -956,11 +958,11 @@ let quant_viol cmp_v uni_v bvs zvs v t =
   let res =
   if (* pvs = [] *) not (VarSet.mem v bvs) then uv ||
     not (VarSet.mem v zvs) && List.exists
-    (fun v2 -> not (VarSet.mem v2 zvs) && cmp_v v v2 = Upstream) npvs
+    (fun v2 -> not (VarSet.mem v2 zvs) && cmp_v v v2 = Left_of) npvs
   else
     not
       (List.for_all
-         (fun uv -> List.exists (fun pv -> cmp_v uv pv = Upstream) pvs)
+         (fun uv -> List.exists (fun pv -> cmp_v uv pv = Left_of) pvs)
          uni_vs) in
   Format.printf
     "quant_viol: %b;@ v=%s;@ t=%a;@ bvs=%a;@ zvs=%a;@ pvs=%a;@ uni_vs=%a@\n%!"
@@ -1032,7 +1034,7 @@ let unify ?use_quants ?(sb=[]) cmp_v uni_v cnj =
           (Contradiction (Type_sort, "Quantifier violation",
                           Some (TVar v, t), loc))
       | (TVar v1 as tv1, (TVar v2 as tv2)) ->
-        if cmp_v v1 v2 = Upstream
+        if cmp_v v1 v2 = Left_of
         then aux ((v2, (tv1, loc))::subst_one_sb v2 tv1 sb) num_cn cnj
         else aux ((v1, (tv2, loc))::subst_one_sb v1 tv2 sb) num_cn cnj
       | (TVar v, t | t, TVar v) ->
