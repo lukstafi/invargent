@@ -86,12 +86,12 @@ let rec eval = function
   | Plus (x, y) -> plus (eval x) (eval y)
   | If (b, t, e) -> if (eval b) (eval t) (eval e)"
 
-        [1, "∃t33. δ = (Term t33 → t33)"]
+        [1, "∃t32. δ = (Term t32 → t32)"]
     );
 
   "eval" >::
     (fun () ->
-      skip_if !debug "debug";
+      (* skip_if !debug "debug"; *)
       test_case "eval term"
 "newtype Term : type
 newtype Int
@@ -123,7 +123,7 @@ let rec eval = function
 
   "equal1 wrong type" >::
     (fun () ->
-      (* skip_if !debug "debug"; *)
+      skip_if !debug "debug";
       test_case "equal1 wrong type"
 "newtype Ty : type
 newtype Int
@@ -149,7 +149,7 @@ let rec equal1 = function
               (equal1 (t2, u2) x2 y2))
   | TList t, TList u -> forall2 (equal1 (t, u))
   | _ -> fun _ _ -> False"
-        [1, "∃t96, t97. δ = (Ty t96, Ty t97 → t97 → t97 → Bool)"]
+        [1, "∃t84, t85. δ = (Ty t84, Ty t85 → t84 → t84 → Bool)"]
     );
 
   "equal with test" >::

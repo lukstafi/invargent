@@ -182,48 +182,37 @@ let revert_cst_n_uni uni_v cmp_v cand =
       List.map (fun (w,(t,loc)) ->
           w, (subst_typ uni_sb (c_subst_typ cst_sb t), loc))
         cand in
-  let old_cand = map_some
+  let old_cand = List.map
       (function
-        | v1, (TVar v2, loc) when uni_v v1 && cmp_v v1 v2 = Right_of ->
-          Format.printf "cand: a v1=%s v2=%s@\n%!"
-            (var_str v1) (var_str v2); (* *)
-          None
-        | v1, (TVar v2, loc) when uni_v v2 && cmp_v v1 v2 = Left_of ->
-          Format.printf "cand: b v1=%s v2=%s@\n%!"
-            (var_str v1) (var_str v2); (* *)
-          None
         | v1, (TVar v2, loc) when cmp_v v1 v2 = Left_of ->
-          Format.printf "cand: c v1=%s v2=%s@\n%!"
-            (var_str v1) (var_str v2); (* *)
-          Some (v2, (TVar v1, loc))
+          Format.printf
+            "cand: a uni(%s)=%b uni(%s)=%b v1<v2=%b v2<v1=%b@\n%!"
+            (var_str v1) (uni_v v1) (var_str v2) (uni_v v2)
+            (cmp_v v1 v2 = Left_of) (cmp_v v1 v2 = Right_of); (* *)
+          v2, (TVar v1, loc)
+        | v1, (TVar v2, loc) as sv ->
+          Format.printf
+            "cand: b uni(%s)=%b uni(%s)=%b v1<v2=%b v2<v1=%b@\n%!"
+            (var_str v1) (uni_v v1) (var_str v2) (uni_v v2)
+            (cmp_v v1 v2 = Left_of) (cmp_v v1 v2 = Right_of); (* *)
+          sv
+        | sv -> sv)
+      old_cand in
+  let new_cand = List.map
+      (function
+        | v1, (TVar v2, loc) when cmp_v v1 v2 = Left_of ->
+          Format.printf
+            "cand: c uni(%s)=%b uni(%s)=%b v1<v2=%b v2<v1=%b@\n%!"
+            (var_str v1) (uni_v v1) (var_str v2) (uni_v v2)
+            (cmp_v v1 v2 = Left_of) (cmp_v v1 v2 = Right_of); (* *)
+          v2, (TVar v1, loc)
         | v1, (TVar v2, loc) as sv ->
           Format.printf
             "cand: d uni(%s)=%b uni(%s)=%b v1<v2=%b v2<v1=%b@\n%!"
             (var_str v1) (uni_v v1) (var_str v2) (uni_v v2)
             (cmp_v v1 v2 = Left_of) (cmp_v v1 v2 = Right_of); (* *)
-          Some sv
-        | sv ->
-          Some sv)
-      old_cand in
-  let new_cand = map_some
-      (function
-        | v1, (TVar v2, loc) when uni_v v1 && cmp_v v1 v2 = Right_of ->
-          Format.printf "cand: e v1=%s v2=%s@\n%!"
-            (var_str v1) (var_str v2); (* *)
-          None
-        | v1, (TVar v2, loc) when uni_v v2 && cmp_v v1 v2 = Left_of ->
-          Format.printf "cand: f v1=%s v2=%s@\n%!"
-            (var_str v1) (var_str v2); (* *)
-          None
-        | v1, (TVar v2, loc) when cmp_v v1 v2 = Left_of ->
-          Format.printf "cand: g v1=%s v2=%s@\n%!"
-            (var_str v1) (var_str v2); (* *)
-          Some (v2, (TVar v1, loc))
-        | v1, (TVar v2, loc) as sv ->
-          Format.printf "cand: h v1=%s v2=%s uni(v1)=%b uni(v2)=%b@\n%!"
-            (var_str v1) (var_str v2) (uni_v v1) (uni_v v2); (* *)
-          Some sv
-        | sv -> Some sv)
+          sv
+        | sv -> sv)
       new_cand in
   old_cand, new_cand
 
@@ -368,7 +357,7 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
               (String.concat ","(List.map var_str vs))
               pr_subst ans; (* *)
             raise (Result (vs, ans)))
-      | (x, (t, lc) as sx)::cand, c6x::c6cand ->
+      | (x, (t, lc) as sx)::cand, (c6x, (c6t, c6lc) as c6sx)::c6cand ->
         let ddepth = incr debug_dep; !debug_dep in
         Format.printf
           "abd_simple-abstract: [%d] @ repls=%a@ vs=%s@ ans=%a@ x=%s@ cand=%a@\n%!"
@@ -392,20 +381,29 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
              "abd_simple: [%d]@ recover after choice 1@ %s =@ %a@\n%!"
              ddepth (var_str x) (pr_ty false) t; (* *)
            (* Choice 6: preserve atom in a "generalized" form *)
-           if not !more_general && implies_concl (ans @ c6x::cand)
+           if not !more_general && implies_concl (ans @ c6sx::cand)
            then (
              Format.printf "abd_simple: [%d]@ choice 6@ keep %s = %a@\n%!"
                ddepth (var_str x) (pr_ty false) t; (* *)
-             try abstract repls cparams zvs vs (c6x::ans) (cand, c6cand)
+             try
+               let ans', _, so =
+                 unify ~use_quants:(bvs, zvs) ~sb:ans
+                   cmp_v uni_v [Eqty (TVar c6x, c6t, c6lc)] in
+               Format.printf
+                 "abd_simple: [%d] validate 6 ans'=@ %a@\n%!" ddepth pr_subst ans'; (* *)
+               validate vs ans';
+               Format.printf "abd_simple: [%d] choice 6 OK@\n%!" ddepth; (* *)
+               assert (so = []);
+               abstract repls cparams zvs vs ans' (cand, c6cand)
              with Result (vs, ans) as e ->
                (* FIXME: remove try-with after debug over *)
                Format.printf "abd_simple: [%d]@ preserve choice 6@ %s =@ %a@ -- returned@ ans=%a@\n%!"
-                 ddepth (var_str (fst c6x))
-               (pr_ty false) (fst (snd c6x)) pr_subst ans; (* *)
+                 ddepth (var_str c6x)
+                 (pr_ty false) c6t pr_subst ans; (* *)
                raise e);
            Format.printf
              "abd_simple: [%d]@ recover after choice 6@ %s =@ %a@\n%!"
-             ddepth (var_str (fst c6x)) (pr_ty false) (fst (snd c6x)); (* *)
+             ddepth (var_str c6x) (pr_ty false) c6t; (* *)
            step x lc {typ_sub=t; typ_ctx=[]} repls
              cparams zvs vs ans cand c6cand
          | Right cand ->
@@ -501,7 +499,7 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
                       "uni_v %s=%b; uni_v %s=%b; cmp_v =%s@\n%!"
                       (var_str v1) (uni_v v1)
                       (var_str v2) (uni_v v2)
-                      (str_of_cmp (cmp_v v1 v2)))
+                      (var_scope_str (cmp_v v1 v2)))
                   (fvs_typ ty2)
               | _ -> ()); 
              Format.printf "abd_simple: [%d] choice 4 failed@\n%!" ddepth; (* *)
