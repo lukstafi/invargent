@@ -14,18 +14,19 @@ let debug = ref true
 let cmp_v v1 v2 = Same_quant
 let uni_v v = v=VNam (Type_sort, "tx")
               || v=VNam (Type_sort, "ty")
+let q = {cmp_v; uni_v; same_as = fun _ _ -> ()}
 
 let p_formula s = Parser.formula Lexer.token (Lexing.from_string s)
 let br_simple lhs rhs =
-  let lhs, _, _ = unify cmp_v uni_v lhs in
-  let rhs, _, _ = unify cmp_v uni_v rhs in
+  let lhs, _, _ = unify q lhs in
+  let rhs, _, _ = unify q rhs in
   lhs, rhs
 
 let test_simple lhs_m rhs_m ?(validate=(fun _ _ -> ())) skip res =
   let lhs = p_formula lhs_m and rhs = p_formula rhs_m in
   let lhs, rhs = br_simple lhs rhs in
   let ans =
-    match abd_simple cmp_v uni_v ~without_quant:()
+    match abd_simple q ~without_quant:()
       ~bvs:VarSet.empty ~zvs:VarSet.empty ~bparams:[] ~zparams:[]
       ~validate ~discard:[] skip ([],[]) (lhs, rhs) with
     | None -> "none"
@@ -94,7 +95,7 @@ let tests = "Abduction" >::: [
         let bvs = VarSet.singleton vA in
         let ans =
           try let alien_eqs, vs, ans_typ, _ =
-                abd_typ cmp_v uni_v ~bvs ~zvs
+                abd_typ q ~bvs ~zvs
                   ~bparams:[vA, bvs]
                   ~zparams:[vA, vars_of_list [vA; vB; vC]]
                   ~validate:(fun _ _ -> ()) ~discard:[]

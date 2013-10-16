@@ -7,7 +7,7 @@
 *)
 
 val disjelim :
-  Terms.cmp_v -> Terms.uni_v ->
+  Terms.quant_ops ->
   do_num:bool ->
   Terms.formula list ->
   Terms.var_name list * Terms.atom list

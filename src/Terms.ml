@@ -457,8 +457,11 @@ let typ_scheme_of_item ?(env=[]) = function
 type var_scope =
 | Left_of | Same_quant | Right_of
 
-type cmp_v = var_name -> var_name -> var_scope
-type uni_v = var_name -> bool
+type quant_ops = {
+  cmp_v : var_name -> var_name -> var_scope;
+  uni_v : var_name -> bool;
+  same_as : var_name -> var_name -> unit;
+}
 
 let var_scope_str = function
 | Left_of -> "left_of"
@@ -948,25 +951,25 @@ let connected ?(validate=fun _ -> ()) ~directed target (vs, phi) =
    [zvs] parameters act like existential variables but are not
    located anywhere in the quantifier -- do not contribute to
    quantifier violation. *)
-let quant_viol cmp_v uni_v bvs zvs v t =
-  let uv = uni_v v in
+let quant_viol q bvs zvs v t =
+  let uv = q.uni_v v in
   let pvs, npvs = List.partition (fun v->VarSet.mem v bvs)
     (VarSet.elements (fvs_typ t)) in
   let pvs = if VarSet.mem v bvs then v::pvs else pvs in
   let uni_vs =
-    List.filter uni_v (if VarSet.mem v bvs then npvs else v::npvs) in
+    List.filter q.uni_v (if VarSet.mem v bvs then npvs else v::npvs) in
   Format.printf "quant_viol: vrels %!"; (* *)
   let res =
   if (* pvs = [] *) not (VarSet.mem v bvs) then uv ||
     not (VarSet.mem v zvs) && List.exists
     (fun v2 ->
       Format.printf "%s %s %s; " (var_str v)
-        (var_scope_str (cmp_v v v2)) (var_str v2); (* *)
-      not (VarSet.mem v2 zvs) && cmp_v v v2 = Left_of) npvs
+        (var_scope_str (q.cmp_v v v2)) (var_str v2); (* *)
+      not (VarSet.mem v2 zvs) && q.cmp_v v v2 = Left_of) npvs
   else
     not
       (List.for_all
-         (fun uv -> List.exists (fun pv -> cmp_v uv pv = Left_of) pvs)
+         (fun uv -> List.exists (fun pv -> q.cmp_v uv pv = Left_of) pvs)
          uni_vs) in
   Format.printf
     "@\nquant_viol: %b; v=%s; uv=%b;@ t=%a;@ bvs=%a;@ zvs=%a;@ pvs=%a;@
@@ -982,7 +985,7 @@ let register_notex v = Hashtbl.add registered_notex_vars v ()
 let is_old_notex v = Hashtbl.mem registered_notex_vars v
 
 (** Separate type sort and number sort constraints,  *)
-let unify ?use_quants ?(sb=[]) cmp_v uni_v cnj =
+let unify ?use_quants ?(sb=[]) q cnj =
   let new_notex = ref false in
   let use_quants, bvs, zvs =
     match use_quants with
@@ -991,7 +994,7 @@ let unify ?use_quants ?(sb=[]) cmp_v uni_v cnj =
   let subst_one_sb v s = List.map
       (fun (w,(t,loc)) ->
          let modif, t' = subst_one v s t in
-         if use_quants && modif && quant_viol cmp_v uni_v bvs zvs w t'
+         if use_quants && modif && quant_viol q bvs zvs w t'
          then raise
              (Contradiction (Type_sort, "Quantifier violation",
                              Some (TVar w, t'), loc));
@@ -1034,12 +1037,12 @@ let unify ?use_quants ?(sb=[]) cmp_v uni_v cnj =
         raise (Contradiction (Type_sort, "Occurs check fail",
                               Some (tv, t), loc))
       | (TVar v, t | t, TVar v)
-        when use_quants && quant_viol cmp_v uni_v bvs zvs v t ->
+        when use_quants && quant_viol q bvs zvs v t ->
         raise
           (Contradiction (Type_sort, "Quantifier violation",
                           Some (TVar v, t), loc))
       | (TVar v1 as tv1, (TVar v2 as tv2)) ->
-        if cmp_v v1 v2 = Left_of
+        if q.cmp_v v1 v2 = Left_of
         then aux ((v2, (tv1, loc))::subst_one_sb v2 tv1 sb) num_cn cnj
         else aux ((v1, (tv2, loc))::subst_one_sb v1 tv2 sb) num_cn cnj
       | (TVar v, t | t, TVar v) ->
@@ -1084,19 +1087,19 @@ let unify ?use_quants ?(sb=[]) cmp_v uni_v cnj =
 let to_formula =
   List.map (fun (v,(t,loc)) -> Eqty (TVar v, t, loc))
 
-let combine_sbs ?ignore_so ?use_quants cmp_v uni_v ?(more_phi=[]) sbs =
+let combine_sbs ?ignore_so ?use_quants q ?(more_phi=[]) sbs =
   let cnj_typ, cnj_num, cnj_so =
-    unify ?use_quants cmp_v uni_v
+    unify ?use_quants q
       (more_phi @ concat_map to_formula sbs) in
   assert (ignore_so<>None || cnj_so = []);
   cnj_typ, cnj_num
 
-let subst_solved ?ignore_so ?use_quants cmp_v uni_v sb ~cnj =
+let subst_solved ?ignore_so ?use_quants q sb ~cnj =
   let cnj = List.map
     (fun (v,(t,lc)) -> Eqty (subst_typ sb (TVar v), subst_typ sb t, lc))
     cnj in
   let cnj_typ, cnj_num, cnj_so =
-    unify ?use_quants cmp_v uni_v cnj in
+    unify ?use_quants q cnj in
   assert (ignore_so<>None || cnj_so = []);
   cnj_typ, cnj_num
 

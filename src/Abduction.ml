@@ -8,15 +8,19 @@
 open Terms
 open Aux
 
-let residuum cmp_v uni_v prem concl =
+let residuum q prem concl =
   let concl = to_formula concl in
   let res_ty, res_num, res_so =
-    unify cmp_v uni_v (subst_formula prem concl) in
+    unify q (subst_formula prem concl) in
   assert (res_so = []);
   res_ty, res_num
 
 exception Result of var_name list * subst
 let debug_dep = ref 0
+
+let empty_q =
+  {cmp_v = (fun _ _ -> Same_quant); uni_v = (fun _ -> false);
+   same_as = (fun _ _ -> ())}
 
 (* FIXME: doesn't look nice, besides optimize its use *)
 let cleanup vs ans =
@@ -24,9 +28,9 @@ let cleanup vs ans =
     (function x, _ as sx when List.mem x vs -> Left sx
     | y, (TVar x, lc) when List.mem x vs -> Left (x, (TVar y, lc))
     | sy -> Right sy) ans in
-  (* TODO: could use [unify] by treating [vs] as [Downstream] in [cmp_v] *)
-  let clean, cn_num, cn_so = unify
-    (fun _ _ -> Same_quant) (fun _ -> false) (to_formula clean) in
+  (* TODO: could use [unify] by treating [vs] as [Downstream] in [q.cmp_v] *)
+  let clean, cn_num, cn_so = unify empty_q
+     (to_formula clean) in
   let sb, more_ans = List.partition
     (function x, _ when List.mem x vs -> true
     | _ -> false) clean in    
@@ -104,10 +108,10 @@ let skip_kind = ref Superset_old_mod
 
 let more_general = ref false
 
-let revert_uni uni_v cmp_v cand =
+let revert_uni q cand =
   let more_sb, cand = partition_map
     (function
-    | v1, (TVar v2, loc) when uni_v v2 && not (uni_v v1) ->
+    | v1, (TVar v2, loc) when q.uni_v v2 && not (q.uni_v v1) ->
       Left (v2, (TVar v1, loc))
     | sv -> Right sv)
     cand in
@@ -120,23 +124,23 @@ let revert_uni uni_v cmp_v cand =
   let res = update_sb ~more_sb cand in
   List.map
     (function
-    | v1, (TVar v2, loc) when cmp_v v1 v2 = Left_of ->
+    | v1, (TVar v2, loc) when q.cmp_v v1 v2 = Left_of ->
       v2, (TVar v1, loc)
     | sv -> sv)
     res
 
 let revert_uni_in_all = ref (* false *) true
 
-let revert_cst_n_uni uni_v cmp_v cand =
+let revert_cst_n_uni q cand =
   let uni_sb, cand = partition_map
       (function
-        | v1, (TVar v2, loc) when uni_v v2 && not (uni_v v1) ->
+        | v1, (TVar v2, loc) when q.uni_v v2 && not (q.uni_v v1) ->
           Left (v2, (v1, loc))
         | sv -> Right sv)
       cand in
   let cst_sb, cand = partition_map
       (function
-        | v1, (TCons (n, []) as c, loc) when not (uni_v v1) ->
+        | v1, (TCons (n, []) as c, loc) when not (q.uni_v v1) ->
           Left (c, (v1, loc))
         | sv -> Right sv)
       cand in
@@ -144,7 +148,7 @@ let revert_cst_n_uni uni_v cmp_v cand =
     concat_map
       (fun (bv, avs) ->
          (* Maximum should be the leftmost here. *)
-         let leq (v1,_) (v2,_) = not (cmp_v v1 v2 = Left_of) in
+         let leq (v1,_) (v2,_) = not (q.cmp_v v1 v2 = Left_of) in
          let ov, olc = maximum ~leq avs in
          let o = TVar ov in
          map_some
@@ -155,7 +159,7 @@ let revert_cst_n_uni uni_v cmp_v cand =
   let cst_sb =
     concat_map
       (fun (c, avs) ->
-         let leq (v1,_) (v2,_) = not (cmp_v v1 v2 = Left_of) in
+         let leq (v1,_) (v2,_) = not (q.cmp_v v1 v2 = Left_of) in
          let ov, olc = maximum ~leq avs in
          let o = TVar ov in
          map_some
@@ -184,33 +188,33 @@ let revert_cst_n_uni uni_v cmp_v cand =
         cand in
   let old_cand = List.map
       (function
-        | v1, (TVar v2, loc) when cmp_v v1 v2 = Left_of ->
+        | v1, (TVar v2, loc) when q.cmp_v v1 v2 = Left_of ->
           Format.printf
             "cand: a uni(%s)=%b uni(%s)=%b v1<v2=%b v2<v1=%b@\n%!"
-            (var_str v1) (uni_v v1) (var_str v2) (uni_v v2)
-            (cmp_v v1 v2 = Left_of) (cmp_v v1 v2 = Right_of); (* *)
+            (var_str v1) (q.uni_v v1) (var_str v2) (q.uni_v v2)
+            (q.cmp_v v1 v2 = Left_of) (q.cmp_v v1 v2 = Right_of); (* *)
           v2, (TVar v1, loc)
         | v1, (TVar v2, loc) as sv ->
           Format.printf
             "cand: b uni(%s)=%b uni(%s)=%b v1<v2=%b v2<v1=%b@\n%!"
-            (var_str v1) (uni_v v1) (var_str v2) (uni_v v2)
-            (cmp_v v1 v2 = Left_of) (cmp_v v1 v2 = Right_of); (* *)
+            (var_str v1) (q.uni_v v1) (var_str v2) (q.uni_v v2)
+            (q.cmp_v v1 v2 = Left_of) (q.cmp_v v1 v2 = Right_of); (* *)
           sv
         | sv -> sv)
       old_cand in
   let new_cand = List.map
       (function
-        | v1, (TVar v2, loc) when cmp_v v1 v2 = Left_of ->
+        | v1, (TVar v2, loc) when q.cmp_v v1 v2 = Left_of ->
           Format.printf
             "cand: c uni(%s)=%b uni(%s)=%b v1<v2=%b v2<v1=%b@\n%!"
-            (var_str v1) (uni_v v1) (var_str v2) (uni_v v2)
-            (cmp_v v1 v2 = Left_of) (cmp_v v1 v2 = Right_of); (* *)
+            (var_str v1) (q.uni_v v1) (var_str v2) (q.uni_v v2)
+            (q.cmp_v v1 v2 = Left_of) (q.cmp_v v1 v2 = Right_of); (* *)
           v2, (TVar v1, loc)
         | v1, (TVar v2, loc) as sv ->
           Format.printf
             "cand: d uni(%s)=%b uni(%s)=%b v1<v2=%b v2<v1=%b@\n%!"
-            (var_str v1) (uni_v v1) (var_str v2) (uni_v v2)
-            (cmp_v v1 v2 = Left_of) (cmp_v v1 v2 = Right_of); (* *)
+            (var_str v1) (q.uni_v v1) (var_str v2) (q.uni_v v2)
+            (q.cmp_v v1 v2 = Left_of) (q.cmp_v v1 v2 = Right_of); (* *)
           sv
         | sv -> sv)
       new_cand in
@@ -259,7 +263,7 @@ let implies_ans ans c_ans =
 
 (* [zvs] is sum of [zparams] only over all [q.negbs]; we add [vs].
    [bvs] only of [bparams]. *)
-let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
+let abd_simple q ?without_quant ~bvs ~zvs ~bparams ~zparams
     ~validate ~discard skip (vs, ans) (prem, concl) =
   (* [inter ans zparams] variables have to be connected with [bparams] *)
   let zvs = add_vars vs zvs in
@@ -285,18 +289,18 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
   let skipped = ref [] in
   let allvs = ref VarSet.empty in
   try
-    let prem, _ = subst_solved cmp_v uni_v ans ~cnj:prem in
-    let concl, _ = subst_solved cmp_v uni_v ans ~cnj:concl in
+    let prem, _ = subst_solved q ans ~cnj:prem in
+    let concl, _ = subst_solved q ans ~cnj:concl in
     Format.printf
       "abd_simple: skip=%d,@ vs=@ %s;@ ans=@ %a@ --@\n@[<2>%a@ ⟹@ %a@]@\n%!"
       !skip (String.concat "," (List.map var_str vs))
       pr_subst ans pr_subst prem pr_subst concl; (* *)
     let prem_and ans =
       (* TODO: optimize, don't redo work *)
-      combine_sbs cmp_v uni_v [ans; prem] in
+      combine_sbs q [ans; prem] in
     let implies_concl ans =
       let cnj_typ, cnj_num = prem_and ans in
-      let res_ty, res_num = residuum cmp_v uni_v cnj_typ concl in
+      let res_ty, res_num = residuum q cnj_typ concl in
       let num = res_num @ cnj_num in
       Format.printf "abd_simple:@ implies?@ %b@ #res_ty=%d@\nans=@ %a@\nres_ty=@ %a@\n%!"
         (res_ty = [] && is_right (NumS.satisfiable num))
@@ -390,7 +394,7 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
              try
                let ans', _, so =
                  unify ~use_quants:(bvs, zvs) ~sb:ans
-                   cmp_v uni_v [Eqty (TVar c6x, c6t, c6lc)] in
+                   q [Eqty (TVar c6x, c6t, c6lc)] in
                Format.printf
                  "abd_simple: [%d] validate 6 ans'=@ %a@\n%!" ddepth pr_subst ans'; (* *)
                validate vs ans';
@@ -445,7 +449,7 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
                                         Some (TVar x, t'), lc));
              let ans', _, so =
                unify ~use_quants:(bvs, zvs') ~sb:ans
-                 cmp_v uni_v [Eqty (TVar x, t', lc)] in
+                 q [Eqty (TVar x, t', lc)] in
              Format.printf
                "abd_simple: [%d] validate 2 ans=@ %a@\n%!" ddepth pr_subst ans; (* *)
              validate vs' ans';
@@ -484,7 +488,7 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
                                         Some (TVar x, t), lc));
              let ans, _, so =
                unify ~use_quants:(bvs, zvs) ~sb:ans
-                 cmp_v uni_v [Eqty (TVar x, t, lc)] in
+                 q [Eqty (TVar x, t, lc)] in
              Format.printf
                "abd_simple: [%d] validate 4 ans=@ %a@\n%!" ddepth pr_subst ans; (* *)
              validate vs ans;
@@ -500,10 +504,10 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
                 TVar v1 ->
                 VarSet.iter (fun v2 ->
                     Format.printf
-                      "uni_v %s=%b; uni_v %s=%b; cmp_v =%s@\n%!"
-                      (var_str v1) (uni_v v1)
-                      (var_str v2) (uni_v v2)
-                      (var_scope_str (cmp_v v1 v2)))
+                      "q.uni_v %s=%b; q.uni_v %s=%b; q.cmp_v =%s@\n%!"
+                      (var_str v1) (q.uni_v v1)
+                      (var_str v2) (q.uni_v v2)
+                      (var_scope_str (q.cmp_v v1 v2)))
                   (fvs_typ ty2)
               | _ -> ()); 
              Format.printf "abd_simple: [%d] choice 4 failed@\n%!" ddepth; (* *)
@@ -537,7 +541,7 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
                   let ans', _, so =
                     (* try *)
                     unify ~use_quants:(bvs, zvs) ~sb:ans
-                      cmp_v uni_v [Eqty (TVar x, t', lc)]
+                      q [Eqty (TVar x, t', lc)]
                       (*with Terms.Contradiction (msg,Some (ty1,ty2),_) as exn ->
                         Format.printf
                         "abd_simple: [%d] @ c.5 above failed:@ %s@ %a@ %a@\n%!" ddepth
@@ -545,10 +549,10 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
                         (match (ty1, ty2) with
                         TVar v1, TVar v2 ->
                         Format.printf
-                        "uni_v %s=%b; uni_v %s=%b; cmp_v =%s@\n%!"
-                        (var_str v1) (uni_v v1)
-                        (var_str v2) (uni_v v2)
-                        (str_of_cmp (cmp_v v1 v2))
+                        "q.uni_v %s=%b; q.uni_v %s=%b; q.cmp_v =%s@\n%!"
+                        (var_str v1) (q.uni_v v1)
+                        (var_str v2) (q.uni_v v2)
+                        (str_of_cmp (q.cmp_v v1 v2))
                         | _ -> ()); 
                         raise exn * *) in
                   Format.printf
@@ -563,10 +567,10 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
                     (match (ty1, ty2) with
                     TVar v1, TVar v2 ->
                     Format.printf
-                    "uni_v %s=%b; uni_v %s=%b; cmp_v =%s@\n%!"
-                    (var_str v1) (uni_v v1)
-                    (var_str v2) (uni_v v2)
-                    (str_of_cmp (cmp_v v1 v2))
+                    "q.uni_v %s=%b; q.uni_v %s=%b; q.cmp_v =%s@\n%!"
+                    (var_str v1) (q.uni_v v1)
+                    (var_str v2) (q.uni_v v2)
+                    (str_of_cmp (q.cmp_v v1 v2))
                     | _ -> ()); 
                     raise exn); * *)
                   Format.printf "abd_simple: choice 5 OK@\n%!"; (* *)
@@ -599,7 +603,7 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
       let cnj_typ, _ = prem_and (ans @ concl) in
       (* FIXME: hmm... *)
       (* let cnj_typ = list_diff cnj_typ discard in *)
-      let init_cand = revert_cst_n_uni uni_v cmp_v cnj_typ in
+      let init_cand = revert_cst_n_uni q cnj_typ in
       let init_cand = List.sort
           (fun ((_,(t1,_)),_) ((_,(t2,_)),_) -> typ_size t2 - typ_size t1)
           (uncurry List.combine init_cand) in
@@ -618,7 +622,7 @@ let abd_simple cmp_v uni_v ?without_quant ~bvs ~zvs ~bparams ~zparams
 
 (* let max_skip = ref 20 *)
 
-let abd_typ cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
+let abd_typ q ~bvs ~zvs ~bparams ~zparams
     ?(dissociate=false) ~validate ~discard brs =
   Format.printf "abd_typ:@ bparams=@ %a@\nzparams=@ %a@\n%!"
     pr_vparams bparams pr_vparams zparams; (* *)
@@ -638,7 +642,7 @@ let abd_typ cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
         "abd_typ-loop: [%d] skip=%d, #runouts=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
         ddepth skip (List.length runouts) pr_subst (fst br) pr_subst
      (snd br); (* *)
-      match abd_simple cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
+      match abd_simple q ~bvs ~zvs ~bparams ~zparams
         ~validate ~discard skip acc br with
       | Some acc when List.exists (implies_ans (snd acc)) failed ->
         Format.printf "abd_typ: reset matching failed [%d]@\n%!" ddepth; (* *)
@@ -669,7 +673,7 @@ let abd_typ cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
         "abd_typ-check_runouts: [%d] confls=%d, #done=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
         ddepth confls (List.length done_runouts) pr_subst (fst br)
      pr_subst (snd br); (* *)
-      match abd_simple cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
+      match abd_simple q ~bvs ~zvs ~bparams ~zparams
         ~validate ~discard 0 acc br with
       | Some acc when List.exists (implies_ans (snd acc)) failed ->
         Format.printf "abd_typ: reset runouts matching failed [%d]@\n%!" ddepth; (* *)
@@ -703,7 +707,7 @@ let abd_typ cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
         "abd_typ-check_brs: [%d] skip=%d, #done=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
         ddepth skip (List.length done_brs) pr_subst (fst br) pr_subst
         (snd br); (* *)
-      match abd_simple cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
+      match abd_simple q ~bvs ~zvs ~bparams ~zparams
         ~validate ~discard 0 acc br with
       | Some acc when List.exists (implies_ans (snd acc)) failed ->
         Format.printf "abd_typ: reset check matching failed [%d]@\n%!" ddepth; (* *)
@@ -736,6 +740,7 @@ let abd_typ cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
   let rec aux = function
     | t when num_sort_typ t ->
       let n = Infer.fresh_num_var () in
+      (* Alien vars become abduction answer vars. *)
       alien_eqs := (n, (t, dummy_loc)):: !alien_eqs;
       alien_vs := n :: !alien_vs; TVar n
     | TCons (n, tys) -> TCons (n, List.map aux tys)
@@ -755,9 +760,9 @@ let abd_typ cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
       try
         (* FIXME: rethink, JCAQPAS *)
         let cnj_ty, cnj_num =
-          combine_sbs cmp_v uni_v [prem; ans] in
+          combine_sbs q [prem; ans] in
         let res_ty, res_num =
-          residuum cmp_v uni_v cnj_ty concl in
+          residuum q cnj_ty concl in
         Format.printf
           "abd_typ-num:@ prem=%a@ concl=%a@ res_ty=%a@ res_num=%a@\ncnj_num=%a@\n%!"
           pr_subst prem pr_subst concl
@@ -768,12 +773,12 @@ let abd_typ cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
     brs in
   !alien_eqs, vs, ans, num
 
-let abd_mockup_num cmp_v uni_v ~bvs ~zvs ~bparams ~zparams brs =
+let abd_mockup_num q ~bvs ~zvs ~bparams ~zparams brs =
   (* Do not change the order and no. of branches afterwards. *)
   let brs_typ, brs_num, brs_so = split3
     (map_some (fun (prem, concl) ->
       let prems_opt =
-        try Some (unify cmp_v uni_v prem)
+        try Some (unify q prem)
         with Contradiction _ -> None in
       match prems_opt with
       | Some (prem_typ, prem_num, prem_so) ->
@@ -782,7 +787,7 @@ let abd_mockup_num cmp_v uni_v ~bvs ~zvs ~bparams ~zparams brs =
         then None
         else                          (* can raise Contradiction *)
           let concl_typ, concl_num, concl_so =
-            unify cmp_v uni_v concl in
+            unify q concl in
           List.iter (function
           | CFalse loc ->
             raise (Contradiction (Type_sort,
@@ -800,13 +805,13 @@ let abd_mockup_num cmp_v uni_v ~bvs ~zvs ~bparams ~zparams brs =
          and remove cleanup here *)
       let vs, ans = cleanup vs ans in
       let sb_ty, ans_num =
-        combine_sbs cmp_v uni_v [prem_ty; concl_ty; ans] in
+        combine_sbs q [prem_ty; concl_ty; ans] in
       let cnj_num = ans_num @ prem_num @ concl_num in
       ignore (NumS.satisfiable cnj_num))
     brs_typ brs_num in
   try
     let alien_eqs, tvs, ans_typ, more_num =
-      abd_typ cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
+      abd_typ q ~bvs ~zvs ~bparams ~zparams
         ~validate ~discard:[] brs_typ in
     Some (List.map2
             (fun (prem,concl) (more_p, more_c) ->
@@ -814,7 +819,7 @@ let abd_mockup_num cmp_v uni_v ~bvs ~zvs ~bparams ~zparams brs =
             brs_num more_num)
   with Suspect _ -> None
 
-let abd cmp_v uni_v ~bvs ~zvs ~bparams ~zparams ?(iter_no=2)
+let abd q ~bvs ~zvs ~bparams ~zparams ?(iter_no=2)
     ~discard brs =
   let dissociate = iter_no <= 0 in
   (* Do not change the order and no. of branches afterwards. *)
@@ -830,7 +835,7 @@ let abd cmp_v uni_v ~bvs ~zvs ~bparams ~zparams ?(iter_no=2)
   let brs_typ, brs_num, brs_so = split3
     (map_some (fun (nonrec, prem, concl) ->
       let prems_opt =
-        try Some (unify cmp_v uni_v prem)
+        try Some (unify q prem)
         with Contradiction _ -> None in
       match prems_opt with
       | Some (prem_typ, prem_num, prem_so) ->
@@ -839,7 +844,7 @@ let abd cmp_v uni_v ~bvs ~zvs ~bparams ~zparams ?(iter_no=2)
         then None
         else                          (* can raise Contradiction *)
           let concl_typ, concl_num, concl_so =
-            unify cmp_v uni_v concl in
+            unify q concl in
           assert (concl_so = []);
           if not (is_right (NumS.satisfiable prem_num)) then None
           else Some ((prem_typ, concl_typ), (nonrec, prem_num, concl_num),
@@ -854,13 +859,13 @@ let abd cmp_v uni_v ~bvs ~zvs ~bparams ~zparams ?(iter_no=2)
          and remove cleanup here *)
       let vs, ans = cleanup vs ans in
       let sb_ty, ans_num =
-        combine_sbs cmp_v uni_v [prem_ty; concl_ty; ans] in
+        combine_sbs q [prem_ty; concl_ty; ans] in
       let cnj_num = ans_num @ prem_num @ concl_num in
       (* Format.printf "validate-typ: sb_ty=@ %a@\ncnj_num=@ %a@\n%!"
          pr_subst sb_ty pr_formula cnj_num; * *)
       let (* num_state *) _ =
-        NumS.holds (fun _ _ -> Same_quant) (fun _ -> false)
-          NumS.empty_state cnj_num in
+        (* FIXME: It's like [satisfiable] because of [empty_q]. *)
+        NumS.holds empty_q VarSet.empty NumS.empty_state cnj_num in
       (* Format.printf "validate-typ: num_state=@ %a@\n%!"
          pr_formula (NumS.formula_of_state num_state); * *)
       ()
@@ -873,7 +878,7 @@ let abd cmp_v uni_v ~bvs ~zvs ~bparams ~zparams ?(iter_no=2)
      other sorts do better validation. *)
   let alien_eqs, tvs, ans_typ, more_num =
     try
-      abd_typ cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
+      abd_typ q ~bvs ~zvs ~bparams ~zparams
         ~dissociate ~validate ~discard:discard_typ brs_typ
     with Suspect (cnj, lc) ->
       Format.printf
@@ -890,7 +895,7 @@ let abd cmp_v uni_v ~bvs ~zvs ~bparams ~zparams ?(iter_no=2)
     try
       if dissociate then [], []
       (* [tvs] includes alien variables! *)
-      else NumS.abd cmp_v uni_v ~paramvs:(vars_of_list tvs) ~bparams
+      else NumS.abd q ~bparams
         ~discard:discard_num
         ~iter_no brs_num
     with

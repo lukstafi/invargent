@@ -82,9 +82,9 @@ let pr_rbrs5 ppf brs =
       nonrec pr_formula prem pr_formula concl) ppf brs
 
 
-let separate_subst cmp_v uni_v phi =
-  let sb_ty, phi_num, phi_so = unify cmp_v uni_v phi in
-  let sb_num, phi_num = NumS.separate_subst cmp_v uni_v phi_num in
+let separate_subst q phi =
+  let sb_ty, phi_num, phi_so = unify q phi in
+  let sb_num, phi_num = NumS.separate_subst q phi_num in
   let sb = update_sb ~more_sb:sb_num sb_ty in
   sb, phi_num @ subst_formula sb_num phi_so
 
@@ -458,7 +458,7 @@ let constr_gen_let gamma p e ta =
   bs, exphi, env, cn_and pcns cn
 
 type solution =
-  cmp_v * uni_v * Terms.formula *
+  quant_ops * Terms.formula *
     (int * (Terms.var_name list * Terms.formula)) list
 
 let infer_prog_mockup prog =
@@ -532,7 +532,7 @@ let infer_prog_mockup prog =
 
 let infer_prog solver prog =
   let gamma = ref [] in
-  let update_new_ex_types cmp_v uni_v sb sb_chi =
+  let update_new_ex_types q sb sb_chi =
     let more_items = ref [] in
     (* FIXME: duplicate with code at the end of [solve].  Clean up
        handling of ex. type parameters. *)
@@ -566,18 +566,18 @@ let infer_prog solver prog =
           let chi_id, _, cn =
             constr_gen_letrec !gamma x e sig_cn t tests in
           let preserve = VarSet.union (fvs_typ t) (fvs_formula sig_cn) in
-          let cmp_v, uni_v, phi_res, sb_chi = solver ~preserve cn in
-          let sb_res, phi_res = separate_subst cmp_v uni_v phi_res in
+          let q, phi_res, sb_chi = solver ~preserve cn in
+          let sb_res, phi_res = separate_subst q phi_res in
           let vs, phi =
             try List.assoc chi_id sb_chi
             with Not_found -> assert false in
-          let more_sb, phi = separate_subst cmp_v uni_v phi in
+          let more_sb, phi = separate_subst q phi in
           let sb = update_sb ~more_sb sb_res in
           let res = subst_typ sb t in
           let gvs = VarSet.elements
               (VarSet.union (fvs_formula phi) (fvs_typ res)) in
           let escaping, gvs = List.partition
-              (fun v -> not (List.mem v vs) && uni_v v) gvs in
+              (fun v -> not (List.mem v vs) && q.uni_v v) gvs in
           if escaping <> []
           then raise (Report_toplevel
                         ("Escaping local variables "^
@@ -587,7 +587,7 @@ let infer_prog solver prog =
           let typ_sch = gvs, phi, res in
           gamma := (x, typ_sch) :: !gamma;
           let ex_items =
-            update_new_ex_types cmp_v uni_v sb_res sb_chi in
+            update_new_ex_types q sb_res sb_chi in
           ex_items @ [LetRecVal (x, e, Some typ_sch, tests, loc)]
         | LetVal (p, e, defsig, tests, loc) ->
           let avs, sig_vs, sig_cn, t = match defsig with
@@ -609,10 +609,10 @@ let infer_prog solver prog =
             if not (VarSet.is_empty bs) && test_cn <> And []
             then All (bs, test_cn) else test_cn in
           let cn = cn_and cn test_cn in
-          let cmp_v, uni_v, phi, sb_chi = solver ~preserve cn in
-          let sb, phi = separate_subst cmp_v uni_v phi in
+          let q, phi, sb_chi = solver ~preserve cn in
+          let sb, phi = separate_subst q phi in
           let ex_items =
-            update_new_ex_types cmp_v uni_v sb sb_chi in
+            update_new_ex_types q sb sb_chi in
           let res = subst_typ sb t in
           let gvs = VarSet.union (fvs_formula phi) (fvs_typ res) in
           let gvs = VarSet.elements gvs in
@@ -654,14 +654,30 @@ type branch = Terms.formula * Terms.formula
 
 let prenexize cn =
   let quants = Hashtbl.create 2048 in
-  let univars = Hashtbl.create 128 in
+  let univars = Hashtbl.create 32 in
+  let allvars = Hashtbl.create 64 in
+  let same_tbl = Hashtbl.create 32 in
+  let same_as v1 v2 = Hashtbl.replace same_tbl v1 v2 in
   let cmp_v v1 v2 =
-    try Hashtbl.find quants (v1, v2) with Not_found -> assert false in
+    let v1 = try Hashtbl.find same_tbl v1 with Not_found -> v1
+    and v2 = try Hashtbl.find same_tbl v2 with Not_found -> v2 in
+    try Hashtbl.find quants (v1, v2) with Not_found ->
+      let c1 = not (Hashtbl.mem allvars v1)
+      and c2 = not (Hashtbl.mem allvars v2) in
+      if c1 && c2 then Same_quant
+      else if c1 then Right_of
+      else if c2 then Left_of
+      else (
+        Format.printf "cmp_v: unknown vars %s, %s@\n%!"
+          (var_str v1) (var_str v2); (* *)
+        assert false) in
   let uni_v v =
+    let v = try Hashtbl.find same_tbl v with Not_found -> v in
     try Hashtbl.find univars v with Not_found -> false in
   let up_vars = ref VarSet.empty and same_vars = ref VarSet.empty
   and change = ref true and at_uni = ref true in
   let add_var_rels vs =
+    VarSet.iter (fun v -> Hashtbl.add allvars v ()) vs;
     VarSet.iter (fun uv ->
         VarSet.iter (fun dv ->
             Hashtbl.add quants (uv,dv) Left_of;
@@ -694,10 +710,10 @@ let prenexize cn =
     if !change then (alternate (); loop (aux cn))
     else cn in
   (* Start the prefix from existential quantifiers. *)
-  cmp_v, uni_v, loop cn
+  {cmp_v; uni_v; same_as}, loop cn
 
-let normalize cmp_v uni_v cn =
-  let unify ?sb cnj = unify ?sb cmp_v uni_v cnj in
+let normalize q cn =
+  let unify ?sb cnj = unify ?sb q cnj in
   (* From unary predicate variable to the existential type of its result. *)
   let chi_exty = Hashtbl.create 2 in
   (* Existential type compatible with the variable. *)
@@ -917,7 +933,7 @@ let vs_hist_atom increase = function
 let vs_hist_sb increase sb =
   List.iter (fun (v,(t,_)) -> increase v; vs_hist_typ increase t) sb
 
-let simplify preserve cmp_v uni_v brs =
+let simplify preserve q brs =
   (* Prune "implies true" branches. *)
   let brs = List.filter
     (function _, [] -> false | _ -> true) brs in
@@ -939,7 +955,7 @@ let simplify preserve cmp_v uni_v brs =
     | Eqty (TVar v, _, _) | Leq (TVar v, _, _)
     | Eqty (_, TVar v, _) | Leq (_, TVar v, _) ->
       not (VarSet.mem v preserve) && count v = 1
-      && (in_prem || not (uni_v v))       (* FIXME: use cmp_v? *)
+      && (in_prem || not (q.uni_v v))       (* FIXME: use cmp_v? *)
     | _ -> false in
   let nonred_pr_atom a = not (redundant_atom true a) in
   let nonred_atom a = not (redundant_atom false a) in
@@ -951,8 +967,8 @@ let simplify preserve cmp_v uni_v brs =
   (* Merge branches with the same premise. *)
   (* Roughly like [map_reduce (@) [] brs] *)
   let equiv cnj1 cnj2 =
-    let c1_ty, c1_num, c1_so = unify cmp_v uni_v cnj1 in
-    let c2_ty, c2_num, c2_so = unify cmp_v uni_v cnj2 in
+    let c1_ty, c1_num, c1_so = unify q cnj1 in
+    let c2_ty, c2_num, c2_so = unify q cnj2 in
     let c1_ty = List.map (fun (v,(t,_)) -> v,t) c1_ty
     and c2_ty = List.map (fun (v,(t,_)) -> v,t) c2_ty
     and c1_num = replace_loc dummy_loc c1_num
@@ -961,13 +977,13 @@ let simplify preserve cmp_v uni_v brs =
     and c2_so = replace_loc dummy_loc c2_so in
     let res =
       List.sort compare c1_ty = List.sort compare c2_ty &&
-      (* NumS.equivalent cmp_v uni_v c1_num c2_num && *)
+      (* NumS.equivalent q c1_num c2_num && *)
       List.sort compare c1_num = List.sort compare c2_num &&
       List.sort compare c1_so = List.sort compare c2_so in
     Format.printf
       "simplify: equiv? res=%b ty=%b num=%b so=%b@\nc1=%a@\nc2=%a@\n%!"
       res (List.sort compare c1_ty = List.sort compare c2_ty)
-      (* (NumS.equivalent cmp_v uni_v c1_num c2_num)  *)
+      (* (NumS.equivalent q c1_num c2_num)  *)
       (List.sort compare c1_num = List.sort compare c2_num)
       (List.sort compare c1_so = List.sort compare c2_so)
       pr_formula cnj1 pr_formula cnj2; (* *)

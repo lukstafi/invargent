@@ -10,8 +10,9 @@ open Aux
 type chi_subst = (int * (var_name list * formula)) list
 
 type q_with_bvs = {
-  cmp_v : cmp_v;
-  uni_v : uni_v;
+  op : quant_ops;
+  cmp_v : var_name -> var_name -> var_scope;
+  uni_v : var_name -> bool;
   positive_b : var_name -> bool;
   (** Whether a binary predicate variable. *)
   is_chiK : int -> bool;
@@ -30,19 +31,9 @@ type q_with_bvs = {
   mutable negbs : var_name list;
 }
   
-let new_q cmp_v uni_v =
-  let same_q = Hashtbl.create 32 in
+let new_q q_ops =
   let posi_b = Hashtbl.create 16 in
   let chiK_i = Hashtbl.create 16 in
-  let cmp_v v1 v2 =
-    let v1 = try Hashtbl.find same_q v1 with Not_found -> v1 in
-    let v2 = try Hashtbl.find same_q v2 with Not_found -> v2 in
-    cmp_v v1 v2 in
-  let uni_v v =
-    if Hashtbl.mem same_q v then
-      let bv = Hashtbl.find same_q v in
-      not (Hashtbl.mem posi_b bv)
-    else uni_v v in
   let positive_b v = Hashtbl.mem posi_b v in
   let is_chiK i = Hashtbl.mem chiK_i i in
   let b_vs = Hashtbl.create 16 in
@@ -76,7 +67,7 @@ let new_q cmp_v uni_v =
       (fun (_,v) -> not (List.mem v qvs)) rvs in
     let vs = List.map snd rvs in
     let vss = vars_of_list vs in
-    List.iter (fun v -> Hashtbl.add same_q v b) vs;
+    List.iter (fun v -> q_ops.same_as v b) vs;
     q.allbvs <- VarSet.union q.allbvs vss;
     if Hashtbl.mem posi_b b
     then List.iter (fun v -> Hashtbl.add posi_b v ()) vs;
@@ -92,8 +83,8 @@ let new_q cmp_v uni_v =
       Hashtbl.add b_renaming b rvs;
       Hashtbl.add b_qvs b vs;
   and q = {
-    cmp_v; uni_v; add_b_vs_of;
-    allchi = Ints.empty;
+    op = q_ops; cmp_v = q_ops.cmp_v; uni_v = q_ops.uni_v;
+    add_b_vs_of; allchi = Ints.empty;
     b_vs; b_renaming; b_qvs; allbvs = VarSet.empty;
     add_bchi; find_b; find_chi; is_chiK;
     positive_b; negbs = [];
@@ -216,19 +207,16 @@ type state = subst * NumS.state
 
 let empty_state : state = [], NumS.empty_state
 
-let no_params = VarSet.empty, VarSet.empty
-
-let holds q (ty_st, num_st) cnj =
+let holds q avs (ty_st, num_st) cnj =
   let ty_st, num_cnj, _ =
-    unify ~use_quants:no_params ~sb:ty_st q.cmp_v q.uni_v cnj in
-  let num_st = NumS.holds q.cmp_v q.uni_v num_st num_cnj in
+    unify ~use_quants:(avs,avs) ~sb:ty_st q.op cnj in
+  let num_st = NumS.holds q.op avs num_st num_cnj in
   ty_st, num_st
 
 let satisfiable q (ty_st, num_st) cnj =
-  let ty_st, num_cnj, _ =
-    unify ~sb:ty_st q.cmp_v q.uni_v cnj in
+  let ty_st, num_cnj, _ = unify ~sb:ty_st q.op cnj in
   let num_st =
-    match NumS.satisfiable (* q.cmp_v q.uni_v *) ~state:num_st num_cnj with
+    match NumS.satisfiable ~state:num_st num_cnj with
     | Right s -> s | Left e -> raise e in
   ty_st, num_st
 
@@ -269,7 +257,8 @@ let split avs ans negchi_locs params zparams q =
       else Same_quant in
   let rec loop avs ans discard sol =
     (* 2 *)
-    Format.printf "split-loop: starting ans=@ %a@\nsol=@ %a@\n%!"
+    Format.printf "split-loop: starting@ avs=%a@\nans=@ %a@\nsol=@ %a@\n%!"
+      pr_vars avs
       pr_formula ans pr_bchi_subst (List.map (fun (b,a)->b,([],a))
      sol); (* *)
     let ans0 = List.filter
@@ -339,7 +328,7 @@ let split avs ans negchi_locs params zparams q =
     let init_res = List.filter
       (fun c -> not (List.exists (List.memq c % snd) ans_cand)) ans0 in
     let init_state =
-      try holds q empty_state init_res
+      try holds q avs empty_state init_res
       with Contradiction _ as e -> raise (convert e) in
     (* 8 *)
     (* TODO: would it be better to implement it through
@@ -349,7 +338,7 @@ let split avs ans negchi_locs params zparams q =
       (fun (b,ans) -> b,
         List.filter (fun c ->
           try
-            state := holds q !state [c];
+            state := holds q avs !state [c];
             ans_res := c :: !ans_res;
             false
           with Contradiction _ -> true) ans)
@@ -420,16 +409,17 @@ let split avs ans negchi_locs params zparams q =
 
 (** Perform quantifier elimination on provided variables and generally
     simplify the formula. *)
-let simplify cmp_v uni_v (vs, cnj) =
+let simplify q_ops (vs, cnj) =
   let vs = vars_of_list vs in
   let cmp_v v1 v2 =
     let c1 = VarSet.mem v1 vs and c2 = VarSet.mem v2 vs in
     if c1 && c2 then Same_quant
     else if c1 then Right_of
     else if c2 then Left_of
-    else cmp_v v1 v2 in
+    else q_ops.Terms.cmp_v v1 v2 in
+  let q_ops = {q_ops with cmp_v} in
   let ty_ans, num_ans, _ =
-    unify cmp_v uni_v cnj in
+    unify q_ops cnj in
   let ty_sb, ty_ans = List.partition
     (fun (v,_) -> VarSet.mem v vs && v <> delta && v <> delta') ty_ans in
   let ty_ans = subst_formula ty_sb (to_formula ty_ans) in
@@ -437,21 +427,21 @@ let simplify cmp_v uni_v (vs, cnj) =
   and num_vs = VarSet.inter vs (fvs_formula num_ans) in
   let elimvs = VarSet.diff num_vs ty_vs in
   let _, num_ans =
-    NumS.simplify cmp_v uni_v elimvs num_ans in
+    NumS.simplify q_ops elimvs num_ans in
   VarSet.elements ty_vs,
   ty_ans @ num_ans
 
-let converge cmp_v uni_v ~check_only (vs1, cnj1) (vs2, cnj2) =
+let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
   Format.printf "converge: check_only=%b@\ncnj1=%a@\ncnj2=%a\n%!"
     check_only pr_formula cnj1 pr_formula cnj2; (* *)
-  let c1_ty, c1_num, c1_so = unify cmp_v uni_v cnj1 in
-  let c2_ty, c2_num, c2_so = unify cmp_v uni_v cnj2 in
+  let c1_ty, c1_num, c1_so = unify q_ops cnj1 in
+  let c2_ty, c2_num, c2_so = unify q_ops cnj2 in
   assert (c1_so = []); assert (c2_so = []);
   let cmp (v1,_) (v2,_) = compare v1 v2 in
   let c1_ty = List.sort cmp c1_ty and c2_ty = List.sort cmp c2_ty in
   let cnj_tys = inter_merge cmp
     (fun (_,(t1,_)) (_,(t2,_)) -> Eqty (t1,t2,dummy_loc)) c1_ty c2_ty in
-  let renaming, ren_num, _ = unify cmp_v uni_v cnj_tys in
+  let renaming, ren_num, _ = unify q_ops cnj_tys in
   Format.printf "converge: cnj_tys=%a@\nren_num=%a@\nrenaming1=%a@\n%!"
     pr_formula cnj_tys pr_formula ren_num pr_subst renaming; (* *)
   let renaming =
@@ -504,39 +494,34 @@ let converge cmp_v uni_v ~check_only (vs1, cnj1) (vs2, cnj2) =
     vs2 in
   let c_num =
     if check_only then c2_num
-    else NumS.converge cmp_v uni_v c1_num c2_num in
+    else NumS.converge q_ops c1_num c2_num in
   Format.printf "converge: check_only=%b@\nc2_num=%a@\nc_num=%a\n%!"
     check_only pr_formula c2_num pr_formula c_num; (* *)
   (* FIXME: will it not remove important atoms 'cause of [vs2]? *)
-  simplify cmp_v uni_v (vs2, to_formula c2_ty @ c_num)
+  simplify q_ops (vs2, to_formula c2_ty @ c_num)
 
 let neg_constrns = ref true
 
 (* Captures where the repeat step is/are. *)
 let disj_step = [|0; 1; 2; 4|]
 
-let solve cmp_v uni_v brs =
+let solve q_ops brs =
   (* DEBUG *)
   List.iter
       (fun (prem,concl) ->
-         try ignore (unify cmp_v uni_v (prem@concl))
+         try ignore (unify q_ops (prem@concl))
          with Contradiction _ as e ->
            Format.printf
              "solve: bad branch@\n%a@ ⟹@ %a@\nreason: %a@\n%!"
              pr_formula prem pr_formula concl pr_exception e; (* *)
       )
       brs;
-  let q = new_q cmp_v uni_v in
+  let q = new_q q_ops in
   let cmp_v = q.cmp_v and uni_v = q.uni_v in
   let neg_brs, brs = List.partition
       (fun (_,concl) -> List.exists
           (function CFalse _ -> true | _ -> false) concl) brs in
-  let cmp_v' gvs v1 v2 =
-    let c1 = List.mem v1 gvs and c2 = List.mem v2 gvs in
-    if c1 && c2 then Same_quant
-    else if c1 then Right_of
-    else if c2 then Left_of
-    else cmp_v v1 v2 in
+  (* Variables not in quantifier will behave like rightmost. *)
   (* Enrich the negative branches -- they need it. *)
   let neg_brs = List.map
       (fun (prem,concl) ->
@@ -660,7 +645,7 @@ let solve cmp_v uni_v brs =
                "validate-postcond: ans=%a@ prem=%a@ concl=%a@\n%!"
                pr_formula ans pr_formula prem pr_formula concl; (* *)
              let sb_ty, ans_num, ans_so =
-               unify cmp_v uni_v (ans @ prem @ concl) in
+               unify q_ops (ans @ prem @ concl) in
              Format.printf
                "validate-postcond: sb_ty=@ %a@\nans_num=@ %a@\n%!"
                pr_subst sb_ty pr_formula ans_num; (* *)
@@ -696,7 +681,7 @@ let solve cmp_v uni_v brs =
         let g_rol = List.map
             (fun (i,cnjs) ->
                i, connected ~validate ~directed:true [delta; delta']
-                  (DisjElim.disjelim cmp_v uni_v
+                  (DisjElim.disjelim q_ops
                      ~do_num:(disj_step.(1) <= iter_no) cnjs))
             g_rol in
         Format.printf "solve: iter_no=%d@\ng_rol.A=%a@\n%!"
@@ -707,7 +692,7 @@ let solve cmp_v uni_v brs =
           let fvs = VarSet.elements
               (VarSet.diff (fvs_formula g_ans)
                  (vars_of_list [delta;delta'])) in
-          let vs, g_ans = simplify cmp_v uni_v (fvs, g_ans) in
+          let vs, g_ans = simplify q_ops (fvs, g_ans) in
           let pvs = VarSet.elements
               (VarSet.diff (vars_of_list vs) (vars_of_list g_vs)) in
           let targs = List.map (fun v -> TVar v) pvs in
@@ -724,12 +709,11 @@ let solve cmp_v uni_v brs =
         let g_rol = List.map2
             (fun (i,ans1) (j,(g_vs,g_ans)) ->
                assert (i = j);
-               let g_cmp_v = cmp_v' g_vs in
                let ans2 =
-                 converge g_cmp_v uni_v
+                 converge q.op
                    ~check_only:(iter_no < disj_step.(3)) ans1 (g_vs, g_ans) in
                let ans2 =
-                 (* simplify g_cmp_v uni_v *) (lift_ex_types g_cmp_v ans2) in
+                 (* simplify g_cmp_v uni_v *) (lift_ex_types q.op ans2) in
                Format.printf "solve.loop-dK: final@ ans2=%a@\n%!"
                  pr_ans ans2; (* *)
                (* No [b] "owns" these formal parameters. Their instances
@@ -769,8 +753,7 @@ let solve cmp_v uni_v brs =
                try
                  Format.printf "neg_cl_check: cnj=@ %a@\n%!" pr_formula
                    cnj; (* *)
-                 let ty_cn (*_*), num_cn, _ =
-                   unify cmp_v uni_v cnj in
+                 let ty_cn (*_*), num_cn, _ = unify q.op cnj in
                  if num_cn = [] then (
                    Format.printf
                      "neg_cl_check: fallback typ@ ty_cn=@ %a@\n%!"
@@ -801,7 +784,7 @@ let solve cmp_v uni_v brs =
         let brs1 = List.map
             (fun (nonrec,_,prem,concl) -> nonrec,prem,concl) brs1 in
         let alien_eqs, (vs, ans) =
-          Abduction.abd cmp_v uni_v ~bvs ~zvs ~bparams ~zparams
+          Abduction.abd q.op ~bvs ~zvs ~bparams ~zparams
             ~iter_no ~discard brs1 in
         let ans_res, more_discard, ans_sol =
           split vs ans negchi_locs params zparams q in
@@ -863,7 +846,7 @@ let solve cmp_v uni_v brs =
                    ds in
                let dvs = gvs @ concat_map (fun (_,(dvs,_))->dvs) ds in
                let i_res =
-                 simplify (cmp_v' dvs) uni_v
+                 simplify q.op
                    (connected ~directed:true [delta; delta']
                       (dvs, dans @ g_ans)) in
                Format.printf
@@ -883,8 +866,7 @@ let solve cmp_v uni_v brs =
              (* No need to substitute, because variables will be
                 freshened when predicate variable is instantiated. *)
              let dans = subst_formula [b, (tdelta, dummy_loc)] dans in
-             let dvs, ans' =
-               simplify (cmp_v' dvs) uni_v (dvs, dans @ ans) in
+             let dvs, ans' = simplify q.op (dvs, dans @ ans) in
              let i_res = dvs @ vs, ans' in
              Format.printf
                "solve-loop: vs=%a@ ans=%a@ chi%d(.)=@ %a@\n%!"
@@ -932,7 +914,7 @@ let solve cmp_v uni_v brs =
                           None, loc))
         with Contradiction _ -> ()
       ) neg_cns;
-    let ans_sb, _ = Infer.separate_subst cmp_v uni_v ans_res in
+    let ans_sb, _ = Infer.separate_subst q.op ans_res in
     (* Substitute the solutions for existential types. *)
     List.iter
       (fun (ex_i, loc) ->
@@ -945,7 +927,7 @@ let solve cmp_v uni_v brs =
          assert (ty = t1 && t1 = tdelta);
          assert (t2 = tdelta' && pvs = [delta']);
          let chi_vs, phi = List.assoc chi_i rol in
-         let sb, rphi = Infer.separate_subst cmp_v uni_v phi in
+         let sb, rphi = Infer.separate_subst q.op phi in
          let sb = update_sb ~more_sb:ans_sb sb in
          let sb = List.map
              (function
@@ -971,4 +953,4 @@ let solve cmp_v uni_v brs =
          Hashtbl.replace sigma (Extype ex_i)
            (VarSet.elements allvs, rphi, [rty], ety_n, pvs)) !new_ex_types;
     Format.printf "solve: returning@\n%!"; (* *)
-    cmp_v, uni_v, ans
+    q.op, ans

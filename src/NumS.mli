@@ -12,11 +12,9 @@ val abd_rotations : int ref
 val early_num_abduction : bool ref
 (** For uniformity, return an empty list as introduced
     variables. Raise [Contradiction] if constraints are contradictory
-    and [Suspect] if no answer can be found. [paramvs] includes alien
-    variables, *)
+    and [Suspect] if no answer can be found. *)
 val abd :
-  Terms.cmp_v -> Terms.uni_v ->
-  paramvs:Terms.VarSet.t ->
+  Terms.quant_ops ->
   bparams:(Terms.var_name * Terms.VarSet.t) list ->
   discard:Terms.formula list ->
   ?iter_no:int ->
@@ -27,14 +25,14 @@ val abd :
 val disjelim_rotations : int ref
 (** For uniformity, we return an empty list as introduced variables. *)
 val disjelim :
-  Terms.cmp_v -> Terms.uni_v ->
+  Terms.quant_ops ->
   Terms.formula list -> Terms.var_name list * Terms.formula
 
 (** Perform quantifier elimination on provided variables and generally
     simplify the formula. Since linear arithmetic has quantifier
     elimination, always returns empty variable list. *)
 val simplify :
-  Terms.cmp_v -> Terms.uni_v ->
+  Terms.quant_ops ->
   Terms.VarSet.t -> Terms.formula -> 
   Terms.var_name list * Terms.formula
 (*
@@ -47,7 +45,7 @@ val equivalent :
     consequences via Fourier elimination and turning equations into
     pairs of inequalities. *)
 val converge :
-  Terms.cmp_v -> Terms.uni_v ->
+  Terms.quant_ops ->
   Terms.formula -> Terms.formula -> Terms.formula
 
 type state
@@ -57,9 +55,9 @@ val satisfiable : ?state:state -> Terms.atom list -> (exn, state) Aux.choice
 val satisfiable_exn : ?state:state -> Terms.atom list -> state
 (** Incremental check whether |= Q.A. Raises [Contradiction]. *)
 val holds :
-  Terms.cmp_v -> Terms.uni_v ->
+  Terms.quant_ops -> Terms.VarSet.t ->
   state -> Terms.formula -> state
 
 val separate_subst :
-  Terms.cmp_v -> Terms.uni_v ->
+  Terms.quant_ops ->
   Terms.formula -> Terms.subst * Terms.formula

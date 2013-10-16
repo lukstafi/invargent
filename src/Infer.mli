@@ -31,7 +31,7 @@ val constr_gen_expr :
   (string * Terms.typ_scheme) list ->
   Terms.expr -> Terms.typ -> cnstrnt
 type solution =
-  Terms.cmp_v * Terms.uni_v * Terms.formula *
+  Terms.quant_ops * Terms.formula *
     (int * (Terms.var_name list * Terms.formula)) list
 val infer_prog_mockup : Terms.struct_item list -> Terms.VarSet.t * cnstrnt
 val infer_prog :
@@ -48,18 +48,18 @@ val fresh_typ_var : unit -> Terms.var_name
 val fresh_num_var : unit -> Terms.var_name
 val freshen_var : Terms.var_name -> Terms.var_name
 
-val prenexize : cnstrnt -> Terms.cmp_v * Terms.uni_v * cnstrnt
-val normalize : Terms.cmp_v -> Terms.uni_v -> cnstrnt -> branch list
+val prenexize : cnstrnt -> Terms.quant_ops * cnstrnt
+val normalize : Terms.quant_ops -> cnstrnt -> branch list
 
 (* Eliminate shared conclusions during {!simplify}. *)
 val simplify :
   Terms.VarSet.t ->
-  Terms.cmp_v -> Terms.uni_v -> branch list -> branch list
+  Terms.quant_ops -> branch list -> branch list
 
 (** {2 Postprocessing and printing} *)
 
 val separate_subst :
-  Terms.cmp_v -> Terms.uni_v -> Terms.formula ->
+  Terms.quant_ops -> Terms.formula ->
   Terms.subst * Terms.formula
 
 (*

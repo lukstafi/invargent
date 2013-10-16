@@ -9,17 +9,20 @@ open OUnit
 open Terms
 open Aux
 
+let cmp_v v1 v2 = Same_quant
+let uni_v v = v=VNam (Type_sort, "tx")
+              || v=VNam (Type_sort, "ty")
+let q = {cmp_v; uni_v; same_as = fun _ _ -> ()}
+
 let test_case msg test result =
   Terms.reset_state ();
   Infer.reset_state ();
   (* try *)
   try
     Printexc.record_backtrace true;
-    let cmp_v _ _ = Same_quant in
-    let uni_v _ = false in
     let brs = Parser.cn_branches Lexer.token
       (Lexing.from_string test) in
-    let vs, ans = DisjElim.disjelim cmp_v uni_v ~do_num:true
+    let vs, ans = DisjElim.disjelim q ~do_num:true
       (List.map (uncurry (@)) brs) in
     ignore (Format.flush_str_formatter ());
     Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"

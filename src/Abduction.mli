@@ -16,7 +16,7 @@ val more_general : bool ref
 type vparams = (Terms.var_name * Terms.VarSet.t) list
 val pr_vparams : Format.formatter -> vparams -> unit
 val abd_simple :
-  Terms.cmp_v -> Terms.uni_v ->
+  Terms.quant_ops ->
   ?without_quant:unit ->
   bvs:Terms.VarSet.t -> zvs:Terms.VarSet.t ->
   bparams:vparams -> zparams:vparams ->
@@ -27,7 +27,7 @@ val abd_simple :
   Terms.subst * Terms.subst ->
   (Terms.var_name list * Terms.subst) option
 val abd_typ :
-  Terms.cmp_v -> Terms.uni_v ->
+  Terms.quant_ops ->
   bvs:Terms.VarSet.t -> zvs:Terms.VarSet.t ->
   bparams:vparams -> zparams:vparams ->
   ?dissociate:bool ->
@@ -39,7 +39,7 @@ val abd_typ :
 (** Raises [Contradiction] if constraints are contradictory and
     [NoAnswer] when no answer can be found. *)
 val abd :
-  Terms.cmp_v -> Terms.uni_v ->
+  Terms.quant_ops ->
   bvs:Terms.VarSet.t -> zvs:Terms.VarSet.t ->
   bparams:vparams -> zparams:vparams ->
   ?iter_no:int ->
@@ -48,7 +48,7 @@ val abd :
   Terms.subst *                         (* alien_eqs *)
   (Terms.var_name list * Terms.formula)
 val abd_mockup_num :
-  Terms.cmp_v -> Terms.uni_v ->
+  Terms.quant_ops ->
   bvs:Terms.VarSet.t ->
   zvs:Terms.VarSet.t ->
   bparams:vparams ->

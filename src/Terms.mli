@@ -214,6 +214,12 @@ type var_scope =
 
 val var_scope_str : var_scope -> string
 
+type quant_ops = {
+  cmp_v : var_name -> var_name -> var_scope;
+  uni_v : var_name -> bool;
+  same_as : var_name -> var_name -> unit;
+}
+
 exception Contradiction of sort * string * (typ * typ) option * loc
 exception NoAnswer of sort * string * (typ * typ) option * loc
 exception Suspect of formula * loc
@@ -233,9 +239,6 @@ val typ_sort_atom : atom -> bool
 val num_sort_atom : atom -> bool
 val split_sorts : formula -> (sort * formula) list
 
-type cmp_v = var_name -> var_name -> var_scope
-type uni_v = var_name -> bool
-
 (** Register variable as [NotEx]. *)
 val register_notex : var_name -> unit
 (** [use_quants] is a pair of [bvs] variables and parameters. The
@@ -244,14 +247,14 @@ val register_notex : var_name -> unit
     predicate variables and [NotEx] atoms. The substitution is not
     applied to the third element atoms! *)
 val unify : ?use_quants:(VarSet.t * VarSet.t) ->
-  ?sb:subst -> cmp_v -> uni_v ->
+  ?sb:subst -> quant_ops ->
   atom list -> subst * atom list * atom list
 val to_formula : subst -> atom list
 val combine_sbs : ?ignore_so:unit -> ?use_quants:(VarSet.t * VarSet.t) ->
-  cmp_v -> uni_v ->
+  quant_ops ->
   ?more_phi:atom list -> subst list -> subst * atom list
 val subst_solved : ?ignore_so:unit -> ?use_quants:(VarSet.t * VarSet.t) ->
-  cmp_v -> uni_v ->
+  quant_ops ->
   subst -> cnj:subst -> subst * atom list
 
 (** {2 Global tables} *)

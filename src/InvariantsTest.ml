@@ -20,10 +20,10 @@ let test_case ?(more_general=false) msg test answers =
         let preserve, orig_cn = Infer.infer_prog_mockup prog in
         Format.printf "orig_cn: %s@\n%a@\n%!" msg
           Infer.pr_cnstrnt orig_cn; (* *)
-        let cmp_v, uni_v, cn = Infer.prenexize orig_cn in
-        let brs = Infer.normalize cmp_v uni_v cn in
+        let q_ops, cn = Infer.prenexize orig_cn in
+        let brs = Infer.normalize q_ops cn in
         Format.printf "brs: %s@\n%a@\n%!" msg Infer.pr_brs brs; (* *)
-        let brs = Infer.simplify preserve cmp_v uni_v brs in
+        let brs = Infer.simplify preserve q_ops brs in
         Format.printf "simpl-brs: %s@\n%a@\nex_types:@\n%!"
           msg Infer.pr_brs brs;
         List.iter
@@ -37,8 +37,8 @@ let test_case ?(more_general=false) msg test answers =
           !all_ex_types;
         (* *)
         Abduction.more_general := more_general;
-        let _, _, (res, rol, sol) =
-          Invariants.solve cmp_v uni_v brs in
+        let _, (res, rol, sol) =
+          Invariants.solve q_ops brs in
         List.iter
           (fun (i,loc) ->
             let (allvs, phi, ty, n, pvs) =
@@ -253,7 +253,7 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
 
   "binary plus" >::
     (fun () ->
-      (* skip_if !debug "debug"; *)
+      skip_if !debug "debug";
       test_case "binary plus"
 "newtype Binary : num
 newtype Carry : num
@@ -289,9 +289,9 @@ let rec plus =
         (function Zero -> PZero (plus COne a1 Zero)
 	  | PZero b1 -> PZero (plus COne a1 b1)
 	  | POne b1 -> POne (plus COne a1 b1)))"
-        [1,"∃n235, n236, n237, n238.
-  δ = (Carry n238 → Binary n237 → Binary n236 → Binary n235) ∧
-  n235 = (n238 + n237 + n236)"]
+        [1,"∃n239, n240, n241, n242.
+  δ = (Carry n242 → Binary n241 → Binary n240 → Binary n239) ∧
+  n239 = (n242 + n241 + n240)"]
     );
 
   "binary plus with test" >::
@@ -336,9 +336,9 @@ let rec plus =
 	  | POne b1 -> POne (plus COne a1 b1)))
 test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
                    (POne (POne Zero)))"
-        [1,"∃n256, n257, n258, n259.
-  δ = (Carry n259 → Binary n258 → Binary n257 → Binary n256) ∧
-  n256 = (n259 + n258 + n257)"]
+        [1,"∃n264, n265, n266, n267.
+  δ = (Carry n267 → Binary n266 → Binary n265 → Binary n264) ∧
+  n264 = (n267 + n266 + n265)"]
     );
 
   "flatten_pairs" >::
@@ -356,13 +356,13 @@ let rec flatten_pairs =
   function LNil -> LNil
     | LCons ((x, y), l) ->
       LCons (x, LCons (y, flatten_pairs l))"
-        [1,"∃n50, n51, t53. δ = (List ((t53, t53), n51) → List (t53, n50)) ∧
-  n50 = (n51 + n51)"];
+        [1,"∃n51, n52, t45. δ = (List ((t45, t45), n52) → List (t45, n51)) ∧
+  n51 = (n52 + n52)"];
     );
 
   "escape castle" >::
     (fun () ->
-      skip_if !debug "debug";
+      (* skip_if !debug "debug"; *)
       test_case "escape castle"
 "newtype Room
 newtype Yard
