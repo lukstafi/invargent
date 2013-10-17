@@ -532,9 +532,15 @@ let abd q ~bparams ~discard ?(iter_no=2) brs =
     (fun (nonrec, prem, concl) ->
       if iter_no > 1 || nonrec || !early_num_abduction
       then Some (prem, concl) else None) brs in
+  let brs = List.stable_sort
+      (fun ((pe1,pi1),_) ((pe2,pi2),_) ->
+         (List.length pe1 + List.length pi1) -
+           (List.length pe2 + List.length pi2))
+      brs in
   Format.printf "NumS.abd: brs=@\n| %a@\n%!"
     (pr_line_list "| " pr_eqineq_br) brs;
   (* *)
+
   let br0 = 0, List.hd brs in
   let more_brs = List.map (fun br -> -1, br) (List.tl brs) in
 

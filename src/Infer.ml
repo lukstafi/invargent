@@ -883,9 +883,13 @@ let normalize q cn =
       Format.printf "checking-Or: none passes@\n%!"; (* *)
       raise (unsome !first_exn)
     | [cn, sol] ->
+      Format.printf "dsj-test: selected\n%a@\n%!"
+        pr_cnstrnt cn;
       (* selected_disj := cn:: !selected_disj; *)
       Left sol
     | (cn, sol)::_ when step > 0 ->
+      Format.printf "dsj-test: selected\n%a@\n%!"
+        pr_cnstrnt cn;
       (* selected_disj := cn:: !selected_disj; *)
       Left sol
     | _ -> Right (guard_cnj, dsjs) in
@@ -998,9 +1002,18 @@ let simplify preserve q brs =
     | (prem, concl as br) :: brs ->
       try merge acc (meet prem concl brs)
       with Not_found -> merge (br::acc) brs in
+  let brs = merge [] brs in
+  (* Experimental: first short branches, but then longest branches first. *)
   let short_brs, long_brs = List.partition
-    (function [],_  | [_],_ (* | [_;_],_ *) -> true | _ -> false)
-    (merge [] brs) in
+    (function [],_  | [_],_ | [_;_],_ (* | [_;_;_],_ *) -> true
+            | _ -> false)
+    brs in
+  let short_brs = List.stable_sort
+      (fun (prem1,_) (prem2,_) -> List.length prem1 - List.length prem2)
+      short_brs in
+  let long_brs = List.stable_sort
+      (fun (prem1,_) (prem2,_) -> List.length prem2 - List.length prem1)
+      long_brs in
   short_brs @ long_brs
 
 (** {2 Postprocessing and printing} *)
