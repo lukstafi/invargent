@@ -1090,6 +1090,22 @@ let unify ?use_quants ?(sb=[]) q cnj =
 
 let to_formula =
   List.map (fun (v,(t,loc)) -> Eqty (TVar v, t, loc))
+    
+let subst_of_cnj q cnj =
+  map_some
+    (function
+      | Eqty (TVar v, t, lc)
+        when not (q.uni_v v)
+          && VarSet.for_all (fun v2 -> q.cmp_v v v2 <> Left_of)
+               (fvs_typ t) ->
+        Some (v,(t,lc))
+      | Eqty (t, TVar v, lc)
+        when not (q.uni_v v)
+          && VarSet.for_all (fun v2 -> q.cmp_v v v2 <> Left_of)
+               (fvs_typ t) ->
+        Some (v,(t,lc))
+      | _ -> None)
+    cnj
 
 let combine_sbs ?ignore_so ?use_quants q ?(more_phi=[]) sbs =
   let cnj_typ, cnj_num, cnj_so =

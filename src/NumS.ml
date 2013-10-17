@@ -485,8 +485,8 @@ let abd_simple cmp cmp_w uni_v ~bvs ~validate
   with Contradiction _ -> None
 
 let make_cmp q v1 v2 =
-  (* Order: return positive if [v1] should be more to the left: more
-  upstream, or if only [v2] is a parameter. *)
+  (* Order: variables more to the right in the quantifier should be more
+     to the left in the sum. *)
   match q.cmp_v v1 v2 with
   | Left_of -> 1
   | Right_of -> -1
@@ -949,4 +949,3 @@ let separate_subst q cnj =
     ineqn in
   let eqn, sb = expand_subst eqs in
   sb, eqineq_to_formula (eqn, ineqn)
-    

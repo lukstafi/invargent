@@ -958,10 +958,10 @@ let abd q ~bvs ~zvs ~bparams ~zparams ?(iter_no=2)
       (* *)
       raise (NoAnswer (Num_sort, "numerical abduction failed",
                        None, lc)) in
+  let n_sb = subst_of_cnj q ans_num in
+  let ans_typ = subst_formula n_sb (to_formula ans_typ) in
   alien_eqs,
-  (nvs @ tvs,
-   map_append (fun (v,(t,lc)) -> Eqty (TVar v,t,lc))
-     ans_typ ans_num)
+  (nvs @ tvs, ans_typ @ ans_num)
 
 
 

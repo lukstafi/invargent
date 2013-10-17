@@ -250,13 +250,15 @@ val register_notex : var_name -> unit
 val unify : ?use_quants:(VarSet.t * VarSet.t) ->
   ?sb:subst -> quant_ops ->
   atom list -> subst * atom list * atom list
-val to_formula : subst -> atom list
+val to_formula : subst -> formula
+(** Find the atoms in the formula which are valid substitutions. *)
+val subst_of_cnj : quant_ops -> formula -> subst
 val combine_sbs : ?ignore_so:unit -> ?use_quants:(VarSet.t * VarSet.t) ->
   quant_ops ->
-  ?more_phi:atom list -> subst list -> subst * atom list
+  ?more_phi:formula -> subst list -> subst * formula
 val subst_solved : ?ignore_so:unit -> ?use_quants:(VarSet.t * VarSet.t) ->
   quant_ops ->
-  subst -> cnj:subst -> subst * atom list
+  subst -> cnj:subst -> subst * formula
 
 (** {2 Global tables} *)
 

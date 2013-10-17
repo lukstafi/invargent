@@ -253,7 +253,7 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
 
   "binary plus" >::
     (fun () ->
-      (* skip_if !debug "debug"; *)
+      skip_if !debug "debug";
       test_case "binary plus"
 "newtype Binary : num
 newtype Carry : num
@@ -356,8 +356,8 @@ let rec flatten_pairs =
   function LNil -> LNil
     | LCons ((x, y), l) ->
       LCons (x, LCons (y, flatten_pairs l))"
-        [1,"∃n51, n52, t45. δ = (List ((t45, t45), n52) → List (t45, n51)) ∧
-  n51 = (n52 + n52)"];
+        [1,"∃n62, n63, t56. δ = (List ((t56, t56), n63) → List (t56, n62)) ∧
+  n62 = (n63 + n63)"];
     );
 
   "escape castle" >::
@@ -383,7 +383,7 @@ let rec escape = function Outside x -> x
   | Yard x ->
     let y = leave (enter x) in
     escape y"
-        [1,"∃t408. δ = (Placement t408 → Outside)"]
+        [1,"∃t618. δ = (Placement t618 → Outside)"]
 
     );
 
@@ -405,7 +405,7 @@ let rec walk = fun x goal ->
   | NotClose ->
     let y, to_y = wander x in
     Transitive (to_y, walk y goal)"
-        [1,"∃t135, t136. δ = (Place t135 → Place t136 → Nearby (t135, t136))"];
+        [1,"∃t49, t50. δ = (Place t49 → Place t50 → Nearby (t49, t50))"];
     );
 
   "equational nested universal" >::
@@ -470,7 +470,7 @@ test (is_nearby (walk LocA LocB))"
   "find castle" >::
     (fun () ->
        (* skip_if !debug "debug"; *)
-       todo "existential";
+       (* todo "existential"; *)
        test_case "find castle small"
 "newtype Room
 newtype Yard
