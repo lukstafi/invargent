@@ -676,14 +676,14 @@
   <subsection|Simple constraint abduction for linear
   arithmetic><label|SCAlinear>
 
-  We use <em|Fourier-Motzkin elimination>. To avoid complexities we initially
-  only handle rational number domain, but if need arises we will extend to
-  integers using <em|Omega-test> procedure as presented in
-  <cite|ArithQuantElim>. The major operations are:
+  We use <em|Fourier-Motzkin elimination>. To avoid complexities we only
+  handle the rational number domain. To extend the algorithm to integers,
+  <em|Omega-test> procedure as presented in <cite|ArithQuantElim> needs to be
+  adapted. The major operations are:
 
   <\itemize>
     <item><em|Elimination> of a variable takes an equation and selects a
-    variable that isn't upstream of any other variable of the equation, and
+    variable that is not upstream of any other variable of the equation, and
     substitutes-out this variable from the rest of the constraint. The solved
     form contains an equation for this variable.
 
@@ -785,7 +785,8 @@
   the expected answer of the JCA problem is not a fully maximal SCA answer to
   these branches. We mitigate this problem by removing, in the first call to
   numerical abduction (the second iteration of the main algorithm), branches
-  that contain unary predicate variables in the conclusion.
+  that contain unary predicate variables in the conclusion, i.e. we only use
+  the ``non-recursive'' branches.
 
   <subsection|Joint constraint abduction for linear arithmetic>
 
@@ -825,10 +826,6 @@
   <verbatim|Suspect> that contains the partial answer conjoined with
   conclusion of an implication that failed to produce an answer compatible
   with remaining implications.
-
-  <subsubsection|The need to bootstrap from non-recursive branches>
-
-  TODO: about fully-maximal problems and <verbatim|flatten_pairs>.
 
   <section|Disjunction Elimination>
 
@@ -1455,16 +1452,16 @@
     <associate|auto-10|<tuple|3.3|8>>
     <associate|auto-11|<tuple|3.4|8>>
     <associate|auto-12|<tuple|3.5|9>>
-    <associate|auto-13|<tuple|3.5.1|10>>
-    <associate|auto-14|<tuple|4|10>>
-    <associate|auto-15|<tuple|4.1|10>>
-    <associate|auto-16|<tuple|4.2|11>>
-    <associate|auto-17|<tuple|5|11>>
-    <associate|auto-18|<tuple|5.1|11>>
-    <associate|auto-19|<tuple|5.2|11>>
+    <associate|auto-13|<tuple|4|10>>
+    <associate|auto-14|<tuple|4.1|10>>
+    <associate|auto-15|<tuple|4.2|10>>
+    <associate|auto-16|<tuple|5|11>>
+    <associate|auto-17|<tuple|5.1|11>>
+    <associate|auto-18|<tuple|5.2|11>>
+    <associate|auto-19|<tuple|5.3|11>>
     <associate|auto-2|<tuple|2|2>>
-    <associate|auto-20|<tuple|5.3|14>>
-    <associate|auto-21|<tuple|5.4|15>>
+    <associate|auto-20|<tuple|5.4|14>>
+    <associate|auto-21|<tuple|5.5|15>>
     <associate|auto-22|<tuple|5.5|16>>
     <associate|auto-23|<tuple|5.5|16>>
     <associate|auto-3|<tuple|2.1|4>>

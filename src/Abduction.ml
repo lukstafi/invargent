@@ -130,13 +130,23 @@ let rich_return_type_heur bvs ans cand =
       | _ -> None)
     cand in
   let b_sb = List.filter (fun (v,_) -> not (VarSet.mem v arg_vars)) sb in
-  List.map
+  if sb=[] && b_sb=[] then cand
+  else List.map
       (function
         | v, (t, lc) when VarSet.mem v bvs ->
+          Format.printf "ret_typ_heur: %s= %a := %a@\n%!"
+            (var_str v) (pr_ty false) t (pr_ty false) (subst_typ b_sb t);
+          (* *)
           v, (subst_typ b_sb t, lc)
         | v, (t, lc) when VarSet.mem v ret_only_vars ->
+          Format.printf "ret_typ_heur: %s= %a := %a@\n%!"
+            (var_str v) (pr_ty false) t (pr_ty false) (subst_typ sb t);
+          (* *)
           v, (subst_typ sb t, lc)
         | v1, (TVar v2, lc) when VarSet.mem v2 ret_only_vars ->
+          Format.printf "ret_typ_heur: %s= %s := %a@\n%!"
+            (var_str v2) (var_str v1) (pr_ty false)
+            (subst_typ sb (TVar v1)); (* *)
           v2, (subst_typ sb (TVar v1), lc)
         | sx -> sx)
       cand
