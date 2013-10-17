@@ -238,6 +238,8 @@ let implies_ans ans c_ans =
       if no, it loops with reordered candidates (possibly without the atom)
    ** if the answer + remaining candidates are workable, tries to drop
       the atom -- choice 1, otherwise proceeds straight to [step]
+   ** it tries to keep a form of current atom with constants
+      substituted away -- choice 6
    * [step] works through a single atom of the form [x=t]
    ** choice 2 replaces the current subterm of the atom with a fresh
       parameter, adding the subterm to replacements; if at the root of
@@ -261,11 +263,15 @@ let implies_ans ans c_ans =
      1, 2, 4, 3, 5
  *)
 
+let timeout_count = ref 500
+exception Timeout
+
 (* [zvs] is sum of [zparams] only over all [q.negbs]; we add [vs].
    [bvs] only of [bparams]. *)
 let abd_simple q ?without_quant ~bvs ~zvs ~bparams ~zparams
     ~validate ~discard skip (vs, ans) (prem, concl) =
   (* [inter ans zparams] variables have to be connected with [bparams] *)
+  let counter = ref 0 in
   let zvs = add_vars vs zvs in
   let check_connected, disconnected =
     match without_quant with
@@ -362,6 +368,7 @@ let abd_simple q ?without_quant ~bvs ~zvs ~bparams ~zparams
               pr_subst ans; (* *)
             raise (Result (vs, ans)))
       | (x, (t, lc) as sx)::cand, (c6x, (c6t, c6lc) as c6sx)::c6cand ->
+        incr counter; if !counter > !timeout_count then raise Timeout;
         let ddepth = incr debug_dep; !debug_dep in
         Format.printf
           "abd_simple-abstract: [%d] @ repls=%a@ vs=%s@ ans=%a@ x=%s@ cand=%a@\n%!"
@@ -421,6 +428,7 @@ let abd_simple q ?without_quant ~bvs ~zvs ~bparams ~zparams
            abstract repls cparams zvs vs ans (cand, c6cand))
       | _ -> assert false
     and step x lc loc repls cparams zvs vs ans cand c6cand =
+      incr counter; if !counter > !timeout_count then raise Timeout;
       let ddepth = incr debug_dep; !debug_dep in
       Format.printf
         "abd_simple-step: [%d] @ loc=%a@ repls=%a@ vs=%s@ ans=%a@ x=%s@ cand=%a@\n%!"
@@ -613,12 +621,19 @@ let abd_simple q ?without_quant ~bvs ~zvs ~bparams ~zparams
         pr_subst (fst init_cand) pr_subst (snd init_cand); (* *)
       try abstract [] cparams zvs vs ans init_cand; None
       with Result (vs, ans) -> Some (cleanup vs ans)
-  with Contradiction _ ->
+  with
+  | Contradiction _ ->
     Format.printf
       "abd_simple: conflicts with premises skip=%d,@ vs=@ %s;@ ans=@ %a@ --@\n@[<2>%a@ ⟹@ %a@]@\n%!"
       !skip (String.concat "," (List.map var_str vs))
       pr_subst ans pr_subst prem pr_subst concl; (* *)
     None          (* subst_solved or implies_concl *)
+  | Timeout ->
+    Format.printf
+      "abd_simple: TIMEOUT conflicts with premises skip=%d,@ vs=@ %s;@ ans=@ %a@ --@\n@[<2>%a@ ⟹@ %a@]@\n%!"
+      !skip (String.concat "," (List.map var_str vs))
+      pr_subst ans pr_subst prem pr_subst concl; (* *)
+    None
 
 (* let max_skip = ref 20 *)
 
