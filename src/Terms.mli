@@ -88,6 +88,7 @@ val tdelta : typ
 val tdelta' : typ
 
 val return_type : typ -> typ
+val arg_types : typ -> typ list
 
 val var_sort : var_name -> sort
 val var_str : var_name -> string

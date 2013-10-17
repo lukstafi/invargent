@@ -140,6 +140,10 @@ let rec return_type = function
   | Fun (_, r) -> return_type r
   | t -> t
 
+let rec arg_types = function
+  | Fun (a, r) -> a::arg_types r
+  | t -> []
+
 (** {3 Mapping and folding} *)
 
 type typ_map = {

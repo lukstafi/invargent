@@ -108,30 +108,44 @@ let skip_kind = ref Superset_old_mod
 
 let more_general = ref false
 
-let revert_uni q cand =
-  let more_sb, cand = partition_map
+let rich_return_type_heur bvs ans cand =
+  let types = map_some
+    (fun (v,(t,_)) -> if VarSet.mem v bvs then Some t else None)
+    ans in
+  let ret_vars = List.fold_left
+      (fun vs t -> VarSet.union (fvs_typ (return_type t)) vs)
+      VarSet.empty types in
+  let arg_vars = List.fold_left
+      (fun vs t -> VarSet.union
+          (fvs_typ (TCons (tuple, arg_types t))) vs)
+      VarSet.empty types in
+  let arg_only_vars = VarSet.diff arg_vars ret_vars in
+  let ret_only_vars = VarSet.diff ret_vars arg_vars in
+  let sb = map_some
     (function
-    | v1, (TVar v2, loc) when q.uni_v v2 && not (q.uni_v v1) ->
-      Left (v2, (TVar v1, loc))
-    | sv -> Right sv)
+      | _, (TVar v2, _) as sx when VarSet.mem v2 arg_only_vars ->
+        Some sx
+      | v1, (TVar v2, lc) when VarSet.mem v1 arg_only_vars ->
+        Some (v2, (TVar v1, lc))
+      | _ -> None)
     cand in
-  let more_sb = concat_map
-    (function (bv, (av, alc as a)::avs) ->
-      (bv, a)::List.map
-        (function (TVar cv, lc) -> cv, (av, lc) | _ -> assert false) avs
-    | (_, []) -> assert false)
-    (collect more_sb) in
-  let res = update_sb ~more_sb cand in
+  let b_sb = List.filter (fun (v,_) -> not (VarSet.mem v arg_vars)) sb in
   List.map
-    (function
-    | v1, (TVar v2, loc) when q.cmp_v v1 v2 = Left_of ->
-      v2, (TVar v1, loc)
-    | sv -> sv)
-    res
+      (function
+        | v, (t, lc) when VarSet.mem v bvs ->
+          v, (subst_typ b_sb t, lc)
+        | v, (t, lc) when VarSet.mem v ret_only_vars ->
+          v, (subst_typ sb t, lc)
+        | v1, (TVar v2, lc) when VarSet.mem v2 ret_only_vars ->
+          v2, (subst_typ sb (TVar v1), lc)
+        | sx -> sx)
+      cand
 
 let revert_uni_in_all = ref (* false *) true
+let rich_return_type = ref true
 
-let revert_cst_n_uni q cand =
+(* FIXME: should [bvs] variables be considered not universal? *)
+let revert_cst_n_uni q bvs ans cand =
   let uni_sb, cand = partition_map
       (function
         | v1, (TVar v2, loc) when q.uni_v v2 && not (q.uni_v v1) ->
@@ -143,6 +157,13 @@ let revert_cst_n_uni q cand =
         | v1, (TCons (n, []) as c, loc) when not (q.uni_v v1) ->
           Left (c, (v1, loc))
         | sv -> Right sv)
+      cand in
+  let cand = List.filter
+      (function
+        | v, (TVar v2, _)
+          when q.uni_v v && q.cmp_v v v2 = Right_of -> false
+        | v, (TCons _, _) when q.uni_v v -> false
+        | _ -> true)
       cand in
   let uni_sb =
     concat_map
@@ -173,7 +194,7 @@ let revert_cst_n_uni q cand =
         | t, (TVar v, lc) -> v, (t, lc)
         | _ -> assert false)
       cst_sb in
-  let old_cand =
+  let old_cand = 
     uni_sb @ c_sb @
       if !revert_uni_in_all
       then
@@ -186,6 +207,8 @@ let revert_cst_n_uni q cand =
       List.map (fun (w,(t,loc)) ->
           w, (subst_typ uni_sb (c_subst_typ cst_sb t), loc))
         cand in
+  (* Format.printf "revert:@ uni_sb=%a@ c_sb=%a@ cand=%a@\n%!"
+    pr_subst cand_uni_sb pr_subst c_sb pr_subst cand; * *)
   let old_cand = List.map
       (function
         | v1, (TVar v2, loc) when q.cmp_v v1 v2 = Left_of ->
@@ -218,6 +241,10 @@ let revert_cst_n_uni q cand =
           sv
         | sv -> sv)
       new_cand in
+  let new_cand =
+    if !rich_return_type
+    then rich_return_type_heur bvs ans new_cand
+    else new_cand in
   old_cand, new_cand
 
 let implies_ans ans c_ans =
@@ -611,7 +638,7 @@ let abd_simple q ?without_quant ~bvs ~zvs ~bparams ~zparams
       let cnj_typ, _ = prem_and (ans @ concl) in
       (* FIXME: hmm... *)
       (* let cnj_typ = list_diff cnj_typ discard in *)
-      let init_cand = revert_cst_n_uni q cnj_typ in
+      let init_cand = revert_cst_n_uni q bvs ans cnj_typ in
       let init_cand = List.sort
           (fun ((_,(t1,_)),_) ((_,(t2,_)),_) -> typ_size t2 - typ_size t1)
           (uncurry List.combine init_cand) in

@@ -536,8 +536,8 @@
     <\itemize>
       <item>Replace <math|\<alpha\><rsub|1>\<assign\>\<beta\>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<beta\>>
       with <math|\<beta\>\<assign\>\<alpha\><rsub|i>,\<alpha\><rsub|2>\<assign\>\<alpha\><rsub|i>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<alpha\><rsub|i>>
-      [where <math|\<alpha\><rsub|i>> is the most upstream existential
-      variable?].
+      where <math|\<alpha\><rsub|i>> is the most upstream existential
+      variable, as in choice 6.
     </itemize>
 
     <item>Form the choice-6 counterparts of initial candidate atoms. Replace
@@ -559,6 +559,30 @@
     <item>choices 4 and 5 could be reordered but having choice 4 as soon as
     possible is important for efficiency.
   </itemize>
+
+  <subsubsection|Heuristic for better answers to invariants>
+
+  We implement an optional heuristic in forming the candidates proposed by
+  choice 6. It may lead to better invariants when multiple maximally general
+  types are possible, but also it may lead to getting the most general type
+  without the need for backtracking across iterations of the main algorithm,
+  which unfortunately often takes prohibitively long.
+
+  We look at the types of substitutions for the invariant-holding variables
+  <verbatim|bvs> in partial answer <verbatim|ans>, and try to form the
+  initial candidates for choice 6 so that the return type variables cover the
+  most of argument types variables, for each <verbatim|bvs> type found. We
+  select from the candidates equations between any variable (case
+  <verbatim|sb>) or only non-argument-type variable (case <verbatim|b_sb>),
+  and a <math|FV<around*|(|<with|mode|text|argument
+  types>|)>\\FV<around*|(|<with|mode|text|return type>|)>> variable -- we
+  turn the equation so that the latter is the RHS. We locate the equations
+  among the candidates that have a <verbatim|bvs> variable or a
+  <math|FV<around*|(|<with|mode|text|return
+  type>|)>\\FV<around*|(|<with|mode|text|argument types>|)>> variable as LHS.
+  We apply the substitution <verbatim|sb> (or <verbatim|b_sb>) to the RHS of
+  these equations (<verbatim|b_sb> if the LHS is in <verbatim|bvs>). We
+  preserve the order of equations in the candidate list.
 
   <subsection|Joint constraint abduction for terms>
 
@@ -1168,6 +1192,8 @@
     return>>|<cell|>|<cell|A<rsub|res>,S<rsub|k+1>,R<rsub|k+1>>>|<row|<cell|<with|mode|text|repeat>>|<cell|>|<cell|k\<assign\>k+1<eq-number>>>>>
   </eqnarray*>
 
+  FIXME: what does <math|<wide|<wide|\<zeta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>>
+  do and where does it come from, is it <verbatim|zvs>/<verbatim|zparams>?
   Note that <math|Split> returns <math|<wide|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<beta\><rsub|\<chi\>>>.A<rsub|\<beta\><rsub|\<chi\>>>|\<bar\>>>
   rather than <math|<wide|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.A<rsub|\<chi\>>|\<bar\>>>.
   This is because in case of existential type predicate variables
@@ -1409,51 +1435,52 @@
 <\references>
   <\collection>
     <associate|1|<tuple|5.2|?>>
-    <associate|AlienSubterms|<tuple|3.3|7>>
-    <associate|Details|<tuple|5.5|15>>
+    <associate|AlienSubterms|<tuple|3.3|8>>
+    <associate|Details|<tuple|5.5|16>>
     <associate|ImplSubst|<tuple|4|2>>
     <associate|Main Algo|<tuple|5.3|?>>
-    <associate|MainAlgo|<tuple|5|10>>
-    <associate|MainAlgoBody|<tuple|5.3|13>>
-    <associate|NumConv|<tuple|4.2|10>>
-    <associate|Rg|<tuple|5|13>>
-    <associate|SCAlinear|<tuple|3.4|7>>
+    <associate|MainAlgo|<tuple|5|11>>
+    <associate|MainAlgoBody|<tuple|5.3|14>>
+    <associate|NumConv|<tuple|4.2|11>>
+    <associate|Rg|<tuple|5|14>>
+    <associate|SCAlinear|<tuple|3.4|8>>
     <associate|SepProp|<tuple|5|3>>
     <associate|SepProp2|<tuple|6|?>>
-    <associate|Skp|<tuple|1|13>>
-    <associate|Skp1|<tuple|9|13>>
+    <associate|Skp|<tuple|1|14>>
+    <associate|Skp1|<tuple|9|14>>
     <associate|SolSimpl|<tuple|9|12>>
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1>>
-    <associate|auto-10|<tuple|3.4|7>>
-    <associate|auto-11|<tuple|3.5|8>>
-    <associate|auto-12|<tuple|3.5.1|9>>
-    <associate|auto-13|<tuple|4|10>>
-    <associate|auto-14|<tuple|4.1|10>>
-    <associate|auto-15|<tuple|4.2|10>>
-    <associate|auto-16|<tuple|5|11>>
-    <associate|auto-17|<tuple|5.1|11>>
-    <associate|auto-18|<tuple|5.2|13>>
-    <associate|auto-19|<tuple|5.3|14>>
+    <associate|auto-10|<tuple|3.3|8>>
+    <associate|auto-11|<tuple|3.4|8>>
+    <associate|auto-12|<tuple|3.5|9>>
+    <associate|auto-13|<tuple|3.5.1|10>>
+    <associate|auto-14|<tuple|4|10>>
+    <associate|auto-15|<tuple|4.1|10>>
+    <associate|auto-16|<tuple|4.2|11>>
+    <associate|auto-17|<tuple|5|11>>
+    <associate|auto-18|<tuple|5.1|11>>
+    <associate|auto-19|<tuple|5.2|11>>
     <associate|auto-2|<tuple|2|2>>
-    <associate|auto-20|<tuple|5.4|15>>
-    <associate|auto-21|<tuple|5.5|15>>
-    <associate|auto-22|<tuple|5.5|?>>
+    <associate|auto-20|<tuple|5.3|14>>
+    <associate|auto-21|<tuple|5.4|15>>
+    <associate|auto-22|<tuple|5.5|16>>
+    <associate|auto-23|<tuple|5.5|16>>
     <associate|auto-3|<tuple|2.1|4>>
     <associate|auto-4|<tuple|2.1.1|4>>
     <associate|auto-5|<tuple|2.2|4>>
     <associate|auto-6|<tuple|3|5>>
     <associate|auto-7|<tuple|3.1|5>>
-    <associate|auto-8|<tuple|3.2|6>>
-    <associate|auto-9|<tuple|3.3|7>>
-    <associate|bib-AbductionSolvMaher|<tuple|3|15>>
+    <associate|auto-8|<tuple|3.1.1|7>>
+    <associate|auto-9|<tuple|3.2|7>>
+    <associate|bib-AbductionSolvMaher|<tuple|3|16>>
     <associate|bib-AntiUnifAlg|<tuple|8|16>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
-    <associate|bib-ArithQuantElim|<tuple|1|15>>
-    <associate|bib-ConvexHull|<tuple|2|15>>
+    <associate|bib-ArithQuantElim|<tuple|1|16>>
+    <associate|bib-ConvexHull|<tuple|2|16>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
     <associate|bib-disjelimTechRep|<tuple|6|16>>
@@ -1527,66 +1554,70 @@
       for terms <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-7>>
 
+      <with|par-left|<quote|3fn>|3.1.1<space|2spc>Heuristic for better
+      answers to invariants <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-8>>
+
       <with|par-left|<quote|1.5fn>|3.2<space|2spc>Joint constraint abduction
       for terms <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-8>>
+      <no-break><pageref|auto-9>>
 
       <with|par-left|<quote|1.5fn>|3.3<space|2spc>Abduction for terms with
       Alien Subterms <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-9>>
+      <no-break><pageref|auto-10>>
 
       <with|par-left|<quote|1.5fn>|3.4<space|2spc>Simple constraint abduction
       for linear arithmetic <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-10>>
+      <no-break><pageref|auto-11>>
 
       <with|par-left|<quote|1.5fn>|3.5<space|2spc>Joint constraint abduction
       for linear arithmetic <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-11>>
+      <no-break><pageref|auto-12>>
 
       <with|par-left|<quote|3fn>|3.5.1<space|2spc>The need to bootstrap from
       non-recursive branches <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-12>>
+      <no-break><pageref|auto-13>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|4<space|2spc>Disjunction
       Elimination> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-13><vspace|0.5fn>
+      <no-break><pageref|auto-14><vspace|0.5fn>
 
       <with|par-left|<quote|1.5fn>|4.1<space|2spc>Extended convex hull
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-14>>
+      <no-break><pageref|auto-15>>
 
       <with|par-left|<quote|1.5fn>|4.2<space|2spc>Issues in inferring
       postconditions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-15>>
+      <no-break><pageref|auto-16>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|5<space|2spc>Solving
       for Predicate Variables> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-16><vspace|0.5fn>
+      <no-break><pageref|auto-17><vspace|0.5fn>
 
       <with|par-left|<quote|1.5fn>|5.1<space|2spc>Invariant Parameter
       Candidates <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-17>>
+      <no-break><pageref|auto-18>>
 
       <with|par-left|<quote|1.5fn>|5.2<space|2spc>Solving for Predicates in
       Negative Positions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-18>>
+      <no-break><pageref|auto-19>>
 
       <with|par-left|<quote|1.5fn>|5.3<space|2spc>Solving for Existential
       Types Predicates and Main Algorithm
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-19>>
+      <no-break><pageref|auto-20>>
 
       <with|par-left|<quote|1.5fn>|5.4<space|2spc>Stages of iteration
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-20>>
+      <no-break><pageref|auto-21>>
 
       <with|par-left|<quote|1.5fn>|5.5<space|2spc>Implementation details
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-21>>
+      <no-break><pageref|auto-22>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-22><vspace|0.5fn>
+      <no-break><pageref|auto-23><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>

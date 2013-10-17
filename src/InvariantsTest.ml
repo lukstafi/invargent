@@ -118,7 +118,7 @@ let rec eval = function
   | Fst p -> (match eval p with x, y -> x)
   | Snd p -> (match eval p with x, y -> y)"
 
-        [1, "∃t73. δ = (Term t73 → t73)"]
+        [1, "∃t70. δ = (Term t70 → t70)"]
     );
 
   "equal1 wrong type" >::
@@ -181,7 +181,7 @@ let rec equal = function
   | TList t, TList u -> forall2 (equal (t, u))
   | _ -> fun _ _ -> False
 test b_not (equal (TInt, TList TInt) Zero Nil)"
-        [1, "∃t224, t225. δ = (Ty t224, Ty t225 → t224 → t225 → Bool)"]
+        [1, "∃t152, t153. δ = (Ty t152, Ty t153 → t152 → t153 → Bool)"]
     );
 
   "equal with assert" >::
@@ -214,7 +214,7 @@ let rec equal = function
   | _ -> fun _ _ -> False
   | TInt, TList l -> (function Nil -> assert false)
   | TList l, TInt -> (fun _ -> function Nil -> assert false)"
-        [1, "∃t240, t241. δ = (Ty t240, Ty t241 → t240 → t241 → Bool)"]
+        [1, "∃t168, t169. δ = (Ty t168, Ty t169 → t168 → t169 → Bool)"]
     );
 
   "equal with assert and test" >::
@@ -248,12 +248,12 @@ let rec equal = function
   | TInt, TList l -> (function Nil -> assert false)
   | TList l, TInt -> (fun _ -> function Nil -> assert false)
 test b_not (equal (TInt, TList TInt) Zero Nil)"
-        [1, "∃t254, t255. δ = (Ty t254, Ty t255 → t254 → t255 → Bool)"]
+        [1, "∃t182, t183. δ = (Ty t182, Ty t183 → t182 → t183 → Bool)"]
     );
 
   "binary plus" >::
     (fun () ->
-      skip_if !debug "debug";
+      (* skip_if !debug "debug"; *)
       test_case "binary plus"
 "newtype Binary : num
 newtype Carry : num
@@ -362,7 +362,7 @@ let rec flatten_pairs =
 
   "escape castle" >::
     (fun () ->
-      (* skip_if !debug "debug"; *)
+      skip_if !debug "debug";
       test_case "escape castle"
 "newtype Room
 newtype Yard
@@ -383,7 +383,7 @@ let rec escape = function Outside x -> x
   | Yard x ->
     let y = leave (enter x) in
     escape y"
-        [1,"∃t28. δ = (Placement t28 → Outside)"]
+        [1,"∃t408. δ = (Placement t408 → Outside)"]
 
     );
 
@@ -405,7 +405,7 @@ let rec walk = fun x goal ->
   | NotClose ->
     let y, to_y = wander x in
     Transitive (to_y, walk y goal)"
-        [1,"∃t49, t50. δ = (Place t49 → Place t50 → Nearby (t49, t50))"];
+        [1,"∃t135, t136. δ = (Place t135 → Place t136 → Nearby (t135, t136))"];
     );
 
   "equational nested universal" >::
@@ -434,7 +434,7 @@ let rec walk = fun x goal ->
     let y, to_y = wander x in
     Transitive (to_y, walk y goal)
 test (is_nearby (walk LocA LocB))"
-        [1,"∃t62, t63. δ = (Place t62 → Place t63 → Nearby (t62, t63))"];
+        [1,"∃t58, t59. δ = (Place t58 → Place t59 → Nearby (t58, t59))"];
     );
 
 
