@@ -197,11 +197,11 @@ let sb_formula_pred q posi rol sol phi =
 (* Using "script kappa" because "script chi" is not available. *)
 let pr_chi_subst ppf chi_sb =
   pr_sep_list ";" (fun ppf (i,ans) ->
-    Format.fprintf ppf "ϰ%d:=%a" i pr_ans ans) ppf chi_sb
+    Format.fprintf ppf "X%d:=%a" i pr_ans ans) ppf chi_sb
 
 let pr_bchi_subst ppf chi_sb =
   pr_sep_list ";" (fun ppf (v,ans) ->
-    Format.fprintf ppf "ϰ(%s):=%a" (var_str v) pr_ans ans) ppf chi_sb
+    Format.fprintf ppf "X(%s):=%a" (var_str v) pr_ans ans) ppf chi_sb
 
 type state = subst * NumS.state
 

@@ -707,9 +707,9 @@ let rec pr_atom ppf = function
   | Leq (t1, t2, _) ->
     fprintf ppf "@[<2>%a@ ≤@ %a@]" pr_one_ty t1 pr_one_ty t2
   | CFalse _ -> pp_print_string ppf "FALSE"
-  | PredVarU (i,ty,lc) -> fprintf ppf "@[<2>ϰ%d(%a)@]" i (pr_ty false) ty
+  | PredVarU (i,ty,lc) -> fprintf ppf "@[<2>X%d(%a)@]" i (pr_ty false) ty
   | PredVarB (i,t1,t2,lc) ->
-    fprintf ppf "@[<2>ϰ%d(%a,@ %a)@]" i (pr_ty true) t1 (pr_ty true) t2
+    fprintf ppf "@[<2>X%d(%a,@ %a)@]" i (pr_ty true) t1 (pr_ty true) t2
   | NotEx (t,lc) ->
     fprintf ppf "@[<2>NotEx(%a)@]" (pr_ty false) t
 
