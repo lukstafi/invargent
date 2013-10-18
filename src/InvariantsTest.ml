@@ -469,8 +469,7 @@ test (is_nearby (walk LocA LocB))"
 
   "find castle" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
-       (* todo "existential"; *)
+       skip_if !debug "debug";
        test_case "find castle small"
 "newtype Room
 newtype Yard
@@ -492,13 +491,12 @@ let rec find_castle = efunction
   | Village _ as x ->
     let y = wander x in
     find_castle y"
-        [2,"∃t115, t116. δ = (Placement t116 → ∃2:t145[].Castle t145)"];
+        [2,"∃t100. δ = (Placement t100 → ∃2:t103[].Castle t103)"];
     );
 
   "find castle big" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
-       todo "existential";
+       skip_if !debug "debug";
        test_case "find castle big"
 "newtype Room
 newtype Yard
@@ -525,13 +523,13 @@ let rec find = efunction
   | Village _ as x ->
     let y = wander x in
     find y"
-        [2,"∃t178, t179. δ = (Placement t179 → ∃2:t219[].Castle t219)"];
+        [2,"∃t157. δ = (Placement t157 → ∃2:t161[].Castle t161)"];
     );
 
   "search castle shortcut" >::
     (fun () ->
-      skip_if !debug "debug";
-      test_case "search castle shortcut"
+       skip_if !debug "debug";
+       test_case "search castle shortcut"
 "newtype Room
 newtype Yard
 newtype Village
@@ -562,9 +560,8 @@ let rec search = efunction
 
   "search castle distance" >::
     (fun () ->
-      (* skip_if !debug "debug"; *)
-       todo "existential";
-      test_case "find castle distance"
+       skip_if !debug "debug";
+       test_case "find castle distance"
 "newtype Bool
 newcons True : Bool
 newcons False : Bool
@@ -591,14 +588,13 @@ let rec search = efunction
     ematch closer y with
     | True -> search y
     | False -> search x"
-        [2,"∃t181, t182. δ = (Placement t182 → ∃3:t221[].Castle t221)"];
+        [2,"∃t161. δ = (Placement t161 → ∃3:t165[].Castle t165)"];
     );
 
   "search castle distance A/B" >::
     (fun () ->
-      (* skip_if !debug "debug"; *)
-       todo "existential";
-      test_case "find castle distance A/B"
+       skip_if !debug "debug";
+       test_case "find castle distance A/B"
 "newtype Bool : type
 newtype A
 newtype B
@@ -628,7 +624,7 @@ let rec search = efunction
     ematch b with
     | True -> search y
     | False -> search x"
-        [2,"∃t852, t853. δ = (Placement t853 → ∃4:t894[].Castle t894)"];
+        [2,"∃t830. δ = (Placement t830 → ∃4:t834[].Castle t834)"];
     );
 
   "castle not existential" >::
@@ -780,7 +776,6 @@ let rec walk = fun x ->
   "existential with param" >::
     (fun () ->
        (* skip_if !debug "debug"; *)
-       todo "existential";
        test_case "existential with param"
 "newtype Place : type
 newtype Nearby : type * type
@@ -798,7 +793,7 @@ let rec walk = fun x ->
     let y, to_y = wander x in
     let to_z = walk y in
     Transitive (to_y, to_z)"
-        [2,"∃t322. δ = (Place t322 → ∃2:t396[].Nearby (t322, t396))"];
+        [2,"∃t245. δ = (Place t245 → ∃2:t248[].Nearby (t245, t248))"];
     );
 
   "mono filter" >::

@@ -578,6 +578,14 @@ let solve q_ops brs =
              q.add_bchi b i ~posi:true ~chiK:true
            | _ -> ()) concl;
     ) brs;
+  let exty_of_chi = Hashtbl.create 4 in
+  List.iter
+    (fun (ety, _) ->
+       match Hashtbl.find sigma (Extype ety) with
+       | _, (PredVarB (chi,_,_,_))::_, _, _, _ ->
+         Hashtbl.add exty_of_chi chi ety
+       | _ -> assert false)
+    !new_ex_types;
   let remove_alphaK =
     List.filter
       (function
@@ -669,8 +677,8 @@ let solve q_ops brs =
                pr_formula (NumS.formula_of_state num_state); (* *)
              ()))
         verif_brs in
-    let brs1, g_rol =
-      if iter_no < disj_step.(0) then brs1, rol1
+    let sol1, brs1, g_rol =
+      if iter_no < disj_step.(0) then sol1, brs1, rol1
       else
         (* 2 *)
         (* The [t2] arguments should in the solution become equal! *)
@@ -710,15 +718,16 @@ let solve q_ops brs =
           let pvs = VarSet.elements
               (VarSet.diff (vars_of_list vs) (vars_of_list g_vs)) in
           let targs = List.map (fun v -> TVar v) pvs in
+          let tpar = TCons (tuple, targs) in
           let phi =
-            Eqty (tdelta', TCons (tuple, targs), dummy_loc)
+            Eqty (tdelta', tpar, dummy_loc)
             :: g_ans in
           Format.printf
             "lift_ex_types: pvs=%a@ g_vs=%a@ g_ans=%a@ phi=%a@\n%!"
             pr_vars (vars_of_list pvs)
             pr_vars (vars_of_list g_vs) pr_formula g_ans pr_formula phi;
           (* *)
-          pvs @ g_vs, phi in
+          tpar, (pvs @ g_vs, phi) in
         (* 5 *)
         let g_rol = List.map2
             (fun (i,ans1) (j,(g_vs,g_ans)) ->
@@ -726,23 +735,39 @@ let solve q_ops brs =
                let ans2 =
                  converge q.op
                    ~check_only:(iter_no < disj_step.(3)) ans1 (g_vs, g_ans) in
-               let ans2 =
+               let tpar, ans2 =
                  (* simplify g_cmp_v uni_v *) (lift_ex_types q.op ans2) in
                Format.printf "solve.loop-dK: final@ ans2=%a@\n%!"
                  pr_ans ans2; (* *)
                (* No [b] "owns" these formal parameters. Their instances
                   will be added to [q] by [sb_brs_pred]. *)
-               i, ans2
+               (i, tpar), (i, ans2)
             ) rol1 g_rol in
+        let tpars, g_rol = List.split g_rol in
         let g_par = List.map
             (fun (i,(_,phi)) -> i, ([],[List.hd phi])) g_rol in
         Format.printf "solve: loop iter_no=%d@ g_par=%a@\ng_rol.B=@ %a@\n%!"
           iter_no pr_chi_subst g_par pr_chi_subst g_rol; (* *)
-        sb_brs_PredB q g_rol g_par brs0, g_rol in
+        (* 6 *)
+        let esb = List.map
+            (fun (i, tpar) ->
+               let n = Extype (Hashtbl.find exty_of_chi i) in
+               n, fun _ -> TCons (n, [tpar]))
+            tpars in
+        let esb_formula = List.map
+            (function
+              | Eqty (t1, t2, lc) ->
+                Eqty (n_subst_typ esb t1, n_subst_typ esb t2, lc)
+              | a -> a) in
+        let sol1 = List.map
+            (fun (i, (vs, phi)) -> i, (vs, esb_formula phi))
+            sol1 in
+        let brs0 = sb_brs_PredU q sol1 brs in
+        sol1, sb_brs_PredB q g_rol g_par brs0, g_rol in
     Format.printf "solve-loop: iter_no=%d -- ex. brs substituted@\n%!"
       iter_no; (* *)
     Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs4 brs1; (* *)
-    (* 6a *)
+    (* 7a *)
     let neg_cns1 = List.map
         (fun (prem,loc) -> sb_formula_pred q false g_rol sol1 prem, loc)
         neg_cns in
@@ -758,7 +783,7 @@ let solve q_ops brs =
     let params = VarSet.union bvs zvs in
     let answer =
       try
-        (* 6b *)
+        (* 7b *)
         (* Check negative constraints ("assert false" clauses) once
            all positive constraints have been involved in answering. *)
         if !neg_constrns && iter_no > 1 then List.iter
@@ -794,7 +819,7 @@ let solve q_ops brs =
                   | None -> ()); (* *)
                  ())
             neg_cns1;
-        (* 7 *)
+        (* 8 *)
         let brs1 = List.map
             (fun (nonrec,_,prem,concl) -> nonrec,prem,concl) brs1 in
         let alien_eqs, (vs, ans) =
@@ -825,7 +850,7 @@ let solve q_ops brs =
       let more_discard =
         if alien_eqs = [] then more_discard
         else subst_formula alien_eqs more_discard in
-      (* 10 *)
+      (* 12 *)
       let finish rol2 sol2 =
         (* start fresh at (iter_no+1) *)
         match loop (iter_no+1) [] rol2 sol2
@@ -837,7 +862,7 @@ let solve q_ops brs =
              let discard =
                update_assoc sort [] (fun dl -> s_discard::dl) discard in
              loop iter_no discard rol1 sol1 in
-      (* 8 *)
+      (* 9 *)
       let rol2 =
         if disj_step.(0) > iter_no then rol1
         else
@@ -868,7 +893,7 @@ let solve q_ops brs =
                  pr_formula dans i pr_ans i_res; (* *)
                i, i_res)
             g_rol in
-      (* 9 *)
+      (* 10 *)
       let sol2 = List.map
           (fun (i, (vs, ans)) ->
              let bs = List.filter (not % q.positive_b) (q.find_b i) in
@@ -915,7 +940,7 @@ let solve q_ops brs =
       else finish rol2 sol2 in
   match loop 0 [] rolT solT with
   | Aux.Left (_, e) -> raise e
-  | Aux.Right (ans_res, rol, sol as ans) ->
+  | Aux.Right (ans_res, rol, sol) ->
     Format.printf "solve: checking assert false@\n%!"; (* *)
     List.iter (fun (cnj, loc) ->
         try
@@ -930,6 +955,22 @@ let solve q_ops brs =
       ) neg_cns;
     let ans_sb, _ = Infer.separate_subst q.op ans_res in
     (* Substitute the solutions for existential types. *)
+    let etys_sb = List.map
+      (fun (ex_i,_) ->
+        let n = Extype ex_i in
+        n, (function
+            | [TCons (t, args)] when t=tuple -> TCons (n, args)
+            | targs -> TCons (n, targs)))
+      !new_ex_types in
+    let esb_formula = List.map
+        (function
+          | Eqty (t1, t2, lc) ->
+            Eqty (n_subst_typ etys_sb t1, n_subst_typ etys_sb t2, lc)
+          | a -> a) in
+    let esb_ans (i, (vs, ans)) =
+      i, (vs, esb_formula ans) in
+    let ans =
+      esb_formula ans_res, List.map esb_ans rol, List.map esb_ans sol in
     List.iter
       (fun (ex_i, loc) ->
          let _, exphi, ty, _, pvs = Hashtbl.find sigma (Extype ex_i) in
@@ -953,17 +994,22 @@ let solve q_ops brs =
          (* FIXME: We ignore the "predicted" parameters and instead
             collect the free variables as actual parameters. *)
          let pvs =
-           try fvs_typ (fst (List.assoc delta' sb))
-           with Not_found -> VarSet.singleton delta' in
+           try
+             match fst (List.assoc delta' sb) with
+             | TCons (t, args) when t=tuple ->
+               concat_map
+                 (fun a -> VarSet.elements (fvs_typ a)) args
+             | t -> VarSet.elements (fvs_typ t)
+           with Not_found -> [delta'] in
          let allvs = VarSet.union (fvs_formula rphi) (fvs_typ rty) in
          Format.printf
            "solve-ex_types: ex_i=%d@ t1=%a@ t2=%a@ ty=%a@ chi_vs=%a@ rty=%a@ allvs=%a@ pvs=%a@ rphi=%a@ @\nphi=%a@\n%!"
            ex_i (pr_ty false) t1 (pr_ty false) t2 (pr_ty false) ty
            pr_vars (vars_of_list chi_vs) (pr_ty false) rty
-           pr_vars allvs pr_vars pvs
+           pr_vars allvs pr_vars (vars_of_list pvs)
            pr_formula rphi pr_formula phi;
          (* *)
-         let pvs = VarSet.elements pvs and ety_n = Extype ex_i in
+         let ety_n = Extype ex_i in
          Hashtbl.replace sigma (Extype ex_i)
            (VarSet.elements allvs, rphi, [rty], ety_n, pvs)) !new_ex_types;
     Format.printf "solve: returning@\n%!"; (* *)

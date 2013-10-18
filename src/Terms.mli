@@ -234,6 +234,7 @@ val update_sb : more_sb:subst -> subst -> subst
 (** Substitute constants, and generally subterms identical to a term,
     with another term. [loc] is not used. *)
 val c_subst_typ : (typ * (typ * loc)) list -> typ -> typ
+val n_subst_typ : (cns_name * (typ list -> typ)) list -> typ -> typ
 val typ_sort_typ : typ -> bool
 val num_sort_typ : typ -> bool
 val typ_sort_atom : atom -> bool

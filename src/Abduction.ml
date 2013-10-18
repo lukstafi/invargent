@@ -452,7 +452,11 @@ let abd_simple q ?without_quant ~bvs ~zvs ~bparams ~zparams
                  ddepth (var_str c6x)
                  (pr_ty false) c6t pr_subst ans; (* *)
                raise e
-             | Contradiction _ -> ());
+             | Contradiction _ as e ->
+               Format.printf
+                 "abd_simple: [%d]@ invalid choice 6 reason:@\n%a@\n%!"
+                 ddepth pr_exception e; (* *)
+               ());
            Format.printf
              "abd_simple: [%d]@ recover after choice 6@ %s =@ %a@\n%!"
              ddepth (var_str c6x) (pr_ty false) c6t; (* *)

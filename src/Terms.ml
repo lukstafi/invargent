@@ -308,6 +308,17 @@ let c_subst_typ sb t =
       | Nadd args -> Nadd (List.map aux args) in
   aux t
 
+let n_subst_typ sb t =
+  let rec aux = function
+    | TVar _ as t -> t
+    | TCons (n, args) ->
+      (try List.assoc n sb args
+       with Not_found -> TCons (n, List.map aux args))
+    | Fun (t1, t2) -> Fun (aux t1, aux t2)
+    | NCst _ -> t
+    | Nadd args -> Nadd (List.map aux args) in
+  aux t
+
 
 (** {3 Formulas} *)
 
