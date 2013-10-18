@@ -432,8 +432,10 @@ let simplify q_ops (vs, cnj) =
   ty_ans @ num_ans
 
 let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
-  Format.printf "converge: check_only=%b@\ncnj1=%a@\ncnj2=%a\n%!"
-    check_only pr_formula cnj1 pr_formula cnj2; (* *)
+  Format.printf
+    "converge: check_only=%b@ vs1=%a@ vs2=%a@\ncnj1=%a@\ncnj2=%a\n%!"
+    check_only pr_vars (vars_of_list vs1) pr_vars (vars_of_list vs2)
+    pr_formula cnj1 pr_formula cnj2; (* *)
   let c1_ty, c1_num, c1_so = unify q_ops cnj1 in
   let c2_ty, c2_num, c2_so = unify q_ops cnj2 in
   assert (c1_so = []); assert (c2_so = []);
@@ -459,7 +461,6 @@ let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
           | Eqty (TVar v, t, lc) when not (List.mem v vs) -> Some (v, (t, lc))
           | Eqty (t, TVar v, lc) when not (List.mem v vs) -> Some (v, (t, lc))
           | _ -> None) in
-  let vs = vars_of_list vs1 in
   let c1_nr = List.sort cmp (ren_of_cn vs1 c1_num)
   and c2_nr = List.sort cmp (ren_of_cn vs2 c2_num) in
   let num_ren = inter_merge
@@ -467,19 +468,32 @@ let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
       (fun (_,(t1,_)) (_,(t2,_)) -> Eqty (t1,t2,dummy_loc))
       c1_nr c2_nr in
   (* Recover old variable names. *)
+  let pms_old =
+    try fvs_typ (fst (List.assoc delta' c1_ty))
+    with Not_found -> VarSet.empty in
+  let vs_old = VarSet.diff (vars_of_list vs1) pms_old in
+  let pms_new =
+    try fvs_typ (fst (List.assoc delta' c2_ty))
+    with Not_found -> VarSet.empty in
+  let vs_new = VarSet.diff (vars_of_list vs2) pms_new in
   let renaming = map_some
     (function
-    | _, (TVar v2, _) as sx when VarSet.mem v2 vs -> Some sx
-    | v1, (TVar v2, lc) when VarSet.mem v1 vs -> Some (v2, (TVar v1, lc))
+    | v1, (TVar v2, _) as sx
+      when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new -> Some sx
+    | v2, (TVar v1, lc)
+      when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
+      Some (v1, (TVar v2, lc))
     | _ -> None)
     renaming in
   let renaming =
     map_some
       (function
-        | Eqty (TVar v, (TVar v2 as t), lc) when VarSet.mem v2 vs ->
-          Some (v, (t, lc))
-        | Eqty ((TVar v2 as t), TVar v, lc) when VarSet.mem v2 vs ->
-          Some (v, (t, lc))
+        | Eqty (TVar v1, (TVar v2 as t), lc)
+          when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
+          Some (v1, (t, lc))
+        | Eqty ((TVar v2 as t), TVar v1, lc)
+          when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
+          Some (v1, (t, lc))
         | _ -> None)
       num_ren
     @ renaming in
@@ -503,7 +517,7 @@ let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
 let neg_constrns = ref true
 
 (* Captures where the repeat step is/are. *)
-let disj_step = [|0; 1; 2; 4|]
+let disj_step = [|0; 1; 1; 4|]
 
 let solve q_ops brs =
   (* DEBUG *)
