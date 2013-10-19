@@ -426,9 +426,9 @@ let simplify q_ops (vs, cnj) =
   let ty_vs = VarSet.inter vs (fvs_formula ty_ans)
   and num_vs = VarSet.inter vs (fvs_formula num_ans) in
   let elimvs = VarSet.diff num_vs ty_vs in
-  let _, num_ans =
+  let num_vs, num_ans =
     NumS.simplify q_ops elimvs num_ans in
-  VarSet.elements ty_vs,
+  VarSet.elements (VarSet.union ty_vs (vars_of_list num_vs)),
   ty_ans @ num_ans
 
 let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
@@ -517,7 +517,7 @@ let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
 let neg_constrns = ref true
 
 (* Captures where the repeat step is/are. *)
-let disj_step = [|0; 1; 1; 4|]
+let disj_step = [|0; 0; 1; 3|]
 
 let solve q_ops brs =
   (* DEBUG *)
@@ -723,9 +723,12 @@ let solve q_ops brs =
             Eqty (tdelta', tpar, dummy_loc)
             :: g_ans in
           Format.printf
-            "lift_ex_types: pvs=%a@ g_vs=%a@ g_ans=%a@ phi=%a@\n%!"
+            "lift_ex_types: fvs=%a@ vs=%a@ pvs=%a@ g_vs=%a@ tpar=%a@ g_ans=%a@ phi=%a@\n%!"
+            pr_vars (vars_of_list fvs)
+            pr_vars (vars_of_list vs)
             pr_vars (vars_of_list pvs)
-            pr_vars (vars_of_list g_vs) pr_formula g_ans pr_formula phi;
+            pr_vars (vars_of_list g_vs) (pr_ty false) tpar
+            pr_formula g_ans pr_formula phi;
           (* *)
           tpar, (pvs @ g_vs, phi) in
         (* 5 *)
@@ -737,8 +740,8 @@ let solve q_ops brs =
                    ~check_only:(iter_no < disj_step.(3)) ans1 (g_vs, g_ans) in
                let tpar, ans2 =
                  (* simplify g_cmp_v uni_v *) (lift_ex_types q.op ans2) in
-               Format.printf "solve.loop-dK: final@ ans2=%a@\n%!"
-                 pr_ans ans2; (* *)
+               Format.printf "solve.loop-dK: final@ tpar=%a@ ans2=%a@\n%!"
+                 (pr_ty false) tpar pr_ans ans2; (* *)
                (* No [b] "owns" these formal parameters. Their instances
                   will be added to [q] by [sb_brs_pred]. *)
                (i, tpar), (i, ans2)

@@ -28,9 +28,10 @@ val disjelim :
   Terms.quant_ops ->
   Terms.formula list -> Terms.var_name list * Terms.formula
 
-(** Perform quantifier elimination on provided variables and generally
-    simplify the formula. Since linear arithmetic has quantifier
-    elimination, always returns empty variable list. *)
+(** Eliminate provided variables from the substitution part of solved
+    form and generally simplify the formula, but do not perform
+    quantifier elimination -- preserve those variables that are not
+    equal to something else. *)
 val simplify :
   Terms.quant_ops ->
   Terms.VarSet.t -> Terms.formula -> 

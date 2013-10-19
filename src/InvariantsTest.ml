@@ -775,7 +775,7 @@ let rec walk = fun x ->
 
   "existential with param" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "existential with param"
 "newtype Place : type
 newtype Nearby : type * type
@@ -798,7 +798,7 @@ let rec walk = fun x ->
 
   "mono filter" >::
     (fun () ->
-       todo "existential";
+       (* todo "existential"; *)
        test_case "monomorphic list filter"
 "newtype Bool
 newtype Bar
@@ -873,5 +873,6 @@ let rec filter = fun f ->
 
     );
 
+  (* TODO: binary max as numerical existetial type *)
 
 ]

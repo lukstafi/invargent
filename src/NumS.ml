@@ -796,20 +796,18 @@ let simplify q elimvs cnj =
     | _, [] -> -1
     | [], _ -> 1
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
-  (*let params = map_opt params
-    (List.fold_left
-    (fun acc (_,ps) -> VarSet.union acc ps) VarSet.empty) in*)
   let eqs, (ineqs, implicits) =
     solve ~cnj cmp cmp_w q.uni_v in
   let eqs, _ = solve ~eqs ~eqn:implicits cmp cmp_w q.uni_v in
   let eqs =
     List.filter (fun (v,_) -> not (VarSet.mem v elimvs)) eqs in
-  let ineqs =
-    List.filter (fun (v,_) -> not (VarSet.mem v elimvs)) ineqs in
+  (*let ineqs =
+    List.filter (fun (v,_) -> not (VarSet.mem v elimvs)) ineqs in*)
   let ans = ans_to_formula (eqs, ineqs) in
+  let vs = VarSet.inter elimvs (fvs_formula ans) in
   let cmp a1 a2 = compare
       (replace_loc_atom dummy_loc a1) (replace_loc_atom dummy_loc a2) in
-  [], unique_sorted ~cmp ans
+  VarSet.elements vs, unique_sorted ~cmp ans
 
 (*
 let equivalent q cnj1 cnj2 =

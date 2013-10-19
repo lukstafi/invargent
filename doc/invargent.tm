@@ -1180,19 +1180,22 @@
   the final algorithm:
 
   <\eqnarray*>
-    <tformat|<cwith|16|16|2|2|cell-valign|c>|<table|<row|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.F<rsub|\<chi\>>|\<bar\>>>|<cell|=>|<cell|S<rsub|k>>>|<row|<cell|Prune<around*|(|A|)>>|<cell|=>|<cell|A\\<wide|\<alpha\><rsub|\<alpha\>><rsup|K><wide|=|\<dot\>>\<ldots\>|\<bar\>><eq-number><label|Skp>>>|<row|<cell|S<rsub|k><rprime|'>=<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.F<rsub|\<chi\>><rprime|'>|\<bar\>>>|<cell|=>|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.Prune<around*|(|F<rsub|\<chi\>>|)>|\<bar\>>>>|<row|<cell|D<rsub|K><rsup|\<alpha\>>\<Rightarrow\>C<rsub|K><rsup|\<alpha\>>\<in\>R<rsub|k><rsup|->S<rsub|k><rprime|'><around*|(|\<Phi\>|)>>|<cell|=>|<cell|<with|mode|text|all
-    such that >\<chi\><rsub|K><around*|(|\<alpha\>,\<alpha\><rsub|\<alpha\>><rsup|K>|)>\<in\>C<rsub|K><rsup|\<alpha\>>,<eq-number>>>|<row|<cell|>|<cell|>|<cell|<wide|C<rsup|\<alpha\>><rsub|j>|\<bar\>>=<around*|{|C<mid|\|>D\<Rightarrow\>C\<in\>S<rsub|k><around*|(|\<Phi\>|)>\<wedge\>D\<subseteq\>D<rsup|\<alpha\>><rsub|K>|}>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>.G<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|Connected<around*|(|\<delta\>,DisjElim<around*|(|<wide|\<delta\><wide|=|\<dot\>>\<alpha\>\<wedge\>D<rsup|\<alpha\>><rsub|K>\<wedge\><rsub|j>C<rsup|\<alpha\>><rsub|j>|\<bar\>><rsub|\<alpha\>\<in\><wide|\<alpha\><rsub|3><rsup|i,K>|\<bar\>>>|)>|)><eq-number>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.G<rsub|\<chi\><rsub|K>><rprime|'>>|<cell|=>|<cell|Simpl<around*|(|FV<around*|(|G<rsub|\<chi\><rsub|K>>|)>.G<rsub|\<chi\><rsub|K>>|)><eq-number>>>|<row|<cell|<wide|\<tau\>|\<vect\>><rsub|\<varepsilon\><rsub|K>>>|<cell|=>|<cell|<wide|FV<around*|(|G<rsub|\<chi\><rsub|K>>|)>\\<wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>|\<vect\>>>>|<row|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>.G<rsub|\<chi\><rsub|K>>|)>>|<cell|=>|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.\<delta\><rprime|'><wide|=|\<dot\>><wide|\<tau\>|\<vect\>><rsub|\<varepsilon\><rsub|K>>\<wedge\>G<rsub|\<chi\><rsub|K>><rprime|'>>>|<row|<cell|R<rsub|g><around*|(|\<chi\><rsub|K>|)>=\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.F<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>>.H<around*|(|R<rsub|k><around*|(|\<chi\><rsub|K>|)>,G<rsub|\<chi\><rsub|K>>|)>|)><eq-number><label|Rg>>>|<row|<cell|P<rsub|g><around*|(|\<chi\><rsub|K>|)>>|<cell|=>|<cell|\<delta\><rprime|'><wide|=|\<dot\>><wide|\<tau\>|\<vect\>><rsub|\<varepsilon\><rsub|K>>>>|<row|<cell|S<rsub|k><rprime|''>>|<cell|=>|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.F<rsub|\<chi\>><rprime|'><around*|[|\<varepsilon\><rsub|K><around*|(|\<cdummy\>|)>\<assign\>\<varepsilon\><rsub|K><around*|(|<wide|\<tau\>|\<vect\>><rsub|\<varepsilon\><rsub|K>>|)>|]>|\<bar\>><eq-number>>>|<row|<cell|>|<cell|>|<cell|<with|mode|text|TODO:
-    should it depend on Split's <math|<wide|A<rsub|+>|~>> from
-    >k-1?>>|<row|<cell|\<cal-Q\><rprime|'>.\<wedge\><rsub|i><around*|(|D<rsub|i>\<Rightarrow\>C<rsub|i>|)>>|<cell|=>|<cell|R<rsub|g><rsup|->P<rsub|g><rsup|+>S<rsub|k><rprime|''><around*|(|\<Phi\>|)>>>|<row|<cell|>|<cell|>|<cell|<with|mode|text|At
+    <tformat|<cwith|18|18|2|2|cell-valign|c>|<table|<row|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.F<rsub|\<chi\>>|\<bar\>>>|<cell|=>|<cell|S<rsub|k>>>|<row|<cell|Prune<around*|(|A|)>>|<cell|=>|<cell|A\\<wide|\<alpha\><rsub|\<alpha\>><rsup|K><wide|=|\<dot\>>\<ldots\>|\<bar\>><eq-number><label|Skp>>>|<row|<cell|S<rsub|k><rprime|'>=<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.F<rsub|\<chi\>><rprime|'>|\<bar\>>>|<cell|=>|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.Prune<around*|(|F<rsub|\<chi\>>|)>|\<bar\>>>>|<row|<cell|D<rsub|K><rsup|\<alpha\>>\<Rightarrow\>C<rsub|K><rsup|\<alpha\>>\<in\>R<rsub|k><rsup|->S<rsub|k><rprime|'><around*|(|\<Phi\>|)>>|<cell|=>|<cell|<with|mode|text|all
+    such that >\<chi\><rsub|K><around*|(|\<alpha\>,\<alpha\><rsub|\<alpha\>><rsup|K>|)>\<in\>C<rsub|K><rsup|\<alpha\>>,<eq-number>>>|<row|<cell|>|<cell|>|<cell|<wide|C<rsup|\<alpha\>><rsub|j>|\<bar\>>=<around*|{|C<mid|\|>D\<Rightarrow\>C\<in\>S<rsub|k><around*|(|\<Phi\>|)>\<wedge\>D\<subseteq\>D<rsup|\<alpha\>><rsub|K>|}>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>.G<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|Connected<around*|(|\<delta\>,DisjElim<around*|(|<wide|\<delta\><wide|=|\<dot\>>\<alpha\>\<wedge\>D<rsup|\<alpha\>><rsub|K>\<wedge\><rsub|j>C<rsup|\<alpha\>><rsub|j>|\<bar\>><rsub|\<alpha\>\<in\><wide|\<alpha\><rsub|3><rsup|i,K>|\<bar\>>>|)>|)><eq-number>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.G<rsub|\<chi\><rsub|K>><rprime|'>>|<cell|=>|<cell|Simpl<around*|(|FV<around*|(|G<rsub|\<chi\><rsub|K>>|)>.G<rsub|\<chi\><rsub|K>>|)><eq-number>>>|<row|<cell|<wide|\<tau\>|\<vect\>><rsub|\<varepsilon\><rsub|K>>>|<cell|=>|<cell|<wide|FV<around*|(|G<rsub|\<chi\><rsub|K>><rprime|'>|)>\\<wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>|\<vect\>>>>|<row|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>.G<rsub|\<chi\><rsub|K>>|)>>|<cell|=>|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.\<delta\><rprime|'><wide|=|\<dot\>><wide|\<tau\>|\<vect\>><rsub|\<varepsilon\><rsub|K>>\<wedge\>G<rsub|\<chi\><rsub|K>><rprime|'>>>|<row|<cell|R<rsub|g><around*|(|\<chi\><rsub|K>|)>=\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.F<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>>.H<around*|(|R<rsub|k><around*|(|\<chi\><rsub|K>|)>,G<rsub|\<chi\><rsub|K>>|)>|)><eq-number><label|Rg>>>|<row|<cell|P<rsub|g><around*|(|\<chi\><rsub|K>|)>>|<cell|=>|<cell|\<delta\><rprime|'><wide|=|\<dot\>><wide|\<tau\>|\<vect\>><rsub|\<varepsilon\><rsub|K>>>>|<row|<cell|L<rsub|K>>|<cell|=>|<cell|<with|mode|text|reverse
+    substitution of alien eqs. and >A<rsub|res><with|mode|text| from previous
+    step>>>|<row|<cell|>|<cell|>|<cell|<with|mode|text|such that if
+    >\<varepsilon\><rsub|K><around*|(|\<cdummy\>|)><with|mode|text| appears
+    in >S<rsub|k><around*|(|\<chi\>|)>>>|<row|<cell|>|<cell|>|<cell|<with|mode|text|then
+    >FV<around*|(|L<around*|(|\<varepsilon\><rsub|K><around*|(|<wide|\<tau\>|\<vect\>><rsub|\<varepsilon\><rsub|K>>|)>|)>|)>\<subseteq\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>>>|<row|<cell|S<rsub|k><rprime|''>>|<cell|=>|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.F<rsub|\<chi\>><rprime|'><around*|[|\<varepsilon\><rsub|K><around*|(|\<cdummy\>|)>\<assign\>L<around*|(|\<varepsilon\><rsub|K><around*|(|<wide|\<tau\>|\<vect\>><rsub|\<varepsilon\><rsub|K>>|)>|)>|]>|\<bar\>><eq-number>>>|<row|<cell|\<cal-Q\><rprime|'>.\<wedge\><rsub|i><around*|(|D<rsub|i>\<Rightarrow\>C<rsub|i>|)>>|<cell|=>|<cell|R<rsub|g><rsup|->P<rsub|g><rsup|+>S<rsub|k><rprime|''><around*|(|\<Phi\>|)>>>|<row|<cell|>|<cell|>|<cell|<with|mode|text|At
     later iterations, check negative constraints.><eq-number>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>>.A>|<cell|=>|<cell|Abd<around*|(|\<cal-Q\><rprime|'>\\<wide|\<forall\>\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>,<wide|\<zeta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|D<rsub|i>,C<rsub|i>|\<bar\>>|)><eq-number>>>|<row|<cell|<around*|(|\<cal-Q\><rsup|k+1>,<wide|<wide|\<alpha\>|\<bar\>><rsup|\<chi\>><rsub|+>|\<bar\>>,A<rsub|res>,<wide|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<beta\><rsub|\<chi\>>>.A<rsub|\<beta\><rsub|\<chi\>>>|\<bar\>>|)>>|<cell|=>|<cell|Split<around*|(|\<cal-Q\><rprime|'>,<wide|\<alpha\>|\<bar\>>,A,<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|<wide|\<zeta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>|)>>>|<row|<cell|R<rsub|k+1><around*|(|\<chi\><rsub|K>|)>>|<cell|=>|<cell|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rsub|K>,k>.Simpl<around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><wide|<wide|\<alpha\>|\<bar\>><rsup|\<beta\><rsub|\<chi\><rsub|K>>>|\<bar\>>.F<rsub|\<chi\><rsub|K>><next-line><with|mode|text|
     \ \ \ >\<wedge\><rsub|\<chi\><rsub|K>>A<rsub|\<beta\><rsub|\<chi\><rsub|K>>><around*|[|<wide|\<beta\><rsub|\<chi\><rsub|K>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<beta\><rsub|\<chi\><rsub|K>>>|\<bar\>>\<assign\><wide|\<delta\><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\><rsub|K>,k>|\<bar\>>|]>|)><eq-number>>>|<row|<cell|S<rsub|k+1><around*|(|\<chi\>|)>>|<cell|=>|<cell|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.Simpl<around*|(|\<exists\><wide|<wide|\<alpha\>|\<bar\>><rsup|\<beta\><rsub|\<chi\>>>|\<bar\>>.F<rsub|\<chi\>><rprime|''><next-line><with|mode|text|
     \ \ \ >\<wedge\>A<rsub|\<beta\><rsub|\<chi\>>><around*|[|<wide|\<beta\><rsub|\<chi\>><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<assign\><wide|\<delta\><wide|\<beta\><rsup|>|\<bar\>><rsup|\<chi\>,k>|\<bar\>>|]>|)><eq-number><label|Skp1>>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|<around*|(|\<forall\>\<chi\>|)>S<rsub|k+1><around*|(|\<chi\>|)>\<subseteq\>S<rsub|k><around*|(|\<chi\>|)>,<eq-number>>>|<row|<cell|>|<cell|>|<cell|<around*|(|\<forall\>\<chi\><rsub|K>|)>R<rsub|k+1><around*|(|\<chi\><rsub|K>|)>=R<rsub|k><around*|(|\<chi\><rsub|K>|)>,>>|<row|<cell|>|<cell|>|<cell|k\<gtr\>1>>|<row|<cell|<with|mode|text|then
     return>>|<cell|>|<cell|A<rsub|res>,S<rsub|k+1>,R<rsub|k+1>>>|<row|<cell|<with|mode|text|repeat>>|<cell|>|<cell|k\<assign\>k+1<eq-number>>>>>
   </eqnarray*>
 
-  FIXME: what does <math|<wide|<wide|\<zeta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>>
-  do and where does it come from, is it <verbatim|zvs>/<verbatim|zparams>?
-  Note that <math|Split> returns <math|<wide|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<beta\><rsub|\<chi\>>>.A<rsub|\<beta\><rsub|\<chi\>>>|\<bar\>>>
+  [FIXME: describe where <math|<wide|<wide|\<zeta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>>,
+  i.e. <verbatim|zvs>/<verbatim|zparams>, come from.] Note that <math|Split>
+  returns <math|<wide|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<beta\><rsub|\<chi\>>>.A<rsub|\<beta\><rsub|\<chi\>>>|\<bar\>>>
   rather than <math|<wide|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\>>.A<rsub|\<chi\>>|\<bar\>>>.
   This is because in case of existential type predicate variables
   <math|\<chi\><rsub|K>>, there can be multiple negative position occurrences
@@ -1438,7 +1441,7 @@
     <associate|ImplSubst|<tuple|4|2>>
     <associate|Main Algo|<tuple|5.3|?>>
     <associate|MainAlgo|<tuple|5|11>>
-    <associate|MainAlgoBody|<tuple|5.3|14>>
+    <associate|MainAlgoBody|<tuple|5.3|13>>
     <associate|NumConv|<tuple|4.2|11>>
     <associate|Rg|<tuple|5|14>>
     <associate|SCAlinear|<tuple|3.4|8>>
@@ -1459,7 +1462,7 @@
     <associate|auto-16|<tuple|5|11>>
     <associate|auto-17|<tuple|5.1|11>>
     <associate|auto-18|<tuple|5.2|11>>
-    <associate|auto-19|<tuple|5.3|14>>
+    <associate|auto-19|<tuple|5.3|13>>
     <associate|auto-2|<tuple|2|2>>
     <associate|auto-20|<tuple|5.4|15>>
     <associate|auto-21|<tuple|5.5|16>>
@@ -1472,8 +1475,8 @@
     <associate|auto-7|<tuple|3.1|5>>
     <associate|auto-8|<tuple|3.1.1|7>>
     <associate|auto-9|<tuple|3.2|7>>
-    <associate|bib-AbductionSolvMaher|<tuple|3|17>>
-    <associate|bib-AntiUnifAlg|<tuple|8|17>>
+    <associate|bib-AbductionSolvMaher|<tuple|3|16>>
+    <associate|bib-AntiUnifAlg|<tuple|8|16>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
@@ -1481,12 +1484,12 @@
     <associate|bib-ConvexHull|<tuple|2|16>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
-    <associate|bib-disjelimTechRep|<tuple|6|17>>
+    <associate|bib-disjelimTechRep|<tuple|6|16>>
     <associate|bib-jcaqpTechRep|<tuple|8|4>>
-    <associate|bib-jcaqpTechRep2|<tuple|7|17>>
-    <associate|bib-jcaqpUNIF|<tuple|4|17>>
+    <associate|bib-jcaqpTechRep2|<tuple|7|16>>
+    <associate|bib-jcaqpUNIF|<tuple|4|16>>
     <associate|bib-simonet-pottier-hmg-toplas|<tuple|6|4>>
-    <associate|bib-systemTechRep|<tuple|5|17>>
+    <associate|bib-systemTechRep|<tuple|5|16>>
   </collection>
 </references>
 
