@@ -164,6 +164,7 @@ val no_vs : VarSet.t
 val atom_loc : atom -> loc
 
 type subst = (var_name * (typ * loc)) list
+type hvsubst = (var_name, var_name) Hashtbl.t
 
 val subst_atom : subst -> atom -> atom
 val subst_formula : subst -> formula -> formula
@@ -229,6 +230,7 @@ exception Suspect of formula * loc
 val convert : exn -> exn
 
 val subst_typ : subst -> typ -> typ
+val hvsubst_typ : hvsubst -> typ -> typ
 val subst_sb : sb:subst -> subst -> subst
 val update_sb : more_sb:subst -> subst -> subst
 (** Substitute constants, and generally subterms identical to a term,

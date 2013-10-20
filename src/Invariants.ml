@@ -221,29 +221,37 @@ let satisfiable q (ty_st, num_st) cnj =
   ty_st, num_st
 
 (* 10 *)
-let strat q b ans =
+let strat q lift_params b ans =
   let (_, ans_r), ans = fold_map
-    (fun (pvs, ans_r) c ->
-      let vs = VarSet.elements (VarSet.diff (fvs_atom c) pvs) in
-      (* FIXME: after prenexization, this does not do much! *)
-      let vs = List.filter
-        (fun v -> q.cmp_v b v = Left_of) vs in
-      let loc = atom_loc c in
-      if List.exists q.uni_v vs then
-        (let bad = List.find q.uni_v vs in
-         raise (NoAnswer
-                  (var_sort bad, "Escaping universal variable",
-                   Some (TVar b, TVar bad), loc)));
-      let avs = List.map Infer.freshen_var vs in
-      let ans_r =
-        List.map2 (fun a b -> b, (TVar a, loc)) avs vs @ ans_r in
-      (VarSet.union pvs (vars_of_list vs), ans_r),
-      (avs, subst_atom ans_r c))
-    (VarSet.empty, []) ans in
+      (fun (pvs, ans_r) c ->
+         let vs = VarSet.elements (VarSet.diff (fvs_atom c) pvs) in
+         (* FIXME: after prenexization, this does not do much! *)
+         let vs = List.filter
+             (fun v -> q.cmp_v b v = Left_of) vs in
+         let loc = atom_loc c in
+         if List.exists q.uni_v vs then
+           (let bad = List.find q.uni_v vs in
+            raise (NoAnswer
+                     (var_sort bad, "Escaping universal variable",
+                      Some (TVar b, TVar bad), loc)));
+         let avs = List.map Infer.freshen_var vs in
+         List.iter2
+           (fun av v ->
+              Format.printf "lift_params: strat %s - %s@\n%!"
+                (var_str av) (var_str v); (* *)
+              if Hashtbl.mem lift_params v
+              then Hashtbl.replace lift_params (Hashtbl.find lift_params v) av;
+              Hashtbl.replace lift_params v av)
+           avs vs;
+         let ans_r =
+           List.map2 (fun a b -> b, (TVar a, loc)) avs vs @ ans_r in
+         (VarSet.union pvs (vars_of_list vs), ans_r),
+         (avs, subst_atom ans_r c))
+      (VarSet.empty, []) ans in
   let avs, ans_l = List.split ans in
   List.concat avs, ans_l, ans_r
   
-let split avs ans negchi_locs params zparams q =
+let split avs ans negchi_locs params zparams q lift_params =
   (* 1 FIXME: do we really need this? *)
   let cmp_v v1 v2 =
     let a = q.cmp_v v1 v2 in
@@ -354,7 +362,7 @@ let split avs ans negchi_locs params zparams q =
         Format.printf "select: ans_chi(%s)=@ %a@\n%!"
           (var_str b) pr_formula ans_p; (* *)
         (* 10 *)
-        let (avs_p, ans_l, ans_r) = strat q b ans_p in
+        let (avs_p, ans_l, ans_r) = strat q lift_params b ans_p in
         Format.printf "select: ans_l(%s)=@ %a@\n%!"
           (var_str b) pr_formula ans_l; (* *)
         (* Negatively occurring [b] "owns" these formal parameters *)
@@ -522,14 +530,14 @@ let disj_step = [|0; 0; 1; 3|]
 let solve q_ops brs =
   (* DEBUG *)
   List.iter
-      (fun (prem,concl) ->
-         try ignore (unify q_ops (prem@concl))
-         with Contradiction _ as e ->
-           Format.printf
-             "solve: bad branch@\n%a@ ⟹@ %a@\nreason: %a@\n%!"
-             pr_formula prem pr_formula concl pr_exception e; (* *)
-      )
-      brs;
+    (fun (prem,concl) ->
+       try ignore (unify q_ops (prem@concl))
+       with Contradiction _ as e ->
+         Format.printf
+           "solve: bad branch@\n%a@ ⟹@ %a@\nreason: %a@\n%!"
+           pr_formula prem pr_formula concl pr_exception e; (* *)
+    )
+    brs;
   let q = new_q q_ops in
   let cmp_v = q.cmp_v and uni_v = q.uni_v in
   let neg_brs, brs = List.partition
@@ -556,6 +564,7 @@ let solve q_ops brs =
     (List.map (fun (cnj,_) -> cnj, []) neg_cns); (* *)
   let negchi_locs = Hashtbl.create 8 in
   let alphasK = Hashtbl.create 8 in
+  let lift_params = Hashtbl.create 32 in
   List.iter
     (fun (prem,concl) ->
        List.iter
@@ -643,8 +652,8 @@ let solve q_ops brs =
         (fun (i,(vs,ans)) -> i,(vs,remove_alphaK ans)) sol1 in
     let brs0 = sb_brs_PredU q sol1 brs in
     let g_par = List.map (fun (i,_) -> i,([],[]))
-        (* function (i,(_,[])) -> i,([],[])
-                | (i,(_,pms::_)) -> i, ([],[pms]) *) rol1 in
+      (* function (i,(_,[])) -> i,([],[])
+              | (i,(_,pms::_)) -> i, ([],[pms]) *) rol1 in
     let brs1 = sb_brs_PredB q rol1 g_par brs0 in
     (* Collect all relevant constraints together. *)
     let verif_brs = List.map
@@ -703,8 +712,8 @@ let solve q_ops brs =
         let g_rol = List.map
             (fun (i,cnjs) ->
                i, connected ~validate ~directed:true [delta; delta']
-                  (DisjElim.disjelim q_ops
-                     ~do_num:(disj_step.(1) <= iter_no) cnjs))
+                 (DisjElim.disjelim q_ops
+                    ~do_num:(disj_step.(1) <= iter_no) cnjs))
             g_rol in
         Format.printf "solve: iter_no=%d@\ng_rol.A=%a@\n%!"
           iter_no pr_chi_subst g_rol;
@@ -754,6 +763,7 @@ let solve q_ops brs =
         (* 6 *)
         let esb = List.map
             (fun (i, tpar) ->
+               let tpar = hvsubst_typ lift_params tpar in
                let n = Extype (Hashtbl.find exty_of_chi i) in
                n, fun _ -> TCons (n, [tpar]))
             tpars in
@@ -828,8 +838,19 @@ let solve q_ops brs =
         let alien_eqs, (vs, ans) =
           Abduction.abd q.op ~bvs ~zvs ~bparams ~zparams
             ~iter_no ~discard brs1 in
+        List.iter
+          (function
+            | v, (TVar v2, _) ->
+              Format.printf "lift_params: alien eq %s - %s@\n%!"
+                (var_str v) (var_str v2); (* *)
+              if Hashtbl.mem lift_params v2
+              then Hashtbl.add lift_params v (Hashtbl.find lift_params v2)
+              else
+                (Hashtbl.add lift_params v v2; Hashtbl.add lift_params v2 v)
+            | _ -> ())
+          alien_eqs;
         let ans_res, more_discard, ans_sol =
-          split vs ans negchi_locs params zparams q in
+          split vs ans negchi_locs params zparams q lift_params in
         Format.printf
           "solve: loop -- answer split@ more_discard=@ %a@\nans_res=@ %a@\n%!"
           pr_formula more_discard pr_formula ans_res; (* *)
@@ -959,12 +980,12 @@ let solve q_ops brs =
     let ans_sb, _ = Infer.separate_subst q.op ans_res in
     (* Substitute the solutions for existential types. *)
     let etys_sb = List.map
-      (fun (ex_i,_) ->
-        let n = Extype ex_i in
-        n, (function
-            | [TCons (t, args)] when t=tuple -> TCons (n, args)
-            | targs -> TCons (n, targs)))
-      !new_ex_types in
+        (fun (ex_i,_) ->
+           let n = Extype ex_i in
+           n, (function
+               | [TCons (t, args)] when t=tuple -> TCons (n, args)
+               | targs -> TCons (n, targs)))
+        !new_ex_types in
     let esb_formula = List.map
         (function
           | Eqty (t1, t2, lc) ->

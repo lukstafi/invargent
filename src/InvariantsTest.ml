@@ -798,7 +798,7 @@ let rec walk = fun x ->
 
   "mono filter" >::
     (fun () ->
-       (* todo "existential"; *)
+       skip_if !debug "debug";
        test_case "monomorphic list filter"
 "newtype Bool
 newtype Bar
@@ -818,13 +818,15 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
-        [1,""];
+        [2,"∃n74.
+  δ =
+    (List n74 → ∃2:n78[n78 ≤ n74 ∧ 0 ≤ n74 ∧ 0 ≤ n78].List n78)"];
 
     );
 
   "filter" >::
     (fun () ->
-       todo "existential";
+       (* todo "existential"; *)
        test_case "list filter"
 "newtype Bool
 newtype List : type * num
@@ -845,7 +847,7 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
-        [1,""];
+        [2,""];
 
     );
 
@@ -869,7 +871,7 @@ let rec filter = fun f ->
           LCons (x, ys)
 	| False ->
           filter f xs"
-        [1,""];
+        [2,""];
 
     );
 

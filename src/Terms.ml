@@ -277,10 +277,15 @@ let fvs_typ =
   with fold_tvar = (fun v -> VarSet.singleton v)}
 
 type subst = (var_name * (typ * loc)) list
+type hvsubst = (var_name, var_name) Hashtbl.t
 
 let subst_typ sb =
   typ_map {typ_id_map with map_tvar =
       fun v -> try fst (List.assoc v sb) with Not_found -> TVar v}
+
+let hvsubst_typ sb =
+  typ_map {typ_id_map with map_tvar =
+      fun v -> TVar (try Hashtbl.find sb v with Not_found -> v)}
 
 let subst_one v s t =
   let modif = ref false in
