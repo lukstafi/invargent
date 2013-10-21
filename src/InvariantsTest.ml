@@ -824,10 +824,10 @@ let rec filter =
 
     );
 
-  "filter" >::
+  "Bar filter" >::
     (fun () ->
        (* todo "existential"; *)
-       test_case "list filter"
+       test_case "list filter: Bar"
 "newtype Bool
 newtype List : type * num
 newcons True : Bool
@@ -875,6 +875,90 @@ let rec filter = fun f ->
 
     );
 
+  "poly filter map" >::
+    (fun () ->
+       (* todo "existential"; *)
+       test_case "list filter map"
+"newtype Bool
+newtype List : type * num
+newcons True : Bool
+newcons False : Bool
+newcons LNil : ∀a. List(a, 0)
+newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+
+let rec filter = fun f g ->
+  efunction LNil -> LNil
+    | LCons (x, xs) ->
+      ematch f x with
+        | True ->
+          let ys = filter xs in
+          LCons (g x, ys)
+	| False ->
+          filter xs"
+        [2,""];
+
+    );
+
+  "existential filter map 1" >::
+    (fun () ->
+       (* todo "existential"; *)
+       test_case "existential filter map 1"
+"newtype Bool
+newtype List : type * num
+newcons True : Bool
+newcons False : Bool
+newcons LNil : ∀a. List(a, 0)
+newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+
+external g : ∀a. a → ∃b.b
+
+let rec filter = fun f g ->
+  efunction LNil -> LNil
+    | LCons (x, xs) ->
+      ematch f x with
+        | True ->
+          let ys = filter xs in
+          let y = g x in
+          LCons (y, ys)
+	| False ->
+          filter xs"
+        [2,""];
+
+    );
+
+  "existential filter map 2" >::
+    (fun () ->
+       (* todo "existential"; *)
+       test_case "existential filter map 2"
+"newtype Choice
+newtype List : type * num
+newcons A : Choice
+newcons B : Choice
+newcons C : Choice
+newcons LNil : ∀a. List(a, 0)
+newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+newtype Foo
+newtype Bar
+external g : ∀a. a → Foo
+external h : ∀a. a → Bar
+
+let rec filter = fun f g ->
+  efunction LNil -> LNil
+    | LCons (x, xs) ->
+      ematch f x with
+        | A ->
+          let ys = filter xs in
+          LCons (g x, ys)
+        | B ->
+          let ys = filter xs in
+          LCons (h x, ys)
+	| C ->
+          filter xs"
+        [2,""];
+
+    );
+
   (* TODO: binary max as numerical existetial type *)
 
+  (* TODO: tests for nested/mutual recursive definitions *)
 ]

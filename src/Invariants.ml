@@ -661,6 +661,10 @@ let solve q_ops brs =
            nonrec, chiK, prem,
            concat_map
              (fun (_,_,prem2,concl2) ->
+                Format.printf
+                  "solve-verif_brs: subformula? %b@\nprem2=%a@\nprem=%a@\n%!"
+                  (subformula prem2 prem)
+                  pr_formula prem2 pr_formula prem; (* *)
                 if subformula prem2 prem then concl2 else [])
              brs1)
         brs1 in
@@ -887,11 +891,18 @@ let solve q_ops brs =
                update_assoc sort [] (fun dl -> s_discard::dl) discard in
              loop iter_no discard rol1 sol1 in
       (* 9 *)
+      let ans_sb, _ = Infer.separate_subst q.op ans_res in
       let rol2 =
         if disj_step.(0) > iter_no then rol1
         else
           List.map
             (fun (i, (gvs,g_ans)) ->
+               let g_ans = subst_formula ans_sb g_ans in
+               let tpar, g_ans =
+                 match g_ans with
+                 | Eqty (tv, tpar, _) :: g_ans when tv = tdelta' ->
+                   tpar, g_ans
+                 | _ -> assert false in
                let bs = List.filter (not % q.positive_b) (q.find_b i) in
                let ds = List.map (fun b-> b, List.assoc b ans_sol) bs in
                let dans = concat_map
@@ -908,10 +919,15 @@ let solve q_ops brs =
                       subst_formula sb dans)
                    ds in
                let dvs = gvs @ concat_map (fun (_,(dvs,_))->dvs) ds in
-               let i_res =
+               let vs, ans =
                  simplify q.op
                    (connected ~directed:true [delta; delta']
                       (dvs, dans @ g_ans)) in
+               (* FIXME: are generalization variables impossible in tpar'? *)
+               let pvs = VarSet.elements (fvs_typ tpar) in
+               let targs = List.map (fun v -> TVar v) pvs in
+               let tpar' = TCons (tuple, targs) in
+               let i_res = vs, Eqty (tdelta', tpar', dummy_loc) :: ans in
                Format.printf
                  "solve-loop: dans=%a@ chi%d(.)=@ %a@\n%!"
                  pr_formula dans i pr_ans i_res; (* *)
