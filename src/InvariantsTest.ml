@@ -796,7 +796,80 @@ let rec walk = fun x ->
         [2,"∃t245. δ = (Place t245 → ∃2:t248[].Nearby (t245, t248))"];
     );
 
-  "mono filter" >::
+  "non-num map not existential poly" >::
+    (fun () ->
+       todo "existential";
+       test_case "list without length map not existential poly"
+"newtype List : type
+newcons LNil : ∀a. List a
+newcons LCons : ∀a. a * List a ⟶ List a
+
+let rec map = fun f ->
+  efunction LNil -> LNil
+    | LCons (x, xs) ->
+      let ys = map f xs in
+      LCons (f x, ys)"
+        [2,"∃t36. δ = ((t36 → t36) → List t36 → ∃1:[].List t36)"];
+    );
+
+  "non-num map not existential mono" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "list without length map not existential mono"
+"newtype List : type
+newcons LNil : ∀a. List a
+newcons LCons : ∀a. a * List a ⟶ List a
+newtype Foo
+newtype Bar
+
+external f : Foo → Bar
+
+let rec map =
+  efunction LNil -> LNil
+    | LCons (x, xs) ->
+      let ys = map xs in
+      LCons (f x, ys)"
+        [2,"∃t50. δ = (List Foo → ∃1:[].List Bar)"];
+    );
+
+  "map not existential poly" >::
+    (fun () ->
+       todo "existential";
+       test_case "list map not existential poly"
+"newtype List : type
+newtype List : type * num
+newcons LNil : ∀a. List(a, 0)
+newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+
+let rec map = fun f ->
+  efunction LNil -> LNil
+    | LCons (x, xs) ->
+      let ys = map f xs in
+      LCons (f x, ys)"
+        [2,"∃t36, n. δ = ((t36 → t36) → List (t36, n) → ∃1:[].List (t36, n))"];
+    );
+
+  "map not existential mono" >::
+    (fun () ->
+       (* todo "existential"; *)
+       test_case "list map not existential mono"
+"newtype List : type * num
+newcons LNil : ∀a. List(a, 0)
+newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+newtype Foo
+newtype Bar
+
+external f : Foo → Bar
+
+let rec map =
+  efunction LNil -> LNil
+    | LCons (x, xs) ->
+      let ys = map xs in
+      LCons (f x, ys)"
+        [2,"∃n. δ = (List (Foo, n) → ∃1:[].List (Bar, n))"];
+    );
+
+  "filter mono" >::
     (fun () ->
        skip_if !debug "debug";
        test_case "monomorphic list filter"
@@ -824,9 +897,9 @@ let rec filter =
 
     );
 
-  "Bar filter" >::
+  "filter Bar" >::
     (fun () ->
-       (* todo "existential"; *)
+       skip_if !debug "debug";
        test_case "list filter: Bar"
 "newtype Bool
 newtype List : type * num
@@ -847,11 +920,14 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
-        [2,""];
+        [2,"∃n85, t84.
+  δ =
+    (List (Bar, n85) → ∃2:n92[n92 ≤ n85 ∧ 0 ≤ n85 ∧
+       0 ≤ n92].List (Bar, n92))"];
 
     );
 
-  "poly filter" >::
+  "filter poly" >::
     (fun () ->
       todo "existential";
       test_case "polymorphic list filter"
@@ -877,7 +953,7 @@ let rec filter = fun f ->
 
   "poly filter map" >::
     (fun () ->
-       (* todo "existential"; *)
+       todo "existential";
        test_case "list filter map"
 "newtype Bool
 newtype List : type * num
@@ -901,7 +977,7 @@ let rec filter = fun f g ->
 
   "existential filter map 1" >::
     (fun () ->
-       (* todo "existential"; *)
+       todo "existential";
        test_case "existential filter map 1"
 "newtype Bool
 newtype List : type * num
@@ -928,7 +1004,7 @@ let rec filter = fun f g ->
 
   "existential filter map 2" >::
     (fun () ->
-       (* todo "existential"; *)
+       todo "existential";
        test_case "existential filter map 2"
 "newtype Choice
 newtype List : type * num

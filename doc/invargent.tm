@@ -946,6 +946,93 @@
   postconditions are not subjected to stratification. This is because the
   type system does not support nested existential types.
 
+  <subsection|Abductive disjunction elimination under quantifier prefix>
+
+  We extend the notion of disjunction elimination:
+  <math|\<exists\><wide|\<alpha\>|\<bar\>>.A> is an answer to <em|abductive
+  disjunction elimination under quantifier prefix> problem
+  <math|\<cal-Q\>.<wide|D<rsub|i>|\<bar\>>> when there exist
+  <math|\<exists\><wide|\<beta\>|\<bar\>><rsub|i,j>.B<rsub|i,j>> and
+  <math|U<rsub|i>> such that:
+
+  <\enumerate>
+    <item><math|\<vDash\><around*|(|\<exists\><wide|<wide|\<beta\>|\<bar\>><rsub|i,j>|\<bar\>>.D<rsub|i>\<wedge\><rsub|j>B<rsub|i,j>|)>\<Leftrightarrow\><around*|(|D<rsub|i>\<wedge\>U<rsub|i>|)>>;
+
+    <item><math|<around*|(|\<forall\>i|)>\<vDash\>D<rsub|i>\<wedge\>U<rsub|i>\<Rightarrow\>\<exists\><wide|\<alpha\>|\<bar\>>\\FV<around*|(|U<rsub|i>|)>.A>;
+
+    <item><math|<around*|(|\<forall\>i,j|)>\<vDash\>D<rsub|j>\<Rightarrow\>\<exists\><wide|\<beta\>|\<bar\>><rsub|i,j>.B<rsub|i,j>>;
+
+    <item><math|\<vDash\>\<forall\><wide|<wide|\<beta\>|\<bar\>><rsub|i,j>|\<bar\>>\<cal-Q\>.\<wedge\><rsub|i,j>B<rsub|i,j>>
+    and <math|\<vDash\>\<cal-Q\>.\<wedge\><rsub|i>U<rsub|i>>.
+  </enumerate>
+
+  We currently do not pursue a complete algorithm for abductive disjunction
+  elimination. Rather, we extend our algorithms in a natural way, that
+  satisfies the requirements of abductive disjunction elimination and
+  suffices in practice. The sort-integrating algorithm essentially does not
+  change:
+
+  <\enumerate>
+    <item>Let <math|\<wedge\><rsub|s>D<rsub|i,s>\<equiv\>\<b-U\><around|(|D<rsub|i>|)>>
+    where <math|D<rsub|i,s>> is of sort <math|s>, be the result of our
+    sort-separating unification.
+
+    <item>For the sort <math|s<rsub|ty>>:
+
+    <\enumerate>
+      <item>Let <math|V=<around*|{|x<rsub|j>,<wide|t<rsub|i,j>|\<bar\>><mid|\|>\<forall\>i\<exists\>t<rsub|i,j>.x<rsub|j><wide|=|\<dot\>>t<rsub|i,j>\<in\>D<rsub|i,s<rsub|ty>>|}>>.
+
+      <item>Let <math|G=<around*|{|<wide|\<alpha\>|\<bar\>><rsub|j>,g<rsub|j>,<wide|u<rsub|i>|\<bar\>>,<wide|\<theta\><rsub|i,j>|\<bar\>><mid|\|>\<theta\><rsub|i,j>=<around*|[|<wide|\<alpha\>|\<bar\>><rsub|j>\<assign\><wide|g|\<bar\>><rsub|j><rsup|i>|]>,\<theta\><rsub|i,j><around*|(|g<rsub|j>|)>=u<rsub|i><around*|(|t<rsub|i,j>|)>|}>>
+      be the most specific anti-unifiers of
+      <math|<wide|<rsub|>u<rsub|i><around*|(|t<rsub|i,j>|)>|\<bar\>>> for
+      each <math|j>, where <math|u<rsub|i>> is a part of
+      <math|U<rsub|><rsub|i>>.
+
+      <item>Let <math|D<rsub|i><rsup|u>=\<wedge\><rsub|j><wide|\<alpha\>|\<bar\>><rsub|j><wide|=|\<dot\>><wide|g|\<bar\>><rsub|j><rsup|i>>
+      and <math|D<rsub|i><rsup|g>=D<rsub|i,s<rsub|ty>>\<wedge\>D<rsub|i><rsup|u>>.
+
+      <item>Let <math|D<rsup|v><rsub|i>=<around*|{|x<wide|=|\<dot\>>y<mid|\|>x<wide|=|\<dot\>>t<rsub|1>\<in\>D<rsub|i><rsup|g>,y<wide|=|\<dot\>>t<rsub|2>\<in\>D<rsub|i><rsup|g>,D<rsub|i><rsup|g>\<vDash\>t<rsub|1><wide|=|\<dot\>>t<rsub|2>|}>>.
+
+      <item>Let <math|A<rsub|s<rsub|ty>>=\<wedge\><rsub|j>x<rsub|j><wide|=|\<dot\>>u<rsub|j>\<wedge\><big|cap><rsub|i><around*|(|D<rsub|i><rsup|g>\<wedge\>D<rsub|i><rsup|v>|)>>
+      (where conjunctions are treated as sets of conjuncts and equations are
+      ordered so that only one of <math|a<wide|=|\<dot\>>b,b<wide|=|\<dot\>>a>
+      appears anywhere), and <math|<wide|\<alpha\>|\<bar\>><rsub|s<rsub|ty>>=<wide|<wide|\<alpha\>|\<bar\>><rsub|j>|\<bar\>>>.
+
+      <item>Let <math|\<wedge\><rsub|s>D<rsup|u><rsub|i,s>\<equiv\>D<rsup|u><rsub|i>>
+      for <math|D<rsup|u><rsub|i,s>> of sort <math|s>.
+    </enumerate>
+
+    <item>For sorts <math|s\<neq\>s<rsub|ty>>, let
+    <math|\<exists\><wide|\<alpha\>|\<bar\>><rsub|s>.A<rsub|s>=DisjElim<rsub|s><around*|(|<wide|D<rsub|i><rsup|s>\<wedge\>D<rsup|u><rsub|i,s>|\<bar\>>|)>>.
+
+    <item>The answer is <math|\<exists\><wide|<wide|\<alpha\><rsup|j><rsub|i>|\<bar\>>|\<bar\>><wide|<wide|\<alpha\>|\<bar\>><rsub|s>|\<bar\>>.\<wedge\><rsub|s>A<rsub|s>>.
+  </enumerate>
+
+  Our current generalized anti-unification algorithm:
+
+  <\eqnarray*>
+    <tformat|<table|<row|<cell|au<rsub|U,G><around*|(|t;\<ldots\>;t|)>>|<cell|=>|<cell|\<varnothing\>,t,U,G>>|<row|<cell|au<rsub|U,G><around*|(|f<around*|(|<wide|t|\<bar\>><rsup|1>|)>;\<ldots\>;f<around*|(|<wide|t|\<bar\>><rsup|n>|)>|)>>|<cell|=>|<cell|<wide|\<alpha\>|\<bar\>>,f<around*|(|<wide|g|\<bar\>>|)>,U<rprime|'>,G<rprime|'>>>|<row|<cell|<with|mode|text|where
+    \ ><wide|\<alpha\>|\<bar\>>,<wide|g|\<bar\>>,U<rprime|'>,G<rprime|'>>|<cell|=>|<cell|aun<rsub|U,G><around*|(|<wide|t|\<bar\>><rsup|1>;\<ldots\>;<wide|t|\<bar\>><rsup|n>|)>>>|<row|<cell|au<rsub|U,G><around*|(|t<rsub|1>;\<ldots\>;t<rsub|n>|)>>|<cell|=>|<cell|\<varnothing\>,\<alpha\>,U,G>>|<row|<cell|<with|mode|text|when>>|<cell|>|<cell|<around*|(|<around*|[|t<rsub|1>;\<ldots\>;t<rsub|n>|]>\<mapsto\>\<alpha\>|)>\<in\>G>>|<row|<cell|au<rsub|U,G><around*|(|\<ldots\>;\<beta\><rsub|i>;\<ldots\>;f<around*|(|<wide|t|\<bar\>><rsup|j>|)>;\<ldots\>|)>>|<cell|=>|<cell|<wide|\<alpha\>|\<bar\>><wide|\<alpha\>|\<bar\>><rprime|'>,g,U<rprime|''>,G<rprime|'>>>|<row|<cell|<with|mode|text|where
+    \ ><wide|\<alpha\>|\<bar\>><rprime|'>,g,U<rprime|''>,G<rprime|'>>|<cell|=>|<cell|au<rsub|U<rprime|'>,G><around*|(|\<ldots\>;f<around*|(|<wide|\<alpha\>|\<bar\>>|)>;\<ldots\>;f<around*|(|<wide|t|\<bar\>><rsup|j>|)><around*|[|\<beta\><rsub|i>\<assign\>f<around*|(|<wide|\<alpha\>|\<bar\>>|)>|]>;\<ldots\>|)>>>|<row|<cell|U<rprime|'>>|<cell|=>|<cell|U<around*|[|\<beta\><rsub|i>\<assign\>f<around*|(|<wide|\<alpha\>|\<bar\>>|)>|]>\<wedge\>\<beta\><rsub|i><wide|=|\<dot\>>f<around*|(|<wide|\<alpha\>|\<bar\>>|)>>>|<row|<cell|<with|mode|text|when>>|<cell|>|<cell|\<exists\>\<beta\><rsub|i>\<in\>\<cal-Q\><with|mode|text|,
+    treat ><wide|\<alpha\>|\<bar\>><with|mode|text| as quantified with
+    >\<exists\>\<beta\><rsub|i>>>|<row|<cell|au<rsub|U,G><around*|(|\<ldots\>;\<beta\><rsub|i>;\<ldots\>;\<beta\><rsub|j>;\<ldots\>|)>>|<cell|=>|<cell|<wide|\<alpha\>|\<bar\>><rprime|'>,g,U<rprime|''>,G<rprime|'>>>|<row|<cell|<with|mode|text|where
+    \ ><wide|\<alpha\>|\<bar\>><rprime|'>,g,U<rprime|''>,G<rprime|'>>|<cell|=>|<cell|au<rsub|U<rprime|'>,G><around*|(|\<ldots\>;\<beta\><rsub|j>;\<ldots\>;\<beta\><rsub|j>;\<ldots\>|)>>>|<row|<cell|U<rprime|'>>|<cell|=>|<cell|U<around*|[|\<beta\><rsub|i>\<assign\>\<beta\><rsub|j>|]>\<wedge\>\<beta\><rsub|i><wide|=|\<dot\>>\<beta\><rsub|j>>>|<row|<cell|<with|mode|text|when>>|<cell|>|<cell|\<exists\>\<beta\><rsub|i>\<in\>\<cal-Q\>,\<beta\><rsub|j>\<leqslant\><rsub|\<cal-Q\>>\<beta\><rsub|i>>>|<row|<cell|au<rsub|U,G><around*|(|t<rsub|1>;\<ldots\>;t<rsub|n>|)>>|<cell|=>|<cell|\<alpha\>,\<alpha\>,U,<around*|(|<around*|[|t<rsub|1>;\<ldots\>;t<rsub|n>|]>\<mapsto\>\<alpha\>|)>G>>|<row|<cell|<with|mode|text|otherwise,>>|<cell|>|<cell|<with|mode|text|where
+    >\<alpha\>#FV<around*|(|t<rsub|1>;\<ldots\>;t<rsub|n>,U,G|)>>>|<row|<cell|aun<rsub|U,G><around*|(|\<varnothing\>|)>>|<cell|=>|<cell|\<varnothing\>,\<varnothing\>,U,G>>|<row|<cell|aun<rsub|U,G><around*|(|\<varnothing\>;\<ldots\>|)>>|<cell|=>|<cell|\<varnothing\>,\<varnothing\>,U,G>>|<row|<cell|aun<rsub|U,G><around*|(|t<rsup|1><rsub|1>,<wide|t|\<bar\>><rsup|1>;\<ldots\>;t<rsup|n><rsub|1>,<wide|t|\<bar\>><rsup|n>|)>>|<cell|=>|<cell|<wide|\<alpha\>|\<bar\>><wide|\<alpha\>|\<bar\>><rprime|'>,g<wide|g|\<bar\>><rprime|'>,U<rprime|''>,G<rprime|''>>>|<row|<cell|<with|mode|text|where
+    \ ><wide|\<alpha\>|\<bar\>>,g,U<rprime|'>,G<rprime|'>>|<cell|=>|<cell|au<rsub|U,G><around*|(|t<rsub|1><rsup|1>;\<ldots\>;t<rsub|1><rsup|n>|)>>>|<row|<cell|<with|mode|text|and
+    \ ><wide|\<alpha\>|\<bar\>><rprime|'>,<wide|g|\<bar\>><rprime|'>,U<rprime|''>,G<rprime|''>>|<cell|=>|<cell|aun<rsub|U<rprime|'>,G<rprime|'>><around*|(|<wide|t|\<bar\>><rsup|1>;\<ldots\>;<wide|t|\<bar\>><rsup|n>|)>>>>>
+  </eqnarray*>
+
+  The notational shorthand <math|\<ldots\>;\<beta\><rsub|i>;\<ldots\>;f<around*|(|<wide|t|\<bar\>><rsup|j>|)>;\<ldots\>>
+  represents the case where all terms are either existential variables or
+  start with a function symbol <math|f>. Similarly,
+  <math|\<ldots\>;\<beta\><rsub|i>;\<ldots\>;\<beta\><rsub|j>;\<ldots\>>
+  represents the case when there is a variable <math|\<beta\><rsub|j>> such
+  that all terms are either <math|\<beta\><rsub|j>> or are existential
+  variables to the right of <math|\<beta\><rsub|j>> in the quantifier.
+
+  Corresponding extension of disjunction elimination for linear arithmetics
+  remains to be provided.
+
   <section|Solving for Predicate Variables><label|MainAlgo>
 
   As we decided to provide the first solution to abduction problems, we
@@ -1181,7 +1268,7 @@
 
   <\eqnarray*>
     <tformat|<cwith|18|18|2|2|cell-valign|c>|<table|<row|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.F<rsub|\<chi\>>|\<bar\>>>|<cell|=>|<cell|S<rsub|k>>>|<row|<cell|Prune<around*|(|A|)>>|<cell|=>|<cell|A\\<wide|\<alpha\><rsub|\<alpha\>><rsup|K><wide|=|\<dot\>>\<ldots\>|\<bar\>><eq-number><label|Skp>>>|<row|<cell|S<rsub|k><rprime|'>=<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.F<rsub|\<chi\>><rprime|'>|\<bar\>>>|<cell|=>|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.Prune<around*|(|F<rsub|\<chi\>>|)>|\<bar\>>>>|<row|<cell|D<rsub|K><rsup|\<alpha\>>\<Rightarrow\>C<rsub|K><rsup|\<alpha\>>\<in\>R<rsub|k><rsup|->S<rsub|k><rprime|'><around*|(|\<Phi\>|)>>|<cell|=>|<cell|<with|mode|text|all
-    such that >\<chi\><rsub|K><around*|(|\<alpha\>,\<alpha\><rsub|\<alpha\>><rsup|K>|)>\<in\>C<rsub|K><rsup|\<alpha\>>,<eq-number>>>|<row|<cell|>|<cell|>|<cell|<wide|C<rsup|\<alpha\>><rsub|j>|\<bar\>>=<around*|{|C<mid|\|>D\<Rightarrow\>C\<in\>S<rsub|k><around*|(|\<Phi\>|)>\<wedge\>D\<subseteq\>D<rsup|\<alpha\>><rsub|K>|}>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>.G<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|Connected<around*|(|\<delta\>,DisjElim<around*|(|<wide|\<delta\><wide|=|\<dot\>>\<alpha\>\<wedge\>D<rsup|\<alpha\>><rsub|K>\<wedge\><rsub|j>C<rsup|\<alpha\>><rsub|j>|\<bar\>><rsub|\<alpha\>\<in\><wide|\<alpha\><rsub|3><rsup|i,K>|\<bar\>>>|)>|)><eq-number>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.G<rsub|\<chi\><rsub|K>><rprime|'>>|<cell|=>|<cell|Simpl<around*|(|FV<around*|(|G<rsub|\<chi\><rsub|K>>|)>.G<rsub|\<chi\><rsub|K>>|)><eq-number>>>|<row|<cell|<wide|\<tau\>|\<vect\>><rsub|\<varepsilon\><rsub|K>>>|<cell|=>|<cell|<wide|FV<around*|(|G<rsub|\<chi\><rsub|K>><rprime|'>|)>\\\<delta\>\<delta\><rprime|'><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>|\<vect\>>>>|<row|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>.G<rsub|\<chi\><rsub|K>>|)>>|<cell|=>|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.\<delta\><rprime|'><wide|=|\<dot\>><wide|\<tau\>|\<vect\>><rsub|\<varepsilon\><rsub|K>>\<wedge\>G<rsub|\<chi\><rsub|K>><rprime|'>>>|<row|<cell|R<rsub|g><around*|(|\<chi\><rsub|K>|)>=\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.F<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>>.H<around*|(|R<rsub|k><around*|(|\<chi\><rsub|K>|)>,G<rsub|\<chi\><rsub|K>>|)>|)><eq-number><label|Rg>>>|<row|<cell|P<rsub|g><around*|(|\<chi\><rsub|K>|)>>|<cell|=>|<cell|\<delta\><rprime|'><wide|=|\<dot\>><wide|\<tau\>|\<vect\>><rsub|\<varepsilon\><rsub|K>>>>|<row|<cell|L<rsub|K>>|<cell|=>|<cell|<with|mode|text|reverse
+    such that >\<chi\><rsub|K><around*|(|\<alpha\>,\<alpha\><rsub|\<alpha\>><rsup|K>|)>\<in\>C<rsub|K><rsup|\<alpha\>>,<eq-number>>>|<row|<cell|>|<cell|>|<cell|<wide|C<rsup|\<alpha\>><rsub|j>|\<bar\>>=<around*|{|C<mid|\|>D\<Rightarrow\>C\<in\>S<rsub|k><around*|(|\<Phi\>|)>\<wedge\>D\<subseteq\>D<rsup|\<alpha\>><rsub|K>|}>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>.G<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|Connected<around*|(|\<delta\>,DisjElim<around*|(|<wide|\<delta\><wide|=|\<dot\>>\<alpha\>\<wedge\>D<rsup|\<alpha\>><rsub|K>\<wedge\><rsub|j>C<rsup|\<alpha\>><rsub|j>|\<bar\>><rsub|\<alpha\>\<in\><wide|\<alpha\><rsub|3><rsup|i,K>|\<bar\>>>|)>|)><eq-number>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.G<rsub|\<chi\><rsub|K>><rprime|'>>|<cell|=>|<cell|Simpl<around*|(|FV<around*|(|G<rsub|\<chi\><rsub|K>>|)>.G<rsub|\<chi\><rsub|K>>|)><eq-number>>>|<row|<cell|<wide|\<tau\>|\<vect\>><rsub|\<varepsilon\><rsub|K>>>|<cell|=>|<cell|<wide|FV<around*|(|G<rsub|\<chi\><rsub|K>><rprime|'>|)>\\\<delta\>\<delta\><rprime|'><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>|\<vect\>>>>|<row|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>.G<rsub|\<chi\><rsub|K>>|)>>|<cell|=>|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.\<delta\><rprime|'><wide|=|\<dot\>><wide|\<tau\>|\<vect\>><rsub|\<varepsilon\><rsub|K>>\<wedge\>G<rsub|\<chi\><rsub|K>><rprime|'>>>|<row|<cell|R<rsub|g><around*|(|\<chi\><rsub|K>|)>=\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.F<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>>.H<around*|(|R<rsub|k><around*|(|\<chi\><rsub|K>|)>,G<rsub|\<chi\><rsub|K>>|)>|)><eq-number><label|Rg>>>|<row|<cell|P<rsub|g><around*|(|\<chi\><rsub|K>|)>>|<cell|=>|<cell|\<delta\><rprime|'><wide|=|\<dot\>><wide|\<tau\>|\<vect\>><rsub|\<varepsilon\><rsub|K>>\<wedge\>\<exists\><wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>>.F<rsub|\<chi\><rsub|K>>>>|<row|<cell|L<rsub|K>>|<cell|=>|<cell|<with|mode|text|reverse
     substitution of alien eqs. and >A<rsub|res><with|mode|text| from previous
     step>>>|<row|<cell|>|<cell|>|<cell|<with|mode|text|such that if
     >\<varepsilon\><rsub|K><around*|(|\<cdummy\>|)><with|mode|text| appears
@@ -1329,7 +1416,7 @@
   </enumerate>
 
   Our current choice of parameters is <math|<around*|[|k<rsub|0>;k<rsub|1>;k<rsub|2>;k<rsub|3>|]>=><verbatim|disj_step
-  = [\|0;1;2;4\|]>.
+  = [\|0;0;1;3\|]>.
 
   When existential types are used, the expected number of iterations is
   <math|k=5> (six iterations), because the last iteration needs to verify
@@ -1437,18 +1524,18 @@
   <\collection>
     <associate|1|<tuple|5.2|?>>
     <associate|AlienSubterms|<tuple|3.3|8>>
-    <associate|Details|<tuple|5.5|16>>
+    <associate|Details|<tuple|5.5|17>>
     <associate|ImplSubst|<tuple|4|2>>
     <associate|Main Algo|<tuple|5.3|?>>
-    <associate|MainAlgo|<tuple|5|11>>
-    <associate|MainAlgoBody|<tuple|5.3|13>>
+    <associate|MainAlgo|<tuple|5|12>>
+    <associate|MainAlgoBody|<tuple|5.3|15>>
     <associate|NumConv|<tuple|4.2|11>>
-    <associate|Rg|<tuple|5|14>>
+    <associate|Rg|<tuple|5|15>>
     <associate|SCAlinear|<tuple|3.4|8>>
     <associate|SepProp|<tuple|5|3>>
     <associate|SepProp2|<tuple|6|?>>
-    <associate|Skp|<tuple|1|14>>
-    <associate|Skp1|<tuple|10|14>>
+    <associate|Skp|<tuple|1|15>>
+    <associate|Skp1|<tuple|10|15>>
     <associate|SolSimpl|<tuple|9|12>>
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
@@ -1459,15 +1546,15 @@
     <associate|auto-13|<tuple|4|10>>
     <associate|auto-14|<tuple|4.1|10>>
     <associate|auto-15|<tuple|4.2|11>>
-    <associate|auto-16|<tuple|5|11>>
-    <associate|auto-17|<tuple|5.1|11>>
-    <associate|auto-18|<tuple|5.2|11>>
-    <associate|auto-19|<tuple|5.3|13>>
+    <associate|auto-16|<tuple|4.3|11>>
+    <associate|auto-17|<tuple|5|12>>
+    <associate|auto-18|<tuple|5.1|12>>
+    <associate|auto-19|<tuple|5.2|13>>
     <associate|auto-2|<tuple|2|2>>
-    <associate|auto-20|<tuple|5.4|15>>
-    <associate|auto-21|<tuple|5.5|16>>
-    <associate|auto-22|<tuple|5.5|16>>
-    <associate|auto-23|<tuple|5.5|16>>
+    <associate|auto-20|<tuple|5.3|15>>
+    <associate|auto-21|<tuple|5.4|16>>
+    <associate|auto-22|<tuple|5.5|17>>
+    <associate|auto-23|<tuple|5.5|17>>
     <associate|auto-3|<tuple|2.1|4>>
     <associate|auto-4|<tuple|2.1.1|4>>
     <associate|auto-5|<tuple|2.2|4>>
@@ -1475,21 +1562,21 @@
     <associate|auto-7|<tuple|3.1|5>>
     <associate|auto-8|<tuple|3.1.1|7>>
     <associate|auto-9|<tuple|3.2|7>>
-    <associate|bib-AbductionSolvMaher|<tuple|3|16>>
-    <associate|bib-AntiUnifAlg|<tuple|8|16>>
+    <associate|bib-AbductionSolvMaher|<tuple|3|18>>
+    <associate|bib-AntiUnifAlg|<tuple|8|18>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
-    <associate|bib-ArithQuantElim|<tuple|1|16>>
-    <associate|bib-ConvexHull|<tuple|2|16>>
+    <associate|bib-ArithQuantElim|<tuple|1|17>>
+    <associate|bib-ConvexHull|<tuple|2|17>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
-    <associate|bib-disjelimTechRep|<tuple|6|16>>
+    <associate|bib-disjelimTechRep|<tuple|6|18>>
     <associate|bib-jcaqpTechRep|<tuple|8|4>>
-    <associate|bib-jcaqpTechRep2|<tuple|7|16>>
-    <associate|bib-jcaqpUNIF|<tuple|4|16>>
+    <associate|bib-jcaqpTechRep2|<tuple|7|18>>
+    <associate|bib-jcaqpUNIF|<tuple|4|18>>
     <associate|bib-simonet-pottier-hmg-toplas|<tuple|6|4>>
-    <associate|bib-systemTechRep|<tuple|5|16>>
+    <associate|bib-systemTechRep|<tuple|5|18>>
   </collection>
 </references>
 
@@ -1587,34 +1674,39 @@
       postconditions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-15>>
 
+      <with|par-left|<quote|1.5fn>|4.3<space|2spc>Abductive disjunction
+      elimination under quantifier prefix
+      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-16>>
+
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|5<space|2spc>Solving
       for Predicate Variables> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-16><vspace|0.5fn>
+      <no-break><pageref|auto-17><vspace|0.5fn>
 
       <with|par-left|<quote|1.5fn>|5.1<space|2spc>Invariant Parameter
       Candidates <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-17>>
+      <no-break><pageref|auto-18>>
 
       <with|par-left|<quote|1.5fn>|5.2<space|2spc>Solving for Predicates in
       Negative Positions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-18>>
+      <no-break><pageref|auto-19>>
 
       <with|par-left|<quote|1.5fn>|5.3<space|2spc>Solving for Existential
       Types Predicates and Main Algorithm
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-19>>
+      <no-break><pageref|auto-20>>
 
       <with|par-left|<quote|1.5fn>|5.4<space|2spc>Stages of iteration
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-20>>
+      <no-break><pageref|auto-21>>
 
       <with|par-left|<quote|1.5fn>|5.5<space|2spc>Implementation details
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-21>>
+      <no-break><pageref|auto-22>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-22><vspace|0.5fn>
+      <no-break><pageref|auto-23><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>
