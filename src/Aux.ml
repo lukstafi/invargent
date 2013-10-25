@@ -218,25 +218,29 @@ let default v0 f v =
 
 let unsome = function None -> invalid_arg "Aux.unsome" | Some e -> e
 
-let map_reduce ?(cmp=fun x y -> compare (fst x) (fst y)) ?mapf redf red0 l =
+let map_reduce ?(cmp_k=fun x y -> compare x y) ?cmp ?mapf redf red0 l =
+  let cmp = match cmp with Some f -> f
+                         | None -> fun (x,_) (y,_) -> cmp_k x y in
   let l = match mapf with None -> l | Some f -> List.map f l in
   match List.sort cmp l with
       | [] -> []
       | (k0, v0)::tl ->
         let k0, vs, l =
           List.fold_left (fun (k0, vs, l) (kn, vn) ->
-	    if k0 = kn then k0, vn::vs, l
+	    if cmp_k k0 kn = 0 then k0, vn::vs, l
             else kn, [vn], (k0,vs)::l)
 	    (k0, [v0], []) tl in
         List.rev_map (fun (k,vs) -> k, List.fold_left redf red0 vs)
           ((k0,vs)::l)
 
-let collect ?(cmp=fun x y -> compare (fst x) (fst y)) l =
+let collect ?(cmp_k=fun x y -> compare x y) ?cmp l =
+  let cmp = match cmp with Some f -> f
+                         | None -> fun (x,_) (y,_) -> cmp_k x y in
   match List.sort cmp l with
     | [] -> []
     | (k0, v0)::tl ->
 	let k0, vs, l = List.fold_left (fun (k0, vs, l) (kn, vn) ->
-	  if k0 = kn then k0, vn::vs, l
+	  if cmp_k k0 kn = 0 then k0, vn::vs, l
           else kn, [vn], (k0,List.rev vs)::l)
 	  (k0, [v0], []) tl in
 	List.rev ((k0,List.rev vs)::l)
