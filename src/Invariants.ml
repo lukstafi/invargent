@@ -117,7 +117,7 @@ let matchup_vars ~self_owned q b vs =
   renaming_sb res
 
 let sb_atom_PredU q posi psb = function
-  | PredVarU (i, (TVar b as t), loc) as a ->
+  | PredVarU (i, (TVar b as t), loc) ->
     (try
        let vs, phi = List.assoc i psb in
        Format.printf
@@ -126,7 +126,11 @@ let sb_atom_PredU q posi psb = function
        let renaming = matchup_vars ~self_owned:(not posi) q b vs in
        replace_loc loc
          (sb_phi_unary t (subst_formula renaming phi))
-     with Not_found -> [a])  
+     with Not_found ->
+       Format.printf
+         "sb_atom_pred: Not_found U posi=%b@ chi%d(%s)@\n%!"
+         posi i (var_str b); (* *)
+       [])  
   | PredVarB _ -> []
   | a -> [a]
 
@@ -143,6 +147,9 @@ let sb_brs_PredU q sol brs = List.map
       (function PredVarB (i,t1,t2,lc) -> Some (i,t1,t2,lc) | _ -> None) prem,
     Aux.map_some                        (* chiK_pos *)
       (function PredVarB (i,t1,t2,lc) -> Some (i,t1,t2,lc) | _ -> None) concl,
+    Aux.map_some                        (* vK *)
+      (function PredVarU (i,_,_) as a when q.is_chiK i -> Some a
+              | _ -> None) concl,
     sb_formula_PredU q false sol prem,
     sb_formula_PredU q true sol concl)
   brs
@@ -161,11 +168,18 @@ let sb_PredB q psb (i, t1, t2, lc) =
   | _ -> []
 
 let sb_brs_PredB q rol par brs = List.map
-  (fun (nonrec,chiK_neg,chiK_pos,prem,concl) ->
+  (fun (nonrec,chiK_neg,chiK_pos,vK,prem,concl) ->
     nonrec,
-    chiK_pos,
+    chiK_pos, vK,
     concat_map (sb_PredB q rol) chiK_neg @ prem,
     concat_map (sb_PredB q par) chiK_pos @ concl)
+  brs
+
+let sb_brs_vK q par brs = List.map
+  (fun (nonrec,chiK_pos,vK,prem,concl) ->
+    nonrec,
+    chiK_pos, vK, prem,
+    sb_formula_PredU q true par vK @ concl)
   brs
 
 let sb_atom_pred q posi rol sol = function
@@ -650,17 +664,19 @@ let solve q_ops brs =
     (* 1 *)
     let sol1 = List.map
         (fun (i,(vs,ans)) -> i,(vs,remove_alphaK ans)) sol1 in
+    Format.printf "solve: substituting invariants at step 1@\n%!"; (* *)
     let brs0 = sb_brs_PredU q sol1 brs in
     let g_par = List.map (fun (i,_) -> i,([],[]))
       (* function (i,(_,[])) -> i,([],[])
               | (i,(_,pms::_)) -> i, ([],[pms]) *) rol1 in
+    Format.printf "solve: substituting postconds at step 1@\n%!"; (* *)
     let brs1 = sb_brs_PredB q rol1 g_par brs0 in
     (* Collect all relevant constraints together. *)
     let verif_brs = List.map
-        (fun (nonrec, chiK, prem, _) ->
-           nonrec, chiK, prem,
+        (fun (nonrec, chiK, vK, prem, _) ->
+           nonrec, chiK, vK, prem,
            concat_map
-             (fun (_,_,prem2,concl2) ->
+             (fun (_,_,_,prem2,concl2) ->
                 Format.printf
                   "solve-verif_brs: subformula? %b@\nprem2=%a@\nprem=%a@\n%!"
                   (subformula prem2 prem)
@@ -670,9 +686,9 @@ let solve q_ops brs =
         brs1 in
     Format.printf "solve: loop iter_no=%d@\nsol=@ %a@\n%!"
       iter_no pr_chi_subst sol1; (* *)
-    Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs4 brs1; (* *)
+    Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs5 brs1; (* *)
     let validate ans = List.iter
-        (fun (nonrec, _, prem, concl) ->
+        (fun (nonrec, _, _, prem, concl) ->
            (* Do not use quantifiers, because premise is in the
               conjunction. *)
            if not nonrec then (
@@ -697,7 +713,7 @@ let solve q_ops brs =
         (* The [t2] arguments should in the solution become equal! *)
         let g_rol = collect
             (concat_map
-               (fun (nonrec,chiK_pos,prem,concl) ->
+               (fun (nonrec,chiK_pos,vK,prem,concl) ->
                   if nonrec || disj_step.(2) <= iter_no
                   then
                     List.map
@@ -762,6 +778,11 @@ let solve q_ops brs =
         let tpars, g_rol = List.split g_rol in
         let g_par = List.map
             (fun (i,(_,phi)) -> i, ([],[List.hd phi])) g_rol in
+        let v_par = List.map
+            (fun (i,tpar) ->
+               let vs = fvs_typ tpar in
+               i, (VarSet.elements vs,
+                   [Eqty (tdelta, tpar, dummy_loc)])) tpars in
         Format.printf "solve: loop iter_no=%d@ g_par=%a@\ng_rol.B=@ %a@\n%!"
           iter_no pr_chi_subst g_par pr_chi_subst g_rol; (* *)
         (* 6 *)
@@ -779,11 +800,16 @@ let solve q_ops brs =
         let sol1 = List.map
             (fun (i, (vs, phi)) -> i, (vs, esb_formula phi))
             sol1 in
+        Format.printf "solve: substituting invariants at step 5@\n%!"; (* *)
         let brs0 = sb_brs_PredU q sol1 brs in
-        sol1, sb_brs_PredB q g_rol g_par brs0, g_rol in
+        Format.printf "solve: substituting postconds at step 5@\n%!"; (* *)
+        let brs0 = sb_brs_PredB q g_rol g_par brs0 in
+        Format.printf "solve: substituting params at step 5@\n%!"; (* *)
+        let brs0 = sb_brs_vK q v_par brs0 in
+        sol1, brs0, g_rol in
     Format.printf "solve-loop: iter_no=%d -- ex. brs substituted@\n%!"
       iter_no; (* *)
-    Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs4 brs1; (* *)
+    Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs5 brs1; (* *)
     (* 7a *)
     let neg_cns1 = List.map
         (fun (prem,loc) -> sb_formula_pred q false g_rol sol1 prem, loc)
@@ -838,7 +864,7 @@ let solve q_ops brs =
             neg_cns1;
         (* 8 *)
         let brs1 = List.map
-            (fun (nonrec,_,prem,concl) -> nonrec,prem,concl) brs1 in
+            (fun (nonrec,_,_,prem,concl) -> nonrec,prem,concl) brs1 in
         let alien_eqs, (vs, ans) =
           Abduction.abd q.op ~bvs ~zvs ~bparams ~zparams
             ~iter_no ~discard brs1 in

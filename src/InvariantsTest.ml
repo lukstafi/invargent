@@ -798,7 +798,7 @@ let rec walk = fun x ->
 
   "non-num map not existential poly" >::
     (fun () ->
-       todo "existential";
+       skip_if !debug "debug";
        test_case "list without length map not existential poly"
 "newtype List : type
 newcons LNil : ∀a. List a
@@ -809,7 +809,7 @@ let rec map = fun f ->
     | LCons (x, xs) ->
       let ys = map f xs in
       LCons (f x, ys)"
-        [2,"∃t36. δ = ((t36 → t36) → List t36 → ∃1:[].List t36)"];
+        [2,"∃t54, t55, t57. δ = ((t54 → t55) → List t54 → ∃1:[].List t55)"];
     );
 
   "non-num map not existential mono" >::
@@ -851,7 +851,7 @@ let rec map = fun f ->
 
   "map not existential mono" >::
     (fun () ->
-       (* todo "existential"; *)
+       todo "existential";
        test_case "list map not existential mono"
 "newtype List : type * num
 newcons LNil : ∀a. List(a, 0)
@@ -929,7 +929,7 @@ let rec filter =
 
   "filter poly" >::
     (fun () ->
-      todo "existential";
+      (* todo "existential"; *)
       test_case "polymorphic list filter"
 "newtype Bool
 newtype List : type * num

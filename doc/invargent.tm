@@ -289,6 +289,19 @@
   Therefore the user can use them to exclude unintended types. See the
   example <verbatim|equal_assert.gadt>.
 
+  We make a slight adjustment to constraints
+  <math|<around*|\<llbracket\>|\<Gamma\>\<vdash\>K
+  p.e<rsub|2>:\<alpha\><rsub|0>\<rightarrow\>\<tau\>|\<rrbracket\>>>
+  generated for eliminating an existential type
+  <math|\<varepsilon\><rsub|K><around*|(|\<alpha\>|)>> to be inferred, by
+  adding a semantically redundant atom <math|v<rsub|K><around*|(|\<alpha\>|)>>
+  needed by the solver. Symbolically, <math|<around*|\<llbracket\>|\<vdash\>K
+  p\<downarrow\>\<tau\><around*|\<rrbracket\>||\<nobracket\>>|\<nobracket\>>=\<exists\>\<alpha\><rprime|'>.\<varepsilon\><rsub|K><around*|(|\<alpha\><rprime|'>|)><wide|=|\<dot\>>\<tau\>\<wedge\>v<rsub|K><around*|(|\<alpha\><rprime|'>|)>\<wedge\>\<ldots\>>
+  in such cases. We use <verbatim|PredVarU> for <math|v<rsub|K>> for
+  parsimony, but do not write <math|\<chi\><rsub|K><around*|(|\<cdummy\>|)>>
+  to avoid confusion with invariants and with
+  <math|\<chi\><rsub|K><around*|(|\<cdummy\>,\<cdummy\>|)>>.
+
   <subsection|Normalization>
 
   We reduce the constraint to alternation-minimizing prenex-normal form, as
@@ -387,7 +400,7 @@
   subterms by fresh variables <math|\<alpha\>\<in\><wide|\<alpha\>|\<bar\>>>
   for a final solution <math|\<exists\><wide|\<alpha\>|\<bar\>>.A>. To
   mitigate some of the limitations of fully maximal answers, we start from
-  <math|\<b-U\><rsub|><around*|(|A<around*|(|D\<wedge\>C|)>|)>>, where
+  <math|\<b-U\><rsub|><around*|(|D\<wedge\>A\<wedge\>C|)>>, where
   <math|\<exists\><wide|\<alpha\>|\<bar\>>.A> is the solution to previous
   problems solved by the joint abduction algorithm, and
   <math|A<around*|(|\<cdummy\>|)>> is the corresponding substitution. During
@@ -422,16 +435,14 @@
   possible (i.e. substituting-out equations <math|x<wide|=|\<dot\>>\<alpha\>>
   for variable <math|x> and fresh variable <math|\<alpha\>>).
 
-  Although our formalism stresses the possibility of infinite number of
-  abduction answers, there is always finite number of <em|fully maximal>
-  answers, one of which we compute. The formalism suggests computing them
-  lazily using streams, and then testing all combinations -- generate and
-  test scheme. Instead, we use a search scheme that tests as soon as
-  possible. The simple abduction algorithm takes a partial solution -- a
-  conjunction of candidate solutions for some other branches -- and checks if
-  the solution being generated is satisfiable together with the candidate
-  partial solution. The algorithm also takes several indicators to let it
-  select the expected answer:
+  Although there could be an infinite number of abduction answers, there is
+  always finite number of <em|fully maximal> answers, one of which we
+  compute. We use a search scheme that tests as soon as possible. The simple
+  abduction algorithm takes a partial solution -- a conjunction of candidate
+  solutions for some other branches -- and checks if the solution being
+  generated is satisfiable together with the candidate partial solution. The
+  algorithm also takes several indicators to let it select the expected
+  answer:
 
   <\itemize>
     <item>a number that determines how many correct solutions to skip;
@@ -468,9 +479,6 @@
   the main algorithm, every <math|<wide|\<zeta\>|\<bar\>><rsup|\<chi\>>> atom
   of the answer has to be connected to a <math|\<beta\><rsub|\<chi\>><wide|\<beta\>|\<bar\>><rsup|\<chi\>>>
   atom using only the atoms in the answer.
-
-  Besides multisort joint constraint abduction <verbatim|abd> we also provide
-  multisort simple fully maximal constraint abduction <verbatim|abd_s>.
 
   To recapitulate, the implementation is:
 
@@ -524,7 +532,7 @@
     <verbatim|cparams>, for clarity of joint constraint abduction; we could
     compute them incrementally and pass around.
 
-    <item>Form initial candidates <math|\<b-U\><rsub|><around*|(|A<around*|(|D\<wedge\>C|)>|)>>.
+    <item>Form initial candidates <math|\<b-U\><rsub|><around*|(|D\<wedge\>A\<wedge\>C|)>>.
     Revert substitutions <math|\<alpha\>\<assign\>\<beta\>> for
     <math|\<forall\>\<beta\>\<in\>\<cal-Q\>> and
     <math|\<exists\>\<alpha\>\<in\>\<cal-Q\>> to
@@ -910,7 +918,7 @@
   branches <math|D<rsub|i>>, we can turn the equation
   <math|a<wide|=|\<dot\>>b> into pair of inequalities
   <math|a\<leqslant\>b\<wedge\>b\<leqslant\>a>. We eliminate all equations
-  and implicit inequalities which contain a variable not shared by all
+  and implicit equalities which contain a variable not shared by all
   <math|D<rsub|i>>, by substituting out such variables. We pass the resulting
   inequalities to the convex hull algorithm.
 
@@ -1031,7 +1039,11 @@
   variables to the right of <math|\<beta\><rsub|j>> in the quantifier.
 
   Corresponding extension of disjunction elimination for linear arithmetics
-  remains to be provided.
+  amounts to processing of the equations that were used to eliminate ``local
+  variables''. Recall that before passing inequalities to the convex hull
+  algorithm, we eliminate all equations and implicit equalities which contain
+  a variable not shared by all <math|D<rsub|i>>. Extended algorithm FIXME:
+  TODO those equations that are valid w.r.t. the quantifier.
 
   <section|Solving for Predicate Variables><label|MainAlgo>
 
@@ -1267,8 +1279,9 @@
   the final algorithm:
 
   <\eqnarray*>
-    <tformat|<cwith|18|18|2|2|cell-valign|c>|<table|<row|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.F<rsub|\<chi\>>|\<bar\>>>|<cell|=>|<cell|S<rsub|k>>>|<row|<cell|Prune<around*|(|A|)>>|<cell|=>|<cell|A\\<wide|\<alpha\><rsub|\<alpha\>><rsup|K><wide|=|\<dot\>>\<ldots\>|\<bar\>><eq-number><label|Skp>>>|<row|<cell|S<rsub|k><rprime|'>=<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.F<rsub|\<chi\>><rprime|'>|\<bar\>>>|<cell|=>|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.Prune<around*|(|F<rsub|\<chi\>>|)>|\<bar\>>>>|<row|<cell|D<rsub|K><rsup|\<alpha\>>\<Rightarrow\>C<rsub|K><rsup|\<alpha\>>\<in\>R<rsub|k><rsup|->S<rsub|k><rprime|'><around*|(|\<Phi\>|)>>|<cell|=>|<cell|<with|mode|text|all
-    such that >\<chi\><rsub|K><around*|(|\<alpha\>,\<alpha\><rsub|\<alpha\>><rsup|K>|)>\<in\>C<rsub|K><rsup|\<alpha\>>,<eq-number>>>|<row|<cell|>|<cell|>|<cell|<wide|C<rsup|\<alpha\>><rsub|j>|\<bar\>>=<around*|{|C<mid|\|>D\<Rightarrow\>C\<in\>S<rsub|k><around*|(|\<Phi\>|)>\<wedge\>D\<subseteq\>D<rsup|\<alpha\>><rsub|K>|}>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>.G<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|Connected<around*|(|\<delta\>,DisjElim<around*|(|<wide|\<delta\><wide|=|\<dot\>>\<alpha\>\<wedge\>D<rsup|\<alpha\>><rsub|K>\<wedge\><rsub|j>C<rsup|\<alpha\>><rsub|j>|\<bar\>><rsub|\<alpha\>\<in\><wide|\<alpha\><rsub|3><rsup|i,K>|\<bar\>>>|)>|)><eq-number>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.G<rsub|\<chi\><rsub|K>><rprime|'>>|<cell|=>|<cell|Simpl<around*|(|FV<around*|(|G<rsub|\<chi\><rsub|K>>|)>.G<rsub|\<chi\><rsub|K>>|)><eq-number>>>|<row|<cell|<wide|\<tau\>|\<vect\>><rsub|\<varepsilon\><rsub|K>>>|<cell|=>|<cell|<wide|FV<around*|(|G<rsub|\<chi\><rsub|K>><rprime|'>|)>\\\<delta\>\<delta\><rprime|'><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>|\<vect\>>>>|<row|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>.G<rsub|\<chi\><rsub|K>>|)>>|<cell|=>|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.\<delta\><rprime|'><wide|=|\<dot\>><wide|\<tau\>|\<vect\>><rsub|\<varepsilon\><rsub|K>>\<wedge\>G<rsub|\<chi\><rsub|K>><rprime|'>>>|<row|<cell|R<rsub|g><around*|(|\<chi\><rsub|K>|)>=\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.F<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>>.H<around*|(|R<rsub|k><around*|(|\<chi\><rsub|K>|)>,G<rsub|\<chi\><rsub|K>>|)>|)><eq-number><label|Rg>>>|<row|<cell|P<rsub|g><around*|(|\<chi\><rsub|K>|)>>|<cell|=>|<cell|\<delta\><rprime|'><wide|=|\<dot\>><wide|\<tau\>|\<vect\>><rsub|\<varepsilon\><rsub|K>>\<wedge\>\<exists\><wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>>.F<rsub|\<chi\><rsub|K>>>>|<row|<cell|L<rsub|K>>|<cell|=>|<cell|<with|mode|text|reverse
+    <tformat|<cwith|19|19|2|2|cell-valign|c>|<table|<row|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.F<rsub|\<chi\>>|\<bar\>>>|<cell|=>|<cell|S<rsub|k>>>|<row|<cell|Prune<around*|(|A|)>>|<cell|=>|<cell|A\\<wide|\<alpha\><rsub|\<alpha\>><rsup|K><wide|=|\<dot\>>\<ldots\>|\<bar\>><eq-number><label|Skp>>>|<row|<cell|S<rsub|k><rprime|'>=<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.F<rsub|\<chi\>><rprime|'>|\<bar\>>>|<cell|=>|<cell|<wide|\<exists\><wide|\<beta\>|\<bar\>><rsup|\<chi\>,k>.Prune<around*|(|F<rsub|\<chi\>>|)>|\<bar\>>>>|<row|<cell|D<rsub|K><rsup|\<alpha\>>\<Rightarrow\>C<rsub|K><rsup|\<alpha\>>\<in\>R<rsub|k><rsup|->S<rsub|k><rprime|'><around*|(|\<Phi\>|)>>|<cell|=>|<cell|<with|mode|text|all
+    such that >\<chi\><rsub|K><around*|(|\<alpha\>,\<alpha\><rsub|\<alpha\>><rsup|K>|)>\<in\>C<rsub|K><rsup|\<alpha\>>,<eq-number>>>|<row|<cell|>|<cell|>|<cell|<wide|C<rsup|\<alpha\>><rsub|j>|\<bar\>>=<around*|{|C<mid|\|>D\<Rightarrow\>C\<in\>S<rsub|k><around*|(|\<Phi\>|)>\<wedge\>D\<subseteq\>D<rsup|\<alpha\>><rsub|K>|}>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>.G<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|Connected<around*|(|\<delta\>,DisjElim<around*|(|<wide|\<delta\><wide|=|\<dot\>>\<alpha\>\<wedge\>D<rsup|\<alpha\>><rsub|K>\<wedge\><rsub|j>C<rsup|\<alpha\>><rsub|j>|\<bar\>><rsub|\<alpha\>\<in\><wide|\<alpha\><rsub|3><rsup|i,K>|\<bar\>>>|)>|)><eq-number>>>|<row|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.G<rsub|\<chi\><rsub|K>><rprime|'>>|<cell|=>|<cell|Simpl<around*|(|FV<around*|(|G<rsub|\<chi\><rsub|K>>|)>.G<rsub|\<chi\><rsub|K>>|)><eq-number>>>|<row|<cell|<wide|\<tau\>|\<vect\>><rsub|\<varepsilon\><rsub|K>>>|<cell|=>|<cell|<wide|FV<around*|(|G<rsub|\<chi\><rsub|K>><rprime|'>|)>\\\<delta\>\<delta\><rprime|'><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>|\<vect\>>>>|<row|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>><rsub|g>.G<rsub|\<chi\><rsub|K>>|)>>|<cell|=>|<cell|\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.\<delta\><rprime|'><wide|=|\<dot\>><wide|\<tau\>|\<vect\>><rsub|\<varepsilon\><rsub|K>>\<wedge\>G<rsub|\<chi\><rsub|K>><rprime|'>>>|<row|<cell|R<rsub|g><around*|(|\<chi\><rsub|K>|)>=\<exists\><wide|\<alpha\>|\<bar\>><rsup|\<chi\><rsub|K>>.F<rsub|\<chi\><rsub|K>>>|<cell|=>|<cell|\<Xi\><around*|(|\<exists\><wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>>.H<around*|(|R<rsub|k><around*|(|\<chi\><rsub|K>|)>,G<rsub|\<chi\><rsub|K>>|)>|)><eq-number><label|Rg>>>|<row|<cell|P<rsub|g><around*|(|\<chi\><rsub|K>|)>>|<cell|=>|<cell|\<delta\><rprime|'><wide|=|\<dot\>><wide|\<tau\>|\<vect\>><rsub|\<varepsilon\><rsub|K>>\<wedge\>\<exists\><wide|\<alpha\>|\<bar\>><rsub|g><rsup|\<chi\><rsub|K>>.F<rsub|\<chi\><rsub|K>>>>|<row|<cell|P<rsub|g><around*|(|v<rsub|K><around*|(|\<beta\>|)>|)>>|<cell|=>|<cell|\<exists\><wide|\<alpha\>|\<bar\>>.\<beta\><wide|=|\<dot\>><wide|\<alpha\>|\<vect\>><with|mode|text|
+    \ where \ ><around*|\||<wide|\<tau\>|\<vect\>><rsub|\<varepsilon\><rsub|K>>|\|>=<around*|\||<wide|\<alpha\>|\<vect\>>|\|>>>|<row|<cell|L<rsub|K>>|<cell|=>|<cell|<with|mode|text|reverse
     substitution of alien eqs. and >A<rsub|res><with|mode|text| from previous
     step>>>|<row|<cell|>|<cell|>|<cell|<with|mode|text|such that if
     >\<varepsilon\><rsub|K><around*|(|\<cdummy\>|)><with|mode|text| appears
