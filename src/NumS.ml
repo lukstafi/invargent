@@ -9,8 +9,12 @@
 open Terms
 open Num
 open Aux
-let (!/) i = num_of_int i
 
+let early_num_abduction = ref false(* true *)
+let abd_rotations = ref 2(* 3 *)
+let disjelim_rotations = ref 3
+
+let (!/) i = num_of_int i
 type w = (var_name * num) list * num * loc
 type w_subst = (var_name * w) list
 type cw_subst = ((var_name, bool) choice * w) list
@@ -335,8 +339,6 @@ let solve ?use_quants ?(strict=false)
 let fvs_w (vars, _, _) = vars_of_list (List.map fst vars)
 
 
-let abd_rotations = ref (* 1 *)2
-
 exception Result of w_subst * ineqs
 
 let debug_dep = ref 0
@@ -492,11 +494,9 @@ let make_cmp q v1 v2 =
   | Right_of -> -1
   | Same_quant -> compare v2 v1
 
-let early_num_abduction = ref false (* true *)
-
 let abd q ~bparams ~discard ?(iter_no=2) brs =
   let bvs = List.fold_left
-    (fun acc (_,ps) -> VarSet.union acc ps) VarSet.empty bparams in
+      (fun acc (_,ps) -> VarSet.union acc ps) VarSet.empty bparams in
   let cmp_v = make_cmp q in
   let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
   let cmp_w (vars1,cst1,_) (vars2,cst2,_) =
@@ -509,29 +509,31 @@ let abd q ~bparams ~discard ?(iter_no=2) brs =
     iter_no
     (String.concat "," (List.map var_str (VarSet.elements bvs))); (* *)
   let brs = List.map
-    (fun (nonrec, prem, concl) ->
-      nonrec,
-      partition_map (flatten cmp) prem,
-      partition_map (flatten cmp) concl)
-    brs in
+      (fun (nonrec, prem, concl) ->
+         nonrec,
+         partition_map (flatten cmp) prem,
+         partition_map (flatten cmp) concl)
+      brs in
   (* Raise [Contradiction] from [abd] when constraints are not
      satisfiable. *)
   List.iter
     (fun (_, (d_eqn, d_ineqn), (c_eqn, c_ineqn)) ->
-      ignore (solve
-                ~eqn:(d_eqn @ c_eqn) ~ineqn:(d_ineqn @ c_ineqn)
-                cmp cmp_w q.uni_v))
+       ignore (solve
+                 ~eqn:(d_eqn @ c_eqn) ~ineqn:(d_ineqn @ c_ineqn)
+                 cmp cmp_w q.uni_v))
     brs;
   let validate eqs ineqs = List.iter
-    (fun (_, (d_eqn, d_ineqn), (c_eqn, c_ineqn)) ->
-      ignore (solve ~eqs ~ineqs
-                ~eqn:(d_eqn @ c_eqn) ~ineqn:(d_ineqn @ c_ineqn)
-                cmp cmp_w q.uni_v))
-    brs in
-  let brs = map_some
-    (fun (nonrec, prem, concl) ->
-      if iter_no > 1 || nonrec || !early_num_abduction
-      then Some (prem, concl) else None) brs in
+      (fun (_, (d_eqn, d_ineqn), (c_eqn, c_ineqn)) ->
+         ignore (solve ~eqs ~ineqs
+                   ~eqn:(d_eqn @ c_eqn) ~ineqn:(d_ineqn @ c_ineqn)
+                   cmp cmp_w q.uni_v))
+      brs in
+  let brs, unproc_brs =
+    if iter_no > 1 || !early_num_abduction
+    then List.partition
+        (fun (nonrec, prem, concl) -> nonrec) brs
+    else brs, [] in
+  let brs = List.map (fun (_, prem, concl) -> prem, concl) brs in
   let brs = List.stable_sort
       (fun ((pe1,pi1),_) ((pe2,pi2),_) ->
          (List.length pe1 + List.length pi1) -
@@ -558,13 +560,13 @@ let abd q ~bparams ~discard ?(iter_no=2) brs =
         "NumS.abd-loop: [%d] skip=%d, #runouts=%d@\n%a@\n%!"
         ddepth skip (List.length runouts) pr_eqineq_br br; (* *)
       match abd_simple cmp cmp_w q.uni_v ~bvs
-        ~validate skip acc br with
+              ~validate skip acc br with
       | Some acc when List.exists (implies_ans cmp cmp_w q.uni_v acc) failed ->
         Format.printf "NumS.abd: reset matching failed [%d]@\n%!" ddepth; (* *)
         loop failed ([], []) runouts ((skip+1, br)::more_brs)
       | Some acc ->
         let ntime = Sys.time () in
-          Format.printf "NumS.abd: loop ans: [%d] (%.2fs)@\neqs=%a@\nineqs=%a@\n%!" ddepth (ntime -. !time)
+        Format.printf "NumS.abd: loop ans: [%d] (%.2fs)@\neqs=%a@\nineqs=%a@\n%!" ddepth (ntime -. !time)
           pr_w_subst (fst acc) pr_ineqs (snd acc); time := ntime; (* *)
         check_runouts failed acc obr more_brs [] runouts
       | None ->
@@ -572,7 +574,7 @@ let abd q ~bparams ~discard ?(iter_no=2) brs =
         then (
           Format.printf
             "NumS.abd-loop: quit failed [%d] at skip=%d failed=%d@ ans=%a@\n%!" ddepth
-          skip (List.length failed) pr_ans acc; (* *)
+            skip (List.length failed) pr_ans acc; (* *)
           ignore (loop failed acc (obr::runouts) []));
         let failed = if skip <= 0 then un_ans acc::failed else failed in
         Format.printf
@@ -589,7 +591,7 @@ let abd q ~bparams ~discard ?(iter_no=2) brs =
         "NumS.abd-check_runouts: [%d] confls=%d, #done=%d@\n%a@\n%!"
         ddepth confls (List.length done_runouts) pr_eqineq_br br; (* *)
       match abd_simple cmp cmp_w q.uni_v ~bvs
-        ~validate 0 acc br with
+              ~validate 0 acc br with
       | Some acc when List.exists (implies_ans cmp cmp_w q.uni_v acc) failed ->
         Format.printf "NumS.abd: reset runouts matching failed [%d]@\n%!" ddepth; (* *)
         loop failed ([], [])
@@ -597,7 +599,7 @@ let abd q ~bparams ~discard ?(iter_no=2) brs =
           ((dskip+1, dbr)::more_brs)
       | Some acc ->
         let ntime = Sys.time () in
-          Format.printf "NumS.abd: runouts ans: [%d] (%.2fs)@\neqs=%a@\nineqs=%a@\n%!" ddepth (ntime -. !time)
+        Format.printf "NumS.abd: runouts ans: [%d] (%.2fs)@\neqs=%a@\nineqs=%a@\n%!" ddepth (ntime -. !time)
           pr_w_subst (fst acc) pr_ineqs (snd acc); time := ntime; (* *)
         check_runouts failed acc done_br more_brs (obr::done_runouts) more_runouts
       | None ->
@@ -605,7 +607,7 @@ let abd q ~bparams ~discard ?(iter_no=2) brs =
         then (
           Format.printf
             "NumS.abd-check_runouts: quit failed [%d] at failed=%d@ ans=%a@\n%!" ddepth
-          (List.length failed) pr_ans acc; (* *)
+            (List.length failed) pr_ans acc; (* *)
           ignore (loop failed acc (obr::done_runouts@more_runouts) []));
         Format.printf
           "NumS.abd: reset runouts [%d] at confls=%d failed=%d@ ans=%a@\n%!" ddepth
@@ -613,7 +615,7 @@ let abd q ~bparams ~discard ?(iter_no=2) brs =
         loop (un_ans acc::failed) ([], [])
           ((confls+1, br)::List.rev_append done_runouts more_runouts)
           ((dskip+1, dbr)::more_brs)
-      
+
   and check_brs failed acc runouts done_brs = function
     | [] -> acc
     | (skip, br as obr)::more_brs ->
@@ -622,14 +624,14 @@ let abd q ~bparams ~discard ?(iter_no=2) brs =
         "NumS.abd-check_brs: [%d] skip=%d, #done=%d@\n%a@\n%!"
         ddepth skip (List.length done_brs) pr_eqineq_br br; (* *)
       match abd_simple cmp cmp_w q.uni_v ~bvs
-        ~validate 0 acc br with
+              ~validate 0 acc br with
       | Some acc when List.exists (implies_ans cmp cmp_w q.uni_v acc) failed ->
         Format.printf "NumS.abd: reset check matching failed [%d]@\n%!" ddepth; (* *)
         loop failed ([], [])
           runouts ((skip+1, br)::List.rev_append done_brs more_brs)
       | Some acc ->
         let ntime = Sys.time () in
-          Format.printf "NumS.abd: check ans: [%d] (%.2fs)@\neqs=%a@\nineqs=%a@\n%!" ddepth (ntime -. !time)
+        Format.printf "NumS.abd: check ans: [%d] (%.2fs)@\neqs=%a@\nineqs=%a@\n%!" ddepth (ntime -. !time)
           pr_w_subst (fst acc) pr_ineqs (snd acc); time := ntime; (* *)
         check_brs failed acc runouts (obr::done_brs) more_brs
       | None ->
@@ -637,7 +639,7 @@ let abd q ~bparams ~discard ?(iter_no=2) brs =
         then (
           Format.printf
             "NumS.abd-check_brs: quit failed [%d] at failed=%d@ ans=%a@\n%!" ddepth
-          (List.length failed) pr_ans acc; (* *)
+            (List.length failed) pr_ans acc; (* *)
           ignore (loop failed acc (obr::runouts) []));
         Format.printf
           "NumS.abd: reset check [%d] at skip=%d failed=%d@ ans=%a@\n%!" ddepth
@@ -647,9 +649,22 @@ let abd q ~bparams ~discard ?(iter_no=2) brs =
 
   let failed =
     List.map (partition_map (flatten cmp)) discard in
-  [], ans_to_formula (loop failed ([], []) [] (br0::more_brs))
+  let elim_uni =
+    concat_map
+      (fun (_,_,(concl_eqs, _)) ->
+         List.filter
+           (function
+             | Eqty (TVar v, TVar w, lc)
+               when q.uni_v v && q.uni_v w -> false
+             | Eqty (TVar b, t, lc)
+               when q.uni_v b && var_not_left_of q b t -> true
+             | Eqty (t, TVar b, lc)
+               when q.uni_v b && var_not_left_of q b t -> true
+             | _ -> false)
+           (List.map (expand_atom true) concl_eqs))
+      unproc_brs in
+  [], elim_uni @ ans_to_formula (loop failed ([], []) [] (br0::more_brs))
 
-let disjelim_rotations = ref 3
 
 let i2f = float_of_int
 let expand_eqineqs eqs ineqs =
@@ -780,8 +795,9 @@ let disjelim q brs =
       if check face (p1 @ p2) then redundant p1 p2
       else redundant (face::p1) p2
     | [] -> p1 in
-  [], List.map (expand_atom true) (eqn @ redundant_eqn)
-    @ List.map (expand_atom false) (redundant [] ineqn)
+  [],
+  List.map (expand_atom true) (eqn @ redundant_eqn)
+  @ List.map (expand_atom false) (redundant [] ineqn)
 
 let simplify q elimvs cnj =
   Format.printf "NumS.simplify: elimvs=%s;@\ncnj=@ %a@\n%!"

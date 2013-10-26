@@ -243,6 +243,8 @@ val typ_sort_atom : atom -> bool
 val num_sort_atom : atom -> bool
 val split_sorts : formula -> (sort * formula) list
 
+val var_not_left_of : quant_ops -> var_name -> typ -> bool
+
 (** Register variable as [NotEx]. *)
 val register_notex : var_name -> unit
 (** [use_quants] is a pair of [bvs] variables and parameters. The
@@ -255,7 +257,7 @@ val unify : ?use_quants:(VarSet.t * VarSet.t) ->
   atom list -> subst * atom list * atom list
 val to_formula : subst -> formula
 (** Find the atoms in the formula which are valid substitutions. *)
-val subst_of_cnj : quant_ops -> formula -> subst
+val subst_of_cnj : ?elim_uni:bool -> quant_ops -> formula -> subst
 val combine_sbs : ?ignore_so:unit -> ?use_quants:(VarSet.t * VarSet.t) ->
   quant_ops ->
   ?more_phi:formula -> subst list -> subst * formula

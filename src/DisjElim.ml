@@ -202,7 +202,7 @@ let simplify q (vs, ty_ans, num_ans) =
     "disjelim-simplify: parts@ ty_sb=%a@ ty_ans=%a@\n%!"
     pr_subst ty_sb pr_formula ty_ans;  (* *)
   let vs = List.filter (fun v -> not (List.mem_assoc v ty_sb)) vs in
-  let n_sb = subst_of_cnj q num_ans in
+  let n_sb = subst_of_cnj ~elim_uni:true q num_ans in
   let ty_ans = subst_formula n_sb ty_ans in
   vs, num_ans @ ty_ans
 

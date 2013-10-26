@@ -834,7 +834,7 @@ let rec map =
 
   "map not existential poly" >::
     (fun () ->
-       todo "existential";
+       (* todo "existential"; *)
        test_case "list map not existential poly"
 "newtype List : type
 newtype List : type * num
@@ -929,8 +929,8 @@ let rec filter =
 
   "filter poly" >::
     (fun () ->
-      (* todo "existential"; *)
-      test_case "polymorphic list filter"
+       skip_if !debug "debug";
+       test_case "polymorphic list filter"
 "newtype Bool
 newtype List : type * num
 newcons True : Bool
@@ -947,7 +947,10 @@ let rec filter = fun f ->
           LCons (x, ys)
 	| False ->
           filter f xs"
-        [2,""];
+        [2,"∃n91, t90, t92.
+  δ =
+    ((t92 → Bool) → List (t92, n91) → ∃2:n102[n102 ≤ n91 ∧
+       0 ≤ n91 ∧ 0 ≤ n102].List (t92, n102))"];
 
     );
 

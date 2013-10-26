@@ -961,6 +961,9 @@ let connected ?(validate=fun _ -> ()) ~directed target (vs, phi) =
   VarSet.elements (VarSet.inter (fvs_formula ans) (vars_of_list vs)),
   ans
 
+let var_not_left_of q v t =
+  VarSet.for_all (fun w -> q.cmp_v v w <> Left_of) (fvs_typ t)
+
 (* If there are no [bvs] parameters, the LHS variable has to be
    existential and not upstream (i.e. left of) of any RHS variable.
 
@@ -1107,16 +1110,16 @@ let unify ?use_quants ?(sb=[]) q cnj =
 let to_formula =
   List.map (fun (v,(t,loc)) -> Eqty (TVar v, t, loc))
     
-let subst_of_cnj q cnj =
+let subst_of_cnj ?(elim_uni=false) q cnj =
   map_some
     (function
       | Eqty (TVar v, t, lc)
-        when not (q.uni_v v)
+        when (elim_uni || not (q.uni_v v))
           && VarSet.for_all (fun v2 -> q.cmp_v v v2 <> Left_of)
                (fvs_typ t) ->
         Some (v,(t,lc))
       | Eqty (t, TVar v, lc)
-        when not (q.uni_v v)
+        when (elim_uni || not (q.uni_v v))
           && VarSet.for_all (fun v2 -> q.cmp_v v v2 <> Left_of)
                (fvs_typ t) ->
         Some (v,(t,lc))
