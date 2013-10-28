@@ -400,11 +400,11 @@
   subterms by fresh variables <math|\<alpha\>\<in\><wide|\<alpha\>|\<bar\>>>
   for a final solution <math|\<exists\><wide|\<alpha\>|\<bar\>>.A>. To
   mitigate some of the limitations of fully maximal answers, we start from
-  <math|\<b-U\><rsub|><around*|(|D\<wedge\>A\<wedge\>C|)>>, where
-  <math|\<exists\><wide|\<alpha\>|\<bar\>>.A> is the solution to previous
-  problems solved by the joint abduction algorithm, and
-  <math|A<around*|(|\<cdummy\>|)>> is the corresponding substitution. During
-  abduction <math|Abd<around*|(|\<cal-Q\>,<wide|\<beta\>|\<bar\>>,<wide|D<rsub|i>,C<rsub|i>|\<bar\>>|)>>,
+  <math|\<b-U\><rsub|><around*|(|<wide|A|~><around*|(|D\<wedge\>C|)>|)>>,
+  where <math|\<exists\><wide|\<alpha\>|\<bar\>>.A> is the solution to
+  previous problems solved by the joint abduction algorithm, and
+  <math|<wide|A|~><around*|(|\<cdummy\>|)>> is the corresponding
+  substitution. During abduction <math|Abd<around*|(|\<cal-Q\>,<wide|\<beta\>|\<bar\>>,<wide|D<rsub|i>,C<rsub|i>|\<bar\>>|)>>,
   we ensure that the (partial as well as final) answer
   <math|\<exists\><wide|\<alpha\>|\<bar\>>.A> satisfies
   <math|\<vDash\>\<cal-Q\>.A<around*|[|<wide|\<alpha\>|\<bar\>><wide|\<beta\>|\<bar\>>\<assign\><wide|t|\<bar\>>|]>>
@@ -449,7 +449,7 @@
     and conclusion of each branch;
 
     <item>the parameters and candidates for parameters of the invariants,
-    <math|<wide|\<zeta\>|\<bar\>>>, updated as we add new atoms to the
+    <math|<wide|\<beta\>|\<bar\>>>, updated as we add new atoms to the
     partial answer; existential variables that are not to the left of
     parameters and are connected to parameters become parameters; we process
     atoms containing parameters first;
@@ -467,10 +467,14 @@
 
   Since an atom can be mistakenly discarded when some variable could be
   considered an invariant parameter but is not at the time, we process atoms
-  incident with candidates for invariant parameters first. That is, we
-  process atoms <math|FV<around*|(|c|)>\<cap\><wide|\<beta\>|\<bar\>>\<neq\>\<varnothing\>>
-  first, and if equation <math|e> is added to the partial solution, we add to
-  <math|<wide|\<beta\>|\<bar\>>> existential variables in <math|e>.
+  incident with candidates for invariant parameters first. A variable becomes
+  a candidate for a parameter if there is a parameter that depends on it.
+  That is, we process atoms <math|x<wide|=|\<dot\>>t> such that
+  <math|x\<in\><wide|\<beta\>|\<bar\>>> first, and if equation
+  <math|x<wide|=|\<dot\>>t> is added to the partial solution, we add to
+  <math|<wide|\<beta\>|\<bar\>>> existential variables in <math|t>. Note that
+  <math|x<wide|=|\<dot\>>t> can stand for either <math|x\<assign\>t>, or
+  <math|y\<assign\>x> for <math|t=y>.
 
   To recapitulate, the implementation is:
 
@@ -520,7 +524,7 @@
     false reorders the choices into: 1, 6, 4, 2, 3, 5 -- pushing 4 up
     minimizes the amount of branching in 5.
 
-    <item>Form initial candidates <math|\<b-U\><rsub|><around*|(|D\<wedge\>A\<wedge\>C|)>>.
+    <item>Form initial candidates <math|\<b-U\><rsub|><around*|(|<wide|A|~><around*|(|D\<wedge\>C|)>|)>>.
     Revert substitutions <math|\<alpha\>\<assign\>\<beta\>> for
     <math|\<forall\>\<beta\>\<in\>\<cal-Q\>> and
     <math|\<exists\>\<alpha\>\<in\>\<cal-Q\>> to

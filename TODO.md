@@ -8,3 +8,4 @@ Place for TODOs/FIXMEs, especially if not expressed in other places. See README.
 * TODO: perhaps `check_connected` could be simplified or even removed from abduction?
 * FIXME: repeating `newtype` and `newcons` definitions should be errors.
 * FIXME: I have removed connectedness checks. A variant of nested-definition related stuff can be reintroduced when I get to mutual definition tests. But most tests stopped working, showing that more connectedness checks are required.
+* TODO: breadth-first/iterative-deepening-like optimization for simple term abduction, where we do combinations of choices 1 and 6 before proceeding with other choices.

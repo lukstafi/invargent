@@ -91,8 +91,7 @@ let rec eval = function
 
   "eval" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
-       todo "zparams->bvs";
+       skip_if !debug "debug";
        test_case "eval term"
 "newtype Term : type
 newtype Int
@@ -124,8 +123,7 @@ let rec eval = function
 
   "equal1 wrong type" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
-       todo "zparams->bvs";
+       skip_if !debug "debug";
        test_case "equal1 wrong type"
 "newtype Ty : type
 newtype Int
@@ -156,8 +154,7 @@ let rec equal1 = function
 
   "equal with test" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
-       todo "zparams->bvs";
+       skip_if !debug "debug";
        test_case "equal terms"
 "newtype Ty : type
 newtype Int
@@ -189,8 +186,7 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
 
   "equal with assert" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
-       todo "zparams->bvs";
+       skip_if !debug "debug";
        test_case "equal terms"
 "newtype Ty : type
 newtype Int
@@ -223,8 +219,7 @@ let rec equal = function
 
   "equal with assert and test" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
-       todo "zparams->bvs";
+       skip_if !debug "debug";
        test_case "equal terms"
 "newtype Ty : type
 newtype Int
@@ -258,8 +253,7 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
 
   "binary plus" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
-       todo "zparams->bvs";
+       skip_if !debug "debug";
        test_case "binary plus"
 "newtype Binary : num
 newtype Carry : num
@@ -302,8 +296,7 @@ let rec plus =
 
   "binary plus with test" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
-       todo "zparams->bvs";
+       skip_if !debug "debug";
        test_case "binary plus test"
 "newtype Binary : num
 newtype Carry : num
@@ -351,7 +344,7 @@ test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
   "flatten_pairs" >::
     (fun () ->
        (* skip_if !debug "debug"; *)
-       todo "zparams->bvs";
+       (* todo "zparams->bvs"; *)
        test_case "list flatten_pairs"
 "newtype Bool
 newtype List : type * num

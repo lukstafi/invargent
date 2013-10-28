@@ -228,7 +228,7 @@ let holds q avs (ty_st, num_st) cnj =
   ty_st, num_st
 
 let satisfiable q (ty_st, num_st) cnj =
-  let ty_st, num_cnj, _ = unify ~sb:ty_st q.op cnj in
+  let ty_st, num_cnj, _ = unify ~use_quants:false ~sb:ty_st q.op cnj in
   let num_st =
     match NumS.satisfiable ~state:num_st num_cnj with
     | Right s -> s | Left e -> raise e in
@@ -790,7 +790,8 @@ let solve q_ops brs =
                try
                  Format.printf "neg_cl_check: cnj=@ %a@\n%!" pr_formula
                    cnj; (* *)
-                 let ty_cn (*_*), num_cn, _ = unify q.op cnj in
+                 let ty_cn (*_*), num_cn, _ =
+                   unify ~use_quants:false q.op cnj in
                  if num_cn = [] then (
                    Format.printf
                      "neg_cl_check: fallback typ@ ty_cn=@ %a@\n%!"

@@ -1008,18 +1008,9 @@ let simplify preserve q brs =
       try merge acc (meet prem concl brs)
       with Not_found -> merge (br::acc) brs in
   let brs = merge [] brs in
-  (* Experimental: first short branches, but then longest branches first. *)
-  let short_brs, long_brs = List.partition
-    (function [],_  | [_],_ | [_;_],_ (* | [_;_;_],_ *) -> true
-            | _ -> false)
-    brs in
-  let short_brs = List.stable_sort
-      (fun (prem1,_) (prem2,_) -> List.length prem1 - List.length prem2)
-      short_brs in
-  let long_brs = List.stable_sort
-      (fun (prem1,_) (prem2,_) -> List.length prem2 - List.length prem1)
-      long_brs in
-  short_brs @ long_brs
+  List.stable_sort
+    (fun (prem1,_) (prem2,_) -> List.length prem1 - List.length prem2)
+    brs
 
 (** {2 Postprocessing and printing} *)
 
