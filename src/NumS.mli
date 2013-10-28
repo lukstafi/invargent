@@ -15,7 +15,7 @@ val early_num_abduction : bool ref
     and [Suspect] if no answer can be found. *)
 val abd :
   Terms.quant_ops ->
-  bparams:(Terms.var_name * Terms.VarSet.t) list ->
+  bvs:Terms.VarSet.t ->
   discard:Terms.formula list ->
   ?iter_no:int ->
   (bool * Terms.formula * Terms.formula) list ->

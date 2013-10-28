@@ -210,7 +210,7 @@ let disjelim q ~do_num brs =
   (* (1) D_i,s *)
   let brs = map_some
       (fun br ->
-         try Some (unify q br)
+         try Some (unify ~use_quants:false q br)
          with Contradiction _ -> None) brs in
   (* [avs] contains variables introduced by anti-unification, also
      of sorts other than "type" *)

@@ -494,9 +494,7 @@ let make_cmp q v1 v2 =
   | Right_of -> -1
   | Same_quant -> compare v2 v1
 
-let abd q ~bparams ~discard ?(iter_no=2) brs =
-  let bvs = List.fold_left
-      (fun acc (_,ps) -> VarSet.union acc ps) VarSet.empty bparams in
+let abd q ~bvs ~discard ?(iter_no=2) brs =
   let cmp_v = make_cmp q in
   let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
   let cmp_w (vars1,cst1,_) (vars2,cst2,_) =

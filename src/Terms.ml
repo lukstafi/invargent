@@ -965,16 +965,14 @@ let var_not_left_of q v t =
   VarSet.for_all (fun w -> q.cmp_v v w <> Left_of) (fvs_typ t)
 
 (* If there are no [bvs] parameters, the LHS variable has to be
-   existential and not upstream (i.e. left of) of any RHS variable.
+   existential and not upstream (i.e. left of) of any RHS variable
+   that is not in [pms].
 
    If [v] is a [bvs] parameter, every universal variable must be
-   upstream of some [bv] parameter. (Note that a [bv] parameter that
-   is sufficiently downstream is a "savior".)
-
-   [zvs] parameters act like existential variables but are not
-   located anywhere in the quantifier -- do not contribute to
-   quantifier violation. *)
-let quant_viol q bvs zvs v t =
+   left of some [bv] parameter. (Note that a [bv] parameter that
+   is sufficiently downstream is a "savior".) Existential variables
+   are not constrained: do not need to be same as or to the left of [v]. *)
+let quant_viol q bvs pms v t =
   let uv = q.uni_v v in
   let pvs, npvs = List.partition (fun v->VarSet.mem v bvs)
     (VarSet.elements (fvs_typ t)) in
@@ -983,22 +981,23 @@ let quant_viol q bvs zvs v t =
     List.filter q.uni_v (if VarSet.mem v bvs then npvs else v::npvs) in
   Format.printf "quant_viol: vrels %!"; (* *)
   let res =
-  if (* pvs = [] *) not (VarSet.mem v bvs) then uv ||
-    not (VarSet.mem v zvs) && List.exists
+  if not (VarSet.mem v bvs) then uv ||
+    List.exists
     (fun v2 ->
       Format.printf "%s %s %s; " (var_str v)
         (var_scope_str (q.cmp_v v v2)) (var_str v2); (* *)
-      not (VarSet.mem v2 zvs) && q.cmp_v v v2 = Left_of) npvs
+      not (VarSet.mem v2 pms) && q.cmp_v v v2 = Left_of) npvs
   else
     not
       (List.for_all
-         (fun uv -> List.exists (fun pv -> q.cmp_v uv pv = Left_of) pvs)
+         (fun uv -> q.cmp_v v uv = Same_quant ||
+                    List.exists (fun pv -> q.cmp_v uv pv = Left_of) pvs)
          uni_vs) in
   Format.printf
-    "@\nquant_viol: %b; v=%s; uv=%b;@ t=%a;@ bvs=%a;@ zvs=%a;@ pvs=%a;@
+    "@\nquant_viol: %b; v=%s; uv=%b;@ t=%a;@ bvs=%a;@ pms=%a;@ pvs=%a;@
    uni_vs=%a; npvs=%a@\n%!"
     res (var_str v) uv (pr_ty false) t
-    pr_vars bvs pr_vars zvs pr_vars (vars_of_list pvs)
+    pr_vars bvs pr_vars pms pr_vars (vars_of_list pvs)
     pr_vars (vars_of_list uni_vs) pr_vars (vars_of_list npvs);
   (* *)
   res  
@@ -1008,16 +1007,20 @@ let register_notex v = Hashtbl.add registered_notex_vars v ()
 let is_old_notex v = Hashtbl.mem registered_notex_vars v
 
 (** Separate type sort and number sort constraints,  *)
-let unify ?use_quants ?(sb=[]) q cnj =
+let unify ?use_quants ?bvs ?pms ?(sb=[]) q cnj =
   let new_notex = ref false in
-  let use_quants, bvs, zvs =
-    match use_quants with
-    | None -> false, VarSet.empty, VarSet.empty
-    | Some (bvs, zvs) -> true, bvs, zvs in
+  let use_quants, bvs, pms =
+    match use_quants, bvs, pms with
+    | None, None, None -> assert false
+    | Some false, None, None -> false, VarSet.empty, VarSet.empty
+    | (None | Some true), Some bvs, None -> true, bvs, VarSet.empty
+    | (None | Some true), None, Some pms -> true, VarSet.empty, pms
+    | (None | Some true), Some bvs, Some pms -> true, bvs, pms
+    | _ -> assert false in
   let subst_one_sb v s = List.map
       (fun (w,(t,loc)) ->
          let modif, t' = subst_one v s t in
-         if use_quants && modif && quant_viol q bvs zvs w t'
+         if use_quants && modif && quant_viol q bvs pms w t'
          then raise
              (Contradiction (Type_sort, "Quantifier violation",
                              Some (TVar w, t'), loc));
@@ -1060,7 +1063,7 @@ let unify ?use_quants ?(sb=[]) q cnj =
         raise (Contradiction (Type_sort, "Occurs check fail",
                               Some (tv, t), loc))
       | (TVar v, t | t, TVar v)
-        when use_quants && quant_viol q bvs zvs v t ->
+        when use_quants && quant_viol q bvs pms v t ->
         raise
           (Contradiction (Type_sort, "Quantifier violation",
                           Some (TVar v, t), loc))
@@ -1126,19 +1129,19 @@ let subst_of_cnj ?(elim_uni=false) q cnj =
       | _ -> None)
     cnj
 
-let combine_sbs ?ignore_so ?use_quants q ?(more_phi=[]) sbs =
+let combine_sbs ?ignore_so ?use_quants ?bvs ?pms q ?(more_phi=[]) sbs =
   let cnj_typ, cnj_num, cnj_so =
-    unify ?use_quants q
+    unify ?use_quants ?bvs ?pms q
       (more_phi @ concat_map to_formula sbs) in
   assert (ignore_so<>None || cnj_so = []);
   cnj_typ, cnj_num
 
-let subst_solved ?ignore_so ?use_quants q sb ~cnj =
+let subst_solved ?ignore_so ?use_quants ?bvs ?pms q sb ~cnj =
   let cnj = List.map
     (fun (v,(t,lc)) -> Eqty (subst_typ sb (TVar v), subst_typ sb t, lc))
     cnj in
   let cnj_typ, cnj_num, cnj_so =
-    unify ?use_quants q cnj in
+    unify ?use_quants ?bvs ?pms q cnj in
   assert (ignore_so<>None || cnj_so = []);
   cnj_typ, cnj_num
 

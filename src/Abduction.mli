@@ -13,23 +13,19 @@ val skip_kind : skip_kind ref
 val more_general : bool ref
 
 
-type vparams = (Terms.var_name * Terms.VarSet.t) list
-val pr_vparams : Format.formatter -> vparams -> unit
 val abd_simple :
   Terms.quant_ops ->
   ?without_quant:unit ->
-  bvs:Terms.VarSet.t -> zvs:Terms.VarSet.t ->
-  bparams:vparams -> zparams:vparams ->
+  bvs:Terms.VarSet.t ->
   validate:(Terms.var_name list -> Terms.subst -> unit) ->
   discard:Terms.subst list ->
   int ->
   Terms.var_name list * Terms.subst ->
   Terms.subst * Terms.subst ->
-  (Terms.var_name list * Terms.subst) option
+  (Terms.VarSet.t * (Terms.var_name list * Terms.subst)) option
 val abd_typ :
   Terms.quant_ops ->
-  bvs:Terms.VarSet.t -> zvs:Terms.VarSet.t ->
-  bparams:vparams -> zparams:vparams ->
+  bvs:Terms.VarSet.t ->
   ?dissociate:bool ->
   validate:(Terms.var_name list -> Terms.subst -> unit) ->
   discard:Terms.subst list ->
@@ -40,8 +36,7 @@ val abd_typ :
     [NoAnswer] when no answer can be found. *)
 val abd :
   Terms.quant_ops ->
-  bvs:Terms.VarSet.t -> zvs:Terms.VarSet.t ->
-  bparams:vparams -> zparams:vparams ->
+  bvs:Terms.VarSet.t ->
   ?iter_no:int ->
   discard:(Terms.sort * Terms.formula list) list ->
   (bool * Terms.formula * Terms.formula) list ->
@@ -50,8 +45,5 @@ val abd :
 val abd_mockup_num :
   Terms.quant_ops ->
   bvs:Terms.VarSet.t ->
-  zvs:Terms.VarSet.t ->
-  bparams:vparams ->
-  zparams:vparams ->
   (Terms.formula * Terms.formula) list ->
   (Terms.formula * Terms.formula) list option

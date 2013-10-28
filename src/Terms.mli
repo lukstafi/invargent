@@ -247,21 +247,26 @@ val var_not_left_of : quant_ops -> var_name -> typ -> bool
 
 (** Register variable as [NotEx]. *)
 val register_notex : var_name -> unit
-(** [use_quants] is a pair of [bvs] variables and parameters. The
-    first element of returned triple is the unifier, the second are
-    numeric constraints including equations, the third one are
-    predicate variables and [NotEx] atoms. The substitution is not
-    applied to the third element atoms! *)
-val unify : ?use_quants:(VarSet.t * VarSet.t) ->
+(** [use_quants] whether to check for quantifier violations. [bvs] are
+    variables that are parameters of invariants (or are candidates for
+    such in the partial answer). [pms] are parameters to be ignored
+    from quantifier violations, but should already be right-most in
+    the quantifier. The first element of returned triple is the
+    unifier, the second are numeric constraints including equations,
+    the third one are predicate variables and [NotEx] atoms. The
+    substitution is not applied to the third element atoms! *)
+val unify : ?use_quants:bool -> ?bvs:VarSet.t -> ?pms:VarSet.t ->
   ?sb:subst -> quant_ops ->
   atom list -> subst * atom list * atom list
 val to_formula : subst -> formula
 (** Find the atoms in the formula which are valid substitutions. *)
 val subst_of_cnj : ?elim_uni:bool -> quant_ops -> formula -> subst
-val combine_sbs : ?ignore_so:unit -> ?use_quants:(VarSet.t * VarSet.t) ->
+val combine_sbs : ?ignore_so:unit ->
+  ?use_quants:bool -> ?bvs:VarSet.t -> ?pms:VarSet.t ->
   quant_ops ->
   ?more_phi:formula -> subst list -> subst * formula
-val subst_solved : ?ignore_so:unit -> ?use_quants:(VarSet.t * VarSet.t) ->
+val subst_solved : ?ignore_so:unit ->
+  ?use_quants:bool -> ?bvs:VarSet.t -> ?pms:VarSet.t ->
   quant_ops ->
   subst -> cnj:subst -> subst * formula
 

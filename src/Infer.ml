@@ -83,7 +83,7 @@ let pr_rbrs5 ppf brs =
 
 
 let separate_subst q phi =
-  let sb_ty, phi_num, phi_so = unify q phi in
+  let sb_ty, phi_num, phi_so = unify ~use_quants:false q phi in
   let sb_num, phi_num = NumS.separate_subst q phi_num in
   let sb = update_sb ~more_sb:sb_num sb_ty in
   sb, phi_num @ subst_formula sb_num phi_so
@@ -718,7 +718,7 @@ let prenexize cn =
   {cmp_v; uni_v; same_as}, loop cn
 
 let normalize q cn =
-  let unify ?sb cnj = unify ?sb q cnj in
+  let unify ?sb cnj = unify ~use_quants:false ?sb q cnj in
   (* From unary predicate variable to the existential type of its result. *)
   let chi_exty = Hashtbl.create 2 in
   (* Existential type compatible with the variable. *)
@@ -976,8 +976,8 @@ let simplify preserve q brs =
   (* Merge branches with the same premise. *)
   (* Roughly like [map_reduce (@) [] brs] *)
   let equiv cnj1 cnj2 =
-    let c1_ty, c1_num, c1_so = unify q cnj1 in
-    let c2_ty, c2_num, c2_so = unify q cnj2 in
+    let c1_ty, c1_num, c1_so = unify ~use_quants:false q cnj1 in
+    let c2_ty, c2_num, c2_so = unify ~use_quants:false q cnj2 in
     let c1_ty = List.map (fun (v,(t,_)) -> v,t) c1_ty
     and c2_ty = List.map (fun (v,(t,_)) -> v,t) c2_ty
     and c1_num = replace_loc dummy_loc c1_num

@@ -27,10 +27,10 @@ let test_simple lhs_m rhs_m ?(validate=(fun _ _ -> ())) skip res =
   let lhs, rhs = br_simple lhs rhs in
   let ans =
     match abd_simple q ~without_quant:()
-      ~bvs:VarSet.empty ~zvs:VarSet.empty ~bparams:[] ~zparams:[]
+      ~bvs:VarSet.empty
       ~validate ~discard:[] skip ([],[]) (lhs, rhs) with
     | None -> "none"
-    | Some (vs, ans_typ) ->
+    | Some (bvs, (vs, ans_typ)) ->
       pr_to_str pr_formula
         (to_formula ans_typ) in
   assert_equal ~printer:(fun x -> x)
@@ -87,17 +87,11 @@ let tests = "Abduction" >::: [
         let lhs1 = [] and rhs1 = p_formula "tD = ((Ty Int, Ty Int) → Bool)" in
         let lhs0, rhs0 = br_simple lhs0 rhs0 in
         let lhs1, rhs1 = br_simple lhs1 rhs1 in
-        let vA = VNam (Type_sort, "tA")
-        and vB = VNam (Type_sort, "tB")
-        and vC = VNam (Type_sort, "tC")
-        and vD = VNam (Type_sort, "tD") in
-        let zvs = vars_of_list [vA; vB; vC; vD] in
+        let vA = VNam (Type_sort, "tA") in
         let bvs = VarSet.singleton vA in
         let ans =
           try let alien_eqs, vs, ans_typ, _ =
-                abd_typ q ~bvs ~zvs
-                  ~bparams:[vA, bvs]
-                  ~zparams:[vA, vars_of_list [vA; vB; vC]]
+                abd_typ q ~bvs
                   ~validate:(fun _ _ -> ()) ~discard:[]
                 [lhs0, rhs0; lhs1, rhs1] in
               pr_to_str pr_formula (to_formula ans_typ)

@@ -223,7 +223,7 @@ let empty_state : state = [], NumS.empty_state
 
 let holds q avs (ty_st, num_st) cnj =
   let ty_st, num_cnj, _ =
-    unify ~use_quants:(avs,avs) ~sb:ty_st q.op cnj in
+    unify ~pms:avs ~sb:ty_st q.op cnj in
   let num_st = NumS.holds q.op avs num_st num_cnj in
   ty_st, num_st
 
@@ -265,7 +265,7 @@ let strat q lift_params b ans =
   let avs, ans_l = List.split ans in
   List.concat avs, ans_l, ans_r
   
-let split avs ans negchi_locs params zparams q lift_params =
+let split avs ans negchi_locs bvs q lift_params =
   (* 1 FIXME: do we really need this? *)
   let cmp_v v1 v2 =
     let a = q.cmp_v v1 v2 in
@@ -441,7 +441,7 @@ let simplify q_ops (vs, cnj) =
     else q_ops.Terms.cmp_v v1 v2 in
   let q_ops = {q_ops with cmp_v} in
   let ty_ans, num_ans, _ =
-    unify q_ops cnj in
+    unify ~use_quants:false q_ops cnj in
   let ty_sb, ty_ans = List.partition
     (fun (v,_) -> VarSet.mem v vs && v <> delta && v <> delta') ty_ans in
   let ty_ans = subst_formula ty_sb (to_formula ty_ans) in
@@ -458,14 +458,14 @@ let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
     "converge: check_only=%b@ vs1=%a@ vs2=%a@\ncnj1=%a@\ncnj2=%a\n%!"
     check_only pr_vars (vars_of_list vs1) pr_vars (vars_of_list vs2)
     pr_formula cnj1 pr_formula cnj2; (* *)
-  let c1_ty, c1_num, c1_so = unify q_ops cnj1 in
-  let c2_ty, c2_num, c2_so = unify q_ops cnj2 in
+  let c1_ty, c1_num, c1_so = unify ~use_quants:false q_ops cnj1 in
+  let c2_ty, c2_num, c2_so = unify ~use_quants:false q_ops cnj2 in
   assert (c1_so = []); assert (c2_so = []);
   let cmp (v1,_) (v2,_) = compare v1 v2 in
   let c1_ty = List.sort cmp c1_ty and c2_ty = List.sort cmp c2_ty in
   let cnj_tys = inter_merge cmp
     (fun (_,(t1,_)) (_,(t2,_)) -> Eqty (t1,t2,dummy_loc)) c1_ty c2_ty in
-  let renaming, ren_num, _ = unify q_ops cnj_tys in
+  let renaming, ren_num, _ = unify ~use_quants:false q_ops cnj_tys in
   Format.printf "converge: cnj_tys=%a@\nren_num=%a@\nrenaming1=%a@\n%!"
     pr_formula cnj_tys pr_formula ren_num pr_subst renaming; (* *)
   let renaming =
@@ -545,7 +545,7 @@ let solve q_ops brs =
   (* DEBUG *)
   List.iter
     (fun (prem,concl) ->
-       try ignore (unify q_ops (prem@concl))
+       try ignore (unify ~use_quants:false q_ops (prem@concl))
        with Contradiction _ as e ->
          Format.printf
            "solve: bad branch@\n%a@ ⟹@ %a@\nreason: %a@\n%!"
@@ -553,7 +553,7 @@ let solve q_ops brs =
     )
     brs;
   let q = new_q q_ops in
-  let cmp_v = q.cmp_v and uni_v = q.uni_v in
+  (* let cmp_v = q.cmp_v and uni_v = q.uni_v in *)
   let neg_brs, brs = List.partition
       (fun (_,concl) -> List.exists
           (function CFalse _ -> true | _ -> false) concl) brs in
@@ -615,46 +615,10 @@ let solve q_ops brs =
         | Eqty (TVar a, _, _) when Hashtbl.mem alphasK a -> false
         | Eqty (_, TVar a, _) when Hashtbl.mem alphasK a -> false
         | _ -> true) in
-  let bparams () = List.map
-      (fun b -> b, Hashtbl.find q.b_vs b) q.negbs in
-  let zparams = List.map (fun b -> b, ref VarSet.empty) q.negbs in
-  Format.printf "zparams: init=@ %a@\n%!" Abduction.pr_vparams
-    (List.map (fun (v,p)->v,!p) zparams); (* *)
-  let modified = ref true in
-  let add_atom a =
-    let avs = VarSet.filter
-        (fun v -> not (uni_v v) || List.mem v q.negbs) (fvs_atom a) in
-    List.iter
-      (fun (b, zpms) ->
-         (* FIXME: [cmp_v b v = Upstream]? *)
-         let avs = VarSet.filter
-             (fun v->cmp_v b v <> Right_of) avs in
-         let zvs = VarSet.add b !zpms in
-         if VarSet.exists (fun a -> VarSet.mem a zvs) avs
-         && not (VarSet.is_empty (VarSet.diff avs zvs))
-         then (zpms := VarSet.union avs !zpms; modified := true))
-      zparams in
-  while !modified do
-    modified := false;
-    List.iter
-      (fun (prem,concl) ->
-         List.iter add_atom prem; List.iter add_atom concl)
-      brs
-  done;
-  let zparams = List.map
-      (fun (b,pms) -> b, VarSet.diff !pms (Hashtbl.find q.b_vs b)) zparams in
-  Format.printf "zparams: prior=@ %a@\n%!" Abduction.pr_vparams zparams;
-  let zparams = List.map
-      (fun (b1, pms) ->
-         b1, List.fold_left
-           (fun pms (b2, pms2) ->
-              if cmp_v b1 b2 = Left_of
-              then VarSet.diff pms
-                  (VarSet.union (Hashtbl.find q.b_vs b2) pms2)
-              else pms)
-           pms zparams)
-      zparams in
-  Format.printf "zparams: post=@ %a@\n%!" Abduction.pr_vparams zparams;
+  let bparams () =
+    List.fold_left
+      (fun bvs b -> VarSet.union bvs (Hashtbl.find q.b_vs b))
+      VarSet.empty q.negbs in
   (* keys in sorted order! *)
   let solT = List.map
       (fun i -> i, ([], []))
@@ -696,7 +660,7 @@ let solve q_ops brs =
                "validate-postcond: ans=%a@ prem=%a@ concl=%a@\n%!"
                pr_formula ans pr_formula prem pr_formula concl; (* *)
              let sb_ty, ans_num, ans_so =
-               unify q_ops (ans @ prem @ concl) in
+               unify ~use_quants:false q_ops (ans @ prem @ concl) in
              Format.printf
                "validate-postcond: sb_ty=@ %a@\nans_num=@ %a@\n%!"
                pr_subst sb_ty pr_formula ans_num; (* *)
@@ -814,16 +778,7 @@ let solve q_ops brs =
     let neg_cns1 = List.map
         (fun (prem,loc) -> sb_formula_pred q false g_rol sol1 prem, loc)
         neg_cns in
-    let bparams = bparams () in
-    (* let bvs =
-       VarSet.filter (fun v->not (q.positive_b v)) q.allbvs in *)
-    let bvs = List.fold_left            (* equivalent *)
-        (fun pms (_, bpms) -> VarSet.union pms bpms)
-        VarSet.empty bparams in
-    let zvs = List.fold_left
-        (fun pms (_, zpms) -> VarSet.union pms zpms)
-        VarSet.empty zparams in
-    let params = VarSet.union bvs zvs in
+    let bvs = bparams () in
     let answer =
       try
         (* 7b *)
@@ -866,8 +821,7 @@ let solve q_ops brs =
         let brs1 = List.map
             (fun (nonrec,_,_,prem,concl) -> nonrec,prem,concl) brs1 in
         let alien_eqs, (vs, ans) =
-          Abduction.abd q.op ~bvs ~zvs ~bparams ~zparams
-            ~iter_no ~discard brs1 in
+          Abduction.abd q.op ~bvs ~iter_no ~discard brs1 in
         List.iter
           (function
             | v, (TVar v2, _) ->
@@ -880,7 +834,7 @@ let solve q_ops brs =
             | _ -> ())
           alien_eqs;
         let ans_res, more_discard, ans_sol =
-          split vs ans negchi_locs params zparams q lift_params in
+          split vs ans negchi_locs bvs q lift_params in
         Format.printf
           "solve: loop -- answer split@ more_discard=@ %a@\nans_res=@ %a@\n%!"
           pr_formula more_discard pr_formula ans_res; (* *)
