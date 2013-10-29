@@ -10,7 +10,7 @@ open Terms
 open Num
 open Aux
 
-let early_num_abduction = ref false(* true *)
+let early_num_abduction = ref (* false *)true
 let abd_rotations = ref 2(* 3 *)
 let disjelim_rotations = ref 3
 
@@ -80,6 +80,8 @@ let pr_eqn ppf eqn =
   pr_sep_list "," pr_eq ppf eqn
 let pr_ineqn ppf ineqn =
   pr_sep_list "," pr_ineq ppf ineqn
+let pr_eqnineqn ppf (eqn, ineqn) =
+  Format.fprintf ppf "%a@ ∧@ %a" pr_eqn eqn pr_ineqn ineqn
 let pr_eqineq_br ppf ((d_eqn, d_ineqn), (c_eqn, c_ineqn)) =
     Format.fprintf ppf "@[<2>%a,@ %a@ ⟹@ %a,@ %a@]"
     pr_eqn d_eqn pr_ineqn d_ineqn
@@ -528,9 +530,9 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
       brs in
   let brs, unproc_brs =
     if iter_no > 1 || !early_num_abduction
-    then List.partition
-        (fun (nonrec, prem, concl) -> nonrec) brs
-    else brs, [] in
+    then brs, []
+    else List.partition
+        (fun (nonrec, prem, concl) -> nonrec) brs in
   let brs = List.map (fun (_, prem, concl) -> prem, concl) brs in
   let brs = List.stable_sort
       (fun ((pe1,pi1),_) ((pe2,pi2),_) ->
@@ -560,7 +562,11 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
       match abd_simple cmp cmp_w q.uni_v ~bvs
               ~validate skip acc br with
       | Some acc when List.exists (implies_ans cmp cmp_w q.uni_v acc) failed ->
-        Format.printf "NumS.abd: reset matching failed [%d]@\n%!" ddepth; (* *)
+        Format.printf
+          "NumS.abd: reset matching failed [%d]@\nans=%a@\nfailed=%a@\n%!"
+          ddepth pr_ans acc
+          pr_eqnineqn (List.find (implies_ans cmp cmp_w q.uni_v acc) failed)
+        ; (* *)
         loop failed ([], []) runouts ((skip+1, br)::more_brs)
       | Some acc ->
         let ntime = Sys.time () in
@@ -568,13 +574,15 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
           pr_w_subst (fst acc) pr_ineqs (snd acc); time := ntime; (* *)
         check_runouts failed acc obr more_brs [] runouts
       | None ->
-        if skip <= 0 && acc = ([],[])
+        if skip <= 0 && acc = ([],[]) && not !early_num_abduction
         then (
           Format.printf
             "NumS.abd-loop: quit failed [%d] at skip=%d failed=%d@ ans=%a@\n%!" ddepth
             skip (List.length failed) pr_ans acc; (* *)
           ignore (loop failed acc (obr::runouts) []));
-        let failed = if skip <= 0 then un_ans acc::failed else failed in
+        let failed =
+          if skip <= 0 && acc <> ([],[]) && not !early_num_abduction
+          then un_ans acc::failed else failed in
         Format.printf
           "NumS.abd: reset first [%d] at skip=%d failed=%d@ ans=%a@\n%!" ddepth
           skip (List.length failed) pr_ans acc; (* *)
@@ -601,7 +609,7 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
           pr_w_subst (fst acc) pr_ineqs (snd acc); time := ntime; (* *)
         check_runouts failed acc done_br more_brs (obr::done_runouts) more_runouts
       | None ->
-        if acc = ([],[])
+        if acc = ([],[]) && not !early_num_abduction
         then (
           Format.printf
             "NumS.abd-check_runouts: quit failed [%d] at failed=%d@ ans=%a@\n%!" ddepth
@@ -610,7 +618,10 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
         Format.printf
           "NumS.abd: reset runouts [%d] at confls=%d failed=%d@ ans=%a@\n%!" ddepth
           confls (List.length failed + 1) pr_ans acc; (* *)
-        loop (un_ans acc::failed) ([], [])
+        let failed =
+          if acc = ([],[]) || !early_num_abduction
+          then failed else un_ans acc::failed in
+        loop failed ([], [])
           ((confls+1, br)::List.rev_append done_runouts more_runouts)
           ((dskip+1, dbr)::more_brs)
 
@@ -633,7 +644,7 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
           pr_w_subst (fst acc) pr_ineqs (snd acc); time := ntime; (* *)
         check_brs failed acc runouts (obr::done_brs) more_brs
       | None ->
-        if acc = ([],[])
+        if acc = ([],[]) && not !early_num_abduction
         then (
           Format.printf
             "NumS.abd-check_brs: quit failed [%d] at failed=%d@ ans=%a@\n%!" ddepth
@@ -642,7 +653,10 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
         Format.printf
           "NumS.abd: reset check [%d] at skip=%d failed=%d@ ans=%a@\n%!" ddepth
           skip (List.length failed + 1) pr_ans acc; (* *)
-        loop (un_ans acc::failed) ([], [])
+        let failed =
+          if acc = ([],[]) || !early_num_abduction
+          then failed else un_ans acc::failed in
+        loop failed ([], [])
           runouts ((skip+1, br)::List.rev_append done_brs more_brs) in
 
   let failed =

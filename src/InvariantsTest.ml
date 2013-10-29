@@ -344,7 +344,6 @@ test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
   "flatten_pairs" >::
     (fun () ->
        (* skip_if !debug "debug"; *)
-       (* todo "zparams->bvs"; *)
        test_case "list flatten_pairs"
 "newtype Bool
 newtype List : type * num
@@ -357,8 +356,9 @@ let rec flatten_pairs =
   function LNil -> LNil
     | LCons ((x, y), l) ->
       LCons (x, LCons (y, flatten_pairs l))"
-        [1,"∃n62, n63, t56. δ = (List ((t56, t56), n63) → List (t56, n62)) ∧
-  n62 = (n63 + n63)"];
+        [1,"∃n562, n563, t556.
+  δ = (List ((t556, t556), n563) → List (t556, n562)) ∧
+  n562 = (n563 + n563)"];
     );
 
   "escape castle" >::

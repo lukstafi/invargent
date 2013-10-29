@@ -683,11 +683,12 @@
 
   <\itemize>
     <item><em|Elimination> of a variable takes an equation and selects a
-    variable that is not upstream of any other variable of the equation, and
+    variable that is not upstream, i.e. to the left in <math|\<cal-Q\>>
+    regarding alternations, of any other variable of the equation, and
     substitutes-out this variable from the rest of the constraint. The solved
     form contains an equation for this variable.
 
-    <item><em|Projection> of a variable takes a variable <math|x> that isn't
+    <item><em|Projection> of a variable takes a variable <math|x> that is not
     upstream of any other variable in the unsolved part of the constraint,
     and reduces all inequalities containing <math|x> to the form
     <math|x<wide|\<leqslant\>|\<dot\>>a> or
@@ -728,7 +729,8 @@
     <item>Let <math|B=A<rsub|i>\<wedge\>D\<wedge\>A<rprime|'>\<wedge\>Acc>.
 
     <item>If <math|B\<Rightarrow\>C>, repeat with
-    <math|A\<assign\>A<rprime|'>>.
+    <math|A\<assign\>A<rprime|'>>. Corresponds to ``choice 1'' of term
+    abduction.
 
     <item>If <math|B\<nRightarrow\>C>, for a transformation
     <math|a<rprime|'>> of <math|a> which passes validation against other
@@ -750,6 +752,9 @@
       passes <verbatim|validate>, repeat with
       <math|A\<assign\>A<rprime|'>,Acc\<assign\>Acc\<cup\><around*|{|a<rprime|'>|}>>.
       (Choice point.)
+
+      <item>TODO: optimize -- initial transformations should eliminate
+      constants, universal variables, and rightmost remaining variables!
     </enumerate>
 
     <item>The answers are <math|A<rsub|i+1>=A<rsub|i>\<wedge\>Acc>.
@@ -818,9 +823,17 @@
   We remember SCA answers when skipping over them, not to return the same
   answer for different skip factors. But we also remember all JCA partial
   answers that led to resetting. If a partial answer becomes as strong as one
-  of them, we can reset without further checking. If an empty partial answer
-  led to resetting, no answer exists. The failed partial answers are
-  initialized with the discarded answers, passed from the main algorithm.
+  of them, we can reset without further checking. The failed partial answers
+  are initialized with the discarded answers, passed from the main algorithm.
+
+  If an empty partial answer led to resetting, no fully maximal answer
+  exists. A parameter <verbatim|early_num_abduction> decides whether to add
+  such branch to <verbatim|runouts> -- if true, or fail numerical abduction
+  (return no answer) altogether -- if false. When
+  <verbatim|early_num_abduction> is false, we only consider non-recursive
+  branches in first iteration that calls numerical abduction, and
+  non-recursive branches have sufficient information so that fully maximal
+  answers suffice.
 
   When searching for abduction answer fails, we raise exception
   <verbatim|Suspect> that contains the partial answer conjoined with
@@ -1567,7 +1580,7 @@
     <associate|auto-7|<tuple|3.1|5>>
     <associate|auto-8|<tuple|3.1.1|7>>
     <associate|auto-9|<tuple|3.2|7>>
-    <associate|bib-AbductionSolvMaher|<tuple|3|18>>
+    <associate|bib-AbductionSolvMaher|<tuple|3|17>>
     <associate|bib-AntiUnifAlg|<tuple|8|18>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>

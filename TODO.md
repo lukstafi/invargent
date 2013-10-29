@@ -7,5 +7,6 @@ Place for TODOs/FIXMEs, especially if not expressed in other places. See README.
 * TODO: try using all branches for numerical abduction from the beginning, and only if this fails, starting without recursive branches.
 * TODO: perhaps `check_connected` could be simplified or even removed from abduction?
 * FIXME: repeating `newtype` and `newcons` definitions should be errors.
-* FIXME: I have removed connectedness checks. A variant of nested-definition related stuff can be reintroduced when I get to mutual definition tests. But most tests stopped working, showing that more connectedness checks are required.
+* TODO: I have removed connectedness checks. A variant of nested-definition related stuff might be needed when I get to mutual definition tests.
 * TODO: breadth-first/iterative-deepening-like optimization for simple term abduction, where we do combinations of choices 1 and 6 before proceeding with other choices.
+* TODO: optimize numerical abduction -- initial transformations should eliminate constants, universal variables, and rightmost remaining variables.
