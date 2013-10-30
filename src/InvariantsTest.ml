@@ -343,7 +343,7 @@ test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
 
   "flatten_pairs" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "list flatten_pairs"
 "newtype Bool
 newtype List : type * num
@@ -411,8 +411,7 @@ let rec walk = fun x goal ->
 
   "equational nested universal" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
-       todo "zparams->bvs";
+       skip_if !debug "debug";
        test_case "less nested universal"
 "newtype Place : type
 newtype Nearby : type * type
@@ -436,7 +435,7 @@ let rec walk = fun x goal ->
     let y, to_y = wander x in
     Transitive (to_y, walk y goal)
 test (is_nearby (walk LocA LocB))"
-        [1,"∃t58, t59. δ = (Place t58 → Place t59 → Nearby (t58, t59))"];
+        [1,"∃t588, t589. δ = (Place t588 → Place t589 → Nearby (t588, t589))"];
     );
 
 
@@ -777,8 +776,7 @@ let rec walk = fun x ->
 
   "existential with param" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
-       todo "zparams->bvs";
+       skip_if !debug "debug";
        test_case "existential with param"
 "newtype Place : type
 newtype Nearby : type * type
@@ -796,7 +794,7 @@ let rec walk = fun x ->
     let y, to_y = wander x in
     let to_z = walk y in
     Transitive (to_y, to_z)"
-        [2,"∃t245. δ = (Place t245 → ∃2:t248[].Nearby (t245, t248))"];
+        [2,"∃t246. δ = (Place t246 → ∃2:t249[].Nearby (t246, t249))"];
     );
 
   "non-num map not existential poly" >::
@@ -837,7 +835,7 @@ let rec map =
 
   "map not existential poly" >::
     (fun () ->
-       todo "zparams->bvs";
+       todo "not existential";
        test_case "list map not existential poly"
 "newtype List : type * num
 newcons LNil : ∀a. List(a, 0)
@@ -853,7 +851,7 @@ let rec map = fun f ->
 
   "map not existential mono" >::
     (fun () ->
-       todo "existential";
+       todo "not existential";
        test_case "list map not existential mono"
 "newtype List : type * num
 newcons LNil : ∀a. List(a, 0)
@@ -873,8 +871,7 @@ let rec map =
 
   "filter mono" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
-       todo "zparams->bvs";
+       skip_if !debug "debug";
        test_case "monomorphic list filter"
 "newtype Bool
 newtype Bar
@@ -902,8 +899,7 @@ let rec filter =
 
   "filter Bar" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
-       todo "zparams->bvs";
+       skip_if !debug "debug";
        test_case "list filter: Bar"
 "newtype Bool
 newtype List : type * num
@@ -924,17 +920,16 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
-        [2,"∃n85, t84.
+        [2,"∃n87, t86.
   δ =
-    (List (Bar, n85) → ∃2:n92[n92 ≤ n85 ∧ 0 ≤ n85 ∧
-       0 ≤ n92].List (Bar, n92))"];
+    (List (Bar, n87) → ∃2:n94[n94 ≤ n87 ∧ 0 ≤ n87 ∧
+       0 ≤ n94].List (Bar, n94))"];
 
     );
 
   "filter poly" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
-       todo "zparams->bvs";
+       skip_if !debug "debug";
        test_case "polymorphic list filter"
 "newtype Bool
 newtype List : type * num
@@ -961,7 +956,7 @@ let rec filter = fun f ->
 
   "poly filter map" >::
     (fun () ->
-       todo "existential";
+       skip_if !debug "debug";
        test_case "list filter map"
 "newtype Bool
 newtype List : type * num
@@ -975,17 +970,21 @@ let rec filter = fun f g ->
     | LCons (x, xs) ->
       ematch f x with
         | True ->
-          let ys = filter xs in
+          let ys = filter f g xs in
           LCons (g x, ys)
 	| False ->
-          filter xs"
-        [2,""];
+          filter f g xs"
+        [2,"∃n100, t96, t97, t99.
+  δ =
+    ((t96 → Bool) → (t96 → t97) → List (t96, n100) →
+       ∃2:n113[n113 ≤ n100 ∧ 0 ≤ n100 ∧
+       0 ≤ n113].List (t97, n113))"];
 
     );
 
   "existential filter map 1" >::
     (fun () ->
-       todo "existential";
+       (* todo "existential"; *)
        test_case "existential filter map 1"
 "newtype Bool
 newtype List : type * num
@@ -996,16 +995,16 @@ newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 
 external g : ∀a. a → ∃b.b
 
-let rec filter = fun f g ->
+let rec filter = fun f ->
   efunction LNil -> LNil
     | LCons (x, xs) ->
       ematch f x with
         | True ->
-          let ys = filter xs in
+          let ys = filter f xs in
           let y = g x in
           LCons (y, ys)
 	| False ->
-          filter xs"
+          filter f xs"
         [2,""];
 
     );

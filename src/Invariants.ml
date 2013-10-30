@@ -251,11 +251,14 @@ let strat q lift_params b ans =
          let avs = List.map Infer.freshen_var vs in
          List.iter2
            (fun av v ->
-              Format.printf "lift_params: strat %s - %s@\n%!"
-                (var_str av) (var_str v); (* *)
-              if Hashtbl.mem lift_params v
-              then Hashtbl.replace lift_params (Hashtbl.find lift_params v) av;
-              Hashtbl.replace lift_params v av)
+              Format.printf "lift_params: strat %s -> %s (%s)@\n%!"
+                (var_str av)
+                (var_str v)
+                (try var_str (Hashtbl.find lift_params v)
+                 with Not_found -> ""); (* *)
+              let v2 =
+                try Hashtbl.find lift_params v with Not_found -> v in
+              Hashtbl.replace lift_params av v2)
            avs vs;
          let ans_r =
            List.map2 (fun a b -> b, (TVar a, loc)) avs vs @ ans_r in
@@ -750,9 +753,22 @@ let solve q_ops brs =
         Format.printf "solve: loop iter_no=%d@ g_par=%a@\ng_rol.B=@ %a@\n%!"
           iter_no pr_chi_subst g_par pr_chi_subst g_rol; (* *)
         (* 6 *)
+        let params_l =
+          collect (Hashtbl.fold (fun k v l -> (v,k)::l) lift_params []) in
+        let lift_pms = Hashtbl.create 32 in
+        let ans_pms = List.fold_left
+            (fun ans_pms (_,(vs,_)) -> add_vars vs ans_pms)
+            VarSet.empty sol1 in
+        List.iter
+            (fun (v,vs) ->
+               try
+                 let b = List.find (flip VarSet.mem ans_pms) (v::vs) in
+                 List.iter (fun v -> Hashtbl.add lift_pms v b) (v::vs)
+               with Not_found -> ())
+            params_l;
         let esb = List.map
             (fun (i, tpar) ->
-               let tpar = hvsubst_typ lift_params tpar in
+               let tpar = hvsubst_typ lift_pms tpar in
                let n = Extype (Hashtbl.find exty_of_chi i) in
                n, fun _ -> TCons (n, [tpar]))
             tpars in
@@ -762,7 +778,12 @@ let solve q_ops brs =
                 Eqty (n_subst_typ esb t1, n_subst_typ esb t2, lc)
               | a -> a) in
         let sol1 = List.map
-            (fun (i, (vs, phi)) -> i, (vs, esb_formula phi))
+            (fun (i, (vs, phi)) ->
+               Format.printf
+                 "lift-params: i=%d@ vs=%a@ phi=%a@ phi'=%a@\n%!"
+                 i pr_vars (vars_of_list vs) pr_formula phi
+                 pr_formula (esb_formula phi); (* *)
+               i, (vs, esb_formula phi))
             sol1 in
         Format.printf "solve: substituting invariants at step 5@\n%!"; (* *)
         let brs0 = sb_brs_PredU q sol1 brs in
@@ -825,13 +846,15 @@ let solve q_ops brs =
           Abduction.abd q.op ~bvs ~iter_no ~discard brs1 in
         List.iter
           (function
-            | v, (TVar v2, _) ->
-              Format.printf "lift_params: alien eq %s - %s@\n%!"
-                (var_str v) (var_str v2); (* *)
-              if Hashtbl.mem lift_params v2
-              then Hashtbl.add lift_params v (Hashtbl.find lift_params v2)
-              else
-                (Hashtbl.add lift_params v v2; Hashtbl.add lift_params v2 v)
+            | av, (TVar v, _) ->
+              Format.printf "lift_params: alien eq %s -> %s (%s)@\n%!"
+                (var_str av)
+                (var_str v)
+                (try var_str (Hashtbl.find lift_params v)
+                 with Not_found -> ""); (* *)
+              let v2 =
+                try Hashtbl.find lift_params v with Not_found -> v in
+              Hashtbl.replace lift_params av v2
             | _ -> ())
           alien_eqs;
         let ans_res, more_discard, ans_sol =

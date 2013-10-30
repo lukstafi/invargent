@@ -8,6 +8,8 @@
 open Terms
 open Aux
 
+let timeout_count = ref 500(* 50000 *)
+
 let residuum q prem concl =
   let concl = to_formula concl in
   let res_ty, res_num, res_so =
@@ -237,7 +239,6 @@ let implies_ans ans c_ans =
      1, 6, 2, 4, 3, 5
  *)
 
-let timeout_count = ref (* 500  *)50000
 exception Timeout
 
 let abd_simple q ?without_quant ~bvs
