@@ -110,8 +110,17 @@ let revert_cst_n_uni q ~bvs ~pms ans cand =
   let cand = List.filter
       (function
         | v, (TVar v2, _)
-          when q.uni_v v && q.cmp_v v v2 = Right_of -> false
-        | v, (TCons _, _) when q.uni_v v -> false
+          when q.uni_v v && q.cmp_v v v2 = Right_of ->
+          Format.printf
+            "cand: drop right_of uni(%s)=%b uni(%s)=%b v1<v2=%b v2<v1=%b@\n%!"
+            (var_str v) (q.uni_v v) (var_str v2) (q.uni_v v2)
+            (q.cmp_v v v2 = Left_of) (q.cmp_v v v2 = Right_of); (* *)
+          false
+        | v, (TCons _ as t, _) when q.uni_v v ->
+          Format.printf
+            "cand: drop uni(%s)=%b t=%a@\n%!"
+            (var_str v) (q.uni_v v) (pr_ty false) t; (* *)
+          false
         | _ -> true)
       cand in
   let uni_sb =

@@ -127,7 +127,6 @@ let normalize_expr e =
         [delta; delta'],
         [PredVarB (chi_id, tdelta, tdelta', lc)],
         [tdelta], ety_cn, [delta'] in
-      (* FIXME: go to [sigma] altogether *)
       Hashtbl.add sigma ety_cn ex_sch;
       new_ex_types := (k, lc) :: !new_ex_types;
       all_ex_types := (k, lc) :: !all_ex_types;
@@ -227,18 +226,13 @@ let constr_gen_pat p tau =
       let avs = vars_of_list c_args in
       let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
       let bvs = VarSet.diff (vars_of_list abvs) avs in
-      let exty_params =
-        match phi, c_args with
-        | [PredVarB (chi_id, _, _, loc)], [av] ->
-          [PredVarU (chi_id, TVar av, loc)]
-        | _ -> [] in
       let argphi =
         List.fold_left cn_and (And [])
           (List.map2 aux argtys args) in
       let cn =
         if phi=[] || argphi=And [] then argphi else Impl (phi, argphi) in
       let cn = if VarSet.is_empty bvs then cn else All (bvs, cn) in
-      Ex (avs, And [A (Eqty (res, tau, loc) :: exty_params); cn]) in
+      Ex (avs, And [A [Eqty (res, tau, loc)]; cn]) in
   aux tau p
   
 type envfrag = VarSet.t * formula * (string * typ) list
