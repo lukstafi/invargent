@@ -386,6 +386,15 @@ let subst_atom sb = function
     PredVarB (n, subst_typ sb t1, subst_typ sb t2, lc)
   | NotEx (t, lc) -> NotEx (subst_typ sb t, lc)
 
+let hvsubst_atom sb = function
+  | Eqty (t1, t2, loc) -> Eqty (hvsubst_typ sb t1, hvsubst_typ sb t2, loc)
+  | Leq (t1, t2, loc) -> Leq (hvsubst_typ sb t1, hvsubst_typ sb t2, loc)
+  | CFalse _ as a -> a
+  | PredVarU (n, t, lc) -> PredVarU (n, hvsubst_typ sb t, lc)
+  | PredVarB (n, t1, t2, lc) ->
+    PredVarB (n, hvsubst_typ sb t1, hvsubst_typ sb t2, lc)
+  | NotEx (t, lc) -> NotEx (hvsubst_typ sb t, lc)
+
 let sb_atom_unary arg = function
   | Eqty (t1, t2, lc) ->
     Eqty (sb_typ_unary arg t1, sb_typ_unary arg t2, lc)
@@ -424,6 +433,9 @@ let fvs_sb sb =
 
 let subst_formula sb phi =
   if sb=[] then phi else List.map (subst_atom sb) phi
+
+let hvsubst_formula sb phi =
+  List.map (hvsubst_atom sb) phi
 
 let replace_loc loc phi =
   List.map (replace_loc_atom loc) phi
@@ -499,32 +511,24 @@ let convert = function
     NoAnswer (sort, msg, tys, lc)
   | e -> e
 
-let typ_sort_typ = function
+let typ_sort = function
   | TCons _ | Fun _ |
-      TVar (VNam (Type_sort, _) | VId (Type_sort, _)) -> true
-  | _ -> false
-
-let num_sort_typ = function
+      TVar (VNam (Type_sort, _) | VId (Type_sort, _)) -> Type_sort
   | NCst _ | Nadd _ |
       TVar (VNam (Num_sort, _)
-                 | VId (Num_sort, _)) -> true
-  | _ -> false
+                 | VId (Num_sort, _)) -> Num_sort
 
-let typ_sort_atom = function
-  | Eqty (t1, t2, _) -> typ_sort_typ t1 || typ_sort_typ t2
-  | Leq _ -> false
-  | CFalse _ -> false
-  | PredVarU _ -> true
-  | PredVarB _ -> true
-  | NotEx _ -> true
-
-let num_sort_atom = function
-  | Eqty (t1, t2, _) -> num_sort_typ t1 || num_sort_typ t2
-  | Leq _ -> true
-  | CFalse _ -> false
-  | PredVarU _ -> false
-  | PredVarB _ -> false
-  | NotEx _ -> false
+let atom_sort = function
+  | Eqty (t1, t2, lc) ->
+    let s1 = typ_sort t1 and s2 = typ_sort t2 in
+    if s1 = s2 then s1
+    else raise
+        (Contradiction (s1, "Sort mismatch", Some (t1, t2), lc))
+  | Leq _ -> Num_sort
+  | CFalse _ -> Type_sort
+  | PredVarU _ -> Type_sort
+  | PredVarB _ -> Type_sort
+  | NotEx _ -> Type_sort
 
 (** {2 Global tables} *)
 
@@ -920,11 +924,11 @@ let pr_to_str pr_f e =
 let split_sorts cnj =
   let cnj_typ, cnj = List.partition
     (function
-    | Eqty (_,t,_) when typ_sort_typ t -> true
+    | Eqty (_,t,_) when typ_sort t = Type_sort -> true
     | _ -> false) cnj in
   let cnj_num, cnj = List.partition
     (function
-    | Eqty (_,t,_) when num_sort_typ t -> true
+    | Eqty (_,t,_) when typ_sort t = Num_sort -> true
     | Leq _ -> true
     | _ -> false) cnj in
   assert (cnj=[]);
@@ -936,7 +940,7 @@ let connected ?(validate=fun _ -> ()) ~directed target (vs, phi) =
         | Eqty (TVar _, TVar _, _) as c ->
           let cvs = fvs_atom c in c, cvs, cvs
         | (Eqty (TVar v, t, _) | Eqty (t, TVar v, _)) as c
-          when directed && typ_sort_typ t ->
+          when directed && typ_sort t = Type_sort ->
           c, VarSet.singleton v, fvs_typ t
         | c -> let cvs = fvs_atom c in c, cvs, cvs)
       phi in
@@ -1027,9 +1031,9 @@ let unify ?use_quants ?bvs ?pms ?(sb=[]) q cnj =
          w, (t', loc)) in
   let cnj_typ, more_cnj = partition_map
       (function
-        | Eqty (t1, t2, loc) when typ_sort_typ t1 && typ_sort_typ t2 ->
+        | Eqty (t1, t2, loc) when typ_sort t1 = Type_sort ->
           Left (t1, t2, loc)
-        | Eqty (t1, t2, loc) as a when num_sort_typ t1 && num_sort_typ t2 ->
+        | Eqty (t1, t2, loc) as a when typ_sort t1 = Num_sort ->
           Right (Left a)
         | Leq _ as a -> Right (Left a)
         | (CFalse _ | PredVarU _ | PredVarB _) as a ->
@@ -1047,9 +1051,9 @@ let unify ?use_quants ?bvs ?pms ?(sb=[]) q cnj =
     | (t1, t2, loc)::cnj ->
       match subst_typ sb t1, subst_typ sb t2 with
       | t1, t2 when t1 = t2 -> aux sb num_cn cnj
-      | t1, t2 when num_sort_typ t1 && num_sort_typ t2 ->
+      | t1, t2 when typ_sort t1 = Num_sort && typ_sort t2 = Num_sort ->
         aux sb (Eqty (t1, t2, loc)::num_cn) cnj
-      | t1, t2 when num_sort_typ t1 || num_sort_typ t2 ->
+      | t1, t2 when typ_sort t1 = Num_sort || typ_sort t2 = Num_sort ->
         raise
           (Contradiction (Type_sort, "Type sort mismatch",
                           Some (t1, t2), loc))
@@ -1145,6 +1149,48 @@ let subst_solved ?ignore_so ?use_quants ?bvs ?pms q sb ~cnj =
   assert (ignore_so<>None || cnj_so = []);
   cnj_typ, cnj_num
 
+
+(** {2 Nice variables} *)
+
+let typvars = "abcrst"
+let numvars = "nkijml"
+let typvars_n = String.length typvars
+let numvars_n = String.length numvars
+
+let next_typ fvs =
+  let rec aux i =
+    let ch, n = i mod typvars_n, i / typvars_n in
+    let v s = VNam (s, Char.escaped typvars.[ch] ^
+                         (if n>0 then string_of_int n else "")) in
+    if VarSet.mem (v Num_sort) fvs || VarSet.mem (v Type_sort) fvs
+    then aux (i+1) else v Type_sort in
+  aux 0
+
+let next_num fvs =
+  let rec aux i =
+    let ch, n = i mod numvars_n, i / numvars_n in
+    let v s = VNam (s, Char.escaped numvars.[ch] ^
+                         (if n>0 then string_of_int n else "")) in
+    if VarSet.mem (v Num_sort) fvs || VarSet.mem (v Type_sort) fvs
+    then aux (i+1) else v Num_sort in
+  aux 0
+
+let next_var allvs s =
+  if s = Type_sort then next_typ allvs else next_num allvs
+
+let nice_ans (vs, phi) =
+  let named_vs, vs =
+    List.partition (function VNam _ -> true | _ -> false) vs in
+  let allvs, rn = fold_map
+      (fun fvs v ->
+         let w = next_var fvs (var_sort v) in
+         VarSet.add w fvs, (v, w))
+      (fvs_formula phi) vs in
+  let rvs = List.map snd rn in
+  let sb = Hashtbl.create (List.length vs) in
+  List.iter (fun (v,w) -> Hashtbl.add sb v w) rn;
+  named_vs @ rvs, hvsubst_formula sb phi
+
 let () = pr_exty :=
   fun ppf (i, args) ->
     let vs, phi, ty, ety_n, pvs = Hashtbl.find sigma (Extype i) in
@@ -1161,10 +1207,15 @@ let () = pr_exty :=
        (vars_of_list pvs) pr_formula phi; * *)
     let evs = VarSet.elements
         (VarSet.diff (vars_of_list vs) (vars_of_list pvs)) in
+    let phi = Eqty (ty, ty, dummy_loc)::phi in
+    let evs, phi = nice_ans (evs, phi) in
+    let ty, phi = match phi with Eqty (ty, _, _)::phi -> ty, phi
+                               | _ -> assert false in
     (* TODO: "@[<2>∃%d:%a[%a].%a@]" better? *)
     fprintf ppf "∃%d:%a[%a].%a" i
       (pr_sep_list "," pr_tyvar) evs pr_formula phi (pr_ty false) ty
 
+(** {2 Globals} *)
 
 let parser_more_items = ref []
 let parser_unary_typs = Hashtbl.create 15

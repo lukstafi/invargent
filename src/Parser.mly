@@ -43,7 +43,7 @@ let name_sort loc v =
       ['i';'j';'k';'l';'m';'n']
   then Num_sort
   else syntax_error
-    ("variable <"^v^"> starts with a letter reserved for a future sort")
+    ("type variable <"^v^"> starts with a letter reserved for a future sort")
     loc
 
 let more_items = parser_more_items
@@ -74,27 +74,8 @@ let existential evs exphi ty loc =
 
 let unary_typs = parser_unary_typs
 let unary_vals = parser_unary_vals
-
-let typvars = "abcdefghorstuvw"
-let numvars = "nkijmlpqxyz"
-let typvars_n = String.length typvars
-let numvars_n = String.length numvars
 let last_typ = parser_last_typ
 let last_num = parser_last_num
-let rec next_typ i fvs =
-  let ch, n = i mod typvars_n, i / typvars_n in
-  let v s = VNam (s,
-                Char.escaped typvars.[ch] ^
-                  (if n>0 then string_of_int n else "")) in
-  if VarSet.mem (v Num_sort) fvs || VarSet.mem (v Type_sort) fvs
-  then next_typ (i+1) fvs else v Type_sort
-let rec next_num i fvs =
-  let ch, n = i mod numvars_n, i / numvars_n in
-  let v s = VNam (s,
-                Char.escaped numvars.[ch] ^
-                  (if n>0 then string_of_int n else "")) in
-  if VarSet.mem (v Num_sort) fvs || VarSet.mem (v Type_sort) fvs
-  then next_num (i+1) fvs else v Num_sort
 
 let extract_datatyp allvs loc = function
   | TCons (CNam m as n, args) ->
@@ -106,8 +87,7 @@ let extract_datatyp allvs loc = function
       (fun phi -> function
       | TVar v -> phi, v
       | t ->
-        let v =
-          if typ_sort_typ t then next_typ 0 allvs else next_num 0 allvs in
+        let v = next_var allvs (typ_sort t) in
         Eqty (t, TVar v, loc)::phi, v) [] args in
     n, args, phi
   | _ -> raise (Report_toplevel ("Syntax error: expected datatype",

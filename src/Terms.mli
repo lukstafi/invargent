@@ -237,10 +237,8 @@ val update_sb : more_sb:subst -> subst -> subst
     with another term. [loc] is not used. *)
 val c_subst_typ : (typ * (typ * loc)) list -> typ -> typ
 val n_subst_typ : (cns_name * (typ list -> typ)) list -> typ -> typ
-val typ_sort_typ : typ -> bool
-val num_sort_typ : typ -> bool
-val typ_sort_atom : atom -> bool
-val num_sort_atom : atom -> bool
+val typ_sort : typ -> sort
+val atom_sort : atom -> sort
 val split_sorts : formula -> (sort * formula) list
 
 val var_not_left_of : quant_ops -> var_name -> typ -> bool
@@ -324,3 +322,8 @@ val parser_unary_typs : (string, unit) Hashtbl.t
 val parser_unary_vals : (cns_name, unit) Hashtbl.t
 val parser_last_typ : int ref
 val parser_last_num : int ref
+
+(** {2 Nice variables} *)
+
+val next_var : VarSet.t -> sort -> var_name
+val nice_ans : answer -> answer

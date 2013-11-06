@@ -50,7 +50,7 @@ let test_case ?(more_general=false) msg test answers =
           !all_ex_types;
         (* *)
         let test_sol (chi, result) =
-          let vs, ans = List.assoc chi sol in
+          let vs, ans = nice_ans (List.assoc chi sol) in
           ignore (Format.flush_str_formatter ());
           Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
             (pr_sep_list "," pr_tyvar) vs pr_formula ans;
@@ -86,7 +86,7 @@ let rec eval = function
   | Plus (x, y) -> plus (eval x) (eval y)
   | If (b, t, e) -> if (eval b) (eval t) (eval e)"
 
-        [1, "∃t32. δ = (Term t32 → t32)"]
+        [1, "∃a. δ = (Term a → a)"]
     );
 
   "eval" >::
@@ -118,7 +118,7 @@ let rec eval = function
   | Fst p -> (match eval p with x, y -> x)
   | Snd p -> (match eval p with x, y -> y)"
 
-        [1, "∃t70. δ = (Term t70 → t70)"]
+        [1, "∃a. δ = (Term a → a)"]
     );
 
   "equal1 wrong type" >::
@@ -149,7 +149,7 @@ let rec equal1 = function
               (equal1 (t2, u2) x2 y2))
   | TList t, TList u -> forall2 (equal1 (t, u))
   | _ -> fun _ _ -> False"
-        [1, "∃t84, t85. δ = (Ty t84, Ty t85 → t84 → t84 → Bool)"]
+        [1, "∃a, b. δ = (Ty a, Ty b → a → a → Bool)"]
     );
 
   "equal with test" >::
@@ -181,7 +181,7 @@ let rec equal = function
   | TList t, TList u -> forall2 (equal (t, u))
   | _ -> fun _ _ -> False
 test b_not (equal (TInt, TList TInt) Zero Nil)"
-        [1, "∃t152, t153. δ = (Ty t152, Ty t153 → t152 → t153 → Bool)"]
+        [1, "∃a, b. δ = (Ty a, Ty b → a → b → Bool)"]
     );
 
   "equal with assert" >::
@@ -214,7 +214,7 @@ let rec equal = function
   | _ -> fun _ _ -> False
   | TInt, TList l -> (function Nil -> assert false)
   | TList l, TInt -> (fun _ -> function Nil -> assert false)"
-        [1, "∃t168, t169. δ = (Ty t168, Ty t169 → t168 → t169 → Bool)"]
+        [1, "∃a, b. δ = (Ty a, Ty b → a → b → Bool)"]
     );
 
   "equal with assert and test" >::
@@ -248,7 +248,7 @@ let rec equal = function
   | TInt, TList l -> (function Nil -> assert false)
   | TList l, TInt -> (fun _ -> function Nil -> assert false)
 test b_not (equal (TInt, TList TInt) Zero Nil)"
-        [1, "∃t182, t183. δ = (Ty t182, Ty t183 → t182 → t183 → Bool)"]
+        [1, "∃a, b. δ = (Ty a, Ty b → a → b → Bool)"]
     );
 
   "binary plus" >::
@@ -289,9 +289,8 @@ let rec plus =
         (function Zero -> PZero (plus COne a1 Zero)
 	  | PZero b1 -> PZero (plus COne a1 b1)
 	  | POne b1 -> POne (plus COne a1 b1)))"
-        [1,"∃n239, n240, n241, n242.
-  δ = (Carry n242 → Binary n241 → Binary n240 → Binary n239) ∧
-  n239 = (n242 + n241 + n240)"]
+        [1,"∃n, k, i, j. δ = (Carry j → Binary i → Binary k → Binary n) ∧
+  n = (j + i + k)"]
     );
 
   "binary plus with test" >::
@@ -336,9 +335,8 @@ let rec plus =
 	  | POne b1 -> POne (plus COne a1 b1)))
 test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
                    (POne (POne Zero)))"
-        [1,"∃n264, n265, n266, n267.
-  δ = (Carry n267 → Binary n266 → Binary n265 → Binary n264) ∧
-  n264 = (n267 + n266 + n265)"]
+        [1,"∃n, k, i, j. δ = (Carry j → Binary i → Binary k → Binary n) ∧
+  n = (j + i + k)"]
     );
 
   "flatten_pairs" >::
@@ -356,14 +354,12 @@ let rec flatten_pairs =
   function LNil -> LNil
     | LCons ((x, y), l) ->
       LCons (x, LCons (y, flatten_pairs l))"
-        [1,"∃n562, n563, t556.
-  δ = (List ((t556, t556), n563) → List (t556, n562)) ∧
-  n562 = (n563 + n563)"];
+        [1,"∃n, k, a. δ = (List ((a, a), k) → List (a, n)) ∧ n = (k + k)"];
     );
 
   "escape castle" >::
     (fun () ->
-       skip_if !debug "debug";
+       (* skip_if !debug "debug"; *)
        test_case "escape castle"
 "newtype Room
 newtype Yard
@@ -956,7 +952,7 @@ let rec filter = fun f ->
 
   "poly filter map" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "list filter map"
 "newtype Bool
 newtype List : type * num
@@ -974,11 +970,10 @@ let rec filter = fun f g ->
           LCons (g x, ys)
 	| False ->
           filter f g xs"
-        [2,"∃n100, t96, t97, t99.
+        [2,"∃n, a, b, c.
   δ =
-    ((t96 → Bool) → (t96 → t97) → List (t96, n100) →
-       ∃2:n113[n113 ≤ n100 ∧ 0 ≤ n100 ∧
-       0 ≤ n113].List (t97, n113))"];
+    ((b → Bool) → (b → a) → List (b, n) → ∃2:k[k ≤ n ∧
+       0 ≤ n ∧ 0 ≤ k].List (a, k))"];
 
     );
 

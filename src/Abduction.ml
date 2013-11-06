@@ -8,7 +8,7 @@
 open Terms
 open Aux
 
-let timeout_count = ref 500(* 50000 *)
+let timeout_count = ref 500(* 1000 *)(* 50000 *)
 
 let residuum q prem concl =
   let concl = to_formula concl in
@@ -460,7 +460,7 @@ let abd_simple q ?without_quant ~bvs
           "abd_simple: [%d] approaching choice 3@ for@ %a@ @@ %s =@ %a@\n%!"
           ddepth (pr_ty false) loc.typ_sub (var_str x) (pr_ty false)
           (typ_out loc); (* *)
-        if not (num_sort_typ loc.typ_sub)
+        if typ_sort loc.typ_sub = Type_sort
         then match typ_up loc with
           | None -> ()        
           | Some loc ->
@@ -733,7 +733,7 @@ let abd_typ q ~bvs ?(dissociate=false) ~validate ~discard brs =
   let alien_vs = ref [] in
   let alien_eqs = ref [] in
   let rec aux = function
-    | t when num_sort_typ t ->
+    | t when typ_sort t = Num_sort ->
       let n = Infer.fresh_num_var () in
       (* Alien vars become abduction answer vars. *)
       alien_eqs := (n, (t, dummy_loc)):: !alien_eqs;

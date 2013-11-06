@@ -28,7 +28,7 @@ let antiunif q ts =
           (t2::List.map
                (function Fun (_, tk2) -> tk2 | _ -> assert false) ts) in
       vs1 @ vs2, Fun (s1, s2), usb, gsb
-    | t::_ as ts when num_sort_typ t ->
+    | t::_ as ts when typ_sort t = Num_sort ->
           let x = Infer.fresh_num_var () in
           [x], TVar x, usb, (ts, x)::gsb
     | ts ->
@@ -187,7 +187,8 @@ let disjelim_typ q brs =
         (List.fold_left EqsSet.inter (List.hd eqvs) (List.tl eqvs)) in
       (* (f) *)
       let num_eqs, ty_eqs = List.split
-        (List.map (List.partition (fun (_,(t,_)) -> num_sort_typ t)) eqs) in
+        (List.map (List.partition
+                     (fun (_,(t,_)) -> typ_sort t = Num_sort)) eqs) in
       avs, ty_ans @ eqv_ans, ty_eqs, List.map to_formula num_eqs
 
 (* Do not simplify redundancy! Just remove spurious introduced variables. *)
