@@ -9,7 +9,7 @@ open OUnit
 open Terms
 open Aux
 
-let debug = ref (* false *)true
+let debug = ref false(* true *)
 
 let test_case ?(more_general=false) msg test answers =
       Terms.reset_state ();
@@ -407,7 +407,7 @@ let rec walk = fun x goal ->
 
   "equational nested universal" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "equational nested universal"
 "newtype Place : type
 newtype Nearby : type * type
@@ -675,7 +675,7 @@ let rec search = efunction
     | No ->
       let y = wander x in
       search y"
-        [2,"∃t94. δ = (Placement t94 → ∃3:[].Castle Yard)"];
+        [2,"∃a. δ = (Placement a → ∃3:[].Castle Yard)"];
     );
 
   "castle nested existential factored" >::
@@ -806,7 +806,7 @@ let rec map = fun f ->
     | LCons (x, xs) ->
       let ys = map f xs in
       LCons (f x, ys)"
-        [2,"∃a, b, c. δ = ((b → c) → List b → ∃1:[].List c)"];
+        [2,"∃a, b. δ = ((a → b) → List a → ∃1:[].List b)"];
     );
 
   "non-num map not existential mono" >::
@@ -826,7 +826,7 @@ let rec map =
     | LCons (x, xs) ->
       let ys = map xs in
       LCons (f x, ys)"
-        [2,"∃a. δ = (List Foo → ∃1:[].List Bar)"];
+        [2,"∃. δ = (List Foo → ∃1:[].List Bar)"];
     );
 
   "map not existential poly" >::
@@ -914,7 +914,7 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
-        [2,"∃n, a.
+        [2,"∃n.
   δ =
     (List (Bar, n) → ∃2:k[k ≤ n ∧ 0 ≤ n ∧ 0 ≤ k].List (Bar, k))"];
 
@@ -940,10 +940,10 @@ let rec filter = fun f ->
           LCons (x, ys)
 	| False ->
           filter f xs"
-        [2,"∃n, a, b.
+        [2,"∃n, a.
   δ =
-    ((b → Bool) → List (b, n) → ∃2:k[k ≤ n ∧ 0 ≤ n ∧
-       0 ≤ k].List (b, k))"];
+    ((a → Bool) → List (a, n) → ∃2:k[k ≤ n ∧ 0 ≤ n ∧
+       0 ≤ k].List (a, k))"];
 
     );
 
@@ -967,7 +967,7 @@ let rec filter = fun f g ->
           LCons (g x, ys)
 	| False ->
           filter f g xs"
-        [2,"∃n, a, b, c.
+        [2,"∃n, a, b.
   δ =
     ((a → Bool) → (a → b) → List (a, n) → ∃2:k[k ≤ n ∧
        0 ≤ n ∧ 0 ≤ k].List (b, k))"];

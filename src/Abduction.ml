@@ -8,7 +8,7 @@
 open Terms
 open Aux
 
-let timeout_count = ref 500(* 1000 *)(* 50000 *)
+let timeout_count = ref (* 500 *)(* 1000 *)5000(* 50000 *)
 
 let residuum q prem concl =
   let concl = to_formula concl in
