@@ -432,8 +432,8 @@ let split avs ans negchi_locs bvs q lift_params =
   let solT = List.map (fun b->b, []) q.negbs in
   loop (vars_of_list avs) ans [] solT  
 
-(** Perform quantifier elimination on provided variables and generally
-    simplify the formula. *)
+(** Eliminate provided variables if they do not contribute to
+    constraints and generally simplify the formula. *)
 let simplify q_ops (vs, cnj) =
   let vs = vars_of_list vs in
   let cmp_v v1 v2 =
@@ -949,8 +949,7 @@ let solve q_ops brs =
              (* No need to substitute, because variables will be
                 freshened when predicate variable is instantiated. *)
              let dans = subst_formula [b, (tdelta, dummy_loc)] dans in
-             let dvs, ans' = simplify q.op (dvs, dans @ ans) in
-             let i_res = dvs @ vs, ans' in
+             let i_res = simplify q.op (dvs @ vs, dans @ ans) in
              Format.printf
                "solve-loop: vs=%a@ ans=%a@ chi%d(.)=@ %a@\n%!"
                pr_vars (vars_of_list vs) pr_formula ans i pr_ans i_res; (* *)

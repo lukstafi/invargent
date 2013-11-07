@@ -267,6 +267,8 @@ val subst_solved : ?ignore_so:unit ->
   ?use_quants:bool -> ?bvs:VarSet.t -> ?pms:VarSet.t ->
   quant_ops ->
   subst -> cnj:subst -> subst * formula
+val cleanup :
+  quant_ops -> var_name list -> subst -> var_name list * subst
 
 (** {2 Global tables} *)
 

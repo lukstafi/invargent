@@ -526,20 +526,6 @@
 
     <item>Form initial candidates <math|\<b-U\><rsub|><around*|(|<wide|A|~><around*|(|D\<wedge\>C|)>|)>>.
 
-    <item>FIXME: not needed? Propagate substitutions
-    <math|\<beta\>\<assign\>\<alpha\>> where
-    <math|\<forall\>\<beta\>\<in\>\<cal-Q\>> and
-    <math|\<exists\>\<alpha\>\<in\>\<cal-Q\>> for
-    <math|\<alpha\>\<assign\>\<beta\>\<in\>\<b-U\><rsub|><around*|(|<wide|A|~><around*|(|D\<wedge\>C|)>|)>>.
-    This optimization mitigates quantifier violations later.
-
-    <\itemize>
-      <item>In case of <math|\<alpha\><rsub|1>\<assign\>\<beta\>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<beta\>>,
-      we propagate <math|\<beta\>\<assign\>\<alpha\><rsub|i>> where
-      <math|\<alpha\><rsub|i>> is the most upstream existential variable, as
-      in choice 6.
-    </itemize>
-
     <item>Form the choice-6 counterparts of initial candidate atoms. Replace
     <math|\<alpha\><rsub|1>\<assign\>\<tau\>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<tau\>>
     with <math|\<tau\>\<assign\>\<alpha\><rsub|i>,\<alpha\><rsub|2>\<assign\>\<alpha\><rsub|i>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<alpha\><rsub|i>>
@@ -547,7 +533,10 @@
     and <math|\<tau\>> is a universal variable or constant, and propagate the
     substitution.
 
-    <item>Sort the initial candidates by decreasing size.
+    <item>Sort the initial candidates by increasing size, so that
+    replacements of step 2 are formed at a root position before they are used
+    in step 5 -- instead of forming a replacement at a subterm, and using it
+    in step 5 at a root.
   </itemize>
 
   The above ordering of choices ensures that more general answers are tried
@@ -1574,6 +1563,7 @@
     <associate|auto-21|<tuple|5.4|16>>
     <associate|auto-22|<tuple|5.5|17>>
     <associate|auto-23|<tuple|5.5|17>>
+    <associate|auto-24|<tuple|5.5|?>>
     <associate|auto-3|<tuple|2.1|4>>
     <associate|auto-4|<tuple|2.1.1|4>>
     <associate|auto-5|<tuple|2.2|4>>

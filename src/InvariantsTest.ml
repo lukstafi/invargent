@@ -341,7 +341,7 @@ test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
 
   "flatten_pairs" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "list flatten_pairs"
 "newtype Bool
 newtype List : type * num
@@ -407,8 +407,8 @@ let rec walk = fun x goal ->
 
   "equational nested universal" >::
     (fun () ->
-       skip_if !debug "debug";
-       test_case "less nested universal"
+       (* skip_if !debug "debug"; *)
+       test_case "equational nested universal"
 "newtype Place : type
 newtype Nearby : type * type
 newtype A
@@ -431,7 +431,7 @@ let rec walk = fun x goal ->
     let y, to_y = wander x in
     Transitive (to_y, walk y goal)
 test (is_nearby (walk LocA LocB))"
-        [1,"∃t588, t589. δ = (Place t588 → Place t589 → Nearby (t588, t589))"];
+        [1,"∃a, b. δ = (Place a → Place b → Nearby (a, b))"];
     );
 
 

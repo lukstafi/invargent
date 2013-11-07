@@ -1149,6 +1149,23 @@ let subst_solved ?ignore_so ?use_quants ?bvs ?pms q sb ~cnj =
   assert (ignore_so<>None || cnj_so = []);
   cnj_typ, cnj_num
 
+let cleanup q vs ans =
+  let clean, ans = partition_map
+    (function x, _ as sx when List.mem x vs -> Left sx
+    | y, (TVar x, lc) when List.mem x vs -> Left (x, (TVar y, lc))
+    | sy -> Right sy) ans in
+  (* TODO: could use [unify] by treating [vs] as [Downstream] in [q.cmp_v] *)
+  let clean, cn_num, cn_so = unify ~use_quants:false q
+     (to_formula clean) in
+  let sb, more_ans = List.partition
+    (function x, _ when List.mem x vs -> true
+    | _ -> false) clean in    
+  assert (cn_num = []);
+  assert (cn_so = []);
+  let ans = subst_sb ~sb (more_ans @ ans) in
+  let ansvs = fvs_sb ans in
+  List.filter (flip VarSet.mem ansvs) vs, ans
+  
 
 (** {2 Nice variables} *)
 

@@ -8,7 +8,7 @@
 open Terms
 open Aux
 
-let timeout_count = ref (* 500 *)1000(* 50000 *)
+let timeout_count = ref 500(* 1000 *)(* 50000 *)
 
 let residuum q prem concl =
   let concl = to_formula concl in
@@ -24,23 +24,7 @@ let empty_q =
   {cmp_v = (fun _ _ -> Same_quant); uni_v = (fun _ -> false);
    same_as = (fun _ _ -> ())}
 
-(* FIXME: doesn't look nice, besides optimize its use *)
-let cleanup vs ans =
-  let clean, ans = partition_map
-    (function x, _ as sx when List.mem x vs -> Left sx
-    | y, (TVar x, lc) when List.mem x vs -> Left (x, (TVar y, lc))
-    | sy -> Right sy) ans in
-  (* TODO: could use [unify] by treating [vs] as [Downstream] in [q.cmp_v] *)
-  let clean, cn_num, cn_so = unify ~use_quants:false empty_q
-     (to_formula clean) in
-  let sb, more_ans = List.partition
-    (function x, _ when List.mem x vs -> true
-    | _ -> false) clean in    
-  assert (cn_num = []);
-  assert (cn_so = []);
-  let ans = subst_sb ~sb (more_ans @ ans) in
-  let ansvs = fvs_sb ans in
-  List.filter (flip VarSet.mem ansvs) vs, ans
+(* TODO: optimize use of [cleanup] *)
 
 type skip_kind = Superset_old_mod | Equ_old_mod
 let skip_kind = ref Superset_old_mod
@@ -215,14 +199,16 @@ let abd_simple q ?without_quant ~bvs
     let prem_and ans =
       (* TODO: optimize, don't redo work *)
       combine_sbs ~use_quants:false q [ans; prem] in
-    let implies_concl ans =
+    let implies_concl vs ans =
       let cnj_typ, cnj_num = prem_and ans in
       let res_ty, res_num = residuum q cnj_typ concl in
       let num = res_num @ cnj_num in
+      let impl_ty = res_ty = [] in
+      let impl_num = is_right (NumS.satisfiable num) in
       Format.printf "abd_simple:@ implies?@ %b@ #res_ty=%d@\nans=@ %a@\nres_ty=@ %a@\n%!"
-        (res_ty = [] && is_right (NumS.satisfiable num))
+        (impl_ty && impl_num)
         (List.length res_ty) pr_subst ans pr_subst res_ty; (* *)
-      res_ty = [] && is_right (NumS.satisfiable num) in
+      impl_ty && impl_num in
     let reorder bvs init_cand =
       let rec aux acc c6acc cand =
         match cand with
@@ -249,8 +235,8 @@ let abd_simple q ?without_quant ~bvs
           pr_vars bvs
           (String.concat ","(List.map var_str vs))
           pr_subst ans; (* *)
-        if implies_concl ans then
-          let _, clean_ans = cleanup vs ans in
+        if implies_concl vs ans then
+          let _, clean_ans = cleanup q vs ans in
           Format.printf "abd_simple-abstract:@\nclean_ans=%a@\n%!"
             pr_subst clean_ans          (* skipped=%a@\n *)
           (* (pr_line_list "|" pr_subst) !skipped *);
@@ -309,10 +295,12 @@ let abd_simple q ?without_quant ~bvs
           pr_subst ans (var_str x) (pr_ty false) t
           (List.length (fst cand)) pr_subst (fst cand); (* *)
         (* Choice 1: drop premise/conclusion atom from answer *)
-        if implies_concl (ans @ fst cand)
+        if implies_concl vs (ans @ fst cand)
         then (
-          Format.printf "abd_simple: [%d] choice 1@ drop %s = %a@\n%!"
-            ddepth (var_str x) (pr_ty false) t; (* *)
+          Format.printf
+            "abd_simple: [%d] choice 1@ drop %s = %a@ (%s = %a)@\n%!"
+            ddepth (var_str x) (pr_ty false) t
+            (var_str c6x) (pr_ty false) c6t; (* *)
           try abstract repls bvs pms vs ans cand;
             Format.printf "abd_simple: [%d] choice 1 failed@\n%!"
               ddepth; (* *)               
@@ -322,13 +310,16 @@ let abd_simple q ?without_quant ~bvs
               ddepth (var_str x) (pr_ty false) t pr_subst ans; (* *)
             raise e);
         Format.printf
-          "abd_simple: [%d]@ recover after choice 1@ %s =@ %a@\ncand=%a@\n%!"
-          ddepth (var_str x) (pr_ty false) t pr_subst (fst cand); (* *)
+          "abd_simple: [%d]@ recover after choice 1@ %s =@ %a (%s = %a)@\ncand=%a@\n%!"
+          ddepth (var_str x) (pr_ty false) t
+          (var_str c6x) (pr_ty false) c6t pr_subst (fst cand); (* *)
         (* Choice 6: preserve atom in a "generalized" form *)
-        if not !more_general && implies_concl (ans @ c6sx::fst cand)
+        if not !more_general && implies_concl vs (ans @ c6sx::fst cand)
         then (
-          Format.printf "abd_simple: [%d]@ choice 6@ keep %s = %a@\n%!"
-            ddepth (var_str x) (pr_ty false) t; (* *)
+          Format.printf
+            "abd_simple: [%d]@ choice 6@ keep %s = %a@ (%s = %a)@\n%!"
+            ddepth (var_str c6x) (pr_ty false) c6t
+            (var_str x) (pr_ty false) t; (* *)
           try
             let bvs' =
               if is_p then VarSet.union
@@ -527,14 +518,15 @@ let abd_simple q ?without_quant ~bvs
       then (choice2 (); choice3 (); choice4 (); choice5 ())
       else (choice4 (); choice2 (); choice3 (); choice5 ())
     in
-    if implies_concl ans then Some (bvs, (vs, ans))
+    if implies_concl vs ans then Some (bvs, (vs, ans))
     else
       let cnj_typ, _ = prem_and ((* ans @ *) concl) in
       (* FIXME: hmm... *)
       (* let cnj_typ = list_diff cnj_typ discard in *)
       let init_cand = revert_cst_n_uni q ~bvs ~pms ans cnj_typ in
+      (* From shortest to longest. *)
       let init_cand = List.sort
-          (fun ((_,(t1,_)),_) ((_,(t2,_)),_) -> typ_size t2 - typ_size t1)
+          (fun ((_,(t1,_)),_) ((_,(t2,_)),_) -> typ_size t1 - typ_size t2)
           (uncurry List.combine init_cand) in
       let init_cand = List.split init_cand in
       Format.printf
@@ -549,8 +541,8 @@ let abd_simple q ?without_quant ~bvs
         validate vs ans;
         Format.printf
           "abd_simple: Final validation passed@\nans=%a@\n%!"
-          pr_subst ans; (* *)
-        Some (bvs, cleanup vs ans)
+           pr_subst ans; (* *)
+        Some (bvs, cleanup q vs ans)
   with
   | Contradiction _ ->
     Format.printf
@@ -713,6 +705,7 @@ let abd_typ q ~bvs ?(dissociate=false) ~validate ~discard brs =
           "abd_typ-num:@ prem=%a@ concl=%a@ res_ty=%a@ res_num=%a@\ncnj_num=%a@\n%!"
           pr_subst prem pr_subst concl
           pr_subst res_ty pr_formula res_num pr_formula cnj_num; (* *)
+        (* FIXME *)
         assert (res_ty = []);
         cnj_num, res_num
       with Contradiction _ -> assert false)
@@ -749,7 +742,7 @@ let abd_mockup_num q ~bvs brs =
       (* Do not use quantifiers, because premise is in the conjunction. *)
       (* TODO: after cleanup optimized in abd_simple, pass clean_ans
          and remove cleanup here *)
-      let vs, ans = cleanup vs ans in
+      let vs, ans = cleanup q vs ans in
       let sb_ty, ans_num =
         combine_sbs q [prem_ty; concl_ty; ans] in
       let cnj_num = ans_num @ prem_num @ concl_num in
@@ -801,7 +794,7 @@ let abd q ~bvs ?(iter_no=2) ~discard brs =
       (* Do not use quantifiers, because premise is in the conjunction. *)
       (* TODO: after cleanup optimized in abd_simple, pass clean_ans
          and remove cleanup here *)
-      let vs, ans = cleanup vs ans in
+      let vs, ans = cleanup q vs ans in
       let sb_ty, ans_num =
         combine_sbs ~use_quants:false q [prem_ty; concl_ty; ans] in
       if not dissociate then
