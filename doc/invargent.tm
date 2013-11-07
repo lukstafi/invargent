@@ -525,26 +525,27 @@
     minimizes the amount of branching in 5.
 
     <item>Form initial candidates <math|\<b-U\><rsub|><around*|(|<wide|A|~><around*|(|D\<wedge\>C|)>|)>>.
-    Revert substitutions <math|\<alpha\>\<assign\>\<beta\>> for
+
+    <item>FIXME: not needed? Propagate substitutions
+    <math|\<beta\>\<assign\>\<alpha\>> where
     <math|\<forall\>\<beta\>\<in\>\<cal-Q\>> and
-    <math|\<exists\>\<alpha\>\<in\>\<cal-Q\>> to
-    <math|\<beta\>\<assign\>\<alpha\>>. This optimization mitigates
-    quantifier violations later, although excludes
-    <math|\<alpha\>\<assign\>\<beta\>> from direct participation in the
-    answer.
+    <math|\<exists\>\<alpha\>\<in\>\<cal-Q\>> for
+    <math|\<alpha\>\<assign\>\<beta\>\<in\>\<b-U\><rsub|><around*|(|<wide|A|~><around*|(|D\<wedge\>C|)>|)>>.
+    This optimization mitigates quantifier violations later.
 
     <\itemize>
-      <item>Replace <math|\<alpha\><rsub|1>\<assign\>\<beta\>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<beta\>>
-      with <math|\<beta\>\<assign\>\<alpha\><rsub|i>,\<alpha\><rsub|2>\<assign\>\<alpha\><rsub|i>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<alpha\><rsub|i>>
-      where <math|\<alpha\><rsub|i>> is the most upstream existential
-      variable, as in choice 6.
+      <item>In case of <math|\<alpha\><rsub|1>\<assign\>\<beta\>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<beta\>>,
+      we propagate <math|\<beta\>\<assign\>\<alpha\><rsub|i>> where
+      <math|\<alpha\><rsub|i>> is the most upstream existential variable, as
+      in choice 6.
     </itemize>
 
     <item>Form the choice-6 counterparts of initial candidate atoms. Replace
     <math|\<alpha\><rsub|1>\<assign\>\<tau\>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<tau\>>
     with <math|\<tau\>\<assign\>\<alpha\><rsub|i>,\<alpha\><rsub|2>\<assign\>\<alpha\><rsub|i>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<alpha\><rsub|i>>
     where <math|\<alpha\><rsub|i>> is the most upstream existential variable
-    and <math|\<tau\>> is a universal variable or constant.
+    and <math|\<tau\>> is a universal variable or constant, and propagate the
+    substitution.
 
     <item>Sort the initial candidates by decreasing size.
   </itemize>
@@ -1541,7 +1542,7 @@
 <\references>
   <\collection>
     <associate|1|<tuple|5.2|?>>
-    <associate|AlienSubterms|<tuple|3.3|8>>
+    <associate|AlienSubterms|<tuple|3.3|7>>
     <associate|Details|<tuple|5.5|17>>
     <associate|ImplSubst|<tuple|4|2>>
     <associate|Main Algo|<tuple|5.3|?>>
@@ -1558,7 +1559,7 @@
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1>>
-    <associate|auto-10|<tuple|3.3|8>>
+    <associate|auto-10|<tuple|3.3|7>>
     <associate|auto-11|<tuple|3.4|8>>
     <associate|auto-12|<tuple|3.5|9>>
     <associate|auto-13|<tuple|4|10>>
@@ -1578,7 +1579,7 @@
     <associate|auto-5|<tuple|2.2|4>>
     <associate|auto-6|<tuple|3|5>>
     <associate|auto-7|<tuple|3.1|5>>
-    <associate|auto-8|<tuple|3.1.1|7>>
+    <associate|auto-8|<tuple|3.1.1|6>>
     <associate|auto-9|<tuple|3.2|7>>
     <associate|bib-AbductionSolvMaher|<tuple|3|17>>
     <associate|bib-AntiUnifAlg|<tuple|8|18>>

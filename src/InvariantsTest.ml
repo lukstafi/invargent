@@ -9,7 +9,7 @@ open OUnit
 open Terms
 open Aux
 
-let debug = ref true
+let debug = ref (* false *)true
 
 let test_case ?(more_general=false) msg test answers =
       Terms.reset_state ();
@@ -341,7 +341,7 @@ test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
 
   "flatten_pairs" >::
     (fun () ->
-       skip_if !debug "debug";
+       (* skip_if !debug "debug"; *)
        test_case "list flatten_pairs"
 "newtype Bool
 newtype List : type * num
@@ -359,7 +359,7 @@ let rec flatten_pairs =
 
   "escape castle" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "escape castle"
 "newtype Room
 newtype Yard
@@ -380,7 +380,7 @@ let rec escape = function Outside x -> x
   | Yard x ->
     let y = leave (enter x) in
     escape y"
-        [1,"∃t796. δ = (Placement t796 → Outside)"]
+        [1,"∃a. δ = (Placement a → Outside)"]
 
     );
 
@@ -402,7 +402,7 @@ let rec walk = fun x goal ->
   | NotClose ->
     let y, to_y = wander x in
     Transitive (to_y, walk y goal)"
-        [1,"∃t49, t50. δ = (Place t49 → Place t50 → Nearby (t49, t50))"];
+        [1,"∃a, b. δ = (Place a → Place b → Nearby (a, b))"];
     );
 
   "equational nested universal" >::
@@ -461,7 +461,7 @@ let rec walk = fun x goal ->
     let to_z = walk y goal in
     Transitive (to_y, to_z)
 test (is_nearby (walk LocA LocB))"
-        [1,"∃t73, t74. δ = (Place t73 → Place t74 → Nearby (t73, t74))"];
+        [1,"∃a, b. δ = (Place a → Place b → Nearby (a, b))"];
     );
 
   "find castle" >::
@@ -488,7 +488,7 @@ let rec find_castle = efunction
   | Village _ as x ->
     let y = wander x in
     find_castle y"
-        [2,"∃t99. δ = (Placement t99 → ∃2:t103[].Castle t102)"];
+        [2,"∃a. δ = (Placement a → ∃2:a[].Castle a)"];
     );
 
   "find castle big" >::
@@ -520,7 +520,7 @@ let rec find = efunction
   | Village _ as x ->
     let y = wander x in
     find y"
-        [2,"∃t157. δ = (Placement t157 → ∃2:t161[].Castle t161)"];
+        [2,"∃a. δ = (Placement a → ∃2:a[].Castle a)"];
     );
 
   "search castle shortcut" >::
@@ -552,7 +552,7 @@ let rec search = efunction
     ematch check y with
     | Ordinary -> search y
     | Shortcut z -> Yard z"
-        [2,"∃t134. δ = (Placement t134 → ∃3:t137[].Castle t137)"];
+        [2,"∃a. δ = (Placement a → ∃3:a[].Castle a)"];
     );
 
   "search castle distance" >::
@@ -585,7 +585,7 @@ let rec search = efunction
     ematch closer y with
     | True -> search y
     | False -> search x"
-        [2,"∃t161. δ = (Placement t161 → ∃3:t165[].Castle t165)"];
+        [2,"∃a. δ = (Placement a → ∃3:a[].Castle a)"];
     );
 
   "search castle distance A/B" >::
@@ -621,7 +621,7 @@ let rec search = efunction
     ematch b with
     | True -> search y
     | False -> search x"
-        [2,"∃t830. δ = (Placement t830 → ∃4:t834[].Castle t834)"];
+        [2,"∃a. δ = (Placement a → ∃4:a[].Castle a)"];
     );
 
   "castle not existential" >::
@@ -644,7 +644,7 @@ let rec search = efunction
   | Village x ->
     let y = wander x in
     search y"
-        [2,"∃t76. δ = (Placement t76 → ∃2:[].Castle Yard)"];
+        [2,"∃a. δ = (Placement a → ∃2:[].Castle Yard)"];
     );
 
   "castle nested not existential" >::
@@ -708,7 +708,7 @@ let rec search = efunction
       enter y
     | No ->
       search y"
-        [2,"∃t133. δ = (Placement t133 → ∃3:t136[].Castle t136)"];
+        [2,"∃a. δ = (Placement a → ∃3:a[].Castle a)"];
     );
 
   "castle nested existential" >::
@@ -741,7 +741,7 @@ let rec search = efunction
     | No ->
       let y = wander x in
       search y"
-        [2,"∃t133. δ = (Placement t133 → ∃3:t136[].Castle t136)"];
+        [2,"∃a. δ = (Placement a → ∃3:a[].Castle a)"];
     );
 
   "existential by hand" >::
@@ -767,7 +767,7 @@ let rec walk = fun x ->
     match walk y with
     | Near to_z ->
       Near (Transitive (to_y, to_z))"
-        [1,"∃t56. δ = (Place t56 → Near t56)"];
+        [1,"∃a. δ = (Place a → Near a)"];
     );
 
   "existential with param" >::
@@ -790,7 +790,7 @@ let rec walk = fun x ->
     let y, to_y = wander x in
     let to_z = walk y in
     Transitive (to_y, to_z)"
-        [2,"∃t246. δ = (Place t246 → ∃2:t249[].Nearby (t246, t249))"];
+        [2,"∃a. δ = (Place a → ∃2:b[].Nearby (a, b))"];
     );
 
   "non-num map not existential poly" >::
@@ -806,7 +806,7 @@ let rec map = fun f ->
     | LCons (x, xs) ->
       let ys = map f xs in
       LCons (f x, ys)"
-        [2,"∃t54, t56, t57. δ = ((t56 → t57) → List t56 → ∃1:[].List t57)"];
+        [2,"∃a, b, c. δ = ((b → c) → List b → ∃1:[].List c)"];
     );
 
   "non-num map not existential mono" >::
@@ -826,7 +826,7 @@ let rec map =
     | LCons (x, xs) ->
       let ys = map xs in
       LCons (f x, ys)"
-        [2,"∃t51. δ = (List Foo → ∃1:[].List Bar)"];
+        [2,"∃a. δ = (List Foo → ∃1:[].List Bar)"];
     );
 
   "map not existential poly" >::
@@ -887,9 +887,7 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
-        [2,"∃n74.
-  δ =
-    (List n74 → ∃2:n78[n78 ≤ n74 ∧ 0 ≤ n74 ∧ 0 ≤ n78].List n78)"];
+        [2,"∃n. δ = (List n → ∃2:k[k ≤ n ∧ 0 ≤ n ∧ 0 ≤ k].List k)"];
 
     );
 
@@ -916,10 +914,9 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
-        [2,"∃n87, t86.
+        [2,"∃n, a.
   δ =
-    (List (Bar, n87) → ∃2:n94[n94 ≤ n87 ∧ 0 ≤ n87 ∧
-       0 ≤ n94].List (Bar, n94))"];
+    (List (Bar, n) → ∃2:k[k ≤ n ∧ 0 ≤ n ∧ 0 ≤ k].List (Bar, k))"];
 
     );
 
@@ -943,10 +940,10 @@ let rec filter = fun f ->
           LCons (x, ys)
 	| False ->
           filter f xs"
-        [2,"∃n91, t90, t92.
+        [2,"∃n, a, b.
   δ =
-    ((t92 → Bool) → List (t92, n91) → ∃2:n102[n102 ≤ n91 ∧
-       0 ≤ n91 ∧ 0 ≤ n102].List (t92, n102))"];
+    ((b → Bool) → List (b, n) → ∃2:k[k ≤ n ∧ 0 ≤ n ∧
+       0 ≤ k].List (b, k))"];
 
     );
 
@@ -972,8 +969,8 @@ let rec filter = fun f g ->
           filter f g xs"
         [2,"∃n, a, b, c.
   δ =
-    ((b → Bool) → (b → a) → List (b, n) → ∃2:k[k ≤ n ∧
-       0 ≤ n ∧ 0 ≤ k].List (a, k))"];
+    ((a → Bool) → (a → b) → List (a, n) → ∃2:k[k ≤ n ∧
+       0 ≤ n ∧ 0 ≤ k].List (b, k))"];
 
     );
 

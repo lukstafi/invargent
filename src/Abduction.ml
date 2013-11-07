@@ -8,7 +8,7 @@
 open Terms
 open Aux
 
-let timeout_count = ref 500(* 1000 *)(* 50000 *)
+let timeout_count = ref (* 500 *)1000(* 50000 *)
 
 let residuum q prem concl =
   let concl = to_formula concl in
@@ -90,120 +90,68 @@ let rich_return_type_heur bvs ans cand =
         | sx -> sx)
       cand
 
-let revert_uni_in_all = ref (* false *) true
+(* let revert_uni_in_all = ref (\* false *\) true *)
 let rich_return_type = ref true
 
 (* FIXME: should [bvs] variables be considered not universal? *)
 let revert_cst_n_uni q ~bvs ~pms ans cand =
-  let uni_sb, cand = partition_map
+  let fresh_id = ref 0 in
+  let old_sb, cand = partition_map
       (function
-        | v1, (TVar v2, loc) when q.uni_v v2 && not (q.uni_v v1) ->
-          Left (v2, (v1, loc))
-        | sv -> Right sv)
-      cand in
-  let cst_sb, cand = partition_map
-      (function
+        | v2, (TVar v1, loc) when q.uni_v v2 && not (q.uni_v v1) ->
+          incr fresh_id;
+          Left ((TVar v2, (v1, (loc,!fresh_id))),
+                (v2, (TVar v1, (loc,!fresh_id))))
+        | v1, (TVar v2 as tv2, loc) when q.uni_v v2 && not (q.uni_v v1) ->
+          incr fresh_id;
+          Left ((tv2, (v1, (loc,!fresh_id))),
+                (v1, (TVar v2, (loc,!fresh_id))))
         | v1, (TCons (n, []) as c, loc) when not (q.uni_v v1) ->
-          Left (c, (v1, loc))
+          incr fresh_id;
+          Left ((c, (v1, (loc,!fresh_id))),
+                 (v1, (TCons (n, []), (loc,!fresh_id))))
         | sv -> Right sv)
       cand in
-  let cand = List.filter
-      (function
-        | v, (TVar v2, _)
-          when q.uni_v v && q.cmp_v v v2 = Right_of ->
-          Format.printf
-            "cand: drop right_of uni(%s)=%b uni(%s)=%b v1<v2=%b v2<v1=%b@\n%!"
-            (var_str v) (q.uni_v v) (var_str v2) (q.uni_v v2)
-            (q.cmp_v v v2 = Left_of) (q.cmp_v v v2 = Right_of); (* *)
-          false
-        | v, (TCons _ as t, _) when q.uni_v v ->
-          Format.printf
-            "cand: drop uni(%s)=%b t=%a@\n%!"
-            (var_str v) (q.uni_v v) (pr_ty false) t; (* *)
-          false
-        | _ -> true)
-      cand in
-  let uni_sb =
+  let c6_sb, old_sb = List.split old_sb in
+  let c6_sb =
     concat_map
-      (fun (bv, avs) ->
+      (fun (b, avs) ->
          (* Maximum should be the leftmost here. *)
          let leq (v1,_) (v2,_) = not (q.cmp_v v1 v2 = Left_of) in
          let ov, olc = maximum ~leq avs in
          let o = TVar ov in
          map_some
-           (fun (cv, lc) -> if cv=ov then None else Some (cv, (o, lc)))
+           (fun (cv, lc) -> if cv=ov then None else Some (TVar cv, (o, lc)))
            avs
-         @ [bv, (o, olc)])
-      (collect uni_sb) in
-  let cst_sb =
-    concat_map
-      (fun (c, avs) ->
-         let leq (v1,_) (v2,_) = not (q.cmp_v v1 v2 = Left_of) in
-         let ov, olc = maximum ~leq avs in
-         let o = TVar ov in
-         map_some
-           (fun (v, lc) -> if v=ov then None else Some (TVar v, (o, lc)))
-           avs
-         @ [c, (o, olc)])
-      (collect cst_sb) in
-  let c_sb = List.map
+         @ [b, (o, olc)])
+      (collect c6_sb) in
+  let c6_cnj = List.map
       (function
         | TVar v, s -> v, s
         | t, (TVar v, lc) -> v, (t, lc)
         | _ -> assert false)
-      cst_sb in
-  let old_cand = 
-    uni_sb @ c_sb @
-      if !revert_uni_in_all
-      then
-        List.map (fun (w,(t,loc)) ->
-            w, (subst_typ uni_sb t, loc))
-          cand
-      else cand in
-  let new_cand =
-    uni_sb @ c_sb @
+      c6_sb in
+  let old_cnj = List.map
+      (fun (_, (_, (_,id1))) ->
+         List.find (fun (_,(_,(_,id2))) -> id1=id2)
+           old_sb)
+      c6_cnj in
+  let drop_id l = List.map (fun (v,(t,(lc,_))) -> v,(t,lc)) l in
+  let c6_cnj = drop_id c6_cnj and old_cnj = drop_id old_cnj
+  and old_sb = drop_id old_sb and c6_sb = drop_id c6_sb in
+  Format.printf "revert:@ old_sb=%a@ c6_cnj=%a@ old_cnj=%a@\n%!"
+    pr_subst old_sb pr_subst c6_cnj pr_subst old_cnj; (* *)
+  let old_cand = old_cnj @ cand in
+  let c6_cand =
+    c6_cnj @
       List.map (fun (w,(t,loc)) ->
-          w, (subst_typ uni_sb (c_subst_typ cst_sb t), loc))
+          w, (c_subst_typ c6_sb t, loc))
         cand in
-  (* Format.printf "revert:@ uni_sb=%a@ c_sb=%a@ cand=%a@\n%!"
-    pr_subst cand_uni_sb pr_subst c_sb pr_subst cand; * *)
-  let old_cand = List.map
-      (function
-        | v1, (TVar v2, loc) when q.cmp_v v1 v2 = Left_of ->
-          Format.printf
-            "cand: a uni(%s)=%b uni(%s)=%b v1<v2=%b v2<v1=%b@\n%!"
-            (var_str v1) (q.uni_v v1) (var_str v2) (q.uni_v v2)
-            (q.cmp_v v1 v2 = Left_of) (q.cmp_v v1 v2 = Right_of); (* *)
-          v2, (TVar v1, loc)
-        | v1, (TVar v2, loc) as sv ->
-          Format.printf
-            "cand: b uni(%s)=%b uni(%s)=%b v1<v2=%b v2<v1=%b@\n%!"
-            (var_str v1) (q.uni_v v1) (var_str v2) (q.uni_v v2)
-            (q.cmp_v v1 v2 = Left_of) (q.cmp_v v1 v2 = Right_of); (* *)
-          sv
-        | sv -> sv)
-      old_cand in
-  let new_cand = List.map
-      (function
-        | v1, (TVar v2, loc) when q.cmp_v v1 v2 = Left_of ->
-          Format.printf
-            "cand: c uni(%s)=%b uni(%s)=%b v1<v2=%b v2<v1=%b@\n%!"
-            (var_str v1) (q.uni_v v1) (var_str v2) (q.uni_v v2)
-            (q.cmp_v v1 v2 = Left_of) (q.cmp_v v1 v2 = Right_of); (* *)
-          v2, (TVar v1, loc)
-        | v1, (TVar v2, loc) as sv ->
-          Format.printf
-            "cand: d uni(%s)=%b uni(%s)=%b v1<v2=%b v2<v1=%b@\n%!"
-            (var_str v1) (q.uni_v v1) (var_str v2) (q.uni_v v2)
-            (q.cmp_v v1 v2 = Left_of) (q.cmp_v v1 v2 = Right_of); (* *)
-          sv
-        | sv -> sv)
-      new_cand in
-  let new_cand =
+  let c6_cand =
     if !rich_return_type
-    then rich_return_type_heur bvs ans new_cand
-    else new_cand in
-  old_cand, new_cand
+    then rich_return_type_heur bvs ans c6_cand
+    else c6_cand in
+  old_cand, c6_cand
 
 let implies_ans ans c_ans =
   List.for_all (fun (v,(t,_)) ->
@@ -640,7 +588,10 @@ let abd_typ q ~bvs ?(dissociate=false) ~validate ~discard brs =
         ddepth skip (List.length runouts) pr_subst (fst br) pr_subst
      (snd br); (* *)
       match abd_simple q ~bvs ~validate ~discard skip acc br with
-      | Some (_, acc) when List.exists (implies_ans (snd acc)) failed ->
+      | Some (_, acc) when
+          let phi1 = to_formula (snd acc) in
+          List.exists (
+            fun phi -> subformula (to_formula phi) phi1) failed ->
         Format.printf "abd_typ: reset matching failed [%d]@\n%!" ddepth; (* *)
         loop failed init_bvs ([], []) runouts ((skip+1, br)::more_brs)
       | Some (bvs, acc) ->
