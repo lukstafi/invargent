@@ -802,14 +802,14 @@ let disjelim q brs =
     try ignore (solve ~strict:true ~eqs ~ineqs ~ineqn cmp cmp_w q.uni_v);
         false
     with Contradiction _ -> true in
-  let rec redundant p1 = function
+  let rec nonredundant p1 = function
     | face::p2 ->
-      if check face (p1 @ p2) then redundant p1 p2
-      else redundant (face::p1) p2
+      if check face (p1 @ p2) then nonredundant p1 p2
+      else nonredundant (face::p1) p2
     | [] -> p1 in
   [],
   List.map (expand_atom true) (eqn @ redundant_eqn)
-  @ List.map (expand_atom false) (redundant [] ineqn)
+  @ List.map (expand_atom false) (nonredundant [] ineqn)
 
 let simplify q elimvs cnj =
   Format.printf "NumS.simplify: elimvs=%s;@\ncnj=@ %a@\n%!"
@@ -836,6 +836,21 @@ let simplify q elimvs cnj =
   let cmp a1 a2 = compare
       (replace_loc_atom dummy_loc a1) (replace_loc_atom dummy_loc a2) in
   VarSet.elements vs, unique_sorted ~cmp ans
+
+
+let rec cleanup_typ t =
+  let rec flat (vars, cst as acc) = function
+    | Nadd sum -> List.fold_left flat acc sum
+    | NCst i -> vars, cst + i
+    | (TVar _ | TCons (_, [])) as t -> t::vars, cst
+    | TCons (n, ts) -> TCons (n, List.map cleanup_typ ts)::vars, cst
+    | Fun (t1, t2) -> Fun (cleanup_typ t1, cleanup_typ t2)::vars, cst in
+  match flat ([], 0) t with
+  | [], i -> NCst i
+  | [tv], 0 -> tv
+  | tvs, i -> Nadd (NCst i::tvs)
+   
+let cleanup_formula = map_in_formula cleanup_typ
 
 (*
 let equivalent q cnj1 cnj2 =
@@ -893,7 +908,6 @@ let converge q cnj1 cnj2 =
     pr_formula ans1 pr_formula ans2;
   (* FIXME: Actually, include transitivity! *)
   formula_inter (cnj1 @ ans1) (cnj2 @ ans2)
-
 
 type state = w_subst * ineqs
 let empty_state = [], []

@@ -639,7 +639,7 @@ let abd_typ q ~bvs ?(dissociate=false) ~validate ~discard brs =
           ((dskip+1, dbr)::more_brs)
       
   and check_brs failed bvs acc runouts done_brs = function
-    | [] -> acc
+    | [] -> bvs, acc
     | (skip, br as obr)::more_brs ->
       let ddepth = incr debug_dep; !debug_dep in
       Format.printf
@@ -669,7 +669,8 @@ let abd_typ q ~bvs ?(dissociate=false) ~validate ~discard brs =
         loop (snd acc::failed) init_bvs ([], [])
           runouts ((skip+1, br)::List.rev_append done_brs more_brs) in
 
-  let vs, ans = loop discard init_bvs ([], []) [] (br0::more_brs) in
+  let cand_bvs, (vs, ans) =
+    loop discard init_bvs ([], []) [] (br0::more_brs) in
   Format.printf "abd_typ: result vs=%s@\nans=%a@\n%!"
     (String.concat ","(List.map var_str vs))
     pr_subst ans; (* *)
@@ -710,7 +711,7 @@ let abd_typ q ~bvs ?(dissociate=false) ~validate ~discard brs =
         cnj_num, res_num
       with Contradiction _ -> assert false)
     brs in
-  !alien_eqs, vs, ans, num
+  cand_bvs, !alien_eqs, vs, ans, num
 
 let abd_mockup_num q ~bvs brs =
   (* Do not change the order and no. of branches afterwards. *)
@@ -749,7 +750,7 @@ let abd_mockup_num q ~bvs brs =
       ignore (NumS.satisfiable cnj_num))
     brs_typ brs_num in
   try
-    let alien_eqs, tvs, ans_typ, more_num =
+    let cand_bvs, alien_eqs, tvs, ans_typ, more_num =
       abd_typ q ~bvs ~validate ~discard:[] brs_typ in
     Some (List.map2
             (fun (prem,concl) (more_p, more_c) ->
@@ -814,7 +815,7 @@ let abd q ~bvs ?(iter_no=2) ~discard brs =
   (* *)
   (* We do not remove nonrecursive branches for types -- it will help
      other sorts do better validation. *)
-  let alien_eqs, tvs, ans_typ, more_num =
+  let cand_bvs, alien_eqs, tvs, ans_typ, more_num =
     try
       abd_typ q ~bvs ~dissociate ~validate ~discard:discard_typ brs_typ
     with Suspect (cnj, lc) ->
@@ -844,7 +845,7 @@ let abd q ~bvs ?(iter_no=2) ~discard brs =
   let n_sb = subst_of_cnj ~elim_uni:true q ans_num in
   Format.printf "abd: n_sb=@ %a@\n@\n%!" pr_subst n_sb;
   let ans_typ = subst_formula n_sb (to_formula ans_typ) in
-  alien_eqs,
+  cand_bvs, alien_eqs,
   (nvs @ tvs, ans_typ @ ans_num)
 
 

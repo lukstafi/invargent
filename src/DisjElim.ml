@@ -203,8 +203,8 @@ let simplify q (vs, ty_ans, num_ans) =
     "disjelim-simplify: parts@ ty_sb=%a@ ty_ans=%a@\n%!"
     pr_subst ty_sb pr_formula ty_ans;  (* *)
   let vs = List.filter (fun v -> not (List.mem_assoc v ty_sb)) vs in
-  let n_sb = subst_of_cnj ~elim_uni:true q num_ans in
-  let ty_ans = subst_formula n_sb ty_ans in
+  (*let n_sb = subst_of_cnj ~elim_uni:true q num_ans in
+  let ty_ans = subst_formula n_sb ty_ans in*)
   vs, num_ans @ ty_ans
 
 let disjelim q ~do_num brs =
@@ -234,3 +234,65 @@ let disjelim q ~do_num brs =
   else
     simplify q (avs, ty_ans, [])
     
+let transitive_cl cnj =
+  let eqs = Hashtbl.create 8 in
+  let ineqs = Hashtbl.create 4 in
+  let nodes = Hashtbl.create 8 in
+  List.iter
+    (function
+      | Eqty (t1, t2, loc) ->
+        Hashtbl.add nodes t1 (); Hashtbl.add nodes t2 ();
+        Hashtbl.add eqs (t1, t2) loc; Hashtbl.add eqs (t2, t1) loc
+      | Leq (t1, t2, loc) ->
+        Hashtbl.add nodes t1 (); Hashtbl.add nodes t2 ();
+        Hashtbl.add ineqs (t1, t2) loc
+      | _ -> ())
+    cnj;
+  (* Floyd-Warshall algo *)
+  let add tbl i j k =
+    if not (Hashtbl.mem tbl (i, j)) then
+      let lc1 = Hashtbl.find tbl (i, k)
+      and lc2 = Hashtbl.find tbl (k, j) in
+      let lc = loc_union lc1 lc2 in
+      Hashtbl.add tbl (i, j) lc in
+  Hashtbl.iter
+    (fun k _ ->
+    Hashtbl.iter
+      (fun i _ ->
+      Hashtbl.iter
+        (fun j _ ->
+           (try add eqs i j k with Not_found -> ());
+           (try add ineqs i j k with Not_found -> ());
+        ) nodes) nodes) nodes;
+  let cnj = Hashtbl.fold
+      (fun (i,j) lc cnj -> if i<j then Eqty (i, j, lc)::cnj else cnj)
+      eqs [] in
+  let cnj = Hashtbl.fold
+      (fun (i,j) lc cnj -> Leq (i, j, lc)::cnj)
+      ineqs cnj in
+  cnj
+
+let initstep_heur q ~preserve cnj =
+  let init_cnj = cnj in
+  let cnj = NumS.cleanup_formula cnj in
+  let cnj = transitive_cl cnj in
+  let cst_eqs, cnj =
+    partition_choice
+      (map_some
+         (fun c ->
+            let vs = fvs_atom c in
+            Format.printf "testing c=%a@ vs=%a@ diff=%a..." pr_atom c
+              pr_vars vs pr_vars (VarSet.diff vs preserve); (* *)
+            if VarSet.is_empty (VarSet.diff vs preserve)
+            then match VarSet.elements vs with
+              | [v] -> Format.printf "cst@\n%!"; (* *) Some (Left (v, c))
+              | _ -> Format.printf "cnj@\n%!"; (* *) Some (Right c)
+            else (Format.printf "none@\n%!"; (* *) None))
+         cnj) in
+  let cvs = fvs_formula cnj in
+  let cst_eqs = map_some
+      (fun (v,c) -> if VarSet.mem v cvs then None else Some c) cst_eqs in
+  Format.printf
+    "DisjElim.initstep_heur: preserve=%a@\ninit_cnj=%a@\ncst_eqs=%a@ cnj=%a@\n%!"
+    pr_vars preserve pr_formula init_cnj pr_formula cst_eqs pr_formula cnj; (* *)
+  cst_eqs @ cnj

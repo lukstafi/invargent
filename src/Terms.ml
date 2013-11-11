@@ -421,6 +421,22 @@ let subst_fo_atom sb = function
   | CFalse _ as a -> a
   | (PredVarU _ | PredVarB _ | NotEx _) as a -> a
 
+let atom_size = function
+  | Eqty (t1, t2, _) | Leq (t1, t2, _) -> typ_size t1 + typ_size t2 + 1
+  | CFalse _ -> 1
+  | PredVarU (_, t, _) -> typ_size t + 1
+  | PredVarB (_, t1, t2, _) -> typ_size t1 + typ_size t2 + 1
+  | NotEx (t, _) -> typ_size t + 1
+
+let map_in_atom f = function
+  | Eqty (t1, t2, loc) -> Eqty (f t1, f t2, loc)
+  | Leq (t1, t2, loc) -> Leq (f t1, f t2, loc)
+  | CFalse _ as a -> a
+  | PredVarU (n, t, lc) -> PredVarU (n, f t, lc)
+  | PredVarB (n, t1, t2, lc) ->
+    PredVarB (n, f t1, f t2, lc)
+  | NotEx (t, lc) -> NotEx (f t, lc)
+
 type formula = atom list
 
 let fvs_formula phi =
@@ -446,6 +462,8 @@ let formula_loc phi =
 
 let subst_fo_formula sb phi =
   if sb=[] then phi else List.map (subst_fo_atom sb) phi
+
+let map_in_formula f = List.map (map_in_atom f)
 
 let sb_phi_unary arg = List.map (sb_atom_unary arg)
 
@@ -935,6 +953,7 @@ let split_sorts cnj =
   [Type_sort, cnj_typ; Num_sort, cnj_num]
 
 let connected ?(validate=fun _ -> ()) ~directed target (vs, phi) =
+  let phi = List.sort (fun a b -> atom_size a - atom_size b) phi in
   let nodes = List.map
       (function
         | Eqty (TVar _, TVar _, _) as c ->
@@ -949,19 +968,22 @@ let connected ?(validate=fun _ -> ()) ~directed target (vs, phi) =
       (fun (c, ivs, ovs) -> List.exists (flip VarSet.mem ivs) nvs) rem in
     let mvs = List.fold_left VarSet.union VarSet.empty
       (List.map thr3 more) in
-    let nvs = VarSet.elements (VarSet.diff mvs vs) in
+    let nvs = VarSet.elements
+        (VarSet.diff mvs (VarSet.union vs (vars_of_list nvs))) in
     let acc = List.fold_left
         (fun acc (c,_,_) ->
            let acc' = c::acc in
            try validate acc'; acc'
            with Contradiction _ -> acc)
         acc more in
+    Format.printf "connected-loop: nvs=%a@\nacc=%a@\n%!"
+      pr_vars (vars_of_list nvs) pr_formula acc; (* *)
     if nvs = [] then acc
     else loop acc (VarSet.union mvs vs) nvs rem in
   let ans = loop [] VarSet.empty target nodes in
-  (* Format.printf "connected: target=%a@ vs=%a@ phi=%a@ ans=%a@\n%!"
+  Format.printf "connected: target=%a@ vs=%a@ phi=%a@ ans=%a@\n%!"
     pr_vars (vars_of_list target) pr_vars (vars_of_list vs) pr_formula phi
-    pr_formula ans; * *)
+    pr_formula ans; (* *)
   VarSet.elements (VarSet.inter (fvs_formula ans) (vars_of_list vs)),
   ans
 

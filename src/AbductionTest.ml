@@ -90,7 +90,7 @@ let tests = "Abduction" >::: [
         let vA = VNam (Type_sort, "tA") in
         let bvs = VarSet.singleton vA in
         let ans =
-          try let alien_eqs, vs, ans_typ, _ =
+          try let preserve, alien_eqs, vs, ans_typ, _ =
                 abd_typ q ~bvs
                   ~validate:(fun _ _ -> ()) ~discard:[]
                 [lhs0, rhs0; lhs1, rhs1] in

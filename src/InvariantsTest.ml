@@ -9,7 +9,7 @@ open OUnit
 open Terms
 open Aux
 
-let debug = ref false(* true *)
+let debug = ref (* false *)true
 
 let test_case ?(more_general=false) msg test answers =
       Terms.reset_state ();
@@ -831,7 +831,7 @@ let rec map =
 
   "map not existential poly" >::
     (fun () ->
-       todo "not existential";
+       (* todo "not existential"; *)
        test_case "list map not existential poly"
 "newtype List : type * num
 newcons LNil : ∀a. List(a, 0)
@@ -842,7 +842,7 @@ let rec map = fun f ->
     | LCons (x, xs) ->
       let ys = map f xs in
       LCons (f x, ys)"
-        [2,"∃t36, n. δ = ((t36 → t36) → List (t36, n) → ∃1:[].List (t36, n))"];
+        [2,"∃a, b, n. δ = ((a → b) → List (a, n) → ∃1:[].List (b, n))"];
     );
 
   "map not existential mono" >::

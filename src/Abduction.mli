@@ -30,7 +30,7 @@ val abd_typ :
   validate:(Terms.var_name list -> Terms.subst -> unit) ->
   discard:Terms.subst list ->
   (Terms.subst * Terms.subst) list ->
-  Terms.subst *                         (* alien_eqs *)
+  Terms.VarSet.t * Terms.subst *        (* alien_eqs *)
   Terms.var_name list * Terms.subst * (Terms.formula * Terms.formula) list
 (** Raises [Contradiction] if constraints are contradictory and
     [NoAnswer] when no answer can be found. *)
@@ -40,7 +40,7 @@ val abd :
   ?iter_no:int ->
   discard:(Terms.sort * Terms.formula list) list ->
   (bool * Terms.formula * Terms.formula) list ->
-  Terms.subst *                         (* alien_eqs *)
+  Terms.VarSet.t * Terms.subst *        (* alien_eqs *)
   (Terms.var_name list * Terms.formula)
 val abd_mockup_num :
   Terms.quant_ops ->

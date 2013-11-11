@@ -36,6 +36,10 @@ val simplify :
   Terms.quant_ops ->
   Terms.VarSet.t -> Terms.formula -> 
   Terms.var_name list * Terms.formula
+
+(** Flatten additions, collect constants *)
+val cleanup_typ : Terms.typ -> Terms.typ
+val cleanup_formula : Terms.formula -> Terms.formula
 (*
 val equivalent :
   Terms.cmp_v -> Terms.uni_v ->

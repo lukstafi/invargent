@@ -451,6 +451,8 @@ let simplify q_ops (vs, cnj) =
   let ty_vs = VarSet.inter vs (fvs_formula ty_ans)
   and num_vs = VarSet.inter vs (fvs_formula num_ans) in
   let elimvs = VarSet.diff num_vs ty_vs in
+  Format.printf "simplify: vs=%a@ num_vs=%a@ ty_vs=%a@\n%!"
+    pr_vars vs pr_vars num_vs pr_vars ty_vs; (* *)
   let num_vs, num_ans =
     NumS.simplify q_ops elimvs num_ans in
   VarSet.elements (VarSet.union ty_vs (vars_of_list num_vs)),
@@ -534,15 +536,17 @@ let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
   let c_num =
     if check_only then c2_num
     else NumS.converge q_ops c1_num c2_num in
-  Format.printf "converge: check_only=%b@\nc2_num=%a@\nc_num=%a\n%!"
-    check_only pr_formula c2_num pr_formula c_num; (* *)
+  Format.printf "converge: check_only=%b vs2=%a@\nc2_num=%a@\nc_num=%a\n%!"
+    check_only pr_vars (vars_of_list vs2)
+    pr_formula c2_num pr_formula c_num; (* *)
   (* FIXME: will it not remove important atoms 'cause of [vs2]? *)
-  simplify q_ops (vs2, to_formula c2_ty @ c_num)
+  (* simplify q_ops *) (vs2, to_formula c2_ty @ c_num)
+
 
 let neg_constrns = ref true
 
 (* Captures where the repeat step is/are. *)
-let disj_step = [|0; 0; 1; 3|]
+let disj_step = [|0; 0; 2; 4|]
 
 let solve q_ops brs =
   (* DEBUG *)
@@ -627,11 +631,13 @@ let solve q_ops brs =
       (fun i -> i, ([], []))
       (Ints.elements q.allchi) in
   let rolT, solT = List.partition (q.is_chiK % fst) solT in
-  let rec loop iter_no discard rol1 sol1 =
+  let rec loop iter_no preserve discard rol1 sol1 =
     (* 1 *)
     let sol1 = List.map
         (fun (i,(vs,ans)) -> i,(vs,remove_alphaK ans)) sol1 in
-    Format.printf "solve: substituting invariants at step 1@\n%!"; (* *)
+    Format.printf
+      "solve: substituting invariants at step 1@\npreserve=%a@\n%!"
+      pr_vars preserve; (* *)
     let brs0 = sb_brs_PredU q sol1 brs in
     let g_par = List.map (fun (i,_) -> i,([],[]))
       (* function (i,(_,[])) -> i,([],[])
@@ -698,9 +704,17 @@ let solve q_ops brs =
         (* 3 *)
         let g_rol = List.map
             (fun (i,cnjs) ->
+               let g_vs, g_ans =
+                 DisjElim.disjelim q_ops
+                   ~do_num:(disj_step.(1) <= iter_no) cnjs in
+               (* FIXME *)
+               (* *)let g_ans =
+                 if iter_no < disj_step.(2)
+                 then
+                   DisjElim.initstep_heur q.op ~preserve g_ans
+                 else g_ans in(* *)
                i, connected ~validate ~directed:true [delta; delta']
-                 (DisjElim.disjelim q_ops
-                    ~do_num:(disj_step.(1) <= iter_no) cnjs))
+                 (g_vs, g_ans))
             g_rol in
         Format.printf "solve: iter_no=%d@\ng_rol.A=%a@\n%!"
           iter_no pr_chi_subst g_rol;
@@ -710,7 +724,8 @@ let solve q_ops brs =
           let fvs = VarSet.elements
               (VarSet.diff (fvs_formula g_ans)
                  (vars_of_list [delta;delta'])) in
-          let vs, g_ans = simplify q_ops (fvs, g_ans) in
+          (* FIXME *)
+          let vs, g_ans = (* simplify q_ops *) (fvs, g_ans) in
           let pvs = VarSet.elements
               (VarSet.diff (vars_of_list vs) (vars_of_list g_vs)) in
           let targs = List.map (fun v -> TVar v) pvs in
@@ -731,11 +746,12 @@ let solve q_ops brs =
         let g_rol = List.map2
             (fun (i,ans1) (j,(g_vs,g_ans)) ->
                assert (i = j);
+               (* FIXME *)
                let ans2 =
                  converge q.op
                    ~check_only:(iter_no < disj_step.(3)) ans1 (g_vs, g_ans) in
                let tpar, ans2 =
-                 (* simplify g_cmp_v uni_v *) (lift_ex_types q.op ans2) in
+                 (lift_ex_types q.op ans2) in
                Format.printf "solve.loop-dK: final@ tpar=%a@ ans2=%a@\n%!"
                  (pr_ty false) tpar pr_ans ans2; (* *)
                (* No [b] "owns" these formal parameters. Their instances
@@ -760,12 +776,12 @@ let solve q_ops brs =
             (fun ans_pms (_,(vs,_)) -> add_vars vs ans_pms)
             VarSet.empty sol1 in
         List.iter
-            (fun (v,vs) ->
-               try
-                 let b = List.find (flip VarSet.mem ans_pms) (v::vs) in
-                 List.iter (fun v -> Hashtbl.add lift_pms v b) (v::vs)
-               with Not_found -> ())
-            params_l;
+          (fun (v,vs) ->
+             try
+               let b = List.find (flip VarSet.mem ans_pms) (v::vs) in
+               List.iter (fun v -> Hashtbl.add lift_pms v b) (v::vs)
+             with Not_found -> ())
+          params_l;
         let esb = List.map
             (fun (i, tpar) ->
                let tpar = hvsubst_typ lift_pms tpar in
@@ -778,20 +794,34 @@ let solve q_ops brs =
                 Eqty (n_subst_typ esb t1, n_subst_typ esb t2, lc)
               | a -> a) in
         let sol1 = List.map
-            (fun (i, (vs, phi)) ->
+            (fun (i, (vs, old_phi)) ->
+               let phi = esb_formula old_phi in
+               let b =
+                 try List.find (not % q.positive_b) (q.find_b i)
+                 with Not_found -> assert false in
+               let fvs = VarSet.elements
+                   (VarSet.diff (fvs_formula phi)
+                      (vars_of_list (delta::delta'::vs))) in
+               let nvs = List.filter
+                   (fun v -> not (q.uni_v v) && q.cmp_v b v = Left_of) fvs in
+               let nvs = List.map (fun v -> v, Infer.freshen_var v) nvs in
+               let phi = subst_formula (renaming_sb nvs) phi in
                Format.printf
-                 "lift-params: i=%d@ vs=%a@ phi=%a@ phi'=%a@\n%!"
-                 i pr_vars (vars_of_list vs) pr_formula phi
-                 pr_formula (esb_formula phi); (* *)
-               i, (vs, esb_formula phi))
+                 "lift-params: i=%d@ vs=%a@ fvs=%a@ nvs=%a@ phi=%a@ phi'=%a@\n%!"
+                 i pr_vars (vars_of_list vs)
+                 pr_vars (vars_of_list fvs)
+                 pr_vars (vars_of_list (List.map snd nvs)) pr_formula old_phi
+                 pr_formula phi; (* *)
+               if nvs <> [] then q.add_b_vs_of b nvs;
+               i, (List.map snd nvs @ vs, phi))
             sol1 in
         Format.printf "solve: substituting invariants at step 5@\n%!"; (* *)
         let brs0 = sb_brs_PredU q sol1 brs in
         Format.printf "solve: substituting postconds at step 5@\n%!"; (* *)
-        let brs0 = sb_brs_PredB q g_rol g_par brs0 in
+        let brs1 = sb_brs_PredB q g_rol g_par brs0 in
         Format.printf "solve: substituting params at step 5@\n%!"; (* *)
-        let brs0 = sb_brs_vK q v_par brs0 in
-        sol1, brs0, g_rol in
+        let brs1 = sb_brs_vK q v_par brs1 in
+        sol1, brs1, g_rol in
     Format.printf "solve-loop: iter_no=%d -- ex. brs substituted@\n%!"
       iter_no; (* *)
     Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs5 brs1; (* *)
@@ -842,7 +872,7 @@ let solve q_ops brs =
         (* 8 *)
         let brs1 = List.map
             (fun (nonrec,_,_,prem,concl) -> nonrec,prem,concl) brs1 in
-        let alien_eqs, (vs, ans) =
+        let preserve2, alien_eqs, (vs, ans) =
           Abduction.abd q.op ~bvs ~iter_no ~discard brs1 in
         List.iter
           (function
@@ -862,7 +892,34 @@ let solve q_ops brs =
         Format.printf
           "solve: loop -- answer split@ more_discard=@ %a@\nans_res=@ %a@\n%!"
           pr_formula more_discard pr_formula ans_res; (* *)
-        Aux.Right (alien_eqs, ans_res, more_discard, ans_sol)
+        let preserve2 =
+          List.fold_left
+            (fun preserve (_,_,chiK_pos,_,_,_) ->
+               List.fold_left
+                 (fun preserve (_,t1,t2,_) ->
+                    match t2 with
+                    | TVar v2 when VarSet.mem v2 preserve ->
+                      let sb, _, _ = unify ~use_quants:false q.op ans_res in
+                      let t1' = subst_typ sb t1 in
+                      let vs = fvs_typ t1' in
+                      let vs = VarSet.fold
+                          (fun v vs ->
+                             try VarSet.add (Hashtbl.find lift_params v) vs
+                             with Not_found -> vs)
+                          vs vs in
+                      Format.printf
+                        "solve-preserve: v2=%s vs=%a@ t1=%a t1'=%a@\n%!"
+                        (var_str v2) pr_vars vs
+                        (pr_ty false) t1 (pr_ty false) t1'; (* *)
+                      VarSet.union preserve vs
+                    | _ ->
+                      Format.printf
+                        "solve-preserve: not param t2=%a@\n%!"
+                        (pr_ty false) t2; (* *)
+                      preserve)
+                 preserve chiK_pos)
+            (add_vars [delta; delta'] preserve2) brs0 in
+        Aux.Right (preserve2, alien_eqs, ans_res, more_discard, ans_sol)
       with
       (* it does not seem to make a difference *)
       | (NoAnswer (sort, msg, tys, lc)
@@ -878,14 +935,14 @@ let solve q_ops brs =
         Aux.Left (sort, e) in
     match answer with
     | Aux.Left _ as e -> e
-    | Aux.Right (alien_eqs, ans_res, more_discard, ans_sol) ->
+    | Aux.Right (preserve2, alien_eqs, ans_res, more_discard, ans_sol) ->
       let more_discard =
         if alien_eqs = [] then more_discard
         else subst_formula alien_eqs more_discard in
       (* 12 *)
       let finish rol2 sol2 =
         (* start fresh at (iter_no+1) *)
-        match loop (iter_no+1) [] rol2 sol2
+        match loop (iter_no+1) preserve2 [] rol2 sol2
         with Aux.Right _ as res -> res
            | Aux.Left (sort, e) ->
              let s_discard =
@@ -893,7 +950,7 @@ let solve q_ops brs =
              if s_discard = [] then raise e;
              let discard =
                update_assoc sort [] (fun dl -> s_discard::dl) discard in
-             loop iter_no discard rol1 sol1 in
+             loop iter_no preserve discard rol1 sol1 in
       (* 9 *)
       let ans_sb, _ = Infer.separate_subst q.op ans_res in
       let rol2 =
@@ -979,9 +1036,9 @@ let solve q_ops brs =
         Aux.Right (ans_res, rol2, sol2)
         (* Do at least three iterations: 0, 1, 2. *)
       else if iter_no <= 1 && finished
-      then loop (iter_no+1) [] rol2 sol1
+      then loop (iter_no+1) preserve [] rol2 sol1
       else finish rol2 sol2 in
-  match loop 0 [] rolT solT with
+  match loop 0 (add_vars [delta; delta'] (bparams ())) [] rolT solT with
   | Aux.Left (_, e) -> raise e
   | Aux.Right (ans_res, rol, sol) ->
     Format.printf "solve: checking assert false@\n%!"; (* *)

@@ -151,6 +151,7 @@ type program = struct_item list
 
 module VarSet : (Set.S with type elt = var_name)
 val typ_size : typ -> int
+val atom_size : atom -> int
 val fvs_typ : typ -> VarSet.t
 val fvs_atom : atom -> VarSet.t
 val fvs_formula : formula -> VarSet.t
@@ -158,6 +159,8 @@ val formula_loc : formula -> loc
 val vars_of_list : var_name list -> VarSet.t
 val add_vars : var_name list -> VarSet.t -> VarSet.t
 val no_vs : VarSet.t
+
+val map_in_atom : (typ -> typ) -> atom -> atom
 
 (** {3 Formulas} *)
 
@@ -174,6 +177,7 @@ val fvs_sb : subst -> VarSet.t
 val eq_atom : atom -> atom -> bool
 val subformula : formula -> formula -> bool
 val formula_inter : formula -> formula -> formula
+val map_in_formula : (typ -> typ) -> formula -> formula
 
 val replace_loc_atom : loc -> atom -> atom
 val replace_loc : loc -> formula -> formula
