@@ -382,24 +382,25 @@ let abd_simple cmp cmp_w uni_v ~bvs ~validate
   and ks_ineq = laz_of_list ks_ineq in
   let zero = [], !/0, dummy_loc in
   let eq_trs = List.fold_left
-    (fun eq_trs a ->
-      let kas = lazmap (fun k -> mult k a) ks_eq in
-      let add_kas tr = lazmap (fun ka -> sum_w cmp ka tr) kas in
-      lazconcat_map add_kas eq_trs)
-    (laz_single zero) d_eqn in
+      (fun eq_trs a ->
+         let kas = lazmap (fun k -> mult k a) ks_eq in
+         let add_kas tr = lazmap (fun ka -> sum_w cmp ka tr) kas in
+         lazconcat_map add_kas eq_trs)
+      (laz_single zero) d_eqn in
   let ineq_trs = List.fold_left
-    (fun ineq_trs a ->
-      let kas = lazmap (fun k -> mult k a) ks_ineq in
-      let add_kas tr = lazmap (fun ka -> sum_w cmp ka tr) kas in
-      lazconcat_map add_kas ineq_trs)
-    eq_trs d_ineqn in
+      (fun ineq_trs a ->
+         let kas = lazmap (fun k -> mult k a) ks_ineq in
+         let add_kas tr = lazmap (fun ka -> sum_w cmp ka tr) kas in
+         lazconcat_map add_kas ineq_trs)
+      eq_trs d_ineqn in
   try
     Format.printf
-       "NumS.abd_simple: 1.@\neqs=@ %a@\nineqs=@ %a@\nd_eqn=@ %a@ d_ineqn=@ %a@\nc_eqn=@ %a@ c_ineqn=@ %a@\n%!"
+      "NumS.abd_simple: 1.@\neqs=@ %a@\nineqs=@ %a@\nd_eqn=@ %a@ d_ineqn=@ %a@\nc_eqn=@ %a@ c_ineqn=@ %a@\n%!"
       pr_w_subst eqs_i pr_ineqs ineqs_i pr_eqn d_eqn pr_ineqn d_ineqn
-       pr_eqn c_eqn pr_ineqn c_ineqn;
-       (* *)
-    (* 2 *)
+      pr_eqn c_eqn pr_ineqn c_ineqn;
+    (* *)
+    (* let c6eqs, c6ineqs = *)
+    (* 3 *)
     let rec loop eqs_acc ineqs_acc eq_cands ineq_cands =
       let ddepth = incr debug_dep; !debug_dep in
       let a, iseq, eq_cands, ineq_cands =
@@ -411,8 +412,8 @@ let abd_simple cmp cmp_w uni_v ~bvs ~validate
         | [], [] ->
           if !skip > 0 then
             (decr skip; raise
-              (Contradiction (Num_sort,
-                              "Numeric SCA: skipping", None, dummy_loc)))
+               (Contradiction (Num_sort,
+                               "Numeric SCA: skipping", None, dummy_loc)))
           else raise (Result (eqs_acc, ineqs_acc)) in
       (* 3 *)
       let eqn = eq_cands @ d_eqn in
@@ -422,29 +423,28 @@ let abd_simple cmp cmp_w uni_v ~bvs ~validate
       let b_eqs, (b_ineqs, _) =
         solve ~eqs:b_eqs ~ineqs:b_ineqs ~eqn:b_implicits cmp cmp_w uni_v in
       Format.printf
-         "NumS.abd_simple: [%d] 3. iseq=%b@ a=@ %a@\nb_eqs=@ %a@\nb_ineqs=@ %a@\n%!"
-         ddepth iseq pr_w a pr_w_subst b_eqs pr_ineqs b_ineqs;
-         (* *)
-      
+        "NumS.abd_simple: [%d] 3. iseq=%b@ a=@ %a@\nb_eqs=@ %a@\nb_ineqs=@ %a@\n%!"
+        ddepth iseq pr_w a pr_w_subst b_eqs pr_ineqs b_ineqs;
+      (* *)
+
       if implies cmp cmp_w uni_v b_eqs b_ineqs c_eqn c_ineqn
       then
         loop eqs_acc ineqs_acc eq_cands ineq_cands
       else
-        (* 5 *)
+        (* 6 *)
         (* [ineq_trs] include [eq_trs]! *)
         let trs = if iseq then eq_trs else ineq_trs in
         Format.printf
-           "NumS.abd_simple: [%d] 5. a=@ %a@\n%!" ddepth pr_w a;
-           (* *)
+          "NumS.abd_simple: [%d] 5. a=@ %a@\n%!" ddepth pr_w a;
+        (* *)
         let passes = ref false in
-        laziter (fun tr ->
+        let try_trans a' =
           try
-            (* 5a *)
-            let a' = sum_w cmp tr a in
+            (* 6a *)
             Format.printf
-               "NumS.abd_simple: [%d] 5a. trying a'=@ %a@ ...@\n%!"
-               ddepth pr_w a';
-               (* *)
+              "NumS.abd_simple: [%d] 5a. trying a'=@ %a@ ...@\n%!"
+              ddepth pr_w a';
+            (* *)
             let eqn, ineqn = if iseq then [a'], [] else [], [a'] in
             let eqs_acc, (ineqs_acc, acc_implicits) =
               solve ~use_quants:bvs
@@ -457,31 +457,34 @@ let abd_simple cmp cmp_w uni_v ~bvs ~validate
             ignore (validate eqs_acc ineqs_acc);
             passes := true;
             Format.printf "NumS.abd_simple: [%d] 5a. validated@\n%!" ddepth;
-             (* *)
+            (* *)
             (* 5c TODO *)
             (*let ineq_trs =
               if !passing_ineq_trs then
               else ineq_trs in*)
             (* 5d *)
             (* (try                         *)
-               loop eqs_acc ineqs_acc eq_cands ineq_cands
-            (* with Contradiction _ -> ()) *)
-          with Contradiction (_,msg,tys,_) when msg != no_pass_msg ->
+            loop eqs_acc ineqs_acc eq_cands ineq_cands
+          (* with Contradiction _ -> ()) *)
+          with
+          | Contradiction (_,msg,tys,_) when msg != no_pass_msg ->
             Format.printf
               "NumS.abd_simple: [%d] 4a. invalid (%s)@\n%!" ddepth msg;
-            match tys with None -> ()
-            | Some (t1, t2) ->
-              Format.printf "types involved:@ t1=%a@ t2=%a@\n%!"
-                (pr_ty false) t1 (pr_ty false) t2;
+            (match tys with
+             | None -> ()
+             | Some (t1, t2) ->
+               Format.printf "types involved:@ t1=%a@ t2=%a@\n%!"
+                 (pr_ty false) t1 (pr_ty false) t2);
             (* *)
-            ()
-        ) trs;
+            () in
+        (* try_trans a6; *)
+        laziter (fun tr -> try_trans (sum_w cmp tr a)) trs;
         if not !passes then (
           (* 5b *)
           Format.printf
-             "NumS.abd_simple: [%d] 4c. failed a=@ %a@ ...@\n%!"
-             ddepth pr_w a;
-             (* *)
+            "NumS.abd_simple: [%d] 4c. failed a=@ %a@ ...@\n%!"
+            ddepth pr_w a;
+          (* *)
           raise (Contradiction (Num_sort, no_pass_msg, None, dummy_loc))) in
     (* 2 *)
     try loop eqs_i ineqs_i c_eqn c_ineqn; None

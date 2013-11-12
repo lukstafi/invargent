@@ -528,9 +528,10 @@
 
     <item>Form the choice-6 counterparts of initial candidate atoms. Replace
     <math|\<alpha\><rsub|1>\<assign\>\<tau\>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<tau\>>
-    with <math|\<tau\>\<assign\>\<alpha\><rsub|i>,\<alpha\><rsub|2>\<assign\>\<alpha\><rsub|i>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<alpha\><rsub|i>>
-    where <math|\<alpha\><rsub|i>> is the most upstream existential variable
-    and <math|\<tau\>> is a universal variable or constant, and propagate the
+    with <math|\<alpha\><rsub|1>\<assign\>\<alpha\><rsub|i>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<alpha\><rsub|i>,\<tau\>\<assign\>\<alpha\><rsub|i>>
+    (excluding <math|\<alpha\><rsub|i>\<assign\>\<alpha\><rsub|i>>) where
+    <math|\<alpha\><rsub|i>> is the most upstream existential variable and
+    <math|\<tau\>> is a universal variable or constant, and propagate the
     substitution.
 
     <item>Sort the initial candidates by increasing size, so that
@@ -666,10 +667,11 @@
   <subsection|Simple constraint abduction for linear
   arithmetic><label|SCAlinear>
 
-  We use <em|Fourier-Motzkin elimination>. To avoid complexities we only
-  handle the rational number domain. To extend the algorithm to integers,
-  <em|Omega-test> procedure as presented in <cite|ArithQuantElim> needs to be
-  adapted. The major operations are:
+  For checking validity or satisfiability, we use <em|Fourier-Motzkin
+  elimination>. To avoid complexities we only handle the rational number
+  domain. To extend the algorithm to integers, <em|Omega-test> procedure as
+  presented in <cite|ArithQuantElim> needs to be adapted. The major
+  operations are:
 
   <\itemize>
     <item><em|Elimination> of a variable takes an equation and selects a
@@ -697,35 +699,68 @@
   introducing known inequalities on eliminated variables to the projection
   process.
 
-  Our algorithm follows a familiar incrementally-generate-and-test scheme:
+  Our abduction algorithm follows a familiar incrementally-generate-and-test
+  scheme as in term abduction. During the iteration, we build a lazy list of
+  possible transformations with linear combinations involving atoms <math|a>
+  that will not be part of the answer but are implied by <math|D\<wedge\>C>.
 
   <\enumerate>
-    <item>Build a lazy list of possible transformations with linear
-    combinations involving <math|a\<in\>D>.
+    <item>For equations <math|a>, add combinations <math|k<rsup|s>*a+b> for
+    <math|k=-n\<ldots\>n,s=-1,1> to the stack of transformations to be tried
+    for atoms <math|b\<in\>C>.
+
+    <item>For inequalities <math|a>, add combinations <math|k<rsup|s>*a+b>
+    for <math|k=0\<ldots\>n,s=-1,1> to the stack of trasformations to be
+    tried only for inequalities <math|b\<in\>C>.
+
+    <item>The final transformations have the form:
+    <math|b\<mapsto\>b+\<Sigma\><rsub|a\<in\>D>k<rsub|a><rsup|s<rsub|a>>a>.
+  </enumerate>
+
+  Abduction algorithm:
+
+  <\enumerate>
+    <item>Reduce equations in <math|D\<wedge\>C> to solved form
+    <math|C<rsub|0><rsup|=>>. Let <math|C<rsub|0><rsup|\<leqslant\>>=C<rsub|0><rsup|=><around*|(|C<rsup|\<leqslant\>>|)>>
+    and <math|D<rsub|0><rsup|\<leqslant\>>=C<rsub|0><rsup|=><around*|(|D<rsup|\<leqslant\>>|)>>.
+
+    <item>Form the stack of inequality transformations from
+    <math|D<rsub|0><rsup|\<leqslant\>>>.
+
+    <item>Prepare a list of default-choice transformations <math|C<rsub|6>>
+    of <math|C<rsub|0><rsup|=>\<wedge\>C<rsub|0><rsup|\<leqslant\>>>
+    (corresponding to choice 6 in term abduction) and let <math|C<rsub|0>> be
+    the atoms in <math|C<rsub|0><rsup|=>\<wedge\>C<rsub|0><rsup|\<leqslant\>>>
+    reordered to match <math|C<rsub|6>>.
 
     <\enumerate>
-      <item>For equations <math|a>, add combinations <math|k<rsup|s>*a+b> for
-      <math|k=-n\<ldots\>n,s=-1,1> to the stack of transformations to be
-      tried for atoms <math|b\<in\>C>.
-
-      <item>For inequalities <math|a>, add combinations <math|k<rsup|s>*a+b>
-      for <math|k=0\<ldots\>n,s=-1,1> to the stack of trasformations to be
-      tried only for inequalities <math|b\<in\>C>.
+      <item>Replace <math|\<alpha\><rsub|1>\<assign\>\<tau\>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<tau\>>
+      with <math|\<alpha\><rsub|1>\<assign\>\<alpha\><rsub|i>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<alpha\><rsub|i>,\<tau\>\<assign\>\<alpha\><rsub|i>>
+      (excluding <math|\<alpha\><rsub|i>\<assign\>\<alpha\><rsub|i>>) where
+      <math|\<alpha\><rsub|i>> is the most upstream existential variable and
+      <math|\<tau\>> is a universal variable or constant, and propagate the
+      substitution.
     </enumerate>
 
-    <item>Start from <math|A\<assign\>C,Acc\<assign\><around*|{||}>>. Try
-    atoms <math|A=a A<rprime|'>> in some order.
+    <item>Start from <math|Acc\<assign\><around*|{||}>>. Try atoms
+    <math|C<rsub|0>=a C<rsub|0><rprime|'>> and <math|C<rsub|6>=a<rsub|6>
+    C<rsub|6><rprime|'>> in some order.
 
-    <item>Let <math|B=A<rsub|i>\<wedge\>D\<wedge\>A<rprime|'>\<wedge\>Acc>.
+    <item>Let <math|B=A<rsub|i>\<wedge\>D\<wedge\>C<rsub|0><rprime|'>\<wedge\>Acc>.
 
-    <item>If <math|B\<Rightarrow\>C>, repeat with
-    <math|A\<assign\>A<rprime|'>>. Corresponds to ``choice 1'' of term
-    abduction.
+    <item>If <math|B\<Rightarrow\>C>, add combinations with <math|a> to the
+    stack of transformations and repeat with
+    <math|C<rsub|0>\<assign\>C<rsub|0><rprime|'>,C<rsub|6>\<assign\>C<rsub|6><rprime|'>>.
+    Corresponds to choices 1 and 2 of term abduction.
 
     <item>If <math|B\<nRightarrow\>C>, for a transformation
-    <math|a<rprime|'>> of <math|a> which passes validation against other
-    branches in a joint problem: <math|Acc\<assign\>Acc\<cup\><around*|{|a<rprime|'>|}>>,
-    or fail if all <math|a<rprime|'>> fail.
+    <math|a<rprime|'>> of <math|a>, starting with <math|a<rsub|6>>, which
+    passes validation against other branches in a joint problem:
+    <math|Acc\<assign\>Acc\<cup\><around*|{|a<rprime|'>|}>>, or fail if all
+    <math|a<rprime|'>> fail. Choice point, corresponding to choice 6 of term
+    abduction if <math|a<rsub|6>> is selected, choice 4 if identity
+    transformation is selected, choice 5 if a later transformation is
+    selected.
 
     <\enumerate>
       <item>Let <math|a<rprime|'>> be <math|a> with some transformations
@@ -735,16 +770,12 @@
       does not pass <verbatim|validate> for all <math|a<rprime|'>>, fail.
 
       <item>Optionally, if <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|'>|}>|)>>
-      passes <verbatim|validate> for inequality <math|a>, add combinations to
-      the stack of transformations as in step (1b).
+      passes <verbatim|validate> for inequality <math|a>, add
+      <math|a<rprime|'>> to transformations as in step (6).
 
       <item>If <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|'>|}>|)>>
       passes <verbatim|validate>, repeat with
-      <math|A\<assign\>A<rprime|'>,Acc\<assign\>Acc\<cup\><around*|{|a<rprime|'>|}>>.
-      (Choice point.)
-
-      <item>TODO: optimize -- initial transformations should eliminate
-      constants, universal variables, and rightmost remaining variables!
+      <math|C<rsub|0>\<assign\>C<rsub|0><rprime|'>,C<rsub|6>\<assign\>C<rsub|6><rprime|'>,Acc\<assign\>Acc\<cup\><around*|{|a<rprime|'>|}>>.
     </enumerate>
 
     <item>The answers are <math|A<rsub|i+1>=A<rsub|i>\<wedge\>Acc>.
@@ -754,9 +785,13 @@
   <math|a+b\<wedge\>Acc> would remain equivalent to original
   <math|b\<wedge\>Acc>. For inequalities <math|a\<in\>Acc>, combinations
   <math|a+b\<wedge\>Acc> are weaker than <math|b\<wedge\>Acc>, thus the
-  optional step (5c). We precompute the tranformation variants to try out.
+  optional step (7c). We precompute the tranformation variants to try out.
   The parameter <math|n> is called <verbatim|abd_rotations> and defaults to a
-  small value (2 or 3).
+  small value (2 or 3). It would be beneficial to eliminate constants,
+  universal variables, and rightmost remaining variables from candidate
+  atoms, as we do in term abduction. We generate such preferred candidates,
+  in steps (1) and (3). Surprisingly, it is required to get tighter, i.e.
+  stronger, postconditions.
 
   To check whether <math|B\<Rightarrow\>C>, we check for each
   <math|c\<in\>C>:
@@ -1556,11 +1591,11 @@
     <associate|auto-15|<tuple|4.2|11>>
     <associate|auto-16|<tuple|4.3|11>>
     <associate|auto-17|<tuple|5|12>>
-    <associate|auto-18|<tuple|5.1|12>>
+    <associate|auto-18|<tuple|5.1|13>>
     <associate|auto-19|<tuple|5.2|13>>
     <associate|auto-2|<tuple|2|2>>
     <associate|auto-20|<tuple|5.3|15>>
-    <associate|auto-21|<tuple|5.4|16>>
+    <associate|auto-21|<tuple|5.4|17>>
     <associate|auto-22|<tuple|5.5|17>>
     <associate|auto-23|<tuple|5.5|17>>
     <associate|auto-24|<tuple|5.5|?>>
@@ -1571,13 +1606,13 @@
     <associate|auto-7|<tuple|3.1|5>>
     <associate|auto-8|<tuple|3.1.1|6>>
     <associate|auto-9|<tuple|3.2|7>>
-    <associate|bib-AbductionSolvMaher|<tuple|3|17>>
+    <associate|bib-AbductionSolvMaher|<tuple|3|18>>
     <associate|bib-AntiUnifAlg|<tuple|8|18>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
     <associate|bib-ArithQuantElim|<tuple|1|17>>
-    <associate|bib-ConvexHull|<tuple|2|17>>
+    <associate|bib-ConvexHull|<tuple|2|18>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
     <associate|bib-disjelimTechRep|<tuple|6|18>>
