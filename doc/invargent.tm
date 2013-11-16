@@ -704,28 +704,34 @@
   possible transformations with linear combinations involving atoms <math|a>
   that will not be part of the answer but are implied by <math|D\<wedge\>C>.
 
-  <\enumerate>
-    <item>For equations <math|a>, add combinations <math|k<rsup|s>*a+b> for
-    <math|k=-n\<ldots\>n,s=-1,1> to the stack of transformations to be tried
-    for atoms <math|b\<in\>C>.
-
-    <item>For inequalities <math|a>, add combinations <math|k<rsup|s>*a+b>
-    for <math|k=0\<ldots\>n,s=-1,1> to the stack of trasformations to be
-    tried only for inequalities <math|b\<in\>C>.
-
-    <item>The final transformations have the form:
-    <math|b\<mapsto\>b+\<Sigma\><rsub|a\<in\>D>k<rsub|a><rsup|s<rsub|a>>a>.
-  </enumerate>
-
   Abduction algorithm:
 
   <\enumerate>
-    <item>Reduce equations in <math|D\<wedge\>C> to solved form
-    <math|C<rsub|0><rsup|=>>. Let <math|C<rsub|0><rsup|\<leqslant\>>=C<rsub|0><rsup|=><around*|(|C<rsup|\<leqslant\>>|)>>
+    <item>Reduce <math|<wide|A<rsub|i>|~><around*|(|D\<wedge\>C\<wedge\>A<rsub|i><rsup|\<leqslant\>>|)>>
+    to solved form whose substitution part is <math|C<rsub|0><rsup|=>>. Let
+    <math|C<rsub|0><rsup|\<leqslant\>>=C<rsub|0><rsup|=><around*|(|C<rsup|\<leqslant\>>|)>>
     and <math|D<rsub|0><rsup|\<leqslant\>>=C<rsub|0><rsup|=><around*|(|D<rsup|\<leqslant\>>|)>>.
 
-    <item>Form the stack of inequality transformations from
-    <math|D<rsub|0><rsup|\<leqslant\>>>.
+    <\itemize>
+      <item><math|C<rsub|0><rsup|=>> includes the implicit equalities of
+      <math|A<rsub|i>\<wedge\>D\<wedge\>C>.
+    </itemize>
+
+    <item>Prepare the initial transformations from atoms in
+    <math|<wide|A<rsub|i>|~><around*|(|D|)>>.
+
+    <\enumerate>
+      <item>For equations <math|a>, add combinations <math|k<rsup|s>*a+b> for
+      <math|k=-n\<ldots\>n,s=-1,1> to the stack of transformations to be
+      tried for atoms <math|b\<in\>C>.
+
+      <item>For inequalities <math|a>, add combinations <math|k<rsup|s>*a+b>
+      for <math|k=0\<ldots\>n,s=-1,1> to the stack of trasformations to be
+      tried only for inequalities <math|b\<in\>C>.
+
+      <item>The final transformations have the form:
+      <math|b\<mapsto\>b+\<Sigma\><rsub|a\<in\>D>k<rsub|a><rsup|s<rsub|a>>a>.
+    </enumerate>
 
     <item>Prepare a list of default-choice transformations <math|C<rsub|6>>
     of <math|C<rsub|0><rsup|=>\<wedge\>C<rsub|0><rsup|\<leqslant\>>>
@@ -734,12 +740,18 @@
     reordered to match <math|C<rsub|6>>.
 
     <\enumerate>
-      <item>Replace <math|\<alpha\><rsub|1>\<assign\>\<tau\>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<tau\>>
-      with <math|\<alpha\><rsub|1>\<assign\>\<alpha\><rsub|i>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<alpha\><rsub|i>,\<tau\>\<assign\>\<alpha\><rsub|i>>
+      <item>Replace <math|\<alpha\><rsub|1>\<assign\>k<rsub|1>*\<beta\>+c<rsub|1>,\<ldots\>,\<alpha\><rsub|n>\<assign\>k<rsub|n>*\<beta\>+c<rsub|n>>
+      with <math|\<alpha\><rsub|i>\<assign\>k<rsub|i>*\<beta\>+c<rsub|i>,\<alpha\><rsub|1>\<assign\><frac|k<rsub|1>|k<rsub|i>>\<alpha\><rsub|i>+<around*|(|c<rsub|1>-<frac|k<rsub|1>*c<rsub|i>|k<rsub|i>>|)>,\<ldots\>,\<alpha\><rsub|n>\<assign\><frac|k<rsub|n>|k<rsub|i>>\<alpha\><rsub|i>+<around*|(|c<rsub|n>-<frac|k<rsub|n>*c<rsub|i>|k<rsub|i>>|)>>
       (excluding <math|\<alpha\><rsub|i>\<assign\>\<alpha\><rsub|i>>) where
       <math|\<alpha\><rsub|i>> is the most upstream existential variable and
-      <math|\<tau\>> is a universal variable or constant, and propagate the
-      substitution.
+      <math|\<beta\>> is a universal variable, and propagate the substitution
+      <math|\<beta\>\<assign\><frac|1|k<rsub|i>>*\<alpha\><rsub|i>+<frac|-c<rsub|i>|k<rsub|i>>>.
+
+      <item>Replace <math|\<alpha\><rsub|1>\<assign\>c,\<ldots\>,\<alpha\><rsub|n>\<assign\>c>
+      with <math|\<alpha\><rsub|i>\<assign\>c,\<alpha\><rsub|1>\<assign\>\<alpha\><rsub|i>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<alpha\><rsub|i>>
+      (excluding <math|\<alpha\><rsub|i>\<assign\>\<alpha\><rsub|i>>) where
+      <math|\<alpha\><rsub|i>> is the most upstream existential variable and
+      <math|c> is a constant.
     </enumerate>
 
     <item>Start from <math|Acc\<assign\><around*|{||}>>. Try atoms

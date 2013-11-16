@@ -831,7 +831,7 @@ let rec map =
 
   "map not existential poly" >::
     (fun () ->
-       (* todo "not existential"; *)
+       skip_if !debug "debug";
        test_case "list map not existential poly"
 "newtype List : type * num
 newcons LNil : ∀a. List(a, 0)
@@ -842,12 +842,14 @@ let rec map = fun f ->
     | LCons (x, xs) ->
       let ys = map f xs in
       LCons (f x, ys)"
-        [2,"∃a, b, n. δ = ((a → b) → List (a, n) → ∃1:[].List (b, n))"];
+        [2,"∃n, k, a, b.
+  δ = ((a → b) → List (a, k) → ∃1:[0 ≤ n].List (b, n)) ∧ 
+  n = k"];
     );
 
   "map not existential mono" >::
     (fun () ->
-       todo "not existential";
+       skip_if !debug "debug";
        test_case "list map not existential mono"
 "newtype List : type * num
 newcons LNil : ∀a. List(a, 0)
@@ -862,7 +864,7 @@ let rec map =
     | LCons (x, xs) ->
       let ys = map xs in
       LCons (f x, ys)"
-        [2,"∃n. δ = (List (Foo, n) → ∃1:[].List (Bar, n))"];
+        [2,"∃n. δ = (List (Foo, n) → ∃1:[0 ≤ n].List (Bar, n))"];
     );
 
   "filter mono" >::

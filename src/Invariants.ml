@@ -724,8 +724,7 @@ let solve q_ops brs =
           let fvs = VarSet.elements
               (VarSet.diff (fvs_formula g_ans)
                  (vars_of_list [delta;delta'])) in
-          (* FIXME *)
-          let vs, g_ans = (* simplify q_ops *) (fvs, g_ans) in
+          let vs, g_ans = simplify q_ops (fvs, g_ans) in
           let pvs = VarSet.elements
               (VarSet.diff (vars_of_list vs) (vars_of_list g_vs)) in
           let targs = List.map (fun v -> TVar v) pvs in

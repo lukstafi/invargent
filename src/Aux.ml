@@ -66,6 +66,15 @@ let map_some f l =
   in
   List.rev (maps_f [] l)
 
+let map_some_append f l postfix =
+  let rec maps_f = function
+    | [] -> postfix
+    | a::l ->
+      match f a with
+      | None -> maps_f l
+      | Some r -> r::maps_f l in
+  maps_f l
+
 let map_some2 f l1 l2 =
   let rec maps_f accu = function
     | ([], []) -> accu
