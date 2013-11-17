@@ -10,8 +10,8 @@ open Terms
 open Num
 open Aux
 
-let early_num_abduction = ref (* false *)true
-let abd_rotations = ref 2(* 3 *)
+let early_num_abduction = ref false(* true *)
+let abd_rotations = ref (* 1 *)2(* 3 *)
 let disjelim_rotations = ref 3
 let passing_ineq_trs = ref false
 
@@ -34,7 +34,9 @@ let sum_w cmp (vars1, cst1, loc1) (vars2, cst2, loc2) =
 
 let diff cmp w1 w2 = sum_w cmp w1 (mult !/(-1) w2)
 
-let zero_p (vars, cst, _) = vars = [] && cst = !/0
+let zero_p (vars, cst, _) = vars = [] && cst =/ !/0
+let taut iseq (vars, cst, _) =
+  vars = [] && ((iseq && cst =/ !/0) || (not iseq && cst <=/ !/0))
 
 let equal_w cmp w1 w2 = zero_p (diff cmp w1 w2)
 
@@ -451,17 +453,19 @@ let abd_simple cmp cmp_w cmp_v uni_v ~bvs ~validate
         ~ineqn:(d_ineqn' @ c_ineqn') cmp cmp_w uni_v in
     let eqs0, _ = solve ~eqs:eqs0 ~eqn:implicits cmp cmp_w uni_v in
     (* [eqs0] does not contain [eqs_i]. [implicits] are due to
-    [d_ineqn @ c_ineqn] and their interaction with [ineqs_i]. *)
-    let d_ineqn0 = List.map (subst_w cmp eqs0) d_ineqn in
-    let c_ineqn0 = List.map (subst_w cmp eqs0) c_ineqn in
+       [d_ineqn @ c_ineqn] and their interaction with [ineqs_i]. *)
+    let d_ineqn0 = List.map (subst_w cmp eqs0) d_ineqn' in
+    let c_ineqn0 = List.map (subst_w cmp eqs0) c_ineqn' in
     (* 2 *)
     let big_k = Array.init (!abd_rotations - 1) (fun k -> !/(k+2)) in
     let big_k =
       Array.append big_k (Array.map (fun k-> !/1 // k) big_k) in
     let ks_eq = (* 1a1 *)
       Array.to_list
-        (Array.append [|!/0; !/1; !/(-1)|]
-           (Array.append big_k (Array.map (fun k -> !/(-1) */ k) big_k))) in
+        (Array.append [|!/1; !/(-1); !/0|]
+           (Array.append
+              big_k
+              (Array.map (fun k -> !/(-1) */ k) big_k))) in
     let ks_ineq = (* 1b1 *)
       Array.to_list (Array.append [|!/0; !/1|] big_k) in
     let ks_eq = laz_of_list ks_eq
@@ -515,7 +519,8 @@ let abd_simple cmp cmp_w cmp_v uni_v ~bvs ~validate
          absent from [eqs_acc]. *)
       let b_eqs, (b_ineqs, b_implicits) =
         solve ~eqs:(eqs_acc @ c0eqs)
-          ~ineqs:ineqs_acc ~ineqn:c0ineqn cmp cmp_w uni_v in
+          ~ineqs:ineqs_acc ~eqn:d_eqn ~ineqn:(d_ineqn0 @ c0ineqn)
+          cmp cmp_w uni_v in
       let b_eqs, (b_ineqs, _) =
         solve ~eqs:b_eqs ~ineqs:b_ineqs ~eqn:b_implicits cmp cmp_w uni_v in
       Format.printf
@@ -523,13 +528,11 @@ let abd_simple cmp cmp_w cmp_v uni_v ~bvs ~validate
         ddepth iseq pr_w a pr_w_subst b_eqs pr_ineqs b_ineqs;
       (* *)
 
-      if implies cmp cmp_w uni_v b_eqs b_ineqs c_eqn c_ineqn
+      if taut iseq a
+      || implies cmp cmp_w uni_v b_eqs b_ineqs c_eqn c_ineqn
       then
         (* 6 *)
         (* [ineq_trs] include [eq_trs]. *)
-        let eq_trs, ineq_trs =
-          if iseq then add_eq_tr eq_trs a, add_eq_tr ineq_trs a
-          else eq_trs, add_ineq_tr ineq_trs a in
         loop eq_trs ineq_trs eqs_acc ineqs_acc c6eqs c0eqs c6ineqn c0ineqn
       else
         (* 7 *)
@@ -564,6 +567,8 @@ let abd_simple cmp cmp_w cmp_v uni_v ~bvs ~validate
               then add_ineq_tr ineq_trs a
               else ineq_trs in
             (* 7d *)
+            Format.printf
+              "NumS.abd_simple: [%d] 7 OK@\n%!" ddepth; (* *)
             (* (try                         *)
             loop eq_trs ineq_trs eqs_acc ineqs_acc c6eqs c0eqs c6ineqn c0ineqn
           (* with Contradiction _ -> ()) *)
@@ -628,9 +633,18 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
     brs;
   let validate eqs ineqs = List.iter
       (fun (_, (d_eqn, d_ineqn), (c_eqn, c_ineqn)) ->
-         ignore (solve ~eqs ~ineqs
-                   ~eqn:(d_eqn @ c_eqn) ~ineqn:(d_ineqn @ c_ineqn)
-                   cmp cmp_w q.uni_v))
+         (*Format.printf "validate:@\nd_eqn=%a@\nc_eqn=%a@\nd_ineqn=%a@\nc_ineqn=%a@\n%!"
+           pr_eqn d_eqn pr_eqn c_eqn pr_ineqn d_ineqn pr_ineqn c_ineqn; * *)
+         let br_eqs,(br_ineqs,br_implicits) =
+           solve ~eqs ~ineqs
+             ~eqn:(d_eqn @ c_eqn) ~ineqn:(d_ineqn @ c_ineqn)
+             cmp cmp_w q.uni_v in
+         let br_eqs,(br_ineqs,_) =
+           solve ~eqs:br_eqs ~ineqs:br_ineqs ~eqn:br_implicits
+             cmp cmp_w q.uni_v in
+         (*Format.printf "br_eqs=%a@\nbr_ineqs=%a@\n%!"
+           pr_w_subst br_eqs pr_ineqs br_ineqs; * *)
+         ())
       brs in
   let brs, unproc_brs =
     if iter_no > 1 || !early_num_abduction

@@ -760,10 +760,10 @@
 
     <item>Let <math|B=A<rsub|i>\<wedge\>D\<wedge\>C<rsub|0><rprime|'>\<wedge\>Acc>.
 
-    <item>If <math|B\<Rightarrow\>C>, add combinations with <math|a> to the
-    stack of transformations and repeat with
-    <math|C<rsub|0>\<assign\>C<rsub|0><rprime|'>,C<rsub|6>\<assign\>C<rsub|6><rprime|'>>.
-    Corresponds to choices 1 and 2 of term abduction.
+    <item>If <math|a> is a tautology (<math|0<wide|=|\<dot\>>0> or
+    <math|c\<leq\>0> for <math|c\<leqslant\>0>) or <math|B\<Rightarrow\>C>,
+    repeat with <math|C<rsub|0>\<assign\>C<rsub|0><rprime|'>,C<rsub|6>\<assign\>C<rsub|6><rprime|'>>.
+    Corresponds to choice 1 of term abduction.
 
     <item>If <math|B\<nRightarrow\>C>, for a transformation
     <math|a<rprime|'>> of <math|a>, starting with <math|a<rsub|6>>, which
