@@ -167,6 +167,9 @@ let fresh_typ_var () =
 let fresh_num_var () =
   incr fresh_var_id; VId (Num_sort, !fresh_var_id)  
 
+let fresh_var s =
+  incr fresh_var_id; VId (s, !fresh_var_id)  
+
 let freshen_var v =
   incr fresh_var_id; VId (var_sort v, !fresh_var_id)  
 
@@ -720,6 +723,8 @@ let normalize q cn =
   let unify ?sb cnj = unify ~use_quants:false ?sb q cnj in
   (* From unary predicate variable to the existential type of its result. *)
   let chi_exty = Hashtbl.create 2 in
+  (* Inverse of [chi_exty]. *)
+  let exty_res_chi = Hashtbl.create 2 in
   (* Existential type compatible with the variable. *)
   let v_exchi = Hashtbl.create 8 in
   let v_chi = Hashtbl.create 8 in
@@ -776,7 +781,9 @@ let normalize q cn =
                   Format.printf
                     "dsj-chi-exty: [5] b=%s i=%d->j=%d@\n%!"
                     (var_str b) i (Hashtbl.find v_exchi b); (* *)
-                  Hashtbl.add chi_exty i (Hashtbl.find v_exchi b)))
+                  let exty = Hashtbl.find v_exchi b in
+                  Hashtbl.add exty_res_chi exty i;
+                  Hashtbl.add chi_exty i exty))
              v_chi;
            (* 6 *)
            Hashtbl.iter
@@ -923,7 +930,7 @@ let normalize q cn =
   for i=0 to 1 do brs_dsj_brs := loop i !brs_dsj_brs done;
   let brs, dsj_brs = !brs_dsj_brs in
   assert (dsj_brs = []);
-  brs
+  exty_res_chi, brs
 
 let vs_hist_typ increase =
   typ_fold {(typ_make_fold (fun _ _ -> ()) ())

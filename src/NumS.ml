@@ -40,6 +40,19 @@ let taut iseq (vars, cst, _) =
 
 let equal_w cmp w1 w2 = zero_p (diff cmp w1 w2)
 
+(* Comparison disregarding the order of variables in the quantifier. *)
+let nonq_cmp_w (vars1,cst1,_) (vars2,cst2,_) =
+  let rec aux = function
+    | [], [] -> Num.compare_num cst1 cst2
+    | _, [] -> -1
+    | [], _ -> 1
+    | (v1,k1)::vs1, (v2,k2)::vs2 ->
+      let c = Pervasives.compare v1 v2 in
+      if c <> 0 then c
+      else let c = Num.compare_num k1 k2 in
+        if c <> 0 then c
+        else aux (vs1, vs2) in
+  aux (vars1, vars2)
 
 let pr_vnum ppf (v, n) =
   Format.fprintf ppf "%s*%s" (string_of_num n) (var_str v)
@@ -801,14 +814,11 @@ let expand_eqineqs eqs ineqs =
   let ans = List.map (expand_atom true) (unsubst eqs) in
   ans @ List.map (expand_atom false) (unsolve ineqs)
 
-let disjelim q brs =
-  Format.printf "NumS.disjelim: brs=@ %a@\n%!"
-    (pr_line_list "| " pr_formula) brs;
+(* TODO: optimize, non-preserve variables can be eliminated in [disjelim]. *)
+let disjelim_brs q ~preserve brs =
   let vars = List.map fvs_formula brs in
-  let common =
-    match vars with [] -> assert false
-    | [vars] -> vars
-    | hd::tl -> List.fold_left VarSet.inter hd tl in
+  let common = List.fold_left VarSet.inter
+      preserve (* (List.hd vars) *) vars in
   let cmp_v = make_cmp q in
   let cmp_v v1 v2 =
     let v1c = VarSet.mem v1 common and v2c = VarSet.mem v2 common in
@@ -822,86 +832,86 @@ let disjelim q brs =
     | _, [] -> -1
     | [], _ -> 1
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
-  let compare_w (vars1,cst1,_) (vars2,cst2,_) =
-    let c = compare vars1 vars2 in
-    if c = 0 then compare_num cst1 cst2 else c in
   let polytopes, elim_eqs = List.split
-    (List.map
-       (fun cnj ->
-         let eqs, (ineqs, implicits) = solve ~cnj cmp cmp_w q.uni_v in
-         let eqs, _ = solve ~eqs ~eqn:implicits cmp cmp_w q.uni_v in
-         let eqs, elim_eqs = List.partition
-           (fun (v, _) -> VarSet.mem v common) eqs in
-         (eqs, ineqs), elim_eqs)
-       brs) in
+      (List.map
+         (fun cnj ->
+            let eqs, (ineqs, implicits) = solve ~cnj cmp cmp_w q.uni_v in
+            let eqs, _ = solve ~eqs ~eqn:implicits cmp cmp_w q.uni_v in
+            let eqs, elim_eqs = List.partition
+                (fun (v, _) -> VarSet.mem v common) eqs in
+            (eqs, ineqs), elim_eqs)
+         brs) in
+  Format.printf
+    "NumS.disjelim: elim_eqs=@\n%a@\n%!"
+    (pr_line_list "| " pr_w_subst) elim_eqs; (* *)
   let polytopes = List.map2
-    (fun (eqs, ineqs) esb ->
-      List.map (fun (v,w) -> v, subst_w cmp esb w) eqs,
-      subst_ineqs cmp esb ineqs)
-    polytopes elim_eqs in
+      (fun (eqs, ineqs) esb ->
+         List.map (fun (v,w) -> v, subst_w cmp esb w) eqs,
+         subst_ineqs cmp esb ineqs)
+      polytopes elim_eqs in
   let faces : w list list = List.map2
-    (fun br esb -> concat_map
-       (fun a -> match (flatten cmp a) with
-       | Right w -> [subst_w cmp esb w]
-       | Left w -> let w = subst_w cmp esb w in [w; mult !/(-1) w]) br)
-    brs elim_eqs in
+      (fun br esb -> concat_map
+          (fun a -> match (flatten cmp a) with
+             | Right w -> [subst_w cmp esb w]
+             | Left w -> let w = subst_w cmp esb w in [w; mult !/(-1) w]) br)
+      brs elim_eqs in
   let check face =
     let ineqn = [mult !/(-1) face] in
     List.for_all
       (fun (eqs, ineqs) ->
-        try ignore
-              (solve ~strict:true ~eqs ~ineqs ~ineqn cmp cmp_w q.uni_v);
-            false
-        with Contradiction _ -> true)
+         try ignore
+               (solve ~strict:true ~eqs ~ineqs ~ineqn cmp cmp_w q.uni_v);
+           false
+         with Contradiction _ -> true)
       polytopes in
   let selected : (w list * w list) list =
     List.map (List.partition check) faces in
   let ridges : (w * w) list = concat_map
-    (fun (sel, ptope) ->
-      concat_map (fun p -> List.map (fun s->s, p) sel) ptope)
-    selected in
+      (fun (sel, ptope) ->
+         concat_map (fun p -> List.map (fun s->s, p) sel) ptope)
+      selected in
   let angle i j = i2f (i+1) /. i2f (j+1) in
   let cands = List.map
-    (fun (s, p) ->
-      let l = Array.init
-        !disjelim_rotations (fun i ->
-          if i <= 1 then [||]
-          else Array.init (i-1) (fun j ->
-            angle j i, sum_w cmp (mult !/(j+1) s) (mult !/(i+1) p))) in
-      let r = Array.init
-        !disjelim_rotations (fun i ->
-          if i <= 1 then [||]
-          else Array.init (i-1) (fun j ->
-            angle i j, sum_w cmp (mult !/(i+1) s) (mult !/(j+1) p))) in
-      (1., sum_w cmp s p) ::
-        Array.to_list (Array.concat (Array.to_list l)) @
-        Array.to_list (Array.concat (Array.to_list r)))
-    ridges in
+      (fun (s, p) ->
+         let l = Array.init
+             !disjelim_rotations (fun i ->
+                 if i <= 1 then [||]
+                 else Array.init (i-1) (fun j ->
+                     angle j i, sum_w cmp (mult !/(j+1) s) (mult !/(i+1) p))) in
+         let r = Array.init
+             !disjelim_rotations (fun i ->
+                 if i <= 1 then [||]
+                 else Array.init (i-1) (fun j ->
+                     angle i j, sum_w cmp (mult !/(i+1) s) (mult !/(j+1) p))) in
+         (1., sum_w cmp s p) ::
+           Array.to_list (Array.concat (Array.to_list l)) @
+           Array.to_list (Array.concat (Array.to_list r)))
+      ridges in
   let cands = List.map (fun angles ->
-    List.map snd
-      (List.sort (fun (a,_) (b,_) -> compare a b) angles)) cands in
+      List.map snd
+        (List.sort (fun (a,_) (b,_) -> compare a b) angles)) cands in
   let result = concat_map fst selected in
   let result = map_some
-    (fun cands -> try Some (List.find check cands)
-      with Not_found -> None) cands
-    @ result in
+      (fun cands -> try Some (List.find check cands)
+        with Not_found -> None) cands
+               @ result in
   let sort_w (vars, cst, loc) =
     let vars = map_reduce (+/) (!/0) vars in
     let vars = List.sort cmp
-      (List.filter (fun (_,k) -> k <>/ !/0) vars) in
+        (List.filter (fun (_,k) -> k <>/ !/0) vars) in
     vars, cst, loc in
   let result = List.map sort_w result in
   let rec idemp eqn ineqn = function
-    | e1::(e2::_ as tl) when compare_w e1 e2 = 0 -> idemp eqn ineqn tl
+    | e1::(e2::_ as tl) when nonq_cmp_w e1 e2 = 0 -> idemp eqn ineqn tl
     | e::tl when List.exists (fun w -> zero_p (sum_w cmp e w)) tl ->
       idemp (e::eqn) ineqn
         (List.filter (fun w -> not (zero_p (sum_w cmp e w))) tl)
     | e::tl -> idemp eqn (e::ineqn) tl
     | [] -> eqn, ineqn in
   let eqn, ineqn =
-    idemp [] [] (List.sort compare result) in
+    idemp [] [] (List.sort nonq_cmp_w result) in
   let redundant_eqn =
-    collect ~cmp:(fun (c1,_) (c2,_) -> Num.compare_num c1 c2)
+    collect ~cmp_k:Num.compare_num
       (List.map (fun (vars,cst,lc) -> cst,(vars,lc)) eqn) in
   let redundant_eqn =
     Aux.concat_map
@@ -918,7 +928,7 @@ let disjelim q brs =
     let eqs, _ = solve ~eqs ~eqn:implicits cmp cmp_w q.uni_v in
     let ineqn = [mult !/(-1) face] in
     try ignore (solve ~strict:true ~eqs ~ineqs ~ineqn cmp cmp_w q.uni_v);
-        false
+      false
     with Contradiction _ -> true in
   let rec nonredundant p1 = function
     | face::p2 ->
@@ -928,6 +938,37 @@ let disjelim q brs =
   [],
   List.map (expand_atom true) (eqn @ redundant_eqn)
   @ List.map (expand_atom false) (nonredundant [] ineqn)
+
+let disjelim q ~preserve brs =
+  Format.printf "NumS.disjelim: brs=@ %a@\n%!"
+    (pr_line_list "| " pr_formula) brs;
+  let vars = Array.map fvs_formula (Array.of_list brs) in
+  let allvars = Array.fold_left VarSet.union VarSet.empty vars in
+  let brs = Array.of_list brs in
+  (* Index. *)
+  let index = List.map
+      (fun v ->
+         array_mapi_some
+           (fun i vs -> if VarSet.mem v vs then Some i else None)
+           vars,
+         v)
+      (VarSet.elements allvars) in
+  (* Inverted index. *)
+  let index = collect index in
+  let answer = concat_map
+      (fun (ibrs, ivs) ->
+         let _, ans =
+           disjelim_brs q preserve
+             (Array.to_list (Array.map (fun i -> brs.(i)) ibrs)) in
+         let vs = vars_of_list ivs in
+         Format.printf "NumS.disjelim-sub:@ ibrs=%a@ ivs=%a@\nans=%a@\n%!"
+           (pr_sep_list "," Format.pp_print_int) (Array.to_list ibrs)
+           pr_vars vs pr_formula ans; (* *)
+         List.filter
+           (fun a -> not (VarSet.is_empty (VarSet.inter vs (fvs_atom a))))
+           ans)
+      index in
+  [], answer
 
 let simplify q elimvs cnj =
   Format.printf "NumS.simplify: elimvs=%s;@\ncnj=@ %a@\n%!"
@@ -953,7 +994,9 @@ let simplify q elimvs cnj =
   let vs = VarSet.inter elimvs (fvs_formula ans) in
   let cmp a1 a2 = compare
       (replace_loc_atom dummy_loc a1) (replace_loc_atom dummy_loc a2) in
-  VarSet.elements vs, unique_sorted ~cmp ans
+  let res = unique_sorted ~cmp ans in
+  Format.printf "NumS.simplify:@\nres=%a@\n%!" pr_formula res; (* *)
+  VarSet.elements vs, res
 
 
 let rec cleanup_typ t =

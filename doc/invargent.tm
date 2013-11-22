@@ -1,4 +1,4 @@
-<TeXmacs|1.0.7.19>
+<TeXmacs|1.0.7.21>
 
 <style|article>
 
@@ -1080,12 +1080,23 @@
   that all terms are either <math|\<beta\><rsub|j>> or are existential
   variables to the right of <math|\<beta\><rsub|j>> in the quantifier.
 
+  <subsubsection|Abductive numerical disjunction elimination>
+
   Corresponding extension of disjunction elimination for linear arithmetics
-  amounts to processing of the equations that were used to eliminate ``local
-  variables''. Recall that before passing inequalities to the convex hull
-  algorithm, we eliminate all equations and implicit equalities which contain
-  a variable not shared by all <math|D<rsub|i>>. Extended algorithm FIXME:
-  TODO those equations that are valid w.r.t. the quantifier.
+  would amount to processing of the equations that were used to eliminate
+  ``local variables''. Recall that before passing inequalities to the convex
+  hull algorithm, we eliminate all equations and implicit equalities which
+  contain a variable not shared by all <math|D<rsub|i>>. Extended algorithm
+  does not eliminate these variables. Instead we find the family of subsets
+  of branches, where each subset is characterized by variables appearing in
+  each and only branch of the subset. We use the original algorithm on the
+  subsets, i.e. we find the convex hulls. We select for the answer those
+  atoms in the result for a subset that contain some of the variables that
+  characterize the subset. FIXME: it is unsafe to directly select more than
+  one atom per variable, as two such atoms would imply an atom without the
+  variable.
+
+  \;
 
   <section|Solving for Predicate Variables><label|MainAlgo>
 
@@ -1126,7 +1137,7 @@
   the premises so that the next round of abduction leads to a smaller answer
   (in number of atoms).
 
-  Let us discuss the algorithm from <cite|InvariantsTechRep2> for
+  Let us discuss the algorithm from <cite|invariantsTechRep2> for
   <math|Split<around*|(|\<cal-Q\>,<wide|\<alpha\>|\<bar\>>,A,<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|<wide|\<zeta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>,<wide|\<rho\><rsup|\<chi\>>|\<bar\>>,<wide|A<rsub|\<chi\>><rsup|0>|\<bar\>>|)>>.
   Note that due to existential types predicates, we actually compute
   <math|Split<around*|(|\<cal-Q\>,<wide|\<alpha\>|\<bar\>>,A,<wide|<wide|\<beta\>|\<bar\>><rsup|\<beta\><rsub|\<chi\>>>|\<bar\>>,<wide|<wide|\<zeta\>|\<bar\>><rsup|\<beta\><rsub|\<chi\>>>|\<bar\>>,<wide|\<rho\><rsup|\<beta\><rsub|\<chi\>>>|\<bar\>>,<wide|A<rsub|\<beta\><rsub|\<chi\>>><rsup|0>|\<bar\>>|)>>,
@@ -1345,7 +1356,7 @@
   with different <math|\<beta\><rsub|\<chi\><rsub|K>>> when the corresponding
   value is used in multiple <math|<with|math-font-series|bold|let> \<ldots\>
   <with|math-font-series|bold|in>> expressions. The variant of the algorithm
-  to achieve completeness as conjectured in <cite|InvariantsTechRep2> would
+  to achieve completeness as conjectured in <cite|invariantsTechRep2> would
   compute all answers for variants of <math|Abd> and <math|Split> algorithms
   that return multiple answers. Unary predicate variables
   <math|\<chi\><around*|(|\<beta\><rsub|\<chi\>>|)>> can also have multiple
@@ -1471,7 +1482,7 @@
   </enumerate>
 
   Our current choice of parameters is <math|<around*|[|k<rsub|0>;k<rsub|1>;k<rsub|2>;k<rsub|3>|]>=><verbatim|disj_step
-  = [\|0;0;1;3\|]>.
+  = [\|0;0;2;4\|]>.
 
   When existential types are used, the expected number of iterations is
   <math|k=5> (six iterations), because the last iteration needs to verify
@@ -1517,7 +1528,7 @@
   <verbatim|loop> tail-recursive.
 
   <\bibliography|bib|tm-plain|biblio.bib>
-    <\bib-list|8>
+    <\bib-list|9>
       <bibitem*|1><label|bib-ArithQuantElim>Sergey<nbsp>Berezin,
       Vijay<nbsp>Ganesh<localize| and >David L.<nbsp>Dill.<newblock> An
       online proof-producing decision procedure for mixed-integer linear
@@ -1544,23 +1555,27 @@
       2008.<newblock> 10.1007/978-3-540-89439-1<rsub|3>0.<newblock>
 
       <bibitem*|4><label|bib-jcaqpUNIF>Šukasz<nbsp>Stafiniak.<newblock> Joint
-      constraint abduction problems.<newblock>
-      <with|font-shape|italic|>2011.<newblock> The International Workshop on
-      Unification.<newblock>
+      constraint abduction problems.<newblock> <with|font-shape|italic|>, ,
+      2011.<newblock> The International Workshop on Unification.<newblock>
 
-      <bibitem*|5><label|bib-systemTechRep>Šukasz<nbsp>Stafiniak.<newblock> A
-      gadt system for invariant inference.<newblock> Manuscript,
-      2012.<newblock> Available at: <hlink|http://www.ii.uni.wroc.pl/~lukstafi/pubs/EGADTs.pdf|http://www.ii.uni.wroc.pl/~lukstafi/pubs/invariants.pdf>
-
-      <bibitem*|6><label|bib-disjelimTechRep>Šukasz<nbsp>Stafiniak.<newblock>
+      <bibitem*|5><label|bib-disjelimTechRep>Šukasz<nbsp>Stafiniak.<newblock>
       Constraint disjunction elimination problems.<newblock> Manuscript,
-      2013.<newblock> Available at: <hlink|http://www.ii.uni.wroc.pl/~lukstafi/pubs/disjelim.pdf|http://www.ii.uni.wroc.pl/~lukstafi/pubs/invariants.pdf><newblock>
+      2013.<newblock>
+
+      <bibitem*|6><label|bib-invariantsTechRep2>Šukasz<nbsp>Stafiniak.<newblock>
+      Finding gadt invariants via abduction.<newblock> Manuscript,
+      2013.<newblock>
 
       <bibitem*|7><label|bib-jcaqpTechRep2>Šukasz<nbsp>Stafiniak.<newblock>
-      Joint constraint abduction problems.<newblock> Manuscript, 2013.
-      Available at: <hlink|http://www.ii.uni.wroc.pl/~lukstafi/pubs/abduction-revised.pdf|http://www.ii.uni.wroc.pl/~lukstafi/pubs/invariants.pdf><newblock>
+      Joint constraint abduction problems.<newblock> Manuscript,
+      2013.<newblock> Available at <hlink|http://www.ii.uni.wroc.pl/~lukstafi/pubs/abduction-revised.pdf|http://www.ii.uni.wroc.pl/~lukstafi/pubs/abduction-revised.pdf>
 
-      <bibitem*|8><label|bib-AntiUnifAlg>B<nbsp>Østvold.<newblock> A
+      <bibitem*|8><label|bib-ESOP2014>Šukasz<nbsp>Stafiniak.<newblock> Gadts
+      for invariants and postconditions.<newblock> 2014.<newblock> Submitted
+      for publication.<newblock> Available at
+      <hlink|http://www.ii.uni.wroc.pl/~lukstafi/pubs/ESOP2014.pdf|http://www.ii.uni.wroc.pl/~lukstafi/pubs/ESOP2014.pdf>
+
+      <bibitem*|9><label|bib-AntiUnifAlg>B<nbsp>Østvold.<newblock> A
       functional reconstruction of anti-unification.<newblock>
       <localize|Technical Report>, Norwegian Computing Center, Oslo, Norway,
       2004.<newblock>
@@ -1582,7 +1597,7 @@
     <associate|Details|<tuple|5.5|17>>
     <associate|ImplSubst|<tuple|4|2>>
     <associate|Main Algo|<tuple|5.3|?>>
-    <associate|MainAlgo|<tuple|5|12>>
+    <associate|MainAlgo|<tuple|5|13>>
     <associate|MainAlgoBody|<tuple|5.3|15>>
     <associate|NumConv|<tuple|4.2|11>>
     <associate|Rg|<tuple|5|15>>
@@ -1590,7 +1605,7 @@
     <associate|SepProp|<tuple|5|3>>
     <associate|SepProp2|<tuple|6|?>>
     <associate|Skp|<tuple|1|15>>
-    <associate|Skp1|<tuple|10|15>>
+    <associate|Skp1|<tuple|10|16>>
     <associate|SolSimpl|<tuple|9|12>>
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
@@ -1602,15 +1617,15 @@
     <associate|auto-14|<tuple|4.1|10>>
     <associate|auto-15|<tuple|4.2|11>>
     <associate|auto-16|<tuple|4.3|11>>
-    <associate|auto-17|<tuple|5|12>>
-    <associate|auto-18|<tuple|5.1|13>>
-    <associate|auto-19|<tuple|5.2|13>>
+    <associate|auto-17|<tuple|4.3.1|12>>
+    <associate|auto-18|<tuple|5|13>>
+    <associate|auto-19|<tuple|5.1|13>>
     <associate|auto-2|<tuple|2|2>>
-    <associate|auto-20|<tuple|5.3|15>>
-    <associate|auto-21|<tuple|5.4|17>>
-    <associate|auto-22|<tuple|5.5|17>>
+    <associate|auto-20|<tuple|5.2|13>>
+    <associate|auto-21|<tuple|5.3|15>>
+    <associate|auto-22|<tuple|5.4|17>>
     <associate|auto-23|<tuple|5.5|17>>
-    <associate|auto-24|<tuple|5.5|?>>
+    <associate|auto-24|<tuple|5.5|18>>
     <associate|auto-3|<tuple|2.1|4>>
     <associate|auto-4|<tuple|2.1.1|4>>
     <associate|auto-5|<tuple|2.2|4>>
@@ -1619,15 +1634,17 @@
     <associate|auto-8|<tuple|3.1.1|6>>
     <associate|auto-9|<tuple|3.2|7>>
     <associate|bib-AbductionSolvMaher|<tuple|3|18>>
-    <associate|bib-AntiUnifAlg|<tuple|8|18>>
+    <associate|bib-AntiUnifAlg|<tuple|9|18>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
-    <associate|bib-ArithQuantElim|<tuple|1|17>>
+    <associate|bib-ArithQuantElim|<tuple|1|18>>
     <associate|bib-ConvexHull|<tuple|2|18>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
+    <associate|bib-ESOP2014|<tuple|8|?>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
-    <associate|bib-disjelimTechRep|<tuple|6|18>>
+    <associate|bib-disjelimTechRep|<tuple|5|18>>
+    <associate|bib-invariantsTechRep2|<tuple|6|?>>
     <associate|bib-jcaqpTechRep|<tuple|8|4>>
     <associate|bib-jcaqpTechRep2|<tuple|7|18>>
     <associate|bib-jcaqpUNIF|<tuple|4|18>>
@@ -1663,11 +1680,11 @@
 
       ConvexHull
 
-      InvariantsTechRep2
+      invariantsTechRep2
 
       InvariantsTechRep2
 
-      InvariantsTechRep2
+      invariantsTechRep2
     </associate>
     <\associate|toc>
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|1<space|2spc>Data
@@ -1678,15 +1695,15 @@
       and Normalizing Formulas> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-2><vspace|0.5fn>
 
-      <with|par-left|<quote|1.5fn>|2.1<space|2spc>Normalization
+      <with|par-left|<quote|1tab>|2.1<space|2spc>Normalization
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-3>>
 
-      <with|par-left|<quote|3fn>|2.1.1<space|2spc>Implementation details
+      <with|par-left|<quote|2tab>|2.1.1<space|2spc>Implementation details
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-4>>
 
-      <with|par-left|<quote|1.5fn>|2.2<space|2spc>Simplification
+      <with|par-left|<quote|1tab>|2.2<space|2spc>Simplification
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-5>>
 
@@ -1694,27 +1711,27 @@
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-6><vspace|0.5fn>
 
-      <with|par-left|<quote|1.5fn>|3.1<space|2spc>Simple constraint abduction
+      <with|par-left|<quote|1tab>|3.1<space|2spc>Simple constraint abduction
       for terms <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-7>>
 
-      <with|par-left|<quote|3fn>|3.1.1<space|2spc>Heuristic for better
+      <with|par-left|<quote|2tab>|3.1.1<space|2spc>Heuristic for better
       answers to invariants <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-8>>
 
-      <with|par-left|<quote|1.5fn>|3.2<space|2spc>Joint constraint abduction
+      <with|par-left|<quote|1tab>|3.2<space|2spc>Joint constraint abduction
       for terms <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-9>>
 
-      <with|par-left|<quote|1.5fn>|3.3<space|2spc>Abduction for terms with
+      <with|par-left|<quote|1tab>|3.3<space|2spc>Abduction for terms with
       Alien Subterms <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-10>>
 
-      <with|par-left|<quote|1.5fn>|3.4<space|2spc>Simple constraint abduction
+      <with|par-left|<quote|1tab>|3.4<space|2spc>Simple constraint abduction
       for linear arithmetic <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-11>>
 
-      <with|par-left|<quote|1.5fn>|3.5<space|2spc>Joint constraint abduction
+      <with|par-left|<quote|1tab>|3.5<space|2spc>Joint constraint abduction
       for linear arithmetic <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-12>>
 
@@ -1722,47 +1739,51 @@
       Elimination> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-13><vspace|0.5fn>
 
-      <with|par-left|<quote|1.5fn>|4.1<space|2spc>Extended convex hull
+      <with|par-left|<quote|1tab>|4.1<space|2spc>Extended convex hull
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-14>>
 
-      <with|par-left|<quote|1.5fn>|4.2<space|2spc>Issues in inferring
+      <with|par-left|<quote|1tab>|4.2<space|2spc>Issues in inferring
       postconditions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-15>>
 
-      <with|par-left|<quote|1.5fn>|4.3<space|2spc>Abductive disjunction
+      <with|par-left|<quote|1tab>|4.3<space|2spc>Abductive disjunction
       elimination under quantifier prefix
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-16>>
 
+      <with|par-left|<quote|2tab>|4.3.1<space|2spc>Abductive numerical
+      disjunction elimination <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-17>>
+
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|5<space|2spc>Solving
       for Predicate Variables> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-17><vspace|0.5fn>
+      <no-break><pageref|auto-18><vspace|0.5fn>
 
-      <with|par-left|<quote|1.5fn>|5.1<space|2spc>Invariant Parameter
+      <with|par-left|<quote|1tab>|5.1<space|2spc>Invariant Parameter
       Candidates <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-18>>
-
-      <with|par-left|<quote|1.5fn>|5.2<space|2spc>Solving for Predicates in
-      Negative Positions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-19>>
 
-      <with|par-left|<quote|1.5fn>|5.3<space|2spc>Solving for Existential
-      Types Predicates and Main Algorithm
-      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <with|par-left|<quote|1tab>|5.2<space|2spc>Solving for Predicates in
+      Negative Positions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-20>>
 
-      <with|par-left|<quote|1.5fn>|5.4<space|2spc>Stages of iteration
+      <with|par-left|<quote|1tab>|5.3<space|2spc>Solving for Existential
+      Types Predicates and Main Algorithm
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-21>>
 
-      <with|par-left|<quote|1.5fn>|5.5<space|2spc>Implementation details
+      <with|par-left|<quote|1tab>|5.4<space|2spc>Stages of iteration
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-22>>
 
+      <with|par-left|<quote|1tab>|5.5<space|2spc>Implementation details
+      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-23>>
+
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-23><vspace|0.5fn>
+      <no-break><pageref|auto-24><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>

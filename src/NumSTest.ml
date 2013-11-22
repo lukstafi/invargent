@@ -28,7 +28,10 @@ let tests = "NumS" >::: [
 |  ⟹ n1 = n2 ∧ n3 <= n2
 |  ⟹ n1 = n2 ∧ n3 <= n2 + 1") in
         let brs = List.map snd brs in
-        let vs, ans = disjelim q brs in
+        let preserve = List.fold_left
+            (fun vs br -> VarSet.union vs (fvs_formula br))
+            VarSet.empty brs in
+        let vs, ans = disjelim q ~preserve brs in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
@@ -55,7 +58,10 @@ let tests = "NumS" >::: [
 	  (Lexing.from_string " ⟹ n1 = n3 ∧ n2 = n3
 |  ⟹ n1 = n4 ∧ n2 = n4") in
         let brs = List.map snd brs in
-        let vs, ans = disjelim q brs in
+        let preserve = List.fold_left
+            (fun vs br -> VarSet.union vs (fvs_formula br))
+            VarSet.empty brs in
+        let vs, ans = disjelim q ~preserve brs in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
@@ -82,7 +88,10 @@ let tests = "NumS" >::: [
 	  (Lexing.from_string " ⟹ n1 <= n2 ∧ 0 <= n1 ∧ n2 <= 1
 |  ⟹ n2 <= n1 + 2 ∧ 2 <= n2 ∧ n1 <= 1") in
         let brs = List.map snd brs in
-        let vs, ans = disjelim q brs in
+        let preserve = List.fold_left
+            (fun vs br -> VarSet.union vs (fvs_formula br))
+            VarSet.empty brs in
+        let vs, ans = disjelim q ~preserve brs in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
@@ -109,7 +118,10 @@ let tests = "NumS" >::: [
 	  (Lexing.from_string " ⟹ n1 <= n2 ∧ 0 <= n1 ∧ n2 <= 1
 |  ⟹ n2 <= n1 ∧ 2 <= n2 ∧ n1 <= 3") in
         let brs = List.map snd brs in
-        let vs, ans = disjelim q brs in
+        let preserve = List.fold_left
+            (fun vs br -> VarSet.union vs (fvs_formula br))
+            VarSet.empty brs in
+        let vs, ans = disjelim q ~preserve brs in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;

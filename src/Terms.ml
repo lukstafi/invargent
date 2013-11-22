@@ -1248,8 +1248,9 @@ let () = pr_exty :=
         (VarSet.diff (vars_of_list vs) (vars_of_list pvs)) in
     let phi = Eqty (ty, ty, dummy_loc)::phi in
     let evs, phi = nice_ans (evs, phi) in
-    let ty, phi = match phi with Eqty (ty, _, _)::phi -> ty, phi
-                               | _ -> assert false in
+    let ty, phi = match phi with
+      | Eqty (ty, tv, _)::phi -> ty, phi
+      | _ -> assert false in
     (* TODO: "@[<2>∃%d:%a[%a].%a@]" better? *)
     fprintf ppf "∃%d:%a[%a].%a" i
       (pr_sep_list "," pr_tyvar) evs pr_formula phi (pr_ty false) ty

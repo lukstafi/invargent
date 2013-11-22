@@ -46,10 +46,14 @@ val normalize_program : Terms.program -> Terms.program
 type branch = Terms.formula * Terms.formula
 val fresh_typ_var : unit -> Terms.var_name
 val fresh_num_var : unit -> Terms.var_name
+val fresh_var : Terms.sort -> Terms.var_name
 val freshen_var : Terms.var_name -> Terms.var_name
 
 val prenexize : cnstrnt -> Terms.quant_ops * cnstrnt
-val normalize : Terms.quant_ops -> cnstrnt -> branch list
+(** Returns a map from existential type to the unary predicate variable
+    in which it will appear as result type. *)
+val normalize :
+  Terms.quant_ops -> cnstrnt -> (int, int) Hashtbl.t * branch list
 
 (* Eliminate shared conclusions during {!simplify}. *)
 val simplify :

@@ -7,8 +7,7 @@
 *)
 
 val disjelim :
-  Terms.quant_ops ->
-  do_num:bool ->
+  Terms.quant_ops -> preserve:Terms.VarSet.t -> do_num:bool ->
   Terms.formula list ->
   Terms.var_name list * Terms.atom list
 

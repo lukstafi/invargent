@@ -22,8 +22,9 @@ let test_case msg test result =
     Printexc.record_backtrace true;
     let brs = Parser.cn_branches Lexer.token
       (Lexing.from_string test) in
-    let vs, ans = DisjElim.disjelim q ~do_num:true
-      (List.map (uncurry (@)) brs) in
+    let vs, ans = DisjElim.disjelim q
+        ~preserve:VarSet.empty ~do_num:true
+        (List.map (uncurry (@)) brs) in
     ignore (Format.flush_str_formatter ());
     Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
       (pr_sep_list "," pr_tyvar) vs pr_formula ans;

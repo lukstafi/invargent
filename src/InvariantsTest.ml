@@ -21,7 +21,7 @@ let test_case ?(more_general=false) msg test answers =
         Format.printf "orig_cn: %s@\n%a@\n%!" msg
           Infer.pr_cnstrnt orig_cn; (* *)
         let q_ops, cn = Infer.prenexize orig_cn in
-        let brs = Infer.normalize q_ops cn in
+        let exty_res_of_chi, brs = Infer.normalize q_ops cn in
         Format.printf "brs: %s@\n%a@\n%!" msg Infer.pr_brs brs; (* *)
         let brs = Infer.simplify preserve q_ops brs in
         Format.printf "simpl-brs: %s@\n%a@\nex_types:@\n%!"
@@ -37,8 +37,10 @@ let test_case ?(more_general=false) msg test answers =
           !all_ex_types;
         (* *)
         Abduction.more_general := more_general;
-        let _, (res, rol, sol) =
-          Invariants.solve q_ops brs in
+        let _, res, sol =
+          Invariants.solve q_ops exty_res_of_chi brs in
+        Format.printf
+          "Test: res=@\n%a@\n%!" pr_formula res;
         List.iter
           (fun (i,loc) ->
             let (allvs, phi, ty, n, pvs) =
@@ -952,7 +954,7 @@ let rec filter = fun f ->
 
   "poly filter map" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "list filter map"
 "newtype Bool
 newtype List : type * num
@@ -978,7 +980,37 @@ let rec filter = fun f g ->
 
     );
 
-  (* TODO: binary max as numerical existential type *)
+
+  "binary upper bound" >::
+    (fun () ->
+       (* todo "harder existential"; *)
+       test_case "binary upper bound -- bitwise or"
+"newtype Binary : num
+newcons Zero : Binary 0
+newcons PZero : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n)
+newcons POne : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n+1)
+
+let rec ub = efunction
+  | Zero -> (efunction a -> a)
+  | PZero a1 as a ->
+      (efunction Zero -> a
+        | PZero b1 ->
+          let r = ub a1 b1 in
+          PZero r
+        | POne b1 ->
+          let r = ub a1 b1 in
+          POne r)
+  | POne a1 as a ->
+      (efunction Zero -> a
+        | PZero b1 ->
+          let r = ub a1 b1 in
+          POne a1
+        | POne b1 ->
+          let r = ub a1 b1 in
+          POne r)"
+        [2,"∃n, k. δ = (Binary k → Binary n → ∃4:m[0 ≤ m ∧ k ≤ m ∧
+ n ≤ m ∧ m ≤ n + k].Binary m)"]
+    );
 
   (* TODO: tests for nested/mutual recursive definitions *)
 ]

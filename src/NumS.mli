@@ -25,7 +25,7 @@ val abd :
 val disjelim_rotations : int ref
 (** For uniformity, we return an empty list as introduced variables. *)
 val disjelim :
-  Terms.quant_ops ->
+  Terms.quant_ops -> preserve:Terms.VarSet.t ->
   Terms.formula list -> Terms.var_name list * Terms.formula
 
 (** Eliminate provided variables from the substitution part of solved

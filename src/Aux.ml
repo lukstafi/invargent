@@ -84,6 +84,26 @@ let map_some2 f l1 l2 =
   in
   List.rev (maps_f [] (l1, l2))
 
+let unsome = function None -> invalid_arg "Aux.unsome" | Some e -> e
+
+let array_mapi_some f a =
+  let r = Array.mapi f a in
+  let rl = ref (Array.length r) in
+  for i=0 to Array.length a - 1 do
+    if r.(i) = None then decr rl
+  done;
+  if !rl = 0 then [||]
+  else
+    let pos = ref 0 in
+    while r.(!pos) = None do incr pos done;
+    let res = Array.create !rl (unsome r.(!pos)) in
+    incr pos;
+    for i=1 to !rl -1 do
+      while r.(!pos) = None do incr pos done;
+      res.(i) <- unsome r.(!pos); incr pos
+    done;
+    res
+
 let find_map f l =
   let rec aux = function
     | [] -> None
@@ -224,8 +244,6 @@ let map_opt t f =
 
 let default v0 f v =
   match v with None -> v0 | Some v -> f v
-
-let unsome = function None -> invalid_arg "Aux.unsome" | Some e -> e
 
 let map_reduce ?(cmp_k=fun x y -> compare x y) ?cmp ?mapf redf red0 l =
   let cmp = match cmp with Some f -> f

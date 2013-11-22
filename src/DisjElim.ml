@@ -31,7 +31,7 @@ let antiunif q ts =
     | t::_ as ts when typ_sort t = Num_sort ->
           let x = Infer.fresh_num_var () in
           [x], TVar x, usb, (ts, x)::gsb
-    | ts ->
+    | t::_ as ts ->
       try [], TVar (List.assoc ts gsb), usb, gsb
       with Not_found ->
         let n =
@@ -50,7 +50,7 @@ let antiunif q ts =
               (fun (sb, avs as acc) -> function
                  | TVar v ->
                    let vs = List.map
-                       (fun _ -> Infer.fresh_typ_var ()) args in
+                       (fun t -> Infer.fresh_var (typ_sort t)) args in
                    let t = TCons (n, List.map (fun v->TVar v) vs) in
                    let usb =
                      update_sb ~more_sb:[v, (t, dummy_loc)] usb in
@@ -80,7 +80,7 @@ let antiunif q ts =
           let ts = List.map (subst_typ usb) ts in
           aux usb gsb ts
         else
-          let x = Infer.fresh_typ_var () in
+          let x = Infer.fresh_var (typ_sort t) in
           [x], TVar x, usb, (ts, x)::gsb
 
   and auxn usb gsb = function
@@ -106,7 +106,8 @@ let eqs_of_list l =
 let pr_ty_brs ppf brs =
   pr_line_list "|  " pr_subst ppf brs
 
-let disjelim_typ q brs =
+(* TODO: promote the [preserve] variables. *)
+let disjelim_typ q ~preserve brs =
   let cmp_k (v1,_) (v2,_) = compare v1 v2 in
   let brs = List.map (List.sort cmp_k) brs in
   Format.printf "disjelim_typ: brs=@ %a@\n%!"
@@ -207,7 +208,7 @@ let simplify q (vs, ty_ans, num_ans) =
   let ty_ans = subst_formula n_sb ty_ans in*)
   vs, num_ans @ ty_ans
 
-let disjelim q ~do_num brs =
+let disjelim q ~preserve ~do_num brs =
   (* (1) D_i,s *)
   let brs = map_some
       (fun br ->
@@ -217,14 +218,15 @@ let disjelim q ~do_num brs =
      of sorts other than "type" *)
   (* (2) *)
   let avs, ty_ans, ty_eqs, num_eqs =
-    disjelim_typ q (List.map fst3 brs) in
+    disjelim_typ q ~preserve (List.map fst3 brs) in
   if do_num
   then
     (* Variables not in [q] will behave as rightmost. *)
     (* (3) *)
+    let preserve = add_vars avs preserve in
     let num_brs = List.map (fun (a,b)->a@b)
         (List.combine (List.map snd3 brs) num_eqs) in
-    let num_avs, num_ans = NumS.disjelim q num_brs in
+    let num_avs, num_ans = NumS.disjelim q ~preserve num_brs in
     Format.printf "disjelim: before simpl@ vs=%a@ ty_ans=%a@ num_ans=%a@\n%!"
       pr_vars (vars_of_list (num_avs @ avs))
       pr_subst ty_ans pr_formula num_ans; (* *)
@@ -275,6 +277,12 @@ let transitive_cl cnj =
 let initstep_heur q ~preserve cnj =
   let init_cnj = cnj in
   let cnj = NumS.cleanup_formula cnj in
+  let preserve = add_vars [delta; delta'] preserve in
+  let preserve = List.fold_left
+      (fun preserve a ->
+         let vs = fvs_atom a in
+         if VarSet.mem delta vs then VarSet.union vs preserve else preserve)
+      preserve cnj in
   let cnj = transitive_cl cnj in
   let cst_eqs, cnj =
     partition_choice
