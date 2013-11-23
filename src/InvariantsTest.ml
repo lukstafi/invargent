@@ -9,7 +9,7 @@ open OUnit
 open Terms
 open Aux
 
-let debug = ref (* false *)true
+let debug = ref false(* true *)
 
 let test_case ?(more_general=false) msg test answers =
       Terms.reset_state ();
@@ -1004,12 +1004,14 @@ let rec ub = efunction
       (efunction Zero -> a
         | PZero b1 ->
           let r = ub a1 b1 in
-          POne a1
+          POne r
         | POne b1 ->
           let r = ub a1 b1 in
           POne r)"
-        [2,"∃n, k. δ = (Binary k → Binary n → ∃4:m[0 ≤ m ∧ k ≤ m ∧
- n ≤ m ∧ m ≤ n + k].Binary m)"]
+        [2,"∃n, k.
+  δ =
+    (Binary k → Binary n → ∃4:i[0 ≤ k ∧ i ≤ (k + n) ∧
+       n ≤ i ∧ k ≤ i].Binary i)"]
     );
 
   (* TODO: tests for nested/mutual recursive definitions *)

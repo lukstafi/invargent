@@ -1080,21 +1080,8 @@
   that all terms are either <math|\<beta\><rsub|j>> or are existential
   variables to the right of <math|\<beta\><rsub|j>> in the quantifier.
 
-  <subsubsection|Abductive numerical disjunction elimination>
-
-  Corresponding extension of disjunction elimination for linear arithmetics
-  would amount to processing of the equations that were used to eliminate
-  ``local variables''. Recall that before passing inequalities to the convex
-  hull algorithm, we eliminate all equations and implicit equalities which
-  contain a variable not shared by all <math|D<rsub|i>>. Extended algorithm
-  does not eliminate these variables. Instead we find the family of subsets
-  of branches, where each subset is characterized by variables appearing in
-  each and only branch of the subset. We use the original algorithm on the
-  subsets, i.e. we find the convex hulls. We select for the answer those
-  atoms in the result for a subset that contain some of the variables that
-  characterize the subset. FIXME: it is unsafe to directly select more than
-  one atom per variable, as two such atoms would imply an atom without the
-  variable.
+  Due to greater flexibility of the numerical domain, abductive extension of
+  numerical disjunction elimination it does not seem necessary.
 
   \;
 
@@ -1617,13 +1604,13 @@
     <associate|auto-14|<tuple|4.1|10>>
     <associate|auto-15|<tuple|4.2|11>>
     <associate|auto-16|<tuple|4.3|11>>
-    <associate|auto-17|<tuple|4.3.1|12>>
-    <associate|auto-18|<tuple|5|12>>
-    <associate|auto-19|<tuple|5.1|13>>
+    <associate|auto-17|<tuple|5|12>>
+    <associate|auto-18|<tuple|5.1|12>>
+    <associate|auto-19|<tuple|5.2|13>>
     <associate|auto-2|<tuple|2|2>>
-    <associate|auto-20|<tuple|5.2|13>>
-    <associate|auto-21|<tuple|5.3|15>>
-    <associate|auto-22|<tuple|5.4|17>>
+    <associate|auto-20|<tuple|5.3|13>>
+    <associate|auto-21|<tuple|5.4|15>>
+    <associate|auto-22|<tuple|5.5|17>>
     <associate|auto-23|<tuple|5.5|17>>
     <associate|auto-24|<tuple|5.5|17>>
     <associate|auto-3|<tuple|2.1|4>>

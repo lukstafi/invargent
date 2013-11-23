@@ -251,8 +251,8 @@ let solve ?use_quants ?(strict=false)
     (fun (vars, cst, loc) ->
       List.filter (fun (v,k)->k <>/ !/0) vars, cst, loc) eqn in
   let eqn = List.sort cmp_w eqn in
-  Format.printf "NumS.solve:@ eqn=@ %a@ ineqn=@ %a@\n%!"
-    pr_eqn eqn pr_ineqn ineqn; (* *)
+  (*Format.printf "NumS.solve:@ eqn=@ %a@ ineqn=@ %a@\n%!"
+    pr_eqn eqn pr_ineqn ineqn; * *)
   let rec elim acc = function
     | [] -> List.rev acc
     | ((v, k)::vars, cst, loc)::eqn
@@ -817,11 +817,11 @@ let expand_eqineqs eqs ineqs =
   let ans = List.map (expand_atom true) (unsubst eqs) in
   ans @ List.map (expand_atom false) (unsolve ineqs)
 
-(* TODO: optimize, non-preserve variables can be eliminated in [disjelim]. *)
-let disjelim_brs q ~preserve brs =
+let disjelim q ~preserve brs =
+  Format.printf "NumS.disjelim: brs=@ %a@\n%!"
+    (pr_line_list "| " pr_formula) brs;
   let vars = List.map fvs_formula brs in
-  let common = List.fold_left VarSet.inter
-      preserve (* (List.hd vars) *) vars in
+  let common = List.fold_left VarSet.inter preserve vars in
   let cmp_v = make_cmp q in
   let cmp_v v1 v2 =
     let v1c = VarSet.mem v1 common and v2c = VarSet.mem v2 common in
@@ -845,7 +845,7 @@ let disjelim_brs q ~preserve brs =
             (eqs, ineqs), elim_eqs)
          brs) in
   Format.printf
-    "NumS.disjelim_brs:@ preserve=%a@ common=%a@ elim_eqs=@\n%a@\n%!"
+    "NumS.disjelim:@ preserve=%a@ common=%a@ elim_eqs=@\n%a@\n%!"
     pr_vars preserve pr_vars common
     (pr_line_list "| " pr_w_subst) elim_eqs; (* *)
   let polytopes = List.map2
@@ -942,37 +942,6 @@ let disjelim_brs q ~preserve brs =
   [],
   List.map (expand_atom true) (eqn @ redundant_eqn)
   @ List.map (expand_atom false) (nonredundant [] ineqn)
-
-let disjelim q ~preserve brs =
-  Format.printf "NumS.disjelim: brs=@ %a@\n%!"
-    (pr_line_list "| " pr_formula) brs;
-  let vars = Array.map fvs_formula (Array.of_list brs) in
-  let allvars = Array.fold_left VarSet.union VarSet.empty vars in
-  let brs = Array.of_list brs in
-  (* Index. *)
-  let index = List.map
-      (fun v ->
-         array_mapi_some
-           (fun i vs -> if VarSet.mem v vs then Some i else None)
-           vars,
-         v)
-      (VarSet.elements allvars) in
-  (* Inverted index. *)
-  let index = collect index in
-  let answer = concat_map
-      (fun (ibrs, ivs) ->
-         let _, ans =
-           disjelim_brs q preserve
-             (Array.to_list (Array.map (fun i -> brs.(i)) ibrs)) in
-         let vs = vars_of_list ivs in
-         Format.printf "NumS.disjelim-sub:@ ibrs=%a@ ivs=%a@\nans=%a@\n%!"
-           (pr_sep_list "," Format.pp_print_int) (Array.to_list ibrs)
-           pr_vars vs pr_formula ans; (* *)
-         List.filter
-           (fun a -> not (VarSet.is_empty (VarSet.inter vs (fvs_atom a))))
-           ans)
-      index in
-  [], answer
 
 let simplify q elimvs cnj =
   Format.printf "NumS.simplify: elimvs=%s;@\ncnj=@ %a@\n%!"
