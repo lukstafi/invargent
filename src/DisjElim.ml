@@ -106,7 +106,7 @@ let eqs_of_list l =
 let pr_ty_brs ppf brs =
   pr_line_list "|  " pr_subst ppf brs
 
-(* TODO: promote the [preserve] variables. *)
+(* TODO: filter according to [preserve] variables. *)
 let disjelim_typ q ~preserve brs =
   let cmp_k (v1,_) (v2,_) = compare v1 v2 in
   let brs = List.map (List.sort cmp_k) brs in
@@ -193,7 +193,8 @@ let disjelim_typ q ~preserve brs =
       avs, ty_ans @ eqv_ans, ty_eqs, List.map to_formula num_eqs
 
 (* Do not simplify redundancy! Just remove spurious introduced variables. *)
-let simplify q (vs, ty_ans, num_ans) =
+(* FIXME *)
+let simplify_dsjelim q (vs, ty_ans, num_ans) =
   let ty_sb, ty_ans = List.partition
     (fun (v,_) -> List.mem v vs) ty_ans in
   let ty_ans =
@@ -232,9 +233,9 @@ let disjelim q ~preserve ~do_num brs =
       pr_subst ty_ans pr_formula num_ans; (* *)
     (* (4) *)
     (* Dooes not simplify redundancy. *)
-    simplify q (num_avs @ avs, ty_ans, num_ans)
+    simplify_dsjelim q (num_avs @ avs, ty_ans, num_ans)
   else
-    simplify q (avs, ty_ans, [])
+    simplify_dsjelim q (avs, ty_ans, [])
     
 let transitive_cl cnj =
   let eqs = Hashtbl.create 8 in

@@ -251,7 +251,8 @@ let solve ?use_quants ?(strict=false)
     (fun (vars, cst, loc) ->
       List.filter (fun (v,k)->k <>/ !/0) vars, cst, loc) eqn in
   let eqn = List.sort cmp_w eqn in
-  (* Format.printf "NumS.solve: eqn=@ %a@\n%!" pr_eqn eqn; * *)
+  Format.printf "NumS.solve:@ eqn=@ %a@ ineqn=@ %a@\n%!"
+    pr_eqn eqn pr_ineqn ineqn; (* *)
   let rec elim acc = function
     | [] -> List.rev acc
     | ((v, k)::vars, cst, loc)::eqn
@@ -312,7 +313,9 @@ let solve ?use_quants ?(strict=false)
         when (strict && cst </ !/0) || (not strict && cst <=/ !/0) ->
       proj ineqs implicits ineqn
     | ([], cst, loc)::_ ->
-      raise (Contradiction (Num_sort, "Failed numeric inequality",
+      raise (Contradiction (Num_sort,
+                            "Failed numeric inequality (cst="^
+                              Num.string_of_num cst^")",
                             None, loc))
     | ((v, k)::vars, cst, loc)::ineqn
         when use_quants && quant_viol uni_v bvs v vars ->
@@ -842,7 +845,8 @@ let disjelim_brs q ~preserve brs =
             (eqs, ineqs), elim_eqs)
          brs) in
   Format.printf
-    "NumS.disjelim: elim_eqs=@\n%a@\n%!"
+    "NumS.disjelim_brs:@ preserve=%a@ common=%a@ elim_eqs=@\n%a@\n%!"
+    pr_vars preserve pr_vars common
     (pr_line_list "| " pr_w_subst) elim_eqs; (* *)
   let polytopes = List.map2
       (fun (eqs, ineqs) esb ->

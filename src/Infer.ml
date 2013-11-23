@@ -82,9 +82,13 @@ let pr_rbrs5 ppf brs =
       nonrec pr_formula prem pr_formula concl) ppf brs
 
 
-let separate_subst q phi =
+let separate_subst ?(avoid=VarSet.empty) q phi =
+  let filter sb = List.filter
+      (fun (v,_) -> not (VarSet.mem v avoid) && not (q.uni_v v)) sb in
   let sb_ty, phi_num, phi_so = unify ~use_quants:false q phi in
+  let sb_ty = filter sb_ty in
   let sb_num, phi_num = NumS.separate_subst q phi_num in
+  let sb_num = filter sb_num in
   let sb = update_sb ~more_sb:sb_num sb_ty in
   sb, phi_num @ subst_formula sb_num phi_so
 

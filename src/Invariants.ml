@@ -235,7 +235,7 @@ let satisfiable q (ty_st, num_st) cnj =
   ty_st, num_st
 
 (* 10 *)
-let strat q lift_params b ans =
+let strat q b ans =
   let (_, ans_r), ans = fold_map
       (fun (pvs, ans_r) c ->
          let vs = VarSet.elements (VarSet.diff (fvs_atom c) pvs) in
@@ -249,17 +249,6 @@ let strat q lift_params b ans =
                      (var_sort bad, "Escaping universal variable",
                       Some (TVar b, TVar bad), loc)));
          let avs = List.map Infer.freshen_var vs in
-         List.iter2
-           (fun av v ->
-              Format.printf "lift_params: strat %s -> %s (%s)@\n%!"
-                (var_str av)
-                (var_str v)
-                (try var_str (Hashtbl.find lift_params v)
-                 with Not_found -> ""); (* *)
-              let v2 =
-                try Hashtbl.find lift_params v with Not_found -> v in
-              Hashtbl.replace lift_params av v2)
-           avs vs;
          let ans_r =
            List.map2 (fun a b -> b, (TVar a, loc)) avs vs @ ans_r in
          (VarSet.union pvs (vars_of_list vs), ans_r),
@@ -268,7 +257,7 @@ let strat q lift_params b ans =
   let avs, ans_l = List.split ans in
   List.concat avs, ans_l, ans_r
   
-let split avs ans negchi_locs bvs q lift_params =
+let split avs ans negchi_locs bvs q =
   (* 1 FIXME: do we really need this? *)
   let cmp_v v1 v2 =
     let a = q.cmp_v v1 v2 in
@@ -298,7 +287,7 @@ let split avs ans negchi_locs bvs q lift_params =
     (* 3 *)
     let ans_cand = List.map
       (fun b -> b,
-        snd (connected ~directed:(q.is_chiK (q.find_chi b))
+        snd (connected ~directed:true (*q.is_chiK (q.find_chi b)*)
                (VarSet.elements (Hashtbl.find q.b_vs b)) ([],ans0)))
       q.negbs in
     Format.printf "split-loop: ans1=@\n%a@\n%!"
@@ -340,8 +329,8 @@ let split avs ans negchi_locs bvs q lift_params =
       (fun (b,ans) ->
         let bvs = Hashtbl.find q.b_vs b in
         let res = snd
-          (connected ~directed:(q.is_chiK (q.find_chi b))
-             (VarSet.elements bvs) ([],ans)) in
+            (connected ~directed:true (*q.is_chiK (q.find_chi b)*)
+               (VarSet.elements bvs) ([],ans)) in
         Format.printf "split-loop-6: b=%s;@ vs=%a;@ res=%a@\n%!"
           (var_str b) pr_vars bvs pr_formula res;
         b, res)
@@ -376,10 +365,15 @@ let split avs ans negchi_locs bvs q lift_params =
     (* 9 *)
     let ans_strat = List.map
       (fun (b, ans_p) ->
-        Format.printf "select: ans_chi(%s)=@ %a@\n%!"
+        let bvs = Hashtbl.find q.b_vs b in
+        let ans_p = snd
+            (connected ~directed:true (*q.is_chiK (q.find_chi b)*)
+               (VarSet.elements bvs) ([],ans_p)) in
+        Format.printf "select: directed=%b@ bvs=%a@\nans_chi(%s)=@ %a@\n%!"
+          (q.is_chiK (q.find_chi b)) pr_vars bvs
           (var_str b) pr_formula ans_p; (* *)
         (* 10 *)
-        let (avs_p, ans_l, ans_r) = strat q lift_params b ans_p in
+        let (avs_p, ans_l, ans_r) = strat q b ans_p in
         Format.printf "select: ans_l(%s)=@ %a@\n%!"
           (var_str b) pr_formula ans_l; (* *)
         (* Negatively occurring [b] "owns" these formal parameters *)
@@ -585,7 +579,6 @@ let solve q_ops exty_res_chi brs =
     (List.map (fun (cnj,_) -> cnj, []) neg_cns); (* *)
   let negchi_locs = Hashtbl.create 8 in
   let alphasK = Hashtbl.create 8 in
-  let lift_params = Hashtbl.create 32 in
   List.iter
     (fun (prem,concl) ->
        List.iter
@@ -715,6 +708,12 @@ let solve q_ops exty_res_chi brs =
                  (* FIXME *)
                  DisjElim.disjelim q_ops ~preserve
                    ~do_num:(disj_step.(1) <= iter_no) cnjs in
+               let target = delta::g_vs in
+               let g_ans = List.filter
+                   (fun c ->
+                      let cvs = fvs_atom c in
+                      List.exists (flip VarSet.mem cvs) target)
+                   g_ans in
                (* FIXME *)
                (* *)let g_ans =
                  if iter_no < disj_step.(2)
@@ -775,24 +774,14 @@ let solve q_ops exty_res_chi brs =
         Format.printf "solve: loop iter_no=%d@ g_par=%a@\ng_rol.B=@ %a@\n%!"
           iter_no pr_chi_subst g_par pr_chi_subst g_rol; (* *)
         (* 6 *)
-        let params_l =
-          collect (Hashtbl.fold (fun k v l -> (v,k)::l) lift_params []) in
-        let lift_pms = Hashtbl.create 32 in
-        let ans_pms = List.fold_left
-            (fun ans_pms (_,(vs,_)) -> add_vars vs ans_pms)
-            VarSet.empty sol1 in
-        List.iter
-          (fun (v,vs) ->
-             try
-               let b = List.find (flip VarSet.mem ans_pms) (v::vs) in
-               List.iter (fun v -> Hashtbl.add lift_pms v b) (v::vs)
-             with Not_found -> ())
-          params_l;
         let esb = List.map
             (fun (i, tpar) ->
-               let tpar = hvsubst_typ lift_pms tpar in
                let n = Extype (Hashtbl.find exty_of_chi i) in
-               n, fun _ -> TCons (n, [tpar]))
+               n, fun old ->
+                 Format.printf "esb-6: old=%a new=%a@\n%!"
+                   (pr_ty false) (TCons (n, old))
+                   (pr_ty false) (TCons (n, [tpar])); (* *)
+                 TCons (n, [tpar]))
             tpars in
         let esb_formula = List.map
             (function
@@ -880,21 +869,8 @@ let solve q_ops exty_res_chi brs =
             (fun (nonrec,_,_,prem,concl) -> nonrec,prem,concl) brs1 in
         let cand_bvs, alien_eqs, (vs, ans) =
           Abduction.abd q.op ~bvs ~iter_no ~discard brs1 in
-        List.iter
-          (function
-            | av, (TVar v, _) ->
-              Format.printf "lift_params: alien eq %s -> %s (%s)@\n%!"
-                (var_str av)
-                (var_str v)
-                (try var_str (Hashtbl.find lift_params v)
-                 with Not_found -> ""); (* *)
-              let v2 =
-                try Hashtbl.find lift_params v with Not_found -> v in
-              Hashtbl.replace lift_params av v2
-            | _ -> ())
-          alien_eqs;
         let ans_res, more_discard, ans_sol =
-          split vs ans negchi_locs bvs q lift_params in
+          split vs ans negchi_locs bvs q in
         Format.printf
           "solve: loop -- answer split@ more_discard=@ %a@\nans_res=@ %a@\n%!"
           pr_formula more_discard pr_formula ans_res; (* *)
@@ -931,7 +907,7 @@ let solve q_ops exty_res_chi brs =
                update_assoc sort [] (fun dl -> s_discard::dl) discard in
              loop iter_no discard rol1 sol1 in
       (* 9 *)
-      let ans_sb, _ = Infer.separate_subst q.op ans_res in
+      let ans_sb, _ = Infer.separate_subst ~avoid:bvs q.op ans_res in
       let rol2 =
         if disj_step.(0) > iter_no then rol1
         else
