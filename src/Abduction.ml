@@ -226,7 +226,7 @@ let abd_simple q ?without_quant ~bvs
           (List.tl cand, List.tl c6cand)
         | _ -> assert false in
       aux [] [] init_cand in
-    let rec abstract repls bvs pms vs ans = function
+    let rec abstract deep repls bvs pms vs ans = function
       | [], [] ->
         let ddepth = incr debug_dep; !debug_dep in
         Format.printf
@@ -301,7 +301,7 @@ let abd_simple q ?without_quant ~bvs
             "abd_simple: [%d] choice 1@ drop %s = %a@ (%s = %a)@\n%!"
             ddepth (var_str x) (pr_ty false) t
             (var_str c6x) (pr_ty false) c6t; (* *)
-          try abstract repls bvs pms vs ans cand;
+          try abstract deep repls bvs pms vs ans cand;
             Format.printf "abd_simple: [%d] choice 1 failed@\n%!"
               ddepth; (* *)               
           with Result (bvs, vs, ans) as e ->
@@ -334,7 +334,7 @@ let abd_simple q ?without_quant ~bvs
             validate vs ans';
             Format.printf "abd_simple: [%d] choice 6 OK@\n%!" ddepth; (* *)
             assert (so = []);
-            abstract repls bvs' pms vs ans' cand
+            abstract deep repls bvs' pms vs ans' cand
           with
           | Result (bvs, vs, ans) as e ->
             (* FIXME: remove try-with case after debug over *)
@@ -350,9 +350,9 @@ let abd_simple q ?without_quant ~bvs
         Format.printf
           "abd_simple: [%d]@ recover after choice 6@ %s =@ %a@\n%!"
           ddepth (var_str c6x) (pr_ty false) c6t; (* *)
-        step x lc {typ_sub=t; typ_ctx=[]} repls
+        step deep x lc {typ_sub=t; typ_ctx=[]} repls
           is_p bvs pms vs ans cand
-    and step x lc loc repls is_p bvs pms vs ans cand =
+    and step deep x lc loc repls is_p bvs pms vs ans cand =
       incr counter; if !counter > !timeout_count then raise Timeout;
       let ddepth = incr debug_dep; !debug_dep in
       Format.printf
@@ -388,11 +388,11 @@ let abd_simple q ?without_quant ~bvs
              validate vs' ans';
              Format.printf "abd_simple: [%d] choice 2 OK@\n%!" ddepth; (* *)
              assert (so = []);
-             abstract repls' bvs' pms' vs' ans' cand
+             abstract deep repls' bvs' pms' vs' ans' cand
            with Contradiction _ ->
              ())
         | Some loc' ->
-          step x lc loc' repls' is_p bvs pms' vs' ans cand in
+          step deep x lc loc' repls' is_p bvs pms' vs' ans cand in
       (* Choice 3: try subterms of the subterm *)
       let choice3 () =
         Format.printf
@@ -405,7 +405,7 @@ let abd_simple q ?without_quant ~bvs
           | Some loc ->
             Format.printf
               "abd_simple: [%d]@ choice 3@ try subterms@\n%!" ddepth; (* *)
-            step x lc loc repls is_p bvs pms vs ans cand in
+            step deep x lc loc repls is_p bvs pms vs ans cand in
       (* Choice 4: preserve current premise/conclusion subterm for answer *)
       let choice4 () =
         match typ_next loc with
@@ -423,7 +423,7 @@ let abd_simple q ?without_quant ~bvs
              validate vs ans;
              Format.printf "abd_simple: [%d] choice 4 OK@\n%!" ddepth; (* *)
              assert (so = []);
-             abstract repls bvs pms vs ans cand
+             abstract deep repls bvs pms vs ans cand
            with Contradiction (_, msg, Some (ty1, ty2), _) ->
              (* FIXME: change to [with Contradiction _ -> ()] after debug  *)
              Format.printf
@@ -443,7 +443,7 @@ let abd_simple q ?without_quant ~bvs
              ())
         | Some loc ->
           Format.printf "abd_simple: [%d] neighbor loc@\n%!" ddepth; (* *)
-          step x lc loc repls is_p bvs pms vs ans cand in
+          step deep x lc loc repls is_p bvs pms vs ans cand in
       (* Choice 5: match subterm with an earlier occurrence *)
       let choice5 () =
         let repl = assoc_all loc.typ_sub repls in
@@ -508,13 +508,14 @@ let abd_simple q ?without_quant ~bvs
                   Format.printf
                     "abd_simple: [%d]@ choice 5@ match earlier %s =@ %a@\n%!"
                     ddepth (var_str x) (pr_ty false) t'; (* *)
-                  abstract repls bvs' pms vs ans' cand
+                  abstract deep repls bvs' pms vs ans' cand
                 with Contradiction _ ->
                   ())
              | Some loc' ->
-               step x lc loc' repls is_p bvs pms vs ans cand)
+               step deep x lc loc' repls is_p bvs pms vs ans cand)
           repl in
-      if !more_general
+      if not deep then ()
+      else if !more_general
       then (choice2 (); choice3 (); choice4 (); choice5 ())
       else (choice4 (); choice2 (); choice3 (); choice5 ())
     in
@@ -532,7 +533,12 @@ let abd_simple q ?without_quant ~bvs
       Format.printf
         "abd_simple:@\ninit=@ %a@\nc6init=@ %a@\n%!"
         pr_subst (fst init_cand) pr_subst (snd init_cand); (* *)
-      try abstract [] bvs pms vs ans init_cand; None
+      try
+        if not !more_general
+        then abstract false [] bvs pms vs ans init_cand;
+        Format.printf
+          "abd_simple: starting full depth (choices 1-6)@\n%!"; (* *)
+        abstract true [] bvs pms vs ans init_cand; None
       with Result (bvs, vs, ans) ->
         Format.printf "abd_simple: Final validation@\n%!"; (* *)
         let ans, cnj_num, _ =

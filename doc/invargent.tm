@@ -551,6 +551,11 @@
     possible is important for efficiency.
   </itemize>
 
+  We perform a two-layer iterative deepening when <verbatim|more_general> is
+  false: in the first run we only try choices 1 and 6. It is an imperfect
+  optimization since the running time gets longer whenever choices 2-5 are
+  needed.
+
   <subsubsection|Heuristic for better answers to invariants>
 
   We implement an optional heuristic in forming the candidates proposed by

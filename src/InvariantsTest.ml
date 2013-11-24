@@ -361,7 +361,7 @@ let rec flatten_pairs =
 
   "escape castle" >::
     (fun () ->
-       skip_if !debug "debug";
+       (* skip_if !debug "debug"; *)
        test_case "escape castle"
 "newtype Room
 newtype Yard
@@ -869,7 +869,7 @@ let rec map =
 
   "non-num map not existential mono" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "list map not existential mono"
 "newtype List : type
 newcons LNil : ∀a. List a
