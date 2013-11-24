@@ -361,7 +361,7 @@ let rec flatten_pairs =
 
   "escape castle" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "escape castle"
 "newtype Room
 newtype Yard
@@ -774,7 +774,7 @@ let rec walk = fun x ->
 
   "existential with param" >::
     (fun () ->
-       skip_if !debug "debug";
+       (* skip_if !debug "debug"; *)
        test_case "existential with param"
 "newtype Place : type
 newtype Nearby : type * type
@@ -1021,7 +1021,8 @@ let rec filter = fun f g ->
 
   "binary upper bound" >::
     (fun () ->
-       todo "harder existential";
+       skip_if !debug "debug";
+       (* todo "harder existential"; *)
        test_case "binary upper bound -- bitwise or"
 "newtype Binary : num
 newcons Zero : Binary 0

@@ -435,10 +435,12 @@ let split avs ans negchi_locs bvs cand_bvs q =
     constraints and generally simplify the formula. *)
 let simplify q_ops (vs, cnj) =
   let vs = vars_of_list vs in
+  Format.printf "simplify: vs=%a@ cnj=%a@\n%!"
+    pr_vars vs pr_formula cnj; (* *)
   let cmp_v v1 v2 =
     let c1 = VarSet.mem v1 vs and c2 = VarSet.mem v2 vs in
-    Format.printf "cmp_v: %s(%b), %s(%b)@\n%!"
-      (var_str v1) c1 (var_str v2) c2; (* *)
+    (* Format.printf "cmp_v: %s(%b), %s(%b)@\n%!"
+      (var_str v1) c1 (var_str v2) c2; * *)
     if c1 && c2 then Same_quant
     else if c1 then Right_of
     else if c2 then Left_of
@@ -468,34 +470,6 @@ let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
   let c1_ty, c1_num, c1_so = unify ~use_quants:false q_ops cnj1 in
   let c2_ty, c2_num, c2_so = unify ~use_quants:false q_ops cnj2 in
   assert (c1_so = []); assert (c2_so = []);
-  let cmp (v1,_) (v2,_) = compare v1 v2 in
-  let c1_ty = List.sort cmp c1_ty and c2_ty = List.sort cmp c2_ty in
-  let cnj_tys = inter_merge cmp
-    (fun (_,(t1,_)) (_,(t2,_)) -> Eqty (t1,t2,dummy_loc)) c1_ty c2_ty in
-  let renaming, ren_num, _ = unify ~use_quants:false q_ops cnj_tys in
-  Format.printf "converge: cnj_tys=%a@\nren_num=%a@\nrenaming1=%a@\n%!"
-    pr_formula cnj_tys pr_formula ren_num pr_subst renaming; (* *)
-  let renaming =
-      map_some
-        (function
-          | Eqty (TVar v, t, lc) -> Some (v, (t, lc))
-          | Eqty (t, TVar v, lc) -> Some (v, (t, lc))
-          | _ -> None)
-        ren_num
-      @ renaming in
-  Format.printf "converge: renaming2=%a@\n%!" pr_subst renaming; (* *)
-  let ren_of_cn vs =
-      map_some
-        (function
-          | Eqty (TVar v, t, lc) when not (List.mem v vs) -> Some (v, (t, lc))
-          | Eqty (t, TVar v, lc) when not (List.mem v vs) -> Some (v, (t, lc))
-          | _ -> None) in
-  let c1_nr = List.sort cmp (ren_of_cn vs1 c1_num)
-  and c2_nr = List.sort cmp (ren_of_cn vs2 c2_num) in
-  let num_ren = inter_merge
-      (fun (v1,_) (v2,_) -> compare v1 v2)
-      (fun (_,(t1,_)) (_,(t2,_)) -> Eqty (t1,t2,dummy_loc))
-      c1_nr c2_nr in
   (* Recover old variable names. *)
   let pms_old =
     try fvs_typ (fst (List.assoc delta' c1_ty))
@@ -505,28 +479,50 @@ let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
     try fvs_typ (fst (List.assoc delta' c2_ty))
     with Not_found -> VarSet.empty in
   let vs_new = VarSet.diff (vars_of_list vs2) pms_new in
-  let renaming = map_some
+  let valid_sb = map_some
     (function
     | v1, (TVar v2, _) as sx
       when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new -> Some sx
     | v2, (TVar v1, lc)
       when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
       Some (v1, (TVar v2, lc))
-    | _ -> None)
-    renaming in
-  let renaming =
-    map_some
-      (function
-        | Eqty (TVar v1, (TVar v2 as t), lc)
-          when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
-          Some (v1, (t, lc))
-        | Eqty ((TVar v2 as t), TVar v1, lc)
-          when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
-          Some (v1, (t, lc))
-        | _ -> None)
-      num_ren
-    @ renaming in
-  Format.printf "converge: renaming3=%a@\n%!" pr_subst renaming; (* *)
+    | _ -> None) in
+  let cmp (v1,_) (v2,_) = compare v1 v2 in
+  let c1_ty = List.sort cmp c1_ty and c2_ty = List.sort cmp c2_ty in
+  let cnj_tys = inter_merge cmp
+    (fun (_,(t1,_)) (_,(t2,_)) -> Eqty (t1,t2,dummy_loc)) c1_ty c2_ty in
+  let renaming, ren_num, _ = unify ~use_quants:false q_ops cnj_tys in
+  Format.printf "converge: cnj_tys=%a@\nren_num=%a@\nrenaming1=%a@\n%!"
+    pr_formula cnj_tys pr_formula ren_num pr_subst renaming; (* *)
+  let v_notin_vs_cn vs =
+      map_some
+        (function
+          | Eqty (TVar v, t, lc) when not (List.mem v vs) -> Some (v, (t, lc))
+          | Eqty (t, TVar v, lc) when not (List.mem v vs) -> Some (v, (t, lc))
+          | _ -> None) in 
+  let valid_cn =
+      map_some
+        (function
+          | Eqty (TVar v1, (TVar v2 as t), lc)
+            when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
+            Some (v1, (t, lc))
+          | Eqty (TVar v2 as t, TVar v1, lc)
+            when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
+            Some (v1, (t, lc))
+          | _ -> None) in 
+  let renaming = valid_cn ren_num @ valid_sb renaming in
+  Format.printf "converge: renaming2=%a@\n%!" pr_subst renaming; (* *)
+  let c1_nr = List.sort cmp (v_notin_vs_cn vs1 c1_num)
+  and c2_nr = List.sort cmp (v_notin_vs_cn vs2 c2_num) in
+  let num_ren = inter_merge
+      (fun (v1,_) (v2,_) -> compare v1 v2)
+      (fun (_,(t1,_)) (_,(t2,_)) -> Eqty (t1,t2,dummy_loc))
+      c1_nr c2_nr in
+  let renaming = valid_cn num_ren @ renaming in
+  Format.printf
+    "converge: pms_old=%a@ pms_new=%a@ vs_old=%a@ vs_new=%a@ renaming3=%a@\n%!"
+    pr_vars pms_old pr_vars pms_new pr_vars vs_old pr_vars vs_new
+    pr_subst renaming; (* *)
   let c2_ty = subst_sb ~sb:renaming c2_ty
   and c2_num = subst_formula renaming c2_num
   and vs2 = List.map
@@ -538,9 +534,10 @@ let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
   let c_num =
     if check_only then c2_num
     else NumS.converge q_ops c1_num c2_num in
-  Format.printf "converge: check_only=%b vs2=%a@\nc2_num=%a@\nc_num=%a\n%!"
+  Format.printf
+    "converge: check_only=%b vs2=%a@\nc2_ty=%a@\nc2_num=%a@\nc_num=%a\n%!"
     check_only pr_vars (vars_of_list vs2)
-    pr_formula c2_num pr_formula c_num; (* *)
+    pr_subst c2_ty pr_formula c2_num pr_formula c_num; (* *)
   (* FIXME: will it not remove important atoms 'cause of [vs2]? *)
   (* simplify q_ops *) (vs2, to_formula c2_ty @ c_num)
 
@@ -757,14 +754,12 @@ let solve q_ops exty_res_chi brs =
           tpar, (pvs @ g_vs, phi) in
         (* 5 *)
         let g_rol = List.map2
-            (fun (i,ans1) (j,(g_vs,g_ans)) ->
+            (fun (i,ans1) (j,ans2) ->
                assert (i = j);
-               (* FIXME *)
+               let tpar, ans2 = lift_ex_types q.op i ans2 in
                let ans2 =
                  converge q.op
-                   ~check_only:(iter_no < disj_step.(3)) ans1 (g_vs, g_ans) in
-               let tpar, ans2 =
-                 (lift_ex_types q.op i ans2) in
+                   ~check_only:(iter_no < disj_step.(3)) ans1 ans2 in
                Format.printf "solve.loop-dK: final@ tpar=%a@ ans2=%a@\n%!"
                  (pr_ty false) tpar pr_ans ans2; (* *)
                (* No [b] "owns" these formal parameters. Their instances
@@ -959,7 +954,9 @@ let solve q_ops exty_res_chi brs =
                let tpar' = TCons (tuple, targs) in
                let i_res = vs, Eqty (tdelta', tpar', dummy_loc) :: ans in
                Format.printf
-                 "solve-loop: dans=%a@ chi%d(.)=@ %a@\n%!"
+                 "solve-loop: pvs=%a@ dvs=%a@ svs=%a@ vs=%a dans=%a@ chi%d(.)=@ %a@\n%!"
+                 pr_vars (vars_of_list pvs) pr_vars (vars_of_list dvs)
+                 pr_vars (vars_of_list svs) pr_vars (vars_of_list vs)
                  pr_formula dans i pr_ans i_res; (* *)
                i, i_res)
             g_rol in
