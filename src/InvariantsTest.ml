@@ -9,7 +9,7 @@ open OUnit
 open Terms
 open Aux
 
-let debug = ref false(* true *)
+let debug = ref (* false *)true
 
 let test_case ?(more_general=false) msg test answers =
       Terms.reset_state ();
@@ -844,9 +844,47 @@ let rec map = fun f ->
     | LCons (x, xs) ->
       let ys = map f xs in
       LCons (f x, ys)"
-        [2,"∃n, k, a, b.
-  δ = ((a → b) → List (a, k) → ∃1:[0 ≤ n].List (b, n)) ∧ 
-  n = k"];
+        [2,"∃n, a, b. δ = ((a → b) → List (a, n) → ∃1:[].List (b, n))"];
+    );
+
+  "non-num map universal mono" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "list map not existential mono"
+"newtype List : type
+newcons LNil : ∀a. List a
+newcons LCons : ∀a. a * List a ⟶ List a
+newtype Foo
+newtype Bar
+
+external f : Foo → Bar
+
+let rec map =
+  function LNil -> LNil
+    | LCons (x, xs) ->
+      let ys = map xs in
+      LCons (f x, ys)"
+        [1,"∃. δ = (List Foo → List Bar)"];
+    );
+
+  "non-num map not existential mono" >::
+    (fun () ->
+       (* skip_if !debug "debug"; *)
+       test_case "list map not existential mono"
+"newtype List : type
+newcons LNil : ∀a. List a
+newcons LCons : ∀a. a * List a ⟶ List a
+newtype Foo
+newtype Bar
+
+external f : Foo → Bar
+
+let rec map =
+  efunction LNil -> LNil
+    | LCons (x, xs) ->
+      let ys = map xs in
+      LCons (f x, ys)"
+        [2,"∃. δ = (List Foo → ∃1:[].List Bar)"];
     );
 
   "map not existential mono" >::
@@ -983,7 +1021,7 @@ let rec filter = fun f g ->
 
   "binary upper bound" >::
     (fun () ->
-       (* todo "harder existential"; *)
+       todo "harder existential";
        test_case "binary upper bound -- bitwise or"
 "newtype Binary : num
 newcons Zero : Binary 0

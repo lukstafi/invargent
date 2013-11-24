@@ -200,7 +200,8 @@ let expand_subst eqs =
   let aux (v, (vars, cst, loc)) =
     let w = (v, !/(-1))::vars, cst, loc in
     match expand_w w with
-    | [TVar v], rhs | rhs, [TVar v] -> Aux.Right (v, (Nadd rhs, loc))
+    | [TVar v'], rhs when v' = v -> Aux.Right (v, (Nadd rhs, loc))
+    | rhs, [TVar v'] when v' = v -> Aux.Right (v, (Nadd rhs, loc))
     | _ -> Aux.Left w in
   Aux.partition_map aux eqs    
     
@@ -1116,6 +1117,8 @@ let separate_subst q cnj =
     solve ~cnj cmp cmp_w q.uni_v in
   let eqs, _ = solve
     ~eqs ~eqn:implicits cmp cmp_w q.uni_v in
+  Format.printf "NumS.separate_subst: eq-keys=%a@\n%!"
+    pr_vars (vars_of_list (List.map fst eqs)); (* *)
   let _, ineqn = partition_map (flatten cmp) cnj in
   let ineqn = List.map (subst_w cmp eqs) ineqn in
   let ineqn = List.filter

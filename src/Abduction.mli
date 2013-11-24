@@ -33,14 +33,16 @@ val abd_typ :
   Terms.VarSet.t * Terms.subst *        (* alien_eqs *)
   Terms.var_name list * Terms.subst * (Terms.formula * Terms.formula) list
 (** Raises [Contradiction] if constraints are contradictory and
-    [NoAnswer] when no answer can be found. *)
+    [NoAnswer] when no answer can be found. Returns candidate
+    parameters [cand_bvs], alien subterm substitution [alien_eqs] and
+    the answer. *)
 val abd :
   Terms.quant_ops ->
   bvs:Terms.VarSet.t ->
   ?iter_no:int ->
   discard:(Terms.sort * Terms.formula list) list ->
   (bool * Terms.formula * Terms.formula) list ->
-  Terms.VarSet.t * Terms.subst *        (* alien_eqs *)
+  Terms.VarSet.t * Terms.subst *
   (Terms.var_name list * Terms.formula)
 val abd_mockup_num :
   Terms.quant_ops ->

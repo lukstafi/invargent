@@ -257,7 +257,7 @@ let strat q b ans =
   let avs, ans_l = List.split ans in
   List.concat avs, ans_l, ans_r
   
-let split avs ans negchi_locs bvs q =
+let split avs ans negchi_locs bvs cand_bvs q =
   (* 1 FIXME: do we really need this? *)
   let cmp_v v1 v2 =
     let a = q.cmp_v v1 v2 in
@@ -287,7 +287,7 @@ let split avs ans negchi_locs bvs q =
     (* 3 *)
     let ans_cand = List.map
       (fun b -> b,
-        snd (connected ~directed:true (*q.is_chiK (q.find_chi b)*)
+        snd (connected ~directed:false
                (VarSet.elements (Hashtbl.find q.b_vs b)) ([],ans0)))
       q.negbs in
     Format.printf "split-loop: ans1=@\n%a@\n%!"
@@ -321,20 +321,25 @@ let split avs ans negchi_locs bvs q =
              || not (List.memq c ans')) ans_cand)
          ans)
       ans_cand in
-    Format.printf "split-loop: ans3=@\n%a@\n%!"
+    Format.printf "split-loop: ans3=@\n%a@\ncand_bvs=%a@\n%!"
       pr_bchi_subst (List.map (fun (b,a)->b,([],a))
-                       ans_cand); (* *)
+                       ans_cand)
+      pr_vars cand_bvs; (* *)
     (* 6 *)
-    let ans_cand = List.map
+    (*let ans_cand = List.map
       (fun (b,ans) ->
         let bvs = Hashtbl.find q.b_vs b in
-        let res = snd
-            (connected ~directed:true (*q.is_chiK (q.find_chi b)*)
-               (VarSet.elements bvs) ([],ans)) in
+        let res = List.filter
+            (fun c ->
+               Format.printf "c=%a@ cvs=%a@\n%!"
+                 pr_atom c pr_vars (fvs_atom c); (* *)
+               VarSet.is_empty
+                (VarSet.diff (fvs_atom c) cand_bvs))
+          ans in
         Format.printf "split-loop-6: b=%s;@ vs=%a;@ res=%a@\n%!"
           (var_str b) pr_vars bvs pr_formula res;
         b, res)
-      ans_cand in
+      ans_cand in*)
     Format.printf "split-loop: ans4=@\n%a@\n%!"
       pr_bchi_subst (List.map (fun (b,a)->b,([],a))
                        ans_cand); (* *)
@@ -367,7 +372,7 @@ let split avs ans negchi_locs bvs q =
       (fun (b, ans_p) ->
         let bvs = Hashtbl.find q.b_vs b in
         let ans_p = snd
-            (connected ~directed:true (*q.is_chiK (q.find_chi b)*)
+            (connected ~directed:true
                (VarSet.elements bvs) ([],ans_p)) in
         Format.printf "select: directed=%b@ bvs=%a@\nans_chi(%s)=@ %a@\n%!"
           (q.is_chiK (q.find_chi b)) pr_vars bvs
@@ -432,6 +437,8 @@ let simplify q_ops (vs, cnj) =
   let vs = vars_of_list vs in
   let cmp_v v1 v2 =
     let c1 = VarSet.mem v1 vs and c2 = VarSet.mem v2 vs in
+    Format.printf "cmp_v: %s(%b), %s(%b)@\n%!"
+      (var_str v1) c1 (var_str v2) c2; (* *)
     if c1 && c2 then Same_quant
     else if c1 then Right_of
     else if c2 then Left_of
@@ -439,18 +446,19 @@ let simplify q_ops (vs, cnj) =
   let q_ops = {q_ops with cmp_v} in
   let ty_ans, num_ans, _ =
     unify ~use_quants:false q_ops cnj in
+  let num_sb, num_ans =
+    NumS.separate_subst q_ops num_ans in
+  let num_sb, more_num_ans = List.partition
+    (fun (v,_) -> VarSet.mem v vs && v <> delta && v <> delta') num_sb in
+  let num_ans = to_formula more_num_ans @ num_ans in
+  let ty_ans = subst_sb ~sb:num_sb ty_ans in
   let ty_sb, ty_ans = List.partition
     (fun (v,_) -> VarSet.mem v vs && v <> delta && v <> delta') ty_ans in
-  let ty_ans = subst_formula ty_sb (to_formula ty_ans) in
-  let ty_vs = VarSet.inter vs (fvs_formula ty_ans)
-  and num_vs = VarSet.inter vs (fvs_formula num_ans) in
-  let elimvs = VarSet.diff num_vs ty_vs in
-  Format.printf "simplify: vs=%a@ num_vs=%a@ ty_vs=%a@\n%!"
-    pr_vars vs pr_vars num_vs pr_vars ty_vs; (* *)
-  let num_vs, num_ans =
-    NumS.simplify q_ops elimvs num_ans in
-  VarSet.elements (VarSet.union ty_vs (vars_of_list num_vs)),
-  ty_ans @ num_ans
+  let ans = to_formula ty_ans @ num_ans in
+  let vs = VarSet.inter vs (fvs_formula ans) in
+  Format.printf "simplify: vs=%a@ ty_sb=%a@ num_sb=%a@ ans=%a@\n%!"
+    pr_vars vs pr_subst ty_sb pr_subst num_sb pr_formula ans; (* *)
+  VarSet.elements vs, ans
 
 let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
   Format.printf
@@ -870,7 +878,7 @@ let solve q_ops exty_res_chi brs =
         let cand_bvs, alien_eqs, (vs, ans) =
           Abduction.abd q.op ~bvs ~iter_no ~discard brs1 in
         let ans_res, more_discard, ans_sol =
-          split vs ans negchi_locs bvs q in
+          split vs ans negchi_locs bvs cand_bvs q in
         Format.printf
           "solve: loop -- answer split@ more_discard=@ %a@\nans_res=@ %a@\n%!"
           pr_formula more_discard pr_formula ans_res; (* *)
@@ -913,6 +921,7 @@ let solve q_ops exty_res_chi brs =
         else
           List.map
             (fun (i, (gvs,g_ans)) ->
+               (* FIXME: code duplication with [lift_ex_types]? *)
                let g_ans = subst_formula ans_sb g_ans in
                let tpar, g_ans =
                  match g_ans with
@@ -935,14 +944,18 @@ let solve q_ops exty_res_chi brs =
                       subst_formula sb dans)
                    ds in
                let dvs = gvs @ concat_map (fun (_,(dvs,_))->dvs) ds in
+               let pvs = fvs_typ tpar in
+               let svs =
+                 VarSet.elements (VarSet.diff (vars_of_list dvs) pvs) in
                let vs, ans =
-                 (* FIXME *)
-                 (* simplify q.op *)
+                 simplify q.op
                    (connected ~directed:true [delta; delta']
-                      (dvs, dans @ g_ans)) in
+                      (svs, dans @ g_ans)) in
+               let pvs = VarSet.elements pvs in
+               let vs = vs @ pvs in
                (* FIXME: are generalization variables impossible in tpar'? *)
-               let pvs = VarSet.elements (fvs_typ tpar) in
-               let targs = List.map (fun v -> TVar v) pvs in
+               let targs =
+                 List.map (fun v -> TVar v) pvs in
                let tpar' = TCons (tuple, targs) in
                let i_res = vs, Eqty (tdelta', tpar', dummy_loc) :: ans in
                Format.printf
