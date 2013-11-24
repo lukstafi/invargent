@@ -931,11 +931,15 @@ let solve q_ops exty_res_chi brs =
                         "solve-loop-9: chi%d(%s)=@ %a@ +@ %a@\n%!"
                         i (var_str b) pr_ans (dvs,dans) pr_ans
                         (gvs,g_ans);
-                      (* *)
                       (* No need to substitute, because variables will be
                          freshened when predicate variable is instantiated. *)
-                      let sb = renaming_sb
-                          ((b, delta)::Hashtbl.find q.b_renaming b) in
+                      let sb =
+                        List.map (fun (v,w) -> w,v)
+                          (Hashtbl.find q.b_renaming b) in
+                      let sb = renaming_sb ((b, delta)::sb) in
+                      Format.printf
+                        "solve-loop-9: renaming=@ %a@\ndans'=%a@\n%!"
+                        pr_subst sb pr_formula (subst_formula sb dans); (* *)
                       subst_formula sb dans)
                    ds in
                let dvs = gvs @ concat_map (fun (_,(dvs,_))->dvs) ds in
