@@ -440,7 +440,7 @@ let simplify q_ops (vs, cnj) =
   let cmp_v v1 v2 =
     let c1 = VarSet.mem v1 vs and c2 = VarSet.mem v2 vs in
     (* Format.printf "cmp_v: %s(%b), %s(%b)@\n%!"
-      (var_str v1) c1 (var_str v2) c2; * *)
+       (var_str v1) c1 (var_str v2) c2; * *)
     if c1 && c2 then Same_quant
     else if c1 then Right_of
     else if c2 then Left_of
@@ -448,15 +448,31 @@ let simplify q_ops (vs, cnj) =
   let q_ops = {q_ops with cmp_v} in
   let ty_ans, num_ans, _ =
     unify ~use_quants:false q_ops cnj in
+  (* We "cheat": eliminate variables introduced earlier, so that
+     convergence check has easier job (just syntactic). *)
+  let ty_sb, ty_ans = List.partition
+      (function
+        | v, (TVar v2, _)
+          when VarSet.mem v vs && VarSet.mem v2 vs && v < v2 -> true
+        | _ -> false) ty_ans in
+  let ty_sb = List.map
+      (function
+        | v, (TVar v2, lc) -> v2, (TVar v, lc)
+        | _ -> assert false)
+      ty_sb in
+  let ty_ans = update_sb ~more_sb:ty_sb ty_ans in
   let num_sb, num_ans =
     NumS.separate_subst q_ops num_ans in
   let num_sb, more_num_ans = List.partition
-    (fun (v,_) -> VarSet.mem v vs && v <> delta && v <> delta') num_sb in
+      (fun (v,_) -> VarSet.mem v vs && v <> delta && v <> delta') num_sb in
   let num_ans = to_formula more_num_ans @ num_ans in
+  let _, num_ans' = NumS.simplify q_ops VarSet.empty num_ans in
+  Format.printf "simplify:@\nnum_ans=%a@\nnum_ans'=%a@\n%!"
+    pr_formula num_ans pr_formula num_ans'; (* *)
   let ty_ans = subst_sb ~sb:num_sb ty_ans in
   let ty_sb, ty_ans = List.partition
-    (fun (v,_) -> VarSet.mem v vs && v <> delta && v <> delta') ty_ans in
-  let ans = to_formula ty_ans @ num_ans in
+      (fun (v,_) -> VarSet.mem v vs && v <> delta && v <> delta') ty_ans in
+  let ans = to_formula ty_ans @ num_ans' in
   let vs = VarSet.inter vs (fvs_formula ans) in
   Format.printf "simplify: vs=%a@ ty_sb=%a@ num_sb=%a@ ans=%a@\n%!"
     pr_vars vs pr_subst ty_sb pr_subst num_sb pr_formula ans; (* *)
@@ -490,7 +506,10 @@ let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
   let cmp (v1,_) (v2,_) = compare v1 v2 in
   let c1_ty = List.sort cmp c1_ty and c2_ty = List.sort cmp c2_ty in
   let cnj_tys = inter_merge cmp
-    (fun (_,(t1,_)) (_,(t2,_)) -> Eqty (t1,t2,dummy_loc)) c1_ty c2_ty in
+    (fun (v,(t1,_)) (_,(t2,_)) ->
+      if v=delta'
+      then Eqty (TCons (tuple,[]), TCons (tuple,[]),dummy_loc) (* i.e. none *)
+      else Eqty (t1,t2,dummy_loc)) c1_ty c2_ty in
   let renaming, ren_num, _ = unify ~use_quants:false q_ops cnj_tys in
   Format.printf "converge: cnj_tys=%a@\nren_num=%a@\nrenaming1=%a@\n%!"
     pr_formula cnj_tys pr_formula ren_num pr_subst renaming; (* *)
@@ -538,8 +557,7 @@ let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
     "converge: check_only=%b vs2=%a@\nc2_ty=%a@\nc2_num=%a@\nc_num=%a\n%!"
     check_only pr_vars (vars_of_list vs2)
     pr_subst c2_ty pr_formula c2_num pr_formula c_num; (* *)
-  (* FIXME: will it not remove important atoms 'cause of [vs2]? *)
-  (* simplify q_ops *) (vs2, to_formula c2_ty @ c_num)
+  vs2, to_formula c2_ty @ c_num
 
 
 let neg_constrns = ref true
@@ -918,11 +936,16 @@ let solve q_ops exty_res_chi brs =
             (fun (i, (gvs,g_ans)) ->
                (* FIXME: code duplication with [lift_ex_types]? *)
                let g_ans = subst_formula ans_sb g_ans in
-               let tpar, g_ans =
-                 match g_ans with
-                 | Eqty (tv, tpar, _) :: g_ans when tv = tdelta' ->
-                   tpar, g_ans
-                 | _ -> assert false in
+               let tpar, g_ans = List.partition
+                   (function
+                     | Eqty (tv, tpar, _) when tv = tdelta' -> true
+                     | _ -> false)
+                     g_ans in
+               let tpar =
+                 match tpar with
+                 | [Eqty (tv, tpar, _)] -> tpar
+                 | [] -> assert false
+                 | _::_ -> assert false in
                let bs = List.filter (not % q.positive_b) (q.find_b i) in
                let ds = List.map (fun b-> b, List.assoc b ans_sol) bs in
                let dans = concat_map

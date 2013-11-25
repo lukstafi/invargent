@@ -774,7 +774,7 @@ let rec walk = fun x ->
 
   "existential with param" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "existential with param"
 "newtype Place : type
 newtype Nearby : type * type
@@ -904,7 +904,7 @@ let rec map =
     | LCons (x, xs) ->
       let ys = map xs in
       LCons (f x, ys)"
-        [2,"∃n. δ = (List (Foo, n) → ∃1:[0 ≤ n].List (Bar, n))"];
+        [2,"∃n. δ = (List (Foo, n) → ∃1:[].List (Bar, n))"];
     );
 
   "filter mono" >::
@@ -964,7 +964,7 @@ let rec filter =
 
   "filter poly" >::
     (fun () ->
-       skip_if !debug "debug";
+       (* skip_if !debug "debug"; *)
        test_case "polymorphic list filter"
 "newtype Bool
 newtype List : type * num
