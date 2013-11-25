@@ -369,11 +369,16 @@ let split avs ans negchi_locs bvs cand_bvs q =
     let ans_strat = List.map
       (fun (b, ans_p) ->
         let bvs = Hashtbl.find q.b_vs b in
-        Format.printf "select: directed=%b@ bvs=%a@\nans_chi(%s)=@ %a@\n%!"
+        let ans_p' =
+          snd (connected ~directed:true
+                 (b::VarSet.elements (Hashtbl.find q.b_vs b))
+                 ([],ans_p)) in
+        Format.printf
+          "select-10: directed=%b@ bvs=%a@\nb=%s@\nans_p=%a@\nans_p'=%a@\n%!"
           (q.is_chiK (q.find_chi b)) pr_vars bvs
-          (var_str b) pr_formula ans_p; (* *)
+          (var_str b) pr_formula ans_p pr_formula ans_p'; (* *)
         (* 10 *)
-        let (avs_p, ans_l, ans_r) = strat q b ans_p in
+        let (avs_p, ans_l, ans_r) = strat q b ans_p' in
         Format.printf "select: ans_l(%s)=@ %a@\n%!"
           (var_str b) pr_formula ans_l; (* *)
         (* Negatively occurring [b] "owns" these formal parameters *)
