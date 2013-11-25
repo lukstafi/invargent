@@ -9,7 +9,7 @@ open OUnit
 open Terms
 open Abduction
 
-let debug = ref true
+let debug = ref (* true *)false
 
 let cmp_v v1 v2 = Same_quant
 let uni_v v = v=VNam (Type_sort, "tx")
@@ -18,8 +18,8 @@ let q = {cmp_v; uni_v; same_as = fun _ _ -> ()}
 
 let p_formula s = Parser.formula Lexer.token (Lexing.from_string s)
 let br_simple lhs rhs =
-  let lhs, _, _ = unify q lhs in
-  let rhs, _, _ = unify q rhs in
+  let lhs, _, _ = unify ~use_quants:false q lhs in
+  let rhs, _, _ = unify ~use_quants:false q rhs in
   lhs, rhs
 
 let test_simple lhs_m rhs_m ?(validate=(fun _ _ -> ())) skip res =
@@ -51,10 +51,15 @@ let tests = "Abduction" >::: [
       Terms.reset_state ();
       Infer.reset_state ();
       try
-        test_simple lhs1 rhs1 0 "tb = Int"; 
-        test_simple lhs1 rhs1 1 "tb = td";
-        test_simple lhs1 rhs1 2 "ta = (Term tb)";
-        test_simple lhs1 rhs1 3 "none";
+        test_simple lhs1 rhs1 0 "tb = td";
+        test_simple lhs1 rhs1 1 "tb = Int ∧
+td = Int"; 
+        test_simple lhs1 rhs1 2 "tb = td";
+        test_simple lhs1 rhs1 3 "tb = Int";
+        test_simple lhs1 rhs1 4 "td = Int ∧
+ta = (Term tb)";
+        test_simple lhs1 rhs1 5 "ta = (Term tb)";
+        test_simple lhs1 rhs1 6 "none";
       with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
         Terms.pr_exception Format.str_formatter exn;
@@ -68,9 +73,11 @@ let tests = "Abduction" >::: [
       Terms.reset_state ();
       Infer.reset_state ();
       try
-        test_simple lhs1 rhs1 0 "tb = (G A)"; 
-        test_simple lhs1 rhs1 1 "tb = (G ta)";
-        test_simple lhs1 rhs1 2 "none";
+        test_simple lhs1 rhs1 0 "tb = (G ta)";
+        test_simple lhs1 rhs1 1 "ta = A ∧
+tb = (G A)"; 
+        test_simple lhs1 rhs1 2 "tb = (G A)"; 
+        test_simple lhs1 rhs1 3 "none";
       with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
         Terms.pr_exception Format.str_formatter exn;
@@ -97,8 +104,8 @@ let tests = "Abduction" >::: [
               pr_to_str pr_formula (to_formula ans_typ)
           with Suspect _ -> "none" in
         assert_equal ~printer:(fun x -> x)
-          "tD = (Ty Int, Ty Int → Bool) ∧
-tA = (Ty tB, Ty tC → Bool)" ans
+          "tA = (Ty tB, Ty tC → Bool) ∧
+tD = (Ty Int, Ty Int → Bool)" ans
       with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
         Terms.pr_exception Format.str_formatter exn;
