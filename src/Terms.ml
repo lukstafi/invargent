@@ -954,8 +954,9 @@ let split_sorts cnj =
 
 let connected ?(validate=fun _ -> ()) ~directed target (vs, phi) =
   let phi = List.sort (fun a b -> atom_size a - atom_size b) phi in
-  Format.printf "connected: vs=%a@\nphi=%a@\n%!"
-    pr_vars (vars_of_list vs) pr_formula phi; (* *)
+  Format.printf "connected: target=%a@ vs=%a@\nphi=%a@\n%!"
+    pr_vars (vars_of_list target) pr_vars (vars_of_list vs)
+    pr_formula phi; (* *)
   let nodes = List.map
       (function
         | Eqty (TVar _, TVar _, _) as c ->

@@ -964,7 +964,7 @@ let rec filter =
 
   "filter poly" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "polymorphic list filter"
 "newtype Bool
 newtype List : type * num
@@ -982,11 +982,10 @@ let rec filter = fun f ->
           LCons (x, ys)
 	| False ->
           filter f xs"
-        [2,"∃n, k, a.
+        [2,"∃n, a.
   δ =
-    ((a → Bool) → List (a, k) → ∃2:k[k ≤ n ∧ 0 ≤ n ∧
-       0 ≤ k].List (a, k)) ∧
-  n = k"];
+    ((a → Bool) → List (a, n) → ∃2:k[k ≤ n ∧ 0 ≤ n ∧
+       0 ≤ k].List (a, k))"];
 
     );
 
@@ -1010,11 +1009,10 @@ let rec filter = fun f g ->
           LCons (g x, ys)
 	| False ->
           filter f g xs"
-        [2,"∃n, k, a, b.
+        [2,"∃n, a, b.
   δ =
-    ((a → Bool) → (a → b) → List (a, k) → ∃2:k[k ≤ n ∧
-       0 ≤ n ∧ 0 ≤ k].List (b, k)) ∧
-  n = k"];
+    ((a → Bool) → (a → b) → List (a, n) → ∃2:k[k ≤ n ∧
+       0 ≤ n ∧ 0 ≤ k].List (b, k))"];
 
     );
 

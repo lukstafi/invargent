@@ -286,14 +286,17 @@ let split avs ans negchi_locs bvs cand_bvs q =
       | _ -> true) ans in
     (* 3 *)
     let ans_cand = List.map
-      (fun b -> b,
-        snd (connected ~directed:false
-               (VarSet.elements (Hashtbl.find q.b_vs b)) ([],ans0)))
+      (fun b ->
+        Format.printf "split-loop-3: b=%s@ target=%a@\n%!"
+          (var_str b) pr_vars (Hashtbl.find q.b_vs b); (* *)
+        b,
+        snd (connected ~directed:true
+               (b::VarSet.elements (Hashtbl.find q.b_vs b)) ([],ans0)))
       q.negbs in
-    Format.printf "split-loop: ans1=@\n%a@\n%!"
+    Format.printf "split-loop-3: ans1=@\n%a@\n%!"
       pr_bchi_subst (List.map (fun (b,a)->b,(VarSet.elements (Hashtbl.find q.b_vs b),a))
                        ans_cand); (* *)
-    (* 4 DEBUG *)
+    (* 4 *)
     let ans_cand = List.map
       (fun (b,ans) -> b,
        let chi_locs = Hashtbl.find_all negchi_locs b in
@@ -308,7 +311,7 @@ let split avs ans negchi_locs bvs cand_bvs q =
                    List.exists (interloc lc) chi_locs)
          ans)
       ans_cand in
-    Format.printf "split-loop: ans2=@\n%a@\n%!"
+    Format.printf "split-loop-4: ans2=@\n%a@\n%!"
       pr_bchi_subst (List.map (fun (b,a)->b,([],a))
                        ans_cand); (* *)
     (* 5 *)
@@ -321,27 +324,22 @@ let split avs ans negchi_locs bvs cand_bvs q =
              || not (List.memq c ans')) ans_cand)
          ans)
       ans_cand in
-    Format.printf "split-loop: ans3=@\n%a@\ncand_bvs=%a@\n%!"
+    Format.printf "split-loop-5: ans3=@\n%a@\ncand_bvs=%a@\n%!"
       pr_bchi_subst (List.map (fun (b,a)->b,([],a))
                        ans_cand)
       pr_vars cand_bvs; (* *)
     (* 6 *)
-    (*let ans_cand = List.map
-      (fun (b,ans) ->
-        let bvs = Hashtbl.find q.b_vs b in
-        let res = List.filter
-            (fun c ->
-               Format.printf "c=%a@ cvs=%a@\n%!"
-                 pr_atom c pr_vars (fvs_atom c); (* *)
-               VarSet.is_empty
-                (VarSet.diff (fvs_atom c) cand_bvs))
-          ans in
-        Format.printf "split-loop-6: b=%s;@ vs=%a;@ res=%a@\n%!"
-          (var_str b) pr_vars bvs pr_formula res;
-        b, res)
-      ans_cand in*)
-    Format.printf "split-loop: ans4=@\n%a@\n%!"
-      pr_bchi_subst (List.map (fun (b,a)->b,([],a))
+    let ans_cand = List.map
+      (fun (b, ans) ->
+        Format.printf "split-loop-6: b=%s@ target=%a@\n%!"
+          (var_str b) pr_vars (VarSet.inter (fvs_formula ans) cand_bvs); (* *)
+        b,
+        snd (connected ~directed:false
+               (b::VarSet.elements
+                    (VarSet.inter (fvs_formula ans) cand_bvs)) ([],ans0)))
+      ans_cand in
+    Format.printf "split-loop-6: ans4=@\n%a@\n%!"
+      pr_bchi_subst (List.map (fun (b,a)->b,(VarSet.elements (Hashtbl.find q.b_vs b),a))
                        ans_cand); (* *)
     (* 7 *)
     let init_res = List.filter
@@ -371,9 +369,6 @@ let split avs ans negchi_locs bvs cand_bvs q =
     let ans_strat = List.map
       (fun (b, ans_p) ->
         let bvs = Hashtbl.find q.b_vs b in
-        let ans_p = snd
-            (connected ~directed:true
-               (VarSet.elements bvs) ([],ans_p)) in
         Format.printf "select: directed=%b@ bvs=%a@\nans_chi(%s)=@ %a@\n%!"
           (q.is_chiK (q.find_chi b)) pr_vars bvs
           (var_str b) pr_formula ans_p; (* *)
@@ -994,14 +989,14 @@ let solve q_ops exty_res_chi brs =
              let b = match bs with [b] -> b | _ -> assert false in
              let dvs, dans = List.assoc b ans_sol in
              Format.printf
-               "solve-loop-9: chi%d(%s)=@ %a@ +@ %a@\n%!"
+               "solve-loop-10: chi%d(%s)=@ %a@ +@ %a@\n%!"
                i (var_str b) pr_ans (dvs,dans) pr_ans (vs,ans); (* *)
              (* No need to substitute, because variables will be
                 freshened when predicate variable is instantiated. *)
              let dans = subst_formula [b, (tdelta, dummy_loc)] dans in
              let i_res = simplify q.op (dvs @ vs, dans @ ans) in
              Format.printf
-               "solve-loop: vs=%a@ ans=%a@ chi%d(.)=@ %a@\n%!"
+               "solve-loop-10: vs=%a@ ans=%a@ chi%d(.)=@ %a@\n%!"
                pr_vars (vars_of_list vs) pr_formula ans i pr_ans i_res; (* *)
              i, i_res)
           sol1 in    
