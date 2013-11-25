@@ -964,7 +964,7 @@ let rec filter =
 
   "filter poly" >::
     (fun () ->
-       skip_if !debug "debug";
+       (* skip_if !debug "debug"; *)
        test_case "polymorphic list filter"
 "newtype Bool
 newtype List : type * num
@@ -1020,7 +1020,9 @@ let rec filter = fun f g ->
   "binary upper bound" >::
     (fun () ->
        skip_if !debug "debug";
-       (* todo "harder existential"; *)
+       (* We need to expand the branch when the first argument is
+          [Zero] from [efunction b -> b] to the cases as below, to
+          convey the fact that the numerical parameter is non-negative. *)
        test_case "binary upper bound -- bitwise or"
 "newtype Binary : num
 newcons Zero : Binary 0
@@ -1028,7 +1030,10 @@ newcons PZero : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n)
 newcons POne : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n+1)
 
 let rec ub = efunction
-  | Zero -> (efunction a -> a)
+  | Zero ->
+      (efunction Zero -> Zero
+        | PZero b1 as b -> b
+        | POne b1 as b -> b)
   | PZero a1 as a ->
       (efunction Zero -> a
         | PZero b1 ->
@@ -1047,8 +1052,8 @@ let rec ub = efunction
           POne r)"
         [2,"∃n, k.
   δ =
-    (Binary k → Binary n → ∃4:i[0 ≤ k ∧ i ≤ (k + n) ∧
-       n ≤ i ∧ k ≤ i].Binary i)"]
+    (Binary k → Binary n → ∃4:i[n ≤ i ∧ k ≤ i ∧
+       i ≤ (k + n) ∧ 0 ≤ n ∧ 0 ≤ k].Binary i)"]
     );
 
   (* TODO: tests for nested/mutual recursive definitions *)

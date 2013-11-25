@@ -1235,12 +1235,12 @@
     <math|A<rsub|\<chi\>><rsup|+>> represent the invariants, the solution for
     invariant type parameters.
 
-    <item><math|<tabular|<tformat|<table|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|Strat<around*|(|Connected<around*|(|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>,A<rsup|+><rsub|\<chi\>>|)>,<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|)><with|mode|text|
+    <item><math|<tabular|<tformat|<table|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|Strat<around*|(|A<rsup|+><rsub|\<chi\>>,<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|)><with|mode|text|
     \ returns >\<bot\><with|mode|text| for some
     >\<chi\>>>>>><with|mode|text|then return >\<bot\>> In the implementation,
     we address stratification issues already during abduction.
 
-    <item><math|<wide|\<alpha\>|\<bar\>><rsub|+><rsup|\<chi\>>,A<rsub|\<chi\>><rsup|L>,A<rsup|R><rsub|\<chi\>>=Strat<around*|(|Connected<around*|(|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>,A<rsup|+><rsub|\<chi\>>|)>,<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|)>>
+    <item><math|<wide|\<alpha\>|\<bar\>><rsub|+><rsup|\<chi\>>,A<rsub|\<chi\>><rsup|L>,A<rsup|R><rsub|\<chi\>>=Strat<around*|(|A<rsup|+><rsub|\<chi\>>,<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|)>>
     is computed as follows: for every <math|c\<in\>A<rsub|\<chi\>><rsup|+>>,
     and for every <math|\<beta\><rsub|2>\<in\>FV<around*|(|c|)>> such that
     <math|\<beta\><rsub|1>\<less\><rsub|\<cal-Q\>>\<beta\><rsub|2>> for
@@ -1255,9 +1255,6 @@
     <math|c> to <with|mode|math|A<rsub|\<chi\>><rsup|L>>.
 
     <\itemize>
-      <item>Before calling <math|Strat> we discard components not connected
-      with known parameters.
-
       <item>We add <math|<wide|\<alpha\>|\<bar\>><rsub|+><rsup|\<chi\>>> to
       <math|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>>.
     </itemize>
