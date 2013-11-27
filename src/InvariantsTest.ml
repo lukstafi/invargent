@@ -1158,8 +1158,9 @@ let rec eval =
         3, "∃. δ = (Calc → ∃2:n[].Num n)"]
     );
 
-  "mutual recursion calc" >::
+  "mutual recursion medium calc" >::
     (fun () ->
+       todo "mutual existential";
        (* skip_if !debug "debug"; *)
        test_case "mutual recursion universal eval and existential calc"
 "newtype Term : type
@@ -1167,8 +1168,46 @@ newtype Num : num
 newtype Calc
 newtype Bool
 
-external plus : Calc → Calc → ∃k. Num k
-external mult : Calc → Calc → ∃k. Num k
+external is_zero : ∀i. Num i → Bool
+external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k
+external if : ∀a. Bool → a → a → a
+
+newcons Lit : ∀k. Num k ⟶ Calc
+newcons Cond : Term Bool * Calc * Calc ⟶ Calc
+
+newcons IsZero : Calc ⟶ Term Bool
+newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+newcons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
+
+let rec eval =
+  let rec calc =
+    efunction
+    | Lit i -> i
+    | Cond (b, t, e) ->
+      let rt = calc t in
+      let re = calc e in
+      cond (eval b) rt re in
+  function
+  | IsZero x -> let r = calc x in is_zero r
+  | If (b, t, e) -> if (eval b) (eval t) (eval e)
+  | Pair (x, y) -> eval x, eval y"
+
+        [2, "∃a. δ = (Term a → a)";
+        3, "∃. δ = (Calc → ∃3:n[].Num n)"]
+    );
+
+  "mutual recursion calc" >::
+    (fun () ->
+       todo "mutual existential";
+       (* skip_if !debug "debug"; *)
+       test_case "mutual recursion universal eval and existential calc"
+"newtype Term : type
+newtype Num : num
+newtype Calc
+newtype Bool
+
+external plus : ∀i,j. Num i → Num j → Num (i+j)
+external mult : ∀i,j. Num i → Num j → ∃k. Num k
 external is_zero : ∀i. Num i → Bool
 external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k
 external if : ∀a. Bool → a → a → a
