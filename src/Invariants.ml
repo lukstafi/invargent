@@ -723,29 +723,36 @@ let solve q_ops exty_res_chi brs =
           let chi = Hashtbl.find exty_res_chi exty in
           let _, ans = List.assoc chi sol1 in
           fvs_formula ans in
-        (* FIXME: this whole business with postconditions! *)
         let g_rol = List.map
-            (fun (i,cnjs) ->
-               let preserve = dsj_preserve i in
-               let g_vs, g_ans =
+            (fun (i,_) ->
+               Format.printf "solve: approaching disjelim for %d@\n%!"
+                 i; (* *)
+               try
+                 let cnjs = List.assoc i g_rol in
+                 let preserve = dsj_preserve i in
+                 let g_vs, g_ans =
+                   (* FIXME *)
+                   DisjElim.disjelim q_ops ~preserve
+                     ~do_num:(disj_step.(1) <= iter_no) cnjs in
+                 let target = delta::g_vs in
+                 let g_ans = List.filter
+                     (fun c ->
+                        let cvs = fvs_atom c in
+                        List.exists (flip VarSet.mem cvs) target)
+                     g_ans in
                  (* FIXME *)
-                 DisjElim.disjelim q_ops ~preserve
-                   ~do_num:(disj_step.(1) <= iter_no) cnjs in
-               let target = delta::g_vs in
-               let g_ans = List.filter
-                   (fun c ->
-                      let cvs = fvs_atom c in
-                      List.exists (flip VarSet.mem cvs) target)
-                   g_ans in
-               (* FIXME *)
-               (* *)let g_ans =
-                 if iter_no < disj_step.(2)
-                 then
-                   DisjElim.initstep_heur q.op ~preserve g_ans
-                 else g_ans in(* *)
-               i, connected ~validate ~directed:true [delta; delta']
-                 (g_vs, g_ans))
-            g_rol in
+                 (* *)let g_ans =
+                   if iter_no < disj_step.(2)
+                   then
+                     DisjElim.initstep_heur q.op ~preserve g_ans
+                   else g_ans in(* *)
+                 i, connected ~validate ~directed:true [delta; delta']
+                   (g_vs, g_ans)
+               with Not_found ->
+                 Format.printf "solve: disjelim branches for %d not found@\n%!"
+                   i; (* *)
+                 i, ([], []))
+            rol1 in
         Format.printf "solve: iter_no=%d@\ng_rol.A=%a@\n%!"
           iter_no pr_chi_subst g_rol;
         (* *)
@@ -875,14 +882,10 @@ let solve q_ops exty_res_chi brs =
                  Format.printf
                    "neg_cl_check: passed (num)@ ty_cn=@ %a@\nnum_cn=@ %a@\n%!"
                    pr_subst ty_cn pr_formula num_cn; (* *)
-               with Contradiction (sort, msg, tys, lc) ->
-                 Format.printf "neg_cl_check: passed (typ) msg=%s@\n%!" msg;
-                 (match tys with
-                  | Some (t1, t2) ->
-                    Format.printf
-                      "types involved: ty1=%a;@ ty2=%a@\n%!"
-                      (pr_ty false) t1 (pr_ty false) t2
-                  | None -> ()); (* *)
+               with Contradiction _ as e ->
+                 Format.printf
+                   "neg_cl_check: passed (typ) by contradicting=@\n%a@\n%!"
+                   pr_exception e; (* *)
                  ())
             neg_cns1;
         (* 8 *)
@@ -901,12 +904,8 @@ let solve q_ops exty_res_chi brs =
       | (NoAnswer (sort, msg, tys, lc)
         | Contradiction (sort, msg, tys, lc)) as e ->
         Format.printf
-          "Fallback: iter_no=%d; sort=%s;@ msg=%s@\n%!"
-          iter_no (sort_str sort) msg;
-        (match tys with None -> ()
-                      | Some (t1, t2) ->
-                        Format.printf "types involved:@ t1=%a@ t2=%a@\n%!"
-                          (pr_ty false) t1 (pr_ty false) t2);
+          "Fallback: iter_no=%d; sort=%s;@ error=@\n%a@\n%!"
+          iter_no (sort_str sort) pr_exception e;
         (* *)
         Aux.Left (sort, e) in
     match answer with
@@ -940,7 +939,7 @@ let solve q_ops exty_res_chi brs =
                    (function
                      | Eqty (tv, tpar, _) when tv = tdelta' -> true
                      | _ -> false)
-                     g_ans in
+                   g_ans in
                let tpar =
                  match tpar with
                  | [Eqty (tv, tpar, _)] -> tpar

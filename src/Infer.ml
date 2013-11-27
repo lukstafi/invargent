@@ -896,7 +896,13 @@ let normalize q cn =
     match dsjs with
     | [] ->
       Format.printf "checking-Or: none passes@\n%!"; (* *)
-      raise (unsome !first_exn)
+      (match !first_exn with
+       | Some e -> raise e
+       | None ->
+         raise
+           (Report_toplevel
+              ("No valid disjunct, check existential type use",
+              Some (formula_loc guard_cnj))))
     | [cn, sol] ->
       Format.printf "dsj-test: selected\n%a@\n%!"
         pr_cnstrnt cn;

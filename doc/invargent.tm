@@ -338,11 +338,11 @@
   that hold together with the disjunction. <verbatim|solve_dsj> takes the
   result of <verbatim|flat_dsj> and tries to eliminate disjuncts. If only one
   disjunct is left, or we decide to pick <verbatim|LetIn> anyway
-  (<verbatim|step\<gtr\>0>), we return it. Otherwise we return the filtered
-  disjunction. <verbatim|prepare_brs> cleans up the initial flattened
-  constraints or the constraints released from disjunctions: it calls
-  <verbatim|simplify_brs> on implications and <verbatim|flat_dsj> on each
-  disjunction.
+  (<verbatim|step\<gtr\>0>), we return the disjunct. Otherwise we return the
+  filtered disjunction. <verbatim|prepare_brs> cleans up the initial
+  flattened constraints or the constraints released from disjunctions: it
+  calls <verbatim|simplify_brs> on implications and <verbatim|flat_dsj> on
+  each disjunction.
 
   We collect information about existential return types of recursive
   definitions in <verbatim|simplify_brs>:

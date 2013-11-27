@@ -1123,9 +1123,43 @@ let rec eval =
         2, "∃n. δ = (Calc n → Num n)"]
     );
 
+  "mutual recursion simple calc" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "mutual recursion simple universal eval and existential calc"
+"newtype Term : type
+newtype Num : num
+newtype Calc
+newtype Bool
+
+external is_zero : ∀i. Num i → Bool
+external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k
+external if : ∀a. Bool → a → a → a
+
+newcons Lit : ∀k. Num k ⟶ Calc
+newcons Cond : Term Bool * Calc * Calc ⟶ Calc
+
+newcons IsZero : Calc ⟶ Term Bool
+newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+
+let rec eval =
+  let rec calc =
+    efunction
+    | Lit i -> i
+    | Cond (b, t, e) ->
+      let rt = calc t in
+      let re = calc e in
+      cond (eval b) rt re in
+  function
+  | IsZero x -> let r = calc x in is_zero r
+  | If (b, t, e) -> if (eval b) (eval t) (eval e)"
+
+        [2, "∃a. δ = (Term a → a)";
+        3, "∃. δ = (Calc → ∃2:n[].Num n)"]
+    );
+
   "mutual recursion calc" >::
     (fun () ->
-       (* todo "mutual"; *)
        (* skip_if !debug "debug"; *)
        test_case "mutual recursion universal eval and existential calc"
 "newtype Term : type
@@ -1144,7 +1178,6 @@ newcons Plus : Calc * Calc ⟶ Calc
 newcons Mult : Calc * Calc ⟶ Calc
 newcons Cond : Term Bool * Calc * Calc ⟶ Calc
 
-newcons Comp : Calc ⟶ Term (∃k. Num k)
 newcons IsZero : Calc ⟶ Term Bool
 newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
 newcons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
@@ -1155,20 +1188,32 @@ let rec eval =
   let rec calc =
     efunction
     | Lit i -> i
-    | Plus (x, y) -> plus (calc x) (calc y)
-    | Mult (x, y) -> mult (calc x) (calc y)
-    | Cond (b, t, e) -> cond (eval b) (calc t) (calc e) in
+    | Plus (x, y) ->
+      let rx = calc x in
+      let ry = calc y in
+      plus rx ry
+    | Mult (x, y) ->
+      let rx = calc x in
+      let ry = calc y in
+      mult rx ry
+    | Cond (b, t, e) ->
+      let rt = calc t in
+      let re = calc e in
+      cond (eval b) rt re in
   function
-  | Comp x -> calc x
-  | IsZero x -> is_zero (calc x)
+  | IsZero x -> let r = calc x in is_zero r
   | If (b, t, e) -> if (eval b) (eval t) (eval e)
   | Pair (x, y) -> eval x, eval y
   | Fst p -> (match eval p with x, y -> x)
   | Snd p -> (match eval p with x, y -> y)"
 
-        [1, "∃a. δ = (Term a → a)";
-        2, "∃. δ = (Calc → ∃1:k[].Num k)"]
+        [2, "∃a. δ = (Term a → a)";
+        3, "∃. δ = (Calc → ∃2:n[].Num n)"]
     );
+
+  (* TODO: mutual recursion where the nested function has nontrivial
+     postcondition, which needs to be bootstrapped from its
+     non-recursive part. *)
 
   "binomial heap" >::
     (fun () ->
@@ -1179,6 +1224,4 @@ let rec eval =
         [2,""];
 
     );
-
-  (* TODO: more tests for nested/mutual recursive definitions *)
 ]
