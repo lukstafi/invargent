@@ -182,15 +182,15 @@ let implies_ans ans c_ans =
 
 exception Timeout
 
-let abd_simple q ?without_quant ~bvs
+let abd_simple q ?without_quant ~bvs ~pms
     ~validate ~discard skip (vs, ans) (prem, concl) =
   let counter = ref 0 in
-  let pms = vars_of_list vs in
+  let pms = add_vars vs pms in
   let skip = ref skip in
   let skipped = ref [] in
   let allvs = ref VarSet.empty in
   try
-    let prem, _ = subst_solved ~use_quants:false q ans ~cnj:prem in
+    let prem, prem_num = subst_solved ~use_quants:false q ans ~cnj:prem in
     let concl, _ = subst_solved ~use_quants:false q ans ~cnj:concl in
     Format.printf
       "abd_simple: skip=%d,@ bvs=@ %a;@ vs=@ %s;@ ans=@ %a@ --@\n@[<2>%a@ ⟹@ %a@]@\n%!"
@@ -568,6 +568,26 @@ let abd_simple q ?without_quant ~bvs
 let abd_typ q ~bvs ?(dissociate=false) ~validate ~discard brs =
   Format.printf "abd_typ:@ bvs=@ %a@\n%!"
     pr_vars bvs; (* *)
+  let alien_vs = ref [] in
+  let alien_eqs = ref [] in
+  let rec purge = function
+    | t when typ_sort t = Num_sort ->
+      let n = Infer.fresh_num_var () in
+      (* Alien vars become abduction answer vars. *)
+      alien_eqs := (n, (t, dummy_loc)):: !alien_eqs;
+      alien_vs := n :: !alien_vs; TVar n
+    | TCons (n, tys) -> TCons (n, List.map purge tys)
+    | Fun (t1, t2) -> Fun (purge t1, purge t2)
+    | (TVar _ | NCst _ | Nadd _) as t -> t in
+  let brs =
+    if dissociate
+    then List.map
+        (fun (prem,concl) ->
+           map_in_subst purge prem,
+           map_in_subst purge concl)
+        brs
+    else brs in
+  let pms = vars_of_list !alien_vs in
   let br0 = 0, List.hd brs in
   let more_brs = List.map (fun br -> -1, br) (List.tl brs) in
   let time = ref (Sys.time ()) in
@@ -585,7 +605,7 @@ let abd_typ q ~bvs ?(dissociate=false) ~validate ~discard brs =
         "abd_typ-loop: [%d] skip=%d, #runouts=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
         ddepth skip (List.length runouts) pr_subst (fst br) pr_subst
      (snd br); (* *)
-      match abd_simple q ~bvs ~validate ~discard skip acc br with
+      match abd_simple q ~bvs ~pms ~validate ~discard skip acc br with
       | Some (_, acc) when
           let phi1 = to_formula (snd acc) in
           List.exists (
@@ -617,8 +637,8 @@ let abd_typ q ~bvs ?(dissociate=false) ~validate ~discard brs =
       Format.printf
         "abd_typ-check_runouts: [%d] confls=%d, #done=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
         ddepth confls (List.length done_runouts) pr_subst (fst br)
-     pr_subst (snd br); (* *)
-      match abd_simple q ~bvs ~validate ~discard 0 acc br with
+        pr_subst (snd br); (* *)
+      match abd_simple q ~bvs ~pms ~validate ~discard 0 acc br with
       | Some (_,acc) when List.exists (implies_ans (snd acc)) failed ->
         Format.printf "abd_typ: reset runouts matching failed [%d]@\n%!" ddepth; (* *)
         loop failed init_bvs ([], [])
@@ -652,7 +672,7 @@ let abd_typ q ~bvs ?(dissociate=false) ~validate ~discard brs =
         "abd_typ-check_brs: [%d] skip=%d, #done=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
         ddepth skip (List.length done_brs) pr_subst (fst br) pr_subst
         (snd br); (* *)
-      match abd_simple q ~bvs ~validate ~discard 0 acc br with
+      match abd_simple q ~bvs ~pms ~validate ~discard 0 acc br with
       | Some (_,acc) when List.exists (implies_ans (snd acc)) failed ->
         Format.printf "abd_typ: reset check matching failed [%d]@\n%!" ddepth; (* *)
         loop failed init_bvs ([], [])
@@ -680,20 +700,9 @@ let abd_typ q ~bvs ?(dissociate=false) ~validate ~discard brs =
   Format.printf "abd_typ: result vs=%s@\nans=%a@\n%!"
     (String.concat ","(List.map var_str vs))
     pr_subst ans; (* *)
-  let alien_vs = ref [] in
-  let alien_eqs = ref [] in
-  let rec aux = function
-    | t when typ_sort t = Num_sort ->
-      let n = Infer.fresh_num_var () in
-      (* Alien vars become abduction answer vars. *)
-      alien_eqs := (n, (t, dummy_loc)):: !alien_eqs;
-      alien_vs := n :: !alien_vs; TVar n
-    | TCons (n, tys) -> TCons (n, List.map aux tys)
-    | Fun (t1, t2) -> Fun (aux t1, aux t2)
-    | (TVar _ | NCst _ | Nadd _) as t -> t in
   let ans =
     if dissociate
-    then List.map (fun (v,(t,lc)) -> v, (aux t, lc)) ans
+    then List.map (fun (v,(t,lc)) -> v, (purge t, lc)) ans
     else ans in
   let vs = !alien_vs @ vs in
   Format.printf "abd_typ: dissociated %b vs=%s@\nalien=@ %a@\nans=%a@\n%!"

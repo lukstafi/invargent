@@ -325,6 +325,10 @@ let n_subst_typ sb t =
   aux t
 
 
+let map_in_subst f =
+  List.map (fun (v,(t,lc)) -> v, (f t, lc))
+
+
 (** {3 Formulas} *)
 
 type atom =

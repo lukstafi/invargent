@@ -964,7 +964,7 @@ let rec filter =
 
   "filter poly" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "polymorphic list filter"
 "newtype Bool
 newtype List : type * num
@@ -1056,5 +1056,129 @@ let rec ub = efunction
        i ≤ (k + n) ∧ 0 ≤ n ∧ 0 ≤ k].Binary i)"]
     );
 
-  (* TODO: tests for nested/mutual recursive definitions *)
+  "nested recursion simple eval" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "nested recursion eval with literal numbers only"
+"newtype Term : type
+newtype Num : num
+newtype Calc : num
+newtype Bool
+
+external is_zero : ∀i. Num i → Bool
+external if : ∀a. Bool → a → a → a
+
+newcons Lit : ∀k. Num k ⟶ Calc k
+
+newcons IsZero : ∀k. Calc k ⟶ Term Bool
+newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+
+let rec eval =
+  let rec calc =
+    function
+    | Lit i -> i in
+  function
+  | IsZero x -> is_zero (calc x)
+  | If (b, t, e) -> if (eval b) (eval t) (eval e)"
+
+        [1, "∃a. δ = (Term a → a)";
+        2, "∃n. δ = (Calc n → Num n)"]
+    );
+
+  "nested recursion eval" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "nested recursion eval with plus only"
+"newtype Term : type
+newtype Num : num
+newtype Calc : num
+newtype Bool
+
+external plus : ∀i,j. Num i → Num j → Num (i+j)
+external is_zero : ∀i. Num i → Bool
+external if : ∀a. Bool → a → a → a
+
+newcons Lit : ∀k. Num k ⟶ Calc k
+newcons Plus : ∀i,j. Calc i * Calc j ⟶ Calc (i+j)
+
+newcons IsZero : ∀k. Calc k ⟶ Term Bool
+newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+newcons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
+newcons Fst : ∀a, b. Term (a, b) ⟶ Term a
+newcons Snd : ∀a, b. Term (a, b) ⟶ Term b
+
+let rec eval =
+  let rec calc =
+    function
+    | Lit i -> i
+    | Plus (i, j) -> plus (calc i) (calc j) in
+  function
+  | IsZero x -> is_zero (calc x)
+  | If (b, t, e) -> if (eval b) (eval t) (eval e)
+  | Pair (x, y) -> eval x, eval y
+  | Fst p -> (match eval p with x, y -> x)
+  | Snd p -> (match eval p with x, y -> y)"
+
+        [1, "∃a. δ = (Term a → a)";
+        2, "∃n. δ = (Calc n → Num n)"]
+    );
+
+  "mutual recursion calc" >::
+    (fun () ->
+       (* todo "mutual"; *)
+       (* skip_if !debug "debug"; *)
+       test_case "mutual recursion universal eval and existential calc"
+"newtype Term : type
+newtype Num : num
+newtype Calc
+newtype Bool
+
+external plus : Calc → Calc → ∃k. Num k
+external mult : Calc → Calc → ∃k. Num k
+external is_zero : ∀i. Num i → Bool
+external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k
+external if : ∀a. Bool → a → a → a
+
+newcons Lit : ∀k. Num k ⟶ Calc
+newcons Plus : Calc * Calc ⟶ Calc
+newcons Mult : Calc * Calc ⟶ Calc
+newcons Cond : Term Bool * Calc * Calc ⟶ Calc
+
+newcons Comp : Calc ⟶ Term (∃k. Num k)
+newcons IsZero : Calc ⟶ Term Bool
+newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+newcons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
+newcons Fst : ∀a, b. Term (a, b) ⟶ Term a
+newcons Snd : ∀a, b. Term (a, b) ⟶ Term b
+
+let rec eval =
+  let rec calc =
+    efunction
+    | Lit i -> i
+    | Plus (x, y) -> plus (calc x) (calc y)
+    | Mult (x, y) -> mult (calc x) (calc y)
+    | Cond (b, t, e) -> cond (eval b) (calc t) (calc e) in
+  function
+  | Comp x -> calc x
+  | IsZero x -> is_zero (calc x)
+  | If (b, t, e) -> if (eval b) (eval t) (eval e)
+  | Pair (x, y) -> eval x, eval y
+  | Fst p -> (match eval p with x, y -> x)
+  | Snd p -> (match eval p with x, y -> y)"
+
+        [1, "∃a. δ = (Term a → a)";
+        2, "∃. δ = (Calc → ∃1:k[].Num k)"]
+    );
+
+  "binomial heap" >::
+    (fun () ->
+       todo "write";
+       skip_if !debug "debug";
+       test_case "binomial heap -- mutual recursion"
+""
+        [2,""];
+
+    );
+
+  (* TODO: more tests for nested/mutual recursive definitions *)
 ]

@@ -659,15 +659,19 @@
   of the ``dissociation'' issue, to uncover the full content of numeric sort
   constraints.
 
-  For efficiency, we use a slightly different approach. On the first
-  iteration of the main algorithm, we dissociate alien subterms, but we do
-  not perform other-sort abduction at all. On the next iteration, we do not
-  perform dissociation, as we expect the dissociation in the partial answers
-  (to predicate variables) from the first step to be sufficient. Other-sort
+  To face efficiency of numerical abduction with many variables, we modify
+  the approach. On the first iteration of the main algorithm, we remove alien
+  subterms both from the branches and from the answer (the <verbatim|purge>
+  function), but we do not perform other-sort abduction at all. On the next
+  iteration, we do not purge alien subterms, neither from the branches nor
+  from the answer, as we expect the dissociation in the partial answers (to
+  predicate variables) from the first step to be sufficient. Other-sort
   abduction algorithms now have less work, because only a fraction of alien
   subterm variables <math|\<alpha\><rsub|s>> remain in the partial answers
   (see main algorithm in section <reference|MainAlgo>). They also have more
   information to work with, present in the instatiation of partial answers.
+  However, this optimization violates completeness guarantees of the
+  combination of sorts algorithm.
 
   <subsection|Simple constraint abduction for linear
   arithmetic><label|SCAlinear>

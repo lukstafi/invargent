@@ -237,6 +237,7 @@ val subst_typ : subst -> typ -> typ
 val hvsubst_typ : hvsubst -> typ -> typ
 val subst_sb : sb:subst -> subst -> subst
 val update_sb : more_sb:subst -> subst -> subst
+val map_in_subst : (typ -> typ) -> subst -> subst
 (** Substitute constants, and generally subterms identical to a term,
     with another term. [loc] is not used. *)
 val c_subst_typ : (typ * (typ * loc)) list -> typ -> typ
