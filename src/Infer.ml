@@ -725,12 +725,18 @@ let prenexize cn =
 
 let normalize q cn =
   let unify ?sb cnj = unify ~use_quants:false ?sb q cnj in
+  (* Predicate variables for invariants of recursive definitions (some
+     positive occs of unary pred vars are for postconditions). *)
+  let chi_rec = Hashtbl.create 2 in
+  let collect_chi_rec prem = List.iter
+      (function PredVarU (i, _, _) -> Hashtbl.replace chi_rec i ()
+              | _ -> ()) prem in
   (* From unary predicate variable to the existential type of its result. *)
   let chi_exty = Hashtbl.create 2 in
   (* Inverse of [chi_exty]. *)
   let exty_res_chi = Hashtbl.create 2 in
   (* Existential type compatible with the variable. *)
-  let v_exchi = Hashtbl.create 8 in
+  let v_exty = Hashtbl.create 8 in
   let v_chi = Hashtbl.create 8 in
   (* Raises [Contradiction] *)
   let simplify_brs = List.map
@@ -748,17 +754,18 @@ let normalize q cn =
            (* 2 *)
            List.iter (fun (v, (t, _)) ->
                match return_type t with
-               | TCons (Extype i, _) when not (Hashtbl.mem v_exchi v) ->
+               | TCons (Extype i, _) when not (Hashtbl.mem v_exty v) ->
                  Format.printf
                    "dsj-chi-exty: [2] v=%s i=%d@\n%!"
                    (var_str v) i; (* *)
-                 Hashtbl.add v_exchi v i
+                 Hashtbl.add v_exty v i
                | _ -> ())
              sb;
            (* 3 *)
            List.iter
              (function
-               | PredVarU (i, TVar b, _) when not (Hashtbl.mem v_chi b) ->
+               | PredVarU (i, TVar b, _)
+                 when Hashtbl.mem chi_rec i && not (Hashtbl.mem v_chi b) ->
                  Format.printf
                    "dsj-chi-exty: [3] b=%s i=%d@\n%!"
                    (var_str b) i; (* *)
@@ -779,13 +786,13 @@ let normalize q cn =
            (* 5 *)
            Hashtbl.iter
              (fun b i ->
-                if Hashtbl.mem v_exchi b &&
+                if Hashtbl.mem v_exty b &&
                    not (Hashtbl.mem chi_exty i)
                 then (
                   Format.printf
                     "dsj-chi-exty: [5] b=%s i=%d->j=%d@\n%!"
-                    (var_str b) i (Hashtbl.find v_exchi b); (* *)
-                  let exty = Hashtbl.find v_exchi b in
+                    (var_str b) i (Hashtbl.find v_exty b); (* *)
+                  let exty = Hashtbl.find v_exty b in
                   Hashtbl.add exty_res_chi exty i;
                   Hashtbl.add chi_exty i exty))
              v_chi;
@@ -793,12 +800,12 @@ let normalize q cn =
            Hashtbl.iter
                (fun b i ->
                   if Hashtbl.mem chi_exty i &&
-                     not (Hashtbl.mem v_exchi b)
+                     not (Hashtbl.mem v_exty b)
                   then (
                     Format.printf
                       "dsj-chi-exty: [6] b=%s i=%d->j=%d@\n%!"
                       (var_str b) i (Hashtbl.find chi_exty i); (* *)
-                    Hashtbl.replace v_exchi b (Hashtbl.find chi_exty i)))
+                    Hashtbl.replace v_exty b (Hashtbl.find chi_exty i)))
                v_chi;
            prem,
            to_formula concl_typ @ concl_num @ concl_so) in
@@ -812,7 +819,7 @@ let normalize q cn =
       cnj, impls, dsjs
     | Impl ([], concl) -> flat_and concl
     | Impl (prem, concl) ->
-      [], [prem, concl], []
+      collect_chi_rec prem; [], [prem, concl], []
     | Or cns ->
       [], [], [cns]      
     | All _ | Ex _ -> assert false in
@@ -847,10 +854,10 @@ let normalize q cn =
   let check_chi_exty =
     List.for_all
       (function
-        | v, (TCons (cn, _), _) when Hashtbl.mem v_exchi v ->
+        | v, (TCons (cn, _), _) when Hashtbl.mem v_exty v ->
           Format.printf "dsj-test: ex case =%s v=%s v_chi=%d@\n%!"
-            (cns_str cn) (var_str v) (Hashtbl.find v_exchi v); (* *)
-          cn = Extype (Hashtbl.find v_exchi v)
+            (cns_str cn) (var_str v) (Hashtbl.find v_exty v); (* *)
+          cn = Extype (Hashtbl.find v_exty v)
         | _ -> true) in
   let solve_dsj step (guard_cnj, dsjs) =
     let sb, _, _ = unify guard_cnj in
@@ -875,9 +882,9 @@ let normalize q cn =
                      raise (Contradiction
                               (Type_sort, "Should not be existential",
                                Some (t, t), loc))        
-                   | NotEx (TVar v as t, loc) when Hashtbl.mem v_exchi v ->
+                   | NotEx (TVar v as t, loc) when Hashtbl.mem v_exty v ->
                      let st =
-                       TCons (Extype (Hashtbl.find v_exchi v), []) in
+                       TCons (Extype (Hashtbl.find v_exty v), []) in
                      raise (Contradiction
                               (Type_sort, "Should not be existential",
                                Some (t, st), loc))
@@ -962,6 +969,13 @@ let simplify preserve q brs =
   (* Prune "implies true" branches. *)
   let brs = List.filter
     (function _, [] -> false | _ -> true) brs in
+  (* Predicate variables for invariants of recursive definitions (some
+     positive occs of unary pred vars are for postconditions). *)
+  let chi_rec = Hashtbl.create 2 in
+  let collect_chi_rec (prem, _) = List.iter
+      (function PredVarU (i, _, _) -> Hashtbl.replace chi_rec i ()
+              | _ -> ()) prem in
+  List.iter collect_chi_rec brs;
   (* Prune uninformative variables. *)
   let ht = Hashtbl.create 255 in
   let increase v =
@@ -984,12 +998,17 @@ let simplify preserve q brs =
     | _ -> false in
   let nonred_pr_atom a = not (redundant_atom true a) in
   let nonred_atom a = not (redundant_atom false a) in
+  let is_nonrec concl =
+    not (List.exists (function
+        | PredVarU (i, _, _) -> Hashtbl.mem chi_rec i
+        | _ -> false) concl) in
   let brs = List.map
     (fun (prem,concl) ->
       List.filter nonred_pr_atom prem,
       List.filter nonred_atom concl)
     brs in
-  (* Merge branches with the same premise. *)
+  (* Merge branches with the same premise. Do not merge branches when
+     one is non-recursive and the other is recursive. *)
   (* Roughly like [map_reduce (@) [] brs] *)
   let equiv cnj1 cnj2 =
     let c1_ty, c1_num, c1_so = unify ~use_quants:false q cnj1 in
@@ -1013,15 +1032,17 @@ let simplify preserve q brs =
       (List.sort compare c1_so = List.sort compare c2_so)
       pr_formula cnj1 pr_formula cnj2; (* *)
     res in
-  let rec meet prem concl = function
+  let rec meet nonrec prem concl = function
     | [] -> raise Not_found
     | (prem2, concl2 as br) :: brs ->
-      if equiv prem prem2 then (prem, concl @ concl2) :: brs
-      else br :: meet prem concl brs in
+      let nonrec2 = is_nonrec concl2 in
+      if nonrec=nonrec2 && equiv prem prem2
+      then (prem, concl @ concl2) :: brs
+      else br :: meet nonrec prem concl brs in
   let rec merge acc = function
     | [] -> List.rev acc
     | (prem, concl as br) :: brs ->
-      try merge acc (meet prem concl brs)
+      try merge acc (meet (is_nonrec concl) prem concl brs)
       with Not_found -> merge (br::acc) brs in
   let brs = merge [] brs in
   List.stable_sort

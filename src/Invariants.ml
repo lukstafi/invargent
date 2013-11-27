@@ -138,11 +138,8 @@ let sb_formula_PredU q posi psb phi =
   concat_map (sb_atom_PredU q posi psb) phi
 
 let sb_brs_PredU q sol brs = List.map
-  (fun (prem,concl) ->
-    List.for_all                        (* is_nonrec *)
-      (function PredVarU _ -> false | _ -> true) concl &&
-      List.for_all
-      (function PredVarB _ -> false | _ -> true) prem,
+  (fun (nonrec,prem,concl) ->
+    nonrec,
     Aux.map_some                        (* chiK_neg *)
       (function PredVarB (i,t1,t2,lc) -> Some (i,t1,t2,lc) | _ -> None) prem,
     Aux.map_some                        (* chiK_pos *)
@@ -602,6 +599,7 @@ let solve q_ops exty_res_chi brs =
     (List.map (fun (cnj,_) -> cnj, []) neg_cns); (* *)
   let negchi_locs = Hashtbl.create 8 in
   let alphasK = Hashtbl.create 8 in
+  let chi_rec = Hashtbl.create 2 in
   List.iter
     (fun (prem,concl) ->
        List.iter
@@ -609,6 +607,7 @@ let solve q_ops exty_res_chi brs =
            | PredVarU (i, TVar b, lc_p) ->
              let lc_c = formula_loc concl in
              Hashtbl.add negchi_locs b (loc_union lc_p lc_c);
+             Hashtbl.replace chi_rec i ();
              q.add_bchi b i ~posi:false ~chiK:false
            | PredVarB (i, TVar b, _, lc_p) ->
              let lc_c = formula_loc concl in
@@ -624,6 +623,13 @@ let solve q_ops exty_res_chi brs =
              q.add_bchi b i ~posi:true ~chiK:true
            | _ -> ()) concl;
     ) brs;
+  let brs = List.map
+      (fun (prem,concl) ->
+         not (List.exists (function
+             | PredVarU (i, _, _) -> Hashtbl.mem chi_rec i
+             | _ -> false) concl),
+         prem, concl)
+      brs in
   let exty_of_chi = Hashtbl.create 4 in
   List.iter
     (fun (ety, _) ->

@@ -1160,7 +1160,7 @@ let rec eval =
 
   "mutual recursion medium calc" >::
     (fun () ->
-       todo "mutual existential";
+       (* todo "mutual existential"; *)
        (* skip_if !debug "debug"; *)
        test_case "mutual recursion universal eval and existential calc"
 "newtype Term : type

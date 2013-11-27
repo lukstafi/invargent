@@ -23,9 +23,9 @@ Milestones: [x] - completed, [#] - finishing (75%-95%), [+] - in the middle (25%
 - [x] Solve for predicate variables related to recursive definitions. Iterate till fixpoint part 1.
 - [x] Solve for predicate variables related to existential types. Iterate till fixpoint part 2.
 - [x] Enforce convergence for numerical constraints. (Required for postconditions.)
-- [-] Resolve issues in interaction of mutual recursion and postcondition inference.
-- [_] Implement time-out integrated with error reporting (likely culprit).
-- [_] Export (print) OCaml source. Collect examples, test, write user documentation.
+- [+] Add more tests and resolve issues that emerge.
+- [_] Export (print) OCaml source. Collect examples, write user documentation.
+- [_] Improve error reporting, implement time-out integrated with error reporting (likely culprit).
 
 And version 2.0 goals:
 - [_] Formalize inference of GADT type definitions from function types.

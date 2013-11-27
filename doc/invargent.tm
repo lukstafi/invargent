@@ -379,7 +379,10 @@
   atoms. We remove atoms that bind variables not occurring anywhere else in
   the constraint, and in case of atoms not in premises, not universally
   quantified. The simplification step is not currently proven correct and
-  might need refining. We merge implications with the same premise.
+  might need refining. We merge implications with the same premise, unless
+  one of them is non-recursive and the other is recursive. We call an
+  implication branch recursive when an unary predicate variable
+  <math|\<chi\>> (not a <math|\<chi\><rsub|K>>) appears in the conclusion.
 
   <section|Abduction>
 
@@ -1603,7 +1606,7 @@
     <associate|MainAlgo|<tuple|5|13>>
     <associate|MainAlgoBody|<tuple|5.3|15>>
     <associate|NumConv|<tuple|4.2|11>>
-    <associate|Rg|<tuple|5|15>>
+    <associate|Rg|<tuple|5|16>>
     <associate|SCAlinear|<tuple|3.4|8>>
     <associate|SepProp|<tuple|5|3>>
     <associate|SepProp2|<tuple|6|?>>
@@ -1631,7 +1634,7 @@
     <associate|auto-24|<tuple|5.5|17>>
     <associate|auto-3|<tuple|2.1|4>>
     <associate|auto-4|<tuple|2.1.1|4>>
-    <associate|auto-5|<tuple|2.2|4>>
+    <associate|auto-5|<tuple|2.2|5>>
     <associate|auto-6|<tuple|3|5>>
     <associate|auto-7|<tuple|3.1|5>>
     <associate|auto-8|<tuple|3.1.1|7>>
