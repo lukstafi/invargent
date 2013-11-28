@@ -583,7 +583,7 @@
   these equations (<verbatim|b_sb> if the LHS is in <verbatim|bvs>). We
   preserve the order of equations in the candidate list.
 
-  <subsection|Joint constraint abduction for terms>
+  <subsection|Joint constraint abduction>
 
   We further lose generality by using a heuristic search scheme instead of
   testing all combinations of simple abduction answers. In particular, our
@@ -593,34 +593,31 @@
   which checks for consistency of the partial answer, the premise and the
   conclusion of each branch, including consistency for other sorts.
 
-  We maintain an ordering of branches. We accumulate simple abduction answers
-  into the partial abduction answer until we meet branch that does not have
-  any answer satisfiable with the partial answer so far. Then we start over,
-  but put the branch that failed in front of the sequence. If a branch
-  <math|i> is at front for <math|n<rsub|i>>th time, we skip the initial
-  <math|n<rsub|i>-1> simple abduction answers in it. If no front branch
-  <math|i> has at least <math|n<rsub|i>> answers, the search fails. After an
-  answer working for all branches has been found, we perform additional
-  check, which encapsulates negative constraints introduced by
-  <verbatim|assert false> construct. If the check fails, we increase the skip
-  count of the head branch and repeat the search.
+  We accumulate simple abduction answers into the partial abduction answer,
+  we set aside branches that do not have any answer satisfiable with the
+  partial answer so far. After all branches have been tried and the partial
+  answer is not an empty conjunction (i.e. not <math|\<top\>>), we retry the
+  set-aside branches. If during the retry, any of the set-aside branches
+  fails, we add the partial answer to discarded answers -- which are avoided
+  during simple abduction -- and restart. If, when left with set-aside
+  branches only, the partial answer is an empty conjunction, i.e. all the
+  answer-contributing branches have been set aside, we fail -- return
+  <math|\<bot\>> from the joint abduction. This does not peform complete
+  backtracking (no completeness guarantee), but is therefore quicker to
+  report unsolvable cases and does sufficient backtracking. After an answer
+  working for all branches has been found, we perform additional check, which
+  encapsulates negative constraints introduced by <verbatim|assert false>
+  construct. If the check fails, we add the answer to discarded answers and
+  repeat the search.
 
-  When a branch has no more solutions to offer -- its skip factor
-  <math|n<rsub|i>> has reached the number of fully maximal solutions to that
-  branch -- we move it to a separate <em|runouts> list and continue search
-  starting from a different branch. We do not increase its skip factor, but
-  we check the runouts directly after the first branch, so that conflicting
-  branches can be located. When the first branch conflicts with the runouts,
-  we increase its skip factor and repeat. We keep a count of conflicts for
-  the runouts so that in case of overall failure, we can report a branch
-  likely to be among those preventing abduction.
+  We keep a count of conflicts for the runouts so that in case of overall
+  failure, we can report a branch likely to be among those preventing
+  abduction.
 
-  We remember SCA answers when skipping over them, not to return the same
-  answer for different skip factors. But we also remember all JCA partial
-  answers that led to resetting. If a partial answer becomes as strong as one
-  of them, we can reset without further checking. If an empty partial answer
-  led to resetting, no answer exists. The failed partial answers are
-  initialized with the discarded answers, passed from the main algorithm.
+  If a partial answer becomes as strong as one of the discarded answers
+  inside SCA, simple constraint abduction skips to find a different answer.
+  The discarded answers are initialized with a discard list passed from the
+  main algorithm.
 
   As described in <cite|jcaqpTechRep2>, to check validity of answers, we use
   a modified variant of unification under quantifiers: unification with
@@ -634,10 +631,14 @@
   abduction algorithm, and recover them after the final answer for terms
   (i.e. for the type sort) is found.
 
-  When searching for abduction answer fails, we raise exception
-  <verbatim|Suspect> that contains the partial answer conjoined with
-  conclusion of an implication that failed to produce an answer compatible
-  with remaining implications.
+  Searching for abduction answer can fail in only one way: we have set aside
+  all the branches that could contribute to the answer. It is difficult to
+  pin-point the culprit. We remember which branch caused the restart when the
+  number of set-aside branches was the smallest. We raise exception
+  <verbatim|Suspect> that contains the conclusion of that branch.
+
+  The core algorithm shared across sorts is provided in the <verbatim|Joint>
+  module.
 
   <subsection|Abduction for terms with Alien Subterms><label|AlienSubterms>
 
@@ -841,53 +842,6 @@
   numerical abduction (the second iteration of the main algorithm), branches
   that contain unary predicate variables in the conclusion, i.e. we only use
   the ``non-recursive'' branches.
-
-  <subsection|Joint constraint abduction for linear arithmetic>
-
-  We follow the scheme we established in joint constraint abduction for
-  terms.
-
-  We maintain an ordering of branches. We accumulate simple abduction answers
-  into the partial abduction answer until we meet branch that does not have
-  any answer satisfiable with the partial answer so far. Then we start over,
-  but put the branch that failed in front of the sequence. If a branch
-  <math|i> is at front for <math|n<rsub|i>>th time, we skip the initial
-  <math|n<rsub|i>-1> simple abduction answers in it. If no front branch
-  <math|i> has at least <math|n<rsub|i>> answers, the search fails. [FIXME:
-  After an answer working for all branches has been found, we perform
-  additional check, which encapsulates negative constraints introduced by
-  <verbatim|assert false> construct. If the check fails, we increase the skip
-  count of the head branch and repeat the search. -- in term abduction only?]
-
-  When a branch has no more solutions to offer -- its skip factor
-  <math|n<rsub|i>> has reached the number of fully maximal solutions to that
-  branch -- we move it to a separate <em|runouts> list and continue search
-  starting from a different branch. We do not increase its skip factor, but
-  we check the runouts directly after the first branch, so that conflicting
-  branches can be located. When the first branch conflicts with the runouts,
-  we increase its skip factor and repeat. We keep a count of conflicts for
-  the runouts so that in case of overall failure, we can report a branch
-  likely to be among those preventing abduction.
-
-  We remember SCA answers when skipping over them, not to return the same
-  answer for different skip factors. But we also remember all JCA partial
-  answers that led to resetting. If a partial answer becomes as strong as one
-  of them, we can reset without further checking. The failed partial answers
-  are initialized with the discarded answers, passed from the main algorithm.
-
-  If an empty partial answer led to resetting, no fully maximal answer
-  exists. A parameter <verbatim|early_num_abduction> decides whether to add
-  such branch to <verbatim|runouts> -- if true, or fail numerical abduction
-  (return no answer) altogether -- if false. When
-  <verbatim|early_num_abduction> is false, we only consider non-recursive
-  branches in first iteration that calls numerical abduction, and
-  non-recursive branches have sufficient information so that fully maximal
-  answers suffice.
-
-  When searching for abduction answer fails, we raise exception
-  <verbatim|Suspect> that contains the partial answer conjoined with
-  conclusion of an implication that failed to produce an answer compatible
-  with remaining implications.
 
   <section|Disjunction Elimination>
 
@@ -1599,14 +1553,14 @@
 <\references>
   <\collection>
     <associate|1|<tuple|5.2|?>>
-    <associate|AlienSubterms|<tuple|3.3|8>>
+    <associate|AlienSubterms|<tuple|3.3|7>>
     <associate|Details|<tuple|5.5|17>>
     <associate|ImplSubst|<tuple|4|2>>
     <associate|Main Algo|<tuple|5.3|?>>
-    <associate|MainAlgo|<tuple|5|13>>
+    <associate|MainAlgo|<tuple|5|12>>
     <associate|MainAlgoBody|<tuple|5.3|15>>
     <associate|NumConv|<tuple|4.2|11>>
-    <associate|Rg|<tuple|5|16>>
+    <associate|Rg|<tuple|5|15>>
     <associate|SCAlinear|<tuple|3.4|8>>
     <associate|SepProp|<tuple|5|3>>
     <associate|SepProp2|<tuple|6|?>>
@@ -1616,28 +1570,28 @@
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1>>
-    <associate|auto-10|<tuple|3.3|8>>
+    <associate|auto-10|<tuple|3.3|7>>
     <associate|auto-11|<tuple|3.4|8>>
-    <associate|auto-12|<tuple|3.5|9>>
-    <associate|auto-13|<tuple|4|10>>
-    <associate|auto-14|<tuple|4.1|11>>
-    <associate|auto-15|<tuple|4.2|11>>
-    <associate|auto-16|<tuple|4.3|11>>
-    <associate|auto-17|<tuple|5|13>>
-    <associate|auto-18|<tuple|5.1|13>>
-    <associate|auto-19|<tuple|5.2|13>>
+    <associate|auto-12|<tuple|4|9>>
+    <associate|auto-13|<tuple|4.1|10>>
+    <associate|auto-14|<tuple|4.2|10>>
+    <associate|auto-15|<tuple|4.3|11>>
+    <associate|auto-16|<tuple|5|11>>
+    <associate|auto-17|<tuple|5.1|12>>
+    <associate|auto-18|<tuple|5.2|13>>
+    <associate|auto-19|<tuple|5.3|13>>
     <associate|auto-2|<tuple|2|2>>
-    <associate|auto-20|<tuple|5.3|15>>
-    <associate|auto-21|<tuple|5.4|17>>
+    <associate|auto-20|<tuple|5.4|15>>
+    <associate|auto-21|<tuple|5.5|17>>
     <associate|auto-22|<tuple|5.5|17>>
     <associate|auto-23|<tuple|5.5|18>>
     <associate|auto-24|<tuple|5.5|17>>
     <associate|auto-3|<tuple|2.1|4>>
     <associate|auto-4|<tuple|2.1.1|4>>
-    <associate|auto-5|<tuple|2.2|5>>
+    <associate|auto-5|<tuple|2.2|4>>
     <associate|auto-6|<tuple|3|5>>
     <associate|auto-7|<tuple|3.1|5>>
-    <associate|auto-8|<tuple|3.1.1|7>>
+    <associate|auto-8|<tuple|3.1.1|6>>
     <associate|auto-9|<tuple|3.2|7>>
     <associate|bib-AbductionSolvMaher|<tuple|3|18>>
     <associate|bib-AntiUnifAlg|<tuple|9|18>>

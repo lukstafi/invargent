@@ -1160,8 +1160,7 @@ let rec eval =
 
   "mutual recursion medium calc" >::
     (fun () ->
-       (* todo "mutual existential"; *)
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "mutual recursion universal eval and existential calc"
 "newtype Term : type
 newtype Num : num
@@ -1193,13 +1192,12 @@ let rec eval =
   | Pair (x, y) -> eval x, eval y"
 
         [2, "∃a. δ = (Term a → a)";
-        3, "∃. δ = (Calc → ∃3:n[].Num n)"]
+        3, "∃. δ = (Calc → ∃2:n[].Num n)"]
     );
 
   "mutual recursion calc" >::
     (fun () ->
-       todo "mutual existential";
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "mutual recursion universal eval and existential calc"
 "newtype Term : type
 newtype Num : num
@@ -1247,7 +1245,7 @@ let rec eval =
   | Snd p -> (match eval p with x, y -> y)"
 
         [2, "∃a. δ = (Term a → a)";
-        3, "∃. δ = (Calc → ∃2:n[].Num n)"]
+        3, "∃. δ = (Calc → ∃3:n[].Num n)"]
     );
 
   (* TODO: mutual recursion where the nested function has nontrivial

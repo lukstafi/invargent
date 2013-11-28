@@ -22,7 +22,7 @@ let br_simple lhs rhs =
   let rhs, _, _ = unify ~use_quants:false q rhs in
   lhs, rhs
 
-let test_simple lhs_m rhs_m ?(validate=(fun _ _ -> ())) skip res =
+let test_simple lhs_m rhs_m ?(validate=(fun _ -> ())) skip res =
   let lhs = p_formula lhs_m and rhs = p_formula rhs_m in
   let lhs, rhs = br_simple lhs rhs in
   let ans =
@@ -99,7 +99,7 @@ tb = (G A)";
         let ans =
           try let cand_bvs, alien_eqs, vs, ans_typ, _ =
                 abd_typ q ~bvs
-                  ~validate:(fun _ _ -> ()) ~discard:[]
+                  ~validate:(fun _ -> ()) ~discard:[]
                 [lhs0, rhs0; lhs1, rhs1] in
               pr_to_str pr_formula (to_formula ans_typ)
           with Suspect _ -> "none" in

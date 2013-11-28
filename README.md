@@ -28,10 +28,11 @@ Milestones: [x] - completed, [#] - finishing (75%-95%), [+] - in the middle (25%
 - [_] Improve error reporting, implement time-out integrated with error reporting (likely culprit).
 
 And version 2.0 goals:
+- [_] Write web interface.
+- [_] Factorize joint constraint abduction scheme for use across sorts.
 - [_] Formalize inference of GADT type definitions from function types.
 - [_] Implement inference of GADT type definitions.
 - [_] Optimize.
-- [_] Write web interface.
 - [_] Factorize implementation to have plug-in architecture for sorts.
 - [_] Syntax for numeric multiplication.
 - [_] Add sorts: integer numbers,

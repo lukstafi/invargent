@@ -7,6 +7,7 @@
 *)
 open Terms
 open Aux
+open Joint
 
 let timeout_count = ref (* 500 *)(* 1000 *)(* 5000 *)50000
 
@@ -18,7 +19,6 @@ let residuum q prem concl =
   res_ty, res_num
 
 exception Result of VarSet.t * var_name list * subst
-let debug_dep = ref 0
 
 let empty_q =
   {cmp_v = (fun _ _ -> Same_quant); uni_v = (fun _ -> false);
@@ -137,11 +137,13 @@ let revert_cst_n_uni q ~bvs ~pms ans cand =
     else c6_cand in
   old_cand, c6_cand
 
-let implies_ans ans c_ans =
+let implies_cnj ans c_ans =
   List.for_all (fun (v,(t,_)) ->
     try fst (List.assoc v ans) = subst_typ ans t
     with Not_found -> false
   ) c_ans
+
+let implies_ans ans (_,c_ans) = implies_cnj ans c_ans
 
 (* Simple constraint abduction for terms
 
@@ -228,7 +230,7 @@ let abd_simple q ?without_quant ~bvs ~pms
       aux [] [] init_cand in
     let rec abstract deep repls bvs pms vs ans = function
       | [], [] ->
-        let ddepth = incr debug_dep; !debug_dep in
+        let ddepth = incr Joint.debug_dep; !Joint.debug_dep in
         Format.printf
           "abd_simple-abstract: [%d] @ repls=%a@ @ bvs=%a@ vs=%s@ ans=%a@\n%!"
           ddepth pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls)
@@ -286,7 +288,7 @@ let abd_simple q ?without_quant ~bvs ~pms
         let is_p, (x, (t, lc) as sx), (c6x, (c6t, c6lc) as c6sx), cand =
           reorder bvs cand in
         incr counter; if !counter > !timeout_count then raise Timeout;
-        let ddepth = incr debug_dep; !debug_dep in
+        let ddepth = incr Joint.debug_dep; !Joint.debug_dep in
         Format.printf
           "abd_simple-abstract: [%d] @ repls=%a@ bvs=%a@ vs=%s@ ans=%a@\nx=%s@ t=%a@ #cand=%d@\ncand=%a@\n%!"
           ddepth pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls)
@@ -331,7 +333,7 @@ let abd_simple q ?without_quant ~bvs ~pms
                 q [Eqty (TVar c6x, c6t, c6lc)] in
             Format.printf
               "abd_simple: [%d] validate 6 ans'=@ %a@\n%!" ddepth pr_subst ans'; (* *)
-            validate vs ans';
+            validate (vs, ans');
             Format.printf "abd_simple: [%d] choice 6 OK@\n%!" ddepth; (* *)
             assert (so = []);
             abstract deep repls bvs' pms vs ans' cand
@@ -354,7 +356,7 @@ let abd_simple q ?without_quant ~bvs ~pms
           is_p bvs pms vs ans cand
     and step deep x lc loc repls is_p bvs pms vs ans cand =
       incr counter; if !counter > !timeout_count then raise Timeout;
-      let ddepth = incr debug_dep; !debug_dep in
+      let ddepth = incr Joint.debug_dep; !Joint.debug_dep in
       Format.printf
         "abd_simple-step: [%d] @ loc=%a@ repls=%a@ vs=%s@ ans=%a@ x=%s@ cand=%a@\n%!"
         ddepth (pr_ty false) (typ_out loc) pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls)
@@ -385,7 +387,7 @@ let abd_simple q ?without_quant ~bvs ~pms
                  q [Eqty (TVar x, t', lc)] in
              Format.printf
                "abd_simple: [%d] validate 2 ans=@ %a@\n%!" ddepth pr_subst ans; (* *)
-             validate vs' ans';
+             validate (vs', ans');
              Format.printf "abd_simple: [%d] choice 2 OK@\n%!" ddepth; (* *)
              assert (so = []);
              abstract deep repls' bvs' pms' vs' ans' cand
@@ -420,7 +422,7 @@ let abd_simple q ?without_quant ~bvs ~pms
                  q [Eqty (TVar x, t, lc)] in
              Format.printf
                "abd_simple: [%d] validate 4 ans=@ %a@\n%!" ddepth pr_subst ans; (* *)
-             validate vs ans;
+             validate (vs, ans);
              Format.printf "abd_simple: [%d] choice 4 OK@\n%!" ddepth; (* *)
              assert (so = []);
              abstract deep repls bvs pms vs ans cand
@@ -489,7 +491,7 @@ let abd_simple q ?without_quant ~bvs ~pms
                     "abd_simple: [%d] validate 5 ans'=@ %a@\n%!"
                     ddepth pr_subst ans'; (* *)
                   (*(try*)
-                  validate vs ans';
+                  validate (vs, ans');
                   (*with Terms.Contradiction (msg,Some (ty1,ty2),_) as exn ->
                     Format.printf
                     "abd_simple: [%d] @ c.5 validate failed:@ %s@ %a@ %a@\n%!" ddepth
@@ -544,7 +546,7 @@ let abd_simple q ?without_quant ~bvs ~pms
         let ans, cnj_num, _ =
           unify ~bvs ~pms q (to_formula ans) in
         assert (cnj_num = []);
-        validate vs ans;
+        validate (vs, ans);
         Format.printf
           "abd_simple: Final validation passed@\nans=%a@\n%!"
            pr_subst ans; (* *)
@@ -564,6 +566,29 @@ let abd_simple q ?without_quant ~bvs ~pms
     None
 
 (* let max_skip = ref 20 *)
+
+module TermAbd = struct
+  type accu = VarSet.t * (var_name list * subst)
+  type args = quant_ops * VarSet.t
+  type answer = var_name list * subst
+  type branch = subst * subst
+
+  let abd_simple (q, pms) ~discard ~validate (bvs, acc) br =
+    abd_simple q ~bvs ~pms ~validate ~discard 0 acc br
+
+  let extract_ans (bvs, vs_ans) = vs_ans
+
+  let concl_of_br (prem, concl) = to_formula concl
+
+  let is_taut (vs, ans) = ans=[]
+
+  let pr_branch pp (prem, concl) =
+    Format.fprintf pp "@[<2>%a@ ⟹@ %a@]" pr_subst prem pr_subst concl
+
+  let pr_ans pp (vs, ans) = pr_subst pp ans
+end
+
+module JCA = Joint.JointAbduction (TermAbd)
 
 let abd_typ q ~bvs ?(dissociate=false) ~validate ~discard brs =
   Format.printf "abd_typ:@ bvs=@ %a@\n%!"
@@ -588,115 +613,8 @@ let abd_typ q ~bvs ?(dissociate=false) ~validate ~discard brs =
         brs
     else brs in
   let pms = vars_of_list !alien_vs in
-  let br0 = 0, List.hd brs in
-  let more_brs = List.map (fun br -> -1, br) (List.tl brs) in
-  let time = ref (Sys.time ()) in
-  let init_bvs = bvs in
-  let rec loop failed bvs acc runouts = function
-    | [] ->
-      let _, (prem, concl) =
-        maximum ~leq:(fun (i,_) (j,_) -> i<=j) runouts in
-      raise (Suspect (to_formula (snd acc @ prem @ concl),
-                      List.fold_left loc_union dummy_loc
-                        (List.map (fun (_,(_,lc))->lc) concl)))
-    | (skip, br as obr)::more_brs ->
-      let ddepth = incr debug_dep; !debug_dep in
-      Format.printf
-        "abd_typ-loop: [%d] skip=%d, #runouts=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
-        ddepth skip (List.length runouts) pr_subst (fst br) pr_subst
-     (snd br); (* *)
-      match abd_simple q ~bvs ~pms ~validate ~discard skip acc br with
-      | Some (_, acc) when
-          let phi1 = to_formula (snd acc) in
-          List.exists (
-            fun phi -> subformula (to_formula phi) phi1) failed ->
-        Format.printf "abd_typ: reset matching failed [%d]@\n%!" ddepth; (* *)
-        loop failed init_bvs ([], []) runouts ((skip+1, br)::more_brs)
-      | Some (bvs, acc) ->
-        let ntime = Sys.time () in
-          Format.printf "ans: [%d] (%.2fs)@ @[<2>%a@]@\n%!" ddepth (ntime -. !time)
-          pr_subst (snd acc); time := ntime; (* *)
-        check_runouts failed bvs acc obr more_brs [] runouts
-      | None ->
-        if skip <= 0 && acc = ([],[])
-        then (
-          Format.printf
-            "abd_typ-loop: quit failed [%d] at skip=%d failed=%d@ ans=%a@\n%!" ddepth
-          skip (List.length failed) pr_subst (snd acc); (* *)
-          ignore (loop failed bvs acc (obr::runouts) []));
-        let failed = if skip <= 0 then snd acc::failed else failed in
-        Format.printf "reset first [%d] at skip=%d@\n%!" ddepth
-          skip; (* *)
-        loop failed init_bvs ([], []) ((0, br)::runouts) more_brs
-
-  and check_runouts failed bvs acc (dskip, dbr as done_br)
-      more_brs done_runouts = function
-    | [] -> check_brs failed bvs acc (List.rev done_runouts) [done_br] more_brs
-    | (confls, br as obr)::more_runouts ->
-      let ddepth = incr debug_dep; !debug_dep in
-      Format.printf
-        "abd_typ-check_runouts: [%d] confls=%d, #done=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
-        ddepth confls (List.length done_runouts) pr_subst (fst br)
-        pr_subst (snd br); (* *)
-      match abd_simple q ~bvs ~pms ~validate ~discard 0 acc br with
-      | Some (_,acc) when List.exists (implies_ans (snd acc)) failed ->
-        Format.printf "abd_typ: reset runouts matching failed [%d]@\n%!" ddepth; (* *)
-        loop failed init_bvs ([], [])
-          ((confls+1, br)::List.rev_append done_runouts more_runouts)
-          ((dskip+1, dbr)::more_brs)
-      | Some (bvs, acc) ->
-        let ntime = Sys.time () in
-          Format.printf "ans: [%d] (%.2fs)@ @[<2>%a@]@\n%!" ddepth (ntime -. !time)
-          pr_subst (snd acc); time := ntime; (* *)
-        check_runouts failed bvs acc done_br more_brs
-          (obr::done_runouts) more_runouts
-      | None ->
-        if acc = ([],[])
-        then (
-          Format.printf
-            "abd_typ-check_runouts: quit failed [%d] at failed=%d@ ans=%a@\n%!" ddepth
-          (List.length failed) pr_subst (snd acc); (* *)
-          ignore (loop failed bvs acc (obr::done_runouts@more_runouts) []));
-        Format.printf
-          "abd_typ: reset runouts [%d] at confls=%d failed=%d@ ans=%a@\n%!" ddepth
-          confls (List.length failed + 1) pr_subst (snd acc); (* *)
-        loop (snd acc::failed) init_bvs ([], [])
-          ((confls+1, br)::List.rev_append done_runouts more_runouts)
-          ((dskip+1, dbr)::more_brs)
-      
-  and check_brs failed bvs acc runouts done_brs = function
-    | [] -> bvs, acc
-    | (skip, br as obr)::more_brs ->
-      let ddepth = incr debug_dep; !debug_dep in
-      Format.printf
-        "abd_typ-check_brs: [%d] skip=%d, #done=%d@\n@[<2>%a@ ⟹@ %a@]@\n%!"
-        ddepth skip (List.length done_brs) pr_subst (fst br) pr_subst
-        (snd br); (* *)
-      match abd_simple q ~bvs ~pms ~validate ~discard 0 acc br with
-      | Some (_,acc) when List.exists (implies_ans (snd acc)) failed ->
-        Format.printf "abd_typ: reset check matching failed [%d]@\n%!" ddepth; (* *)
-        loop failed init_bvs ([], [])
-          runouts ((skip+1, br)::List.rev_append done_brs more_brs)
-      | Some (bvs, acc) ->
-        let ntime = Sys.time () in
-          Format.printf "ans: [%d] (%.2fs)@ @[<2>%a@]@\n%!" ddepth (ntime -. !time)
-          pr_subst (snd acc); time := ntime; (* *)
-        check_brs failed bvs acc runouts (obr::done_brs) more_brs
-      | None ->
-        if acc = ([],[])
-        then (
-          Format.printf
-            "abd-check_brs: quit failed [%d] at failed=%d@ ans=%a@\n%!" ddepth
-          (List.length failed) pr_subst (snd acc); (* *)
-          ignore (loop failed bvs acc (obr::runouts) []));
-        Format.printf
-          "abd-check_brs: reset check [%d] at skip=%d failed=%d@ prem=%a@ concl=%a@ ans=%a@\n%!" ddepth
-          skip (List.length failed + 1) pr_subst (fst br) pr_subst (snd br) pr_subst (snd acc); (* *)
-        loop (snd acc::failed) init_bvs ([], [])
-          runouts ((skip+1, br)::List.rev_append done_brs more_brs) in
-
   let cand_bvs, (vs, ans) =
-    loop discard init_bvs ([], []) [] (br0::more_brs) in
+    JCA.abd (q, pms) ~discard ~validate (bvs, ([], [])) brs in
   Format.printf "abd_typ: result vs=%s@\nans=%a@\n%!"
     (String.concat ","(List.map var_str vs))
     pr_subst ans; (* *)
@@ -753,7 +671,7 @@ let abd_mockup_num q ~bvs brs =
                      (prem_so, concl_so))
       | None -> None)
        brs) in
-  let validate vs ans = List.iter2
+  let validate (vs, ans) = List.iter2
     (fun (prem_ty, concl_ty) (prem_num, concl_num) ->
       (* Do not use quantifiers, because premise is in the conjunction. *)
       (* TODO: after cleanup optimized in abd_simple, pass clean_ans
@@ -782,8 +700,10 @@ let abd q ~bvs ?(iter_no=2) ~discard brs =
   let discard_num =
     try List.assoc Num_sort discard with Not_found -> [] in
   let discard_typ = List.map
-    (List.map
-       (function Eqty (TVar v, t, lc) -> v, (t, lc) | _ -> assert false))
+      (fun ans ->
+         [], List.map
+           (function Eqty (TVar v, t, lc) -> v, (t, lc)
+                   | _ -> assert false) ans)
     discard_typ in
   let brs_typ, brs_num, brs_so = split3
     (map_some (fun (nonrec, prem, concl) ->
@@ -805,7 +725,7 @@ let abd q ~bvs ?(iter_no=2) ~discard brs =
       | None -> None)
        brs) in
   (* FIXME: remove the fallback mechanism, move it to [Invariants]. *)
-  let validate vs ans = List.iter2
+  let validate (vs, ans) = List.iter2
     (fun (prem_ty, concl_ty) (nonrec, prem_num, concl_num) ->
       (* Do not use quantifiers, because premise is in the conjunction. *)
       (* TODO: after cleanup optimized in abd_simple, pass clean_ans
@@ -825,9 +745,6 @@ let abd q ~bvs ?(iter_no=2) ~discard brs =
         ()
     )
     brs_typ brs_num in
-  Format.printf "abd: discard_typ=@ %a@\n%!"
-    (pr_line_list "|" pr_subst) discard_typ;
-  (* *)
   (* We do not remove nonrecursive branches for types -- it will help
      other sorts do better validation. *)
   let cand_bvs, alien_eqs, tvs, ans_typ, more_num =

@@ -18,8 +18,8 @@ val abd_simple :
   ?without_quant:unit ->
   bvs:Terms.VarSet.t ->
   pms:Terms.VarSet.t ->
-  validate:(Terms.var_name list -> Terms.subst -> unit) ->
-  discard:Terms.subst list ->
+  validate:((Terms.var_name list * Terms.subst) -> unit) ->
+  discard:((Terms.var_name list * Terms.subst) list) ->
   int ->
   Terms.var_name list * Terms.subst ->
   Terms.subst * Terms.subst ->
@@ -28,8 +28,8 @@ val abd_typ :
   Terms.quant_ops ->
   bvs:Terms.VarSet.t ->
   ?dissociate:bool ->
-  validate:(Terms.var_name list -> Terms.subst -> unit) ->
-  discard:Terms.subst list ->
+  validate:((Terms.var_name list * Terms.subst) -> unit) ->
+  discard:((Terms.var_name list * Terms.subst) list) ->
   (Terms.subst * Terms.subst) list ->
   Terms.VarSet.t * Terms.subst *        (* alien_eqs *)
   Terms.var_name list * Terms.subst * (Terms.formula * Terms.formula) list
