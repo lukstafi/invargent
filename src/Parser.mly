@@ -122,7 +122,8 @@ let extract_datatyp allvs loc = function
 %nonassoc below_LOGAND
 %nonassoc LOGAND
 %nonassoc below_COMMA
-%nonassoc COMMA DOT
+%left COMMA
+%nonassoc DOT
 %left PLUS
 %nonassoc MULTIPLY
 %nonassoc prec_constr_appl              /* above AS BAR COLONCOLON COMMA */
@@ -181,8 +182,8 @@ expr:
       { AssertLeq ($2, $4, $6, get_loc ()) }
   | ASSERT EQUAL TYPE expr expr SEMICOLON expr
       { AssertEqty ($4, $5, $7, get_loc ()) }
-  | expr COMMA expr_comma_list %prec below_COMMA
-      { Cons (tuple, ($1 :: List.rev $3), get_loc ()) }
+  | expr_comma_list %prec below_COMMA
+      { Cons (tuple, (List.rev $1), get_loc ()) }
   | simple_expr
       { $1 }
   | simple_expr_list
@@ -222,8 +223,8 @@ simple_expr_list:
 expr_comma_list:
   | expr_comma_list COMMA expr
       { $3 :: $1 }
-  | expr
-      { [ $1 ] }
+  | expr COMMA expr
+      { [ $3; $1 ] }
 ;
 expr_semicolon_list:
   | expr_semicolon_list SEMICOLON expr

@@ -11,7 +11,7 @@
 let digit = ['0'-'9']
 let lowercase = ['a'-'z']
 let uppercase = ['A'-'Z']
-let ident_body = lowercase | uppercase | digit | '_'
+let ident_body = lowercase | uppercase | digit | '_' | '''
 rule token = parse
   | [' ' '\t']	{ token lexbuf }
   | '\n'	{ incr_lineno lexbuf; token lexbuf }
