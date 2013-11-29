@@ -599,16 +599,16 @@
   answer is not an empty conjunction (i.e. not <math|\<top\>>), we retry the
   set-aside branches. If during the retry, any of the set-aside branches
   fails, we add the partial answer to discarded answers -- which are avoided
-  during simple abduction -- and restart. If, when left with set-aside
-  branches only, the partial answer is an empty conjunction, i.e. all the
-  answer-contributing branches have been set aside, we fail -- return
-  <math|\<bot\>> from the joint abduction. This does not peform complete
-  backtracking (no completeness guarantee), but is therefore quicker to
-  report unsolvable cases and does sufficient backtracking. After an answer
-  working for all branches has been found, we perform additional check, which
-  encapsulates negative constraints introduced by <verbatim|assert false>
-  construct. If the check fails, we add the answer to discarded answers and
-  repeat the search.
+  during simple abduction -- and restart. Restart puts the set-aside branches
+  to be tried first. If, when left with set-aside branches only, the partial
+  answer is an empty conjunction, i.e. all the answer-contributing branches
+  have been set aside, we fail -- return <math|\<bot\>> from the joint
+  abduction. This does not peform complete backtracking (no completeness
+  guarantee), but is therefore quicker to report unsolvable cases and does
+  sufficient backtracking. After an answer working for all branches has been
+  found, we perform additional check, which encapsulates negative constraints
+  introduced by <verbatim|assert false> construct. If the check fails, we add
+  the answer to discarded answers and repeat the search.
 
   We keep a count of conflicts for the runouts so that in case of overall
   failure, we can report a branch likely to be among those preventing
@@ -1680,7 +1680,7 @@
       <no-break><pageref|auto-8>>
 
       <with|par-left|<quote|1tab>|3.2<space|2spc>Joint constraint abduction
-      for terms <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-9>>
 
       <with|par-left|<quote|1tab>|3.3<space|2spc>Abduction for terms with
@@ -1691,55 +1691,51 @@
       for linear arithmetic <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-11>>
 
-      <with|par-left|<quote|1tab>|3.5<space|2spc>Joint constraint abduction
-      for linear arithmetic <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-12>>
-
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|4<space|2spc>Disjunction
       Elimination> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-13><vspace|0.5fn>
+      <no-break><pageref|auto-12><vspace|0.5fn>
 
       <with|par-left|<quote|1tab>|4.1<space|2spc>Extended convex hull
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-14>>
+      <no-break><pageref|auto-13>>
 
       <with|par-left|<quote|1tab>|4.2<space|2spc>Issues in inferring
       postconditions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-15>>
+      <no-break><pageref|auto-14>>
 
       <with|par-left|<quote|1tab>|4.3<space|2spc>Abductive disjunction
       elimination under quantifier prefix
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-16>>
+      <no-break><pageref|auto-15>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|5<space|2spc>Solving
       for Predicate Variables> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-17><vspace|0.5fn>
+      <no-break><pageref|auto-16><vspace|0.5fn>
 
       <with|par-left|<quote|1tab>|5.1<space|2spc>Invariant Parameter
       Candidates <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-18>>
+      <no-break><pageref|auto-17>>
 
       <with|par-left|<quote|1tab>|5.2<space|2spc>Solving for Predicates in
       Negative Positions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-19>>
+      <no-break><pageref|auto-18>>
 
       <with|par-left|<quote|1tab>|5.3<space|2spc>Solving for Existential
       Types Predicates and Main Algorithm
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-20>>
+      <no-break><pageref|auto-19>>
 
       <with|par-left|<quote|1tab>|5.4<space|2spc>Stages of iteration
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-21>>
+      <no-break><pageref|auto-20>>
 
       <with|par-left|<quote|1tab>|5.5<space|2spc>Implementation details
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-22>>
+      <no-break><pageref|auto-21>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-23><vspace|0.5fn>
+      <no-break><pageref|auto-22><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>

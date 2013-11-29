@@ -571,12 +571,14 @@ module TermAbd = struct
   type accu = VarSet.t * (var_name list * subst)
   type args = quant_ops * VarSet.t
   type answer = var_name list * subst
+  type discarded = answer
   type branch = subst * subst
 
   let abd_simple (q, pms) ~discard ~validate (bvs, acc) br =
     abd_simple q ~bvs ~pms ~validate ~discard 0 acc br
 
   let extract_ans (bvs, vs_ans) = vs_ans
+  let discard_ans = extract_ans
 
   let concl_of_br (prem, concl) = to_formula concl
 

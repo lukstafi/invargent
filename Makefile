@@ -5,6 +5,9 @@ main:
 test:
 	ocamlbuild src/Tests.d.byte -lib nums -pkg oUnit --
 
+testnative:
+	ocamlbuild src/Tests.native -lib nums -pkg oUnit --
+
 docs:
 	ocamlbuild src/InvarGenT.docdir/index.html
 	rm -f -R doc/code
