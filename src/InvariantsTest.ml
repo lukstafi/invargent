@@ -11,59 +11,80 @@ open Aux
 
 let debug = ref (* false *)true
 
+let test_common more_general msg test =
+  Terms.reset_state ();
+  Infer.reset_state ();
+  let prog = (Infer.normalize_program % Parser.program Lexer.token)
+      (Lexing.from_string test) in
+  let preserve, orig_cn = Infer.infer_prog_mockup prog in
+  Format.printf "orig_cn: %s@\n%a@\n%!" msg
+    Infer.pr_cnstrnt orig_cn; (* *)
+  let q_ops, cn = Infer.prenexize orig_cn in
+  let exty_res_of_chi, brs = Infer.normalize q_ops cn in
+  Format.printf "brs: %s@\n%a@\n%!" msg Infer.pr_brs brs; (* *)
+  let brs = Infer.simplify preserve q_ops brs in
+  Format.printf "simpl-brs: %s@\n%a@\nex_types:@\n%!"
+    msg Infer.pr_brs brs;
+  List.iter
+    (fun (i,loc) ->
+       let (allvs, phi, ty, n, pvs) =
+         Hashtbl.find sigma (Extype i) in
+       let ty = match ty with [ty] -> ty | _ -> assert false in
+       Format.printf "∃%d: pvs=%a@ allvs=%a@ t=%a@ phi=%a@\n%!"
+         i pr_vars (vars_of_list pvs) pr_vars (vars_of_list allvs)
+         (pr_ty false) ty pr_formula phi)
+    !all_ex_types;
+  (* *)
+  Abduction.more_general := more_general;
+  let _, res, sol =
+    Invariants.solve q_ops exty_res_of_chi brs in
+  Format.printf
+    "Test: res=@\n%a@\n%!" pr_formula res;
+  List.iter
+    (fun (i,loc) ->
+       let (allvs, phi, ty, n, pvs) =
+         Hashtbl.find sigma (Extype i) in
+       let ty = match ty with [ty] -> ty | _ -> assert false in
+       Format.printf "so∃%d: pvs=%a@ allvs=%a@ t=%a@ phi=%a@\n%!"
+         i pr_vars (vars_of_list pvs) pr_vars (vars_of_list allvs)
+         (pr_ty false) ty pr_formula phi)
+    !all_ex_types;
+  (* *)
+  q_ops, res, sol
+
 let test_case ?(more_general=false) msg test answers =
-      Terms.reset_state ();
-      Infer.reset_state ();
-      let prog = (Infer.normalize_program % Parser.program Lexer.token)
-	(Lexing.from_string test) in
-      try
-        let preserve, orig_cn = Infer.infer_prog_mockup prog in
-        Format.printf "orig_cn: %s@\n%a@\n%!" msg
-          Infer.pr_cnstrnt orig_cn; (* *)
-        let q_ops, cn = Infer.prenexize orig_cn in
-        let exty_res_of_chi, brs = Infer.normalize q_ops cn in
-        Format.printf "brs: %s@\n%a@\n%!" msg Infer.pr_brs brs; (* *)
-        let brs = Infer.simplify preserve q_ops brs in
-        Format.printf "simpl-brs: %s@\n%a@\nex_types:@\n%!"
-          msg Infer.pr_brs brs;
-        List.iter
-          (fun (i,loc) ->
-            let (allvs, phi, ty, n, pvs) =
-              Hashtbl.find sigma (Extype i) in
-            let ty = match ty with [ty] -> ty | _ -> assert false in
-            Format.printf "∃%d: pvs=%a@ allvs=%a@ t=%a@ phi=%a@\n%!"
-              i pr_vars (vars_of_list pvs) pr_vars (vars_of_list allvs)
-              (pr_ty false) ty pr_formula phi)
-          !all_ex_types;
-        (* *)
-        Abduction.more_general := more_general;
-        let _, res, sol =
-          Invariants.solve q_ops exty_res_of_chi brs in
-        Format.printf
-          "Test: res=@\n%a@\n%!" pr_formula res;
-        List.iter
-          (fun (i,loc) ->
-            let (allvs, phi, ty, n, pvs) =
-              Hashtbl.find sigma (Extype i) in
-            let ty = match ty with [ty] -> ty | _ -> assert false in
-            Format.printf "so∃%d: pvs=%a@ allvs=%a@ t=%a@ phi=%a@\n%!"
-              i pr_vars (vars_of_list pvs) pr_vars (vars_of_list allvs)
-              (pr_ty false) ty pr_formula phi)
-          !all_ex_types;
-        (* *)
-        let test_sol (chi, result) =
-          let vs, ans = nice_ans (List.assoc chi sol) in
-          ignore (Format.flush_str_formatter ());
-          Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
-            (pr_sep_list "," pr_tyvar) vs pr_formula ans;
-          assert_equal ~printer:(fun x -> x)
-            result
-            (Format.flush_str_formatter ()) in
-        List.iter test_sol answers
-      with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
-        ignore (Format.flush_str_formatter ());
-        Terms.pr_exception Format.str_formatter exn;
-        assert_failure (Format.flush_str_formatter ())
+  try
+    let q, res, sol = test_common more_general msg test in
+    let test_sol (chi, result) =
+      let vs, ans = nice_ans (List.assoc chi sol) in
+      ignore (Format.flush_str_formatter ());
+      Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
+        (pr_sep_list "," pr_tyvar) vs pr_formula ans;
+      assert_equal ~printer:(fun x -> x)
+        result
+        (Format.flush_str_formatter ()) in
+    List.iter test_sol answers
+  with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+    ignore (Format.flush_str_formatter ());
+    Terms.pr_exception Format.str_formatter exn;
+    assert_failure (Format.flush_str_formatter ())
+
+let test_nonrec_case ?(more_general=false) msg test answers =
+  try
+    let q, res, sol = test_common more_general msg test in
+    let test_sol (v, result) =
+      let res_sb, _ = Infer.separate_subst q res in
+      let ty = fst (List.assoc (VId (Type_sort, v)) res_sb) in
+      ignore (Format.flush_str_formatter ());
+      Format.fprintf Format.str_formatter "%a" (pr_ty false) ty;
+      assert_equal ~printer:(fun x -> x)
+        result
+        (Format.flush_str_formatter ()) in
+    List.iter test_sol answers
+  with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+    ignore (Format.flush_str_formatter ());
+    Terms.pr_exception Format.str_formatter exn;
+    assert_failure (Format.flush_str_formatter ())
 
 let tests = "Invariants" >::: [
 
@@ -343,7 +364,7 @@ test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
 
   "flatten_pairs" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "list flatten_pairs"
 "newtype Bool
 newtype List : type * num
@@ -1252,13 +1273,89 @@ let rec eval =
      postcondition, which needs to be bootstrapped from its
      non-recursive part. *)
 
-  "binomial heap" >::
+  "nonrec simple" >::
     (fun () ->
-       todo "write";
        skip_if !debug "debug";
-       test_case "binomial heap -- mutual recursion"
-""
-        [2,""];
+       test_nonrec_case "nonrec simple"
+"newtype Order : num * num
+external compare : ∀i, j. Num i → Num j → Order (i, j)
+let cmp7and8 = compare 7 8
+"
+        [1, "Order (7, 8)"];
 
     );
+
+  (* More non-recursive [let] tests are performed in {!InvarGenTTest}. *)
+
+  "binomial heap--rank" >::
+    (fun () ->
+       skip_if !debug "debug";
+       (* Here [rank] is defined using [let rec], the correct [let]
+          forms are tested from {!InvarGenTTest}. *)
+       test_case "binomial heap--rank"
+"newtype Tree : type * num
+newtype Forest : type * num
+newtype Heap : type * num
+newtype Order : num * num
+newtype Bool
+newcons Le : ∀i, j [i≤j+1]. Order (i, j)
+newcons Gt : ∀i, j [j≤i+1]. Order (i, j)
+newcons Eq : ∀i. Order (i, i)
+newcons True : Bool
+newcons False : Bool
+
+newcons Node : ∀a, k [0≤k]. Num k * a * Forest (a, k) ⟶ Tree (a, k)
+newcons TCons :
+  ∀a, n [0≤n]. Tree (a, n) * Forest (a, n) ⟶ Forest (a, n+1)
+newcons TNil : ∀a. Forest (a, 0)
+newcons HCons :
+  ∀a, m, n [0≤m ∧ m+1≤n]. Tree (a, n) * Heap (a, m) ⟶ Heap (a, n)
+newcons HNil : ∀a. Heap (a, 0)
+
+external compare : ∀i, j. Num i → Num j → Order (i, j)
+external leq : ∀a. a → a → Bool
+
+let rec rank = function Node (r, _, _) -> r
+"
+        [1,"∃n, a. δ = (Tree (a, n) → Num n)"];
+    );
+
+  "binomial heap--link" >::
+    (fun () ->
+       (* skip_if !debug "debug"; *)
+       (* Here [link] is defined using [let rec], the correct [let]
+          forms are tested from {!InvarGenTTest}. *)
+       test_case "binomial heap--link"
+"newtype Tree : type * num
+newtype Forest : type * num
+newtype Heap : type * num
+newtype Order : num * num
+newtype Bool
+newcons Le : ∀i, j [i≤j+1]. Order (i, j)
+newcons Gt : ∀i, j [j≤i+1]. Order (i, j)
+newcons Eq : ∀i. Order (i, i)
+newcons True : Bool
+newcons False : Bool
+
+newcons Node : ∀a, k [0≤k]. Num k * a * Forest (a, k) ⟶ Tree (a, k)
+newcons TCons :
+  ∀a, n [0≤n]. Tree (a, n) * Forest (a, n) ⟶ Forest (a, n+1)
+newcons TNil : ∀a. Forest (a, 0)
+newcons HCons :
+  ∀a, m, n [0≤m ∧ m+1≤n]. Tree (a, n) * Heap (a, m) ⟶ Heap (a, n)
+newcons HNil : ∀a. Heap (a, 0)
+
+external compare : ∀i, j. Num i → Num j → Order (i, j)
+external leq : ∀a. a → a → Bool
+external incr : ∀i. Num i → Num (i+1)
+
+let rec link = function
+  | (Node (r, x1, c1) as t1), (Node (_, x2, c2) as t2) ->
+    match leq x1 x2 with
+    | True -> Node (incr r, x1, TCons (t2, c1))
+    | False -> Node (incr r, x2, TCons (t1, c2))
+"
+        [1,""];
+    );
+
 ]

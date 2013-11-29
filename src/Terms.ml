@@ -320,7 +320,7 @@ let n_subst_typ sb t =
       (try List.assoc n sb args
        with Not_found -> TCons (n, List.map aux args))
     | Fun (t1, t2) -> Fun (aux t1, aux t2)
-    | NCst _ -> t
+    | NCst _ as n -> n
     | Nadd args -> Nadd (List.map aux args) in
   aux t
 

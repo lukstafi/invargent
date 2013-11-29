@@ -230,6 +230,13 @@ let constr_gen_pat p tau =
         try freshen_cns_scheme (Hashtbl.find sigma k)
         with Not_found -> raise
           (Report_toplevel ("Undefined constructor "^cns_str k, Some loc)) in
+      if List.length args <> List.length argtys
+      then raise
+          (Report_toplevel
+             (Format.sprintf
+               "Pattern arity mismatch for %s (expected %d, found %d)"
+                (cns_str k) (List.length argtys) (List.length args),
+              Some loc));
       let avs = vars_of_list c_args in
       let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
       let bvs = VarSet.diff (vars_of_list abvs) avs in
@@ -273,6 +280,13 @@ let rec envfrag_gen_pat count p t =
         try freshen_cns_scheme (Hashtbl.find sigma k)
         with Not_found -> raise
           (Report_toplevel ("Undefined constructor "^cns_str k, Some loc)) in
+      if List.length args <> List.length ps
+      then raise
+          (Report_toplevel
+             (Format.sprintf
+               "Pattern arity mismatch for %s (expected %d, found %d)"
+                (cns_str k) (List.length args) (List.length ps),
+              Some loc));
       let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
       let ef0 = vars_of_list vs, Eqty (res, t, loc)::phi, [] in
       Format.printf
@@ -318,6 +332,14 @@ let constr_gen_expr gamma e t =
     | Cons (k, args, loc)->
       let vs, phi, argtys, c_n, c_args =
         freshen_cns_scheme (Hashtbl.find sigma k) in
+      if List.length args <> List.length argtys
+      then raise
+          (Report_toplevel
+             (Format.asprintf
+               "Arity mismatch for %s (expected %d, found %d): (%a)"
+                (cns_str k) (List.length argtys) (List.length args)
+                (pr_sep_list " | " (pr_expr false)) args,
+              Some loc));
       let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
       let cn = List.fold_left cn_and (A (Eqty (res, t, loc)::phi))
         (List.map2 (aux gamma) argtys args) in

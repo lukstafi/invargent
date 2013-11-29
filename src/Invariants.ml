@@ -1052,6 +1052,9 @@ let solve q_ops exty_res_chi brs =
         with Contradiction _ -> ()
       ) neg_cns;
     let ans_sb, _ = Infer.separate_subst q.op ans_res in
+    Format.printf "solve: final@\nans_res=%a@\nans_sb=%a@\n%!"
+      pr_formula ans_res pr_subst ans_sb;
+    (* *)
     (* Substitute the solutions for existential types. *)
     let etys_sb = List.map
         (fun (ex_i,_) ->
@@ -1068,6 +1071,8 @@ let solve q_ops exty_res_chi brs =
     let esb_ans (i, (vs, ans)) =
       i, (vs, esb_formula ans) in
     let ans_res = esb_formula ans_res in
+    Format.printf "solve: final@\nans_res'=%a@\n%!"
+      pr_formula ans_res; (* *)
     let sol = List.map esb_ans sol in
     List.iter
       (fun (ex_i, loc) ->
