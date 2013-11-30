@@ -3,10 +3,8 @@ Place for TODOs/FIXMEs, especially if not expressed in other places. See README.
 * TODO: factor out joint constraint abduction scheme, available for use across sorts (v2.0).
 * TODO: numerical abduction -- optimize candidate substitution selection by working incrementally as in term abduction (FIXME: what did I mean?)
 * TODO: optimize abduction, especially numerical, use iterative deepening or Best-First-Search
-* FIXME: explain whether and why predicate variable solutions should be connected? And at what stage:: should connectedness be checked both pre- and post-filtering of chi candidate atoms in `split`? UPDATE: solved part of the question for binary predicate variables -- need connectedness to form the disjuncts.
 * TODO: try using all branches for numerical abduction from the beginning, and only if this fails, starting without recursive branches.
 * TODO: perhaps `check_connected` could be simplified or even removed from abduction?
 * FIXME: repeating `newtype` and `newcons` definitions should be errors.
 * FIXME: in `split`, instead of undirected connectedness `ans4`, filter atoms whose free variables have at most a single variable more than the corresponding `ans3`, and it is existential.
-* FIXME: comma is low priority, print parentheses around it; also fix tests whose outputs will change.
 * TODO: Emacs does not hyperlink error communicates -- change error format?

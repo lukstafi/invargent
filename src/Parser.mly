@@ -83,12 +83,17 @@ let extract_datatyp allvs loc = function
       | [TCons (CNam "Tuple", targs)] when not (Hashtbl.mem unary_typs m) ->
         targs
       | _ -> args in
-    let phi, args = Aux.fold_map
-      (fun phi -> function
-      | TVar v -> phi, v
+    let (_, phi), args = Aux.fold_map
+      (fun (used, phi) -> function
+      | TVar v as t ->
+        if not (VarSet.mem v used) then (VarSet.add v used, phi), v
+        else
+          let v' = next_var allvs (typ_sort t) in
+          (VarSet.add v' used, Eqty (t, TVar v, loc)::phi), v'
       | t ->
         let v = next_var allvs (typ_sort t) in
-        Eqty (t, TVar v, loc)::phi, v) [] args in
+        (VarSet.add v used, Eqty (t, TVar v, loc)::phi), v)
+      (VarSet.empty, []) args in
     n, args, phi
   | _ -> raise (Report_toplevel ("Syntax error: expected datatype",
 			         Some loc))

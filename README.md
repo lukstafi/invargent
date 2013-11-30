@@ -23,13 +23,14 @@ Milestones: [x] - completed, [#] - finishing (75%-95%), [+] - in the middle (25%
 - [x] Solve for predicate variables related to recursive definitions. Iterate till fixpoint part 1.
 - [x] Solve for predicate variables related to existential types. Iterate till fixpoint part 2.
 - [x] Enforce convergence for numerical constraints. (Required for postconditions.)
-- [+] Add more tests and resolve issues that emerge.
+- [x] Factorize joint constraint abduction scheme for use across sorts.
+- [#] Add more tests and resolve issues that emerge.
 - [_] Export (print) OCaml source. Collect examples, write user documentation.
 - [_] Improve error reporting, implement time-out integrated with error reporting (likely culprit).
+- [_] Write web interface.
 
 And version 2.0 goals:
-- [_] Write web interface.
-- [_] Factorize joint constraint abduction scheme for use across sorts.
+- [_] Add (relational forms of) `min` and `max` to the numerical sort -- sorely needed for datastructure invariants.
 - [_] Formalize inference of GADT type definitions from function types.
 - [_] Implement inference of GADT type definitions.
 - [_] Optimize.

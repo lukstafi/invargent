@@ -53,7 +53,7 @@ let test_common more_general msg test =
   q_ops, res, sol
 
 let test_case ?(more_general=false) msg test answers =
-  try
+  (* try *)
     let q, res, sol = test_common more_general msg test in
     let test_sol (chi, result) =
       let vs, ans = nice_ans (List.assoc chi sol) in
@@ -64,10 +64,10 @@ let test_case ?(more_general=false) msg test answers =
         result
         (Format.flush_str_formatter ()) in
     List.iter test_sol answers
-  with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+  (*with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
     ignore (Format.flush_str_formatter ());
     Terms.pr_exception Format.str_formatter exn;
-    assert_failure (Format.flush_str_formatter ())
+    assert_failure (Format.flush_str_formatter ())*)
 
 let test_nonrec_case ?(more_general=false) msg test answers =
   try
@@ -172,7 +172,7 @@ let rec equal1 = function
               (equal1 (t2, u2) x2 y2))
   | TList t, TList u -> forall2 (equal1 (t, u))
   | _ -> fun _ _ -> False"
-        [1, "∃a, b. δ = (Ty a, Ty b → a → a → Bool)"]
+        [1, "∃a, b. δ = ((Ty a, Ty b) → a → a → Bool)"]
     );
 
   "equal with test" >::
@@ -204,7 +204,7 @@ let rec equal = function
   | TList t, TList u -> forall2 (equal (t, u))
   | _ -> fun _ _ -> False
 test b_not (equal (TInt, TList TInt) Zero Nil)"
-        [1, "∃a, b. δ = (Ty a, Ty b → a → b → Bool)"]
+        [1, "∃a, b. δ = ((Ty a, Ty b) → a → b → Bool)"]
     );
 
   "equal with assert" >::
@@ -237,7 +237,7 @@ let rec equal = function
   | _ -> fun _ _ -> False
   | TInt, TList l -> (function Nil -> assert false)
   | TList l, TInt -> (fun _ -> function Nil -> assert false)"
-        [1, "∃a, b. δ = (Ty a, Ty b → a → b → Bool)"]
+        [1, "∃a, b. δ = ((Ty a, Ty b) → a → b → Bool)"]
     );
 
   "equal with assert and test" >::
@@ -271,7 +271,7 @@ let rec equal = function
   | TInt, TList l -> (function Nil -> assert false)
   | TList l, TInt -> (fun _ -> function Nil -> assert false)
 test b_not (equal (TInt, TList TInt) Zero Nil)"
-        [1, "∃a, b. δ = (Ty a, Ty b → a → b → Bool)"]
+        [1, "∃a, b. δ = ((Ty a, Ty b) → a → b → Bool)"]
     );
 
   "binary plus" >::
@@ -1338,7 +1338,7 @@ let rec link = function
 
   "binomial heap--ins_tree" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       todo "requires `min` and `max`";
        (* [Heap (a, i, j)] is a list of trees of increasing rank,
           starting with rank [i] and finishing with rank [j-1] -- for
           "technical reasons" the singleton heap at the end of
@@ -1379,9 +1379,15 @@ let rec ins_tree = fun t ->
     ematch compare (rank t) (rank t') with
     | Le -> HCons (t, ts)
     | Eq -> ins_tree (link (t, t')) ts'
-    | Gt -> HCons (t', ins_tree t ts')
+    | Gt ->
+      let rts = ins_tree t ts' in
+      HCons (t', rts)
 "
-        [1,""];
+        [1,"∃a, k, m, n.
+  δ =
+    (Tree (a, k) → Heap (a, m, n) →
+            ∃4:i, j[min (i, k, m) ∧ max (j, k, n) ∧ 0 ≤ i ∧ 0 ≤ j].
+               Heap (a, i, j))"];
     );
 
 ]

@@ -104,8 +104,8 @@ tb = (G A)";
               pr_to_str pr_formula (to_formula ans_typ)
           with Suspect _ -> "none" in
         assert_equal ~printer:(fun x -> x)
-          "tA = (Ty tB, Ty tC → Bool) ∧
-tD = (Ty Int, Ty Int → Bool)" ans
+          "tA = ((Ty tB, Ty tC) → Bool) ∧
+tD = ((Ty Int, Ty Int) → Bool)" ans
       with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
         Terms.pr_exception Format.str_formatter exn;

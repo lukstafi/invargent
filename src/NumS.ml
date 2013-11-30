@@ -295,6 +295,8 @@ let solve ?use_quants ?(strict=false)
         with Not_found -> [])
       eqn in
   let ineqn = List.sort cmp_w (more_ineqn @ ineqn) in
+  (*Format.printf "NumS.solve:@\neqs=%a@\nsimplified ineqn=@ %a@\n%!"
+    pr_w_subst (eqn @ eqs) pr_ineqn ineqn; * *)
   let project v (vars, cst, loc as lhs) rhs =
     if equal_w cmp lhs rhs
     then
@@ -763,6 +765,9 @@ let disjelim q ~preserve brs =
   let polytopes, elim_eqs = List.split
       (List.map
          (fun cnj ->
+            Format.printf
+              "NumS.disjelim:@ solving cnj==%a@\n%!"
+              pr_formula cnj; (* *)
             let eqs, (ineqs, implicits) = solve ~cnj cmp cmp_w q.uni_v in
             let eqs, _ = solve ~eqs ~eqn:implicits cmp cmp_w q.uni_v in
             let eqs, elim_eqs = List.partition

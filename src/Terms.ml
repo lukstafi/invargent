@@ -627,14 +627,9 @@ let rec pr_pat comma ppf = function
       fprintf ppf "@[<2>%a@ as@ %a@]"
 	(pr_pat false) pat1 (pr_more_pat false) pat2
   | PCons (CNam "Tuple", pats, _) ->
-      if comma || List.length pats <= 1 then
-	fprintf ppf "@[<2>(%a)@]"
-	  (pr_sep_list "," ~pr_hd:(pr_pat true)
-	      (pr_more_pat true)) pats
-      else
-	fprintf ppf "@[<2>%a@]"
-	  (pr_sep_list "," ~pr_hd:(pr_pat true)
-	      (pr_more_pat true)) pats
+    fprintf ppf "@[<2>(%a)@]"
+      (pr_sep_list "," ~pr_hd:(pr_pat true)
+	 (pr_more_pat true)) pats
   | PCons (x, [], _) ->
       fprintf ppf "%s" (cns_str x)
   | PCons (x, [pat], _) ->
@@ -678,12 +673,8 @@ let rec pr_expr comma ppf = function
   | Var (s, _) -> fprintf ppf "%s" s
   | Num (i, _) -> fprintf ppf "%d" i
   | Cons (CNam "Tuple", exps, _) ->
-      if comma || List.length exps <= 1 then
-	fprintf ppf "@[<2>(%a)@]"
-	  (pr_sep_list "," (pr_expr true)) exps
-      else
-	fprintf ppf "@[<2>%a@]"
-	  (pr_sep_list "," (pr_expr true)) exps
+    fprintf ppf "@[<2>(%a)@]"
+      (pr_sep_list "," (pr_expr true)) exps
   | Cons (x, [], _) ->
       fprintf ppf "%s" (cns_str x)
   | Cons (x, [exp], _) ->
@@ -763,12 +754,8 @@ and pr_ty comma ppf = function
   | NCst i -> fprintf ppf "%d" i
   | TCons (CNam c, []) -> fprintf ppf "%s" c
   | TCons (CNam "Tuple", exps) ->
-    if comma || List.length exps <= 1 then
-      fprintf ppf "@[<2>(%a)@]"
-	(pr_sep_list "," (pr_ty true)) exps
-    else
-      fprintf ppf "@[<2>%a@]"
-	(pr_sep_list "," (pr_ty true)) exps
+    fprintf ppf "@[<2>(%a)@]"
+      (pr_sep_list "," (pr_ty true)) exps
   | TCons (CNam c, [ty]) ->
     fprintf ppf "@[<2>%s@ %a@]" c pr_one_ty ty
   | TCons (CNam c, exps) ->
