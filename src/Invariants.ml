@@ -330,10 +330,19 @@ let split avs ans negchi_locs bvs cand_bvs q =
       (fun (b, ans) ->
         Format.printf "split-loop-6: b=%s@ target=%a@\n%!"
           (var_str b) pr_vars (VarSet.inter (fvs_formula ans) cand_bvs); (* *)
-        b,
-        snd (connected ~directed:false
-               (b::VarSet.elements
-                    (VarSet.inter (fvs_formula ans) cand_bvs)) ([],ans0)))
+        let avs = fvs_formula ans in
+        let ans = List.filter
+            (fun c ->
+               let dvs =
+                 VarSet.diff (fvs_atom c) avs in
+               let dsvs = VarSet.inter dvs cand_bvs in
+               VarSet.cardinal dsvs <= 1 &&
+               VarSet.for_all (not % q.uni_v) dvs)
+            ans0 in
+        (*let ans = snd
+            (connected ~directed:false (*q.is_chiK (q.find_chi b)*)
+               (VarSet.elements avs) ([],ans0)) in*)
+        b, ans)
       ans_cand in
     Format.printf "split-loop-6: ans4=@\n%a@\n%!"
       pr_bchi_subst (List.map (fun (b,a)->b,(VarSet.elements (Hashtbl.find q.b_vs b),a))

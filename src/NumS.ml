@@ -13,6 +13,8 @@ open Aux
 let early_num_abduction = ref false(* true *)
 let abd_rotations = ref (* 2 *)3
 let abd_prune_at = ref (* 4 *)6(* 10 *)
+let abd_timeout_count = ref (* 500 *)1000(* 5000 *)(* 50000 *)
+let abd_fail_timeout_count = ref 50
 let disjelim_rotations = ref 3
 let passing_ineq_trs = ref false
 
@@ -459,9 +461,12 @@ let revert_cst_n_uni cmp cmp_v uni_v ~bvs eqs0 c_ineqn0 =
       List.map (subst_w cmp u_sb) c_ineqn0 in
   c6eqs, eqs0, c6_ineqn0
 
+exception Timeout
+
 let abd_simple cmp cmp_w cmp_v uni_v ~bvs ~discard ~validate
     skip (eqs_i, ineqs_i) ((d_eqn, d_ineqn), (c_eqn, c_ineqn)) =
   let skip = ref skip in
+  let counter = ref 0 in
   try
     (* 1 *)
     let d_eqn' = List.map (subst_w cmp eqs_i) d_eqn
@@ -499,6 +504,7 @@ let abd_simple cmp cmp_w cmp_v uni_v ~bvs ~discard ~validate
     let rec loop add_eq_tr add_ineq_tr eq_trs ineq_trs eqs_acc ineqs_acc
         c6eqs c0eqs c6ineqn c0ineqn =
       let ddepth = incr debug_dep; !debug_dep in
+      incr counter; if !counter > !abd_timeout_count then raise Timeout;
       let a, c6a, iseq, c0eqs, c6eqs, c0ineqn, c6ineqn =
         match c0eqs, c6eqs, c0ineqn, c6ineqn with
         | (v,(vs,cst,lc))::c0eqs, (c6v,(c6vs,c6cst,c6lc))::c6eqs,
@@ -622,7 +628,16 @@ let abd_simple cmp cmp_w cmp_v uni_v ~bvs ~discard ~validate
           eqs0 c6eqs c_ineqn0 c6ineqn
       done; None
     with Result (ans_eqs, ans_ineqs) -> Some (ans_eqs, ans_ineqs)
-  with Contradiction _ -> None
+  with
+  | Contradiction _ -> None
+  | Timeout ->
+    Format.printf
+      "NumS.abd_simple: TIMEOUT@\neqs_i=@ %a@\nineqs_i=@ %a@\nd_eqn=@ %a@ d_ineqn=@ %a@\nc_eqn=@ %a@\nc_ineqn=@ %a@\n%!"
+      pr_w_subst eqs_i pr_ineqs ineqs_i pr_eqn d_eqn pr_ineqn d_ineqn
+      pr_eqn c_eqn pr_ineqn c_ineqn;
+    (* *)
+    None
+
 
 let make_cmp q v1 v2 =
   (* Order: variables more to the right in the quantifier should be more
@@ -644,6 +659,8 @@ module NumAbd = struct
   type answer = accu
   type discarded = w list * w list
   type branch = (w list * w list) * (w list * w list)
+
+  let abd_fail_timeout = !abd_fail_timeout_count
 
   let abd_simple {cmp; cmp_w; cmp_v; uni_v; bvs}
       ~discard ~validate acc br =
@@ -704,7 +721,7 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
            solve ~eqs ~ineqs
              ~eqn:(d_eqn @ c_eqn) ~ineqn:(d_ineqn @ c_ineqn)
              cmp cmp_w q.uni_v in
-         let br_eqs,(br_ineqs,_) =
+         let _(* br_eqs,(br_ineqs,_) *) =
            solve ~eqs:br_eqs ~ineqs:br_ineqs ~eqn:br_implicits
              cmp cmp_w q.uni_v in
          (*Format.printf "br_eqs=%a@\nbr_ineqs=%a@\n%!"

@@ -15,6 +15,7 @@ module type ABD_PARAMS = sig
   type answer
   type discarded
   type branch
+  val abd_fail_timeout : int
   val abd_simple :
     args -> discard:discarded list -> validate:(answer -> unit) ->
     accu -> branch -> accu option
@@ -33,12 +34,12 @@ module JointAbduction (P : ABD_PARAMS) = struct
   let abd args ~discard ~validate init_acc brs =
     let culprit = ref None
     and best_done = ref (-1) in
-    let rec loop discard acc done_brs aside_brs = function
+    let rec loop fails discard acc done_brs aside_brs = function
       | [] ->
         let best =
           List.length done_brs > !best_done &&
           (best_done := List.length done_brs; true) in
-        check_aside best discard acc done_brs aside_brs
+        check_aside fails best discard acc done_brs aside_brs
       | br::more_brs ->
         let ddepth = incr debug_dep; !debug_dep in
         Format.printf
@@ -48,11 +49,20 @@ module JointAbduction (P : ABD_PARAMS) = struct
           (List.length more_brs) P.pr_branch br; (* *)
         match P.abd_simple args ~discard ~validate acc br with
         | Some acc ->
-          loop discard acc (br::done_brs) aside_brs more_brs
+          loop fails discard acc (br::done_brs) aside_brs more_brs
         | None ->
-          loop discard acc done_brs (br::aside_brs) more_brs
+          if fails >= P.abd_fail_timeout
+          then (
+            Format.printf
+              "Joint.abd-loop: TIMEOUT failed [%d] at@ ans=%a@\n%!" ddepth
+              P.pr_ans (P.extract_ans acc); (* *)
+            let concl = P.concl_of_br (unsome !culprit) in
+            let lc = List.fold_left loc_union dummy_loc
+                (List.map atom_loc concl) in
+            raise (Suspect (concl, lc)));
+          loop (fails+1) discard acc done_brs (br::aside_brs) more_brs
 
-    and check_aside best discard acc done_brs = function
+    and check_aside fails best discard acc done_brs = function
       | [] -> acc
       | br::aside_brs as all_aside ->
         let ddepth = incr debug_dep; !debug_dep in
@@ -62,10 +72,10 @@ module JointAbduction (P : ABD_PARAMS) = struct
           (List.length aside_brs) P.pr_branch br; (* *)
         match P.abd_simple args ~discard ~validate acc br with
         | Some acc ->
-          check_aside best discard acc (br::done_brs) aside_brs
+          check_aside fails best discard acc (br::done_brs) aside_brs
         | None ->
           if best then culprit := Some br;
-          if P.is_taut (P.extract_ans acc)
+          if P.is_taut (P.extract_ans acc) || fails >= P.abd_fail_timeout
           then (
             Format.printf
               "abd-check_aside: quit failed [%d] at@ ans=%a@\n%!" ddepth
@@ -75,10 +85,10 @@ module JointAbduction (P : ABD_PARAMS) = struct
                 (List.map atom_loc concl) in
             raise (Suspect (concl, lc)))
           else
-            loop (P.discard_ans acc::discard) init_acc [] []
+            loop (fails+1) (P.discard_ans acc::discard) init_acc [] []
               (all_aside @ List.rev done_brs) in
 
     if brs = [] then init_acc
-    else loop discard init_acc [] [] brs    
+    else loop 0 discard init_acc [] [] brs    
 
 end

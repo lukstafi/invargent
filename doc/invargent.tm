@@ -610,10 +610,6 @@
   introduced by <verbatim|assert false> construct. If the check fails, we add
   the answer to discarded answers and repeat the search.
 
-  We keep a count of conflicts for the runouts so that in case of overall
-  failure, we can report a branch likely to be among those preventing
-  abduction.
-
   If a partial answer becomes as strong as one of the discarded answers
   inside SCA, simple constraint abduction skips to find a different answer.
   The discarded answers are initialized with a discard list passed from the
@@ -848,7 +844,9 @@
   <math|k<rsup|s>> factors. We also constrain the algorithm by filtering out
   transformations that contain ``too many'' variables, which can lead to
   missing answers if the setting <verbatim|abd_prune_at> -- ``too many'' --
-  is too low.
+  is too low. Similarly to term abduction, we count the number of steps of
+  the loop and fail if more than <verbatim|abd_timeout_count> steps have been
+  taken.
 
   <section|Disjunction Elimination>
 
@@ -1111,7 +1109,8 @@
   <\eqnarray*>
     <tformat|<table|<row|<cell|\<alpha\>\<prec\>\<beta\>>|<cell|\<equiv\>>|<cell|\<alpha\>\<less\><rsub|\<cal-Q\>>\<beta\>\<vee\><around*|(|\<alpha\>\<leqslant\><rsub|\<cal-Q\>>\<beta\>\<wedge\>\<beta\>\<nless\><rsub|\<cal-Q\>>\<alpha\>\<wedge\>\<alpha\>\<in\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<wedge\>\<beta\>\<nin\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>|)>>>|<row|<cell|A<rsub|0>>|<cell|=>|<cell|A\\<around*|{|\<beta\><wide|=|\<dot\>>\<alpha\>\<in\>A<mid|\|>\<beta\>\<in\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<wedge\><around*|(|\<exists\>\<alpha\>|)>\<in\>\<cal-Q\>\<wedge\>\<beta\>\<prec\>\<alpha\>|}>>>|<row|<cell|A<rsub|\<chi\>><rsup|1>>|<cell|=>|<cell|Connected<around*|(|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>,A<rsub|0>|)>>>|<row|<cell|A<rsub|\<chi\>><rsup|2>>|<cell|=>|<cell|<around*|{|c\<in\>A<rsub|\<chi\>><rsup|1><mid|\|>c<with|mode|text|
     is not localized in branch without >\<chi\><with|mode|text| in
-    premise>|}>>>|<row|<cell|A<rsub|\<chi\>><rsup|3>>|<cell|=>|<cell|A<rsub|\<chi\>><rsup|2>\\\<cup\><rsub|\<chi\><rprime|'>\<gtr\><rsub|\<cal-Q\>>\<chi\>>A<rsub|\<chi\><rprime|'>><rsup|2>>>|<row|<cell|A<rsup|4><rsub|\<chi\>>>|<cell|=>|<cell|Connected<rsub|undir><around*|(|FV<around*|(|A<rsub|\<chi\>><rsup|3>|)>\<cap\><wide|\<zeta\>|\<bar\>>,A<rsub|0>|)>>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|\<nvDash\>\<forall\><wide|\<alpha\>|\<bar\>>\<cal-Q\>.A\<setminus\>A<rsup|4><rsub|\<chi\>>>>|<row|<cell|<with|mode|text|then
+    premise>|}>>>|<row|<cell|A<rsub|\<chi\>><rsup|3>>|<cell|=>|<cell|A<rsub|\<chi\>><rsup|2>\\\<cup\><rsub|\<chi\><rprime|'>\<gtr\><rsub|\<cal-Q\>>\<chi\>>A<rsub|\<chi\><rprime|'>><rsup|2>>>|<row|<cell|A<rsup|4><rsub|\<chi\>>>|<cell|=>|<cell|<around*|{|c\<in\>A<rsub|0><mid|\|>card<around*|(|<around*|(|FV<around*|(|c|)>\<cap\><wide|\<zeta\>|\<bar\>>|)>\\FV<around*|(|A<rsub|\<chi\>><rsup|3>|)>|)>=1\<wedge\><next-line><with|mode|text|
+    \ \ \ \ \ >\<forall\>\<alpha\>\<in\>FV<around*|(|c|)>\\FV<around*|(|A<rsub|\<chi\>><rsup|3>|)>.<around*|(|\<exists\>\<alpha\>|)>\<in\>\<cal-Q\>|}>>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|\<nvDash\>\<forall\><wide|\<alpha\>|\<bar\>>\<cal-Q\>.A\<setminus\>A<rsup|4><rsub|\<chi\>>>>|<row|<cell|<with|mode|text|then
     return>>|<cell|>|<cell|\<bot\>>>|<row|<cell|<with|mode|text|for all
     ><wide|A<rsub|\<chi\>><rsup|+>|\<bar\>><with|mode|text| min. w.r.t.
     >\<subset\><with|mode|text| s.t.>>|<cell|>|<cell|\<wedge\><rsub|\<chi\>><around*|(|A<rsub|\<chi\>><rsup|+>\<subset\>A<rsub|\<chi\>><rsup|4>|)>\<wedge\>\<vDash\>\<forall\><wide|\<alpha\>|\<bar\>>\<cal-Q\>.A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>:>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|Strat<around*|(|Connected<around*|(|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>,A<rsup|+><rsub|\<chi\>>|)>,<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|)><with|mode|text|
@@ -1178,13 +1177,11 @@
     <math|\<chi\>> atom for <math|\<beta\><rsup|\<chi\><rprime|'>>>
     downstream of <math|b<rsup|\<chi\>>>.
 
-    <item><math|<tabular|<tformat|<table|<row|<cell|A<rsub|\<chi\>><rsup|4>>|<cell|=>|<cell|Connected<rsub|undir><around*|(|FV<around*|(|A<rsub|\<chi\>><rsup|3>|)>\<cap\><wide|\<zeta\>|\<bar\>>,A<rsub|0>|)>>>>>>>Recompute
-    the connected component to gather atoms with subterms of terms in
-    <math|A<rsub|\<chi\>><rsup|1>>, which should not remain in the residuum.
-    <math|Connected<rsub|undir><around*|(|<wide|\<zeta\>|\<bar\>>,A<rsub|0>|)>>
-    finds atoms-edges of <math|A<rsub|0>> connected to
-    <math|<wide|\<zeta\>|\<bar\>>> without treating term atoms as directed
-    edges.
+    <item><math|<tabular|<tformat|<table|<row|<cell|A<rsup|4><rsub|\<chi\>>>|<cell|=>|<cell|<around*|{|c\<in\>A<rsub|0><mid|\|>card<around*|(|<around*|(|FV<around*|(|c|)>\<cap\><wide|\<zeta\>|\<bar\>>|)>\\FV<around*|(|A<rsub|\<chi\>><rsup|3>|)>|)>=1\<wedge\>\<forall\>\<alpha\>\<in\>FV<around*|(|c|)>\\FV<around*|(|A<rsub|\<chi\>><rsup|3>|)>.<around*|(|\<exists\>\<alpha\>|)>\<in\>\<cal-Q\>|}>>>>>>>
+    Gather atoms with subterms of terms in <math|A<rsub|\<chi\>><rsup|3>>,
+    which should not remain in the residuum. Filter atoms whose free
+    variables have at most a single variable more than the corresponding
+    <math|A<rsub|\<chi\>><rsup|3>>, and it is existential.
 
     <item><math|<tabular|<tformat|<table|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|\<nvDash\>\<forall\><wide|\<alpha\>|\<bar\>>\<cal-Q\>.A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|4>>>>>><with|mode|text|
     then return >\<bot\>> Failed solution attempt. A common example is when
@@ -1565,14 +1562,14 @@
     <associate|ImplSubst|<tuple|4|2>>
     <associate|Main Algo|<tuple|5.3|?>>
     <associate|MainAlgo|<tuple|5|12>>
-    <associate|MainAlgoBody|<tuple|5.3|15>>
-    <associate|NumConv|<tuple|4.2|11>>
+    <associate|MainAlgoBody|<tuple|5.3|14>>
+    <associate|NumConv|<tuple|4.2|10>>
     <associate|Rg|<tuple|5|15>>
     <associate|SCAlinear|<tuple|3.4|8>>
     <associate|SepProp|<tuple|5|3>>
     <associate|SepProp2|<tuple|6|?>>
     <associate|Skp|<tuple|1|15>>
-    <associate|Skp1|<tuple|10|16>>
+    <associate|Skp1|<tuple|10|15>>
     <associate|SolSimpl|<tuple|9|12>>
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
@@ -1583,12 +1580,12 @@
     <associate|auto-13|<tuple|4.1|10>>
     <associate|auto-14|<tuple|4.2|10>>
     <associate|auto-15|<tuple|4.3|11>>
-    <associate|auto-16|<tuple|5|11>>
+    <associate|auto-16|<tuple|5|12>>
     <associate|auto-17|<tuple|5.1|12>>
-    <associate|auto-18|<tuple|5.2|13>>
-    <associate|auto-19|<tuple|5.3|13>>
+    <associate|auto-18|<tuple|5.2|12>>
+    <associate|auto-19|<tuple|5.3|14>>
     <associate|auto-2|<tuple|2|2>>
-    <associate|auto-20|<tuple|5.4|15>>
+    <associate|auto-20|<tuple|5.4|16>>
     <associate|auto-21|<tuple|5.5|17>>
     <associate|auto-22|<tuple|5.5|17>>
     <associate|auto-23|<tuple|5.5|18>>
@@ -1600,21 +1597,21 @@
     <associate|auto-7|<tuple|3.1|5>>
     <associate|auto-8|<tuple|3.1.1|6>>
     <associate|auto-9|<tuple|3.2|7>>
-    <associate|bib-AbductionSolvMaher|<tuple|3|18>>
-    <associate|bib-AntiUnifAlg|<tuple|9|18>>
+    <associate|bib-AbductionSolvMaher|<tuple|3|17>>
+    <associate|bib-AntiUnifAlg|<tuple|9|17>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
-    <associate|bib-ArithQuantElim|<tuple|1|18>>
-    <associate|bib-ConvexHull|<tuple|2|18>>
+    <associate|bib-ArithQuantElim|<tuple|1|17>>
+    <associate|bib-ConvexHull|<tuple|2|17>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
-    <associate|bib-ESOP2014|<tuple|8|18>>
+    <associate|bib-ESOP2014|<tuple|8|17>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
-    <associate|bib-disjelimTechRep|<tuple|5|18>>
-    <associate|bib-invariantsTechRep2|<tuple|6|18>>
+    <associate|bib-disjelimTechRep|<tuple|5|17>>
+    <associate|bib-invariantsTechRep2|<tuple|6|17>>
     <associate|bib-jcaqpTechRep|<tuple|8|4>>
-    <associate|bib-jcaqpTechRep2|<tuple|7|18>>
-    <associate|bib-jcaqpUNIF|<tuple|4|18>>
+    <associate|bib-jcaqpTechRep2|<tuple|7|17>>
+    <associate|bib-jcaqpUNIF|<tuple|4|17>>
     <associate|bib-simonet-pottier-hmg-toplas|<tuple|6|4>>
     <associate|bib-systemTechRep|<tuple|5|18>>
   </collection>

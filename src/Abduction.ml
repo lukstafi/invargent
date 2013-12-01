@@ -9,7 +9,8 @@ open Terms
 open Aux
 open Joint
 
-let timeout_count = ref (* 500 *)(* 1000 *)(* 5000 *)50000
+let timeout_count = ref (* 500 *)1000(* 5000 *)(* 50000 *)
+let fail_timeout_count = ref 50
 
 let residuum q prem concl =
   let concl = to_formula concl in
@@ -573,6 +574,8 @@ module TermAbd = struct
   type answer = var_name list * subst
   type discarded = answer
   type branch = subst * subst
+
+  let abd_fail_timeout = !fail_timeout_count
 
   let abd_simple (q, pms) ~discard ~validate (bvs, acc) br =
     abd_simple q ~bvs ~pms ~validate ~discard 0 acc br
