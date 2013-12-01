@@ -337,6 +337,19 @@ let rec map_aux f = function
   | lazy (LazCons (a, l)) ->
     LazCons (f a, lazy (map_aux f l))
 let lazmap f l = lazy (map_aux f l)
+let rec filter_aux f = function
+  | lazy LazNil -> LazNil
+  | lazy (LazCons (a, l)) ->
+    if f a then LazCons (f a, lazy (map_aux f l))
+    else map_aux f l
+let lazfilter f l = lazy (filter_aux f l)
+let rec map_some_aux f = function
+  | lazy LazNil -> LazNil
+  | lazy (LazCons (a, l)) ->
+    match f a with
+    | Some b -> LazCons (b, lazy (map_some_aux f l))
+    | None -> map_some_aux f l
+let lazmap_some f l = lazy (map_some_aux f l)
 let rec laziter f = function
   | lazy LazNil -> ()
   | lazy (LazCons (a, l)) ->

@@ -838,10 +838,17 @@
   initial steps of the main algorithm are insolvable. That is, when the
   instantiations of the invariants found so far are not informative enough,
   the expected answer of the JCA problem is not a fully maximal SCA answer to
-  these branches. We mitigate this problem by removing, in the first call to
-  numerical abduction (the second iteration of the main algorithm), branches
-  that contain unary predicate variables in the conclusion, i.e. we only use
-  the ``non-recursive'' branches.
+  these branches. The backtracking mechanism of the joint constraint
+  abduction algorithm mitigates the problem, but we provide an optional
+  optimization. If the optimization is on, we do not pass, in the first call
+  to numerical abduction (the second iteration of the main algorithm),
+  branches that contain unary predicate variables in the conclusion, i.e. we
+  only use the ``non-recursive'' branches. Other optimizations that we use
+  are: iterative deepening on the constant <math|n> used to generate
+  <math|k<rsup|s>> factors. We also constrain the algorithm by filtering out
+  transformations that contain ``too many'' variables, which can lead to
+  missing answers if the setting <verbatim|abd_prune_at> -- ``too many'' --
+  is too low.
 
   <section|Disjunction Elimination>
 

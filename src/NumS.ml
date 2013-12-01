@@ -11,7 +11,8 @@ open Num
 open Aux
 
 let early_num_abduction = ref false(* true *)
-let abd_rotations = ref (* 1 *)2(* 3 *)
+let abd_rotations = ref (* 2 *)3
+let abd_prune_at = ref (* 4 *)6(* 10 *)
 let disjelim_rotations = ref 3
 let passing_ineq_trs = ref false
 
@@ -476,33 +477,15 @@ let abd_simple cmp cmp_w cmp_v uni_v ~bvs ~discard ~validate
     let d_ineqn0 = List.map (subst_w cmp eqs0) d_ineqn' in
     let c_ineqn0 = List.map (subst_w cmp eqs0) c_ineqn' in
     (* 2 *)
-    let big_k = Array.init (!abd_rotations - 1) (fun k -> !/(k+2)) in
-    let big_k =
-      Array.append big_k (Array.map (fun k-> !/1 // k) big_k) in
-    let ks_eq = (* 1a1 *)
-      Array.to_list
-        (Array.append [|!/1; !/(-1); !/0|]
-           (Array.append
-              big_k
-              (Array.map (fun k -> !/(-1) */ k) big_k))) in
-    let ks_ineq = (* 1b1 *)
-      Array.to_list (Array.append [|!/0; !/1|] big_k) in
-    let ks_eq = laz_of_list ks_eq
-    and ks_ineq = laz_of_list ks_ineq in
     let zero = [], !/0, dummy_loc in
-    let add_eq_tr eq_trs a =
-      Format.printf "add_eq_tr: a=%a@\n%!" pr_w a; (* *)
+    let prune (vars, _, _ as w) =
+      if List.length vars < !abd_prune_at then Some w else None in
+    let add_tr ks_eq eq_trs a =
+      Format.printf "add_eq/ineq_tr: a=%a@\n%!" pr_w a; (* *)
       let kas = lazmap (fun k -> mult k a) ks_eq in
-      let add_kas tr = lazmap (fun ka -> sum_w cmp ka tr) kas in
+      let add_kas tr =
+        lazmap_some (fun ka -> prune (sum_w cmp ka tr)) kas in
       lazconcat_map add_kas eq_trs in
-    let eq_trs = laz_single zero in
-    let eq_trs = List.fold_left add_eq_tr eq_trs d_eqn' in
-    let add_ineq_tr ineq_trs a =
-      Format.printf "add_ineq_tr: a=%a@\n%!" pr_w a; (* *)
-      let kas = lazmap (fun k -> mult k a) ks_ineq in
-      let add_kas tr = lazmap (fun ka -> sum_w cmp ka tr) kas in
-      lazconcat_map add_kas ineq_trs in
-    let ineq_trs = List.fold_left add_ineq_tr eq_trs d_ineqn0 in
     Format.printf
       "NumS.abd_simple: 2.@\neqs_i=@ %a@\nineqs_i=@ %a@\nd_eqn=@ %a@ d_ineqn=@ %a@\nc_eqn=@ %a@\nc_ineqn=@ %a@\nd_ineqn0=@ %a@\nc_ineqn0=@ %a@\neqs0=@ %a@\n%!"
       pr_w_subst eqs_i pr_ineqs ineqs_i pr_eqn d_eqn pr_ineqn d_ineqn
@@ -513,7 +496,8 @@ let abd_simple cmp cmp_w cmp_v uni_v ~bvs ~discard ~validate
     let eqs0, c6eqs, c6ineqn =
       revert_cst_n_uni cmp cmp_v uni_v ~bvs eqs0 c_ineqn0 in      
     (* 4 *)
-    let rec loop eq_trs ineq_trs eqs_acc ineqs_acc c6eqs c0eqs c6ineqn c0ineqn =
+    let rec loop add_eq_tr add_ineq_tr eq_trs ineq_trs eqs_acc ineqs_acc
+        c6eqs c0eqs c6ineqn c0ineqn =
       let ddepth = incr debug_dep; !debug_dep in
       let a, c6a, iseq, c0eqs, c6eqs, c0ineqn, c6ineqn =
         match c0eqs, c6eqs, c0ineqn, c6ineqn with
@@ -556,7 +540,8 @@ let abd_simple cmp cmp_w cmp_v uni_v ~bvs ~discard ~validate
       then
         (* 6 *)
         (* [ineq_trs] include [eq_trs]. *)
-        loop eq_trs ineq_trs eqs_acc ineqs_acc c6eqs c0eqs c6ineqn c0ineqn
+        loop add_eq_tr add_ineq_tr eq_trs ineq_trs eqs_acc
+          ineqs_acc c6eqs c0eqs c6ineqn c0ineqn
       else
         (* 7 *)
         let trs = if iseq then eq_trs else ineq_trs in
@@ -593,7 +578,8 @@ let abd_simple cmp cmp_w cmp_v uni_v ~bvs ~discard ~validate
             Format.printf
               "NumS.abd_simple: [%d] 7 OK@\n%!" ddepth; (* *)
             (* (try                         *)
-            loop eq_trs ineq_trs eqs_acc ineqs_acc c6eqs c0eqs c6ineqn c0ineqn
+            loop add_eq_tr add_ineq_tr eq_trs ineq_trs eqs_acc ineqs_acc
+              c6eqs c0eqs c6ineqn c0ineqn
           (* with Contradiction _ -> ()) *)
           with
           | Contradiction (_,msg,tys,_) as e when msg != no_pass_msg ->
@@ -612,7 +598,29 @@ let abd_simple cmp cmp_w cmp_v uni_v ~bvs ~discard ~validate
           (* *)
           raise (Contradiction (Num_sort, no_pass_msg, None, dummy_loc))) in
     (* 2 *)
-    try loop eq_trs ineq_trs eqs_i ineqs_i eqs0 c6eqs c_ineqn0 c6ineqn; None
+    try
+      for rot = 1 to !abd_rotations do
+        let big_k = Array.init (rot - 1) (fun k -> !/(k+2)) in
+        let big_k =
+          Array.append big_k (Array.map (fun k-> !/1 // k) big_k) in
+        let ks_eq = (* 1a1 *)
+          Array.to_list
+            (Array.append [|!/1; !/(-1); !/0|]
+               (Array.append
+                  big_k
+                  (Array.map (fun k -> !/(-1) */ k) big_k))) in
+        let ks_ineq = (* 1b1 *)
+          Array.to_list (Array.append [|!/0; !/1|] big_k) in
+        let ks_eq = laz_of_list ks_eq
+        and ks_ineq = laz_of_list ks_ineq in
+        let eq_trs = laz_single zero in
+        let add_eq_tr = add_tr ks_eq in
+        let eq_trs = List.fold_left add_eq_tr eq_trs d_eqn' in
+        let add_ineq_tr = add_tr ks_ineq in
+        let ineq_trs = List.fold_left add_ineq_tr eq_trs d_ineqn0 in
+        loop add_eq_tr add_ineq_tr eq_trs ineq_trs eqs_i ineqs_i
+          eqs0 c6eqs c_ineqn0 c6ineqn
+      done; None
     with Result (ans_eqs, ans_ineqs) -> Some (ans_eqs, ans_ineqs)
   with Contradiction _ -> None
 
