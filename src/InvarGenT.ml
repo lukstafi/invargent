@@ -14,7 +14,7 @@ let () =
     exit 0
   ) else (
     current_file_name :=  Sys.argv.(1);
-    (* *)
+    * *)
     try
       (* *)
       let prog = (Infer.normalize_program % Parser.program Lexer.token)

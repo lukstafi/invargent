@@ -65,9 +65,9 @@ let existential evs exphi ty loc =
   let ex_sch = allvs, exphi, [ty], ety_cn, pvs in
   all_ex_types := (ety_id, loc) :: !all_ex_types;
   Hashtbl.add sigma ety_cn ex_sch;
-  Format.printf "Parser-existential-ex_types: id=%d@ phi=%a@ ty=%a@\n%!"
+  (* Format.printf "Parser-existential-ex_types: id=%d@ phi=%a@ ty=%a@\n%!"
     ety_id pr_formula exphi (pr_ty false) ty;
-  (* *)
+  * *)
   (* Here in [ety] the variables are free, unlike the
      occurrences in [exphi]. *)
   ety
