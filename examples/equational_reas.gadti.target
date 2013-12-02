@@ -1,0 +1,31 @@
+newtype Place : type
+
+newtype Nearby : type * type
+
+newtype A
+
+newtype B
+
+newcons LocA : Place A
+
+newcons LocB : Place B
+
+newtype Bool
+
+external is_nearby : ∀a,b. Nearby (a, b) → Bool
+
+newcons Here : ∀a. Place a * Place a ⟶ Nearby (a, a)
+
+newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
+
+external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
+
+newtype Meet : type * type
+
+newcons Same : ∀a,b [a=b]. Meet (a, b)
+
+newcons NotSame : ∀a, b. Meet (a, b)
+
+external compare : ∀a,b. Place a → Place b → Meet (a, b)
+
+val walk : ∀a,b. Place a → Place b → Nearby (a, b)

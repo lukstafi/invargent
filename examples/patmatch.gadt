@@ -1,2 +1,0 @@
-let rec flip =
-  function a, b -> b, a

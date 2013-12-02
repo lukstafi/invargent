@@ -5,12 +5,12 @@ newcons False : Bool
 newcons LNil : ∀a. List(a, 0)
 newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 
-let rec filter = fun f ->
+let rec filter = fun f g ->
   efunction LNil -> LNil
     | LCons (x, xs) ->
       ematch f x with
         | True ->
-          let ys = filter f xs in
-          LCons (x, ys)
+          let ys = filter f g xs in
+          LCons (g x, ys)
 	| False ->
-          filter f xs
+          filter f g xs

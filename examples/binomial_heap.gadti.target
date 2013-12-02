@@ -1,0 +1,52 @@
+newtype Tree : type * num
+
+newtype Forest : type * num
+
+newtype Heap : type * num * num
+
+newtype Order : num * num
+
+newtype Bool
+
+newcons Le : ∀i, j [i≤j+1]. Order (i, j)
+
+newcons Gt : ∀i, j [j≤i+1]. Order (i, j)
+
+newcons Eq : ∀i. Order (i, i)
+
+newcons True : Bool
+
+newcons False : Bool
+
+newcons Node : ∀a, k [0≤k]. Num k * a * Forest (a, k) ⟶ Tree (a, k)
+
+newcons TCons :
+  ∀a, n [0≤n]. Tree (a, n) * Forest (a, n) ⟶ Forest (a, n+1)
+
+newcons TNil : ∀a. Forest (a, 0)
+
+newcons HCons :
+  ∀a, k, m, n [0≤k ∧ k+1≤m ∧ m≤n].
+    Tree (a, k) * Heap (a, m, n) ⟶ Heap (a, k, n)
+
+newcons HNil : ∀a, n. Heap (a, n, n)
+
+external compare : ∀i, j. Num i → Num j → Order (i, j)
+
+external leq : ∀a. a → a → Bool
+
+external incr : ∀i. Num i → Num (i+1)
+
+val rank : ∀a, n. Tree (a, n) → Num n
+
+val link : ∀a, n. (Tree (a, n), Tree (a, n)) → Tree (a, n + 1)
+
+val ins_tree : ∀a, n, k, m. Tree (a, k) → Heap (a, m, n) →
+            ∃4:i, j[min (i, k, m) ∧ max (j, k, n) ∧ 0 ≤ i ∧ 0 ≤ j].
+               Heap (a, i, j))
+
+val merge :
+
+val remove_min_tree :
+
+val delete_min :
