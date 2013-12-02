@@ -9,7 +9,7 @@ open OUnit
 open Terms
 open Aux
 
-let debug = ref (* false *)true
+let debug = ref false(* true *)
 
 let test_common more_general msg test =
   Terms.reset_state ();
@@ -1332,7 +1332,7 @@ let rec link = function
     | True -> Node (incr r, x1, TCons (t2, c1))
     | False -> Node (incr r, x2, TCons (t1, c2))
 "
-        [1,"∃n, k, i, a. δ = (Tree (a, k), Tree (a, i) → Tree (a, n)) ∧
+        [1,"∃n, k, i, a. δ = ((Tree (a, k), Tree (a, i)) → Tree (a, n)) ∧
   n = (1 + k) ∧ n = (1 + i)"];
     );
 

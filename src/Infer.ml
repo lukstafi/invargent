@@ -1020,10 +1020,12 @@ let simplify preserve q brs =
     | _ -> false in
   let nonred_pr_atom a = not (redundant_atom true a) in
   let nonred_atom a = not (redundant_atom false a) in
-  let is_nonrec concl =
+  let is_nonrec prem concl =
     not (List.exists (function
         | PredVarU (i, _, _) -> Hashtbl.mem chi_rec i
-        | _ -> false) concl) in
+        | _ -> false) concl) &&
+    not (List.exists (function
+        | PredVarB (i, _, _, _) -> true | _ -> false) prem) in
   let brs = List.map
     (fun (prem,concl) ->
       List.filter nonred_pr_atom prem,
@@ -1057,14 +1059,14 @@ let simplify preserve q brs =
   let rec meet nonrec prem concl = function
     | [] -> raise Not_found
     | (prem2, concl2 as br) :: brs ->
-      let nonrec2 = is_nonrec concl2 in
+      let nonrec2 = is_nonrec prem2 concl2 in
       if nonrec=nonrec2 && equiv prem prem2
       then (prem, concl @ concl2) :: brs
       else br :: meet nonrec prem concl brs in
   let rec merge acc = function
     | [] -> List.rev acc
     | (prem, concl as br) :: brs ->
-      try merge acc (meet (is_nonrec concl) prem concl brs)
+      try merge acc (meet (is_nonrec prem concl) prem concl brs)
       with Not_found -> merge (br::acc) brs in
   let brs = merge [] brs in
   List.stable_sort

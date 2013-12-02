@@ -382,7 +382,9 @@
   might need refining. We merge implications with the same premise, unless
   one of them is non-recursive and the other is recursive. We call an
   implication branch recursive when an unary predicate variable
-  <math|\<chi\>> (not a <math|\<chi\><rsub|K>>) appears in the conclusion.
+  <math|\<chi\>> (not a <math|\<chi\><rsub|K>>) appears in the conclusion
+  <em|or> a binary predicate variable <math|\<chi\><rsub|K>> appears in the
+  premise.
 
   <section|Abduction>
 

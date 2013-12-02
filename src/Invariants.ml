@@ -636,7 +636,10 @@ let solve q_ops exty_res_chi brs =
       (fun (prem,concl) ->
          not (List.exists (function
              | PredVarU (i, _, _) -> Hashtbl.mem chi_rec i
-             | _ -> false) concl),
+             | _ -> false) concl) &&
+         not (List.exists (function
+             | PredVarB (i, _, _, _) -> true
+             | _ -> false) prem),
          prem, concl)
       brs in
   let exty_of_chi = Hashtbl.create 4 in
