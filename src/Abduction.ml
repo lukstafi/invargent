@@ -9,8 +9,8 @@ open Terms
 open Aux
 open Joint
 
-let timeout_count = ref (* 500 *)1000(* 5000 *)(* 50000 *)
-let fail_timeout_count = ref 50
+let timeout_count = ref 700(* 1000 *)(* 5000 *)(* 50000 *)
+let fail_timeout_count = ref 5
 
 let residuum q prem concl =
   let concl = to_formula concl in
@@ -428,7 +428,10 @@ let abd_simple q ?without_quant ~bvs ~pms
              assert (so = []);
              abstract deep repls bvs pms vs ans cand
            with Contradiction (_, msg, Some (ty1, ty2), _) ->
-             (* FIXME: change to [with Contradiction _ -> ()] after debug  *)
+             (* FIXME: change to [with Contradiction _ ->
+                incr counter;
+                if !counter > !timeout_count then raise Timeout;
+                ()] after debug  *)
              Format.printf
                "abd_simple: [%d] @ c.4 failed:@ %s@ %a@ %a@\n%!" ddepth
                msg (pr_ty true) ty1 (pr_ty true) ty2;
@@ -443,6 +446,8 @@ let abd_simple q ?without_quant ~bvs ~pms
                   (fvs_typ ty2)
               | _ -> ()); 
              Format.printf "abd_simple: [%d] choice 4 failed@\n%!" ddepth; (* *)
+             incr counter;
+             if !counter > !timeout_count then raise Timeout;
              ())
         | Some loc ->
           Format.printf "abd_simple: [%d] neighbor loc@\n%!" ddepth; (* *)
@@ -513,6 +518,8 @@ let abd_simple q ?without_quant ~bvs ~pms
                     ddepth (var_str x) (pr_ty false) t'; (* *)
                   abstract deep repls bvs' pms vs ans' cand
                 with Contradiction _ ->
+                  incr counter;
+                  if !counter > !timeout_count then raise Timeout;
                   ())
              | Some loc' ->
                step deep x lc loc' repls is_p bvs pms vs ans cand)
