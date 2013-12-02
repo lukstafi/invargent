@@ -758,42 +758,45 @@ let solve q_ops exty_res_chi brs =
                         let cvs = fvs_atom c in
                         List.exists (flip VarSet.mem cvs) target)
                      g_ans in
-                 (* FIXME *)
-                 (* *)let g_ans =
+                 (* FIXME *) (* *)
+                 let g_ans =
                    if iter_no < disj_step.(2)
                    then
                      DisjElim.initstep_heur q.op ~preserve g_ans
-                   else g_ans in(* *)
+                   else g_ans in (* *)
                  i, connected ~validate ~directed:true [delta; delta']
                    (g_vs, g_ans)
                with Not_found ->
-                 Format.printf "solve: disjelim branches for %d not found@\n%!"
-                   i; (* *)
+                 (* Format.printf "solve: disjelim branches for %d not found@\n%!"
+                   i; * *)
                  i, ([], []))
             rol1 in
-        Format.printf "solve: iter_no=%d@\ng_rol.A=%a@\n%!"
+        (* Format.printf "solve: iter_no=%d@\ng_rol.A=%a@\n%!"
           iter_no pr_chi_subst g_rol;
-        (* *)
+        * *)
         (* 4 *)
         let lift_ex_types cmp_v i (g_vs, g_ans) =
           let g_vs, g_ans = simplify q_ops (g_vs, g_ans) in
           let fvs = VarSet.elements
               (VarSet.diff (fvs_formula g_ans)
                  (vars_of_list [delta;delta'])) in
-          let pvs = VarSet.elements
-              (VarSet.diff (vars_of_list fvs) (vars_of_list g_vs)) in
+          let pvs = VarSet.diff (vars_of_list fvs) (vars_of_list g_vs) in
+          let pvs = VarSet.elements pvs in
+          let chi_vs = dsj_preserve i in
+          let pvs = List.filter
+              (fun v -> not (q.uni_v v) || VarSet.mem v chi_vs) pvs in
           let targs = List.map (fun v -> TVar v) pvs in
           let tpar = TCons (tuple, targs) in
           let phi =
             Eqty (tdelta', tpar, dummy_loc)
             :: g_ans in
-          Format.printf
+          (* Format.printf
             "lift_ex_types: fvs=%a@ pvs=%a@ g_vs=%a@ tpar=%a@ g_ans=%a@ phi=%a@\n%!"
             pr_vars (vars_of_list fvs)
             pr_vars (vars_of_list pvs)
             pr_vars (vars_of_list g_vs) (pr_ty false) tpar
             pr_formula g_ans pr_formula phi;
-          (* *)
+          * *)
           tpar, (pvs @ g_vs, phi) in
         (* 5 *)
         let g_rol = List.map2
