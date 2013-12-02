@@ -89,7 +89,7 @@ let extract_datatyp allvs loc = function
         if not (VarSet.mem v used) then (VarSet.add v used, phi), v
         else
           let v' = next_var allvs (typ_sort t) in
-          (VarSet.add v' used, Eqty (t, TVar v, loc)::phi), v'
+          (VarSet.add v' used, Eqty (t, TVar v', loc)::phi), v'
       | t ->
         let v = next_var allvs (typ_sort t) in
         (VarSet.add v used, Eqty (t, TVar v, loc)::phi), v)
