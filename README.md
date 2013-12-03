@@ -30,13 +30,8 @@ Milestones: [x] - completed, [#] - finishing (75%-95%), [+] - in the middle (25%
 
 And version 2.0 goals:
 - [_] Improve error reporting (likely culprit).
+- [_] Factorize to make extending and adding sorts easier -- ideally, plug-in architecture for sorts.
 - [_] Add (relational forms of) `min` and `max` to the numerical sort -- sorely needed for datastructure invariants.
-- [_] Formalize inference of GADT type definitions from function types.
-- [_] Implement inference of GADT type definitions.
 - [_] Optimize.
-- [_] Factorize implementation to have plug-in architecture for sorts.
 - [_] Syntax for numeric multiplication.
-- [_] Add sorts: integer numbers,
-- [_] finite partial orders,
-- [_] atomless lattices,
-- [_] ring of polynomials.
+- [_] Add a new "promising" sort. Candidates: integer numbers, partial orders, ring of polynomials...

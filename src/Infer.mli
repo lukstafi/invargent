@@ -29,7 +29,7 @@ type envfrag = Terms.VarSet.t * Terms.formula * (string * Terms.typ) list
 val typ_to_sch : 'a * Terms.typ -> 'a * Terms.typ_scheme
 val constr_gen_expr :
   (string * Terms.typ_scheme) list ->
-  Terms.expr -> Terms.typ -> cnstrnt
+  Terms.uexpr -> Terms.typ -> cnstrnt * Terms.iexpr
 type solution =
   Terms.quant_ops * Terms.formula *
     (int * (Terms.var_name list * Terms.formula)) list
@@ -37,10 +37,10 @@ val infer_prog_mockup : Terms.struct_item list -> Terms.VarSet.t * cnstrnt
 val infer_prog :
   (preserve:Terms.VarSet.t -> cnstrnt -> solution) ->
   Terms.struct_item list ->
-  (string * Terms.typ_scheme) list * Terms.struct_item list
+  (string * Terms.typ_scheme) list * Terms.annot_item list
 
 (** {2 Normalization} *)
-val normalize_expr : Terms.expr -> Terms.expr
+val normalize_expr : Terms.uexpr -> Terms.uexpr
 val normalize_program : Terms.program -> Terms.program
 
 type branch = Terms.formula * Terms.formula

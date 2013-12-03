@@ -144,7 +144,7 @@ let extract_datatyp allvs loc = function
 %%
 expr:
   | LET REC LIDENT EQUAL expr IN expr
-      { Letrec ($3, $5,
+      { Letrec ((), $3, $5,
 	       (* {beg_pos = rhs_start_pos 2; FIXME: body loc
 		  end_pos = rhs_end_pos 5}, *) $7, get_loc ()) }
   | LET pattern EQUAL expr IN expr

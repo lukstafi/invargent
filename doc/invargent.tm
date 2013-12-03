@@ -1495,6 +1495,19 @@
   the iteration number. We use recursion for backtracking, instead of making
   <verbatim|loop> tail-recursive.
 
+  <section|Generating OCaml/Haskell Source and Interface Code>
+
+  We have a single basis from which to generate all generated output files:
+  <verbatim|.gadti>, <verbatim|.ml>, <verbatim|.mli>, and in the future
+  <verbatim|.hs> -- <verbatim|annot_item>. It contains a superset of
+  information in <verbatim|struct_item>: type scheme annotations on
+  introduced names, and source code annotated with type schemes at recursive
+  definition nodes. Type scheme annotations on non-toplevel nodes introduce a
+  complication for generating OCaml code: we need to use <verbatim|(type a)>
+  syntax instead of <verbatim|'a.> syntax in the outer node for type
+  variables that are free in the type scheme of the inner node. Toplevel type
+  schemes are guaranteed to not have free variables.
+
   <\bibliography|bib|tm-plain|biblio.bib>
     <\bib-list|9>
       <bibitem*|1><label|bib-ArithQuantElim>Sergey<nbsp>Berezin,
@@ -1591,8 +1604,8 @@
     <associate|auto-2|<tuple|2|2>>
     <associate|auto-20|<tuple|5.4|17>>
     <associate|auto-21|<tuple|5.5|17>>
-    <associate|auto-22|<tuple|5.5|18>>
-    <associate|auto-23|<tuple|5.5|18>>
+    <associate|auto-22|<tuple|6|18>>
+    <associate|auto-23|<tuple|6|18>>
     <associate|auto-24|<tuple|5.5|17>>
     <associate|auto-3|<tuple|2.1|4>>
     <associate|auto-4|<tuple|2.1.1|4>>
@@ -1741,9 +1754,14 @@
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-21>>
 
-      <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
+      <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|6<space|2spc>Generating
+      OCaml/Haskell Source and Interface Code>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-22><vspace|0.5fn>
+
+      <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
+      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-23><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>

@@ -40,23 +40,31 @@ type pat =
 
 val pat_loc : pat -> loc
 
-type expr =
+type 'a expr =
 | Var of string * loc
 | Num of int * loc
-| Cons of cns_name * expr list * loc
-| App of expr * expr * loc
-| Lam of clause list * loc
-| ExLam of int * clause list * loc
-| Letrec of string * expr * expr * loc
-| Letin of pat * expr * expr * loc
+| Cons of cns_name * 'a expr list * loc
+| App of 'a expr * 'a expr * loc
+| Lam of 'a clause list * loc
+| ExLam of int * 'a clause list * loc
+| Letrec of 'a * string * 'a expr * 'a expr * loc
+| Letin of pat * 'a expr * 'a expr * loc
 | AssertFalse of loc
-| AssertLeq of expr * expr * expr * loc
-| AssertEqty of expr * expr * expr * loc
+| AssertLeq of 'a expr * 'a expr * 'a expr * loc
+| AssertEqty of 'a expr * 'a expr * 'a expr * loc
 
-and clause = pat * expr
+and 'a clause = pat * 'a expr
 
-val expr_loc : expr -> loc
-val clause_loc : clause -> loc
+(** User input expression: no type annotations. *)
+type uexpr = unit expr
+
+(** Post-constraint generation expression: number of predicate
+    variable holding the invariant for each [let rec] expression. *)
+type iexpr = int list expr
+
+val expr_loc : 'a expr -> loc
+val clause_loc : 'a clause -> loc
+val fuse_exprs : iexpr list -> iexpr
 
 type sort = Num_sort | Type_sort
 (** Type variables (and constants) remember their sort. Sort
@@ -81,6 +89,7 @@ type atom =
 type formula = atom list
 type typ_scheme = var_name list * formula * typ
 type answer = var_name list * formula
+type texpr = typ_scheme expr
 
 val delta : var_name
 val delta' : var_name
@@ -145,9 +154,19 @@ type struct_item =
 | ValConstr of cns_name * var_name list * formula * typ list
   * cns_name * var_name list * loc
 | PrimVal of string * typ_scheme * loc
-| LetRecVal of string * expr * typ_scheme option * expr list * loc
-| LetVal of pat * expr * typ_scheme option * expr list * loc
+| LetRecVal of string * uexpr * typ_scheme option * uexpr list * loc
+| LetVal of pat * uexpr * typ_scheme option * uexpr list * loc
 type program = struct_item list
+
+(** Represents both signature items and annotated structure items to
+    be printed as OCaml source code. *)
+type annot_item =
+| ITypConstr of cns_name * sort list * loc
+| IValConstr of cns_name * var_name list * formula * typ list
+  * cns_name * var_name list * loc
+| IPrimVal of string * typ_scheme * loc
+| ILetRecVal of string * texpr * typ_scheme * texpr list * loc
+| ILetVal of pat * texpr * (string * typ_scheme) list * texpr list * loc
 
 module VarSet : (Set.S with type elt = var_name)
 val typ_size : typ -> int
@@ -201,10 +220,10 @@ val current_file_name : string ref
 val collect_argtys : typ -> typ list
 (** Patterns of consecutive single-branch [Lam] and the first
     non-single-branch-[Lam] expression. *)
-val collect_lambdas : expr -> pat list * expr
+val collect_lambdas : 'a expr -> pat list * 'a expr
 (** Arguments and the resulting function in reverse order of
     application: turn [((a b) c) d] into [a; b; c; d] etc. *)
-val collect_apps : expr -> expr list
+val collect_apps : 'a expr -> 'a expr list
 
 (** Connected component(s) of the hypergraph spanned on variables,
     containing the given variables. [validate] should raise
@@ -306,8 +325,13 @@ val pr_line_list :
 val pr_pat : bool -> Format.formatter -> pat -> unit
 val pr_tyvar : Format.formatter -> var_name -> unit
 val pr_vars : Format.formatter -> VarSet.t -> unit
-val pr_expr : bool -> Format.formatter -> expr -> unit
-val pr_clause : Format.formatter -> clause -> unit
+val pr_expr :
+  (Format.formatter -> 'a -> unit) ->
+  bool -> Format.formatter -> 'a expr -> unit
+val pr_uexpr : bool -> Format.formatter -> uexpr -> unit
+val pr_texpr : bool -> Format.formatter -> texpr -> unit
+val pr_clause :
+  (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a clause -> unit
 val pr_atom : Format.formatter -> atom -> unit
 val pr_formula : Format.formatter -> formula -> unit
 val pr_ty : bool -> Format.formatter -> typ -> unit

@@ -60,20 +60,67 @@ let pat_loc = function
   | PAnd (_, _, loc) -> loc
   | PCons (_, _, loc) -> loc
 
-type expr =
+type 'a expr =
 | Var of string * loc
 | Num of int * loc
-| Cons of cns_name * expr list * loc
-| App of expr * expr * loc
-| Lam of clause list * loc
-| ExLam of int * clause list * loc
-| Letrec of string * expr * expr * loc
-| Letin of pat * expr * expr * loc
+| Cons of cns_name * 'a expr list * loc
+| App of 'a expr * 'a expr * loc
+| Lam of 'a clause list * loc
+| ExLam of int * 'a clause list * loc
+| Letrec of 'a * string * 'a expr * 'a expr * loc
+| Letin of pat * 'a expr * 'a expr * loc
 | AssertFalse of loc
-| AssertLeq of expr * expr * expr * loc
-| AssertEqty of expr * expr * expr * loc
+| AssertLeq of 'a expr * 'a expr * 'a expr * loc
+| AssertEqty of 'a expr * 'a expr * 'a expr * loc
 
-and clause = pat * expr
+and 'a clause = pat * 'a expr
+
+type uexpr = unit expr
+type iexpr = int list expr
+
+let fuse_exprs =
+  let rec aux e1 e2 =
+    match e1, e2 with
+    | Cons (n1, es, lc1), Cons (n2, fs, lc2) ->
+      assert (n1==n2 && lc1==lc2);
+      Cons (n1, combine es fs, lc1)
+    | App (e1, e2, lc1), App (f1, f2, lc2) ->
+      assert (lc1==lc2);
+      App (aux e1 f1, aux e2 f2, lc1)
+    | Lam (cls1, lc1), Lam (cls2, lc2) ->
+      assert (lc1==lc2);
+      Lam (combine_cls cls1 cls2, lc1)
+    | ExLam (k1, cls1, lc1), ExLam (k2, cls2, lc2) ->
+      assert (k1==k2 && lc1==lc2);
+      ExLam (k1, combine_cls cls1 cls2, lc1)
+    | Letrec (ms, x, e1, e2, lc1), Letrec (ns, y, f1, f2, lc2) ->
+      assert (x==y && lc1==lc2);
+      Letrec (ms@ns, x, aux e1 f1, aux e2 f2, lc1)
+    | Letin (p1, e1, e2, lc1), Letin (p2, f1, f2, lc2) ->
+      assert (p1==p2 && lc1==lc2);
+      Letin (p1, aux e1 f1, aux e2 f2, lc1)
+    | AssertLeq (e1, e2, e3, lc1), AssertLeq (f1, f2, f3, lc2) ->
+      assert (lc1==lc2);
+      AssertLeq (aux e1 f1, aux e2 f2, aux e3 f3, lc1)
+    | AssertEqty (e1, e2, e3, lc1), AssertEqty (f1, f2, f3, lc2) ->
+      assert (lc1==lc2);
+      AssertEqty (aux e1 f1, aux e2 f2, aux e3 f3, lc1)
+    | (Var _ as e), f
+    | (Num _ as e), f
+    | (AssertFalse _ as e), f ->
+      assert (e==f); e
+    | _ -> assert false
+
+  and combine es fs = List.map2 aux es fs
+  and aux_cl (p1, e1) (p2, e2) =
+    assert (p1 = p2);
+    p1, aux e1 e2
+  and combine_cls es fs =
+    List.map2 aux_cl es fs in
+  function
+  | [] -> assert false
+  | [e] -> e
+  | e::es -> List.fold_left aux e es
 
 let expr_loc = function
   | Var (_, loc)
@@ -82,7 +129,7 @@ let expr_loc = function
   | App (_, _, loc)
   | Lam (_, loc)
   | ExLam (_, _, loc)
-  | Letrec (_, _, _, loc)
+  | Letrec (_, _, _, _, loc)
   | Letin (_, _, _, loc)
   | AssertFalse loc
   | AssertLeq (_, _, _, loc)
@@ -475,6 +522,7 @@ let sb_phi_binary arg1 arg2 = List.map (sb_atom_binary arg1 arg2)
 
 type typ_scheme = var_name list * formula * typ
 type answer = var_name list * formula
+type texpr = typ_scheme expr
 
 let extype_id = ref 0
 let predvar_id = ref 0
@@ -484,10 +532,18 @@ type struct_item =
 | ValConstr of cns_name * var_name list * formula * typ list
   * cns_name * var_name list * loc
 | PrimVal of string * typ_scheme * loc
-| LetRecVal of string * expr * typ_scheme option * expr list * loc
-| LetVal of pat * expr * typ_scheme option * expr list * loc
+| LetRecVal of string * uexpr * typ_scheme option * uexpr list * loc
+| LetVal of pat * uexpr * typ_scheme option * uexpr list * loc
 
 type program = struct_item list
+
+type annot_item =
+| ITypConstr of cns_name * sort list * loc
+| IValConstr of cns_name * var_name list * formula * typ list
+  * cns_name * var_name list * loc
+| IPrimVal of string * typ_scheme * loc
+| ILetRecVal of string * texpr * typ_scheme * texpr list * loc
+| ILetVal of pat * texpr * (string * typ_scheme) list * texpr list * loc
 
 let rec enc_funtype res = function
   | [] -> res
@@ -669,61 +725,67 @@ let pr_tyvar ppf v = pp_print_string ppf (var_str v)
 let pr_vars ppf vs =
   pr_sep_list "," pr_tyvar ppf (VarSet.elements vs)
 
-let rec pr_expr comma ppf = function
+let rec pr_expr pr_ann comma ppf = function
   | Var (s, _) -> fprintf ppf "%s" s
   | Num (i, _) -> fprintf ppf "%d" i
   | Cons (CNam "Tuple", exps, _) ->
     fprintf ppf "@[<2>(%a)@]"
-      (pr_sep_list "," (pr_expr true)) exps
+      (pr_sep_list "," (pr_expr pr_ann true)) exps
   | Cons (x, [], _) ->
       fprintf ppf "%s" (cns_str x)
   | Cons (x, [exp], _) ->
-      fprintf ppf "@[<2>%s@ %a@]" (cns_str x) pr_one_expr exp
+      fprintf ppf "@[<2>%s@ %a@]" (cns_str x) (pr_one_expr pr_ann) exp
   | Cons (x, exps, _) ->
       fprintf ppf "@[<2>%s@ (%a)@]" (cns_str x)
-	(pr_sep_list "," (pr_expr true)) exps
+	(pr_sep_list "," (pr_expr pr_ann true)) exps
   | Lam ([_], _) as exp ->
       let pats, expr = collect_lambdas exp in
       fprintf ppf "@[<2>fun@ %a@ ->@ %a@]"
 	(pr_sep_list "" pr_one_pat) pats
-	(pr_expr false) expr
+	(pr_expr pr_ann false) expr
   | Lam (cs, _) ->
       fprintf ppf "@[<2>function@ %a@]"
-	(pr_pre_sep_list "| " pr_clause) cs
+	(pr_pre_sep_list "| " (pr_clause pr_ann)) cs
   | ExLam (_, cs, _) ->
       fprintf ppf "@[<0>efunction@ %a@]"
-	(pr_pre_sep_list "| " pr_clause) cs
+	(pr_pre_sep_list "| " (pr_clause pr_ann)) cs
   | App (Lam ([(v,body)], _), def, _) ->
       fprintf ppf "@[<0>let@ @[<4>%a@] =@ @[<2>%a@]@ in@ @[<0>%a@]@]"
-	(pr_more_pat false) v (pr_expr false) def (pr_expr false) body
+	(pr_more_pat false) v (pr_expr pr_ann false) def
+        (pr_expr pr_ann false) body
   | App _ as exp ->
       let fargs = collect_apps exp in
       fprintf ppf "@[<2>%a@]"
-	(pr_sep_list "" pr_one_expr) fargs
-  | Letrec (x, exp, range, _) ->
-      fprintf ppf "@[<0>let rec %s =@ @[<2>%a@] in@ @[<0>%a@]@]"
-	x (pr_expr false) exp (pr_expr false) range
+	(pr_sep_list "" (pr_one_expr pr_ann)) fargs
+  | Letrec (ann, x, exp, range, _) ->
+      fprintf ppf "@[<0>let rec %s@ %a=@ @[<2>%a@] in@ @[<0>%a@]@]"
+	x pr_ann ann (pr_expr pr_ann false) exp (pr_expr pr_ann false) range
   | Letin (pat, exp, range, _) ->
       fprintf ppf "@[<0>let %a =@ @[<2>%a@] in@ @[<0>%a@]@]"
-	(pr_pat false) pat (pr_expr false) exp (pr_expr false) range
+	(pr_pat false) pat (pr_expr pr_ann false) exp
+        (pr_expr pr_ann false) range
   | AssertFalse _ -> fprintf ppf "assert false"
   | AssertLeq (e1, e2, range, _) ->
       fprintf ppf "@[<0>assert@[<2>@ %a@ ≤@ %a@];@ %a@]"
-	(pr_expr false) e1 (pr_expr false) e2 (pr_expr false) range
+	(pr_expr pr_ann false) e1 (pr_expr pr_ann false) e2
+        (pr_expr pr_ann false) range
   | AssertEqty (e1, e2, range, _) ->
       fprintf ppf "@[<0>assert@ = type@[<2>@ %a@ %a@];@ %a@]"
-	(pr_expr false) e1 (pr_expr false) e2 (pr_expr false) range
+	(pr_expr pr_ann false) e1 (pr_expr pr_ann false) e2
+        (pr_expr pr_ann false) range
 
-and pr_clause ppf (pat, exp) =
+and pr_clause pr_ann ppf (pat, exp) =
   fprintf ppf "@[<2>%a@ ->@ %a@]"
-    (pr_pat false) pat (pr_expr false) exp
+    (pr_pat false) pat (pr_expr pr_ann false) exp
 
-and pr_one_expr ppf exp = match exp with
+and pr_one_expr pr_ann ppf exp = match exp with
   | Var _
   | Num _
-  | Cons (_, [], _) -> pr_expr true ppf exp
+  | Cons (_, [], _) -> pr_expr pr_ann true ppf exp
   | _ ->
-      fprintf ppf "(%a)" (pr_expr false) exp
+      fprintf ppf "(%a)" (pr_expr pr_ann false) exp
+
+let pr_uexpr comma ppf = pr_expr (fun ppf () -> fprintf ppf "") comma ppf
 
 let collect_argtys ty =
   let rec aux args = function
@@ -802,6 +864,11 @@ let pr_ans ppf = function
   | vs, ans ->
     fprintf ppf "@[<2>∃%a.@ %a@]"
       (pr_sep_list "," pr_tyvar) vs pr_formula ans
+
+let pr_texpr comma ppf =
+  pr_expr (fun ppf tsch -> fprintf ppf ":@ %a@ " pr_typscheme tsch)
+    comma ppf
+
   
 let pr_subst ppf sb =
   pr_sep_list ";" (fun ppf (v,(t,_)) ->
@@ -837,11 +904,15 @@ let pr_opt_sig_tysch ppf = function
   | None -> ()
   | Some tysch -> fprintf ppf "@ :@ %a" pr_typscheme tysch
 
-let pr_opt_tests ppf = function
+let pr_opt_tests pr_ann ppf = function
   | [] -> ()
   | tests ->
     fprintf ppf "@\n@[<2>test@ %a@]"
-      (pr_sep_list ";" (pr_expr false)) tests
+      (pr_sep_list ";" (pr_expr pr_ann false)) tests
+
+let pr_opt_utests = pr_opt_tests (fun ppf () -> fprintf ppf "")
+let pr_opt_ttests =
+  pr_opt_tests (fun ppf tsch -> fprintf ppf ":@ %a@ " pr_typscheme tsch)
 
 let pr_struct_item ppf = function
   | TypConstr (name, [], _) ->
@@ -888,10 +959,10 @@ let pr_struct_item ppf = function
     fprintf ppf "@[<2>external@ %s@ :@ %a@]" name pr_typscheme tysch
   | LetRecVal (name, expr, tysch, tests, _) ->
     fprintf ppf "@[<2>let rec@ %s%a@ =@ %a@]%a" name
-      pr_opt_sig_tysch tysch (pr_expr false) expr pr_opt_tests tests
+      pr_opt_sig_tysch tysch (pr_uexpr false) expr pr_opt_utests tests
   | LetVal (pat, expr, tysch, tests, _) ->
     fprintf ppf "@[<2>let@ %a@%a@ =@ %a@]%a" (pr_pat false) pat
-      pr_opt_sig_tysch tysch (pr_expr false) expr pr_opt_tests tests
+      pr_opt_sig_tysch tysch (pr_uexpr false) expr pr_opt_utests tests
 
 let pr_program ppf p =
   pr_line_list "\n" pr_struct_item ppf p
