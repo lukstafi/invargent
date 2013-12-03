@@ -6,3 +6,8 @@
     @since Mar 2013
 *)
 
+open Terms
+
+let pr_ml annot = failwith "not implemented yet"
+
+let pr_mli annot = failwith "not implemented yet"

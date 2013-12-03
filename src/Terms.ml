@@ -967,6 +967,24 @@ let pr_struct_item ppf = function
 let pr_program ppf p =
   pr_line_list "\n" pr_struct_item ppf p
 
+let pr_sig_item ppf = function
+  | ITypConstr (name, sorts, lc) ->
+    pr_struct_item ppf (TypConstr (name, sorts, lc))
+  | IValConstr (name, vs, phi, args, c_n, c_args, lc) ->
+    pr_struct_item ppf (ValConstr (name, vs, phi, args, c_n, c_args, lc))
+  | IPrimVal (name, tysch, lc) ->
+    pr_struct_item ppf (PrimVal (name, tysch, lc))
+  | ILetRecVal (name, _, tysch, _, _) ->
+    fprintf ppf "@[<2>val@ %s :@ %a@]" name pr_typscheme tysch
+  | ILetVal (_, _, tyschs, _, _) ->
+    pr_line_list "\n" 
+      (fun ppf (name,tysch) ->
+         fprintf ppf "@[<2>val@ %s :@ %a@]" name pr_typscheme tysch)
+      ppf tyschs
+
+let pr_signature ppf p =
+  pr_line_list "\n" pr_sig_item ppf p
+
 let pr_exception ppf = function
   | Report_toplevel (what, None) ->
     Format.fprintf ppf "%!\n%s\n%!" what

@@ -8,6 +8,7 @@
 (** {2 Definitions} *)
 
 val debug : bool ref
+val current_file_name : string ref
 
 (** Source location for reporting parsing and inference problems. *)
 type loc = {beg_pos : Lexing.position; end_pos : Lexing.position}
@@ -213,7 +214,6 @@ val enc_funtype : typ -> typ list -> typ
 val ty_add : typ -> typ -> typ
 val typ_scheme_of_item :
   ?env:(string * typ_scheme) list -> struct_item -> typ_scheme
-val current_file_name : string ref
 
 (** Turn [a -> b -> c -> d] into [[a; b; c; d]] etc. and a
     non-function type into a singleton list. *)
@@ -345,6 +345,8 @@ val pr_typ_dir : Format.formatter -> typ_dir -> unit
 val pr_typ_loc : Format.formatter -> typ_loc -> unit
 val pr_struct_item : Format.formatter -> struct_item -> unit
 val pr_program : Format.formatter -> struct_item list -> unit
+val pr_sig_item : Format.formatter -> annot_item -> unit
+val pr_signature : Format.formatter -> annot_item list -> unit
 val pr_exception : Format.formatter -> exn -> unit
 val pr_to_str : (Format.formatter -> 'a -> unit) -> 'a -> string
 

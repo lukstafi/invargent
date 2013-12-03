@@ -55,7 +55,7 @@ let test_common more_general msg test =
   q_ops, res, sol
 
 let test_case ?(more_general=false) msg test answers =
-  (* try *)
+  try
     let q, res, sol = test_common more_general msg test in
     let test_sol (chi, result) =
       let vs, ans = nice_ans (List.assoc chi sol) in
@@ -66,10 +66,10 @@ let test_case ?(more_general=false) msg test answers =
         result
         (Format.flush_str_formatter ()) in
     List.iter test_sol answers
-  (*with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+  with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
     ignore (Format.flush_str_formatter ());
     Terms.pr_exception Format.str_formatter exn;
-    assert_failure (Format.flush_str_formatter ())*)
+    assert_failure (Format.flush_str_formatter ())
 
 let test_nonrec_case ?(more_general=false) msg test answers =
   try
