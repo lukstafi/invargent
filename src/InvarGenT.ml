@@ -37,14 +37,18 @@ let process_file ?(do_sig=false) ?(do_ml=false) ?(do_mli=false) fname =
 
 
 let () =
-  if Filename.basename Sys.executable_name <> "Tests.native"
+  let executable = Filename.basename Sys.executable_name in
+  let chop f =
+    try Filename.chop_extension f with Invalid_argument _ -> f in
+  let executable = chop (chop executable) in
+  if executable <> "Tests" && executable <> "InvarGenTTest"
   then (
     if Array.length Sys.argv <= 1 then (
       print_string ("Usage: "^Sys.argv.(0)^" \"program source file\"\n");
       exit 0
-    ) else
+    ) else (
       let file_name = Sys.argv.(1) in
       try process_file file_name
       with (Report_toplevel _ | Contradiction _) as exn ->
-        pr_exception Format.std_formatter exn; exit 2
+        pr_exception Format.std_formatter exn; exit 2)
   )

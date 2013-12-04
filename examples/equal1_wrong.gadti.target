@@ -10,9 +10,9 @@ newcons Nil : ∀a. List a
 
 newcons TInt : Ty Int
 
-newcons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
+newcons TPair : ∀a, b.Ty a * Ty b ⟶ Ty ((a, b))
 
-newcons TList : ∀a. Ty a ⟶ Ty (List a)
+newcons TList : ∀a.Ty a ⟶ Ty (List a)
 
 newtype Bool
 
@@ -26,6 +26,7 @@ external b_and : Bool → Bool → Bool
 
 external b_not : Bool → Bool
 
-external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool
+external forall2 :
+   ∀a, b. (a → b → Bool) → List a → List b → Bool
 
 val equal1 : ∀a, b. (Ty a, Ty b) → a → a → Bool

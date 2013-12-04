@@ -324,7 +324,7 @@ let fvs_typ =
   with fold_tvar = (fun v -> VarSet.singleton v)}
 
 type subst = (var_name * (typ * loc)) list
-type hvsubst = (var_name, var_name) Hashtbl.t
+type hvsubst = (var_name * var_name) list
 
 let subst_typ sb =
   typ_map {typ_id_map with map_tvar =
@@ -332,7 +332,7 @@ let subst_typ sb =
 
 let hvsubst_typ sb =
   typ_map {typ_id_map with map_tvar =
-      fun v -> TVar (try Hashtbl.find sb v with Not_found -> v)}
+      fun v -> TVar (try List.assoc v sb with Not_found -> v)}
 
 let subst_one v s t =
   let modif = ref false in
@@ -343,6 +343,9 @@ let subst_one v s t =
 
 let subst_sb ~sb =
   List.map (fun (w,(t,loc)) -> w, (subst_typ sb t, loc))
+
+let hvsubst_sb sb =
+  List.map (fun (w,(t,loc)) -> w, (hvsubst_typ sb t, loc))
 
 let update_sb ~more_sb sb =
   map_append (fun (w,(t,loc)) -> w, (subst_typ more_sb t, loc)) sb
@@ -540,10 +543,11 @@ type program = struct_item list
 type annot_item =
 | ITypConstr of cns_name * sort list * loc
 | IValConstr of cns_name * var_name list * formula * typ list
-  * cns_name * var_name list * loc
+  * cns_name * typ list * loc
 | IPrimVal of string * typ_scheme * loc
 | ILetRecVal of string * texpr * typ_scheme * texpr list * loc
-| ILetVal of pat * texpr * (string * typ_scheme) list * texpr list * loc
+| ILetVal of pat * texpr * typ_scheme * (string * typ_scheme) list *
+               texpr list * loc
 
 let rec enc_funtype res = function
   | [] -> res
@@ -572,6 +576,13 @@ type quant_ops = {
   uni_v : var_name -> bool;
   same_as : var_name -> var_name -> unit;
 }
+
+let empty_q = {
+  cmp_v = (fun _ _ -> Same_quant);
+  uni_v = (fun _ -> false);
+  same_as = (fun _ _ -> ());
+}
+  
 
 let var_scope_str = function
 | Left_of -> "left_of"
@@ -914,49 +925,68 @@ let pr_opt_utests = pr_opt_tests (fun ppf () -> fprintf ppf "")
 let pr_opt_ttests =
   pr_opt_tests (fun ppf tsch -> fprintf ppf ":@ %a@ " pr_typscheme tsch)
 
-let pr_struct_item ppf = function
-  | TypConstr (name, [], _) ->
+let pr_sig_item ppf = function
+  | ITypConstr (name, [], _) ->
     fprintf ppf "@[<2>newtype@ %s@]" (cns_str name)
-  | TypConstr (name, sorts, _) ->
+  | ITypConstr (name, sorts, _) ->
     fprintf ppf "@[<2>newtype@ %s@ :@ %a@]" (cns_str name)
       (pr_sep_list " *" pr_sort) sorts
-  | ValConstr (Extype _ as name, vs, phi, [arg],
+  | IValConstr (Extype _ as name, vs, phi, [arg],
                Extype j, [c_arg], _) ->
-    fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a[%a].%a@ ⟶@ Ex%d %s@]"
+    fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a[%a].%a@ ⟶@ Ex%d %a@]"
       (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
-      pr_formula phi (pr_ty true) arg j (var_str c_arg)
-  | ValConstr (name, [], [], [], c_n, c_args, _) ->
-    let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
+      pr_formula phi (pr_ty true) arg j (pr_ty true) c_arg
+  | IValConstr (name, [], [], [], c_n, c_args, _) ->
+    let res = TCons (c_n, c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ %a@]" (cns_str name)
       (pr_ty false) res
-  | ValConstr (name, [], [], args, c_n, c_args, _) ->
-    let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
+  | IValConstr (name, [], [], args, c_n, c_args, _) ->
+    let res = TCons (c_n, c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ %a@ ⟶@ %a@]" (cns_str name)
       (pr_sep_list " *" (pr_ty true)) args (pr_ty false) res
-  | ValConstr (name, vs, [], [], c_n, c_args, _) ->
-    let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
+  | IValConstr (name, vs, [], [], c_n, c_args, _) ->
+    let res = TCons (c_n, c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a.@ %a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
       (pr_ty false) res
-  | ValConstr (name, vs, phi, [], c_n, c_args, _) ->
-    let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
+  | IValConstr (name, vs, phi, [], c_n, c_args, _) ->
+    let res = TCons (c_n, c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a[%a].@ %a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
       pr_formula phi (pr_ty false) res
-  | ValConstr (name, vs, [], args, c_n, c_args, _) ->
-    let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
+  | IValConstr (name, vs, [], args, c_n, c_args, _) ->
+    let res = TCons (c_n, c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a.%a@ ⟶@ %a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
       (pr_sep_list " *" (pr_ty true)) args (pr_ty false) res
-  | ValConstr (name, vs, phi, args, c_n, c_args, _) ->
-    let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
+  | IValConstr (name, vs, phi, args, c_n, c_args, _) ->
+    let res = TCons (c_n, c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a[%a].%a@ ⟶@ %a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
       pr_formula phi
       (pr_sep_list " *" (pr_ty true)) args (pr_ty false) res
-  | PrimVal (name, tysch, _) ->
+  | IPrimVal (name, tysch, _) ->
     fprintf ppf "@[<2>external@ %s@ :@ %a@]" name pr_typscheme tysch
+  | ILetRecVal (name, expr, tysch, tests, _) ->
+    fprintf ppf "@[<2>val@ %s :@ %a@]" name pr_typscheme tysch
+  | ILetVal (_, _, _, tyschs, _, _) ->
+    pr_line_list "\n" 
+      (fun ppf (name,tysch) ->
+         fprintf ppf "@[<2>val@ %s :@ %a@]" name pr_typscheme tysch)
+      ppf tyschs
+
+let pr_signature ppf p =
+  pr_line_list "\n" pr_sig_item ppf p
+
+let pr_struct_item ppf = function
+  | TypConstr (name, sorts, lc) ->
+    pr_sig_item ppf (ITypConstr (name, sorts, lc))
+  | ValConstr (name, vs, phi, args, c_n, c_args, lc) ->
+    let c_args = List.map (fun v -> TVar v) c_args in
+    pr_sig_item ppf (IValConstr (name, vs, phi, args, c_n, c_args, lc))
+  | PrimVal (name, tysch, lc) ->
+    pr_sig_item ppf (IPrimVal (name, tysch, lc))
   | LetRecVal (name, expr, tysch, tests, _) ->
     fprintf ppf "@[<2>let rec@ %s%a@ =@ %a@]%a" name
       pr_opt_sig_tysch tysch (pr_uexpr false) expr pr_opt_utests tests
@@ -966,24 +996,6 @@ let pr_struct_item ppf = function
 
 let pr_program ppf p =
   pr_line_list "\n" pr_struct_item ppf p
-
-let pr_sig_item ppf = function
-  | ITypConstr (name, sorts, lc) ->
-    pr_struct_item ppf (TypConstr (name, sorts, lc))
-  | IValConstr (name, vs, phi, args, c_n, c_args, lc) ->
-    pr_struct_item ppf (ValConstr (name, vs, phi, args, c_n, c_args, lc))
-  | IPrimVal (name, tysch, lc) ->
-    pr_struct_item ppf (PrimVal (name, tysch, lc))
-  | ILetRecVal (name, _, tysch, _, _) ->
-    fprintf ppf "@[<2>val@ %s :@ %a@]" name pr_typscheme tysch
-  | ILetVal (_, _, tyschs, _, _) ->
-    pr_line_list "\n" 
-      (fun ppf (name,tysch) ->
-         fprintf ppf "@[<2>val@ %s :@ %a@]" name pr_typscheme tysch)
-      ppf tyschs
-
-let pr_signature ppf p =
-  pr_line_list "\n" pr_sig_item ppf p
 
 let pr_exception ppf = function
   | Report_toplevel (what, None) ->
@@ -1300,18 +1312,23 @@ let next_num fvs =
 let next_var allvs s =
   if s = Type_sort then next_typ allvs else next_num allvs
 
-let nice_ans (vs, phi) =
+let nice_ans ?sb (vs, phi) =
   let named_vs, vs =
     List.partition (function VNam _ -> true | _ -> false) vs in
+  let fvs =
+    match sb with
+    | None -> fvs_formula phi
+    | Some sb -> add_vars (List.map snd sb) (fvs_formula phi) in
   let allvs, rn = fold_map
       (fun fvs v ->
          let w = next_var fvs (var_sort v) in
          VarSet.add w fvs, (v, w))
-      (fvs_formula phi) vs in
+      fvs vs in
   let rvs = List.map snd rn in
-  let sb = Hashtbl.create (List.length vs) in
-  List.iter (fun (v,w) -> Hashtbl.add sb v w) rn;
-  named_vs @ rvs, hvsubst_formula sb phi
+  let sb = match sb with
+    | Some sb -> sb | None -> [] in
+  let sb = rn @ sb in
+  sb, (named_vs @ rvs, hvsubst_formula sb phi)
 
 let () = pr_exty :=
   fun ppf (i, args) ->
@@ -1330,7 +1347,7 @@ let () = pr_exty :=
     let evs = VarSet.elements
         (VarSet.diff (vars_of_list vs) (vars_of_list pvs)) in
     let phi = Eqty (ty, ty, dummy_loc)::phi in
-    let evs, phi = nice_ans (evs, phi) in
+    let _, (evs, phi) = nice_ans (evs, phi) in
     let ty, phi = match phi with
       | Eqty (ty, tv, _)::phi -> ty, phi
       | _ -> assert false in

@@ -16,12 +16,12 @@ newcons Plus : Term Int * Term Int ⟶ Term Int
 
 newcons IsZero : Term Int ⟶ Term Bool
 
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+newcons If : ∀a.Term Bool * Term a * Term a ⟶ Term a
 
-newcons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
+newcons Pair : ∀a, b.Term a * Term b ⟶ Term ((a, b))
 
-newcons Fst : ∀a, b. Term (a, b) ⟶ Term a
+newcons Fst : ∀a, b.Term ((a, b)) ⟶ Term a
 
-newcons Snd : ∀a, b. Term (a, b) ⟶ Term b
+newcons Snd : ∀a, b.Term ((a, b)) ⟶ Term b
 
 val eval : ∀a. Term a → a

@@ -16,6 +16,6 @@ newcons Plus : Term Int * Term Int ⟶ Term Int
 
 newcons IsZero : Term Int ⟶ Term Bool
 
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+newcons If : ∀a.Term Bool * Term a * Term a ⟶ Term a
 
 val eval : ∀a. Term a → a

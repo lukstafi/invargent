@@ -1506,7 +1506,11 @@
   complication for generating OCaml code: we need to use <verbatim|(type a)>
   syntax instead of <verbatim|'a.> syntax in the outer node for type
   variables that are free in the type scheme of the inner node. Toplevel type
-  schemes are guaranteed to not have free variables.
+  schemes are guaranteed to not have free variables. Annotated items
+  <verbatim|annot_item> use ``nice'' named variables instead of
+  identifier-based variables. The renaming is computed by
+  <verbatim|nice_ans>, called at the toplevel and at each <verbatim|let rec>
+  in the source code.
 
   <\bibliography|bib|tm-plain|biblio.bib>
     <\bib-list|9>

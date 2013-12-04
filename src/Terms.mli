@@ -164,10 +164,11 @@ type program = struct_item list
 type annot_item =
 | ITypConstr of cns_name * sort list * loc
 | IValConstr of cns_name * var_name list * formula * typ list
-  * cns_name * var_name list * loc
+  * cns_name * typ list * loc
 | IPrimVal of string * typ_scheme * loc
 | ILetRecVal of string * texpr * typ_scheme * texpr list * loc
-| ILetVal of pat * texpr * (string * typ_scheme) list * texpr list * loc
+| ILetVal of pat * texpr * typ_scheme * (string * typ_scheme) list *
+               texpr list * loc
 
 module VarSet : (Set.S with type elt = var_name)
 val typ_size : typ -> int
@@ -187,7 +188,7 @@ val map_in_atom : (typ -> typ) -> atom -> atom
 val atom_loc : atom -> loc
 
 type subst = (var_name * (typ * loc)) list
-type hvsubst = (var_name, var_name) Hashtbl.t
+type hvsubst = (var_name * var_name) list
 
 val subst_atom : subst -> atom -> atom
 val subst_formula : subst -> formula -> formula
@@ -244,6 +245,7 @@ type quant_ops = {
   uni_v : var_name -> bool;
   same_as : var_name -> var_name -> unit;
 }
+val empty_q : quant_ops
 
 exception Contradiction of sort * string * (typ * typ) option * loc
 exception NoAnswer of sort * string * (typ * typ) option * loc
@@ -255,6 +257,7 @@ val convert : exn -> exn
 val subst_typ : subst -> typ -> typ
 val hvsubst_typ : hvsubst -> typ -> typ
 val subst_sb : sb:subst -> subst -> subst
+val hvsubst_sb : hvsubst -> subst -> subst
 val update_sb : more_sb:subst -> subst -> subst
 val map_in_subst : (typ -> typ) -> subst -> subst
 (** Substitute constants, and generally subterms identical to a term,
@@ -359,4 +362,4 @@ val parser_last_num : int ref
 (** {2 Nice variables} *)
 
 val next_var : VarSet.t -> sort -> var_name
-val nice_ans : answer -> answer
+val nice_ans : ?sb:hvsubst -> answer -> hvsubst * answer
