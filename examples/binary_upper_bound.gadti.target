@@ -2,9 +2,16 @@ newtype Binary : num
 
 newcons Zero : Binary 0
 
-newcons PZero : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n)
+newcons PZero : ∀n[0 ≤ n].Binary n ⟶ Binary (n + n)
 
-newcons POne : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n+1)
+newcons POne : ∀n[0 ≤ n].Binary n ⟶ Binary (1 + n + n)
 
-val ub : ∀n, k. Binary k → Binary n → ∃4:i[n ≤ i ∧ k ≤ i ∧
-       i ≤ (k + n) ∧ 0 ≤ n ∧ 0 ≤ k].Binary i
+newtype Ex4 : num * num
+
+newcons Ex4 : ∀i, k, n[n ≤ i ∧ k ≤ i ∧ i ≤ (n + k) ∧
+   0 ≤ n ∧ 0 ≤ k].Binary i ⟶ Ex4 (n, k)
+
+val ub :
+   ∀k, n.
+   Binary k → Binary n → ∃4:i[n ≤ i ∧ k ≤ i ∧ i ≤ (k + n) ∧
+     0 ≤ n ∧ 0 ≤ k].Binary i

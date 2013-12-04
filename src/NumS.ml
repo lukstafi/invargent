@@ -199,14 +199,25 @@ let expand_atom equ (_,_,loc as w) =
   let right = match right with [t] -> t | _ -> Nadd right in
   if equ then Eqty (left, right, loc) else Leq (left, right, loc)
 
-let expand_subst eqs =
+let expand_subst cmp_v eqs =
+  let kept_lhs = ref true in
   let aux (v, (vars, cst, loc)) =
     let w = (v, !/(-1))::vars, cst, loc in
     match expand_w w with
-    | [TVar v'], rhs when v' = v -> Aux.Right (v, (Nadd rhs, loc))
-    | rhs, [TVar v'] when v' = v -> Aux.Right (v, (Nadd rhs, loc))
+    | [TVar v'], [rhs] when v' = v || cmp_v v v' = Same_quant ->
+      if v' <> v then kept_lhs := false;
+      Aux.Right (v', (rhs, loc))
+    | [rhs], [TVar v'] when v' = v || cmp_v v v' = Same_quant ->
+      if v' <> v then kept_lhs := false;
+      Aux.Right (v', (rhs, loc))
+    | [TVar v'], rhs when v' = v || cmp_v v v' = Same_quant ->
+      if v' <> v then kept_lhs := false;
+      Aux.Right (v', (Nadd rhs, loc))
+    | rhs, [TVar v'] when v' = v || cmp_v v v' = Same_quant ->
+      if v' <> v then kept_lhs := false;
+      Aux.Right (v', (Nadd rhs, loc))
     | _ -> Aux.Left w in
-  Aux.partition_map aux eqs    
+  !kept_lhs, Aux.partition_map aux eqs    
     
 
 let ans_to_formula (eqs, ineqs) =
@@ -1078,5 +1089,9 @@ let separate_subst q cnj =
   let ineqn = List.filter
     (function [], cst, _ when cst <=/ !/0 -> false | _ -> true)
     ineqn in
-  let eqn, sb = expand_subst eqs in
-  sb, eqineq_to_formula (eqn, ineqn)
+  let kept_lhs, (eqn, sb) = expand_subst q.cmp_v eqs in
+  let phi_num = eqineq_to_formula (eqn, ineqn) in
+  let phi_num =
+    if kept_lhs then phi_num
+    else snd (simplify q VarSet.empty (subst_formula sb phi_num)) in
+  sb, phi_num

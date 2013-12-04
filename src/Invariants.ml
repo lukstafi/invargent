@@ -1099,7 +1099,15 @@ let solve q_ops exty_res_chi brs =
            | _ -> assert false in
          assert (ty = t1 && t1 = tdelta);
          assert (t2 = tdelta' && pvs = [delta']);
-         let chi_vs, phi = List.assoc chi_i rol in
+         let chi_vs, phi =
+           try List.assoc chi_i rol
+           with Not_found ->
+             (* FIXME *)
+             Format.printf
+               "solve-new_ex_types: chi_i=%d out of %s@\n%!"
+               chi_i (String.concat ","
+                        (List.map (string_of_int % fst) rol)); (* *)
+             [], [] in
          let sb, rphi = Infer.separate_subst q.op phi in
          let sb = update_sb ~more_sb:ans_sb sb in
          let sb = List.map

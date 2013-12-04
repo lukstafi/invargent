@@ -4,12 +4,13 @@ newtype Carry : num
 
 newcons Zero : Binary 0
 
-newcons PZero : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n)
+newcons PZero : ∀n[0 ≤ n].Binary n ⟶ Binary (n + n)
 
-newcons POne : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n+1)
+newcons POne : ∀n[0 ≤ n].Binary n ⟶ Binary (1 + n + n)
 
 newcons CZero : Carry 0
 
 newcons COne : Carry 1
 
-val plus : ∀n, k, i. Carry i → Binary n → Binary k → Binary (i + n + k)
+val plus :
+   ∀i, k, n. Carry i → Binary k → Binary n → Binary (i + k + n)

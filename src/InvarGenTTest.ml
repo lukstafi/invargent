@@ -18,6 +18,7 @@ let input_file file =
   Buffer.contents buf
 
 let test_case file () =
+  if !debug then Printexc.record_backtrace true;
   let ntime = Sys.time () in
   Terms.reset_state ();
   Infer.reset_state ();
@@ -38,6 +39,7 @@ let test_case file () =
      Terms.pr_exception Format.str_formatter exn;
      let msg = Format.flush_str_formatter () in
      Format.printf "@\n%s@\n%!"  msg;
+     Printexc.print_backtrace stdout;
      assert_failure msg);
   Format.printf " t=%.3fs " (Sys.time () -. ntime)
 
@@ -88,7 +90,7 @@ let tests = "InvarGenT" >::: [
            test_case "binary_upper_bound" ());
       "mutual_recursion_eval" >::
         (fun () ->
-           skip_if !debug "debug";
+           (* skip_if !debug "debug"; *)
            test_case "mutual_recursion_eval" ());
       "binomial_heap_nonrec" >::
         (fun () ->

@@ -63,7 +63,8 @@ val simplify :
 (** {2 Postprocessing and printing} *)
 
 val separate_subst :
-  ?avoid:Terms.VarSet.t -> Terms.quant_ops -> Terms.formula ->
+  ?avoid:Terms.VarSet.t ->
+  Terms.quant_ops -> Terms.formula ->
   Terms.subst * Terms.formula
 
 val pr_cnstrnt : Format.formatter -> cnstrnt -> unit

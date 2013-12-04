@@ -6,8 +6,8 @@ newcons True : Bool
 
 newcons False : Bool
 
-newcons LNil : ∀a. List(a, 0)
+newcons LNil : ∀a. List (a, 0)
 
-newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+newcons LCons : ∀n, a[0 ≤ n].a * List (a, n) ⟶ List (a, 1 + n)
 
 val flatten_pairs : ∀n, a. List ((a, a), n) → List (a, n + n)

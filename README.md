@@ -4,12 +4,13 @@ Current project website: http://www.ii.uni.wroc.pl/~lukstafi/pmwiki/index.php?n=
 
 See documentation in the `doc` directory.
 
-Makefile targets:
+Makefile targets and installation:
 ```
 make main   # build the executable
 make docs   # build the documentation
 make test   # build and perform the tests
 make clean  # remove the executable and intermediate files
+sudo cp ./invargent /usr/local/bin/invargent # optionally, install executable
 ```
 
 Milestones: [x] - completed, [#] - finishing (75%-95%), [+] - in the middle (25%-75%), [-] - just started (5%-25%), [_] - not started.
@@ -25,7 +26,7 @@ Milestones: [x] - completed, [#] - finishing (75%-95%), [+] - in the middle (25%
 - [x] Enforce convergence for numerical constraints. (Required for postconditions.)
 - [x] Factorize joint constraint abduction scheme for use across sorts.
 - [x] Add more tests and resolve issues that emerge.
-- [-] Export (print) a file with inferred types, and OCaml source. Collect examples, write user documentation.
+- [+] Export (print) a file with inferred types, and OCaml source. Collect examples, write user documentation.
 - [_] Write web interface.
 
 And version 2.0 goals:

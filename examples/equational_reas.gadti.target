@@ -12,20 +12,25 @@ newcons LocB : Place B
 
 newtype Bool
 
-external is_nearby : ∀a,b. Nearby (a, b) → Bool
+external is_nearby : ∀a, b. Nearby (a, b) → Bool
 
-newcons Here : ∀a. Place a * Place a ⟶ Nearby (a, a)
+newcons Here : ∀b.Place b * Place b ⟶ Nearby (b, b)
 
-newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
+newcons Transitive : ∀a, b, c.Nearby (a, b) * Nearby (b, c) ⟶
+   Nearby (a, c)
 
-external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
+newtype Ex1 : type
+
+newcons Ex1 : ∀a, b[].(Place b, Nearby (a, b)) ⟶ Ex1 a
+
+external wander : ∀a. Place a → ∃1:b.(Place b, Nearby (a, b))
 
 newtype Meet : type * type
 
-newcons Same : ∀a,b [a=b]. Meet (a, b)
+newcons Same : ∀b. Meet (b, b)
 
 newcons NotSame : ∀a, b. Meet (a, b)
 
-external compare : ∀a,b. Place a → Place b → Meet (a, b)
+external compare : ∀a, b. Place a → Place b → Meet (a, b)
 
-val walk : ∀a,b. Place a → Place b → Nearby (a, b)
+val walk : ∀a, b. Place a → Place b → Nearby (a, b)

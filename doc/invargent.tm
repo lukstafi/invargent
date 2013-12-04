@@ -1512,6 +1512,11 @@
   <verbatim|nice_ans>, called at the toplevel and at each <verbatim|let rec>
   in the source code.
 
+  In the signature declarations <verbatim|ITypConstr> and
+  <verbatim|IValConstr> for existential types, we replace <verbatim|Extype>
+  with <verbatim|CNam> as indentifiers of constructors, to get informative
+  output for printing the various result files.
+
   <\bibliography|bib|tm-plain|biblio.bib>
     <\bib-list|9>
       <bibitem*|1><label|bib-ArithQuantElim>Sergey<nbsp>Berezin,

@@ -1,6 +1,6 @@
 main:
 	ocamlbuild -lib nums src/InvarGenT.native
-	cp _build/src/InvarGenT.native InvarGenT
+	cp _build/src/InvarGenT.native invargent
 
 test:
 	ocamlbuild src/Tests.d.byte -lib nums -pkg oUnit --

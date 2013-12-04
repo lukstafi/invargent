@@ -6,9 +6,16 @@ newcons True : Bool
 
 newcons False : Bool
 
-newcons LNil : ∀a. List(a, 0)
+newcons LNil : ∀a. List (a, 0)
 
-newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+newcons LCons : ∀n, a[0 ≤ n].a * List (a, n) ⟶ List (a, 1 + n)
 
-val filter : ∀n, a, b. (a → Bool) → (a → b) → List (a, n) → ∃2:k[k ≤ n ∧
-       0 ≤ n ∧ 0 ≤ k].List (b, k)
+newtype Ex2 : num * type
+
+newcons Ex2 : ∀k, n, a[k ≤ n ∧ 0 ≤ n ∧ 0 ≤ k].List (a, k) ⟶
+   Ex2 (n, a)
+
+val filter :
+   ∀n, a, b.
+   (a → Bool) → (a → b) → List (a, n) → ∃2:k[k ≤ n ∧
+     0 ≤ n ∧ 0 ≤ k].List (b, k)

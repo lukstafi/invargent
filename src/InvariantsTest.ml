@@ -55,10 +55,11 @@ let test_common more_general msg test =
   q_ops, res, sol
 
 let test_case ?(more_general=false) msg test answers =
+  if !debug then Printexc.record_backtrace true;
   try
     let q, res, sol = test_common more_general msg test in
     let test_sol (chi, result) =
-      let vs, ans = nice_ans (List.assoc chi sol) in
+      let _, (vs, ans) = nice_ans (List.assoc chi sol) in
       ignore (Format.flush_str_formatter ());
       Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
         (pr_sep_list "," pr_tyvar) vs pr_formula ans;
@@ -72,6 +73,7 @@ let test_case ?(more_general=false) msg test answers =
     assert_failure (Format.flush_str_formatter ())
 
 let test_nonrec_case ?(more_general=false) msg test answers =
+  if !debug then Printexc.record_backtrace true;
   try
     let q, res, sol = test_common more_general msg test in
     let test_sol (v, result) =
@@ -314,8 +316,7 @@ let rec plus =
         (function Zero -> PZero (plus COne a1 Zero)
 	  | PZero b1 -> PZero (plus COne a1 b1)
 	  | POne b1 -> POne (plus COne a1 b1)))"
-        [1,"∃n, k, i, j. δ = (Carry j → Binary i → Binary k → Binary n) ∧
-  n = (j + i + k)"]
+        [1,"∃n, k, i. δ = (Carry i → Binary k → Binary n → Binary (i + k + n))"]
     );
 
   "binary plus with test" >::
@@ -360,8 +361,7 @@ let rec plus =
 	  | POne b1 -> POne (plus COne a1 b1)))
 test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
                    (POne (POne Zero)))"
-        [1,"∃n, k, i, j. δ = (Carry j → Binary i → Binary k → Binary n) ∧
-  n = (j + i + k)"]
+        [1,"∃n, k, i. δ = (Carry i → Binary k → Binary n → Binary (i + k + n))"]
     );
 
   "flatten_pairs" >::
@@ -379,7 +379,7 @@ let rec flatten_pairs =
   function LNil -> LNil
     | LCons ((x, y), l) ->
       LCons (x, LCons (y, flatten_pairs l))"
-        [1,"∃n, k, a. δ = (List ((a, a), k) → List (a, n)) ∧ n = (k + k)"];
+        [1,"∃n, a. δ = (List ((a, a), n) → List (a, n + n))"];
     );
 
   "escape castle" >::
@@ -513,7 +513,7 @@ let rec find_castle = efunction
   | Village _ as x ->
     let y = wander x in
     find_castle y"
-        [2,"∃a. δ = (Placement a → ∃2:a[].Castle a)"];
+        [2,"∃a. δ = (Placement a → ∃2:a.Castle a)"];
     );
 
   "find castle big" >::
@@ -545,7 +545,7 @@ let rec find = efunction
   | Village _ as x ->
     let y = wander x in
     find y"
-        [2,"∃a. δ = (Placement a → ∃2:a[].Castle a)"];
+        [2,"∃a. δ = (Placement a → ∃2:a.Castle a)"];
     );
 
   "search castle shortcut" >::
@@ -577,7 +577,7 @@ let rec search = efunction
     ematch check y with
     | Ordinary -> search y
     | Shortcut z -> Yard z"
-        [2,"∃a. δ = (Placement a → ∃3:a[].Castle a)"];
+        [2,"∃a. δ = (Placement a → ∃3:a.Castle a)"];
     );
 
   "search castle distance" >::
@@ -610,7 +610,7 @@ let rec search = efunction
     ematch closer y with
     | True -> search y
     | False -> search x"
-        [2,"∃a. δ = (Placement a → ∃3:a[].Castle a)"];
+        [2,"∃a. δ = (Placement a → ∃3:a.Castle a)"];
     );
 
   "search castle distance A/B" >::
@@ -646,7 +646,7 @@ let rec search = efunction
     ematch b with
     | True -> search y
     | False -> search x"
-        [2,"∃a. δ = (Placement a → ∃4:a[].Castle a)"];
+        [2,"∃a. δ = (Placement a → ∃4:a.Castle a)"];
     );
 
   "castle not existential" >::
@@ -669,7 +669,7 @@ let rec search = efunction
   | Village x ->
     let y = wander x in
     search y"
-        [2,"∃a. δ = (Placement a → ∃2:[].Castle Yard)"];
+        [2,"∃a. δ = (Placement a → ∃2:.Castle Yard)"];
     );
 
   "castle nested not existential" >::
@@ -700,7 +700,7 @@ let rec search = efunction
     | No ->
       let y = wander x in
       search y"
-        [2,"∃a. δ = (Placement a → ∃3:[].Castle Yard)"];
+        [2,"∃a. δ = (Placement a → ∃3:.Castle Yard)"];
     );
 
   "castle nested existential factored" >::
@@ -733,7 +733,7 @@ let rec search = efunction
       enter y
     | No ->
       search y"
-        [2,"∃a. δ = (Placement a → ∃3:a[].Castle a)"];
+        [2,"∃a. δ = (Placement a → ∃3:a.Castle a)"];
     );
 
   "castle nested existential" >::
@@ -766,7 +766,7 @@ let rec search = efunction
     | No ->
       let y = wander x in
       search y"
-        [2,"∃a. δ = (Placement a → ∃3:a[].Castle a)"];
+        [2,"∃a. δ = (Placement a → ∃3:a.Castle a)"];
     );
 
   "existential by hand" >::
@@ -815,7 +815,7 @@ let rec walk = fun x ->
     let y, to_y = wander x in
     let to_z = walk y in
     Transitive (to_y, to_z)"
-        [2,"∃a. δ = (Place a → ∃2:b[].Nearby (a, b))"];
+        [2,"∃a. δ = (Place a → ∃2:b.Nearby (a, b))"];
     );
 
   "non-num map not existential poly" >::
@@ -831,7 +831,7 @@ let rec map = fun f ->
     | LCons (x, xs) ->
       let ys = map f xs in
       LCons (f x, ys)"
-        [2,"∃a, b. δ = ((a → b) → List a → ∃1:[].List b)"];
+        [2,"∃a, b. δ = ((a → b) → List a → ∃1:.List b)"];
     );
 
   "non-num map not existential mono" >::
@@ -851,7 +851,7 @@ let rec map =
     | LCons (x, xs) ->
       let ys = map xs in
       LCons (f x, ys)"
-        [2,"∃. δ = (List Foo → ∃1:[].List Bar)"];
+        [2,"∃. δ = (List Foo → ∃1:.List Bar)"];
     );
 
   "map not existential poly" >::
@@ -867,7 +867,7 @@ let rec map = fun f ->
     | LCons (x, xs) ->
       let ys = map f xs in
       LCons (f x, ys)"
-        [2,"∃n, a, b. δ = ((a → b) → List (a, n) → ∃1:[].List (b, n))"];
+        [2,"∃n, a, b. δ = ((a → b) → List (a, n) → ∃1:.List (b, n))"];
     );
 
   "non-num map universal mono" >::
@@ -907,7 +907,7 @@ let rec map =
     | LCons (x, xs) ->
       let ys = map xs in
       LCons (f x, ys)"
-        [2,"∃. δ = (List Foo → ∃1:[].List Bar)"];
+        [2,"∃. δ = (List Foo → ∃1:.List Bar)"];
     );
 
   "map not existential mono" >::
@@ -927,7 +927,7 @@ let rec map =
     | LCons (x, xs) ->
       let ys = map xs in
       LCons (f x, ys)"
-        [2,"∃n. δ = (List (Foo, n) → ∃1:[].List (Bar, n))"];
+        [2,"∃n. δ = (List (Foo, n) → ∃1:.List (Bar, n))"];
     );
 
   "filter mono" >::
@@ -1178,7 +1178,7 @@ let rec eval =
   | If (b, t, e) -> if (eval b) (eval t) (eval e)"
 
         [2, "∃a. δ = (Term a → a)";
-        3, "∃. δ = (Calc → ∃2:n[].Num n)"]
+        3, "∃. δ = (Calc → ∃2:n.Num n)"]
     );
 
   "mutual recursion medium calc" >::
@@ -1215,7 +1215,7 @@ let rec eval =
   | Pair (x, y) -> eval x, eval y"
 
         [2, "∃a. δ = (Term a → a)";
-        3, "∃. δ = (Calc → ∃2:n[].Num n)"]
+        3, "∃. δ = (Calc → ∃2:n.Num n)"]
     );
 
   "mutual recursion calc" >::
@@ -1268,7 +1268,7 @@ let rec eval =
   | Snd p -> (match eval p with x, y -> y)"
 
         [2, "∃a. δ = (Term a → a)";
-        3, "∃. δ = (Calc → ∃3:n[].Num n)"]
+        3, "∃. δ = (Calc → ∃3:n.Num n)"]
     );
 
   (* TODO: mutual recursion where the nested function has nontrivial
@@ -1334,8 +1334,7 @@ let rec link = function
     | True -> Node (incr r, x1, TCons (t2, c1))
     | False -> Node (incr r, x2, TCons (t1, c2))
 "
-        [1,"∃n, k, i, a. δ = ((Tree (a, k), Tree (a, i)) → Tree (a, n)) ∧
-  n = (1 + k) ∧ n = (1 + i)"];
+        [1,"∃n, a. δ = ((Tree (a, n), Tree (a, n)) → Tree (a, 1 + n))"];
     );
 
   "binomial heap--ins_tree" >::

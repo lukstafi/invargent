@@ -602,7 +602,10 @@ let annotate_expr q chi_sb nice_sb e =
     let nice_sb, (vs, phi) = nice_ans ~sb:nice_sb ans in
     let sb, phi = separate_subst q phi in
     let res, _ = List.assoc delta sb in
-    nice_sb, (vs, phi, res) in
+    let vs = VarSet.inter
+        (VarSet.union (fvs_formula phi) (fvs_typ res))
+        (vars_of_list vs) in
+    nice_sb, (VarSet.elements vs, phi, res) in
   let rec aux nice_sb = function
     | Var (v, lc) -> Var (v, lc)
     | Num (n, lc) -> Num (n, lc)
@@ -641,17 +644,27 @@ let infer_prog solver prog =
       (fun (ety_id, loc) ->
          let vs, phi, ty, ety_n, pvs =
            Hashtbl.find sigma (Extype ety_id) in
+         let nice_sb, (vs, phi) =
+           nice_ans ~fvs:(fvs_typ (TCons (tuple,ty))) (vs, phi) in
+         let pvs = List.map
+             (fun v -> try List.assoc v nice_sb with Not_found -> v)
+             pvs in
+         let ty = List.map (hvsubst_typ nice_sb) ty in
+         let n = CNam (cns_str ety_n) in
          (* Format.printf "infer-update-ex_types: from id=%d@ phi=%a@ ty=%a@\n%!"
            ety_id pr_formula phi (pr_ty false) (List.hd ty);
          * *)
-         let extydec = ITypConstr (ety_n, List.map var_sort pvs, loc) in
+         let extydec = ITypConstr (n, List.map var_sort pvs, loc) in
          let sb, phi = separate_subst q phi in
          let ty = List.map (subst_typ sb) ty in
          let pvs = List.map
              (fun v -> try fst (List.assoc v sb) with Not_found -> TVar v)
              pvs in
+         let vs = VarSet.inter
+             (VarSet.union (fvs_formula phi) (fvs_typ (TCons (tuple, ty))))
+             (vars_of_list vs) in
          let extydef = IValConstr
-             (ety_n, vs, phi, ty, ety_n, pvs, loc) in
+             (n, VarSet.elements vs, phi, ty, n, pvs, loc) in
          more_items := extydec :: extydef :: !more_items)
       !new_ex_types;
     new_ex_types := [];
@@ -661,6 +674,9 @@ let infer_prog solver prog =
         | TypConstr (n, sorts, lc) -> [ITypConstr (n, sorts, lc)]
         | ValConstr (name, vs, phi, args, c_n, c_args, lc) ->
           let sb, phi = separate_subst empty_q phi in
+          (*Format.printf "ValConstr: n=%s sb=%a@\n%!"
+            (cns_str name) pr_subst sb; * *)
+          let args = List.map (subst_typ sb) args in
           let c_args = List.map
             (fun v -> try fst (List.assoc v sb) with Not_found -> TVar v)
             c_args in
@@ -696,11 +712,11 @@ let infer_prog solver prog =
               (VarSet.union (fvs_formula phi) (fvs_typ res)) in
           let escaping, gvs = List.partition
               (fun v -> not (List.mem v vs) && q.uni_v v) gvs in
-          Format.printf
+          (* Format.printf
             "gvs=%a;@ vs=%a;@ res=%a;@ phi=%a;@ phi_res=%a@\n%!"
             pr_vars (vars_of_list gvs) pr_vars (vars_of_list vs)
             (pr_ty false) res
-            pr_formula phi pr_formula phi_res; (* *)
+            pr_formula phi pr_formula phi_res; * *)
           if escaping <> []
           then raise (Report_toplevel
                         ("Escaping local variables "^
@@ -737,7 +753,8 @@ let infer_prog solver prog =
           let res = subst_typ sb t in
           let gvs = VarSet.union (fvs_formula phi) (fvs_typ res) in
           let gvs = VarSet.elements gvs in
-          let nice_sb, (gvs, phi) = nice_ans (gvs, phi) in
+          let nice_sb, (gvs, phi) =
+            nice_ans ~fvs:(fvs_typ res) (gvs, phi) in
           let sb = hvsubst_sb nice_sb sb in
           let res = hvsubst_typ nice_sb res in
           let top_sch = gvs, phi, res in

@@ -1312,13 +1312,14 @@ let next_num fvs =
 let next_var allvs s =
   if s = Type_sort then next_typ allvs else next_num allvs
 
-let nice_ans ?sb (vs, phi) =
+let nice_ans ?sb ?(fvs=VarSet.empty) (vs, phi) =
   let named_vs, vs =
     List.partition (function VNam _ -> true | _ -> false) vs in
+  let fvs = VarSet.union fvs (fvs_formula phi) in
   let fvs =
     match sb with
-    | None -> fvs_formula phi
-    | Some sb -> add_vars (List.map snd sb) (fvs_formula phi) in
+    | None -> fvs
+    | Some sb -> add_vars (List.map snd sb) fvs in
   let allvs, rn = fold_map
       (fun fvs v ->
          let w = next_var fvs (var_sort v) in
@@ -1352,8 +1353,12 @@ let () = pr_exty :=
       | Eqty (ty, tv, _)::phi -> ty, phi
       | _ -> assert false in
     (* TODO: "@[<2>∃%d:%a[%a].%a@]" better? *)
-    fprintf ppf "∃%d:%a[%a].%a" i
-      (pr_sep_list "," pr_tyvar) evs pr_formula phi (pr_ty false) ty
+    if phi = [] then
+      fprintf ppf "∃%d:%a.%a" i
+        (pr_sep_list "," pr_tyvar) evs (pr_ty false) ty
+    else
+      fprintf ppf "∃%d:%a[%a].%a" i
+        (pr_sep_list "," pr_tyvar) evs pr_formula phi (pr_ty false) ty
 
 (** {2 Globals} *)
 

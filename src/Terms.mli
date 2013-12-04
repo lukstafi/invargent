@@ -362,4 +362,6 @@ val parser_last_num : int ref
 (** {2 Nice variables} *)
 
 val next_var : VarSet.t -> sort -> var_name
-val nice_ans : ?sb:hvsubst -> answer -> hvsubst * answer
+(** The [fvs] argument only lists additional variable names to
+    consider "occupied" besides variables in the answer provided. *)
+val nice_ans : ?sb:hvsubst -> ?fvs:VarSet.t -> answer -> hvsubst * answer
