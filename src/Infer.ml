@@ -114,6 +114,8 @@ let fresh_chi_id = ref 0
 let fresh_expr_var_id = ref 0
 
 let normalize_expr e =
+  Format.printf "normalize_expr: e=@\n%a@\n%!" (pr_uexpr false) e; (* *)
+  let new_ex_types = ref [] in
   let rec aux k' e =
     match k', e with
     | Some k, e when not (ex_intro_elim e) ->
@@ -132,6 +134,8 @@ let normalize_expr e =
         [PredVarB (chi_id, tdelta, tdelta', lc)],
         [tdelta], ety_cn, [delta'] in
       Hashtbl.add sigma ety_cn ex_sch;
+      Format.printf "normalize_expr: adding exty %d head pat=%a@\n%!"
+        chi_id (pr_pat false) (fst (List.hd cls)); (* *)
       new_ex_types := (k, lc) :: !new_ex_types;
       all_ex_types := (k, lc) :: !all_ex_types;
       Lam (List.map (aux_cl (Some k)) cls, lc)
@@ -146,14 +150,26 @@ let normalize_expr e =
     | _, AssertEqty (e1, e2, range, lc) ->
       AssertEqty (e1, e2, aux k' range, lc)
   and aux_cl k' (p, e) = p, aux k' e in
-  aux None e
+  !new_ex_types, aux None e
 
 let normalize_item = function
-  | (TypConstr _ | ValConstr _ | PrimVal _) as item -> item
+  | (TypConstr _ | ValConstr _ | PrimVal _) as item -> [], item
   | LetRecVal (x, e, ty, tes, lc) ->
-    LetRecVal (x, normalize_expr e, ty, List.map normalize_expr tes, lc)
+    let extys, e = normalize_expr e in
+    let extys, tes = fold_map
+        (fun extys e ->
+           let more_extys, e = normalize_expr e in
+           more_extys @ extys, e)
+        extys tes in
+    extys, LetRecVal (x, e, ty, tes, lc)
   | LetVal (p, e, ty, tes, lc) ->
-    LetVal (p, normalize_expr e, ty, List.map normalize_expr tes, lc)
+    let extys, e = normalize_expr e in
+    let extys, tes = fold_map
+        (fun extys e ->
+           let more_extys, e = normalize_expr e in
+           more_extys @ extys, e)
+        extys tes in
+    extys, LetVal (p, e, ty, tes, lc)
 
 let normalize_program = List.map normalize_item
 
@@ -525,16 +541,18 @@ type solution =
   quant_ops * Terms.formula *
     (int * (Terms.var_name list * Terms.formula)) list
 
-let infer_prog_mockup prog =
+type program = ((int * Terms.loc) list * Terms.struct_item) list
+
+let infer_prog_mockup (prog : program) =
   let gamma = ref [] in
   let cns = List.map (function
-    | TypConstr _ -> VarSet.empty, And []
-    | ValConstr _ ->
-      VarSet.empty, And []
-    | PrimVal (x, tsch, loc) ->
+    | _, TypConstr _ -> [], VarSet.empty, And []
+    | _, ValConstr _ ->
+      [], VarSet.empty, And []
+    | _, PrimVal (x, tsch, loc) ->
       gamma := (x, tsch) :: !gamma;
-      VarSet.empty, And []
-    | LetRecVal (x, e, defsig, tests, loc) ->
+      [], VarSet.empty, And []
+    | new_ex_types, LetRecVal (x, e, defsig, tests, loc) ->
       let bvs, sig_cn, t = match defsig with
         | None ->
           let b = fresh_typ_var () in
@@ -545,8 +563,8 @@ let infer_prog_mockup prog =
       let chi_id, typ_sch, cn, e, tests =
         constr_gen_letrec !gamma x e sig_cn t tests in
       gamma := (x, typ_sch) :: !gamma;
-      preserve, cn
-    | LetVal (p, e, defsig, tests, loc) ->
+      new_ex_types, preserve, cn
+    | new_ex_types, LetVal (p, e, defsig, tests, loc) ->
       let avs, sig_vs, sig_cn, t = match defsig with
         | None ->
           let a = fresh_typ_var () in
@@ -587,12 +605,12 @@ let infer_prog_mockup prog =
           * *)
           x, ([], [], ety) in
       gamma := map_append typ_sch_ex env !gamma;
-      preserve, cn
+      new_ex_types, preserve, cn
   ) prog in
   List.fold_right
-    (fun (pres, cn) (pres_acc, cn_acc) ->
-      VarSet.union pres pres_acc, cn_and cn cn_acc)
-    cns (VarSet.empty, And [])
+    (fun (extys, pres, cn) (extys_acc, pres_acc, cn_acc) ->
+      extys @ extys_acc, VarSet.union pres pres_acc, cn_and cn cn_acc)
+    cns ([], VarSet.empty, And [])
 
 let annotate_expr q chi_sb nice_sb e =
   let typ_sch nice_sb ns =
@@ -636,7 +654,7 @@ let prepare_scheme phi res =
 
 let infer_prog solver prog =
   let gamma = ref [] in
-  let update_new_ex_types q sb sb_chi =
+  let update_new_ex_types q new_ex_types sb sb_chi =
     let more_items = ref [] in
     (* FIXME: duplicate with code at the end of [solve].  Clean up
        handling of ex. type parameters. *)
@@ -666,13 +684,12 @@ let infer_prog solver prog =
          let extydef = IValConstr
              (n, VarSet.elements vs, phi, ty, n, pvs, loc) in
          more_items := extydec :: extydef :: !more_items)
-      !new_ex_types;
-    new_ex_types := [];
+      new_ex_types;
     !more_items in
   let items : annot_item list = concat_map
       (function
-        | TypConstr (n, sorts, lc) -> [ITypConstr (n, sorts, lc)]
-        | ValConstr (name, vs, phi, args, c_n, c_args, lc) ->
+        | _, TypConstr (n, sorts, lc) -> [ITypConstr (n, sorts, lc)]
+        | _, ValConstr (name, vs, phi, args, c_n, c_args, lc) ->
           let sb, phi = separate_subst empty_q phi in
           (*Format.printf "ValConstr: n=%s sb=%a@\n%!"
             (cns_str name) pr_subst sb; * *)
@@ -685,10 +702,10 @@ let infer_prog solver prog =
                  (Eqty (TCons (tuple, args),
                         TCons (tuple, c_args), dummy_loc)::phi)) in
           [IValConstr (name, VarSet.elements vs, phi, args, c_n, c_args, lc)]
-        | PrimVal (x, tsch, lc) ->
+        | _, PrimVal (x, tsch, lc) ->
           gamma := (x, tsch) :: !gamma;
           [IPrimVal (x, tsch, lc)]
-        | LetRecVal (x, e, defsig, tests, loc) ->
+        | new_ex_types, LetRecVal (x, e, defsig, tests, loc) ->
           let bvs, sig_cn, t = match defsig with
             | None ->
               let b = fresh_typ_var () in
@@ -697,8 +714,10 @@ let infer_prog solver prog =
             | Some (vs, phi, t) -> vs, phi, t in
           let chi_id, _, cn, e, tests =
             constr_gen_letrec !gamma x e sig_cn t tests in
+          Format.printf "LetRecVal: x=%s@\ncn=%a@\n%!" x
+             pr_cnstrnt cn; (* *)
           let preserve = VarSet.union (fvs_typ t) (fvs_formula sig_cn) in
-          let q, phi_res, sb_chi = solver ~preserve cn in
+          let q, phi_res, sb_chi = solver ~new_ex_types ~preserve cn in
           let nice_sb, (vs, phi) =
             try nice_ans (List.assoc chi_id sb_chi)
             with Not_found -> assert false in
@@ -726,9 +745,9 @@ let infer_prog solver prog =
           let typ_sch = gvs, phi, res in
           gamma := (x, typ_sch) :: !gamma;
           let ex_items =
-            update_new_ex_types q sb_res sb_chi in
+            update_new_ex_types q new_ex_types sb_res sb_chi in
           ex_items @ [ILetRecVal (x, e, typ_sch, tests, loc)]
-        | LetVal (p, e, defsig, tests, loc) ->
+        | new_ex_types, LetVal (p, e, defsig, tests, loc) ->
           let avs, sig_vs, sig_cn, t = match defsig with
             | None ->
               let a = fresh_typ_var () in
@@ -737,6 +756,8 @@ let infer_prog solver prog =
             | Some (vs, phi, t) -> VarSet.empty, vs, phi, t in
           let bs, exphi, env, cn, (p, e) =
             constr_gen_let !gamma p e t in
+          Format.printf "LetVal: p=%a@\ncn=%a@\n%!" (pr_pat false) p
+             pr_cnstrnt cn; (* *)
           let preserve = VarSet.union (fvs_typ t)
               (VarSet.union (fvs_formula sig_cn) (fvs_formula exphi)) in
           let cn = impl sig_cn cn in
@@ -748,7 +769,7 @@ let infer_prog solver prog =
             if not (VarSet.is_empty bs) && test_cn <> And []
             then All (bs, test_cn) else test_cn in
           let cn = cn_and cn test_cn in
-          let q, phi, sb_chi = solver ~preserve cn in
+          let q, phi, sb_chi = solver ~new_ex_types ~preserve cn in
           let sb, phi = separate_subst q phi in
           let res = subst_typ sb t in
           let gvs = VarSet.union (fvs_formula phi) (fvs_typ res) in
@@ -762,7 +783,7 @@ let infer_prog solver prog =
           and tests = List.map (annotate_expr q sb_chi nice_sb) tests in
           let exphi = subst_formula sb exphi in
           let ex_items =
-            update_new_ex_types q sb sb_chi in
+            update_new_ex_types q new_ex_types sb sb_chi in
           let more_items = ref [] in
           let all_exvs = fvs_formula exphi in
           let typ_sch_ex =

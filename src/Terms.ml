@@ -538,8 +538,6 @@ type struct_item =
 | LetRecVal of string * uexpr * typ_scheme option * uexpr list * loc
 | LetVal of pat * uexpr * typ_scheme option * uexpr list * loc
 
-type program = struct_item list
-
 type annot_item =
 | ITypConstr of cns_name * sort list * loc
 | IValConstr of cns_name * var_name list * formula * typ list
@@ -627,7 +625,6 @@ type sigma =
 
 let sigma : sigma = Hashtbl.create 128
 let all_ex_types = ref []
-let new_ex_types = ref []
 
 (** {2 Printing} *)
 let current_file_name = ref ""
@@ -1369,7 +1366,7 @@ let parser_last_typ = ref 0
 let parser_last_num = ref 0
 
 let reset_state () =
-  extype_id := 0; new_ex_types := []; all_ex_types := [];
+  extype_id := 0; all_ex_types := [];
   predvar_id := 0; Hashtbl.clear sigma;
   parser_more_items := [];
   Hashtbl.clear parser_unary_typs;

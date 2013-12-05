@@ -8,11 +8,11 @@
 open Terms
 open Aux
 
-let solver ~preserve cn =
+let solver ~new_ex_types ~preserve cn =
   let q_ops, cn = Infer.prenexize cn in
   let exty_res_of_chi, brs = Infer.normalize q_ops cn in
   let brs = Infer.simplify preserve q_ops brs in
-  Invariants.solve q_ops exty_res_of_chi brs
+  Invariants.solve q_ops new_ex_types exty_res_of_chi brs
 
 let process_file ?(do_sig=false) ?(do_ml=false) ?(do_mli=false) fname =
   current_file_name := fname;
@@ -24,15 +24,18 @@ let process_file ?(do_sig=false) ?(do_ml=false) ?(do_mli=false) fname =
   if do_sig then (
     let output = Format.formatter_of_out_channel
         (open_out (base^".gadti")) in
-    Format.fprintf output "%a@\n%!" pr_signature annot);
+    Format.fprintf output "%a@\n%!" pr_signature annot;
+    Format.printf "InvarGenT: Generated file %s@\n%!" (base^".gadti"));
   if do_ml then (
     let output = Format.formatter_of_out_channel
         (open_out (base^".ml")) in
-    Format.fprintf output "%a@\n%!" OCaml.pr_ml annot);
+    Format.fprintf output "%a@\n%!" OCaml.pr_ml annot;
+    Format.printf "InvarGenT: Generated file %s@\n%!" (base^".ml"));
   if do_mli then (
     let output = Format.formatter_of_out_channel
         (open_out (base^".mli")) in
-    Format.fprintf output "%a@\n%!" OCaml.pr_mli annot);
+    Format.fprintf output "%a@\n%!" OCaml.pr_mli annot;
+    Format.printf "InvarGenT: Generated file %s@\n%!" (base^".mli"));
   ()
 
 
@@ -48,7 +51,7 @@ let () =
       exit 0
     ) else (
       let file_name = Sys.argv.(1) in
-      try process_file file_name
+      try process_file file_name ~do_sig:true ~do_ml:true ~do_mli:true
       with (Report_toplevel _ | Contradiction _) as exn ->
         pr_exception Format.std_formatter exn; exit 2)
   )

@@ -9,6 +9,6 @@
 type chi_subst = (int * (Terms.var_name list * Terms.formula)) list
 val neg_constrns : bool ref
 val solve :
-  Terms.quant_ops -> (int, int) Hashtbl.t ->
+  Terms.quant_ops -> (int * Terms.loc) list -> (int, int) Hashtbl.t ->
   (Terms.formula * Terms.formula) list ->
   Terms.quant_ops * Terms.formula * chi_subst

@@ -30,18 +30,22 @@ val typ_to_sch : 'a * Terms.typ -> 'a * Terms.typ_scheme
 val constr_gen_expr :
   (string * Terms.typ_scheme) list ->
   Terms.uexpr -> Terms.typ -> cnstrnt * Terms.iexpr
+type program = ((int * Terms.loc) list * Terms.struct_item) list
 type solution =
   Terms.quant_ops * Terms.formula *
     (int * (Terms.var_name list * Terms.formula)) list
-val infer_prog_mockup : Terms.struct_item list -> Terms.VarSet.t * cnstrnt
+val infer_prog_mockup :
+  program -> (int * Terms.loc) list * Terms.VarSet.t * cnstrnt
 val infer_prog :
-  (preserve:Terms.VarSet.t -> cnstrnt -> solution) ->
-  Terms.struct_item list ->
+  (new_ex_types:(int * Terms.loc) list ->
+   preserve:Terms.VarSet.t -> cnstrnt -> solution) ->
+  program ->
   (string * Terms.typ_scheme) list * Terms.annot_item list
 
 (** {2 Normalization} *)
-val normalize_expr : Terms.uexpr -> Terms.uexpr
-val normalize_program : Terms.program -> Terms.program
+val normalize_expr : Terms.uexpr -> (int * Terms.loc) list * Terms.uexpr
+val normalize_program :
+  Terms.struct_item list -> ((int * Terms.loc) list * Terms.struct_item) list
 
 type branch = Terms.formula * Terms.formula
 val fresh_typ_var : unit -> Terms.var_name

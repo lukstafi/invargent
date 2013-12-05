@@ -7,7 +7,7 @@
 *)
 open OUnit
 
-let debug = ref (* true *)false
+let debug = ref true(* false *)
 
 let input_file file =
   let f = open_in file in

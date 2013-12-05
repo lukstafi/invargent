@@ -157,7 +157,6 @@ type struct_item =
 | PrimVal of string * typ_scheme * loc
 | LetRecVal of string * uexpr * typ_scheme option * uexpr list * loc
 | LetVal of pat * uexpr * typ_scheme option * uexpr list * loc
-type program = struct_item list
 
 (** Represents both signature items and annotated structure items to
     be printed as OCaml source code. *)
@@ -305,7 +304,6 @@ type sigma =
 
 val sigma : sigma
 val all_ex_types : (int * loc) list ref
-val new_ex_types : (int * loc) list ref
 
 (** {2 Printing} *)
 
