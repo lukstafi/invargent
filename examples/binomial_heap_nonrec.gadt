@@ -22,9 +22,6 @@ external compare : ∀i, j. Num i → Num j → Order (i, j)
 external leq : ∀a. a → a → Bool
 external incr : ∀i. Num i → Num (i+1)
 
-external rank : ∀a, n. Tree (a, n) → Num n
-external link : ∀a, n. (Tree (a, n), Tree (a, n)) → Tree (a, n+1)
-
 let rank = function Node (r, _, _) -> r
 
 let link = function

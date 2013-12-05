@@ -756,7 +756,7 @@ let infer_prog solver prog =
             | Some (vs, phi, t) -> VarSet.empty, vs, phi, t in
           let bs, exphi, env, cn, (p, e) =
             constr_gen_let !gamma p e t in
-          Format.printf "LetVal: p=%a@\ncn=%a@\n%!" (pr_pat false) p
+          Format.printf "LetVal: p=%a@\ninit_cn=%a@\n%!" (pr_pat false) p
              pr_cnstrnt cn; (* *)
           let preserve = VarSet.union (fvs_typ t)
               (VarSet.union (fvs_formula sig_cn) (fvs_formula exphi)) in
@@ -769,15 +769,23 @@ let infer_prog solver prog =
             if not (VarSet.is_empty bs) && test_cn <> And []
             then All (bs, test_cn) else test_cn in
           let cn = cn_and cn test_cn in
+          let cn =
+            if VarSet.is_empty avs then cn else Ex (avs, cn) in
+          Format.printf "LetVal: p=%a@\ncn=%a@\n%!" (pr_pat false) p
+             pr_cnstrnt cn; (* *)
           let q, phi, sb_chi = solver ~new_ex_types ~preserve cn in
           let sb, phi = separate_subst q phi in
           let res = subst_typ sb t in
           let gvs = VarSet.union (fvs_formula phi) (fvs_typ res) in
+          Format.printf "LetVal: res=%a@ gvs=%a@ phi=%a@\n%!"
+            (pr_ty false) res pr_vars gvs pr_formula phi; (* *)
           let gvs = VarSet.elements gvs in
           let nice_sb, (gvs, phi) =
             nice_ans ~fvs:(fvs_typ res) (gvs, phi) in
           let sb = hvsubst_sb nice_sb sb in
           let res = hvsubst_typ nice_sb res in
+          Format.printf "LetVal: nice@ res=%a@ gvs=%a@ phi=%a@\n%!"
+            (pr_ty false) res pr_vars (vars_of_list gvs) pr_formula phi; (* *)
           let top_sch = gvs, phi, res in
           let e = annotate_expr q sb_chi nice_sb e
           and tests = List.map (annotate_expr q sb_chi nice_sb) tests in
@@ -789,9 +797,13 @@ let infer_prog solver prog =
           let typ_sch_ex =
             if VarSet.is_empty (VarSet.inter bs all_exvs) && exphi = []
             then fun (x, res) ->
-              let res = hvsubst_typ nice_sb res in
-              let gvs, phi = prepare_scheme phi res in
-              x, (VarSet.elements gvs, phi, res)
+              let res' = subst_typ sb res in
+              let gvs, phi = prepare_scheme phi res' in
+              Format.printf
+                "LetVal: x=%s@ res=%a@ nice res=%a@ gvs=%a@ phi=%a@\n%!"
+                x (pr_ty false) res (pr_ty false) res'
+                pr_vars gvs pr_formula phi; (* *)
+              x, (VarSet.elements gvs, phi, res')
             else fun (x, res) ->
               let res = hvsubst_typ nice_sb res in
               let gvs, phi = prepare_scheme phi res in
@@ -877,8 +889,8 @@ let prenexize cn =
             Hashtbl.add quants (av,bv) Same_quant) vs) vs;
     change := true; same_vars := VarSet.union vs !same_vars in
   let alternate () =
-    (* Format.printf "alternate: %s.%a@\n%!" (if !at_uni then "∀" else "∃")
-      pr_vars !same_vars; * *)
+    Format.printf "alternate: %s.%a@\n%!" (if !at_uni then "∀" else "∃")
+      pr_vars !same_vars; (* *)
     up_vars := VarSet.union !same_vars !up_vars;
     same_vars := VarSet.empty;
     change := false; at_uni := not !at_uni in

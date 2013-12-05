@@ -38,11 +38,11 @@ let calc, eval =
       | Cond (b, t, e) ->
         let rt = calc t in
         let re = calc e in
-        cond (snd (eval b)) rt re in
+        cond (snd eval b) rt re in
     calc, function
     | IsZero x -> let r = calc x in is_zero r
-    | If (b, t, e) -> if (snd (eval b)) (snd (eval t)) (snd (eval e))
-    | Pair (x, y) -> snd (eval x), snd (eval y)
-    | Fst p -> (match eval p with _, (x, y) -> x)
-    | Snd p -> (match eval p with _, (x, y) -> y) in
+    | If (b, t, e) -> if (snd eval b) (snd eval t) (snd eval e)
+    | Pair (x, y) -> snd eval x, snd eval y
+    | Fst p -> (match snd eval p with _, (x, y) -> x)
+    | Snd p -> (match snd eval p with _, (x, y) -> y) in
   eval
