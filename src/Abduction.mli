@@ -17,12 +17,12 @@ val abd_simple :
   Terms.quant_ops ->
   ?without_quant:unit ->
   bvs:Terms.VarSet.t ->
-  pms:Terms.VarSet.t ->
+  pms:Terms.VarSet.t -> dissociate:bool ->
   validate:((Terms.var_name list * Terms.subst) -> unit) ->
   discard:((Terms.var_name list * Terms.subst) list) ->
   int ->
   Terms.var_name list * Terms.subst ->
-  Terms.subst * Terms.subst ->
+  Terms.subst * Terms.formula * Terms.subst ->
   (Terms.VarSet.t * (Terms.var_name list * Terms.subst)) option
 val abd_typ :
   Terms.quant_ops ->
@@ -30,7 +30,7 @@ val abd_typ :
   ?dissociate:bool ->
   validate:((Terms.var_name list * Terms.subst) -> unit) ->
   discard:((Terms.var_name list * Terms.subst) list) ->
-  (Terms.subst * Terms.subst) list ->
+  (Terms.subst * Terms.formula * Terms.subst) list ->
   Terms.VarSet.t * Terms.subst *        (* alien_eqs *)
   Terms.var_name list * Terms.subst * (Terms.formula * Terms.formula) list
 (** Raises [Contradiction] if constraints are contradictory and

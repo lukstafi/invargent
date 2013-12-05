@@ -17,14 +17,14 @@ let test_common more_general msg test =
   Infer.reset_state ();
   let prog = (Infer.normalize_program % Parser.program Lexer.token)
       (Lexing.from_string test) in
-  let preserve, orig_cn = Infer.infer_prog_mockup prog in
-  (* Format.printf "orig_cn: %s@\n%a@\n%!" msg
-    Infer.pr_cnstrnt orig_cn; * *)
+  let new_ex_types, preserve, orig_cn = Infer.infer_prog_mockup prog in
+  (*[* Format.printf "orig_cn: %s@\n%a@\n%!" msg
+    Infer.pr_cnstrnt orig_cn; *]*)
   let q_ops, cn = Infer.prenexize orig_cn in
   let exty_res_of_chi, brs = Infer.normalize q_ops cn in
-  (* Format.printf "brs: %s@\n%a@\n%!" msg Infer.pr_brs brs; * *)
+  (*[* Format.printf "brs: %s@\n%a@\n%!" msg Infer.pr_brs brs; *]*)
   let brs = Infer.simplify preserve q_ops brs in
-  (* Format.printf "simpl-brs: %s@\n%a@\nex_types:@\n%!"
+  (*[* Format.printf "simpl-brs: %s@\n%a@\nex_types:@\n%!"
     msg Infer.pr_brs brs;
   List.iter
     (fun (i,loc) ->
@@ -35,11 +35,11 @@ let test_common more_general msg test =
          i pr_vars (vars_of_list pvs) pr_vars (vars_of_list allvs)
          (pr_ty false) ty pr_formula phi)
     !all_ex_types;
-  * *)
+  *]*)
   Abduction.more_general := more_general;
   let _, res, sol =
-    Invariants.solve q_ops exty_res_of_chi brs in
-  (* Format.printf
+    Invariants.solve q_ops new_ex_types exty_res_of_chi brs in
+  (*[* Format.printf
     "Test: res=@\n%a@\n%!" pr_formula res;
   List.iter
     (fun (i,loc) ->
@@ -50,7 +50,7 @@ let test_common more_general msg test =
          i pr_vars (vars_of_list pvs) pr_vars (vars_of_list allvs)
          (pr_ty false) ty pr_formula phi)
     !all_ex_types;
-  * *)
+  *]*)
   Format.printf " t=%.3fs " (Sys.time () -. ntime);
   q_ops, res, sol
 

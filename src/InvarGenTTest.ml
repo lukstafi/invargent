@@ -88,14 +88,18 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "binary_upper_bound" ());
-      "mutual_recursion_eval" >::
+      "mutual_simple_recursion_eval" >::
         (fun () ->
-           (* skip_if !debug "debug"; *)
-           test_case "mutual_recursion_eval" ());
+           skip_if !debug "debug";
+           test_case "mutual_simple_recursion_eval" ());
       "binomial_heap_nonrec" >::
         (fun () ->
            skip_if !debug "debug";
            test_case "binomial_heap_nonrec" ());
+      "mutual_recursion_eval" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "mutual_recursion_eval" ());
       "binomial_heap" >::
         (fun () ->
            todo "requires `min` and `max`";

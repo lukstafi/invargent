@@ -3,3 +3,4 @@ Place for TODOs/FIXMEs, especially if not expressed in other places. See README.
 * TODO: perhaps `check_connected` could be simplified or even removed from abduction?
 * FIXME: repeating `newtype` and `newcons` definitions should be errors.
 * TODO: calibrate timeout parameters (number of iterations before forced exit from simple abduction, joint abduction etc.)
+* FIXME: `separate_subst` has a default argument `keep_uni=false`. Rethink for each use case if it is the correct argument.

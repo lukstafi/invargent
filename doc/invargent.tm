@@ -416,7 +416,7 @@
   for some <math|<wide|t|\<bar\>>>. We achieve this by normalizing the answer
   using parameterized unification under quantifiers
   <math|\<b-U\><rsub|<wide|\<alpha\>|\<bar\>><wide|\<beta\>|\<bar\>>><around*|(|\<cal-Q\>.A|)>>.
-  <math|<wide|\<zeta\>|\<bar\>>> are the parameters of the invariants.
+  <math|<wide|\<beta\>|\<bar\>>> are the parameters of the invariants.
 
   In fact, when performing unification, we check more than
   <math|\<b-U\><rsub|<wide|\<alpha\>|\<bar\>><wide|\<beta\>|\<bar\>>><around*|(|\<cal-Q\>.A|)>>
@@ -538,6 +538,16 @@
     <math|\<alpha\><rsub|i>> is the most upstream existential variable and
     <math|\<tau\>> is a universal variable or constant, and propagate the
     substitution.
+
+    <\itemize>
+      <item>Since for efficiency reasons we do not always remove alien
+      subterms, we need to mitigate the problem of alien subterm variables
+      causing violation of the quantifier prefix. To this effect, we include
+      the premise equations from other sorts in the process generating the
+      initial candidates and choice 6 candidates, but not as candidates. Not
+      to lose generality of answer, we only keep a renaming substitution, in
+      particular we try to eliminate universal variables.
+    </itemize>
 
     <item>Sort the initial candidates by increasing size, so that
     replacements of step 2 are formed at a root position before they are used
@@ -1583,7 +1593,7 @@
 <\references>
   <\collection>
     <associate|1|<tuple|5.2|?>>
-    <associate|AlienSubterms|<tuple|3.3|7>>
+    <associate|AlienSubterms|<tuple|3.3|8>>
     <associate|Details|<tuple|5.5|17>>
     <associate|ImplSubst|<tuple|4|2>>
     <associate|Main Algo|<tuple|5.3|?>>
@@ -1600,7 +1610,7 @@
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1>>
-    <associate|auto-10|<tuple|3.3|7>>
+    <associate|auto-10|<tuple|3.3|8>>
     <associate|auto-11|<tuple|3.4|8>>
     <associate|auto-12|<tuple|4|10>>
     <associate|auto-13|<tuple|4.1|10>>
