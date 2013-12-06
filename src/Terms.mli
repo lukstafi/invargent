@@ -330,6 +330,7 @@ val pr_expr :
   (Format.formatter -> 'a -> unit) ->
   bool -> Format.formatter -> 'a expr -> unit
 val pr_uexpr : bool -> Format.formatter -> uexpr -> unit
+val pr_iexpr : bool -> Format.formatter -> iexpr -> unit
 val pr_texpr : bool -> Format.formatter -> texpr -> unit
 val pr_clause :
   (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a clause -> unit

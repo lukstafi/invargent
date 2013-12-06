@@ -8,35 +8,34 @@ newtype Order : num * num
 
 newtype Bool
 
-newcons Le : ∀i, j [i≤j+1]. Order (i, j)
+newcons Le : ∀i, j[i ≤ (j + 1)]. Order (i, j)
 
-newcons Gt : ∀i, j [j≤i+1]. Order (i, j)
+newcons Gt : ∀i, j[j ≤ (i + 1)]. Order (i, j)
 
-newcons Eq : ∀i. Order (i, i)
+newcons Eq : ∀n. Order (n, n)
 
 newcons True : Bool
 
 newcons False : Bool
 
-newcons Node : ∀a, k [0≤k]. Num k * a * Forest (a, k) ⟶ Tree (a, k)
+newcons Node : ∀k, a[0 ≤ k].Num k * a * Forest (a, k) ⟶ Tree (a, k)
 
-newcons TCons :
-  ∀a, n [0≤n]. Tree (a, n) * Forest (a, n) ⟶ Forest (a, n+1)
+newcons TCons : ∀n, a[0 ≤ n].Tree (a, n) * Forest (a, n) ⟶
+   Forest (a, n + 1)
 
 newcons TNil : ∀a. Forest (a, 0)
 
-newcons HCons :
-  ∀a, k, m, n [0≤k ∧ k+1≤m ∧ m≤n].
-    Tree (a, k) * Heap (a, m, n) ⟶ Heap (a, k, n)
+newcons HCons : ∀k, m, n, a[0 ≤ k ∧ (k + 1) ≤ m ∧
+   m ≤ n].Tree (a, k) * Heap (a, m, n) ⟶ Heap (a, k, n)
 
-newcons HNil : ∀a, n. Heap (a, n, n)
+newcons HNil : ∀k, a. Heap (a, k, k)
 
 external compare : ∀i, j. Num i → Num j → Order (i, j)
 
 external leq : ∀a. a → a → Bool
 
-external incr : ∀i. Num i → Num (i+1)
+external incr : ∀i. Num i → Num (i + 1)
 
-val rank : ∀a, n. Tree (a, n) → Num n
+val rank : ∀n, a. Tree (a, n) → Num n
 
-val link : ∀a, n. (Tree (a, n), Tree (a, n)) → Tree (a, n + 1)
+val link : ∀n, a. (Tree (a, n), Tree (a, n)) → Tree (a, 1 + n)

@@ -794,6 +794,7 @@ and pr_one_expr pr_ann ppf exp = match exp with
       fprintf ppf "(%a)" (pr_expr pr_ann false) exp
 
 let pr_uexpr comma ppf = pr_expr (fun ppf () -> fprintf ppf "") comma ppf
+let pr_iexpr comma ppf = pr_expr (fun ppf _ -> fprintf ppf "") comma ppf
 
 let collect_argtys ty =
   let rec aux args = function
@@ -1043,9 +1044,9 @@ let split_sorts cnj =
 
 let connected ?(validate=fun _ -> ()) ~directed target (vs, phi) =
   let phi = List.sort (fun a b -> atom_size a - atom_size b) phi in
-  (*[* Format.printf "connected: target=%a@ vs=%a@\nphi=%a@\n%!"
+  (*[*) Format.printf "connected: target=%a@ vs=%a@\nphi=%a@\n%!"
     pr_vars (vars_of_list target) pr_vars (vars_of_list vs)
-    pr_formula phi; *]*)
+    pr_formula phi; (*]*)
   let nodes = List.map
       (function
         | Eqty (TVar _, TVar _, _) as c ->
@@ -1068,14 +1069,14 @@ let connected ?(validate=fun _ -> ()) ~directed target (vs, phi) =
            try validate acc'; acc'
            with Contradiction _ -> acc)
         acc more in
-    (*[* Format.printf "connected-loop: nvs=%a@\nacc=%a@\n%!"
-      pr_vars (vars_of_list nvs) pr_formula acc; *]*)
+    (*[*) Format.printf "connected-loop: nvs=%a@\nacc=%a@\n%!"
+      pr_vars (vars_of_list nvs) pr_formula acc; (*]*)
     if nvs = [] then acc
     else loop acc (VarSet.union mvs vs) nvs rem in
   let ans = loop [] VarSet.empty target nodes in
-  (*[* Format.printf "connected: target=%a@ vs=%a@ phi=%a@ ans=%a@\n%!"
+  (*[*) Format.printf "connected: target=%a@ vs=%a@ phi=%a@ ans=%a@\n%!"
     pr_vars (vars_of_list target) pr_vars (vars_of_list vs) pr_formula phi
-    pr_formula ans; *]*)
+    pr_formula ans; (*]*)
   VarSet.elements (VarSet.inter (fvs_formula ans) (vars_of_list vs)),
   ans
 
@@ -1097,13 +1098,13 @@ let quant_viol q bvs pms v t =
   let pvs = if VarSet.mem v bvs then v::pvs else pvs in
   let uni_vs =
     List.filter q.uni_v (if VarSet.mem v bvs then npvs else v::npvs) in
-  (*[* Format.printf "quant_viol: vrels %!"; *]*)
+  (*[*) Format.printf "quant_viol: vrels %!"; (*]*)
   let res =
   if not (VarSet.mem v bvs) then uv ||
     List.exists
     (fun v2 ->
-      (*[* Format.printf "%s %s %s; " (var_str v)
-        (var_scope_str (q.cmp_v v v2)) (var_str v2); *]*)
+      (*[*) Format.printf "%s %s %s; " (var_str v)
+        (var_scope_str (q.cmp_v v v2)) (var_str v2); (*]*)
       not (VarSet.mem v2 pms) && q.cmp_v v v2 = Left_of) npvs
   else
     not
@@ -1111,13 +1112,13 @@ let quant_viol q bvs pms v t =
          (fun uv -> q.cmp_v v uv = Same_quant ||
                     List.exists (fun pv -> q.cmp_v uv pv = Left_of) pvs)
          uni_vs) in
-  (*[* Format.printf
+  (*[*) Format.printf
     "@\nquant_viol: %b; v=%s; uv=%b;@ t=%a;@ bvs=%a;@ pms=%a;@ pvs=%a;@
    uni_vs=%a; npvs=%a@\n%!"
     res (var_str v) uv (pr_ty false) t
     pr_vars bvs pr_vars pms pr_vars (vars_of_list pvs)
     pr_vars (vars_of_list uni_vs) pr_vars (vars_of_list npvs);
-  *]*)
+  (*]*)
   res  
 
 let registered_notex_vars = Hashtbl.create 32
@@ -1205,14 +1206,14 @@ let unify ?use_quants ?bvs ?pms ?(sb=[]) q cnj =
         aux sb num_cn (more_cnj @ cnj)
       | (TCons (f, _) as t1,
                          (TCons (g, _) as t2)) ->
-        (*[* Format.printf "unify: mismatch f=%s g=%s@ t1=%a@ t2=%a@\n%!"
-          (cns_str f) (cns_str g) (pr_ty false) t1 (pr_ty false) t2; *]*)
+        (*[*) Format.printf "unify: mismatch f=%s g=%s@ t1=%a@ t2=%a@\n%!"
+          (cns_str f) (cns_str g) (pr_ty false) t1 (pr_ty false) t2; (*]*)
         raise
           (Contradiction (Type_sort, "Type mismatch",
                           Some (t1, t2), loc))
       | t1, t2 ->
-        (*[* Format.printf "unify: mismatch@ t1=%a@ t2=%a@\n%!"
-          (pr_ty false) t1 (pr_ty false) t2; *]*)
+        (*[*) Format.printf "unify: mismatch@ t1=%a@ t2=%a@\n%!"
+          (pr_ty false) t1 (pr_ty false) t2; (*]*)
         raise
           (Contradiction (Type_sort, "Type mismatch",
                           Some (t1, t2), loc)) in
@@ -1338,10 +1339,10 @@ let () = pr_exty :=
     let phi, ty =
       if sb=[] then phi, ty
       else subst_formula sb phi, subst_typ sb ty in
-    (*[* Format.printf
+    (*[*) Format.printf
       "@\npr_exty: i=%d ty=%a@ vs=%a@ pvs=%a@ phi=%a@\n%!"
       i (pr_ty false) ty pr_vars (vars_of_list vs) pr_vars
-       (vars_of_list pvs) pr_formula phi; *]*)
+       (vars_of_list pvs) pr_formula phi; (*]*)
     let evs = VarSet.elements
         (VarSet.diff (vars_of_list vs) (vars_of_list pvs)) in
     let phi = Eqty (ty, ty, dummy_loc)::phi in

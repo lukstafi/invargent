@@ -237,10 +237,10 @@ let un_ans (eqs, ineqs) = unsubst eqs, unsolve ineqs
 (* Assumption: [v] is downstream of all [vars] *)
 let quant_viol uni_v bvs v vars =
   let res = uni_v v && not (VarSet.mem v bvs) in
-  (* if res then
+  (*[*) if res then
    Format.printf "NumS.quant_viol: v=%s; uni(v)=%b; bvs(v)=%b@\n%!"
     (var_str v) (uni_v v) (VarSet.mem v bvs);
-  *]*)
+  (*]*)
   res
 
 let solve ?use_quants ?(strict=false)
@@ -266,8 +266,8 @@ let solve ?use_quants ?(strict=false)
     (fun (vars, cst, loc) ->
       List.filter (fun (v,k)->k <>/ !/0) vars, cst, loc) eqn in
   let eqn = List.sort cmp_w eqn in
-  (*[* Format.printf "NumS.solve:@ eqn=@ %a@ ineqn=@ %a@\n%!"
-    pr_eqn eqn pr_ineqn ineqn; *]*)
+  (*[*) Format.printf "NumS.solve:@ eqn=@ %a@ ineqn=@ %a@\n%!"
+    pr_eqn eqn pr_ineqn ineqn; (*]*)
   let rec elim acc = function
     | [] -> List.rev acc
     | ((v, k)::vars, cst, loc)::eqn
@@ -309,8 +309,8 @@ let solve ?use_quants ?(strict=false)
         with Not_found -> [])
       eqn in
   let ineqn = List.sort cmp_w (more_ineqn @ ineqn) in
-  (*[* Format.printf "NumS.solve:@\neqs=%a@\nsimplified ineqn=@ %a@\n%!"
-    pr_w_subst (eqn @ eqs) pr_ineqn ineqn; *]*)
+  (*[*) Format.printf "NumS.solve:@\neqs=%a@\nsimplified ineqn=@ %a@\n%!"
+    pr_w_subst (eqn @ eqs) pr_ineqn ineqn; (*]*)
   let project v (vars, cst, loc as lhs) rhs =
     if equal_w cmp lhs rhs
     then
@@ -388,8 +388,8 @@ let implies cmp cmp_w uni_v eqs ineqs c_eqn c_ineqn =
       match subst_w cmp eqs w with
       | [], cst, _ -> cst =/ !/0
       | w' ->
-        (*[* Format.printf "implies: false eq w=%a@ w'=%a@\n%!"
-          pr_w w pr_w w'; *]*)
+        (*[*) Format.printf "implies: false eq w=%a@ w'=%a@\n%!"
+          pr_w w pr_w w'; (*]*)
         false)
     c_eqn
   && List.for_all
@@ -397,8 +397,8 @@ let implies cmp cmp_w uni_v eqs ineqs c_eqn c_ineqn =
       let ineqn = [mult !/(-1) w] in
       try ignore
             (solve ~strict:true ~eqs ~ineqs ~ineqn cmp cmp_w uni_v);
-        (*[* Format.printf "implies: false ineq w=%a@\n%!"
-          pr_w w; *]*)        
+        (*[*) Format.printf "implies: false ineq w=%a@\n%!"
+          pr_w w; (*]*)        
         false
       with Contradiction _ -> true)
     c_ineqn
@@ -465,8 +465,8 @@ let revert_cst_n_uni cmp cmp_v uni_v ~bvs eqs0 c_ineqn0 =
       c6eqs in
   let c6eqs = List.map (fun (v,(vs,c,(lc,_))) -> v,(vs,c,lc)) c6eqs in
   let c6eqs = c6eqs @ List.map (fun (v,w)->v, subst_w cmp u_sb w) eqs0 in
-  (*[* Format.printf "revert:@ old_sb=%a@ c6eqs=%a@\neqs0=%a@\n%!"
-    pr_w_subst old_sb pr_w_subst c6eqs pr_w_subst eqs0; *]*)
+  (*[*) Format.printf "revert:@ old_sb=%a@ c6eqs=%a@\neqs0=%a@\n%!"
+    pr_w_subst old_sb pr_w_subst c6eqs pr_w_subst eqs0; (*]*)
   let eqs0 = old_sb @ eqs0 in
   let c6_ineqn0 =
       List.map (subst_w cmp u_sb) c_ineqn0 in
@@ -497,24 +497,24 @@ let abd_simple cmp cmp_w cmp_v uni_v ~bvs ~discard ~validate
     let prune (vars, _, _ as w) =
       if List.length vars < !abd_prune_at then Some w else None in
     let add_tr ks_eq eq_trs a =
-      (*[* Format.printf "add_eq/ineq_tr: a=%a@\n%!" pr_w a; *]*)
+      (*[*) Format.printf "add_eq/ineq_tr: a=%a@\n%!" pr_w a; (*]*)
       let kas = lazmap (fun k -> mult k a) ks_eq in
       let add_kas tr =
         lazmap_some (fun ka -> prune (sum_w cmp ka tr)) kas in
       lazconcat_map add_kas eq_trs in
-    (*[* Format.printf
+    (*[*) Format.printf
       "NumS.abd_simple: 2.@\neqs_i=@ %a@\nineqs_i=@ %a@\nd_eqn=@ %a@ d_ineqn=@ %a@\nc_eqn=@ %a@\nc_ineqn=@ %a@\nd_ineqn0=@ %a@\nc_ineqn0=@ %a@\neqs0=@ %a@\n%!"
       pr_w_subst eqs_i pr_ineqs ineqs_i pr_eqn d_eqn pr_ineqn d_ineqn
       pr_eqn c_eqn pr_ineqn c_ineqn pr_ineqn d_ineqn0
       pr_ineqn c_ineqn0 pr_w_subst eqs0;
-    *]*)
+    (*]*)
     (* 3 *)
     let eqs0, c6eqs, c6ineqn =
       revert_cst_n_uni cmp cmp_v uni_v ~bvs eqs0 c_ineqn0 in      
     (* 4 *)
     let rec loop add_eq_tr add_ineq_tr eq_trs ineq_trs eqs_acc ineqs_acc
         c6eqs c0eqs c6ineqn c0ineqn =
-      (* let ddepth = incr debug_dep; !debug_dep in *)
+      (*[*) let ddepth = incr debug_dep; !debug_dep in (*]*)
       incr counter; if !counter > !abd_timeout_count then raise Timeout;
       let a, c6a, iseq, c0eqs, c6eqs, c0ineqn, c6ineqn =
         match c0eqs, c6eqs, c0ineqn, c6ineqn with
@@ -547,10 +547,10 @@ let abd_simple cmp cmp_w cmp_v uni_v ~bvs ~discard ~validate
           cmp cmp_w uni_v in
       let b_eqs, (b_ineqs, _) =
         solve ~eqs:b_eqs ~ineqs:b_ineqs ~eqn:b_implicits cmp cmp_w uni_v in
-      (*[* Format.printf
+      (*[*) Format.printf
         "NumS.abd_simple: [%d] 5. iseq=%b@ a=@ %a@\nb_eqs=@ %a@\nb_ineqs=@ %a@\n%!"
         ddepth iseq pr_w a pr_w_subst b_eqs pr_ineqs b_ineqs;
-      *]*)
+      (*]*)
 
       if taut iseq a
       || implies cmp cmp_w uni_v b_eqs b_ineqs c_eqn c_ineqn
@@ -562,17 +562,17 @@ let abd_simple cmp cmp_w cmp_v uni_v ~bvs ~discard ~validate
       else
         (* 7 *)
         let trs = if iseq then eq_trs else ineq_trs in
-        (*[* Format.printf
+        (*[*) Format.printf
           "NumS.abd_simple: [%d] 7. a=@ %a@\n%!" ddepth pr_w a;
-        *]*)
+        (*]*)
         let passes = ref false in
         let try_trans a' =
           try
             (* 7a *)
-            (*[* Format.printf
+            (*[*) Format.printf
               "NumS.abd_simple: [%d] 7a. trying a'=@ %a@ ...@\n%!"
               ddepth pr_w a';
-            *]*)
+            (*]*)
             let eqn, ineqn = if iseq then [a'], [] else [], [a'] in
             let eqs_acc, (ineqs_acc, acc_implicits) =
               solve ~use_quants:bvs
@@ -584,35 +584,36 @@ let abd_simple cmp cmp_w cmp_v uni_v ~bvs ~discard ~validate
                 ~eqn:acc_implicits cmp cmp_w uni_v in
             ignore (validate (eqs_acc, ineqs_acc));
             passes := true;
-            (*[* Format.printf "NumS.abd_simple: [%d] 7a. validated@\n%!" ddepth;
-            *]*)
+            (*[*) Format.printf "NumS.abd_simple: [%d] 7a. validated@\n%!" ddepth;
+            (*]*)
             (* 7c *)
             let ineq_trs =
               if !passing_ineq_trs
               then add_ineq_tr ineq_trs a
               else ineq_trs in
             (* 7d *)
-            (*[* Format.printf
-              "NumS.abd_simple: [%d] 7 OK@\n%!" ddepth; *]*)
+            (*[*) Format.printf
+              "NumS.abd_simple: [%d] 7 OK@\n%!" ddepth; (*]*)
             (* (try                         *)
             loop add_eq_tr add_ineq_tr eq_trs ineq_trs eqs_acc ineqs_acc
               c6eqs c0eqs c6ineqn c0ineqn
           (* with Contradiction _ -> ()) *)
           with
-          | Contradiction (_,msg,tys,_) (* as e *) when msg != no_pass_msg ->
-            (*[* Format.printf
+          | Contradiction (_,msg,tys,_) (*[*) as e (*]*)
+            when msg != no_pass_msg ->
+            (*[*) Format.printf
               "NumS.abd_simple: [%d] 7. invalid, error=@\n%a@\n%!"
               ddepth pr_exception e;
-            *]*)
+            (*]*)
             () in
         try_trans c6a;
         laziter (fun tr -> try_trans (sum_w cmp tr a)) trs;
         if not !passes then (
           (* 7b *)
-          (*[* Format.printf
+          (*[*) Format.printf
             "NumS.abd_simple: [%d] 7b. failed a=@ %a@ ...@\n%!"
             ddepth pr_w a;
-          *]*)
+          (*]*)
           raise (Contradiction (Num_sort, no_pass_msg, None, dummy_loc))) in
     (* 2 *)
     try
@@ -642,11 +643,11 @@ let abd_simple cmp cmp_w cmp_v uni_v ~bvs ~discard ~validate
   with
   | Contradiction _ -> None
   | Timeout ->
-    (*[* Format.printf
+    (*[*) Format.printf
       "NumS.abd_simple: TIMEOUT@\neqs_i=@ %a@\nineqs_i=@ %a@\nd_eqn=@ %a@ d_ineqn=@ %a@\nc_eqn=@ %a@\nc_ineqn=@ %a@\n%!"
       pr_w_subst eqs_i pr_ineqs ineqs_i pr_eqn d_eqn pr_ineqn d_ineqn
       pr_eqn c_eqn pr_ineqn c_ineqn;
-    *]*)
+    (*]*)
     None
 
 
@@ -707,9 +708,9 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
     | _, [] -> -1
     | [], _ -> 1
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
-  (*[* Format.printf "NumS.abd: iter_no=%d@ bvs=%s@\n%!"
+  (*[*) Format.printf "NumS.abd: iter_no=%d@ bvs=%s@\n%!"
     iter_no
-    (String.concat "," (List.map var_str (VarSet.elements bvs))); *]*)
+    (String.concat "," (List.map var_str (VarSet.elements bvs))); (*]*)
   let brs = List.map
       (fun (nonrec, prem, concl) ->
          nonrec,
@@ -726,8 +727,8 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
     brs;
   let validate (eqs, ineqs) = List.iter
       (fun (_, (d_eqn, d_ineqn), (c_eqn, c_ineqn)) ->
-         (*[* Format.printf "validate:@\nd_eqn=%a@\nc_eqn=%a@\nd_ineqn=%a@\nc_ineqn=%a@\n%!"
-           pr_eqn d_eqn pr_eqn c_eqn pr_ineqn d_ineqn pr_ineqn c_ineqn; *]*)
+         (*[*) Format.printf "validate:@\nd_eqn=%a@\nc_eqn=%a@\nd_ineqn=%a@\nc_ineqn=%a@\n%!"
+           pr_eqn d_eqn pr_eqn c_eqn pr_ineqn d_ineqn pr_ineqn c_ineqn; (*]*)
          let br_eqs,(br_ineqs,br_implicits) =
            solve ~eqs ~ineqs
              ~eqn:(d_eqn @ c_eqn) ~ineqn:(d_ineqn @ c_ineqn)
@@ -735,8 +736,8 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
          let _(* br_eqs,(br_ineqs,_) *) =
            solve ~eqs:br_eqs ~ineqs:br_ineqs ~eqn:br_implicits
              cmp cmp_w q.uni_v in
-         (*[* Format.printf "br_eqs=%a@\nbr_ineqs=%a@\n%!"
-           pr_w_subst br_eqs pr_ineqs br_ineqs; *]*)
+         (*[*) Format.printf "br_eqs=%a@\nbr_ineqs=%a@\n%!"
+           pr_w_subst br_eqs pr_ineqs br_ineqs; (*]*)
          ())
       brs in
   let brs, unproc_brs =
@@ -750,9 +751,9 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
          (List.length pe1 + List.length pi1) -
            (List.length pe2 + List.length pi2))
       brs in
-  (*[* Format.printf "NumS.abd: brs=@\n| %a@\n%!"
+  (*[*) Format.printf "NumS.abd: brs=@\n| %a@\n%!"
     (pr_line_list "| " pr_eqineq_br) brs;
-  *]*)
+  (*]*)
     let discard =
       List.map (partition_map (flatten cmp)) discard in
     let elim_uni =
@@ -781,8 +782,8 @@ let expand_eqineqs eqs ineqs =
   ans @ List.map (expand_atom false) (unsolve ineqs)
 
 let disjelim q ~preserve brs =
-  (*[* Format.printf "NumS.disjelim: brs=@ %a@\n%!"
-    (pr_line_list "| " pr_formula) brs; *]*)
+  (*[*) Format.printf "NumS.disjelim: brs=@ %a@\n%!"
+    (pr_line_list "| " pr_formula) brs; (*]*)
   let vars = List.map fvs_formula brs in
   let common = List.fold_left VarSet.inter preserve vars in
   let cmp_v = make_cmp q in
@@ -801,19 +802,19 @@ let disjelim q ~preserve brs =
   let polytopes, elim_eqs = List.split
       (List.map
          (fun cnj ->
-            (*[* Format.printf
+            (*[*) Format.printf
               "NumS.disjelim:@ solving cnj==%a@\n%!"
-              pr_formula cnj; *]*)
+              pr_formula cnj; (*]*)
             let eqs, (ineqs, implicits) = solve ~cnj cmp cmp_w q.uni_v in
             let eqs, _ = solve ~eqs ~eqn:implicits cmp cmp_w q.uni_v in
             let eqs, elim_eqs = List.partition
                 (fun (v, _) -> VarSet.mem v common) eqs in
             (eqs, ineqs), elim_eqs)
          brs) in
-  (*[* Format.printf
+  (*[*) Format.printf
     "NumS.disjelim:@ preserve=%a@ common=%a@ elim_eqs=@\n%a@\n%!"
     pr_vars preserve pr_vars common
-    (pr_line_list "| " pr_w_subst) elim_eqs; *]*)
+    (pr_line_list "| " pr_w_subst) elim_eqs; (*]*)
   let polytopes = List.map2
       (fun (eqs, ineqs) esb ->
          List.map (fun (v,w) -> v, subst_w cmp esb w) eqs,
@@ -890,8 +891,8 @@ let disjelim q ~preserve brs =
              diff cmp (w1, !/0, lc1) (w2, !/0, lc2))
           (Aux.triangle ws))
       redundant_eqn in
-  (*[* Format.printf "NumS.disjelim:@\neqn=%a@\nredundant=%a@\n%!"
-    pr_eqn eqn pr_eqn redundant_eqn; *]*)
+  (*[*) Format.printf "NumS.disjelim:@\neqn=%a@\nredundant=%a@\n%!"
+    pr_eqn eqn pr_eqn redundant_eqn; (*]*)
   let check face ptope =
     let eqs, (ineqs, implicits) =
       solve ~eqn ~ineqn:ptope cmp cmp_w q.uni_v in
@@ -910,9 +911,9 @@ let disjelim q ~preserve brs =
   @ List.map (expand_atom false) (nonredundant [] ineqn)
 
 let simplify q elimvs cnj =
-  (*[* Format.printf "NumS.simplify: elimvs=%s;@\ncnj=@ %a@\n%!"
+  (*[*) Format.printf "NumS.simplify: elimvs=%s;@\ncnj=@ %a@\n%!"
     (String.concat "," (List.map var_str (VarSet.elements elimvs)))
-    pr_formula cnj; *]*)
+    pr_formula cnj; (*]*)
   (* FIXME: does [elimvs] give correct order of vars? Write test. *)
   let cmp_v = make_cmp q in
   let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
@@ -934,7 +935,7 @@ let simplify q elimvs cnj =
   let cmp a1 a2 = compare
       (replace_loc_atom dummy_loc a1) (replace_loc_atom dummy_loc a2) in
   let res = unique_sorted ~cmp ans in
-  (*[* Format.printf "NumS.simplify:@\nres=%a@\n%!" pr_formula res; *]*)
+  (*[*) Format.printf "NumS.simplify:@\nres=%a@\n%!" pr_formula res; (*]*)
   VarSet.elements vs, res
 
 
@@ -954,8 +955,8 @@ let cleanup_formula = map_in_formula cleanup_typ
 
 (*
 let equivalent q cnj1 cnj2 =
-  (*[* Format.printf "NumS.equivalent:@ cnj1=@ %a@ cnj2=@ %a@\n%!"
-    pr_formula cnj1 pr_formula cnj2; *]*)
+  (*[*) Format.printf "NumS.equivalent:@ cnj1=@ %a@ cnj2=@ %a@\n%!"
+    pr_formula cnj1 pr_formula cnj2; (*]*)
   let cmp_v = make_cmp VarSet.empty cmp_v in
   let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
   let cmp_w (vars1,_,_) (vars2,_,_) =
@@ -978,8 +979,8 @@ let equivalent q cnj1 cnj2 =
 *) (* and now what... *)
 
 let converge q cnj1 cnj2 =
-  (*[* Format.printf "NumS.converge:@\ncnj1=@ %a@\ncnj2=@ %a@\n%!"
-    pr_formula cnj1 pr_formula cnj2; *]*)
+  (*[*) Format.printf "NumS.converge:@\ncnj1=@ %a@\ncnj2=@ %a@\n%!"
+    pr_formula cnj1 pr_formula cnj2; (*]*)
   let cmp_v = make_cmp q in
   let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
   let cmp_w (vars1,_,_) (vars2,_,_) =
@@ -1004,8 +1005,8 @@ let converge q cnj1 cnj2 =
       | a -> [a] in
     let ans1 = concat_map eq2ineq ans1
     and ans2 = concat_map eq2ineq ans2 in
-  (*[* Format.printf "NumS.converge:@\nans1=@ %a@\nans2=@ %a@\n%!"
-    pr_formula ans1 pr_formula ans2; *]*)
+  (*[*) Format.printf "NumS.converge:@\nans1=@ %a@\nans2=@ %a@\n%!"
+    pr_formula ans1 pr_formula ans2; (*]*)
   (* FIXME: Actually, include transitivity! *)
   formula_inter (cnj1 @ ans1) (cnj2 @ ans2)
 
@@ -1081,8 +1082,8 @@ let separate_subst_aux q cnj =
     solve ~cnj cmp cmp_w q.uni_v in
   let eqs, _ = solve
     ~eqs ~eqn:implicits cmp cmp_w q.uni_v in
-  (*[* Format.printf "NumS.separate_subst: eq-keys=%a@\n%!"
-    pr_vars (vars_of_list (List.map fst eqs)); *]*)
+  (*[*) Format.printf "NumS.separate_subst: eq-keys=%a@\n%!"
+    pr_vars (vars_of_list (List.map fst eqs)); (*]*)
   let _, ineqn = partition_map (flatten cmp) cnj in
   let ineqn = List.map (subst_w cmp eqs) ineqn in
   let ineqn = List.filter
@@ -1090,8 +1091,8 @@ let separate_subst_aux q cnj =
     ineqn in
   let kept_lhs, (eqn, sb) = expand_subst q.cmp_v eqs in
   let phi_num = eqineq_to_formula (eqn, ineqn) in
-  (*[* Format.printf "NumS.separate_subst:@ sb=%a@ phi=%a@\n%!"
-    pr_subst sb pr_formula phi_num; *]*)
+  (*[*) Format.printf "NumS.separate_subst:@ sb=%a@ phi=%a@\n%!"
+    pr_subst sb pr_formula phi_num; (*]*)
   let phi_num =
     if kept_lhs then phi_num
     else snd (simplify q VarSet.empty (subst_formula sb phi_num)) in
