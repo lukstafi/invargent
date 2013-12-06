@@ -43,6 +43,6 @@ let calc, eval =
     | IsZero x -> let r = calc x in is_zero r
     | If (b, t, e) -> if (snd eval b) (snd eval t) (snd eval e)
     | Pair (x, y) -> snd eval x, snd eval y
-    | Fst p -> (match snd eval p with _, (x, y) -> x)
-    | Snd p -> (match snd eval p with _, (x, y) -> y) in
+    | Fst p -> (match snd eval p with x, y -> x)
+    | Snd p -> (match snd eval p with x, y -> y) in
   eval

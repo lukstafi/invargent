@@ -453,7 +453,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
              assert (so = []);
              abstract deep repls bvs pms vs ans cand
            with Contradiction
-                      (*[* (_, msg, Some (ty1, ty2), *]*) _ (*[*) (*]*) ->
+                      (*[* (_, msg, Some (ty1, ty2), *]*) _ (*[* ) *]*) ->
              (*[*Format.printf
                "abd_simple: [%d] @ c.4 failed:@ %s@ %a@ %a@\n%!" ddepth
                msg (pr_ty true) ty1 (pr_ty true) ty2;

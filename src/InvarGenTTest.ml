@@ -7,7 +7,7 @@
 *)
 open OUnit
 
-let debug = ref true(* false *)
+let debug = ref (* true *)false
 
 let input_file file =
   let f = open_in file in
@@ -98,7 +98,7 @@ let tests = "InvarGenT" >::: [
            test_case "binomial_heap_nonrec" ());
       "mutual_recursion_eval" >::
         (fun () ->
-           (* skip_if !debug "debug"; *)
+           skip_if !debug "debug";
            test_case "mutual_recursion_eval" ());
       "binomial_heap" >::
         (fun () ->

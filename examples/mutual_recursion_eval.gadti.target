@@ -6,17 +6,25 @@ newtype Calc
 
 newtype Bool
 
-external plus : ∀i,j. Num i → Num j → Num (i+j)
+external plus : ∀i, j. Num i → Num j → Num (i + j)
 
-external mult : ∀i,j. Num i → Num j → ∃k. Num k
+newtype Ex1
+
+newcons Ex1 : ∀k.Num k ⟶ ∃1:k.Num k
+
+external mult : ∀i, j. Num i → Num j → ∃1:k.Num k
 
 external is_zero : ∀i. Num i → Bool
 
-external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k
+newtype Ex2
+
+newcons Ex2 : ∀k.Num k ⟶ ∃2:k.Num k
+
+external cond : ∀i, j. Bool → Num i → Num j → ∃2:k.Num k
 
 external if : ∀a. Bool → a → a → a
 
-newcons Lit : ∀k. Num k ⟶ Calc
+newcons Lit : ∀k.Num k ⟶ Calc
 
 newcons Plus : Calc * Calc ⟶ Calc
 
@@ -26,16 +34,20 @@ newcons Cond : Term Bool * Calc * Calc ⟶ Calc
 
 newcons IsZero : Calc ⟶ Term Bool
 
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+newcons If : ∀a.Term Bool * Term a * Term a ⟶ Term a
 
-newcons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
+newcons Pair : ∀a, b.Term a * Term b ⟶ Term ((a, b))
 
-newcons Fst : ∀a, b. Term (a, b) ⟶ Term a
+newcons Fst : ∀a, b.Term ((a, b)) ⟶ Term a
 
-newcons Snd : ∀a, b. Term (a, b) ⟶ Term b
+newcons Snd : ∀a, b.Term ((a, b)) ⟶ Term b
 
 val snd : ∀a, b. (a, b) → b
 
-val calc : Calc → ∃3:n[].Num n
+newtype Ex3
+
+newcons Ex3 : ∀n.Num n ⟶ Ex3
+
+val calc : Calc → ∃3:n.Num n
 
 val eval : ∀a. Term a → a
