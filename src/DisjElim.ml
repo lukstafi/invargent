@@ -110,8 +110,8 @@ let pr_ty_brs ppf brs =
 let disjelim_typ q ~preserve brs =
   let cmp_k (v1,_) (v2,_) = compare v1 v2 in
   let brs = List.map (List.sort cmp_k) brs in
-  (*[*) Format.printf "disjelim_typ: brs=@ %a@\n%!"
-    (pr_line_list "| " pr_subst) brs; (*]*)
+  (*[* Format.printf "disjelim_typ: brs=@ %a@\n%!"
+    (pr_line_list "| " pr_subst) brs; *]*)
   let empty_brs = List.map (fun _ -> []) brs in
   match brs with
   | [] -> assert false
@@ -137,7 +137,7 @@ let disjelim_typ q ~preserve brs =
       let avs = concat_map (fun (_,vs,_,_, _) -> vs) gs in
       (* A set of sequences position-matched with branches. *)
       (* (c) D^u_i *)
-      (*[*) Format.printf "disjelim_typ: #brs=%d #gs=%d avs=%a@\n%!"
+      (*[* Format.printf "disjelim_typ: #brs=%d #gs=%d avs=%a@\n%!"
         (List.length brs) (List.length gs)
         pr_vars (vars_of_list avs);
       List.iter
@@ -149,7 +149,7 @@ let disjelim_typ q ~preserve brs =
             (if tss=[] then -1 else (List.length (fst (List.hd tss))))
             (List.length lcs);
         ) gs;
-      (*]*)
+      *]*)
       let eqs = 
         List.map
           (fun (_,_,_,tss,lcs) ->
@@ -201,9 +201,9 @@ let simplify_dsjelim q (vs, ty_ans, num_ans) =
     List.filter
       (function Eqty (t1, t2, _) when t1 = t2 -> false | _ -> true)
       (subst_formula ty_sb (to_formula ty_ans)) in
-  (*[*) Format.printf
+  (*[* Format.printf
     "disjelim-simplify: parts@ ty_sb=%a@ ty_ans=%a@\n%!"
-    pr_subst ty_sb pr_formula ty_ans;  (*]*)
+    pr_subst ty_sb pr_formula ty_ans;  *]*)
   let vs = List.filter (fun v -> not (List.mem_assoc v ty_sb)) vs in
   (*let n_sb = subst_of_cnj ~elim_uni:true q num_ans in
   let ty_ans = subst_formula n_sb ty_ans in*)
@@ -228,9 +228,9 @@ let disjelim q ~preserve ~do_num brs =
     let num_brs = List.map (fun (a,b)->a@b)
         (List.combine (List.map snd3 brs) num_eqs) in
     let num_avs, num_ans = NumS.disjelim q ~preserve num_brs in
-    (*[*) Format.printf "disjelim: before simpl@ vs=%a@ ty_ans=%a@ num_ans=%a@\n%!"
+    (*[* Format.printf "disjelim: before simpl@ vs=%a@ ty_ans=%a@ num_ans=%a@\n%!"
       pr_vars (vars_of_list (num_avs @ avs))
-      pr_subst ty_ans pr_formula num_ans; (*]*)
+      pr_subst ty_ans pr_formula num_ans; *]*)
     (* (4) *)
     (* Dooes not simplify redundancy. *)
     simplify_dsjelim q (num_avs @ avs, ty_ans, num_ans)
@@ -276,7 +276,7 @@ let transitive_cl cnj =
   cnj
 
 let initstep_heur q ~preserve cnj =
-  (*[*) let init_cnj = cnj in (*]*)
+  (*[* let init_cnj = cnj in *]*)
   let cnj = NumS.cleanup_formula cnj in
   let preserve = add_vars [delta; delta'] preserve in
   let preserve = List.fold_left
@@ -290,18 +290,18 @@ let initstep_heur q ~preserve cnj =
       (map_some
          (fun c ->
             let vs = fvs_atom c in
-            (*[*) Format.printf "testing c=%a@ vs=%a@ diff=%a..." pr_atom c
-              pr_vars vs pr_vars (VarSet.diff vs preserve); (*]*)
+            (*[* Format.printf "testing c=%a@ vs=%a@ diff=%a..." pr_atom c
+              pr_vars vs pr_vars (VarSet.diff vs preserve); *]*)
             if VarSet.is_empty (VarSet.diff vs preserve)
             then match VarSet.elements vs with
-              | [v] -> (*[*) Format.printf "cst@\n%!"; (*]*) Some (Left (v, c))
-              | _ -> (*[*) Format.printf "cnj@\n%!"; (*]*) Some (Right c)
-            else ((*[*) Format.printf "none@\n%!"; (*]*) None))
+              | [v] -> (*[* Format.printf "cst@\n%!"; *]*) Some (Left (v, c))
+              | _ -> (*[* Format.printf "cnj@\n%!"; *]*) Some (Right c)
+            else ((*[* Format.printf "none@\n%!"; *]*) None))
          cnj) in
   let cvs = fvs_formula cnj in
   let cst_eqs = map_some
       (fun (v,c) -> if VarSet.mem v cvs then None else Some c) cst_eqs in
-  (*[*) Format.printf
+  (*[* Format.printf
     "DisjElim.initstep_heur: preserve=%a@\ninit_cnj=%a@\ncst_eqs=%a@ cnj=%a@\n%!"
-    pr_vars preserve pr_formula init_cnj pr_formula cst_eqs pr_formula cnj; (*]*)
+    pr_vars preserve pr_formula init_cnj pr_formula cst_eqs pr_formula cnj; *]*)
   cst_eqs @ cnj

@@ -785,20 +785,27 @@ let infer_prog solver prog =
             nice_ans ~fvs:(fvs_typ res) (gvs, phi) in
           let sb = hvsubst_sb nice_sb sb in
           let res = hvsubst_typ nice_sb res in
-          (*[*) Format.printf "LetVal: nice@ res=%a@ gvs=%a@ phi=%a@\n%!"
-            (pr_ty false) res pr_vars (vars_of_list gvs) pr_formula phi; (*]*)
+          (*[*) Format.printf
+            "LetVal: nice@ res=%a@ gvs=%a@\nphi=%a@\nsb=%a@\nexphi=%a@\n%!"
+            (pr_ty false) res pr_vars (vars_of_list gvs)
+            pr_formula phi pr_subst sb pr_formula exphi; (*]*)
           let top_sch = gvs, phi, res in
           let e = annotate_expr q sb_chi nice_sb e
           and tests = List.map (annotate_expr q sb_chi nice_sb) tests in
           let exphi = subst_formula sb exphi in
+          let exsb, exphi = separate_subst q exphi in
+          let exsb = update_sb ~more_sb:exsb sb in
           let ex_items =
             update_new_ex_types q new_ex_types sb sb_chi in
           let more_items = ref [] in
           let all_exvs = fvs_formula exphi in
+          (*[*) Format.printf
+            "LetVal: exphi=%a@\nexsb=%a@\n%!" pr_formula exphi
+            pr_subst exsb; (*]*)
           let typ_sch_ex =
             if VarSet.is_empty (VarSet.inter bs all_exvs) && exphi = []
             then fun (x, res) ->
-              let res' = subst_typ sb res in
+              let res' = subst_typ exsb res in
               let gvs, phi = prepare_scheme phi res' in
               (*[*) Format.printf
                 "LetVal: x=%s@ res=%a@ nice res=%a@ gvs=%a@ phi=%a@\n%!"
@@ -806,7 +813,7 @@ let infer_prog solver prog =
                 pr_vars gvs pr_formula phi; (*]*)
               x, (VarSet.elements gvs, phi, res')
             else fun (x, res) ->
-              let res = hvsubst_typ nice_sb res in
+              let res = subst_typ exsb res in
               let gvs, phi = prepare_scheme phi res in
               let exvs, exphi = prepare_scheme exphi res in
               let more_sb, exphi = separate_subst q exphi in
