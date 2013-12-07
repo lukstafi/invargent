@@ -323,20 +323,20 @@ val pr_pre_sep_list :
 val pr_line_list :
   string ->
   (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list -> unit
-val pr_pat : bool -> Format.formatter -> pat -> unit
+val pr_pat : Format.formatter -> pat -> unit
 val pr_tyvar : Format.formatter -> var_name -> unit
 val pr_vars : Format.formatter -> VarSet.t -> unit
 val pr_expr :
   (Format.formatter -> 'a -> unit) ->
-  bool -> Format.formatter -> 'a expr -> unit
-val pr_uexpr : bool -> Format.formatter -> uexpr -> unit
-val pr_iexpr : bool -> Format.formatter -> iexpr -> unit
-val pr_texpr : bool -> Format.formatter -> texpr -> unit
+  Format.formatter -> 'a expr -> unit
+val pr_uexpr : Format.formatter -> uexpr -> unit
+val pr_iexpr : Format.formatter -> iexpr -> unit
+val pr_texpr : Format.formatter -> texpr -> unit
 val pr_clause :
   (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a clause -> unit
 val pr_atom : Format.formatter -> atom -> unit
 val pr_formula : Format.formatter -> formula -> unit
-val pr_ty : bool -> Format.formatter -> typ -> unit
+val pr_ty : Format.formatter -> typ -> unit
 val pr_sort : Format.formatter -> sort -> unit
 val pr_typscheme :
   Format.formatter -> typ_scheme -> unit

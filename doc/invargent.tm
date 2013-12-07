@@ -1512,20 +1512,24 @@
   <verbatim|.hs> -- <verbatim|annot_item>. It contains a superset of
   information in <verbatim|struct_item>: type scheme annotations on
   introduced names, and source code annotated with type schemes at recursive
-  definition nodes. Type scheme annotations on non-toplevel nodes introduce a
-  complication for generating OCaml code: we need to use <verbatim|(type a)>
-  syntax instead of <verbatim|'a.> syntax in the outer node for type
-  variables that are free in the type scheme of the inner node. Toplevel type
-  schemes are guaranteed to not have free variables. Annotated items
-  <verbatim|annot_item> use ``nice'' named variables instead of
-  identifier-based variables. The renaming is computed by
+  definition nodes. Because type scheme annotations can introduce type
+  variables that are used as free variables in type scheme annotations of
+  nested expressions, we use <verbatim|type a.> syntax instead of
+  <verbatim|'a.> syntax. Toplevel type schemes are guaranteed to not have
+  free variables. In effect we also have nicer type variable syntax:
+  <verbatim|a> instead of <verbatim|'a>. However, the <verbatim|type a.>
+  syntax is not available for defining datatypes.
+
+  Annotated items <verbatim|annot_item> use ``nice'' named variables instead
+  of identifier-based variables. The renaming is computed by
   <verbatim|nice_ans>, called at the toplevel and at each <verbatim|let rec>
   in the source code.
 
   In the signature declarations <verbatim|ITypConstr> and
   <verbatim|IValConstr> for existential types, we replace <verbatim|Extype>
   with <verbatim|CNam> as indentifiers of constructors, to get informative
-  output for printing the various result files.
+  output for printing the various result files. We print constraint formulas
+  and alien subterms in the original InvarGenT syntax, commented out.
 
   <\bibliography|bib|tm-plain|biblio.bib>
     <\bib-list|9>

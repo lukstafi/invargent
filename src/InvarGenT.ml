@@ -14,7 +14,8 @@ let solver ~new_ex_types ~preserve cn =
   let brs = Infer.simplify preserve q_ops brs in
   Invariants.solve q_ops new_ex_types exty_res_of_chi brs
 
-let process_file ?(do_sig=false) ?(do_ml=false) ?(do_mli=false) fname =
+let process_file ?(do_sig=false) ?(do_ml=false) ?(do_mli=false)
+    ?(verif_ml=false) fname =
   current_file_name := fname;
   let file = open_in fname in
   let prog = (Infer.normalize_program % Parser.program Lexer.token)
@@ -36,6 +37,11 @@ let process_file ?(do_sig=false) ?(do_ml=false) ?(do_mli=false) fname =
         (open_out (base^".mli")) in
     Format.fprintf output "%a@\n%!" OCaml.pr_mli annot;
     Format.printf "InvarGenT: Generated file %s@\n%!" (base^".mli"));
+  if verif_ml then (
+    let cmd = "ocamlc "^base^".ml" in
+    let res = Sys.command cmd in
+    Format.printf "InvarGenT: Command %s exited with code %d@\n%!"
+      cmd res);
   ()
 
 

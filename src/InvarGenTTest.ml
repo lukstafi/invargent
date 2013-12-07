@@ -30,7 +30,7 @@ let test_case file () =
       if Sys.file_exists f then f
       else assert false in
   (try
-     InvarGenT.process_file ~do_sig:true file;
+     InvarGenT.process_file ~do_sig:true ~do_ml:true file;
      assert_equal ~printer:(fun x->x)
        (input_file (file^"i.target"))
        (input_file (file^"i"))

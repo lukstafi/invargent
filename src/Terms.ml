@@ -55,7 +55,7 @@ type pat =
 
 let pat_loc = function
   | Zero -> dummy_loc
-  | One (loc) -> loc
+  | One loc -> loc
   | PVar (_, loc) -> loc
   | PAnd (_, _, loc) -> loc
   | PCons (_, _, loc) -> loc
@@ -683,29 +683,28 @@ let rec pr_line_list sep pr_a ppf = function
   | hd::tl ->
       fprintf ppf "%a@\n%s%a" pr_a hd sep (pr_line_list sep pr_a) tl
 
-let rec pr_pat comma ppf = function
+let rec pr_pat ppf = function
   | Zero -> fprintf ppf "%s" "!"
   | One _ -> fprintf ppf "%s" "_"
   | PVar (x, _) -> fprintf ppf "%s" x
   | PAnd (pat1, pat2, _) ->
       fprintf ppf "@[<2>%a@ as@ %a@]"
-	(pr_pat false) pat1 (pr_more_pat false) pat2
+	pr_pat pat1 pr_more_pat pat2
   | PCons (CNam "Tuple", pats, _) ->
     fprintf ppf "@[<2>(%a)@]"
-      (pr_sep_list "," ~pr_hd:(pr_pat true)
-	 (pr_more_pat true)) pats
+      (pr_sep_list "," ~pr_hd:pr_pat pr_more_pat) pats
   | PCons (x, [], _) ->
       fprintf ppf "%s" (cns_str x)
   | PCons (x, [pat], _) ->
       fprintf ppf "@[<2>%s@ %a@]" (cns_str x) pr_one_pat pat
   | PCons (x, pats, _) ->
       fprintf ppf "@[<2>%s@ (%a)@]" (cns_str x)
-	(pr_sep_list "," ~pr_hd:(pr_pat true) (pr_more_pat true)) pats
+	(pr_sep_list "," ~pr_hd:pr_pat pr_more_pat) pats
 
-and pr_more_pat comma ppf = function
+and pr_more_pat ppf = function
   | PAnd _ as p ->
-      fprintf ppf "(%a)" (pr_pat comma) p
-  | p -> pr_pat comma ppf p
+      fprintf ppf "(%a)" (pr_pat) p
+  | p -> pr_pat ppf p
 
 and pr_one_pat ppf = function
   | Zero -> fprintf ppf "%s" "!"
@@ -713,7 +712,7 @@ and pr_one_pat ppf = function
   | PVar (x, _) -> fprintf ppf "%s" x
   | PCons (x, [], _) ->
       fprintf ppf "%s" (cns_str x)
-  | p -> fprintf ppf "(%a)" (pr_pat false) p
+  | p -> fprintf ppf "(%a)" pr_pat p
 
 
 let collect_lambdas e =
@@ -733,24 +732,24 @@ let pr_tyvar ppf v = pp_print_string ppf (var_str v)
 let pr_vars ppf vs =
   pr_sep_list "," pr_tyvar ppf (VarSet.elements vs)
 
-let rec pr_expr pr_ann comma ppf = function
+let rec pr_expr pr_ann ppf = function
   | Var (s, _) -> fprintf ppf "%s" s
   | Num (i, _) -> fprintf ppf "%d" i
   | Cons (CNam "Tuple", exps, _) ->
     fprintf ppf "@[<2>(%a)@]"
-      (pr_sep_list "," (pr_expr pr_ann true)) exps
+      (pr_sep_list "," (pr_expr pr_ann)) exps
   | Cons (x, [], _) ->
       fprintf ppf "%s" (cns_str x)
   | Cons (x, [exp], _) ->
       fprintf ppf "@[<2>%s@ %a@]" (cns_str x) (pr_one_expr pr_ann) exp
   | Cons (x, exps, _) ->
       fprintf ppf "@[<2>%s@ (%a)@]" (cns_str x)
-	(pr_sep_list "," (pr_expr pr_ann true)) exps
+	(pr_sep_list "," (pr_expr pr_ann)) exps
   | Lam ([_], _) as exp ->
       let pats, expr = collect_lambdas exp in
       fprintf ppf "@[<2>fun@ %a@ ->@ %a@]"
 	(pr_sep_list "" pr_one_pat) pats
-	(pr_expr pr_ann false) expr
+	(pr_expr pr_ann) expr
   | Lam (cs, _) ->
       fprintf ppf "@[<2>function@ %a@]"
 	(pr_pre_sep_list "| " (pr_clause pr_ann)) cs
@@ -759,42 +758,42 @@ let rec pr_expr pr_ann comma ppf = function
 	(pr_pre_sep_list "| " (pr_clause pr_ann)) cs
   | App (Lam ([(v,body)], _), def, _) ->
       fprintf ppf "@[<0>let@ @[<4>%a@] =@ @[<2>%a@]@ in@ @[<0>%a@]@]"
-	(pr_more_pat false) v (pr_expr pr_ann false) def
-        (pr_expr pr_ann false) body
+	pr_more_pat v (pr_expr pr_ann) def
+        (pr_expr pr_ann) body
   | App _ as exp ->
       let fargs = collect_apps exp in
       fprintf ppf "@[<2>%a@]"
 	(pr_sep_list "" (pr_one_expr pr_ann)) fargs
   | Letrec (ann, x, exp, range, _) ->
       fprintf ppf "@[<0>let rec %s@ %a=@ @[<2>%a@] in@ @[<0>%a@]@]"
-	x pr_ann ann (pr_expr pr_ann false) exp (pr_expr pr_ann false) range
+	x pr_ann ann (pr_expr pr_ann) exp (pr_expr pr_ann) range
   | Letin (pat, exp, range, _) ->
       fprintf ppf "@[<0>let %a =@ @[<2>%a@] in@ @[<0>%a@]@]"
-	(pr_pat false) pat (pr_expr pr_ann false) exp
-        (pr_expr pr_ann false) range
+	pr_pat pat (pr_expr pr_ann) exp
+        (pr_expr pr_ann) range
   | AssertFalse _ -> fprintf ppf "assert false"
   | AssertLeq (e1, e2, range, _) ->
       fprintf ppf "@[<0>assert@[<2>@ %a@ ≤@ %a@];@ %a@]"
-	(pr_expr pr_ann false) e1 (pr_expr pr_ann false) e2
-        (pr_expr pr_ann false) range
+	(pr_expr pr_ann) e1 (pr_expr pr_ann) e2
+        (pr_expr pr_ann) range
   | AssertEqty (e1, e2, range, _) ->
       fprintf ppf "@[<0>assert@ = type@[<2>@ %a@ %a@];@ %a@]"
-	(pr_expr pr_ann false) e1 (pr_expr pr_ann false) e2
-        (pr_expr pr_ann false) range
+	(pr_expr pr_ann) e1 (pr_expr pr_ann) e2
+        (pr_expr pr_ann) range
 
 and pr_clause pr_ann ppf (pat, exp) =
   fprintf ppf "@[<2>%a@ ->@ %a@]"
-    (pr_pat false) pat (pr_expr pr_ann false) exp
+    pr_pat pat (pr_expr pr_ann) exp
 
 and pr_one_expr pr_ann ppf exp = match exp with
   | Var _
   | Num _
-  | Cons (_, [], _) -> pr_expr pr_ann true ppf exp
+  | Cons (_, [], _) -> pr_expr pr_ann ppf exp
   | _ ->
-      fprintf ppf "(%a)" (pr_expr pr_ann false) exp
+      fprintf ppf "(%a)" (pr_expr pr_ann) exp
 
-let pr_uexpr comma ppf = pr_expr (fun ppf () -> fprintf ppf "") comma ppf
-let pr_iexpr comma ppf = pr_expr (fun ppf _ -> fprintf ppf "") comma ppf
+let pr_uexpr ppf = pr_expr (fun ppf () -> fprintf ppf "") ppf
+let pr_iexpr ppf = pr_expr (fun ppf _ -> fprintf ppf "") ppf
 
 let collect_argtys ty =
   let rec aux args = function
@@ -804,39 +803,37 @@ let collect_argtys ty =
 
 let pr_exty = ref (fun ppf (i, rty) -> failwith "not implemented")
 
-(* Using "script kappa" because "script chi" is not available. *)
+(* Using "X" because "script chi" is not available on all systems. *)
 let rec pr_atom ppf = function
   | Eqty (t1, t2, _) ->
     fprintf ppf "@[<2>%a@ =@ %a@]" pr_one_ty t1 pr_one_ty t2
   | Leq (t1, t2, _) ->
     fprintf ppf "@[<2>%a@ ≤@ %a@]" pr_one_ty t1 pr_one_ty t2
   | CFalse _ -> pp_print_string ppf "FALSE"
-  | PredVarU (i,ty,lc) -> fprintf ppf "@[<2>X%d(%a)@]" i (pr_ty false) ty
+  | PredVarU (i,ty,lc) -> fprintf ppf "@[<2>X%d(%a)@]" i pr_ty ty
   | PredVarB (i,t1,t2,lc) ->
-    fprintf ppf "@[<2>X%d(%a,@ %a)@]" i (pr_ty true) t1 (pr_ty true) t2
+    fprintf ppf "@[<2>X%d(%a,@ %a)@]" i pr_ty t1 pr_ty t2
   | NotEx (t,lc) ->
-    fprintf ppf "@[<2>NotEx(%a)@]" (pr_ty false) t
+    fprintf ppf "@[<2>NotEx(%a)@]" pr_ty t
 
 and pr_formula ppf atoms =
   pr_sep_list " ∧" pr_atom ppf atoms
 
-and pr_ty comma ppf = function
+and pr_ty ppf = function
   | TVar v -> fprintf ppf "%s" (var_str v)
   | NCst i -> fprintf ppf "%d" i
   | TCons (CNam c, []) -> fprintf ppf "%s" c
   | TCons (CNam "Tuple", exps) ->
-    fprintf ppf "@[<2>(%a)@]"
-      (pr_sep_list "," (pr_ty true)) exps
+    fprintf ppf "@[<2>(%a)@]" (pr_sep_list "," pr_ty) exps
   | TCons (CNam c, [ty]) ->
     fprintf ppf "@[<2>%s@ %a@]" c pr_one_ty ty
   | TCons (CNam c, exps) ->
-    fprintf ppf "@[<2>%s@ (%a)@]" c (pr_sep_list "," (pr_ty true)) exps
+    fprintf ppf "@[<2>%s@ (%a)@]" c (pr_sep_list "," pr_ty ) exps
   | TCons (Extype i, args) -> !pr_exty ppf (i, args)
   | Nadd []  -> fprintf ppf "0"
-  | Nadd [ty] -> pr_ty comma ppf ty
-  | Nadd (tys) ->
-    fprintf ppf "@[<2>%a@]"
-      (pr_sep_list " +" (pr_ty true)) tys
+  | Nadd [ty] -> pr_ty ppf ty
+  | Nadd tys ->
+    fprintf ppf "@[<2>%a@]" (pr_sep_list " +" pr_ty) tys
   | Fun _ as ty ->
     let tys = collect_argtys ty in
     fprintf ppf "@[<2>%a@]"
@@ -845,28 +842,28 @@ and pr_ty comma ppf = function
     
 and pr_one_ty ppf ty = match ty with
   | TVar _ | NCst _ | Nadd [] | Nadd [_]
-  | TCons (_, []) -> pr_ty true ppf ty
+  | TCons (_, []) -> pr_ty ppf ty
   | _ ->
-    fprintf ppf "(%a)" (pr_ty false) ty
+    fprintf ppf "(%a)" pr_ty ty
 
 and pr_fun_ty ppf ty = match ty with
   | Fun _ ->
-    fprintf ppf "(%a)" (pr_ty false) ty
-  | _ -> pr_ty false ppf ty
+    fprintf ppf "(%a)" pr_ty ty
+  | _ -> pr_ty ppf ty
 
 let pr_sort ppf = function
   | Num_sort -> fprintf ppf "num"
   | Type_sort -> fprintf ppf "type"
 
 let pr_typscheme ppf = function
-  | [], [], ty -> pr_ty false ppf ty
+  | [], [], ty -> pr_ty ppf ty
   | vs, [], ty ->
     fprintf ppf "@[<0>∀%a.@ %a@]"
-      (pr_sep_list "," pr_tyvar) vs (pr_ty false) ty
+      (pr_sep_list "," pr_tyvar) vs pr_ty ty
   | vs, phi, ty ->
     fprintf ppf "@[<0>∀%a[%a].@ %a@]"
       (pr_sep_list "," pr_tyvar) vs
-      pr_formula phi (pr_ty false) ty
+      pr_formula phi pr_ty ty
 
 let pr_ans ppf = function
   | [], ans -> pr_formula ppf ans
@@ -874,39 +871,39 @@ let pr_ans ppf = function
     fprintf ppf "@[<2>∃%a.@ %a@]"
       (pr_sep_list "," pr_tyvar) vs pr_formula ans
 
-let pr_texpr comma ppf =
+let pr_texpr ppf =
   pr_expr (fun ppf tsch -> fprintf ppf ":@ %a@ " pr_typscheme tsch)
-    comma ppf
+    ppf
 
   
 let pr_subst ppf sb =
   pr_sep_list ";" (fun ppf (v,(t,_)) ->
-    fprintf ppf "%s:=%a" (var_str v) (pr_ty false) t) ppf sb
+    fprintf ppf "%s:=%a" (var_str v) pr_ty t) ppf sb
 
   
 
 let pr_typ_dir ppf = function
   | TCons_dir (n, ts_l, []) ->
     fprintf ppf "@[<2>%s@ (%a,@ ^)@]" (cns_str n)
-      (pr_sep_list "," (pr_ty true)) ts_l
+      (pr_sep_list "," pr_ty) ts_l
   | TCons_dir (n, ts_l, ts_r) ->
     fprintf ppf "@[<2>%s@ (%a,@ ^,@ %a)@]" (cns_str n)
-      (pr_sep_list "," (pr_ty true)) ts_l
-      (pr_sep_list "," (pr_ty true)) ts_r
+      (pr_sep_list "," pr_ty) ts_l
+      (pr_sep_list "," pr_ty) ts_r
   | Fun_left t2 ->
-    fprintf ppf "@[<2>^ →@ %a@]" (pr_ty true) t2
+    fprintf ppf "@[<2>^ →@ %a@]" pr_ty t2
   | Fun_right t1 ->
-    fprintf ppf "@[<2>%a →@ ^@]" (pr_ty true) t1
+    fprintf ppf "@[<2>%a →@ ^@]" pr_ty t1
   | Nadd_dir (ts_l, []) ->
     fprintf ppf "@[<2>%a@ + ^@]"
-      (pr_sep_list " +" (pr_ty true)) ts_l
+      (pr_sep_list " +" pr_ty) ts_l
   | Nadd_dir (ts_l, ts_r) ->
     fprintf ppf "@[<2>%a@ + ^@ + %a@]"
-      (pr_sep_list " +" (pr_ty true)) ts_l
-      (pr_sep_list " +" (pr_ty true)) ts_r
+      (pr_sep_list " +" pr_ty) ts_l
+      (pr_sep_list " +" pr_ty) ts_r
 
 let pr_typ_loc ppf t =
-  fprintf ppf "@[<2>%a@ <-@ [%a]@]" (pr_ty false) t.typ_sub
+  fprintf ppf "@[<2>%a@ <-@ [%a]@]" pr_ty t.typ_sub
     (pr_sep_list ";" pr_typ_dir) t.typ_ctx
 
 let pr_opt_sig_tysch ppf = function
@@ -917,7 +914,7 @@ let pr_opt_tests pr_ann ppf = function
   | [] -> ()
   | tests ->
     fprintf ppf "@\n@[<2>test@ %a@]"
-      (pr_sep_list ";" (pr_expr pr_ann false)) tests
+      (pr_sep_list ";" (pr_expr pr_ann)) tests
 
 let pr_opt_utests = pr_opt_tests (fun ppf () -> fprintf ppf "")
 let pr_opt_ttests =
@@ -934,36 +931,36 @@ let pr_sig_item ppf = function
     fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a[%a].%a@ ⟶@ Ex%d %a@]"
       (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
-      pr_formula phi (pr_ty true) arg j (pr_ty true) c_arg
+      pr_formula phi pr_ty arg j pr_ty c_arg
   | IValConstr (name, [], [], [], c_n, c_args, _) ->
     let res = TCons (c_n, c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ %a@]" (cns_str name)
-      (pr_ty false) res
+      pr_ty res
   | IValConstr (name, [], [], args, c_n, c_args, _) ->
     let res = TCons (c_n, c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ %a@ ⟶@ %a@]" (cns_str name)
-      (pr_sep_list " *" (pr_ty true)) args (pr_ty false) res
+      (pr_sep_list " *" pr_ty) args pr_ty res
   | IValConstr (name, vs, [], [], c_n, c_args, _) ->
     let res = TCons (c_n, c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a.@ %a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
-      (pr_ty false) res
+      pr_ty res
   | IValConstr (name, vs, phi, [], c_n, c_args, _) ->
     let res = TCons (c_n, c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a[%a].@ %a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
-      pr_formula phi (pr_ty false) res
+      pr_formula phi pr_ty res
   | IValConstr (name, vs, [], args, c_n, c_args, _) ->
     let res = TCons (c_n, c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a.%a@ ⟶@ %a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
-      (pr_sep_list " *" (pr_ty true)) args (pr_ty false) res
+      (pr_sep_list " *" pr_ty) args pr_ty res
   | IValConstr (name, vs, phi, args, c_n, c_args, _) ->
     let res = TCons (c_n, c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a[%a].%a@ ⟶@ %a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
       pr_formula phi
-      (pr_sep_list " *" (pr_ty true)) args (pr_ty false) res
+      (pr_sep_list " *" pr_ty) args pr_ty res
   | IPrimVal (name, tysch, _) ->
     fprintf ppf "@[<2>external@ %s@ :@ %a@]" name pr_typscheme tysch
   | ILetRecVal (name, expr, tysch, tests, _) ->
@@ -987,10 +984,10 @@ let pr_struct_item ppf = function
     pr_sig_item ppf (IPrimVal (name, tysch, lc))
   | LetRecVal (name, expr, tysch, tests, _) ->
     fprintf ppf "@[<2>let rec@ %s%a@ =@ %a@]%a" name
-      pr_opt_sig_tysch tysch (pr_uexpr false) expr pr_opt_utests tests
+      pr_opt_sig_tysch tysch pr_uexpr expr pr_opt_utests tests
   | LetVal (pat, expr, tysch, tests, _) ->
-    fprintf ppf "@[<2>let@ %a@%a@ =@ %a@]%a" (pr_pat false) pat
-      pr_opt_sig_tysch tysch (pr_uexpr false) expr pr_opt_utests tests
+    fprintf ppf "@[<2>let@ %a@%a@ =@ %a@]%a" pr_pat pat
+      pr_opt_sig_tysch tysch pr_uexpr expr pr_opt_utests tests
 
 let pr_program ppf p =
   pr_line_list "\n" pr_struct_item ppf p
@@ -1009,7 +1006,7 @@ let pr_exception ppf = function
     pr_loc_long ppf where;
     Format.fprintf ppf
       "%!\nContradiction in %s: %s\ntypes involved:\n%a\n%a\n%!"
-      (sort_str sort) what (pr_ty false) ty1 (pr_ty false) ty2
+      (sort_str sort) what pr_ty ty1 pr_ty ty2
   | NoAnswer (sort, what, None, where) ->
     pr_loc_long ppf where;
     Format.fprintf ppf "%!\nNo answer in %s: %s\n%!"
@@ -1018,7 +1015,7 @@ let pr_exception ppf = function
     pr_loc_long ppf where;
     Format.fprintf ppf
       "%!\nNo answer in %s: %s\ntypes involved:\n%a\n%a\n%!"
-      (sort_str sort) what (pr_ty false) ty1 (pr_ty false) ty2
+      (sort_str sort) what pr_ty ty1 pr_ty ty2
   | exn -> raise exn
 
 
@@ -1353,10 +1350,10 @@ let () = pr_exty :=
     (* TODO: "@[<2>∃%d:%a[%a].%a@]" better? *)
     if phi = [] then
       fprintf ppf "∃%d:%a.%a" i
-        (pr_sep_list "," pr_tyvar) evs (pr_ty false) ty
+        (pr_sep_list "," pr_tyvar) evs pr_ty ty
     else
       fprintf ppf "∃%d:%a[%a].%a" i
-        (pr_sep_list "," pr_tyvar) evs pr_formula phi (pr_ty false) ty
+        (pr_sep_list "," pr_tyvar) evs pr_formula phi pr_ty ty
 
 (** {2 Globals} *)
 

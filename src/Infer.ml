@@ -360,7 +360,7 @@ let constr_gen_expr gamma e t =
              (Format.asprintf
                "Arity mismatch for %s (expected %d, found %d): (%a)"
                 (cns_str k) (List.length argtys) (List.length args)
-                (pr_sep_list " | " (pr_uexpr false)) args,
+                (pr_sep_list " | " pr_uexpr) args,
               Some loc));
       let res = TCons (c_n, List.map (fun v->TVar v) c_args) in
       let cns, args = List.split
