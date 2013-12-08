@@ -98,14 +98,14 @@ let tests = "Invariants" >::: [
       test_case "eval term"
 "newtype Term : type
 newtype Int
-newtype Bool
+newtype Boolean
 external plus : Int → Int → Int
-external is_zero : Int → Bool
-external if : ∀a. Bool → a → a → a
+external is_zero : Int → Boolean
+external if : ∀a. Boolean → a → a → a
 newcons Lit : Int ⟶ Term Int
 newcons Plus : Term Int * Term Int ⟶ Term Int
-newcons IsZero : Term Int ⟶ Term Bool
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+newcons IsZero : Term Int ⟶ Term Boolean
+newcons If : ∀a. Term Boolean * Term a * Term a ⟶ Term a
 
 let rec eval = function
   | Lit i -> i
@@ -122,16 +122,16 @@ let rec eval = function
        test_case "eval term"
 "newtype Term : type
 newtype Int
-newtype Bool
+newtype Boolean
 
 external plus : Int → Int → Int
-external is_zero : Int → Bool
-external if : ∀a. Bool → a → a → a
+external is_zero : Int → Boolean
+external if : ∀a. Boolean → a → a → a
 
 newcons Lit : Int ⟶ Term Int
 newcons Plus : Term Int * Term Int ⟶ Term Int
-newcons IsZero : Term Int ⟶ Term Bool
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+newcons IsZero : Term Int ⟶ Term Boolean
+newcons If : ∀a. Term Boolean * Term a * Term a ⟶ Term a
 newcons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
 newcons Fst : ∀a, b. Term (a, b) ⟶ Term a
 newcons Snd : ∀a, b. Term (a, b) ⟶ Term b
@@ -160,13 +160,13 @@ newcons Nil : ∀a. List a
 newcons TInt : Ty Int
 newcons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
 newcons TList : ∀a. Ty a ⟶ Ty (List a)
-newtype Bool
-newcons True : Bool
-newcons False : Bool
-external eq_int : Int → Int → Bool
-external b_and : Bool → Bool → Bool
-external b_not : Bool → Bool
-external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool
+newtype Boolean
+newcons True : Boolean
+newcons False : Boolean
+external eq_int : Int → Int → Boolean
+external b_and : Boolean → Boolean → Boolean
+external b_not : Boolean → Boolean
+external forall2 : ∀a, b. (a → b → Boolean) → List a → List b → Boolean
 
 let rec equal1 = function
   | TInt, TInt -> fun x y -> eq_int x y
@@ -176,7 +176,7 @@ let rec equal1 = function
               (equal1 (t2, u2) x2 y2))
   | TList t, TList u -> forall2 (equal1 (t, u))
   | _ -> fun _ _ -> False"
-        [1, "∃a, b. δ = ((Ty a, Ty b) → a → a → Bool)"]
+        [1, "∃a, b. δ = ((Ty a, Ty b) → a → a → Boolean)"]
     );
 
   "equal with test" >::
@@ -191,13 +191,13 @@ newcons Nil : ∀a. List a
 newcons TInt : Ty Int
 newcons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
 newcons TList : ∀a. Ty a ⟶ Ty (List a)
-newtype Bool
-newcons True : Bool
-newcons False : Bool
-external eq_int : Int → Int → Bool
-external b_and : Bool → Bool → Bool
-external b_not : Bool → Bool
-external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool
+newtype Boolean
+newcons True : Boolean
+newcons False : Boolean
+external eq_int : Int → Int → Boolean
+external b_and : Boolean → Boolean → Boolean
+external b_not : Boolean → Boolean
+external forall2 : ∀a, b. (a → b → Boolean) → List a → List b → Boolean
 
 let rec equal = function
   | TInt, TInt -> fun x y -> eq_int x y
@@ -208,7 +208,7 @@ let rec equal = function
   | TList t, TList u -> forall2 (equal (t, u))
   | _ -> fun _ _ -> False
 test b_not (equal (TInt, TList TInt) Zero Nil)"
-        [1, "∃a, b. δ = ((Ty a, Ty b) → a → b → Bool)"]
+        [1, "∃a, b. δ = ((Ty a, Ty b) → a → b → Boolean)"]
     );
 
   "equal with assert" >::
@@ -223,13 +223,13 @@ newcons Nil : ∀a. List a
 newcons TInt : Ty Int
 newcons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
 newcons TList : ∀a. Ty a ⟶ Ty (List a)
-newtype Bool
-newcons True : Bool
-newcons False : Bool
-external eq_int : Int → Int → Bool
-external b_and : Bool → Bool → Bool
-external b_not : Bool → Bool
-external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool
+newtype Boolean
+newcons True : Boolean
+newcons False : Boolean
+external eq_int : Int → Int → Boolean
+external b_and : Boolean → Boolean → Boolean
+external b_not : Boolean → Boolean
+external forall2 : ∀a, b. (a → b → Boolean) → List a → List b → Boolean
 
 let rec equal = function
   | TInt, TInt -> fun x y -> eq_int x y
@@ -241,7 +241,7 @@ let rec equal = function
   | _ -> fun _ _ -> False
   | TInt, TList l -> (function Nil -> assert false)
   | TList l, TInt -> (fun _ -> function Nil -> assert false)"
-        [1, "∃a, b. δ = ((Ty a, Ty b) → a → b → Bool)"]
+        [1, "∃a, b. δ = ((Ty a, Ty b) → a → b → Boolean)"]
     );
 
   "equal with assert and test" >::
@@ -256,13 +256,13 @@ newcons Nil : ∀a. List a
 newcons TInt : Ty Int
 newcons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
 newcons TList : ∀a. Ty a ⟶ Ty (List a)
-newtype Bool
-newcons True : Bool
-newcons False : Bool
-external eq_int : Int → Int → Bool
-external b_and : Bool → Bool → Bool
-external b_not : Bool → Bool
-external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool
+newtype Boolean
+newcons True : Boolean
+newcons False : Boolean
+external eq_int : Int → Int → Boolean
+external b_and : Boolean → Boolean → Boolean
+external b_not : Boolean → Boolean
+external forall2 : ∀a, b. (a → b → Boolean) → List a → List b → Boolean
 
 let rec equal = function
   | TInt, TInt -> fun x y -> eq_int x y
@@ -275,7 +275,7 @@ let rec equal = function
   | TInt, TList l -> (function Nil -> assert false)
   | TList l, TInt -> (fun _ -> function Nil -> assert false)
 test b_not (equal (TInt, TList TInt) Zero Nil)"
-        [1, "∃a, b. δ = ((Ty a, Ty b) → a → b → Bool)"]
+        [1, "∃a, b. δ = ((Ty a, Ty b) → a → b → Boolean)"]
     );
 
   "binary plus" >::
@@ -325,7 +325,7 @@ let rec plus =
        test_case "binary plus test"
 "newtype Binary : num
 newtype Carry : num
-newtype Bool
+newtype Boolean
 
 newcons Zero : Binary 0
 newcons PZero : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n)
@@ -333,7 +333,7 @@ newcons POne : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n+1)
 newcons CZero : Carry 0
 newcons COne : Carry 1
 
-external eq_Binary :  ∀n [0≤n]. Binary(n) → Binary(n) → Bool
+external eq_Binary :  ∀n [0≤n]. Binary(n) → Binary(n) → Boolean
 
 let rec plus =
   function CZero ->
@@ -368,10 +368,10 @@ test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
     (fun () ->
        skip_if !debug "debug";
        test_case "list flatten_pairs"
-"newtype Bool
+"newtype Boolean
 newtype List : type * num
-newcons True : Bool
-newcons False : Bool
+newcons True : Boolean
+newcons False : Boolean
 newcons LNil : ∀a. List(a, 0)
 newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 
@@ -440,8 +440,8 @@ newtype A
 newtype B
 newcons LocA : Place A
 newcons LocB : Place B
-newtype Bool
-external is_nearby : ∀a,b. Nearby (a, b) → Bool
+newtype Boolean
+external is_nearby : ∀a,b. Nearby (a, b) → Boolean
 newcons Here : ∀a. Place a * Place a ⟶ Nearby (a, a)
 newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
 external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
@@ -470,8 +470,8 @@ newtype A
 newtype B
 newcons LocA : Place A
 newcons LocB : Place B
-newtype Bool
-external is_nearby : ∀a,b. Nearby (a, b) → Bool
+newtype Boolean
+external is_nearby : ∀a,b. Nearby (a, b) → Boolean
 newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
 external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
 newtype Meet : type * type
@@ -584,9 +584,9 @@ let rec search = efunction
     (fun () ->
        skip_if !debug "debug";
        test_case "find castle distance"
-"newtype Bool
-newcons True : Bool
-newcons False : Bool
+"newtype Boolean
+newcons True : Boolean
+newcons False : Boolean
 newtype Room
 newtype Yard
 newtype Village
@@ -600,7 +600,7 @@ newcons CastleYard : Yard ⟶ Placement Yard
 newcons Village : Village ⟶ Placement Village
 
 external wander : ∀a. Placement a → ∃b. Placement b
-external closer : ∀a. Placement a → Bool
+external closer : ∀a. Placement a → Boolean
 
 let rec search = efunction
   | CastleRoom x -> Room x
@@ -617,11 +617,11 @@ let rec search = efunction
     (fun () ->
        skip_if !debug "debug";
        test_case "find castle distance A/B"
-"newtype Bool : type
+"newtype Boolean : type
 newtype A
 newtype B
-newcons True : Bool A
-newcons False : Bool B
+newcons True : Boolean A
+newcons False : Boolean B
 newtype Room
 newtype Yard
 newtype Village
@@ -635,7 +635,7 @@ newcons CastleYard : Yard ⟶ Placement Yard
 newcons Village : Village ⟶ Placement Village
 
 external wander : ∀a. Placement a → ∃b. Placement b
-external closer : ∀a. Placement a → ∃b. Bool b
+external closer : ∀a. Placement a → ∃b. Boolean b
 
 let rec search = efunction
   | CastleRoom x -> Room x
@@ -780,10 +780,10 @@ newcons Here : ∀a. Place a ⟶ Nearby (a, a)
 newcons Near : ∀a,b. Nearby (a, b) ⟶ Near a
 newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
 external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
-newtype Bool
-newcons True : Bool
-newcons False : Bool
-external finish : ∀a. Place a → Bool
+newtype Boolean
+newcons True : Boolean
+newcons False : Boolean
+external finish : ∀a. Place a → Boolean
 let rec walk = fun x ->
   match finish x with
   | True -> Near (Here x)
@@ -804,10 +804,10 @@ newtype Nearby : type * type
 newcons Here : ∀a. Place a ⟶ Nearby (a, a)
 newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
 external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
-newtype Bool
-newcons True : Bool
-newcons False : Bool
-external finish : ∀a. Place a → Bool
+newtype Boolean
+newcons True : Boolean
+newcons False : Boolean
+external finish : ∀a. Place a → Boolean
 let rec walk = fun x ->
   ematch finish x with
   | True -> Here x
@@ -934,14 +934,14 @@ let rec map =
     (fun () ->
        skip_if !debug "debug";
        test_case "monomorphic list filter"
-"newtype Bool
+"newtype Boolean
 newtype Bar
 newtype List : num
-newcons True : Bool
-newcons False : Bool
+newcons True : Boolean
+newcons False : Boolean
 newcons LNil : List 0
 newcons LCons : ∀n [0≤n]. Bar * List n ⟶ List(n+1)
-external f : Bar → Bool
+external f : Bar → Boolean
 
 let rec filter =
   efunction LNil -> LNil
@@ -960,15 +960,15 @@ let rec filter =
     (fun () ->
        skip_if !debug "debug";
        test_case "list filter: Bar"
-"newtype Bool
+"newtype Boolean
 newtype List : type * num
-newcons True : Bool
-newcons False : Bool
+newcons True : Boolean
+newcons False : Boolean
 newcons LNil : ∀a. List(a, 0)
 newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 
 newtype Bar
-external f : Bar → Bool
+external f : Bar → Boolean
 
 let rec filter =
   efunction LNil -> LNil
@@ -989,10 +989,10 @@ let rec filter =
     (fun () ->
        skip_if !debug "debug";
        test_case "polymorphic list filter"
-"newtype Bool
+"newtype Boolean
 newtype List : type * num
-newcons True : Bool
-newcons False : Bool
+newcons True : Boolean
+newcons False : Boolean
 newcons LNil : ∀a. List(a, 0)
 newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 
@@ -1007,7 +1007,7 @@ let rec filter = fun f ->
           filter f xs"
         [2,"∃n, a.
   δ =
-    ((a → Bool) → List (a, n) → ∃2:k[k ≤ n ∧ 0 ≤ n ∧
+    ((a → Boolean) → List (a, n) → ∃2:k[k ≤ n ∧ 0 ≤ n ∧
        0 ≤ k].List (a, k))"];
 
     );
@@ -1016,10 +1016,10 @@ let rec filter = fun f ->
     (fun () ->
        skip_if !debug "debug";
        test_case "list filter map"
-"newtype Bool
+"newtype Boolean
 newtype List : type * num
-newcons True : Bool
-newcons False : Bool
+newcons True : Boolean
+newcons False : Boolean
 newcons LNil : ∀a. List(a, 0)
 newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 
@@ -1034,7 +1034,7 @@ let rec filter = fun f g ->
           filter f g xs"
         [2,"∃n, a, b.
   δ =
-    ((a → Bool) → (a → b) → List (a, n) → ∃2:k[k ≤ n ∧
+    ((a → Boolean) → (a → b) → List (a, n) → ∃2:k[k ≤ n ∧
        0 ≤ n ∧ 0 ≤ k].List (b, k))"];
 
     );
@@ -1086,15 +1086,15 @@ let rec ub = efunction
 "newtype Term : type
 newtype Num : num
 newtype Calc : num
-newtype Bool
+newtype Boolean
 
-external is_zero : ∀i. Num i → Bool
-external if : ∀a. Bool → a → a → a
+external is_zero : ∀i. Num i → Boolean
+external if : ∀a. Boolean → a → a → a
 
 newcons Lit : ∀k. Num k ⟶ Calc k
 
-newcons IsZero : ∀k. Calc k ⟶ Term Bool
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+newcons IsZero : ∀k. Calc k ⟶ Term Boolean
+newcons If : ∀a. Term Boolean * Term a * Term a ⟶ Term a
 
 let rec eval =
   let rec calc =
@@ -1115,17 +1115,17 @@ let rec eval =
 "newtype Term : type
 newtype Num : num
 newtype Calc : num
-newtype Bool
+newtype Boolean
 
 external plus : ∀i,j. Num i → Num j → Num (i+j)
-external is_zero : ∀i. Num i → Bool
-external if : ∀a. Bool → a → a → a
+external is_zero : ∀i. Num i → Boolean
+external if : ∀a. Boolean → a → a → a
 
 newcons Lit : ∀k. Num k ⟶ Calc k
 newcons Plus : ∀i,j. Calc i * Calc j ⟶ Calc (i+j)
 
-newcons IsZero : ∀k. Calc k ⟶ Term Bool
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+newcons IsZero : ∀k. Calc k ⟶ Term Boolean
+newcons If : ∀a. Term Boolean * Term a * Term a ⟶ Term a
 newcons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
 newcons Fst : ∀a, b. Term (a, b) ⟶ Term a
 newcons Snd : ∀a, b. Term (a, b) ⟶ Term b
@@ -1153,17 +1153,17 @@ let rec eval =
 "newtype Term : type
 newtype Num : num
 newtype Calc
-newtype Bool
+newtype Boolean
 
-external is_zero : ∀i. Num i → Bool
-external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k
-external if : ∀a. Bool → a → a → a
+external is_zero : ∀i. Num i → Boolean
+external cond : ∀i,j. Boolean → Num i → Num j → ∃k. Num k
+external if : ∀a. Boolean → a → a → a
 
 newcons Lit : ∀k. Num k ⟶ Calc
-newcons Cond : Term Bool * Calc * Calc ⟶ Calc
+newcons Cond : Term Boolean * Calc * Calc ⟶ Calc
 
-newcons IsZero : Calc ⟶ Term Bool
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+newcons IsZero : Calc ⟶ Term Boolean
+newcons If : ∀a. Term Boolean * Term a * Term a ⟶ Term a
 
 let rec eval =
   let rec calc =
@@ -1188,17 +1188,17 @@ let rec eval =
 "newtype Term : type
 newtype Num : num
 newtype Calc
-newtype Bool
+newtype Boolean
 
-external is_zero : ∀i. Num i → Bool
-external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k
-external if : ∀a. Bool → a → a → a
+external is_zero : ∀i. Num i → Boolean
+external cond : ∀i,j. Boolean → Num i → Num j → ∃k. Num k
+external if : ∀a. Boolean → a → a → a
 
 newcons Lit : ∀k. Num k ⟶ Calc
-newcons Cond : Term Bool * Calc * Calc ⟶ Calc
+newcons Cond : Term Boolean * Calc * Calc ⟶ Calc
 
-newcons IsZero : Calc ⟶ Term Bool
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+newcons IsZero : Calc ⟶ Term Boolean
+newcons If : ∀a. Term Boolean * Term a * Term a ⟶ Term a
 newcons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
 
 let rec eval =
@@ -1225,21 +1225,21 @@ let rec eval =
 "newtype Term : type
 newtype Num : num
 newtype Calc
-newtype Bool
+newtype Boolean
 
 external plus : ∀i,j. Num i → Num j → Num (i+j)
 external mult : ∀i,j. Num i → Num j → ∃k. Num k
-external is_zero : ∀i. Num i → Bool
-external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k
-external if : ∀a. Bool → a → a → a
+external is_zero : ∀i. Num i → Boolean
+external cond : ∀i,j. Boolean → Num i → Num j → ∃k. Num k
+external if : ∀a. Boolean → a → a → a
 
 newcons Lit : ∀k. Num k ⟶ Calc
 newcons Plus : Calc * Calc ⟶ Calc
 newcons Mult : Calc * Calc ⟶ Calc
-newcons Cond : Term Bool * Calc * Calc ⟶ Calc
+newcons Cond : Term Boolean * Calc * Calc ⟶ Calc
 
-newcons IsZero : Calc ⟶ Term Bool
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+newcons IsZero : Calc ⟶ Term Boolean
+newcons If : ∀a. Term Boolean * Term a * Term a ⟶ Term a
 newcons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
 newcons Fst : ∀a, b. Term (a, b) ⟶ Term a
 newcons Snd : ∀a, b. Term (a, b) ⟶ Term b
@@ -1316,16 +1316,16 @@ let rec rank = function Node (r, _, _) -> r
        test_case "binomial heap--link"
 "newtype Tree : type * num
 newtype Forest : type * num
-newtype Bool
-newcons True : Bool
-newcons False : Bool
+newtype Boolean
+newcons True : Boolean
+newcons False : Boolean
 
 newcons Node : ∀a, k [0≤k]. Num k * a * Forest (a, k) ⟶ Tree (a, k)
 newcons TCons :
   ∀a, n [0≤n]. Tree (a, n) * Forest (a, n) ⟶ Forest (a, n+1)
 newcons TNil : ∀a. Forest (a, 0)
 
-external leq : ∀a. a → a → Bool
+external leq : ∀a. a → a → Boolean
 external incr : ∀i. Num i → Num (i+1)
 
 let rec link = function
@@ -1350,12 +1350,12 @@ let rec link = function
 newtype Forest : type * num
 newtype Heap : type * num * num
 newtype Order : num * num
-newtype Bool
+newtype Boolean
 newcons Le : ∀i, j [i≤j+1]. Order (i, j)
 newcons Gt : ∀i, j [j≤i+1]. Order (i, j)
 newcons Eq : ∀i. Order (i, i)
-newcons True : Bool
-newcons False : Bool
+newcons True : Boolean
+newcons False : Boolean
 
 newcons Node : ∀a, k [0≤k]. Num k * a * Forest (a, k) ⟶ Tree (a, k)
 newcons TCons :
@@ -1367,7 +1367,7 @@ newcons HCons :
 newcons HNil : ∀a, n. Heap (a, n, n)
 
 external compare : ∀i, j. Num i → Num j → Order (i, j)
-external leq : ∀a. a → a → Bool
+external leq : ∀a. a → a → Boolean
 external incr : ∀i. Num i → Num (i+1)
 
 external rank : ∀a, n. Tree (a, n) → Num n

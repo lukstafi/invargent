@@ -31,6 +31,8 @@ type cns_name =
 | CNam of string
 | Extype of int
 val tuple : cns_name
+val numtype : cns_name
+val boolean : cns_name
 
 type pat =
     Zero

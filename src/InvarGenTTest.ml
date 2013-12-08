@@ -30,10 +30,14 @@ let test_case file () =
       if Sys.file_exists f then f
       else assert false in
   (try
-     InvarGenT.process_file ~do_sig:true ~do_ml:true file;
+     let verif_res =
+       InvarGenT.process_file ~do_sig:true ~do_ml:true
+         ~verif_ml:true file in
      assert_equal ~printer:(fun x->x)
        (input_file (file^"i.target"))
-       (input_file (file^"i"))
+       (input_file (file^"i"));
+     assert_bool "Failed verification of .ml/.mli code"
+       (verif_res = Some 0)
    with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
      ignore (Format.flush_str_formatter ());
      Terms.pr_exception Format.str_formatter exn;

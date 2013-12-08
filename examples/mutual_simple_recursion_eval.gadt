@@ -1,17 +1,17 @@
 newtype Term : type
 newtype Num : num
 newtype Calc
-newtype Bool
+newtype Boolean
 
-external is_zero : ∀i. Num i → Bool
-external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k
-external if : ∀a. Bool → a → a → a
+external is_zero : ∀i. Num i → Boolean
+external cond : ∀i,j. Boolean → Num i → Num j → ∃k. Num k
+external if_then : ∀a. Boolean → a → a → a
 
 newcons Lit : ∀k. Num k ⟶ Calc
-newcons Cond : Term Bool * Calc * Calc ⟶ Calc
+newcons Cond : Term Boolean * Calc * Calc ⟶ Calc
 
-newcons IsZero : Calc ⟶ Term Bool
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+newcons IsZero : Calc ⟶ Term Boolean
+newcons If : ∀a. Term Boolean * Term a * Term a ⟶ Term a
 
 let snd = function _, x -> x
 
@@ -26,5 +26,5 @@ let calc, eval =
         cond (snd eval b) rt re in
     calc, function
     | IsZero x -> let r = calc x in is_zero r
-    | If (b, t, e) -> if (snd eval b) (snd eval t) (snd eval e) in
+    | If (b, t, e) -> if_then (snd eval b) (snd eval t) (snd eval e) in
   eval

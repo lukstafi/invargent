@@ -1,22 +1,22 @@
 newtype Term : type
 
-newtype Int
+newtype Integer
 
-newtype Bool
+newtype Boolean
 
-external plus : Int → Int → Int
+external plus : Integer → Integer → Integer
 
-external is_zero : Int → Bool
+external is_zero : Integer → Boolean
 
-external if : ∀a. Bool → a → a → a
+external if_then : ∀a. Boolean → a → a → a
 
-newcons Lit : Int ⟶ Term Int
+newcons Lit : Integer ⟶ Term Integer
 
-newcons Plus : Term Int * Term Int ⟶ Term Int
+newcons Plus : Term Integer * Term Integer ⟶ Term Integer
 
-newcons IsZero : Term Int ⟶ Term Bool
+newcons IsZero : Term Integer ⟶ Term Boolean
 
-newcons If : ∀a.Term Bool * Term a * Term a ⟶ Term a
+newcons If : ∀a.Term Boolean * Term a * Term a ⟶ Term a
 
 newcons Pair : ∀a, b.Term a * Term b ⟶ Term ((a, b))
 

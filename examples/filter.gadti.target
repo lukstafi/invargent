@@ -1,10 +1,10 @@
-newtype Bool
+newtype Boolean
 
 newtype List : type * num
 
-newcons True : Bool
+newcons True : Boolean
 
-newcons False : Bool
+newcons False : Boolean
 
 newcons LNil : ∀a. List (a, 0)
 
@@ -17,5 +17,5 @@ newcons Ex2 : ∀k, n, a[k ≤ n ∧ 0 ≤ n ∧ 0 ≤ k].List (a, k) ⟶
 
 val filter :
    ∀n, a.
-   (a → Bool) → List (a, n) → ∃2:k[k ≤ n ∧ 0 ≤ n ∧
+   (a → Boolean) → List (a, n) → ∃2:k[k ≤ n ∧ 0 ≤ n ∧
      0 ≤ k].List (a, k)

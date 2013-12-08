@@ -19,6 +19,13 @@ let add_ints nvs vs =
 let ints_of_list nvs =
   add_ints nvs Ints.empty
 
+module Strings =
+    Set.Make (struct type t = string let compare = Pervasives.compare end)
+let strings_of_list l =
+  List.fold_right Strings.add l Strings.empty
+let add_strings l vs =
+  List.fold_right Strings.add l vs
+
 let order_key l = List.sort (fun (a,_) (b,_) -> compare a b) l
 
 let unique_sorted ?(cmp = Pervasives.compare) l =

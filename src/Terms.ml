@@ -45,6 +45,8 @@ type cns_name =
 | Extype of int
 
 let tuple = CNam "Tuple"
+let numtype = CNam "Num"
+let boolean = CNam "Boolean"
 
 type pat =
 | Zero

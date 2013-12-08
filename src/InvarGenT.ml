@@ -37,12 +37,13 @@ let process_file ?(do_sig=false) ?(do_ml=false) ?(do_mli=false)
         (open_out (base^".mli")) in
     Format.fprintf output "%a@\n%!" OCaml.pr_mli annot;
     Format.printf "InvarGenT: Generated file %s@\n%!" (base^".mli"));
-  if verif_ml then (
-    let cmd = "ocamlc "^base^".ml" in
+  if verif_ml then
+    let cmd = "ocamlc -c "^base^".ml" in
     let res = Sys.command cmd in
-    Format.printf "InvarGenT: Command %s exited with code %d@\n%!"
-      cmd res);
-  ()
+    Format.printf "InvarGenT: Command \"%s\" exited with code %d@\n%!"
+      cmd res;
+    Some res
+  else None
 
 
 let () =
@@ -57,7 +58,9 @@ let () =
       exit 0
     ) else (
       let file_name = Sys.argv.(1) in
-      try process_file file_name ~do_sig:true ~do_ml:true ~do_mli:true
+      try
+        ignore
+          (process_file file_name ~do_sig:true ~do_ml:true ~do_mli:true)
       with (Report_toplevel _ | Contradiction _) as exn ->
         pr_exception Format.std_formatter exn; exit 2)
   )

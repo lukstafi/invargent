@@ -30,6 +30,7 @@ Milestones: [x] - completed, [#] - finishing (75%-95%), [+] - in the middle (25%
 - [_] Write web interface.
 
 And version 2.0 goals:
+- [_] Export to OCaml using built-in or pervasives OCaml types, in particular `bool` instead of `boolean`.
 - [_] Ability to parse and import, i.e. "open", `.gadti` and `.mli` files. (v1.1)
 - [_] Export Haskell code. (v1.1)
 - [_] Factorize to make extending and adding sorts easier -- ideally, plug-in architecture for sorts. (v1.2)

@@ -2,12 +2,12 @@ newtype Tree : type * num
 newtype Forest : type * num
 newtype Heap : type * num * num
 newtype Order : num * num
-newtype Bool
+newtype Boolean
 newcons Le : ∀i, j [i≤j+1]. Order (i, j)
 newcons Gt : ∀i, j [j≤i+1]. Order (i, j)
 newcons Eq : ∀i. Order (i, i)
-newcons True : Bool
-newcons False : Bool
+newcons True : Boolean
+newcons False : Boolean
 
 newcons Node : ∀a, k [0≤k]. Num k * a * Forest (a, k) ⟶ Tree (a, k)
 newcons TCons :
@@ -19,7 +19,7 @@ newcons HCons :
 newcons HNil : ∀a, n. Heap (a, n, n)
 
 external compare : ∀i, j. Num i → Num j → Order (i, j)
-external leq : ∀a. a → a → Bool
+external leq : ∀a. a → a → Boolean
 external incr : ∀i. Num i → Num (i+1)
 
 let rank = function Node (r, _, _) -> r

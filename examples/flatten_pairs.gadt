@@ -1,7 +1,7 @@
-newtype Bool
+newtype Boolean
 newtype List : type * num
-newcons True : Bool
-newcons False : Bool
+newcons True : Boolean
+newcons False : Boolean
 newcons LNil : ∀a. List(a, 0)
 newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 

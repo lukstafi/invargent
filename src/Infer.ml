@@ -338,7 +338,7 @@ let constr_gen_expr gamma e t =
       Ex (vars_of_list vs, cn_and (A [Eqty (res, t, loc)]) (A phi)),
       e
     | Num (i, loc) as e ->
-      A [Eqty (TCons (CNam "Num", [NCst i]), t, loc)],
+      A [Eqty (TCons (numtype, [NCst i]), t, loc)],
       e
     | Cons (CNam "Tuple", args, loc) ->
       let argvs =
@@ -408,8 +408,8 @@ let constr_gen_expr gamma e t =
       let t2 = TVar a2 in
       let a3 = fresh_typ_var () in
       let t3 = TVar a3 in
-      let nt1 = TCons (CNam "Num", [t1]) in
-      let nt2 = TCons (CNam "Num", [t2]) in
+      let nt1 = TCons (numtype, [t1]) in
+      let nt2 = TCons (numtype, [t2]) in
       let cn1, e1 = aux gamma nt1 e1 in
       let cn2, e2 = aux gamma nt2 e2 in
       let cn3, e3 = aux gamma t3 e3 in
@@ -509,7 +509,7 @@ let constr_gen_tests gamma tests =
   let cns, tests = List.split
       (List.map
          (fun e -> constr_gen_expr gamma e
-             (TCons (CNam "Bool", [])))
+             (TCons (boolean, [])))
          tests) in
   List.fold_left cn_and (And []) cns,
   tests

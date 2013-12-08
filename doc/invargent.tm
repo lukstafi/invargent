@@ -1518,7 +1518,8 @@
   <verbatim|'a.> syntax. Toplevel type schemes are guaranteed to not have
   free variables. In effect we also have nicer type variable syntax:
   <verbatim|a> instead of <verbatim|'a>. However, the <verbatim|type a.>
-  syntax is not available for defining datatypes.
+  syntax is not available for type definitions: defining datatypes,
+  <verbatim|external> declarations, signatures.
 
   Annotated items <verbatim|annot_item> use ``nice'' named variables instead
   of identifier-based variables. The renaming is computed by

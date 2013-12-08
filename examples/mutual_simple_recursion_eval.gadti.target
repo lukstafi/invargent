@@ -4,25 +4,25 @@ newtype Num : num
 
 newtype Calc
 
-newtype Bool
+newtype Boolean
 
-external is_zero : ∀i. Num i → Bool
+external is_zero : ∀i. Num i → Boolean
 
 newtype Ex1
 
 newcons Ex1 : ∀k.Num k ⟶ ∃1:k.Num k
 
-external cond : ∀i, j. Bool → Num i → Num j → ∃1:k.Num k
+external cond : ∀i, j. Boolean → Num i → Num j → ∃1:k.Num k
 
-external if : ∀a. Bool → a → a → a
+external if_then : ∀a. Boolean → a → a → a
 
 newcons Lit : ∀k.Num k ⟶ Calc
 
-newcons Cond : Term Bool * Calc * Calc ⟶ Calc
+newcons Cond : Term Boolean * Calc * Calc ⟶ Calc
 
-newcons IsZero : Calc ⟶ Term Bool
+newcons IsZero : Calc ⟶ Term Boolean
 
-newcons If : ∀a.Term Bool * Term a * Term a ⟶ Term a
+newcons If : ∀a.Term Boolean * Term a * Term a ⟶ Term a
 
 val snd : ∀a, b. (a, b) → b
 

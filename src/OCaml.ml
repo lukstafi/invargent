@@ -88,6 +88,13 @@ let pr_typscheme ppf (vs, phi, ty) =
       else fprintf ppf ".*) ";
     fprintf ppf "%a@]" pr_ty ty)
 
+let pr_typsig ppf (vs, phi, ty) =
+  altsyn := true;
+  fprintf ppf "@[<0>";
+  if phi<>[] then fprintf ppf "(*%a*)@ " pr_formula phi;
+  fprintf ppf "%a@]" pr_ty ty;
+  altsyn := false
+
 let pr_expr ppf =
   pr_expr (fun ppf tsch -> fprintf ppf ":@ %a@ " pr_typscheme tsch) ppf
 
@@ -133,35 +140,88 @@ let pr_ty_wildcards ppf sorts =
     fprintf ppf "(%a) "
       (pr_sep_list "," (fun ppf _ -> fprintf ppf "_")) sorts
 
-(* FIXME: gather together mutually recursive datatypes. *)
-let pr_struct_item constrs ppf =
-  function
-  | ITypConstr (c_n, sorts, _) ->
+module CNames =
+    Set.Make (struct type t = cns_name let compare = Pervasives.compare end)
+let cnames_of_list l =
+  List.fold_right CNames.add l CNames.empty
+let add_cnames l vs =
+  List.fold_right CNames.add l vs
+
+let init_types = cnames_of_list [tuple; CNam "Num"]
+
+let cns_typ =
+  typ_fold {(typ_make_fold CNames.union CNames.empty)
+            with fold_tcons =
+                   (fun n cns -> List.fold_left
+                       CNames.union (CNames.singleton (CNam n)) cns)}
+
+let rec pr_struct_items constrs ppf defined defining prog =
+  (*[*)
+  if prog<>[] then
+    Format.printf "OCaml-pr_struct_items:@ item=%a@ defining=%s@\n%!"
+      pr_sig_item (List.hd prog)
+      (String.concat "," (List.map cns_str (CNames.elements defining)));
+  (*]*)
+  match prog with
+  | ITypConstr (c_n, sorts, _)::prog ->
+    assert (CNames.is_empty defining || CNames.mem c_n defining);
     let cns = try List.assoc c_n constrs with Not_found -> [] in
     altsyn := true;
-    fprintf ppf "@[<2>type %a%a%s@\n%a@]"
+    fprintf ppf "@[<2>%s %a%a%s@\n%a@]@\n"
+      (if CNames.is_empty defining then "type" else "and")
       pr_ty_wildcards sorts pr_tycns c_n
       (if cns=[] then "" else " =")
       (pr_line_list "" (pr_constr c_n)) cns;
-    altsyn := false
-  | IPrimVal (name, tysch, _) ->
-    fprintf ppf "@[<2>external@ %s@ :@ %a = \"%s\"@]"
-      name pr_typscheme tysch name
-  | ILetRecVal (name, expr, tysch, [], _) ->
-    fprintf ppf "@[<2>let rec@ %s :@ %a =@ %a@]"
+    altsyn := false;
+    let more_defs = List.fold_left
+        (fun cns ty -> CNames.union cns (cns_typ ty)) CNames.empty
+        (concat_map
+           (fun (name, vs, phi, args, c_args) ->
+              let res = TCons (c_n, c_args) in res::args) cns) in
+    let defining =
+      CNames.union (CNames.diff more_defs defined) defining in
+    let defining = CNames.diff (CNames.remove c_n defining) defined in
+    (*[*)
+    Format.printf "OCaml-pr_struct_items:@ more_defs=%s@ defining'=%s@\n%!"
+      (String.concat "," (List.map cns_str (CNames.elements more_defs)))
+      (String.concat "," (List.map cns_str (CNames.elements defining)));
+    (*]*)
+    let mutual, prog = List.partition
+        (function
+          | ITypConstr (c_n, _, _) when CNames.mem c_n defining -> true
+          | _ -> false)
+        prog in
+    pr_struct_items constrs ppf (CNames.add c_n defined) defining
+      (mutual @ prog)
+  | IPrimVal (name, tysch, _)::prog ->
+    fprintf ppf "@[<2>external@ %s@ :@ %a = \"%s\"@]@\n"
+      name pr_typsig tysch name;
+    assert (CNames.is_empty defining);
+    pr_struct_items constrs ppf defined CNames.empty prog
+  | ILetRecVal (name, expr, tysch, [], _)::prog ->
+    fprintf ppf "@[<2>let rec@ %s :@ %a =@ %a@]@\n"
+      name pr_typscheme tysch pr_expr expr;
+    assert (CNames.is_empty defining);
+    pr_struct_items constrs ppf defined CNames.empty prog
+  | ILetVal (p, e, tysch, _, [], _)::prog ->
+    fprintf ppf "@[<2>let@ %a :@ %a =@ %a@]@\n"
+      pr_pat p pr_typscheme tysch pr_expr e;
+    assert (CNames.is_empty defining);
+    pr_struct_items constrs ppf defined CNames.empty prog
+  | ILetRecVal (name, expr, tysch, tests, _)::prog ->
+    fprintf ppf "@[<2>let rec@ %s :@ %a =@ %a@]@\n@[<2>let () =@ %a@ ()@]@\n"
       name pr_typscheme tysch pr_expr expr
-  | ILetVal (p, e, tysch, _, [], _) ->
-    fprintf ppf "@[<2>let@ %a :@ %a =@ %a@]"
+      (pr_line_list "" pr_test_line) tests;
+    assert (CNames.is_empty defining);
+    pr_struct_items constrs ppf defined CNames.empty prog
+  | ILetVal (p, e, tysch, _, tests, _)::prog ->
+    fprintf ppf "@[<2>let@ %a :@ %a =@ %a@]@\n[<2>let () =@ %a@ ()@]@\n"
       pr_pat p pr_typscheme tysch pr_expr e
-  | ILetRecVal (name, expr, tysch, tests, _) ->
-    fprintf ppf "@[<2>let rec@ %s :@ %a =@ %a@]@\n[<2>let () =@ %a@ ()@]"
-      name pr_typscheme tysch pr_expr expr
-      (pr_line_list "" pr_test_line) tests
-  | ILetVal (p, e, tysch, _, tests, _) ->
-    fprintf ppf "@[<2>let@ %a :@ %a =@ %a@]@\n[<2>let () =@ %a@ ()@]"
-      pr_pat p pr_typscheme tysch pr_expr e
-      (pr_line_list "" pr_test_line) tests
-  | _ -> assert false
+      (pr_line_list "" pr_test_line) tests;
+    assert (CNames.is_empty defining);
+    pr_struct_items constrs ppf defined CNames.empty prog
+  | IValConstr _::_ -> assert false
+  | [] -> ()
 
 let pr_ml ppf prog =
   let constrs, prog = partition_map
@@ -174,6 +234,6 @@ let pr_ml ppf prog =
   (*[* Format.printf "pr_struct: cns key,count=@\n%a@\n%!"
     (pr_sep_list "|" (fun ppf (n,cs) -> fprintf ppf "%s(#=%d) "
                          (cns_str n) (List.length cs))) constrs; *]*)
-  pr_line_list "\n" (pr_struct_item constrs) ppf prog
+  pr_struct_items constrs ppf init_types CNames.empty prog
 
 let pr_mli ppf prog = failwith "not implemented yet"

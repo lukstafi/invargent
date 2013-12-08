@@ -1,10 +1,10 @@
-newtype Bool
+newtype Boolean
 
 newtype List : type * num
 
-newcons True : Bool
+newcons True : Boolean
 
-newcons False : Bool
+newcons False : Boolean
 
 newcons LNil : ∀a. List (a, 0)
 

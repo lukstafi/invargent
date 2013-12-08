@@ -4,8 +4,8 @@ newtype A
 newtype B
 newcons LocA : Place A
 newcons LocB : Place B
-newtype Bool
-external is_nearby : ∀a,b. Nearby (a, b) → Bool
+newtype Boolean
+external is_nearby : ∀a,b. Nearby (a, b) → Boolean
 newcons Here : ∀a. Place a * Place a ⟶ Nearby (a, a)
 newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
 external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))

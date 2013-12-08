@@ -10,9 +10,9 @@ newcons LocA : Place A
 
 newcons LocB : Place B
 
-newtype Bool
+newtype Boolean
 
-external is_nearby : ∀a, b. Nearby (a, b) → Bool
+external is_nearby : ∀a, b. Nearby (a, b) → Boolean
 
 newcons Here : ∀b.Place b * Place b ⟶ Nearby (b, b)
 

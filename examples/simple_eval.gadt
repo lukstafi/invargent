@@ -1,16 +1,16 @@
 newtype Term : type
-newtype Int
-newtype Bool
-external plus : Int → Int → Int
-external is_zero : Int → Bool
-external if : ∀a. Bool → a → a → a
-newcons Lit : Int ⟶ Term Int
-newcons Plus : Term Int * Term Int ⟶ Term Int
-newcons IsZero : Term Int ⟶ Term Bool
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+newtype Integer
+newtype Boolean
+external plus : Integer → Integer → Integer
+external is_zero : Integer → Boolean
+external if_then : ∀a. Boolean → a → a → a
+newcons Lit : Integer ⟶ Term Integer
+newcons Plus : Term Integer * Term Integer ⟶ Term Integer
+newcons IsZero : Term Integer ⟶ Term Boolean
+newcons If : ∀a. Term Boolean * Term a * Term a ⟶ Term a
 
 let rec eval = function
   | Lit i -> i
   | IsZero x -> is_zero (eval x)
   | Plus (x, y) -> plus (eval x) (eval y)
-  | If (b, t, e) -> if (eval b) (eval t) (eval e)
+  | If (b, t, e) -> if_then (eval b) (eval t) (eval e)
