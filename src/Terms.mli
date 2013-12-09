@@ -167,9 +167,10 @@ type annot_item =
 | IValConstr of cns_name * var_name list * formula * typ list
   * cns_name * typ list * loc
 | IPrimVal of string * typ_scheme * loc
-| ILetRecVal of string * texpr * typ_scheme * texpr list * loc
+| ILetRecVal of string * texpr * typ_scheme *
+                  texpr list * (pat * int option) list * loc
 | ILetVal of pat * texpr * typ_scheme * (string * typ_scheme) list *
-               texpr list * loc
+               texpr list * (pat * int option) list * loc
 
 module VarSet : (Set.S with type elt = var_name)
 val typ_size : typ -> int

@@ -6,11 +6,13 @@
     @since Mar 2013
 *)
 
+(** Each disjunct stores a trigger to be called when other disjuncts
+    are eliminated during normalization-simplification. *)
 type cnstrnt =
 | A of Terms.formula
 | And of cnstrnt list
 | Impl of Terms.formula * cnstrnt
-| Or of cnstrnt list
+| Or of (cnstrnt * (unit -> unit)) list
 | All of Terms.VarSet.t * cnstrnt
 | Ex of Terms.VarSet.t * cnstrnt
 
@@ -27,9 +29,12 @@ val freshen_val_scheme : Terms.typ_scheme -> Terms.typ_scheme
 val constr_gen_pat : Terms.pat -> Terms.typ -> cnstrnt
 type envfrag = Terms.VarSet.t * Terms.formula * (string * Terms.typ) list
 val typ_to_sch : 'a * Terms.typ -> 'a * Terms.typ_scheme
+(** Return a store cell where triggers will put which existentials are
+    eliminated by which let-in patterns. *)
 val constr_gen_expr :
   (string * Terms.typ_scheme) list ->
-  Terms.uexpr -> Terms.typ -> cnstrnt * Terms.iexpr
+  Terms.uexpr -> Terms.typ ->
+  (cnstrnt * Terms.iexpr) * (Terms.pat * int option) list ref
 type program = ((int * Terms.loc) list * Terms.struct_item) list
 type solution =
   Terms.quant_ops * Terms.formula *

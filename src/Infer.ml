@@ -12,7 +12,7 @@ type cnstrnt =
 | A of formula
 | And of cnstrnt list
 | Impl of formula * cnstrnt
-| Or of cnstrnt list
+| Or of (cnstrnt * (unit -> unit)) list
 | All of VarSet.t * cnstrnt
 | Ex of VarSet.t * cnstrnt
 
@@ -43,7 +43,7 @@ let rec pr_cnstrnt ppf = function
   | Impl (prem,concl) -> fprintf ppf "@[<2>";
     pr_formula ppf prem; fprintf ppf "@ ⟹@ %a@]" pr_cnstrnt concl
   | Or cns -> fprintf ppf "@[<2>[";
-    pr_sep_list " ∨" pr_cnstrnt ppf cns;
+    pr_sep_list " ∨" pr_cnstrnt ppf (List.map fst cns);
     fprintf ppf "]@]"
   | All (vs, cn) ->
     fprintf ppf "@[<0>∀%a.@ %a@]"
@@ -326,6 +326,7 @@ let impl prem concl =
 let letin_count = ref 0
 
 let constr_gen_expr gamma e t =
+  let elim_extype = ref [] in
   let rec aux gamma t e : cnstrnt * iexpr =
     (*[* Format.printf "constr_gen: t=%a e=@\n%a@\n%!"
       (pr_ty false) t (pr_uexpr false) e;
@@ -460,11 +461,18 @@ let constr_gen_expr gamma e t =
       let disjs, e2s = List.split
           (List.map
              (fun (i, loc) ->
-                aux_cl count gamma t0 t (PCons (Extype i, [p], loc), e2))
+                let trigger () =
+                  elim_extype := (p, Some i) :: !elim_extype in
+                let cn, e =
+                  aux_cl count gamma t0 t
+                    (PCons (Extype i, [p], loc), e2) in
+                (cn, trigger), e)
              !all_ex_types) in
       let e2s = List.map snd e2s in
       let altcn0, (_,e2) = aux_cl count gamma t0 t (p,e2) in
       let altcn = cn_and altcn0 (A [NotEx (t0, loc)]) in
+      let alttr () =
+        elim_extype := (p, None) :: !elim_extype in
       let e2 = fuse_exprs (e2::e2s) in
       (* FIXME: explain in the doc. Change [iexpr] from [int expr]
          to [int list expr]. Exactly one [chi_id] in the list will be
@@ -474,7 +482,7 @@ let constr_gen_expr gamma e t =
         count (var_str a0) (pr_ty false) t pr_cnstrnt cn0 pr_cnstrnt altcn
         (pr_uexpr false) e;
       *]*)
-      Ex (vars_of_list [a0], cn_and cn0 (Or (altcn::disjs))),
+      Ex (vars_of_list [a0], cn_and cn0 (Or ((altcn,alttr)::disjs))),
       Letin (p, e1, e2, loc)
     | ExLam (ety_id, cls, loc) -> assert false
 
@@ -503,16 +511,21 @@ let constr_gen_expr gamma e t =
     cn_and pcns cn,
     (p, e) in
   
-  aux gamma t e
+  let cn = aux gamma t e in
+  cn, elim_extype
 
 let constr_gen_tests gamma tests =
+  let elim_cells = ref [] in
   let cns, tests = List.split
       (List.map
-         (fun e -> constr_gen_expr gamma e
-             (TCons (boolean, [])))
+         (fun e ->
+            let e, elim_ex = constr_gen_expr gamma e
+                (TCons (boolean, [])) in
+            elim_cells := elim_ex :: !elim_cells;
+            e)
          tests) in
   List.fold_left cn_and (And []) cns,
-  tests
+  tests, !elim_cells
 
 let constr_gen_letrec gamma x e sig_cn tb tests =
   let a = fresh_typ_var () in
@@ -522,21 +535,21 @@ let constr_gen_letrec gamma x e sig_cn tb tests =
   let bvs = VarSet.union (fvs_typ tb) (fvs_formula sig_cn) in
   let def_typ = VarSet.elements bvs, [chi_b], tb in
   let gamma = (x, def_typ)::gamma in
-  let expr_cn, e = constr_gen_expr gamma e tb in
+  let (expr_cn, e), elim_cell = constr_gen_expr gamma e tb in
   let def_cn =
     All (bvs, Impl (chi_b::sig_cn, expr_cn)) in
-  let test_cn, tests =
+  let test_cn, tests, elim_cells =
     constr_gen_tests gamma tests in
   chi_id, def_typ,
   cn_and def_cn (cn_and (Ex (vars_of_list [a], A [chi_a])) test_cn),
-  e, tests
+  e, tests, elim_cell::elim_cells
 
 let constr_gen_let gamma p e ta =
   let pcns = constr_gen_pat p ta in
   let bs, exphi, env = envfrag_gen_pat 0 p ta in
-  let cn, e = constr_gen_expr gamma e ta in
+  let (cn, e), elim_cell = constr_gen_expr gamma e ta in
   bs, exphi, env, cn_and pcns cn,
-  (p, e)
+  (p, e), elim_cell
 
 type solution =
   quant_ops * Terms.formula *
@@ -561,7 +574,7 @@ let infer_prog_mockup (prog : program) =
           [b], [], tb
         | Some (vs, phi, t) -> vs, phi, t in
       let preserve = VarSet.union (fvs_typ t) (fvs_formula sig_cn) in
-      let chi_id, typ_sch, cn, e, tests =
+      let chi_id, typ_sch, cn, e, tests, elim_cells =
         constr_gen_letrec !gamma x e sig_cn t tests in
       gamma := (x, typ_sch) :: !gamma;
       new_ex_types, preserve, cn
@@ -572,14 +585,14 @@ let infer_prog_mockup (prog : program) =
           let ta = TVar a in
           VarSet.singleton a, [], [], ta
         | Some (vs, phi, t) -> VarSet.empty, vs, phi, t in
-      let bs, exphi, env, cn, cl =
+      let bs, exphi, env, cn, cl, elim_cell =
         constr_gen_let !gamma p e t in
       let preserve = VarSet.union (fvs_typ t)
         (VarSet.union (fvs_formula sig_cn) (fvs_formula exphi)) in
       let cn = impl sig_cn cn in
       let cn =
         if sig_vs <> [] then All (vars_of_list sig_vs, cn) else cn in
-      let test_cn, tests = constr_gen_tests !gamma tests in
+      let test_cn, tests, elim_cells = constr_gen_tests !gamma tests in
       let test_cn = impl exphi test_cn in
       let test_cn =
         if not (VarSet.is_empty bs) && test_cn <> And []
@@ -713,12 +726,13 @@ let infer_prog solver prog =
               let tb = TVar b in
               [b], [], tb
             | Some (vs, phi, t) -> vs, phi, t in
-          let chi_id, _, cn, e, tests =
+          let chi_id, _, cn, e, tests, elim_cells =
             constr_gen_letrec !gamma x e sig_cn t tests in
           (*[* Format.printf "LetRecVal: x=%s@\ncn=%a@\n%!" x
              pr_cnstrnt cn; *]*)
           let preserve = VarSet.union (fvs_typ t) (fvs_formula sig_cn) in
           let q, phi_res, sb_chi = solver ~new_ex_types ~preserve cn in
+          let elim_extypes = concat_map (!) elim_cells in
           let nice_sb, (vs, phi) =
             try nice_ans (List.assoc chi_id sb_chi)
             with Not_found -> assert false in
@@ -747,7 +761,7 @@ let infer_prog solver prog =
           gamma := (x, typ_sch) :: !gamma;
           let ex_items =
             update_new_ex_types q new_ex_types sb_res sb_chi in
-          ex_items @ [ILetRecVal (x, e, typ_sch, tests, loc)]
+          ex_items @ [ILetRecVal (x, e, typ_sch, tests, elim_extypes, loc)]
         | new_ex_types, LetVal (p, e, defsig, tests, loc) ->
           let avs, sig_vs, sig_cn, t = match defsig with
             | None ->
@@ -755,7 +769,7 @@ let infer_prog solver prog =
               let ta = TVar a in
               VarSet.singleton a, [], [], ta
             | Some (vs, phi, t) -> VarSet.empty, vs, phi, t in
-          let bs, exphi, env, cn, (p, e) =
+          let bs, exphi, env, cn, (p, e), elim_cell =
             constr_gen_let !gamma p e t in
           (*[* Format.printf "LetVal: p=%a@\ninit_cn=%a@\n%!" (pr_pat false) p
              pr_cnstrnt cn; *]*)
@@ -764,7 +778,7 @@ let infer_prog solver prog =
           let cn = impl sig_cn cn in
           let cn =
             if sig_vs <> [] then All (vars_of_list sig_vs, cn) else cn in
-          let test_cn, tests = constr_gen_tests !gamma tests in
+          let test_cn, tests, elim_cells = constr_gen_tests !gamma tests in
           let test_cn = impl exphi test_cn in
           let test_cn =
             if not (VarSet.is_empty bs) && test_cn <> And []
@@ -775,6 +789,7 @@ let infer_prog solver prog =
           (*[* Format.printf "LetVal: p=%a@\ncn=%a@\n%!" (pr_pat false) p
              pr_cnstrnt cn; *]*)
           let q, phi, sb_chi = solver ~new_ex_types ~preserve cn in
+          let elim_extypes = concat_map (!) (elim_cell::elim_cells) in
           let sb, phi = separate_subst q phi in
           let res = subst_typ sb t in
           let gvs = VarSet.union (fvs_formula phi) (fvs_typ res) in
@@ -848,7 +863,7 @@ let infer_prog solver prog =
           let typ_schs = List.map typ_sch_ex env in
           gamma := typ_schs @ !gamma;
           ex_items @ List.rev !more_items
-          @ [ILetVal (p, e, top_sch, typ_schs, tests, loc)]
+          @ [ILetVal (p, e, top_sch, typ_schs, tests, elim_extypes, loc)]
       ) prog in
   List.rev !gamma, items
 
@@ -909,13 +924,19 @@ let prenexize cn =
     | Ex (vs, cn) when not !at_uni -> add_var_rels vs; aux cn
     | (All _ | Ex _ | A _) as cn -> cn
     | And cns -> And (List.map aux cns)
-    | Or cns -> Or (List.map aux cns)
+    | Or cns -> Or (List.map (fun (cn,tr) -> aux cn, tr) cns)
     | Impl (prem, concl) -> Impl (prem, aux concl) in
   let rec loop cn =
     if !change then (alternate (); loop (aux cn))
     else cn in
   (* Start the prefix from existential quantifiers. *)
   {cmp_v; uni_v; same_as}, loop cn
+
+type 'a guarded_br = {
+  guard_cnj : formula;
+  prem : formula;
+  concl : 'a
+}
 
 let normalize q cn =
   let unify ?sb cnj = unify ~use_quants:false ?sb q cnj in
@@ -925,7 +946,8 @@ let normalize q cn =
   let collect_chi_rec prem = List.iter
       (function PredVarU (i, _, _) -> Hashtbl.replace chi_rec i ()
               | _ -> ()) prem in
-  (* From unary predicate variable to the existential type of its result. *)
+  (* From unary predicate variable to the existential type of its
+     result (if any). *)
   let chi_exty = Hashtbl.create 2 in
   (* Inverse of [chi_exty]. *)
   let exty_res_chi = Hashtbl.create 2 in
@@ -934,7 +956,7 @@ let normalize q cn =
   let v_chi = Hashtbl.create 8 in
   (* Raises [Contradiction] *)
   let simplify_brs = List.map
-      (fun (guard_cnj, prem, concl) ->
+      (fun {guard_cnj; prem; concl} ->
          (* Past this point, the branches are definitely part of the
               constraint, try not raising contradiction. *)
          if List.exists (function CFalse _ -> true | _ -> false) concl
@@ -1003,6 +1025,8 @@ let normalize q cn =
                v_chi;
            prem,
            to_formula concl_typ @ concl_num @ concl_so) in
+  (* Produces: a formula, formula-constraint pairs,
+     constraint-trigger pairs list. *)
   let rec flat_and = function
     | A cns -> cns, [], []
     | And cns ->
@@ -1017,6 +1041,11 @@ let normalize q cn =
     | Or cns ->
       [], [], [cns]      
     | All _ | Ex _ -> assert false in
+  (* Produces: normal branches and disjunction branches.
+     Normal branch: guard formula (conclusions sharing the premise),
+     premise formula, local conclusion formula.
+     Disjunction branch: premise formula, guard formula,
+     constraint-trigger pairs. *)
   let rec flat_cn prem guard_cnj cn =
     let cnj, impls, dsjs =
       flat_and cn in
@@ -1030,9 +1059,9 @@ let normalize q cn =
                              || List.exists (eq_atom a) guard_cnj)) prem in
            prem, concl)
         impls in
-    let br0 = guard_cnj, prem, cnj in
+    let br0 = {guard_cnj; prem; concl=cnj} in
     let dsj_brs1 = List.map
-        (fun dsj -> prem, cnj @ guard_cnj, dsj) dsjs in
+        (fun dsj -> {prem; guard_cnj; concl=dsj}) dsjs in
     let brs, dsj_brs2 = List.split
         (List.map
            (fun (more_prem, concl) ->
@@ -1040,10 +1069,12 @@ let normalize q cn =
                 (more_prem @ prem) guard_cnj concl)
            impls) in
     br0 :: List.concat brs, List.concat (dsj_brs1 :: dsj_brs2) in
-  let flat_dsj (more_prem, guard_cnj, cns) =
+  (* Produces: guard formula, and a list of: a disjunct constraint,
+     flat_cn result of the constraint (the [sol] part), a trigger. *)
+  let flat_dsj {prem=more_prem; guard_cnj; concl=cns} =
     guard_cnj, List.map
-      (fun cn ->
-         cn, flat_cn more_prem guard_cnj cn)
+      (fun (cn, trigger) ->
+         cn, flat_cn more_prem guard_cnj cn, trigger)
       cns in
   let check_chi_exty =
     List.for_all
@@ -1053,16 +1084,19 @@ let normalize q cn =
             (cns_str cn) (var_str v) (Hashtbl.find v_exty v); *]*)
           cn = Extype (Hashtbl.find v_exty v)
         | _ -> true) in
+  (* Takes the result of [flat_dsj], returns the [sol] part of one
+     of the disjuncts as Left (calls trigger first), or the filtered
+     disjuncts as Right. *)
   let solve_dsj step (guard_cnj, dsjs) =
     let sb, _, _ = unify guard_cnj in
     (*[* Format.printf "dsj-checking: init #dsjs=%d@ sb=%a@\n%!"
       (List.length dsjs) pr_subst sb; *]*)
     let first_exn = ref None in
-    let check_dsj (_, (brs, dsjs)) =
+    let check_dsj (_, (brs, dsjs), _) =
       (*[* Format.printf "dsj-test: starting case.@\n%!"; *]*)
       try
         List.for_all
-          (fun (guard_cnj, prem, concl) ->
+          (fun {guard_cnj; prem; concl} ->
              List.exists (function CFalse _ -> true | _ -> false) concl
              || (
                (*[* Format.printf "dsj-test: br@ prem=%a@ concl=%a@\n%!"
@@ -1104,15 +1138,15 @@ let normalize q cn =
            (Report_toplevel
               ("No valid disjunct, check existential type use",
               Some (formula_loc guard_cnj))))
-    | [cn, sol] ->
+    | [cn, sol, trigger] ->
       (*[* Format.printf "dsj-test: selected\n%a@\n%!"
         pr_cnstrnt cn; *]*)
-      (* selected_disj := cn:: !selected_disj; *)
+      trigger ();
       Left sol
-    | (cn, sol)::_ when step > 0 ->
+    | (cn, sol, trigger)::_ when step > 0 ->
       (*[* Format.printf "dsj-test: selected\n%a@\n%!"
         pr_cnstrnt cn; *]*)
-      (* selected_disj := cn:: !selected_disj; *)
+      trigger ();
       Left sol
     | _ -> Right (guard_cnj, dsjs) in
   let concat_brs more_brs =

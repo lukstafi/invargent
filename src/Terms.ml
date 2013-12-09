@@ -545,9 +545,10 @@ type annot_item =
 | IValConstr of cns_name * var_name list * formula * typ list
   * cns_name * typ list * loc
 | IPrimVal of string * typ_scheme * loc
-| ILetRecVal of string * texpr * typ_scheme * texpr list * loc
+| ILetRecVal of string * texpr * typ_scheme *
+                  texpr list * (pat * int option) list * loc
 | ILetVal of pat * texpr * typ_scheme * (string * typ_scheme) list *
-               texpr list * loc
+               texpr list * (pat * int option) list * loc
 
 let rec enc_funtype res = function
   | [] -> res
@@ -749,14 +750,14 @@ let rec pr_expr pr_ann ppf = function
 	(pr_sep_list "," (pr_expr pr_ann)) exps
   | Lam ([_], _) as exp ->
       let pats, expr = collect_lambdas exp in
-      fprintf ppf "@[<2>fun@ %a@ ->@ %a@]"
+      fprintf ppf "@[<2>(fun@ %a@ ->@ %a)@]"
 	(pr_sep_list "" pr_one_pat) pats
 	(pr_expr pr_ann) expr
   | Lam (cs, _) ->
-      fprintf ppf "@[<2>function@ %a@]"
+      fprintf ppf "@[<2>(function@ %a)@]"
 	(pr_pre_sep_list "| " (pr_clause pr_ann)) cs
   | ExLam (_, cs, _) ->
-      fprintf ppf "@[<0>efunction@ %a@]"
+      fprintf ppf "@[<0>(efunction@ %a)@]"
 	(pr_pre_sep_list "| " (pr_clause pr_ann)) cs
   | App (Lam ([(v,body)], _), def, _) ->
       fprintf ppf "@[<0>let@ @[<4>%a@] =@ @[<2>%a@]@ in@ @[<0>%a@]@]"
@@ -965,9 +966,9 @@ let pr_sig_item ppf = function
       (pr_sep_list " *" pr_ty) args pr_ty res
   | IPrimVal (name, tysch, _) ->
     fprintf ppf "@[<2>external@ %s@ :@ %a@]" name pr_typscheme tysch
-  | ILetRecVal (name, expr, tysch, tests, _) ->
+  | ILetRecVal (name, expr, tysch, tests, _, _) ->
     fprintf ppf "@[<2>val@ %s :@ %a@]" name pr_typscheme tysch
-  | ILetVal (_, _, _, tyschs, _, _) ->
+  | ILetVal (_, _, _, tyschs, _, _, _) ->
     pr_line_list "\n" 
       (fun ppf (name,tysch) ->
          fprintf ppf "@[<2>val@ %s :@ %a@]" name pr_typscheme tysch)
