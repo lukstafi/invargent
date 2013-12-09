@@ -637,26 +637,56 @@ let annotate_expr q chi_sb nice_sb e =
     let vs = VarSet.inter
         (VarSet.union (fvs_formula phi) (fvs_typ res))
         (vars_of_list vs) in
-    nice_sb, (VarSet.elements vs, phi, res) in
+    vs, nice_sb, (VarSet.elements vs, phi, res) in
   let rec aux nice_sb = function
-    | Var (v, lc) -> Var (v, lc)
-    | Num (n, lc) -> Num (n, lc)
-    | Cons (n, args, lc) -> Cons (n, List.map (aux nice_sb) args, lc)
-    | App (e1, e2, lc) -> App (aux nice_sb e1, aux nice_sb e2, lc)
-    | Lam (cls, lc) -> Lam (List.map (aux_cl nice_sb) cls, lc)
-    | ExLam (k, cls, lc) -> ExLam (k, List.map (aux_cl nice_sb) cls, lc)
+    | Var (v, lc) -> VarSet.empty, Var (v, lc)
+    | Num (n, lc) -> VarSet.empty, Num (n, lc)
+    | Cons (n, args, lc) ->
+      let evs, args = List.split (List.map (aux nice_sb) args) in
+      List.fold_left VarSet.union VarSet.empty evs,
+      Cons (n, args, lc)
+    | App (e1, e2, lc) ->
+      let evs1, e1 = aux nice_sb e1
+      and evs2, e2 = aux nice_sb e2 in
+      VarSet.union evs1 evs2,
+      App (e1, e2, lc)
+    | Lam (cls, lc) ->
+      let evs, cls = List.split (List.map (aux_cl nice_sb) cls) in
+      List.fold_left VarSet.union VarSet.empty evs,
+      Lam (cls, lc)
+    | ExLam (k, cls, lc) ->
+      let evs, cls = List.split (List.map (aux_cl nice_sb) cls) in
+      List.fold_left VarSet.union VarSet.empty evs,
+      ExLam (k, cls, lc)
     | Letrec (ns, x, e1, e2, lc) ->
-      let nice_sb, tysch = typ_sch nice_sb ns in
-      Letrec (tysch, x, aux nice_sb e1, aux nice_sb e2, lc)
+      let vs, nice_sb, tysch = typ_sch nice_sb ns in
+      let evs1, e1 = aux nice_sb e1
+      and evs2, e2 = aux nice_sb e2 in
+      let evs = VarSet.union evs1 evs2 in
+      VarSet.diff evs vs,
+      Letrec ((tysch, not (VarSet.is_empty evs)), x, e1, e2, lc)
     | Letin (p, e1, e2, lc) ->
-      Letin (p, aux nice_sb e1, aux nice_sb e2, lc)
-    | AssertFalse lc -> AssertFalse lc
+      let evs1, e1 = aux nice_sb e1
+      and evs2, e2 = aux nice_sb e2 in
+      VarSet.union evs1 evs2,
+      Letin (p, e1, e2, lc)
+    | AssertFalse lc -> VarSet.empty, AssertFalse lc
     | AssertLeq (e1, e2, e3, lc) ->
-      AssertLeq (aux nice_sb e1, aux nice_sb e2, aux nice_sb e3, lc)
+      let evs1, e1 = aux nice_sb e1
+      and evs2, e2 = aux nice_sb e2
+      and evs3, e3 = aux nice_sb e3 in
+      VarSet.union evs1 (VarSet.union evs2 evs3),
+      AssertLeq (e1, e2, e3, lc)
     | AssertEqty (e1, e2, e3, lc) ->
-      AssertEqty (aux nice_sb e1, aux nice_sb e2, aux nice_sb e3, lc)
-  and aux_cl nice_sb (p, e) = p, aux nice_sb e in
-  aux nice_sb e
+      let evs1, e1 = aux nice_sb e1
+      and evs2, e2 = aux nice_sb e2
+      and evs3, e3 = aux nice_sb e3 in
+      VarSet.union evs1 (VarSet.union evs2 evs3),
+      AssertEqty (e1, e2, e3, lc)
+  and aux_cl nice_sb (p, e) =
+    let evs, e = aux nice_sb e in
+    evs, (p, e) in
+  snd (aux nice_sb e)
     
 let prepare_scheme phi res =
   let rvs = fvs_typ res in

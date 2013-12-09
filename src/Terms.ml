@@ -527,7 +527,9 @@ let sb_phi_binary arg1 arg2 = List.map (sb_atom_binary arg1 arg2)
 
 type typ_scheme = var_name list * formula * typ
 type answer = var_name list * formula
-type texpr = typ_scheme expr
+(** The annotation, besides providing the type scheme, tells whether
+    nested type schemes have free variables in scope of the scheme. *)
+type texpr = (typ_scheme * bool) expr
 
 let extype_id = ref 0
 let predvar_id = ref 0
@@ -875,7 +877,7 @@ let pr_ans ppf = function
       (pr_sep_list "," pr_tyvar) vs pr_formula ans
 
 let pr_texpr ppf =
-  pr_expr (fun ppf tsch -> fprintf ppf ":@ %a@ " pr_typscheme tsch)
+  pr_expr (fun ppf (tsch,_) -> fprintf ppf ":@ %a@ " pr_typscheme tsch)
     ppf
 
   

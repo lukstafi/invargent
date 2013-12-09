@@ -18,13 +18,13 @@ let test_common more_general msg test =
   let prog = (Infer.normalize_program % Parser.program Lexer.token)
       (Lexing.from_string test) in
   let new_ex_types, preserve, orig_cn = Infer.infer_prog_mockup prog in
-  (*[*) Format.printf "orig_cn: %s@\n%a@\n%!" msg
-    Infer.pr_cnstrnt orig_cn; (*]*)
+  (*[* Format.printf "orig_cn: %s@\n%a@\n%!" msg
+    Infer.pr_cnstrnt orig_cn; *]*)
   let q_ops, cn = Infer.prenexize orig_cn in
   let exty_res_of_chi, brs = Infer.normalize q_ops cn in
-  (*[*) Format.printf "brs: %s@\n%a@\n%!" msg Infer.pr_brs brs; (*]*)
+  (*[* Format.printf "brs: %s@\n%a@\n%!" msg Infer.pr_brs brs; *]*)
   let brs = Infer.simplify preserve q_ops brs in
-  (*[*) Format.printf "simpl-brs: %s@\n%a@\nex_types:@\n%!"
+  (*[* Format.printf "simpl-brs: %s@\n%a@\nex_types:@\n%!"
     msg Infer.pr_brs brs;
   List.iter
     (fun (i,loc) ->
@@ -33,13 +33,13 @@ let test_common more_general msg test =
        let ty = match ty with [ty] -> ty | _ -> assert false in
        Format.printf "∃%d: pvs=%a@ allvs=%a@ t=%a@ phi=%a@\n%!"
          i pr_vars (vars_of_list pvs) pr_vars (vars_of_list allvs)
-         (pr_ty false) ty pr_formula phi)
+         pr_ty ty pr_formula phi)
     !all_ex_types;
-  (*]*)
+  *]*)
   Abduction.more_general := more_general;
   let _, res, sol =
     Invariants.solve q_ops new_ex_types exty_res_of_chi brs in
-  (*[*) Format.printf
+  (*[* Format.printf
     "Test: res=@\n%a@\n%!" pr_formula res;
   List.iter
     (fun (i,loc) ->
@@ -48,9 +48,9 @@ let test_common more_general msg test =
        let ty = match ty with [ty] -> ty | _ -> assert false in
        Format.printf "so∃%d: pvs=%a@ allvs=%a@ t=%a@ phi=%a@\n%!"
          i pr_vars (vars_of_list pvs) pr_vars (vars_of_list allvs)
-         (pr_ty false) ty pr_formula phi)
+         pr_ty ty pr_formula phi)
     !all_ex_types;
-  (*]*)
+  *]*)
   Format.printf " t=%.3fs " (Sys.time () -. ntime);
   q_ops, res, sol
 
@@ -80,7 +80,7 @@ let test_nonrec_case ?(more_general=false) msg test answers =
       let res_sb, _ = Infer.separate_subst q res in
       let ty = fst (List.assoc (VId (Type_sort, v)) res_sb) in
       ignore (Format.flush_str_formatter ());
-      Format.fprintf Format.str_formatter "%a" (pr_ty false) ty;
+      Format.fprintf Format.str_formatter "%a" pr_ty ty;
       assert_equal ~printer:(fun x -> x)
         result
         (Format.flush_str_formatter ()) in

@@ -92,7 +92,9 @@ type atom =
 type formula = atom list
 type typ_scheme = var_name list * formula * typ
 type answer = var_name list * formula
-type texpr = typ_scheme expr
+(** The annotation, besides providing the type scheme, tells whether
+    nested type schemes have free variables in scope of the scheme. *)
+type texpr = (typ_scheme * bool) expr
 
 val delta : var_name
 val delta' : var_name

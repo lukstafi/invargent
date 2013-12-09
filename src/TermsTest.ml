@@ -69,11 +69,11 @@ newcons Fst : ∀a, b.Term ((a, b)) ⟶ Term a
 newcons Snd : ∀a, b.Term ((a, b)) ⟶ Term b
 
 let rec eval =
-   function Lit i -> i | IsZero x -> is_zero (eval x)
+   (function Lit i -> i | IsZero x -> is_zero (eval x)
      | Plus (x, y) -> plus (eval x) (eval y)
      | If (b, t, e) -> if (eval b) (eval t) (eval e)
      | Pair (x, y) -> (eval x, eval y) | Fst p -> let (x, y) = eval p in x
-     | Snd p -> let (x, y) = eval p in y"
+     | Snd p -> let (x, y) = eval p in y)"
         (Format.flush_str_formatter ());
     );
 

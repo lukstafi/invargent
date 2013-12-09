@@ -1512,14 +1512,13 @@
   <verbatim|.hs> -- <verbatim|annot_item>. It contains a superset of
   information in <verbatim|struct_item>: type scheme annotations on
   introduced names, and source code annotated with type schemes at recursive
-  definition nodes. Because type scheme annotations can introduce type
-  variables that are used as free variables in type scheme annotations of
-  nested expressions, we use <verbatim|type a.> syntax instead of
-  <verbatim|'a.> syntax. Toplevel type schemes are guaranteed to not have
-  free variables. In effect we also have nicer type variable syntax:
-  <verbatim|a> instead of <verbatim|'a>. However, the <verbatim|type a.>
-  syntax is not available for type definitions: defining datatypes,
-  <verbatim|external> declarations, signatures.
+  definition nodes. We use <verbatim|type a.> syntax instead of
+  <verbatim|'a.> syntax because the former supports inference for GADTs in
+  OCaml. Currently we only annotate <verbatim|let rec> nodes. For
+  completeness we would also need to annotate all <verbatim|function> nodes,
+  we do not to avoid clutter. Another benefit of the nicer <verbatim|type a.>
+  syntax is that nested type schemes can have free variables, which will be
+  correctly captured by the outer type scheme.
 
   Annotated items <verbatim|annot_item> use ``nice'' named variables instead
   of identifier-based variables. The renaming is computed by

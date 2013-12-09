@@ -1,5 +1,4 @@
 newtype Term : type
-newtype Num : num
 newtype Calc
 newtype Boolean
 
