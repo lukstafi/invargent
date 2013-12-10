@@ -43,31 +43,23 @@ type pat =
 
 val pat_loc : pat -> loc
 
-type 'a expr =
+type ('a, 'b) expr =
 | Var of string * loc
 | Num of int * loc
-| Cons of cns_name * 'a expr list * loc
-| App of 'a expr * 'a expr * loc
-| Lam of 'a clause list * loc
-| ExLam of int * 'a clause list * loc
-| Letrec of 'a * string * 'a expr * 'a expr * loc
-| Letin of pat * 'a expr * 'a expr * loc
+| Cons of cns_name * ('a, 'b) expr list * loc
+| App of ('a, 'b) expr * ('a, 'b) expr * loc
+| Lam of 'b * ('a, 'b) clause list * loc
+| ExLam of int * ('a, 'b) clause list * loc
+| Letrec of 'a * string * ('a, 'b) expr * ('a, 'b) expr * loc
+| Letin of pat * ('a, 'b) expr * ('a, 'b) expr * loc
 | AssertFalse of loc
-| AssertLeq of 'a expr * 'a expr * 'a expr * loc
-| AssertEqty of 'a expr * 'a expr * 'a expr * loc
+| AssertLeq of ('a, 'b) expr * ('a, 'b) expr * ('a, 'b) expr * loc
+| AssertEqty of ('a, 'b) expr * ('a, 'b) expr * ('a, 'b) expr * loc
 
-and 'a clause = pat * 'a expr
+and ('a, 'b) clause = pat * ('a, 'b) expr
 
-(** User input expression: no type annotations. *)
-type uexpr = unit expr
-
-(** Post-constraint generation expression: number of predicate
-    variable holding the invariant for each [let rec] expression. *)
-type iexpr = int list expr
-
-val expr_loc : 'a expr -> loc
-val clause_loc : 'a clause -> loc
-val fuse_exprs : iexpr list -> iexpr
+val expr_loc : ('a, 'b) expr -> loc
+val clause_loc : ('a, 'b) clause -> loc
 
 type sort = Num_sort | Type_sort
 (** Type variables (and constants) remember their sort. Sort
@@ -92,9 +84,22 @@ type atom =
 type formula = atom list
 type typ_scheme = var_name list * formula * typ
 type answer = var_name list * formula
+
+(** User input expression: no type annotations. *)
+type uexpr = (unit, unit) expr
+
+(** Post-constraint generation expression: number of predicate
+    variable holding the invariant for each [let rec] expression;
+    variables standing for the argument and return type of each
+    [function] expression. *)
+type iexpr = (int list, (var_name * var_name) list) expr
+
 (** The annotation, besides providing the type scheme, tells whether
-    nested type schemes have free variables in scope of the scheme. *)
-type texpr = (typ_scheme * bool) expr
+    nested type schemes have free variables in scope of the
+    scheme. On [Lam] annotations, provides the argument and the
+    return type separately. *)
+type texpr = (typ_scheme * bool, (typ * typ) option) expr
+val fuse_exprs : iexpr list -> iexpr
 
 val delta : var_name
 val delta' : var_name
@@ -225,10 +230,10 @@ val typ_scheme_of_item :
 val collect_argtys : typ -> typ list
 (** Patterns of consecutive single-branch [Lam] and the first
     non-single-branch-[Lam] expression. *)
-val collect_lambdas : 'a expr -> pat list * 'a expr
+val collect_lambdas : ('a, 'b) expr -> pat list * ('a, 'b) expr
 (** Arguments and the resulting function in reverse order of
     application: turn [((a b) c) d] into [a; b; c; d] etc. *)
-val collect_apps : 'a expr -> 'a expr list
+val collect_apps : ('a, 'b) expr -> ('a, 'b) expr list
 
 (** Connected component(s) of the hypergraph spanned on variables,
     containing the given variables. [validate] should raise
@@ -331,14 +336,26 @@ val pr_line_list :
 val pr_pat : Format.formatter -> pat -> unit
 val pr_tyvar : Format.formatter -> var_name -> unit
 val pr_vars : Format.formatter -> VarSet.t -> unit
+
+type ('a, 'b) pr_expr_annot =
+  | LetRecNode of 'a
+  | LamNode of 'b
+  | MatchVal of 'b
+  | MatchRes of 'b
+  | LamOpen of 'b
+  | MatchValOpen of 'b
+  | MatchResOpen of 'b
+  | LetInOpen of 'b
+  | LetInNode of 'b
+
 val pr_expr :
-  (Format.formatter -> 'a -> unit) ->
-  Format.formatter -> 'a expr -> unit
+  (Format.formatter -> ('a, 'b) pr_expr_annot -> unit) ->
+  Format.formatter -> ('a, 'b) expr -> unit
 val pr_uexpr : Format.formatter -> uexpr -> unit
 val pr_iexpr : Format.formatter -> iexpr -> unit
-val pr_texpr : Format.formatter -> texpr -> unit
 val pr_clause :
-  (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a clause -> unit
+  (Format.formatter -> ('a, 'b) pr_expr_annot -> unit) ->
+  Format.formatter -> ('a, 'b) clause -> unit
 val pr_atom : Format.formatter -> atom -> unit
 val pr_formula : Format.formatter -> formula -> unit
 val pr_ty : Format.formatter -> typ -> unit
@@ -348,6 +365,7 @@ val pr_typscheme :
 val pr_ans :
   Format.formatter -> answer -> unit
 val pr_subst : Format.formatter -> subst -> unit
+val pr_hvsubst : Format.formatter -> hvsubst -> unit
 val pr_typ_dir : Format.formatter -> typ_dir -> unit
 val pr_typ_loc : Format.formatter -> typ_loc -> unit
 val pr_struct_item : Format.formatter -> struct_item -> unit

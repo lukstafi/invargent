@@ -158,7 +158,7 @@ expr:
   | LET pattern EQUAL expr error
       { unclosed "let" 1 "in" 5 }
   | FUNCTION opt_bar match_cases %prec below_WITH
-      { Lam (List.rev $3, get_loc ()) }
+      { Lam ((), List.rev $3, get_loc ()) }
   | EFUNCTION opt_bar match_cases %prec below_WITH
       { incr extype_id; ExLam (!extype_id, List.rev $3, get_loc ()) }
   | FUNCTION error
@@ -166,10 +166,10 @@ expr:
   | EFUNCTION error
       { syntax_error "existential function case branches expected" 2 }
   | FUN simple_pattern_list match_action
-      { List.fold_right (fun p e -> Lam ([p, e], get_loc ()))
+      { List.fold_right (fun p e -> Lam ((), [p, e], get_loc ()))
 	  (List.rev $2) $3 }
   | MATCH expr WITH opt_bar match_cases %prec below_WITH
-      { App (Lam (List.rev $5,
+      { App (Lam ((), List.rev $5,
                   {beg_pos = rhs_start_pos 3; end_pos = rhs_end_pos 5}),
              $2, get_loc ()) }
   | EMATCH expr WITH opt_bar match_cases %prec below_WITH

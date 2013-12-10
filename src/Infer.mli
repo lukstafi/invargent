@@ -6,6 +6,9 @@
     @since Mar 2013
 *)
 
+val annotating_fun : bool ref
+val annotating_letin : bool ref
+
 (** Each disjunct stores a trigger to be called when other disjuncts
     are eliminated during normalization-simplification. *)
 type cnstrnt =
@@ -30,11 +33,13 @@ val constr_gen_pat : Terms.pat -> Terms.typ -> cnstrnt
 type envfrag = Terms.VarSet.t * Terms.formula * (string * Terms.typ) list
 val typ_to_sch : 'a * Terms.typ -> 'a * Terms.typ_scheme
 (** Return a store cell where triggers will put which existentials are
-    eliminated by which let-in patterns. *)
+    eliminated by which let-in patterns, and variables to preserve in
+    the result (i.e. prevent from being dropped by simplification). *)
 val constr_gen_expr :
   (string * Terms.typ_scheme) list ->
   Terms.uexpr -> Terms.typ ->
-  (cnstrnt * Terms.iexpr) * (Terms.pat * int option) list ref
+  (cnstrnt * Terms.iexpr) * (Terms.pat * int option) list ref *
+    Terms.var_name list
 type program = ((int * Terms.loc) list * Terms.struct_item) list
 type solution =
   Terms.quant_ops * Terms.formula *

@@ -9,7 +9,7 @@ open Terms
 open Aux
 open Joint
 
-let timeout_count = ref 700(* 1000 *)(* 5000 *)(* 50000 *)
+let timeout_count = ref 700(* 5000 *)(* 50000 *)
 let fail_timeout_count = ref 5
 let no_alien_prem = ref (* true *)false
 
@@ -63,17 +63,17 @@ let rich_return_type_heur bvs ans cand =
       (function
         | v, (t, lc) when VarSet.mem v bvs ->
           (*[* Format.printf "ret_typ_heur: %s= %a := %a@\n%!"
-            (var_str v) (pr_ty false) t (pr_ty false) (subst_typ b_sb t);
+            (var_str v) pr_ty t pr_ty (subst_typ b_sb t);
           *]*)
           v, (subst_typ b_sb t, lc)
         | v, (t, lc) when VarSet.mem v ret_only_vars ->
           (*[* Format.printf "ret_typ_heur: %s= %a := %a@\n%!"
-            (var_str v) (pr_ty false) t (pr_ty false) (subst_typ sb t);
+            (var_str v) pr_ty t pr_ty (subst_typ sb t);
           *]*)
           v, (subst_typ sb t, lc)
         | v1, (TVar v2, lc) when VarSet.mem v2 ret_only_vars ->
           (*[* Format.printf "ret_typ_heur: %s= %s := %a@\n%!"
-            (var_str v2) (var_str v1) (pr_ty false)
+            (var_str v2) (var_str v1) pr_ty
             (subst_typ sb (TVar v1)); *]*)
           v2, (subst_typ sb (TVar v1), lc)
         | sx -> sx)
@@ -320,34 +320,34 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
           ddepth pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls)
           pr_vars bvs
           (String.concat ","(List.map var_str vs))
-          pr_subst ans (var_str x) (pr_ty false) t
+          pr_subst ans (var_str x) pr_ty t
           (List.length (fst cand)) pr_subst (fst cand); *]*)
         (* Choice 1: drop premise/conclusion atom from answer *)
         if implies_concl vs (ans @ fst cand)
         then (
           (*[* Format.printf
             "abd_simple: [%d] choice 1@ drop %s = %a@ (%s = %a)@\n%!"
-            ddepth (var_str x) (pr_ty false) t
-            (var_str c6x) (pr_ty false) c6t; *]*)
+            ddepth (var_str x) pr_ty t
+            (var_str c6x) pr_ty c6t; *]*)
           (*[* try *]*)
             abstract deep repls bvs pms vs ans cand
             (*[*; Format.printf "abd_simple: [%d] choice 1 failed@\n%!"
               ddepth; *]*)               
           (*[* with Result (bvs, pms, vs, ans) as e ->
             Format.printf "abd_simple: [%d] preserve choice 1@ %s =@ %a@ -- returned@ ans=%a@\n%!"
-              ddepth (var_str x) (pr_ty false) t pr_subst ans;
+              ddepth (var_str x) pr_ty t pr_subst ans;
             raise e *]*) );
         (*[* Format.printf
           "abd_simple: [%d]@ recover after choice 1@ %s =@ %a (%s = %a)@\ncand=%a@\n%!"
-          ddepth (var_str x) (pr_ty false) t
-          (var_str c6x) (pr_ty false) c6t pr_subst (fst cand); *]*)
+          ddepth (var_str x) pr_ty t
+          (var_str c6x) pr_ty c6t pr_subst (fst cand); *]*)
         (* Choice 6: preserve atom in a "generalized" form *)
         if not !more_general && implies_concl vs (ans @ c6sx::fst cand)
         then (
           (*[* Format.printf
             "abd_simple: [%d]@ choice 6@ keep %s = %a@ (%s = %a)@\n%!"
-            ddepth (var_str c6x) (pr_ty false) c6t
-            (var_str x) (pr_ty false) t; *]*)
+            ddepth (var_str c6x) pr_ty c6t
+            (var_str x) pr_ty t; *]*)
           try
             let bvs' =
               if is_p then VarSet.union
@@ -368,7 +368,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
             (* FIXME: remove try-with case after debug over *)
             Format.printf "abd_simple: [%d]@ preserve choice 6@ %s =@ %a@ -- returned@ ans=%a@\n%!"
               ddepth (var_str c6x)
-              (pr_ty false) c6t pr_subst ans;
+              pr_ty c6t pr_subst ans;
             raise e *]*)
           | Contradiction _ (*[* as e *]*) ->
             (*[* Format.printf
@@ -377,7 +377,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
             ());
         (*[* Format.printf
           "abd_simple: [%d]@ recover after choice 6@ %s =@ %a@\n%!"
-          ddepth (var_str c6x) (pr_ty false) c6t; *]*)
+          ddepth (var_str c6x) pr_ty c6t; *]*)
         step deep x lc {typ_sub=t; typ_ctx=[]} repls
           is_p bvs pms vs ans cand
     and step deep x lc loc repls is_p bvs pms vs ans cand =
@@ -385,7 +385,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
       (*[* let ddepth = incr Joint.debug_dep; !Joint.debug_dep in *]*)
       (*[* Format.printf
         "abd_simple-step: [%d] @ loc=%a@ repls=%a@ vs=%s@ ans=%a@ x=%s@ cand=%a@\n%!"
-        ddepth (pr_ty false) (typ_out loc) pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls)
+        ddepth pr_ty (typ_out loc) pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls)
         (String.concat ","(List.map var_str vs))
         pr_subst ans (var_str x) pr_subst (fst cand); *]*)
       (* Choice 2: remove subterm from answer *)
@@ -398,7 +398,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
         let loc' = {loc with typ_sub = TVar a} in
         let t' = typ_out loc' in
         (*[* Format.printf "abd_simple: [%d]@ choice 2@ remove subterm %s =@ %a@\n%!"
-          ddepth (var_str x) (pr_ty false) t'; *]*)
+          ddepth (var_str x) pr_ty t'; *]*)
         (* FIXME: add [a] to [cparams]? *)
         match typ_next loc' with (* x bound when leaving step *)
         | None ->
@@ -425,7 +425,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
       let choice3 () =
         (*[* Format.printf
           "abd_simple: [%d] approaching choice 3@ for@ %a@ @@ %s =@ %a@\n%!"
-          ddepth (pr_ty false) loc.typ_sub (var_str x) (pr_ty false)
+          ddepth pr_ty loc.typ_sub (var_str x) pr_ty
           (typ_out loc); *]*)
         if typ_sort loc.typ_sub = Type_sort
         then match typ_up loc with
@@ -456,7 +456,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
                       (*[* (_, msg, Some (ty1, ty2), *]*) _ (*[* ) *]*) ->
              (*[*Format.printf
                "abd_simple: [%d] @ c.4 failed:@ %s@ %a@ %a@\n%!" ddepth
-               msg (pr_ty true) ty1 (pr_ty true) ty2;
+               msg pr_ty ty1 pr_ty ty2;
              (match ty1 with
                 TVar v1 ->
                 VarSet.iter (fun v2 ->
@@ -483,7 +483,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
           ddepth (var_str x)
           pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls); *]*)
         (*[* Format.printf "abd_simple: [%d]@ choice 5@ sub=@ %a@ repl=@ %s@\n%!"
-          ddepth (pr_ty false) loc.typ_sub
+          ddepth pr_ty loc.typ_sub
           (String.concat ", " (List.map var_str repl)); *]*)
         List.iter
           (fun b ->
@@ -494,7 +494,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
                (try
                   (*[* Format.printf
                     "abd_simple: [%d]@ c.5 unify x=%s@ t'=%a@ sb=@ %a@\n%!"
-                    ddepth (var_str x) (pr_ty false) t' pr_subst ans; *]*)
+                    ddepth (var_str x) pr_ty t' pr_subst ans; *]*)
                   let bvs' =
                     if is_p then VarSet.union
                         (VarSet.filter (not % q.uni_v)
@@ -523,7 +523,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
                   assert (so = []);
                   (*[* Format.printf
                     "abd_simple: [%d]@ choice 5@ match earlier %s =@ %a@\n%!"
-                    ddepth (var_str x) (pr_ty false) t'; *]*)
+                    ddepth (var_str x) pr_ty t'; *]*)
                   abstract deep repls bvs' pms vs ans' cand
                 with Contradiction _ ->
                   incr counter;

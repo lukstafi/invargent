@@ -1,0 +1,35 @@
+type num = int
+type _ place =
+  | LocA : a place
+  | LocB : b place
+and a
+  
+and b
+  
+type (_,
+  _) nearby =
+  | Here : (*∀'b.*)'b place * 'b place -> ('b, 'b) nearby
+  | Transitive : (*∀'a, 'b, 'c.*)('a, 'b) nearby * ('b, 'c) nearby ->
+    ('a, 'c) nearby
+type boolean =
+  | True : boolean
+  | False : boolean
+let assert_boolean b = assert (b = True)
+external is_nearby : (('a, 'b) nearby -> boolean) = "is_nearby"
+type _ ex1 =
+  | Ex1 : (*∀'a, 'b.*)('b place * ('a, 'b) nearby) -> 'a ex1
+external wander : ('a place -> 'a ex1) = "wander"
+type (_,
+  _) meet =
+  | Same : (*∀'b.*) ('b, 'b) meet
+  | NotSame : (*∀'a, 'b.*) ('a, 'b) meet
+external compare : ('a place -> 'b place -> ('a, 'b) meet) = "compare"
+let rec walk : type a b . (a place -> b place -> (a, b) nearby) =
+  (fun x goal ->
+    ((match (compare x goal: (a, b) meet) with
+    Same -> Here (x, goal)
+      | NotSame ->
+          let Ex1 ((y, to_y)) = wander x in Transitive (to_y, walk y goal)) :
+    (a, b) nearby))
+let () = assert_boolean (is_nearby (walk LocA LocB)); ()
+

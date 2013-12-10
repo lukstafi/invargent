@@ -157,7 +157,7 @@ let sb_PredB q psb (i, t1, t2, lc) =
        let vs, phi = List.assoc i psb in
        (*[* Format.printf
          "sb_chiK_neg: chi%d(%s,%a)=@ %a@\n%!"
-         i (var_str b) (pr_ty false) t2 pr_ans (vs,phi); *]*)
+         i (var_str b) pr_ty t2 pr_ans (vs,phi); *]*)
        let renaming = matchup_vars ~self_owned:false q b vs in
        replace_loc lc
          (sb_phi_binary t1 t2 (subst_formula renaming phi))
@@ -195,7 +195,7 @@ let sb_atom_pred q posi rol sol = function
        let vs, phi = List.assoc i rol in
        (*[* Format.printf
          "sb_atom_pred: B posi=%b@ chi%d(%s,%a)=@ %a@\n%!"
-         posi i (var_str b) (pr_ty false) t2 pr_ans (vs,phi); *]*)
+         posi i (var_str b) pr_ty t2 pr_ans (vs,phi); *]*)
        let renaming = matchup_vars false q b vs in
        replace_loc loc
          (sb_phi_binary t1 t2 (subst_formula renaming phi))
@@ -272,7 +272,7 @@ let split avs ans negchi_locs bvs cand_bvs q =
       pr_vars avs
       pr_formula ans pr_bchi_subst (List.map (fun (b,a)->b,([],a))
      sol); *]*)
-    let ans0 = List.filter
+    let ans0, ab_eqs = List.partition
       (function
       | Eqty (TVar a, TVar b, _)
           when not (q.uni_v a) && VarSet.mem b q.allbvs &&
@@ -350,6 +350,8 @@ let split avs ans negchi_locs bvs cand_bvs q =
     (* 7 *)
     let init_res = List.filter
       (fun c -> not (List.exists (List.memq c % snd) ans_cand)) ans0 in
+    (*[* Format.printf "split-loop-7: ans0=@\n%a@\ninit_res=%a@\n%!"
+      pr_formula ans0 pr_formula init_res; *]*)
     let init_state =
       try holds q avs empty_state init_res
       with Contradiction _ as e -> raise (convert e) in
@@ -366,11 +368,11 @@ let split avs ans negchi_locs bvs cand_bvs q =
             false
           with Contradiction _ -> true) ans)
       ans_cand in
-    (*[* Format.printf "split-loop: ans+=@\n%a@\n%!"
-      pr_bchi_subst (List.map (fun (b,a)->b,([],a))
-                       ans_ps); *]*)
     let ans_res = !ans_res in    
     let more_discard = concat_map snd ans_ps in
+    (*[* Format.printf "split-loop-8: ans+=@\n%a@\nans_res=%a@\n%!"
+      pr_bchi_subst (List.map (fun (b,a)->b,([],a)) ans_ps)
+      pr_formula ans_res; *]*)
     (* 9 *)
     let ans_strat = List.map
       (fun (b, ans_p) ->
@@ -418,6 +420,7 @@ let split avs ans negchi_locs bvs cand_bvs q =
       pr_formula ans_res; *]*)
     let avs_p = List.concat avs_ps in
     let avsl = List.map VarSet.elements avss in
+    let ans_res = ab_eqs @ ans_res in
     (* 15 *)
     if avs_p <> []
     then
@@ -728,7 +731,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                          let phi = Eqty (tdelta, t1, lc) :: prem @ concl in
                          (*[* Format.printf
                            "chiK: i=%d@ t1=%a@ t2=%a@ prem=%a@\nphi=%a@\n%!"
-                           i (pr_ty false) t1 (pr_ty false) t2
+                           i pr_ty t1 pr_ty t2
                            pr_formula prem pr_formula phi;
                          *]*)
                          i, phi)
@@ -794,7 +797,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
             "lift_ex_types: fvs=%a@ pvs=%a@ g_vs=%a@ tpar=%a@ g_ans=%a@ phi=%a@\n%!"
             pr_vars (vars_of_list fvs)
             pr_vars (vars_of_list pvs)
-            pr_vars (vars_of_list g_vs) (pr_ty false) tpar
+            pr_vars (vars_of_list g_vs) pr_ty tpar
             pr_formula g_ans pr_formula phi;
           *]*)
           tpar, (pvs @ g_vs, phi) in
@@ -807,7 +810,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                  converge q.op
                    ~check_only:(iter_no < disj_step.(3)) ans1 ans2 in
                (*[* Format.printf "solve.loop-dK: final@ tpar=%a@ ans2=%a@\n%!"
-                 (pr_ty false) tpar pr_ans ans2; *]*)
+                 pr_ty tpar pr_ans ans2; *]*)
                (* No [b] "owns" these formal parameters. Their instances
                   will be added to [q] by [sb_brs_pred]. *)
                (i, tpar), (i, ans2)
@@ -828,8 +831,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
                let n = Extype (Hashtbl.find exty_of_chi i) in
                n, fun old ->
                  (*[* Format.printf "esb-6: old=%a new=%a@\n%!"
-                   (pr_ty false) (TCons (n, old))
-                   (pr_ty false) (TCons (n, [tpar])); *]*)
+                   pr_ty (TCons (n, old))
+                   pr_ty (TCons (n, [tpar])); *]*)
                  TCons (n, [tpar]))
             tpars in
         let esb_formula = List.map
@@ -1148,8 +1151,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
          let allvs = VarSet.union (fvs_formula rphi) (fvs_typ rty) in
          (*[* Format.printf
            "solve-ex_types: ex_i=%d@ t1=%a@ t2=%a@ ty=%a@ chi_vs=%a@ rty=%a@ allvs=%a@ pvs=%a@ rphi=%a@ @\nphi=%a@\n%!"
-           ex_i (pr_ty false) t1 (pr_ty false) t2 (pr_ty false) ty
-           pr_vars (vars_of_list chi_vs) (pr_ty false) rty
+           ex_i pr_ty t1 pr_ty t2 pr_ty ty
+           pr_vars (vars_of_list chi_vs) pr_ty rty
            pr_vars allvs pr_vars (vars_of_list pvs)
            pr_formula rphi pr_formula phi;
          *]*)

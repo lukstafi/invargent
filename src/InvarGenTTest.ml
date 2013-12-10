@@ -17,27 +17,33 @@ let input_file file =
    with End_of_file -> ());
   Buffer.contents buf
 
-let test_case ?(verif_ml=true) file () =
+let test_case ?(test_annot=false) file () =
   if !debug then Printexc.record_backtrace true;
   let ntime = Sys.time () in
   Terms.reset_state ();
   Infer.reset_state ();
   let file =
-    let f = "./examples/"^file^".gadt" in
-    if Sys.file_exists f then f
+    let f = "./examples/"^file in
+    if Sys.file_exists (f^".gadt") then f
     else 
-      let f = "../examples/"^file^".gadt" in
-      if Sys.file_exists f then f
-      else assert false in
+      let f = "../examples/"^file in
+      if Sys.file_exists (f^".gadt") then f
+      else (
+        (*[* Format.printf "not found f=%s@\n%!" (f^".gadt"); *]*)
+        assert false) in
   (try
      let verif_res =
        InvarGenT.process_file ~do_sig:true ~do_ml:true
-         ~verif_ml file in
+         ~full_annot:test_annot (file^".gadt") in
      assert_equal ~printer:(fun x->x)
-       (input_file (file^"i.target"))
-       (input_file (file^"i"));
+       (input_file (file^".gadti.target"))
+       (input_file (file^".gadti"));
      assert_bool "Failed verification of .ml/.mli code"
-       (verif_res = None || verif_res = Some 0)
+       (verif_res = None || verif_res = Some 0);
+     if test_annot
+     then assert_equal ~printer:(fun x->x)
+         (input_file (file^".ml.target"))
+         (input_file (file^".ml"))
    with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
      ignore (Format.flush_str_formatter ());
      Terms.pr_exception Format.str_formatter exn;
@@ -79,7 +85,7 @@ let tests = "InvarGenT" >::: [
       "equational_reas" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~verif_ml:false "equational_reas" ());
+           test_case "equational_reas" ());
       "filter" >::
         (fun () ->
            skip_if !debug "debug";
@@ -107,7 +113,25 @@ let tests = "InvarGenT" >::: [
       "binomial_heap" >::
         (fun () ->
            todo "requires `min` and `max`";
-           test_case "binomial_heap" ())
+           test_case "binomial_heap" ());
+      "simple eval-annot" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case ~test_annot:true "simple_eval" ());
+      "eval-annot" >::
+        (fun () ->
+           todo "OCaml type-checking problem";
+           (* skip_if !debug "debug"; *)
+           test_case ~test_annot:true "eval" ());
+      "equational_reas-annot" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case ~test_annot:true "equational_reas" ());
+      "mutual_recursion_eval-annot" >::
+        (fun () ->
+           todo "OCaml type-checking problem";
+           skip_if !debug "debug";
+           test_case ~test_annot:true "mutual_recursion_eval" ());
     ]
 
 

@@ -5,6 +5,8 @@ newtype B
 newcons LocA : Place A
 newcons LocB : Place B
 newtype Boolean
+newcons True : Boolean
+newcons False : Boolean
 external is_nearby : ∀a,b. Nearby (a, b) → Boolean
 newcons Here : ∀a. Place a * Place a ⟶ Nearby (a, a)
 newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)

@@ -5,6 +5,10 @@
     @author Lukasz Stafiniak lukstafi (AT) gmail.com
     @since Mar 2013
 *)
+
+let annotating_fun = ref true
+let annotating_letin = ref false
+
 open Terms
 open Aux
 
@@ -115,7 +119,7 @@ let fresh_chi_id = ref 0
 let fresh_expr_var_id = ref 0
 
 let normalize_expr e =
-  (*[* Format.printf "normalize_expr: e=@\n%a@\n%!" (pr_uexpr false) e; *]*)
+  (*[* Format.printf "normalize_expr: e=@\n%a@\n%!" pr_uexpr e; *]*)
   let new_ex_types = ref [] in
   let rec aux k' e =
     match k', e with
@@ -126,7 +130,7 @@ let normalize_expr e =
     | _, ((Var _ | Num _) as x) -> x
     | _, Cons (k, es, lc) -> Cons (k, List.map (aux None) es, lc)
     | _, App (e1, e2, lc) -> App (aux k' e1, aux None e2, lc)
-    | _, Lam (cls, lc) -> Lam (List.map (aux_cl k') cls, lc)
+    | _, Lam ((), cls, lc) -> Lam ((), List.map (aux_cl k') cls, lc)
     | None, ExLam (k, cls, lc) ->
       let chi_id = incr fresh_chi_id; !fresh_chi_id in
       let ety_cn = Extype k in
@@ -136,12 +140,12 @@ let normalize_expr e =
         [tdelta], ety_cn, [delta'] in
       Hashtbl.add sigma ety_cn ex_sch;
       (*[* Format.printf "normalize_expr: adding exty %d head pat=%a@\n%!"
-        chi_id (pr_pat false) (fst (List.hd cls)); *]*)
+        chi_id pr_pat (fst (List.hd cls)); *]*)
       new_ex_types := (k, lc) :: !new_ex_types;
       all_ex_types := (k, lc) :: !all_ex_types;
-      Lam (List.map (aux_cl (Some k)) cls, lc)
+      Lam ((), List.map (aux_cl (Some k)) cls, lc)
     | Some _, ExLam (_, cls, lc) ->
-      Lam (List.map (aux_cl k') cls, lc)
+      Lam ((), List.map (aux_cl k') cls, lc)
     | _, Letrec (ann, x, e1, e2, lc) ->
       Letrec (ann, x, aux None e1, aux k' e2, lc)
     | _, Letin (p, e1, e2, lc) -> Letin (p, aux None e1, aux k' e2, lc)
@@ -309,14 +313,14 @@ let rec envfrag_gen_pat count p t =
       (*[* Format.printf
         "envfrag_gen_pat: [%d]@ bs=%a@ phi=%a@ args=%a c_args=%a@\n%!"
         count pr_vars (fst3 ef0) pr_formula phi
-        (pr_ty false) (TCons (tuple, args)) pr_vars (vars_of_list c_args); *]*)
+        pr_ty (TCons (tuple, args)) pr_vars (vars_of_list c_args); *]*)
       List.fold_left envfrag_x ef0 (List.map2 aux args ps) in
   aux t p
 
 let rec single_assert_false (_, e) =
   match e with
     | AssertFalse _ -> true
-    | Lam ([cl], loc) -> single_assert_false cl
+    | Lam (_, [cl], loc) -> single_assert_false cl
     | _ -> false
 
 let impl prem concl =
@@ -326,10 +330,10 @@ let impl prem concl =
 let letin_count = ref 0
 
 let constr_gen_expr gamma e t =
-  let elim_extype = ref [] in
+  let elim_extype = ref [] and preserve = ref [] in
   let rec aux gamma t e : cnstrnt * iexpr =
     (*[* Format.printf "constr_gen: t=%a e=@\n%a@\n%!"
-      (pr_ty false) t (pr_uexpr false) e;
+      pr_ty t pr_uexpr e;
     *]*)
     match e with
     | Var (x, loc) when not (List.mem_assoc x gamma) ->
@@ -374,13 +378,13 @@ let constr_gen_expr gamma e t =
       let a = fresh_typ_var () in
       let ta = TVar a in
       (*[* Format.printf "constr_gen_expr: App=@\n%a@\n%!"
-        (pr_uexpr false) e; *]*)
+        pr_uexpr e; *]*)
       let cn1, e1 = aux gamma (Fun (ta, t)) e1 in
       let cn2, e2 = aux gamma ta e2 in
       Ex (VarSet.singleton a,
           cn_and cn1 (cn_and cn2 (A [NotEx (ta, loc)]))),
       App (e1, e2, loc)
-    | Lam ([cl], loc) when single_assert_false cl ->
+    | Lam ((), [cl], loc) when single_assert_false cl ->
       let a1 = fresh_typ_var () in
       let t1 = TVar a1 in
       let a2 = fresh_typ_var () in
@@ -389,8 +393,8 @@ let constr_gen_expr gamma e t =
         aux_cl_negcn gamma t1 t2
           (Eqty (Fun (t1, t2), t, loc)) cl in
       Ex (vars_of_list [a1; a2], cn),
-      Lam ([cl], loc)
-    | Lam (cls, loc) ->
+      Lam ([], [cl], loc)
+    | Lam ((), cls, loc) ->
       let a1 = fresh_typ_var () in
       let t1 = TVar a1 in
       let a2 = fresh_typ_var () in
@@ -399,8 +403,10 @@ let constr_gen_expr gamma e t =
           (List.map (aux_cl 0 gamma t1 t2) cls) in
       let cn = List.fold_left cn_and
         (A [Eqty (Fun (t1, t2), t, loc)]) cns in
+      if match cls with [_] -> !annotating_letin | _ -> !annotating_fun
+      then preserve := a1::a2:: !preserve;
       Ex (vars_of_list [a1; a2], cn),
-      Lam (cls, loc)
+      Lam ([a1, a2], cls, loc)
     | AssertFalse loc as e -> A [CFalse loc], e
     | AssertLeq (e1, e2, e3, loc) ->
       let a1 = fresh_typ_var () in
@@ -457,7 +463,7 @@ let constr_gen_expr gamma e t =
       let cn0, e1 = aux gamma t0 e1 in
       (*[* Format.printf
         "constr_gen-Letin: [%d] generated t0=%a@ cn0=%a@\ne1=%a@\n%!"
-        count (pr_ty false) t0 pr_cnstrnt cn0 (pr_iexpr false) e1; *]*)
+        count pr_ty t0 pr_cnstrnt cn0 pr_iexpr e1; *]*)
       let disjs, e2s = List.split
           (List.map
              (fun (i, loc) ->
@@ -479,16 +485,16 @@ let constr_gen_expr gamma e t =
          present in the solution. *)
       (*[* Format.printf
         "constr_gen-Letin: [%d] t0=%s@ t=%a@ cn0=%a@\naltcn=%a@\ne=%a@\n%!"
-        count (var_str a0) (pr_ty false) t pr_cnstrnt cn0 pr_cnstrnt altcn
-        (pr_uexpr false) e;
+        count (var_str a0) pr_ty t pr_cnstrnt cn0 pr_cnstrnt altcn
+        pr_uexpr e;
       *]*)
       Ex (vars_of_list [a0], cn_and cn0 (Or ((altcn,alttr)::disjs))),
       Letin (p, e1, e2, loc)
     | ExLam (ety_id, cls, loc) -> assert false
 
   and aux_cl_negcn gamma t1 t2 tcn (p, e) =
-    (*[* Format.printf "aux_cl_negcn: p=@ %a ->@ e= %a@\n%!" (pr_pat false) p
-       (pr_uexpr false) e; *]*)
+    (*[* Format.printf "aux_cl_negcn: p=@ %a ->@ e= %a@\n%!" pr_pat p
+       pr_uexpr e; *]*)
     let pcns = constr_gen_pat p t1 in
     let bs, prem, env = envfrag_gen_pat 0 p t1 in
     let concl, e = aux (List.map typ_to_sch env @ gamma) t2 e in
@@ -502,7 +508,7 @@ let constr_gen_expr gamma e t =
     let pcns = constr_gen_pat p t1 in
     let bs, prem, env = envfrag_gen_pat count p t1 in
     (*[* Format.printf "constr_gen-aux_cl: [%d] t1=%a@ t2=%a@ bs=%a@ prem=%a@\n%!"
-      count (pr_ty false) t1 (pr_ty false) t2 pr_vars bs pr_formula prem; *]*)
+      count pr_ty t1 pr_ty t2 pr_vars bs pr_formula prem; *]*)
     let concl, e = aux (List.map typ_to_sch env @ gamma) t2 e in
     let cn = impl prem concl in
     let cn = if VarSet.is_empty bs then cn else All (bs, cn) in
@@ -512,20 +518,20 @@ let constr_gen_expr gamma e t =
     (p, e) in
   
   let cn = aux gamma t e in
-  cn, elim_extype
+  cn, elim_extype, !preserve
 
 let constr_gen_tests gamma tests =
   let elim_cells = ref [] in
-  let cns, tests = List.split
+  let cns, tests, preserve = split3
       (List.map
          (fun e ->
-            let e, elim_ex = constr_gen_expr gamma e
+            let (cn, e), elim_ex, preserve = constr_gen_expr gamma e
                 (TCons (boolean, [])) in
             elim_cells := elim_ex :: !elim_cells;
-            e)
+            cn, e, preserve)
          tests) in
   List.fold_left cn_and (And []) cns,
-  tests, !elim_cells
+  tests, !elim_cells, List.concat preserve
 
 let constr_gen_letrec gamma x e sig_cn tb tests =
   let a = fresh_typ_var () in
@@ -535,21 +541,21 @@ let constr_gen_letrec gamma x e sig_cn tb tests =
   let bvs = VarSet.union (fvs_typ tb) (fvs_formula sig_cn) in
   let def_typ = VarSet.elements bvs, [chi_b], tb in
   let gamma = (x, def_typ)::gamma in
-  let (expr_cn, e), elim_cell = constr_gen_expr gamma e tb in
+  let (expr_cn, e), elim_cell, preserve = constr_gen_expr gamma e tb in
   let def_cn =
     All (bvs, Impl (chi_b::sig_cn, expr_cn)) in
-  let test_cn, tests, elim_cells =
+  let test_cn, tests, elim_cells, more_preserve =
     constr_gen_tests gamma tests in
   chi_id, def_typ,
   cn_and def_cn (cn_and (Ex (vars_of_list [a], A [chi_a])) test_cn),
-  e, tests, elim_cell::elim_cells
+  e, tests, elim_cell::elim_cells, more_preserve @ preserve
 
 let constr_gen_let gamma p e ta =
   let pcns = constr_gen_pat p ta in
   let bs, exphi, env = envfrag_gen_pat 0 p ta in
-  let (cn, e), elim_cell = constr_gen_expr gamma e ta in
+  let (cn, e), elim_cell, preserve = constr_gen_expr gamma e ta in
   bs, exphi, env, cn_and pcns cn,
-  (p, e), elim_cell
+  (p, e), elim_cell, preserve
 
 type solution =
   quant_ops * Terms.formula *
@@ -574,10 +580,10 @@ let infer_prog_mockup (prog : program) =
           [b], [], tb
         | Some (vs, phi, t) -> vs, phi, t in
       let preserve = VarSet.union (fvs_typ t) (fvs_formula sig_cn) in
-      let chi_id, typ_sch, cn, e, tests, elim_cells =
+      let chi_id, typ_sch, cn, e, tests, elim_cells, more_preserve =
         constr_gen_letrec !gamma x e sig_cn t tests in
       gamma := (x, typ_sch) :: !gamma;
-      new_ex_types, preserve, cn
+      new_ex_types, add_vars more_preserve preserve, cn
     | new_ex_types, LetVal (p, e, defsig, tests, loc) ->
       let avs, sig_vs, sig_cn, t = match defsig with
         | None ->
@@ -585,14 +591,17 @@ let infer_prog_mockup (prog : program) =
           let ta = TVar a in
           VarSet.singleton a, [], [], ta
         | Some (vs, phi, t) -> VarSet.empty, vs, phi, t in
-      let bs, exphi, env, cn, cl, elim_cell =
+      let bs, exphi, env, cn, cl, elim_cell, preserve =
         constr_gen_let !gamma p e t in
-      let preserve = VarSet.union (fvs_typ t)
-        (VarSet.union (fvs_formula sig_cn) (fvs_formula exphi)) in
+      let preserve = add_vars preserve
+        (VarSet.union (fvs_typ t)
+           (VarSet.union (fvs_formula sig_cn) (fvs_formula exphi))) in
       let cn = impl sig_cn cn in
       let cn =
         if sig_vs <> [] then All (vars_of_list sig_vs, cn) else cn in
-      let test_cn, tests, elim_cells = constr_gen_tests !gamma tests in
+      let test_cn, tests, elim_cells, more_preserve =
+        constr_gen_tests !gamma tests in
+      let preserve = add_vars more_preserve preserve in
       let test_cn = impl exphi test_cn in
       let test_cn =
         if not (VarSet.is_empty bs) && test_cn <> And []
@@ -615,7 +624,7 @@ let infer_prog_mockup (prog : program) =
           all_ex_types := (ety_id, loc) :: !all_ex_types;
           (*[* Format.printf
             "infer_mockup-LetVal-ex_types: id=%d@ exphi=%a@ ty=%a@\n%!"
-            ety_id pr_formula exphi (pr_ty false) res;
+            ety_id pr_formula exphi pr_ty res;
           *]*)
           x, ([], [], ety) in
       gamma := map_append typ_sch_ex env !gamma;
@@ -626,7 +635,7 @@ let infer_prog_mockup (prog : program) =
       extys @ extys_acc, VarSet.union pres pres_acc, cn_and cn cn_acc)
     cns ([], VarSet.empty, And [])
 
-let annotate_expr q chi_sb nice_sb e =
+let annotate_expr q res_sb chi_sb nice_sb e : texpr =
   let typ_sch nice_sb ns =
     let _, ans =
       try List.find (fun (k,_) -> List.mem k ns) chi_sb
@@ -638,7 +647,7 @@ let annotate_expr q chi_sb nice_sb e =
         (VarSet.union (fvs_formula phi) (fvs_typ res))
         (vars_of_list vs) in
     vs, nice_sb, (VarSet.elements vs, phi, res) in
-  let rec aux nice_sb = function
+  let rec aux nice_sb : iexpr -> (VarSet.t * texpr) = function
     | Var (v, lc) -> VarSet.empty, Var (v, lc)
     | Num (n, lc) -> VarSet.empty, Num (n, lc)
     | Cons (n, args, lc) ->
@@ -650,10 +659,29 @@ let annotate_expr q chi_sb nice_sb e =
       and evs2, e2 = aux nice_sb e2 in
       VarSet.union evs1 evs2,
       App (e1, e2, lc)
-    | Lam (cls, lc) ->
+    | Lam (ann, cls, lc) ->
       let evs, cls = List.split (List.map (aux_cl nice_sb) cls) in
-      List.fold_left VarSet.union VarSet.empty evs,
-      Lam (cls, lc)
+      let evs = List.fold_left VarSet.union VarSet.empty evs in
+      let ann =
+        if match cls with [_] -> !annotating_letin | _ -> !annotating_fun
+        then
+          let a1, a2 =
+            try List.find
+                  (fun (a1,a2) -> List.mem_assoc a1 res_sb &&
+                                  List.mem_assoc a2 res_sb)
+                  ann
+            with Not_found ->
+              (*[*) Format.printf "a1s,a2s=%s@\nres_sb=%a@\nnice_sb=%a@\n%!"
+                (String.concat "; "
+                   (List.map (fun (a1,a2)->var_str a1^","^var_str a2)
+                      ann))
+                pr_subst res_sb pr_hvsubst nice_sb; (*]*)
+              assert false in
+          let t1 = hvsubst_typ nice_sb (fst (List.assoc a1 res_sb))
+          and t2 = hvsubst_typ nice_sb (fst (List.assoc a2 res_sb)) in
+          Some (t1, t2)
+        else None in
+      evs, Lam (ann, cls, lc)
     | ExLam (k, cls, lc) ->
       let evs, cls = List.split (List.map (aux_cl nice_sb) cls) in
       List.fold_left VarSet.union VarSet.empty evs,
@@ -714,7 +742,7 @@ let infer_prog solver prog =
          let ty = List.map (hvsubst_typ nice_sb) ty in
          let n = CNam (cns_str ety_n) in
          (*[* Format.printf "infer-update-ex_types: from id=%d@ phi=%a@ ty=%a@\n%!"
-           ety_id pr_formula phi (pr_ty false) (List.hd ty);
+           ety_id pr_formula phi pr_ty (List.hd ty);
          *]*)
          let extydec = ITypConstr (n, List.map var_sort pvs, loc) in
          let sb, phi = separate_subst q phi in
@@ -756,21 +784,22 @@ let infer_prog solver prog =
               let tb = TVar b in
               [b], [], tb
             | Some (vs, phi, t) -> vs, phi, t in
-          let chi_id, _, cn, e, tests, elim_cells =
+          let chi_id, _, cn, e, tests, elim_cells, preserve =
             constr_gen_letrec !gamma x e sig_cn t tests in
           (*[* Format.printf "LetRecVal: x=%s@\ncn=%a@\n%!" x
              pr_cnstrnt cn; *]*)
-          let preserve = VarSet.union (fvs_typ t) (fvs_formula sig_cn) in
+          let preserve = add_vars preserve
+              (VarSet.union (fvs_typ t) (fvs_formula sig_cn)) in
           let q, phi_res, sb_chi = solver ~new_ex_types ~preserve cn in
           let elim_extypes = concat_map (!) elim_cells in
           let nice_sb, (vs, phi) =
             try nice_ans (List.assoc chi_id sb_chi)
             with Not_found -> assert false in
-          let e = annotate_expr q sb_chi nice_sb e
-          and tests = List.map (annotate_expr q sb_chi nice_sb) tests in
           let sb_res, phi_res = separate_subst q phi_res in
           let more_sb, phi = separate_subst q phi in
           let sb = update_sb ~more_sb sb_res in
+          let e = annotate_expr q sb sb_chi nice_sb e
+          and tests = List.map (annotate_expr q sb sb_chi nice_sb) tests in
           let res, _ = List.assoc delta sb in
           let gvs = VarSet.elements
               (VarSet.union (fvs_formula phi) (fvs_typ res)) in
@@ -779,7 +808,7 @@ let infer_prog solver prog =
           (*[* Format.printf
             "gvs=%a;@ vs=%a;@ res=%a;@ phi=%a;@ phi_res=%a@\n%!"
             pr_vars (vars_of_list gvs) pr_vars (vars_of_list vs)
-            (pr_ty false) res
+            pr_ty res
             pr_formula phi pr_formula phi_res; *]*)
           if escaping <> []
           then raise (Report_toplevel
@@ -799,16 +828,19 @@ let infer_prog solver prog =
               let ta = TVar a in
               VarSet.singleton a, [], [], ta
             | Some (vs, phi, t) -> VarSet.empty, vs, phi, t in
-          let bs, exphi, env, cn, (p, e), elim_cell =
+          let bs, exphi, env, cn, (p, e), elim_cell, preserve =
             constr_gen_let !gamma p e t in
-          (*[* Format.printf "LetVal: p=%a@\ninit_cn=%a@\n%!" (pr_pat false) p
+          (*[* Format.printf "LetVal: p=%a@\ninit_cn=%a@\n%!" pr_pat p
              pr_cnstrnt cn; *]*)
-          let preserve = VarSet.union (fvs_typ t)
-              (VarSet.union (fvs_formula sig_cn) (fvs_formula exphi)) in
+          let preserve = add_vars preserve
+              (VarSet.union (fvs_typ t)
+                 (VarSet.union (fvs_formula sig_cn) (fvs_formula exphi))) in
           let cn = impl sig_cn cn in
           let cn =
             if sig_vs <> [] then All (vars_of_list sig_vs, cn) else cn in
-          let test_cn, tests, elim_cells = constr_gen_tests !gamma tests in
+          let test_cn, tests, elim_cells, more_preserve =
+            constr_gen_tests !gamma tests in
+          let preserve = add_vars more_preserve preserve in
           let test_cn = impl exphi test_cn in
           let test_cn =
             if not (VarSet.is_empty bs) && test_cn <> And []
@@ -816,7 +848,7 @@ let infer_prog solver prog =
           let cn = cn_and cn test_cn in
           let cn =
             if VarSet.is_empty avs then cn else Ex (avs, cn) in
-          (*[* Format.printf "LetVal: p=%a@\ncn=%a@\n%!" (pr_pat false) p
+          (*[* Format.printf "LetVal: p=%a@\ncn=%a@\n%!" pr_pat p
              pr_cnstrnt cn; *]*)
           let q, phi, sb_chi = solver ~new_ex_types ~preserve cn in
           let elim_extypes = concat_map (!) (elim_cell::elim_cells) in
@@ -824,7 +856,7 @@ let infer_prog solver prog =
           let res = subst_typ sb t in
           let gvs = VarSet.union (fvs_formula phi) (fvs_typ res) in
           (*[* Format.printf "LetVal: res=%a@ gvs=%a@ phi=%a@\n%!"
-            (pr_ty false) res pr_vars gvs pr_formula phi; *]*)
+            pr_ty res pr_vars gvs pr_formula phi; *]*)
           let gvs = VarSet.elements gvs in
           let nice_sb, (gvs, phi) =
             nice_ans ~fvs:(fvs_typ res) (gvs, phi) in
@@ -832,11 +864,11 @@ let infer_prog solver prog =
           let res = hvsubst_typ nice_sb res in
           (*[* Format.printf
             "LetVal: nice@ res=%a@ gvs=%a@\nphi=%a@\nsb=%a@\nexphi=%a@\n%!"
-            (pr_ty false) res pr_vars (vars_of_list gvs)
+            pr_ty res pr_vars (vars_of_list gvs)
             pr_formula phi pr_subst sb pr_formula exphi; *]*)
           let top_sch = gvs, phi, res in
-          let e = annotate_expr q sb_chi nice_sb e
-          and tests = List.map (annotate_expr q sb_chi nice_sb) tests in
+          let e = annotate_expr q sb sb_chi nice_sb e
+          and tests = List.map (annotate_expr q sb sb_chi nice_sb) tests in
           let exphi = subst_formula sb exphi in
           let exsb, exphi = separate_subst q exphi in
           let exsb = update_sb ~more_sb:exsb sb in
@@ -854,7 +886,7 @@ let infer_prog solver prog =
               let gvs, phi = prepare_scheme phi res' in
               (*[* Format.printf
                 "LetVal: x=%s@ res=%a@ nice res=%a@ gvs=%a@ phi=%a@\n%!"
-                x (pr_ty false) res (pr_ty false) res'
+                x pr_ty res pr_ty res'
                 pr_vars gvs pr_formula phi; *]*)
               x, (VarSet.elements gvs, phi, res')
             else fun (x, res) ->
@@ -885,7 +917,7 @@ let infer_prog solver prog =
               Hashtbl.add sigma (ety_n) ex_sch;
               all_ex_types := (ety_id, loc) :: !all_ex_types;
               (*[* Format.printf "infer-LetVal-ex_types: id=%d@ phi=%a@ ty=%a@\n%!"
-                ety_id pr_formula exphi (pr_ty false) res;
+                ety_id pr_formula exphi pr_ty res;
               *]*)
               (* Here in [ety] the variables are free, unlike the
                  occurrences in [exphi]. *)
