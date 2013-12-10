@@ -4,3 +4,5 @@ Place for TODOs/FIXMEs, especially if not expressed in other places. See README.
 * FIXME: repeating `newtype` and `newcons` definitions should be errors.
 * TODO: calibrate timeout parameters (number of iterations before forced exit from simple abduction, joint abduction etc.)
 * FIXME: `separate_subst` has a default argument `keep_uni=false`. Rethink for each use case if it is the correct argument.
+* FIXME: export the type of tuples to OCaml using asterisks instead of commas.
+* FIXME: either mute the "unification" type variables on let-in node annotations by printing them as `_`, or move them to the other side of `=` if that helps.

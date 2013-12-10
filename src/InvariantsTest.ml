@@ -1040,6 +1040,42 @@ let rec filter = fun f g ->
     );
 
 
+  "binary upper bound-wrong" >::
+    (fun () ->
+       (* skip_if !debug "debug"; *)
+       (* We need to expand the branch when the first argument is
+          [Zero] from [efunction b -> b] to the cases as below, to
+          convey the fact that the numerical parameter is non-negative. *)
+       test_case "binary upper bound -- bitwise or"
+"newtype Binary : num
+newcons Zero : Binary 0
+newcons PZero : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n)
+newcons POne : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n+1)
+
+let rec ub = efunction
+  | Zero -> (efunction b -> b)
+  | PZero a1 as a ->
+      (efunction Zero -> a
+        | PZero b1 ->
+          let r = ub a1 b1 in
+          PZero r
+        | POne b1 ->
+          let r = ub a1 b1 in
+          POne r)
+  | POne a1 as a ->
+      (efunction Zero -> a
+        | PZero b1 ->
+          let r = ub a1 b1 in
+          POne r
+        | POne b1 ->
+          let r = ub a1 b1 in
+          POne r)"
+        [2,"∃n, k.
+  δ =
+    (Binary k → Binary n → ∃4:i[n ≤ i ∧ i ≤ (k + n) ∧
+       0 ≤ k].Binary i)"]
+    );
+
   "binary upper bound" >::
     (fun () ->
        skip_if !debug "debug";
