@@ -468,7 +468,197 @@
 
   <section|Solver Parameters and CLI>
 
-  \;
+  The default settings of InvarGenT parameters should be sufficient for most
+  cases. For example, after downloading InvarGenT source code and changing
+  current directory to <verbatim|invargent>, we can enter, assuming a
+  Unix-like shell:
+
+  <\code>
+    $ make main
+
+    $ ./invargent examples/binary_upper_bound.gadt
+  </code>
+
+  To get the inferred types printed on standard output, use the
+  <verbatim|-inform> option:
+
+  <\code>
+    $ ./invargent -inform examples/binomial_heap_nonrec.gadt
+  </code>
+
+  In some situations, hopefully unlikely for simple programs, the default
+  parameters of the solver algorithms do not suffice. Consider this example,
+  where we use <verbatim|-full_annot> to generate type annotations on
+  <verbatim|function> and <verbatim|let>..<verbatim|in> nodes in the
+  <verbatim|.ml> file, in addition to annotations on <verbatim|let rec>
+  nodes:
+
+  <\code>
+    $ ./invargent -inform -full_annot examples/equal_assert.gadt
+
+    File "examples/equal_assert.gadt", line 20, characters 5-103:
+
+    No answer in type: term abduction failed
+
+    \;
+
+    Perhaps increase the -term_abduction_timeout parameter.
+
+    Perhaps increase the -term_abduction_fail parameter.
+  </code>
+
+  The <verbatim|Perhaps increase> suggestions are generated only when the
+  corresponding limit has actually been exceeded. Remember however that the
+  limits will often be exceeded for erroneus programs which should not
+  type-check. Here the default number of steps till term abduction timeout,
+  which is just <verbatim|700> to speed up failing for actually erroneous
+  programs, is too low. The complete output with timeout increased:
+
+  <\code>
+    $ ./invargent -inform -full_annot -term_abduction_timeout 4000 \\
+    examples/<no-break>equal_assert.gadt
+
+    val equal : <math|\<forall\>>a, b. (Ty a, Ty b) <math|\<rightarrow\>> a
+    <math|\<rightarrow\>> b <math|\<rightarrow\>> Boolean
+
+    InvarGenT: Generated file examples/equal_assert.gadti
+
+    InvarGenT: Generated file examples/equal_assert.ml
+
+    InvarGenT: Command "ocamlc -c examples/equal_assert.ml" exited with code
+    0
+  </code>
+
+  To understand the intent of the solver parameters, we need a rough
+  ``birds-eye view'' understanding of how InvarGenT works. The invariants and
+  postconditions that we solve for are logical formulas and can be ordered by
+  strength. Least Upper Bounds (LUBs) and Greatest Lower Bounds (GLBs)
+  computations are traditional tools used for solving recursive equations
+  over an ordered structure. In case of implicational constraints that are
+  generated for type inference with GADTs, constraint abduction is a form of
+  LUB computation. <em|Disjunction elimination> is our term for computing the
+  GLB wrt. strength for formulas that are conjunctions of atoms. We want the
+  invariants of recursive definitions -- i.e. the types of recursive
+  functions and formulas constraining their type variables -- to be as weak
+  as possible, to make the use of the corresponding definitions as easy as
+  possible. The weaker the invariant, the more general the type of
+  definition. Therefore the use of LUB, constraint abduction. For
+  postconditions -- i.e. the existential types of results computed by
+  <verbatim|efunction> expressions and formulas constraining their type
+  variables -- we want the strongest possible solutions, because stronger
+  postcondition provides more information at use sites of a definition.
+  Therefore we use LUB, disjunction elimination, but only if existential
+  types have been introduced by <verbatim|efunction> or <verbatim|ematch>.
+
+  Below we discuss all of the InvarGenT options.
+
+  <\description>
+    <item*|<verbatim|-inform>>Print type schemes of toplevel definitions as
+    they are inferred.
+
+    <item*|<verbatim|-no_sig>>Do not generate the <verbatim|.gadti> file.
+
+    <item*|<verbatim|-no_ml>>Do not generate the <verbatim|.ml> file.
+
+    <item*|<verbatim|-no_verif>>Do not call <verbatim|ocamlc -c> on the
+    generated <verbatim|.ml> file.
+
+    <item*|<verbatim|-full_annot>>Annotate the <verbatim|function> and
+    <verbatim|let>..<verbatim|in> nodes in generated OCaml code. This
+    increases the burden on inference a bit because the variables associated
+    with the nodes cannot be eliminated from the constraint during initial
+    simplification.
+
+    <item*|<verbatim|-term_abduction_timeout>>Limit on term simple abduction
+    steps (default 700). Simple abduction works with a single implication
+    branch, which roughly corresponds to a single branch -- an execution path
+    -- of the program.
+
+    <item*|<verbatim|-term_abduction_fail>>Limit on backtracking steps in
+    term joint abduction (default 4). Joint abduction combines results for
+    all branches of the constraints.
+
+    <item*|<verbatim|-no_alien_prem>>Do not include alien (e.g. numerical)
+    premise information in term abduction.
+
+    <item*|<verbatim|-early_num_abduction>>Include recursive branches in
+    numerical abduction from the start. By default, in the second iteration
+    of solving constraints, which is the first iteration that numerical
+    abduction is performed, we only pass non-recursive branches to numerical
+    abduction. This makes it faster but less likely to find the correct
+    solution.
+
+    <item*|<verbatim|-num_abduction_rotations>>Numerical abduction:
+    coefficients from <math|\<pm\>1/N> to <math|\<pm\>N> (default 3).
+    Numerical abduction answers are built, roughly speaking, by adding
+    premise equations of a branch with conclusion of a branch to get an
+    equation or inequality that does not conflict with other branches, but is
+    equivalent to the conclusion equation/inequality. This parameter decides
+    what range of coefficients is tried. If the highest coefficient in
+    correct answer is greater, abduction might fail.
+
+    <item*|<verbatim|-num_prune_at>>Keep less than <math|N> elements in
+    abduction sums (default 6). By elements here we mean distinct variables
+    -- lack of constant multipliers in concrete syntax of types is just a
+    syntactic shortcoming.
+
+    <item*|<verbatim|-num_abduction_timeout>>Limit on numerical simple
+    abduction steps (default 1000).
+
+    <item*|<verbatim|-num_abduction_fail>>Limit on backtracking steps in
+    numerical joint abduction (default 10).
+
+    <item*|<verbatim|-disjelim_rotations>>Disjunction elimination: check
+    coefficients from <math|1/N> (default 3). Numerical disjunction
+    elimination is performed by approximately finding the convex hull of the
+    polytopes corresponding to disjuncts. A step in an exact algorithm
+    involves rotating a side along a ridge -- an intersection with another
+    side -- until the side touches yet another side. We approximate by trying
+    out a couple of rotations: convex combinations of the inequalities
+    defining the sides. This parameter decides how many rotations to try.
+
+    <item*|<verbatim|-passing_ineq_trs>>Include inequalities in conclusion
+    when solving numerical abduction. This setting leads to more inequalities
+    being tried for addition in numeric abduction answer.
+
+    <item*|<verbatim|-not_annotating_fun>>Do not keep information for
+    annotating <verbatim|function> nodes. This may allow eliminating more
+    variables during initial constraint simplification.
+
+    <item*|<verbatim|-annotating_letin>>Keep information for annotating
+    <verbatim|let>..<verbatim|in> nodes. Will be set automatically anyway
+    when <verbatim|-full_annot> is passed.
+
+    <item*|<verbatim|-let_in_fallback>>Annotate <verbatim|let>..<verbatim|in>
+    nodes in fallback mode of <verbatim|.ml> generation. When verifying the
+    resulting <verbatim|.ml> file fails, a retry is made with
+    <verbatim|function> nodes annotated. This option additionally annotates
+    <verbatim|let>..<verbatim|in> nodes with types in the regenerated
+    <verbatim|.ml> file.
+  </description>
+
+  Let us see another example where parameters allowing the solver do more
+  work are needed:
+
+  <\code>
+    $ ./invargent -inform -num_abduction_rotations 4 -num_abduction_timeout
+    2000 examples/flatten_quadrs.gadt
+
+    val flatten_quadrs :
+
+    \ \ <math|\<forall\>>n, a. List ((a, a, a, a), n) <math|\<rightarrow\>>
+    List (a, n + n + n + n)
+
+    InvarGenT: Generated file examples/flatten_quadrs.gadti
+
+    InvarGenT: Generated file examples/flatten_quadrs.ml
+
+    InvarGenT: Command "ocamlc -c examples/flatten_quadrs.ml" exited with
+    code 0
+  </code>
+
+  Based on user feedback, we will likely increase the default values of
+  parameters in a future version.
 </body>
 
 <\initial>
@@ -508,14 +698,14 @@
     <associate|auto-17|<tuple|5.1|12|invargent.tm>>
     <associate|auto-18|<tuple|5.2|13|invargent.tm>>
     <associate|auto-19|<tuple|5.3|15|invargent.tm>>
-    <associate|auto-2|<tuple|2|2>>
+    <associate|auto-2|<tuple|2|1>>
     <associate|auto-20|<tuple|5.4|17|invargent.tm>>
     <associate|auto-21|<tuple|5.5|17|invargent.tm>>
     <associate|auto-22|<tuple|6|18|invargent.tm>>
     <associate|auto-23|<tuple|6|18|invargent.tm>>
     <associate|auto-24|<tuple|5.5|17>>
-    <associate|auto-3|<tuple|3|4>>
-    <associate|auto-4|<tuple|4|4>>
+    <associate|auto-3|<tuple|3|5>>
+    <associate|auto-4|<tuple|4|5>>
     <associate|auto-5|<tuple|2.2|4|invargent.tm>>
     <associate|auto-6|<tuple|3|5|invargent.tm>>
     <associate|auto-7|<tuple|3.1|5|invargent.tm>>
@@ -543,9 +733,6 @@
 
 <\auxiliary>
   <\collection>
-    <\associate|bib>
-      InvarGenT
-    </associate>
     <\associate|toc>
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|1<space|2spc>Introduction>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>

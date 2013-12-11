@@ -591,7 +591,7 @@ let abd_simple cmp cmp_w cmp_v uni_v ~bvs ~discard ~validate
             *]*)
             (* 7c *)
             let ineq_trs =
-              if !passing_ineq_trs
+              if not iseq && !passing_ineq_trs
               then add_ineq_tr ineq_trs a
               else ineq_trs in
             (* 7d *)

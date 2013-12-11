@@ -13,6 +13,7 @@ docs:
 	rm -f -R doc/code
 	mv _build/src/InvarGenT.docdir doc/code
 	texmacs -c doc/invargent.tm doc/invargent.pdf -q
+	texmacs -c doc/invargent-manual.tm doc/invargent-manual.pdf -q
 
 .PHONY: clean
 

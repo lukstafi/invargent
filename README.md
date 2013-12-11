@@ -26,8 +26,7 @@ Milestones: [x] - completed, [#] - finishing (75%-95%), [+] - in the middle (25%
 - [x] Enforce convergence for numerical constraints. (Required for postconditions.)
 - [x] Factorize joint constraint abduction scheme for use across sorts.
 - [x] Add more tests and resolve issues that emerge.
-- [#] Export (print) a file with inferred types, and OCaml source. Collect examples, write user documentation.
-- [_] Write web interface.
+- [x] Export (print) a file with inferred types, and OCaml source. Collect examples, write user documentation.
 
 And version 2.0 goals:
 - [_] Export to OCaml using built-in or pervasives OCaml types, in particular `bool` instead of `boolean`.

@@ -1,0 +1,11 @@
+newtype Boolean
+newtype List : type * num
+newcons True : Boolean
+newcons False : Boolean
+newcons LNil : ∀a. List(a, 0)
+newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+
+let rec flatten_quadrs =
+  function LNil -> LNil
+    | LCons ((x, y, z, v), l) ->
+      LCons (x, LCons (y, LCons (z, LCons (v, flatten_quadrs l))))

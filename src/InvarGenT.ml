@@ -5,6 +5,7 @@
     @author Lukasz Stafiniak lukstafi (AT) gmail.com
     @since Mar 2013
 *)
+let version = "1.0"
 
 (** Annotate [let-in] nodes in fallback mode of .ml generation. *)
 let let_in_fallback = ref false
@@ -88,7 +89,7 @@ let main () =
     "-num_abduction_rotations", Arg.Set_int NumS.abd_rotations,
     "Numerical abduction: coefficients from +/- 1/N to +/- N (default 3)";
     "-num_prune_at", Arg.Set_int NumS.abd_prune_at,
-    "Keep less than N elements in abduction sums (default <6)";
+    "Keep less than N elements in abduction sums (default 6)";
     "-num_abduction_timeout", Arg.Set_int NumS.abd_timeout_count,
     "Limit on numerical simple abduction steps (default 1000)";
     "-num_abduction_fail", Arg.Set_int NumS.abd_fail_timeout_count,
@@ -106,22 +107,23 @@ let main () =
   ] in
   let fname = ref "" in
   let anon_fun f = fname := f in
-  let msg = "Usage: "^Sys.argv.(0)^"[OPTIONS] source_file.gadt" in
+  let msg = "InvarGenT version "^version^
+              ". Usage: "^Sys.argv.(0)^"[OPTIONS] source.gadt" in
   Arg.parse cli anon_fun msg;
   try
     ignore
       (process_file !fname ~do_sig:!do_sig ~do_ml:!do_ml
          ~verif_ml:!verif_ml ~full_annot:!full_annot)
-  with (Report_toplevel _ | Contradiction _) as exn ->
+  with (Report_toplevel _ | Contradiction _ | NoAnswer _) as exn ->
     Format.printf "%a@\n%!" pr_exception exn;
     if !Abduction.abd_timeout_flag then Format.printf
         "Perhaps increase the -term_abduction_timeout parameter.@\n%!";
     if !Abduction.abd_fail_flag then Format.printf
         "Perhaps increase the -term_abduction_fail parameter.@\n%!";
     if !NumS.abd_timeout_flag then Format.printf
-        "Perhaps increase the -term_abduction_timeout parameter.@\n%!";
+        "Perhaps increase the -num_abduction_timeout parameter.@\n%!";
     if !NumS.abd_fail_flag then Format.printf
-        "Perhaps increase the -term_abduction_fail parameter.@\n%!";
+        "Perhaps increase the -num_abduction_fail parameter.@\n%!";
     exit 2
   
 

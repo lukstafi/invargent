@@ -660,6 +660,9 @@ let annotate_expr q res_sb chi_sb nice_sb e : texpr =
       and evs2, e2 = aux nice_sb e2 in
       VarSet.union evs1 evs2,
       App (e1, e2, lc)
+    | Lam (_, [cl], loc) when single_assert_false cl ->
+      let evs, cl = aux_cl nice_sb cl in
+      evs, Lam (None, [cl], loc)
     | Lam (ann, cls, lc) ->
       let evs, cls = List.split (List.map (aux_cl nice_sb) cls) in
       let evs = List.fold_left VarSet.union VarSet.empty evs in
