@@ -411,9 +411,6 @@
   <verbatim|k<math|\<leq\>>i> cannot be inferred from <verbatim|k<math|=>0>
   and <verbatim|n<math|=>i> without knowing that <verbatim|0<math|\<leq\>>n>.
 
-  In fact, <verbatim|let>...<verbatim|in> expressions are syntactic sugar for
-  pattern matching with a single branch.
-
   Besides displaying types of toplevel definitions, InvarGenT can also export
   an OCaml source file with all the required GADT definitions and type
   annotations.
