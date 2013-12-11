@@ -14,9 +14,12 @@ let early_num_abduction = ref false(* true *)
 let abd_rotations = ref (* 2 *)3
 let abd_prune_at = ref (* 4 *)6(* 10 *)
 let abd_timeout_count = ref (* 500 *)1000(* 5000 *)(* 50000 *)
-let abd_fail_timeout_count = ref 50
+let abd_fail_timeout_count = ref 10
 let disjelim_rotations = ref 3
 let passing_ineq_trs = ref false
+
+let abd_fail_flag = ref false
+let abd_timeout_flag = ref false
 
 let (!/) i = num_of_int i
 type w = (var_name * num) list * num * loc
@@ -643,6 +646,7 @@ let abd_simple cmp cmp_w cmp_v uni_v ~bvs ~discard ~validate
   with
   | Contradiction _ -> None
   | Timeout ->
+    abd_timeout_flag := true;
     (*[* Format.printf
       "NumS.abd_simple: TIMEOUT@\neqs_i=@ %a@\nineqs_i=@ %a@\nd_eqn=@ %a@ d_ineqn=@ %a@\nc_eqn=@ %a@\nc_ineqn=@ %a@\n%!"
       pr_w_subst eqs_i pr_ineqs ineqs_i pr_eqn d_eqn pr_ineqn d_ineqn
@@ -673,6 +677,7 @@ module NumAbd = struct
   type branch = (w list * w list) * (w list * w list)
 
   let abd_fail_timeout = !abd_fail_timeout_count
+  let abd_fail_flag = abd_fail_flag
 
   let abd_simple {cmp; cmp_w; cmp_v; uni_v; bvs}
       ~discard ~validate acc br =
@@ -700,6 +705,7 @@ end
 module JCA = Joint.JointAbduction (NumAbd)
 
 let abd q ~bvs ~discard ?(iter_no=2) brs =
+  abd_timeout_flag := false;
   let cmp_v = make_cmp q in
   let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
   let cmp_w (vars1,cst1,_) (vars2,cst2,_) =

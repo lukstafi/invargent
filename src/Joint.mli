@@ -16,6 +16,7 @@ module type ABD_PARAMS = sig
   type discarded
   type branch
   val abd_fail_timeout : int
+  val abd_fail_flag : bool ref
   val abd_simple :
     args -> discard:discarded list -> validate:(answer -> unit) ->
     accu -> branch -> accu option

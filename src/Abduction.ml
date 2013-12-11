@@ -10,8 +10,11 @@ open Aux
 open Joint
 
 let timeout_count = ref 700(* 5000 *)(* 50000 *)
-let fail_timeout_count = ref 5
+let fail_timeout_count = ref 4
 let no_alien_prem = ref (* true *)false
+
+let abd_fail_flag = ref false
+let abd_timeout_flag = ref false
 
 let residuum q prem concl =
   let concl = to_formula concl in
@@ -581,6 +584,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
       "abd_simple: TIMEOUT conflicts with premises skip=%d,@ vs=@ %s;@ ans=@ %a@ --@\n@[<2>%a@ ⟹@ %a@]@\n%!"
       !skip (String.concat "," (List.map var_str vs))
       pr_subst ans pr_subst prem pr_subst concl; *]*)
+    abd_timeout_flag := true;
     None
 
 (* let max_skip = ref 20 *)
@@ -594,6 +598,7 @@ module TermAbd = struct
   type branch = subst * formula * subst
 
   let abd_fail_timeout = !fail_timeout_count
+  let abd_fail_flag = abd_fail_flag
 
   let abd_simple (q, pms, dissociate) ~discard ~validate (bvs, acc) br =
     abd_simple q ~bvs ~pms ~dissociate ~validate ~discard 0 acc br
@@ -616,6 +621,7 @@ module JCA = Joint.JointAbduction (TermAbd)
 let abd_typ q ~bvs ?(dissociate=false) ~validate ~discard brs =
   (*[* Format.printf "abd_typ:@ bvs=@ %a@\n%!"
     pr_vars bvs; *]*)
+  abd_timeout_flag := false;
   let alien_vs = ref [] in
   let alien_eqs = ref [] in
   let rec purge = function

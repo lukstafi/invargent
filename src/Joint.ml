@@ -16,6 +16,7 @@ module type ABD_PARAMS = sig
   type discarded
   type branch
   val abd_fail_timeout : int
+  val abd_fail_flag : bool ref
   val abd_simple :
     args -> discard:discarded list -> validate:(answer -> unit) ->
     accu -> branch -> accu option
@@ -32,6 +33,7 @@ let debug_dep = ref 0
 module JointAbduction (P : ABD_PARAMS) = struct
 
   let abd args ~discard ~validate init_acc brs =
+    P.abd_fail_flag := false;
     let culprit = ref None
     and best_done = ref (-1) in
     let rec loop fails discard acc done_brs aside_brs = function
@@ -51,7 +53,7 @@ module JointAbduction (P : ABD_PARAMS) = struct
         | Some acc ->
           loop fails discard acc (br::done_brs) aside_brs more_brs
         | None ->
-          if fails >= P.abd_fail_timeout
+          if fails > P.abd_fail_timeout
           then (
             (*[* Format.printf
               "Joint.abd-loop: TIMEOUT %d failed [%d] at@ ans=%a@\n%!"
@@ -60,6 +62,7 @@ module JointAbduction (P : ABD_PARAMS) = struct
             let concl = P.concl_of_br (unsome !culprit) in
             let lc = List.fold_left loc_union dummy_loc
                 (List.map atom_loc concl) in
+            P.abd_fail_flag := true;
             raise (Suspect (concl, lc)));
           loop (fails+1) discard acc done_brs (br::aside_brs) more_brs
 
@@ -76,7 +79,7 @@ module JointAbduction (P : ABD_PARAMS) = struct
           check_aside fails best discard acc (br::done_brs) aside_brs
         | None ->
           if best then culprit := Some br;
-          if P.is_taut (P.extract_ans acc) || fails >= P.abd_fail_timeout
+          if P.is_taut (P.extract_ans acc) || fails > P.abd_fail_timeout
           then (
             (*[* Format.printf
               "abd-check_aside: quit failed [%d] at@ ans=%a@\n%!" ddepth
@@ -84,6 +87,7 @@ module JointAbduction (P : ABD_PARAMS) = struct
             let concl = P.concl_of_br (unsome !culprit) in
             let lc = List.fold_left loc_union dummy_loc
                 (List.map atom_loc concl) in
+            if fails > P.abd_fail_timeout then P.abd_fail_flag := true;
             raise (Suspect (concl, lc)))
           else
             loop (fails+1) (P.discard_ans acc::discard) init_acc [] []

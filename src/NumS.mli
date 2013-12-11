@@ -15,6 +15,9 @@ val abd_prune_at : int ref
 val abd_timeout_count : int ref
 val abd_fail_timeout_count : int ref
 val passing_ineq_trs : bool ref
+
+val abd_fail_flag : bool ref
+val abd_timeout_flag : bool ref
 (** For uniformity, return an empty list as introduced
     variables. Raise [Contradiction] if constraints are contradictory
     and [Suspect] if no answer can be found. *)

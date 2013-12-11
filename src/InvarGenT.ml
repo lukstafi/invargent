@@ -100,7 +100,7 @@ let main () =
     "-not_annotating_fun", Arg.Clear Infer.annotating_fun,
     "Do not keep information for annotating `function` nodes";
     "-annotating_letin", Arg.Set Infer.annotating_letin,
-    "Keep information for annotating `function` nodes";
+    "Keep information for annotating `let..in` nodes";
     "-let_in_fallback", Arg.Set let_in_fallback,
     "Annotate `let..in` nodes in fallback mode of .ml generation";
   ] in
@@ -113,7 +113,16 @@ let main () =
       (process_file !fname ~do_sig:!do_sig ~do_ml:!do_ml
          ~verif_ml:!verif_ml ~full_annot:!full_annot)
   with (Report_toplevel _ | Contradiction _) as exn ->
-    pr_exception Format.std_formatter exn; exit 2
+    Format.printf "%a@\n%!" pr_exception exn;
+    if !Abduction.abd_timeout_flag then Format.printf
+        "Perhaps increase the -term_abduction_timeout parameter.@\n%!";
+    if !Abduction.abd_fail_flag then Format.printf
+        "Perhaps increase the -term_abduction_fail parameter.@\n%!";
+    if !NumS.abd_timeout_flag then Format.printf
+        "Perhaps increase the -term_abduction_timeout parameter.@\n%!";
+    if !NumS.abd_fail_flag then Format.printf
+        "Perhaps increase the -term_abduction_fail parameter.@\n%!";
+    exit 2
   
 
 let () =
