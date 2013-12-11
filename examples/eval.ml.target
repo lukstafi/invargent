@@ -19,6 +19,6 @@ let rec eval : type a . (a term -> a) =
     | Plus (x, y) -> plus (eval x) (eval y)
     | If (b, t, e) -> if_then (eval b) (eval t) (eval e)
     | Pair (x, y) -> (eval x, eval y)
-    | Fst p -> let ((x, y): (a * 't47)) = eval p in x
-    | Snd p -> let ((x, y): ('t59 * a)) = eval p in y): a term -> a)
+    | Fst p -> let ((x, y): (a * _)) = eval p in x
+    | Snd p -> let ((x, y): (_ * a)) = eval p in y): a term -> a)
 

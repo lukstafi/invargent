@@ -1,0 +1,49 @@
+type num = int
+type _ term =
+  | IsZero : calc -> boolean term
+  | If : (*∀'a.*)boolean term * 'a term * 'a term -> 'a term
+  | Pair : (*∀'a, 'b.*)'a term * 'b term -> (('a * 'b)) term
+  | Fst : (*∀'a, 'b.*)(('a * 'b)) term -> 'a term
+  | Snd : (*∀'a, 'b.*)(('a * 'b)) term -> 'b term
+and calc =
+  | Lit : (*∀'k.*)(* k *) num -> calc
+  | Plus : calc * calc -> calc
+  | Mult : calc * calc -> calc
+  | Cond : boolean term * calc * calc -> calc
+and boolean
+  
+external plus : ((* i *) num -> (* j *) num -> (* i + j *) num) = "plus"
+type ex1 =
+  | Ex1 : (*∀'k.*)(* k *) num -> ex1
+external mult : ((* i *) num -> (* j *) num -> ex1) = "mult"
+external is_zero : ((* i *) num -> boolean) = "is_zero"
+type ex2 =
+  | Ex2 : (*∀'k.*)(* k *) num -> ex2
+external cond : (boolean -> (* i *) num -> (* j *) num -> ex2) = "cond"
+external if_then : (boolean -> 'a -> 'a -> 'a) = "if_then"
+let snd (*: type a b . ((a * b) -> b)*) = (fun ((_, x)) -> x)
+type ex3 =
+  | Ex3 : (*∀'n.*)(* n *) num -> ex3
+let (calc, eval) (*: type a . ((calc -> ex3) * (a term -> a))*) =
+  let rec eval : type b . ((calc -> ex3) * (b term -> b)) =
+  let rec calc : (calc -> ex3) =
+  ((function Lit i -> let xcase = i in Ex3 xcase
+    | Plus (x, y) ->
+        let Ex3 rx = calc x in
+        let Ex3 ry = calc y in let xcase = plus rx ry in Ex3 xcase
+    | Mult (x, y) ->
+        let Ex3 rx = calc x in
+        let Ex3 ry = calc y in let Ex1 xcase = mult rx ry in Ex3 xcase
+    | Cond (b, t, e) ->
+        let Ex3 rt = calc t in
+        let Ex3 re = calc e in
+        let Ex2 xcase = cond (snd eval b) rt re in Ex3 xcase):
+    calc -> ex3) in
+  (calc,
+    ((function IsZero x -> let Ex3 r = calc x in is_zero r
+      | If (b, t, e) -> if_then (snd eval b) (snd eval t) (snd eval e)
+      | Pair (x, y) -> (snd eval x, snd eval y)
+      | Fst p -> let ((x, y): (b * _)) = snd eval p in x
+      | Snd p -> let ((x, y): (_ * b)) = snd eval p in y): b term -> b)) in
+  eval
+

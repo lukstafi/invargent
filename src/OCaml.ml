@@ -21,7 +21,7 @@ let pr_tyvar ppf v =
     else fprintf ppf "%s" (var_str v)
   | VId _ ->
     assert (not !altsyn);
-    fprintf ppf "'%s" (var_str v)
+    fprintf ppf "_"
 
 let pr_tycns ppf c =
   fprintf ppf "%s" (String.uncapitalize (cns_str c))
