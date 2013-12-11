@@ -18,7 +18,7 @@ let solver ~new_ex_types ~preserve cn =
   let brs = Infer.simplify preserve q_ops brs in
   Invariants.solve q_ops new_ex_types exty_res_of_chi brs
 
-let process_file ?(do_sig=false) ?(do_ml=false) ?(do_mli=false)
+let process_file ?(do_sig=false) ?(do_ml=false)
     ?(verif_ml=true) ?(full_annot=false) fname =
   current_file_name := fname;
   let infer_annot_fun = !Infer.annotating_fun in
@@ -43,11 +43,6 @@ let process_file ?(do_sig=false) ?(do_ml=false) ?(do_mli=false)
     Format.fprintf output "%a@\n%!"
       (OCaml.pr_ml ~funtys:full_annot ~lettys:full_annot) annot;
     Format.printf "InvarGenT: Generated file %s@\n%!" (base^".ml"));
-  if do_mli then (
-    let output = Format.formatter_of_out_channel
-        (open_out (base^".mli")) in
-    Format.fprintf output "%a@\n%!" OCaml.pr_mli annot;
-    Format.printf "InvarGenT: Generated file %s@\n%!" (base^".mli"));
   if do_ml && verif_ml then
     let cmd = "ocamlc -c "^base^".ml" in
     let res = Sys.command cmd in
@@ -66,6 +61,60 @@ let process_file ?(do_sig=false) ?(do_ml=false) ?(do_mli=false)
       Some res)
   else None
 
+let main () =
+  let do_ml = ref true
+  and do_sig = ref true
+  and verif_ml = ref true
+  and full_annot = ref false in
+  let cli = [
+    "-inform", Arg.Set Infer.inform_toplevel,
+    "Print type schemes of toplevel definitions as they are inferred";
+    "-no_sig", Arg.Clear do_sig,
+    "Do not generate the `.gadti` file";
+    "-no_ml", Arg.Clear do_ml,
+    "Do not generate the `.ml` file";
+    "-no_verif", Arg.Clear verif_ml,
+    "Do not call `ocamlc -c` on the generated `.ml` file";
+    "-full_annot", Arg.Set full_annot,
+    "Annotate the `function` and `let..in` nodes in generated OCaml code";
+    "-term_abduction_timeout", Arg.Set_int Abduction.timeout_count,
+    "Limit on term simple abduction steps (default 700)";
+    "-term_abduction_fail", Arg.Set_int Abduction.fail_timeout_count,
+    "Limit on backtracking steps in term joint abduction (default 4)";
+    "-no_alien_prem", Arg.Set Abduction.no_alien_prem,
+    "Do not include alien (e.g. numerical) premise info in term abduction";
+    "-early_num_abduction", Arg.Set NumS.early_num_abduction,
+    "Include recursive branches in numerical abduction from the start";
+    "-num_abduction_rotations", Arg.Set_int NumS.abd_rotations,
+    "Numerical abduction: coefficients from +/- 1/N to +/- N (default 3)";
+    "-num_prune_at", Arg.Set_int NumS.abd_prune_at,
+    "Keep less than N elements in abduction sums (default <6)";
+    "-num_abduction_timeout", Arg.Set_int NumS.abd_timeout_count,
+    "Limit on numerical simple abduction steps (default 1000)";
+    "-num_abduction_fail", Arg.Set_int NumS.abd_fail_timeout_count,
+    "Limit on backtracking steps in numerical joint abduction (default 10)";
+    "-disjelim_rotations", Arg.Set_int NumS.disjelim_rotations,
+    "Disjunction elimination: check coefficients from 1/N (default 3)";
+    "-passing_ineq_trs", Arg.Set NumS.passing_ineq_trs,
+    "Include inequalities in conclusion when solving numerical abduction";
+    "-not_annotating_fun", Arg.Clear Infer.annotating_fun,
+    "Do not keep information for annotating `function` nodes";
+    "-annotating_letin", Arg.Set Infer.annotating_letin,
+    "Keep information for annotating `function` nodes";
+    "-let_in_fallback", Arg.Set let_in_fallback,
+    "Annotate `let..in` nodes in fallback mode of .ml generation";
+  ] in
+  let fname = ref "" in
+  let anon_fun f = fname := f in
+  let msg = "Usage: "^Sys.argv.(0)^"[OPTIONS] source_file.gadt" in
+  Arg.parse cli anon_fun msg;
+  try
+    ignore
+      (process_file !fname ~do_sig:!do_sig ~do_ml:!do_ml
+         ~verif_ml:!verif_ml ~full_annot:!full_annot)
+  with (Report_toplevel _ | Contradiction _) as exn ->
+    pr_exception Format.std_formatter exn; exit 2
+  
 
 let () =
   let executable = Filename.basename Sys.executable_name in
@@ -73,15 +122,4 @@ let () =
     try Filename.chop_extension f with Invalid_argument _ -> f in
   let executable = chop (chop executable) in
   if executable <> "Tests" && executable <> "InvarGenTTest"
-  then (
-    if Array.length Sys.argv <= 1 then (
-      print_string ("Usage: "^Sys.argv.(0)^" \"program source file\"\n");
-      exit 0
-    ) else (
-      let file_name = Sys.argv.(1) in
-      try
-        ignore
-          (process_file file_name ~do_sig:true ~do_ml:true ~do_mli:true)
-      with (Report_toplevel _ | Contradiction _) as exn ->
-        pr_exception Format.std_formatter exn; exit 2)
-  )
+  then main ()

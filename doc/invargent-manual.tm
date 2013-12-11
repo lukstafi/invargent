@@ -37,12 +37,12 @@
   local type variables for the hidden parts of the type encapsulated in a
   GADT.
 
-  Our type system for GADTs differs from more pragmatic approaches in
-  mainstream functional languages in that we do not require any type
-  annotations on expressions, even on recursive functions. Our
-  implementation: InvarGenT, see <cite|InvarGenT>, also includes linear
-  equations and inequalities over rational numbers in the language of types,
-  with the possibility to introduce more domains in the future.
+  The InvarGenT type system for GADTs differs from more pragmatic approaches
+  in mainstream functional languages in that we do not require any type
+  annotations on expressions, even on recursive functions. The implementation
+  also includes linear equations and inequalities over rational numbers in
+  the language of types, with the possibility to introduce more domains in
+  the future.
 
   <section|Tutorial>
 
@@ -543,10 +543,25 @@
 
 <\auxiliary>
   <\collection>
+    <\associate|bib>
+      InvarGenT
+    </associate>
     <\associate|toc>
-      <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|1<space|2spc>>
+      <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|1<space|2spc>Introduction>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-1><vspace|0.5fn>
+
+      <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|2<space|2spc>Tutorial>
+      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-2><vspace|0.5fn>
+
+      <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|3<space|2spc>Syntax>
+      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-3><vspace|0.5fn>
+
+      <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|4<space|2spc>Solver
+      Parameters and CLI> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-4><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>

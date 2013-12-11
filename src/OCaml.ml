@@ -317,5 +317,3 @@ let pr_ml ~funtys ~lettys ppf prog =
                          (cns_str n) (List.length cs))) constrs; *]*)
   fprintf ppf "type num = int@\n";
   pr_struct_items ~funtys ~lettys constrs ppf init_types CNames.empty prog
-
-let pr_mli ppf prog = failwith "not implemented yet"

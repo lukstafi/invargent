@@ -12,6 +12,9 @@ val skip_kind : skip_kind ref
     try [more_general=true] (gives the same or better answers). *)
 val more_general : bool ref
 
+val timeout_count : int ref
+val fail_timeout_count : int ref
+val no_alien_prem : bool ref
 
 val abd_simple :
   Terms.quant_ops ->

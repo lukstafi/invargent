@@ -8,6 +8,7 @@
 
 let annotating_fun = ref true
 let annotating_letin = ref false
+let inform_toplevel = ref false
 
 open Terms
 open Aux
@@ -820,6 +821,9 @@ let infer_prog solver prog =
           gamma := (x, typ_sch) :: !gamma;
           let ex_items =
             update_new_ex_types q new_ex_types sb_res sb_chi in
+          if !inform_toplevel
+          then Format.printf
+              "@[<2>val@ %s :@ %a@]@\n%!" x pr_typscheme typ_sch;
           ex_items @ [ILetRecVal (x, e, typ_sch, tests, elim_extypes, loc)]
         | new_ex_types, LetVal (p, e, defsig, tests, loc) ->
           let avs, sig_vs, sig_cn, t = match defsig with
@@ -888,7 +892,11 @@ let infer_prog solver prog =
                 "LetVal: x=%s@ res=%a@ nice res=%a@ gvs=%a@ phi=%a@\n%!"
                 x pr_ty res pr_ty res'
                 pr_vars gvs pr_formula phi; *]*)
-              x, (VarSet.elements gvs, phi, res')
+              let typ_sch = VarSet.elements gvs, phi, res' in
+              if !inform_toplevel
+              then Format.printf
+                  "@[<2>val@ %s :@ %a@]@\n%!" x pr_typscheme typ_sch;
+              x, typ_sch
             else fun (x, res) ->
               let res = subst_typ exsb res in
               let gvs, phi = prepare_scheme phi res in
@@ -921,7 +929,12 @@ let infer_prog solver prog =
               *]*)
               (* Here in [ety] the variables are free, unlike the
                  occurrences in [exphi]. *)
-              x, (gvs, phi, TCons (ety_n, List.map (fun v->TVar v) pvs)) in
+              let typ_sch =
+                gvs, phi, TCons (ety_n, List.map (fun v->TVar v) pvs) in
+              if !inform_toplevel
+              then Format.printf
+                  "@[<2>val@ %s :@ %a@]@\n%!" x pr_typscheme typ_sch;  
+              x, typ_sch in
           let typ_schs = List.map typ_sch_ex env in
           gamma := typ_schs @ !gamma;
           ex_items @ List.rev !more_items

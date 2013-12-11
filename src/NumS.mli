@@ -10,6 +10,11 @@
 val abd_rotations : int ref
 (** Start abduction on all branches rather than only non-recursive. *)
 val early_num_abduction : bool ref
+(** Keep less than N elements in abduction sums (default <6). *)
+val abd_prune_at : int ref
+val abd_timeout_count : int ref
+val abd_fail_timeout_count : int ref
+val passing_ineq_trs : bool ref
 (** For uniformity, return an empty list as introduced
     variables. Raise [Contradiction] if constraints are contradictory
     and [Suspect] if no answer can be found. *)

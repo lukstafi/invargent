@@ -9,5 +9,3 @@
 val pr_ml :
   funtys:bool -> lettys:bool ->
   Format.formatter -> Terms.annot_item list -> unit
-
-val pr_mli : Format.formatter -> Terms.annot_item list -> unit
