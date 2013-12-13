@@ -1428,3 +1428,12 @@ let rec ins_tree = fun t ->
     );
 
 ]
+
+
+let () =
+  let executable = Filename.basename Sys.executable_name in
+  let chop f =
+    try Filename.chop_extension f with Invalid_argument _ -> f in
+  let executable = chop (chop executable) in
+  if executable = "InvariantsTest"
+  then ignore (OUnit.run_test_tt ~verbose:true tests)

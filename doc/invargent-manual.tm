@@ -132,9 +132,15 @@
     \ \ \| _ -\> fun _ _ -\> False
   </code>
 
-  InvarGenT returns an unexpected type: <verbatim|equal1<math|:\<forall\>>a,b.(a,b)<math|\<rightarrow\>>b<math|\<rightarrow\>>b<math|\<rightarrow\>>Bool>,
-  one of four maximally general types of <verbatim|equal1>. This illustrates
-  that unrestricted type systems with GADTs lack principal typing property.
+  InvarGenT returns an unexpected type: <verbatim|equal1<math|:\<forall\>>a,b.(Ty
+  a, Ty b)<math|\<rightarrow\>>a<math|\<rightarrow\>>a<math|\<rightarrow\>>Bool>,
+  one of four maximally general types of <verbatim|equal1>. The other
+  maximally general ``wrong'' types are <verbatim|<math|\<forall\>>a,b.(Ty a,
+  Ty b)<math|\<rightarrow\>>b<math|\<rightarrow\>>b<math|\<rightarrow\>>Bool>
+  and <verbatim|<math|\<forall\>>a,b.(Ty a, Ty
+  b)<math|\<rightarrow\>>b<math|\<rightarrow\>>a<math|\<rightarrow\>>Bool>.
+  This illustrates that unrestricted type systems with GADTs lack principal
+  typing property.
 
   InvarGenT commits to a type of a toplevel definition before proceeding to
   the next one, so sometimes we need to provide more information in the
@@ -153,7 +159,8 @@
   </code>
 
   Actually, InvarGenT returns the expected type
-  <verbatim|equal<math|:\<forall\>>a,b.(a,b)<math|\<rightarrow\>>a<math|\<rightarrow\>>b<math|\<rightarrow\>>Bool>
+  <verbatim|equal<math|:\<forall\>>a,b.(Ty a, Ty
+  b)<math|\<rightarrow\>>a<math|\<rightarrow\>>b<math|\<rightarrow\>>Bool>
   when either the two <verbatim|assert false> clauses or the <verbatim|test>
   clause is added. When using <verbatim|test>, the program should declare the
   type <verbatim|Boolean> and constant <verbatim|True>. In a future version,
