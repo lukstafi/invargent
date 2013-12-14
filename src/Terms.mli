@@ -239,7 +239,7 @@ val collect_apps : ('a, 'b) expr -> ('a, 'b) expr list
     containing the given variables. [validate] should raise
     [Contradiction] when a result is incorrect. *)
 val connected :
-  ?validate:(formula -> unit) -> directed:bool ->
+  ?validate:(formula -> unit) ->
   var_name list -> answer -> answer
 
 (** {2 Substitutions and unification} *)

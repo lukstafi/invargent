@@ -1068,7 +1068,7 @@ let split_sorts cnj =
   assert (cnj=[]);
   [Type_sort, cnj_typ; Num_sort, cnj_num]
 
-let connected ?(validate=fun _ -> ()) ~directed target (vs, phi) =
+let connected ?(validate=fun _ -> ()) target (vs, phi) =
   let phi = List.sort (fun a b -> atom_size a - atom_size b) phi in
   (*[* Format.printf "connected: target=%a@ vs=%a@\nphi=%a@\n%!"
     pr_vars (vars_of_list target) pr_vars (vars_of_list vs)
@@ -1078,7 +1078,7 @@ let connected ?(validate=fun _ -> ()) ~directed target (vs, phi) =
         | Eqty (TVar _, TVar _, _) as c ->
           let cvs = fvs_atom c in c, cvs, cvs
         | (Eqty (TVar v, t, _) | Eqty (t, TVar v, _)) as c
-          when directed && typ_sort t = Type_sort ->
+          when typ_sort t = Type_sort ->
           c, VarSet.singleton v, fvs_typ t
         | c -> let cvs = fvs_atom c in c, cvs, cvs)
       phi in

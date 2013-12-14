@@ -287,7 +287,7 @@ let split avs ans negchi_locs bvs cand_bvs q =
         (*[* Format.printf "split-loop-3: b=%s@ target=%a@\n%!"
           (var_str b) pr_vars (Hashtbl.find q.b_vs b); *]*)
         b,
-        snd (connected ~directed:true
+        snd (connected
                (b::VarSet.elements (Hashtbl.find q.b_vs b)) ([],ans0)))
       q.negbs in
     (*[* Format.printf "split-loop-3: ans1=@\n%a@\n%!"
@@ -339,9 +339,6 @@ let split avs ans negchi_locs bvs cand_bvs q =
                VarSet.cardinal dsvs <= 1 &&
                VarSet.for_all (not % q.uni_v) dvs)
             ans0 in
-        (*let ans = snd
-            (connected ~directed:false (*q.is_chiK (q.find_chi b)*)
-               (VarSet.elements avs) ([],ans0)) in*)
         b, ans)
       ans_cand in
     (*[* Format.printf "split-loop-6: ans4=@\n%a@\n%!"
@@ -378,12 +375,12 @@ let split avs ans negchi_locs bvs cand_bvs q =
       (fun (b, ans_p) ->
         let bvs = Hashtbl.find q.b_vs b in
         let ans_p' =
-          snd (connected ~directed:true
+          snd (connected
                  (b::VarSet.elements bvs)
                  ([],ans_p)) in
         (*[* Format.printf
-          "select-10: directed=%b@ bvs=%a@\nb=%s@\nans_p=%a@\nans_p'=%a@\n%!"
-          (q.is_chiK (q.find_chi b)) pr_vars bvs
+          "select-10: bvs=%a@\nb=%s@\nans_p=%a@\nans_p'=%a@\n%!"
+          pr_vars bvs
           (var_str b) pr_formula ans_p pr_formula ans_p'; *]*)
         (* 10 *)
         let (avs_p, ans_l, ans_r) = strat q b ans_p' in
@@ -494,6 +491,20 @@ let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
     pr_formula cnj1 pr_formula cnj2; *]*)
   let c1_ty, c1_num, c1_so = unify ~use_quants:false q_ops cnj1 in
   let c2_ty, c2_num, c2_so = unify ~use_quants:false q_ops cnj2 in
+  let recover_param c_ty cnj =
+    try match
+        List.find
+          (function Eqty (t1, t2, _) -> t1=tdelta' || t2=tdelta'
+                  | _ -> false) cnj
+      with
+      | Eqty (TVar v, t, lc) when v = delta' ->
+        (v, (t, lc)) :: List.remove_assoc delta' c_ty
+      | Eqty (t, TVar v, lc) when v = delta' ->
+        (v, (t, lc)) :: List.remove_assoc delta' c_ty
+      | _ -> assert false
+    with Not_found -> c_ty in
+  let c1_ty = recover_param c1_ty cnj1 in
+  let c2_ty = recover_param c2_ty cnj2 in
   assert (c1_so = []); assert (c2_so = []);
   (* Recover old variable names. *)
   let pms_old =
@@ -548,9 +559,10 @@ let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
       c1_nr c2_nr in
   let renaming = valid_cn num_ren @ renaming in
   (*[* Format.printf
-    "converge: pms_old=%a@ pms_new=%a@ vs_old=%a@ vs_new=%a@ renaming3=%a@\n%!"
+    "converge: pms_old=%a@ pms_new=%a@ vs_old=%a@ vs_new=%a@
+  renaming3=%a@ old c2_ty=%a@\n%!"
     pr_vars pms_old pr_vars pms_new pr_vars vs_old pr_vars vs_new
-    pr_subst renaming; *]*)
+    pr_subst renaming pr_subst c2_ty; *]*)
   let c2_ty = subst_sb ~sb:renaming c2_ty
   and c2_num = subst_formula renaming c2_num
   and vs2 = List.map
@@ -738,12 +750,15 @@ let solve q_ops new_ex_types exty_res_chi brs =
                       chiK_pos
                   else [])
                verif_brs) in
-        (* 3 *)
+        (* 4 *)
         let dsj_preserve exchi =
           let exty = Hashtbl.find exty_of_chi exchi in
-          let chi = Hashtbl.find exty_res_chi exty in
-          let _, ans = List.assoc chi sol1 in
-          fvs_formula ans in
+          try
+            let chi = Hashtbl.find exty_res_chi exty in
+            let _, ans = List.assoc chi sol1 in
+            fvs_formula ans
+          with Not_found -> VarSet.empty in
+        (* 3 *)
         let g_rol = List.map
             (fun (i,_) ->
                (*[* Format.printf "solve: approaching disjelim for %d@\n%!"
@@ -767,7 +782,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                    then
                      DisjElim.initstep_heur q.op ~preserve g_ans
                    else g_ans in
-                 i, connected ~validate ~directed:true [delta; delta']
+                 i, connected ~validate [delta; delta']
                    (g_vs, g_ans)
                with Not_found ->
                  (*[* Format.printf "solve: disjelim branches for %d not found@\n%!"
@@ -777,7 +792,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
         (*[* Format.printf "solve: iter_no=%d@\ng_rol.A=%a@\n%!"
           iter_no pr_chi_subst g_rol;
         *]*)
-        (* 4 *)
+        (* 5a *)
         let lift_ex_types cmp_v i (g_vs, g_ans) =
           let g_vs, g_ans = simplify q_ops (g_vs, g_ans) in
           let fvs = VarSet.elements
@@ -801,7 +816,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
             pr_formula g_ans pr_formula phi;
           *]*)
           tpar, (pvs @ g_vs, phi) in
-        (* 5 *)
+        (* 5b *)
         let g_rol = List.map2
             (fun (i,ans1) (j,ans2) ->
                assert (i = j);
@@ -809,6 +824,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                let ans2 =
                  converge q.op
                    ~check_only:(iter_no < disj_step.(3)) ans1 ans2 in
+
                (*[* Format.printf "solve.loop-dK: final@ tpar=%a@ ans2=%a@\n%!"
                  pr_ty tpar pr_ans ans2; *]*)
                (* No [b] "owns" these formal parameters. Their instances
@@ -1012,7 +1028,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                  VarSet.elements (VarSet.diff (vars_of_list dvs) pvs) in
                let vs, ans =
                  simplify q.op
-                   (connected ~directed:true [delta; delta']
+                   (connected [delta; delta']
                       (svs, dans @ g_ans)) in
                let pvs = VarSet.elements pvs in
                let vs = vs @ pvs in
@@ -1050,6 +1066,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
       let finished1 =
         iter_no >= 1 && List.for_all2
           (fun (i,(_,ans2)) (j,(_,ans1)) -> assert (i=j);
+            (*[* Format.printf
+              "solve-finished: comparing X%d@\nans2=%a@\nans1=%a@\nsubformula=%b%!"
+              i pr_formula ans2 pr_formula ans1 (subformula ans2 ans1); *]*)
             subformula ans2 ans1)
           sol2 sol1 in
       let finished2 =

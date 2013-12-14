@@ -818,6 +818,49 @@ let rec walk = fun x ->
         [2,"∃a. δ = (Place a → ∃2:b.Nearby (a, b))"];
     );
 
+  "universal option" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "list without length map not existential poly"
+"newtype Option : type
+newcons None : ∀a. Option a
+newcons Some : ∀a. a ⟶ Option a
+
+let rec one_of =
+  function (Some _ as a) -> (function _ -> a)
+  | None -> (function None -> None | (Some _ as b) -> b)"
+        [1,"∃a. δ = (Option a → Option a → Option a)"];
+    );
+
+  "existential option" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "list without length map not existential poly"
+"newtype Option : type
+newcons None : ∀a. Option a
+newcons Some : ∀a. a ⟶ Option a
+
+let rec one_of =
+  efunction (Some _ as a) -> (efunction _ -> a)
+  | None -> (efunction None -> None | (Some _ as b) -> b)"
+        [2,"∃a, b. δ = (Option a → Option b → ∃3:a.Option a)"];
+    );
+
+  "not existential option" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "list without length map not existential poly"
+"newtype Option : type
+newcons None : ∀a. Option a
+newcons Some : ∀a. a ⟶ Option a
+external f : ∀a. a → a → a
+
+let rec one_of =
+  efunction (Some a) -> (efunction None -> a | (Some b) -> f a b)
+  | None -> (efunction (Some b) -> b)"
+        [2,"∃a. δ = (Option a → Option a → ∃3:.a)"];
+    );
+
   "non-num map not existential poly" >::
     (fun () ->
        skip_if !debug "debug";
@@ -1042,7 +1085,7 @@ let rec filter = fun f g ->
 
   "binary upper bound-wrong" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        (* We need to expand the branch when the first argument is
           [Zero] from [efunction b -> b] to the cases as below, to
           convey the fact that the numerical parameter is non-negative. *)

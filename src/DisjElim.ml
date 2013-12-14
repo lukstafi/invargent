@@ -39,7 +39,7 @@ let antiunif q ts =
         let b = find_map
             (function TVar v when q.uni_v v -> Some v | _ -> None)
             ts in
-        if n <> None && List.for_all
+        (* *)if n <> None && List.for_all
              (function TCons (n2, _) when Some n2=n -> true
                      | TVar v -> not (q.uni_v v) | _ -> false) ts
         then
@@ -79,7 +79,7 @@ let antiunif q ts =
           let usb = update_sb ~more_sb usb in
           let ts = List.map (subst_typ usb) ts in
           aux usb gsb ts
-        else
+        else(* *)
           let x = Infer.fresh_var (typ_sort t) in
           [x], TVar x, usb, (ts, x)::gsb
 
@@ -110,8 +110,8 @@ let pr_ty_brs ppf brs =
 let disjelim_typ q ~preserve brs =
   let cmp_k (v1,_) (v2,_) = compare v1 v2 in
   let brs = List.map (List.sort cmp_k) brs in
-  (*[* Format.printf "disjelim_typ: brs=@ %a@\n%!"
-    (pr_line_list "| " pr_subst) brs; *]*)
+  (*[* Format.printf "disjelim_typ: preserve=%a@\nbrs=@ %a@\n%!"
+    pr_vars preserve (pr_line_list "| " pr_subst) brs; *]*)
   let empty_brs = List.map (fun _ -> []) brs in
   match brs with
   | [] -> assert false
@@ -144,7 +144,7 @@ let disjelim_typ q ~preserve brs =
         (fun (v,gvs,gt,tss,lcs) ->
           Format.printf
             "disjelim_typ: v=%s@ gvs=%a@ gt=%a@ #tss=%d@ #tss[0]=%d@ #lcs=%d@\n%!"
-            (var_str v) pr_vars (vars_of_list gvs) (pr_ty false) gt
+            (var_str v) pr_vars (vars_of_list gvs) pr_ty gt
             (List.length tss)
             (if tss=[] then -1 else (List.length (fst (List.hd tss))))
             (List.length lcs);
@@ -183,6 +183,12 @@ let disjelim_typ q ~preserve brs =
       let ty_ans = List.map
         (fun (v,vs,u,_, lcs) ->
           v, (u, List.fold_left loc_union dummy_loc lcs)) gs in
+      let ty_ans = List.map
+          (function
+            | v1, (TVar v2, lc) as sv ->
+              if q.cmp_v v1 v2 = Left_of then v2, (TVar v1, lc)
+              else sv
+            | sv -> sv) ty_ans in
       let eqvs = List.map eqs_of_list eqvs in
       let eqv_ans = EqsSet.elements
         (List.fold_left EqsSet.inter (List.hd eqvs) (List.tl eqvs)) in
@@ -194,9 +200,14 @@ let disjelim_typ q ~preserve brs =
 
 (* Do not simplify redundancy! Just remove spurious introduced variables. *)
 (* FIXME *)
-let simplify_dsjelim q (vs, ty_ans, num_ans) =
+let simplify_dsjelim q preserve (vs, ty_ans, num_ans) =
+  (* For the sake of numerical disjelim we added [vs] to [preserve] *)
+  let preserve = VarSet.diff preserve (vars_of_list vs) in
+  (*[* Format.printf
+    "disjelim-simplify: initial@ preserve=%a@ ty_ans=%a@ num_ans=%a@\n%!"
+    pr_vars preserve pr_subst ty_ans pr_formula num_ans;  *]*)
   let ty_sb, ty_ans = List.partition
-    (fun (v,_) -> List.mem v vs) ty_ans in
+    (fun (v,_) -> not (VarSet.mem v preserve) || List.mem v vs) ty_ans in
   let ty_ans =
     List.filter
       (function Eqty (t1, t2, _) when t1 = t2 -> false | _ -> true)
@@ -233,9 +244,9 @@ let disjelim q ~preserve ~do_num brs =
       pr_subst ty_ans pr_formula num_ans; *]*)
     (* (4) *)
     (* Dooes not simplify redundancy. *)
-    simplify_dsjelim q (num_avs @ avs, ty_ans, num_ans)
+    simplify_dsjelim q preserve (num_avs @ avs, ty_ans, num_ans)
   else
-    simplify_dsjelim q (avs, ty_ans, [])
+    simplify_dsjelim q preserve (avs, ty_ans, [])
     
 let transitive_cl cnj =
   let eqs = Hashtbl.create 8 in
