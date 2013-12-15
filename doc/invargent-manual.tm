@@ -60,21 +60,110 @@
   <verbatim|i>,<verbatim|j>,<verbatim|k>,<verbatim|l>,<verbatim|m>,<verbatim|n>,<verbatim|i1>,...
   are in the sort of linear arithmetics over rational numbers called
   <verbatim|num>. Remaining letters are reserved for sorts that may be added
-  in the future. Type constructors and value constructors have the same
-  syntax: capitalized name followed by a tuple of arguments. They are
-  introduced by <verbatim|newtype> and <verbatim|newcons> respectively. The
-  <verbatim|newtype> declaration might be misleading in that it only lists
-  the sorts of the arguments of the type, the resulting sort is always
-  <verbatim|type>. Values assumed into the environment are introduced by
-  <verbatim|external>. There is a built-in type corresponding to declaration
-  <verbatim|newtype Num : num> and definitions of numeric constants
-  <verbatim|newcons 0 : Num 0 newcons 1 : Num 1>... The programmer can use
-  <verbatim|external> declarations to give the semantics of choice to the
-  <verbatim|Num> data-type.
+  in the future. Value constructors (like in OCaml) and type constructors
+  (unlike in OCaml) have the same syntax: capitalized name followed by a
+  tuple of arguments. They are introduced by <verbatim|newtype> and
+  <verbatim|newcons> respectively. The <verbatim|newtype> declaration might
+  be misleading in that it only lists the sorts of the arguments of the type,
+  the resulting sort is always <verbatim|type>. Values assumed into the
+  environment are introduced by <verbatim|external>. There is a built-in type
+  corresponding to declaration <verbatim|newtype Num : num> and definitions
+  of numeric constants <verbatim|newcons 0 : Num 0 newcons 1 : Num 1>... The
+  programmer can use <verbatim|external> declarations to give the semantics
+  of choice to the <verbatim|Num> data-type.
 
   In examples here we use Unicode characters. For ASCII equivalents, take a
-  quick look at the tables in the following section. <verbatim|equal> is a
-  function comparing values provided representation of their types:
+  quick look at the tables in the following section.
+
+  We start simple, with a function that can compute a value from a
+  representation of an expression -- a ready to use value whether it be
+  <verbatim|Integer> or <verbatim|Boolean>. Prior to the introduction of GADT
+  types, we could only implement a function <verbatim|eval :
+  <math|\<forall\>>a. Term a <math|\<rightarrow\>> Value> where, using OCaml
+  syntax, <verbatim|type value = Integer of int \| Boolean of bool>.
+
+  <\code>
+    newtype Term : type
+
+    external plus : Num <math|\<rightarrow\>> Num <math|\<rightarrow\>> Num
+
+    external is_zero : Integer <math|\<rightarrow\>> Boolean
+
+    external if_then : <math|\<forall\>>a. Bool <math|\<rightarrow\>> a
+    <math|\<rightarrow\>> a <math|\<rightarrow\>> a
+
+    newcons Lit : Num <math|\<longrightarrow\>> Term Num
+
+    newcons Plus : Term Num * Term Num <math|\<longrightarrow\>> Term Num
+
+    newcons IsZero : Term Num <math|\<longrightarrow\>> Term Bool
+
+    newcons If : <math|\<forall\>>a. Term Bool * Term a * Term a
+    <math|\<longrightarrow\>> Term a
+
+    \;
+
+    let rec eval = function
+
+    \ \ \| Lit i -\> i
+
+    \ \ \| IsZero x -\> is_zero (eval x)
+
+    \ \ \| Plus (x, y) -\> plus (eval x) (eval y)
+
+    \ \ \| If (b, t, e) -\> if_then (eval b) (eval t) (eval e)
+  </code>
+
+  Let us look at the corresponding generated, also called <em|exported>,
+  OCaml source code:
+
+  <\code>
+    type num = int
+
+    type _ term =
+
+    \ \ \| Lit : num -\> num term
+
+    \ \ \| Plus : num term * num term -\> num term
+
+    \ \ \| IsZero : num term -\> bool term
+
+    \ \ \| If : (*<math|\<forall\>>'a.*)bool term * 'a term * 'a term
+    -\<gtr\> 'a term
+
+    \ \ 
+
+    external plus : (num -\> num -\> num) = "plus"
+
+    external is_zero : (num -\> bool) = "is_zero"
+
+    external if_then : (bool -\> 'a -\> 'a -\> 'a) = "if_then"
+
+    let rec eval : type a . (a term -\> a) =
+
+    \ \ (function Lit i -\> i \| IsZero x -\> is_zero (eval x)
+
+    \ \ \ \ \| Plus (x, y) -\> plus (eval x) (eval y)
+
+    \ \ \ \ \| If (b, t, e) -\> if_then (eval b) (eval t) (eval e))
+  </code>
+
+  The <verbatim|Num> and <verbatim|Bool> types are built-in. <verbatim|Num>
+  can also be exported as a type other than <verbatim|int>. The type inferred
+  is <verbatim|eval : <math|\<forall\>>a. Term a<math|\<rightarrow\>>a>.
+  GADTs make it possible to reveal that <verbatim|IsZero x> is a
+  <verbatim|Term Bool> and therefore the result of <verbatim|eval> should in
+  its case be <verbatim|Bool>, <verbatim|Plus (x, y)> is a <verbatim|Term
+  Num> and the result of <verbatim|eval> should in its case be
+  <verbatim|Num>, etc. InvarGenT does not provide an
+  <verbatim|if<math|\<ldots\>>then<math|\<ldots\>>else<math|\<ldots\>>>
+  syntax to stress that the branching is relevant to generating
+  postconditions, but it does export <verbatim|match<math|/>ematch
+  <math|\<ldots\>> with True -\<gtr\> <math|\<ldots\>> \| False -\<gtr\>
+  <math|\<ldots\>>> using <verbatim|if> expressions.
+
+  <verbatim|equal> is a function comparing values provided representation of
+  their types:
 
   <\code>
     newtype Ty : type
@@ -115,7 +204,7 @@
 
     \;
 
-    let rec equal1 = function
+    let rec equal = function
 
     \ \ \| TInt, TInt -\> fun x y -\> eq_int x y
 
@@ -132,7 +221,7 @@
     \ \ \| _ -\> fun _ _ -\> False
   </code>
 
-  InvarGenT returns an unexpected type: <verbatim|equal1<math|:\<forall\>>a,b.(Ty
+  InvarGenT returns an unexpected type: <verbatim|equal<math|:\<forall\>>a,b.(Ty
   a, Ty b)<math|\<rightarrow\>>a<math|\<rightarrow\>>a<math|\<rightarrow\>>Bool>,
   one of four maximally general types of <verbatim|equal1>. The other
   maximally general ``wrong'' types are <verbatim|<math|\<forall\>>a,b.(Ty a,
@@ -432,8 +521,7 @@
   variable: types>|<cell|<math|\<alpha\>,\<beta\>,\<gamma\>,\<tau\>>>|<cell|<verbatim|a>,<verbatim|b>,<verbatim|c>,<verbatim|r>,<verbatim|s>,<verbatim|t>,<verbatim|a1>,...>|<cell|>>|<row|<cell|type
   variable: nums>|<cell|<math|k,m,n>>|<cell|<verbatim|i>,<verbatim|j>,<verbatim|k>,<verbatim|l>,<verbatim|m>,<verbatim|n>,<verbatim|i1>,...>|<cell|>>|<row|<cell|type
   constructor>|<cell|<math|List>>|<cell|<verbatim|List>>|<cell|>>|<row|<cell|number
-  (type)>|<cell|<math|7>>|<cell|<verbatim|7>>|<cell|>>|<row|<cell|numeral
-  (expr.)>|<cell|<math|7>>|<cell|<verbatim|7>>|<cell|>>|<row|<cell|numerical
+  (type)>|<cell|<math|7>>|<cell|<verbatim|7>>|<cell|>>|<row|<cell|numerical
   sum (type)>|<cell|<math|m+n>>|<cell|<verbatim|m+n>>|<cell|>>|<row|<cell|existential
   type>|<cell|<math|\<exists\>k,n<around*|[|k\<leqslant\>n|]>.\<tau\>>>|<cell|<verbatim|ex
   k n [k\<less\>=n].t>>|<cell|<verbatim|<math|\<exists\>>k,n[k<math|\<leq\>>n].t>>>|<row|<cell|type
@@ -446,6 +534,38 @@
   \<less\>= n>>|<cell|<verbatim|k <math|\<leq\>>
   n>>>|<row|<cell|conjunction>|<cell|<math|\<varphi\><rsub|1>\<wedge\>\<varphi\><rsub|2>>>|<cell|<verbatim|a=b
   && b=a>>|<cell|<verbatim|a=b <math|\<wedge\>> b=a>>>>>>
+
+  For the syntax of expressions, we discourage non-ASCII symbols. Below
+  <math|e,e<rsub|i>> stand for any expression, <math|p,p<rsub|i>> stand for
+  any pattern, <math|x> stands for any lower-case identifier and <math|K> for
+  an upper-case identifier.
+
+  <block|<tformat|<table|<row|<cell|named
+  value>|<cell|<math|x>>|<cell|<verbatim|x> \ --lower-case
+  identifier>>|<row|<cell|numeral (expr.)>|<cell|<math|7>>|<cell|<verbatim|7>>>|<row|<cell|constructor>|<cell|<math|K>>|<cell|<verbatim|K>
+  \ --upper-case identifier>>|<row|<cell|application>|<cell|<math|e<rsub|1>
+  e<rsub|2>>>|<cell|<verbatim|e1 e2>>>|<row|<cell|non-br.
+  function>|<cell|<math|\<lambda\><around*|(|p<rsub|1>.\<lambda\><around*|(|p<rsub|2>.e|)>|)>>>|<cell|<verbatim|fun
+  (p1,p2) p3 -\<gtr\> e>>>|<row|<cell|branching
+  function>|<cell|<math|\<lambda\><around*|(|p<rsub|1>.e<rsub|1>\<ldots\>p<rsub|n>.e<rsub|n>|)>>>|<cell|<verbatim|function
+  p1-\<gtr\>e1 \| >...<verbatim| \| pn-\<gtr\>en>>>|<row|<cell|pattern
+  match>|<cell|<math|\<lambda\><around*|(|p<rsub|1>.e<rsub|1>\<ldots\>p<rsub|n>.e<rsub|n>|)>
+  e>>|<cell|<verbatim|match e with p1-\<gtr\>e1 \| >...<verbatim| \|
+  pn-\<gtr\>en>>>|<row|<cell|postcond. function>|<cell|<math|\<lambda\><around*|[|K|]><around*|(|p<rsub|1>.e<rsub|1>\<ldots\>p<rsub|n>.e<rsub|n>|)>>>|<cell|<verbatim|efunction
+  p1-\<gtr\>e1 \| >...>>|<row|<cell|postcond.
+  match>|<cell|<math|\<lambda\><around*|[|K|]><around*|(|p<rsub|1>.e<rsub|1>\<ldots\>p<rsub|n>.e<rsub|n>|)>
+  e>>|<cell|<verbatim|ematch e with p1-\<gtr\>e1 \| >...>>|<row|<cell|rec.
+  definition>|<cell|<math|<with|math-font-series|bold|letrec> x=e<rsub|1>
+  <with|math-font-series|bold|in> e<rsub|2>>>|<cell|<verbatim|let rec x = e1
+  in e2>>>|<row|<cell|definition>|<cell|<math|<with|math-font-series|bold|let>
+  p=e<rsub|1> <with|math-font-series|bold|in> e<rsub|2>>>|<cell|<verbatim|let
+  p1,p2 = e1 in e2>>>|<row|<cell|asserting dead
+  br.>|<cell|<math|\<b-F\>>>|<cell|<verbatim|assert
+  false>>>|<row|<cell|assert equal types>|<cell|<math|<with|math-font-series|bold|assert
+  >\<tau\><rsub|e<rsub|1>><wide|=|\<dot\>>\<tau\><rsub|e<rsub|2>>;e<rsub|3>>>|<cell|<verbatim|assert
+  = type e1 e2; e3>>>|<row|<cell|assert inequality>|<cell|<math|<with|math-font-series|bold|assert
+  >e<rsub|1>\<leqslant\>e<rsub|2>;e<rsub|3>>>|<cell|<verbatim|assert e1
+  \<less\>= e2; e3>>>>>>
 
   Toplevel expressions (corresponding to structure items in OCaml) introduce
   types, type and value constructors, global variables with given type
@@ -460,7 +580,14 @@
   <math|\<forall\>>n,a. List(a,n)<math|\<rightarrow\>
   \<exists\>>k[k\<less\>=n].List(a,k)>>>|<row|<cell|rec.
   definition>|<cell|<verbatim|let rec f =>...>>|<row|<cell|non-rec.
-  definition>|<cell|<verbatim|let a, b =>...>>>>>
+  definition>|<cell|<verbatim|let a, b =>...>>|<row|<cell|definition with
+  test>|<cell|<verbatim|let rec f =>...<verbatim| test e1; >...<verbatim|;
+  en>>>|<row|<cell|>|<cell|<verbatim|let p1,p2 =>...<verbatim| test e1;
+  >...<verbatim|; en>>>>>>
+
+  Tests list expressions of type <verbatim|Boolean> that at runtime have to
+  evaluate to <verbatim|True>. Type inference is affected by the constraints
+  generated to typecheck the expressions.
 
   Like in OCaml, types of arguments in declarations of constructors are
   separated by asterisks. However, the type constructor for tuples is
@@ -567,6 +694,13 @@
     <item*|<verbatim|-no_verif>>Do not call <verbatim|ocamlc -c> on the
     generated <verbatim|.ml> file.
 
+    <item*|<verbatim|-num_is>>The exported type for which <verbatim|Num> is
+    an alias (default <verbatim|int>). If <verbatim|-num_is bar> for
+    <verbatim|bar> different than <verbatim|int>, numerals are exported as
+    integers passed to a <verbatim|bar_of_int> function. The variant
+    <verbatim|-num_is_mod> exports numerals by passing to a
+    <verbatim|Bar.of_int> function.
+
     <item*|<verbatim|-full_annot>>Annotate the <verbatim|function> and
     <verbatim|let>..<verbatim|in> nodes in generated OCaml code. This
     increases the burden on inference a bit because the variables associated
@@ -646,7 +780,7 @@
 
   <\code>
     $ ./invargent -inform -num_abduction_rotations 4 -num_abduction_timeout
-    2000 examples/flatten_quadrs.gadt
+    2000 \\ examples/flatten_quadrs.gadt
 
     val flatten_quadrs :
 
@@ -709,7 +843,7 @@
     <associate|auto-23|<tuple|6|18|invargent.tm>>
     <associate|auto-24|<tuple|5.5|17>>
     <associate|auto-3|<tuple|3|5>>
-    <associate|auto-4|<tuple|4|5>>
+    <associate|auto-4|<tuple|4|6>>
     <associate|auto-5|<tuple|2.2|4|invargent.tm>>
     <associate|auto-6|<tuple|3|5|invargent.tm>>
     <associate|auto-7|<tuple|3.1|5|invargent.tm>>

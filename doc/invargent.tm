@@ -105,7 +105,7 @@
   of nested occurrences of <math|\<lambda\><around*|[|K|]>>. The abstract
   syntax of types is not sort-safe, but type variables carry sorts determined
   by first letter of the variable. In the future, sorts could be inferred
-  after parsing.
+  after parsing. The syntax of types and formulas:
 
   <block|<tformat|<cwith|1|1|2|2|cell-halign|c>|<cwith|1|1|1|1|cell-halign|l>|<cwith|2|2|2|2|cell-halign|c>|<cwith|2|2|1|1|cell-halign|l>|<table|<row|<cell|type
   variable: types>|<cell|<math|\<alpha\>,\<beta\>,\<gamma\>,\<tau\>>>|<cell|<verbatim|a>,<verbatim|b>,<verbatim|c>,<verbatim|r>,<verbatim|s>,<verbatim|t>,<verbatim|a1>,...>|<cell|>|<cell|<tiny|<verbatim|TVar(VNam(Type_sort,>...<verbatim|))>>>>|<row|<cell|type
@@ -126,6 +126,43 @@
   n>>|<cell|<verbatim|Leq>>>|<row|<cell|conjunction>|<cell|<math|\<varphi\><rsub|1>\<wedge\>\<varphi\><rsub|2>>>|<cell|<verbatim|a=b
   && b=a>>|<cell|<verbatim|a=b <math|\<wedge\>> b=a>>|<cell|built-in
   lists>>>>>
+
+  For the syntax of expressions, we discourage non-ASCII symbols. Restating
+  the first paragraph, below <math|e,e<rsub|i>> stand for any expression,
+  <math|p,p<rsub|i>> stand for any pattern, <math|x> stands for any
+  lower-case identifier and <math|K> for an upper-case identifier.
+
+  <block|<tformat|<table|<row|<cell|named
+  value>|<cell|<math|x>>|<cell|<verbatim|x> \ --lower-case
+  identifier>|<cell|<verbatim|Var>>>|<row|<cell|numeral
+  (expr.)>|<cell|<math|7>>|<cell|<verbatim|7>>|<cell|<verbatim|Num>>>|<row|<cell|constructor>|<cell|<math|K>>|<cell|<verbatim|K>
+  \ --upper-case identifier>|<cell|<verbatim|Cons>>>|<row|<cell|application>|<cell|<math|e<rsub|1>
+  e<rsub|2>>>|<cell|<verbatim|e1 e2>>|<cell|<verbatim|App>>>|<row|<cell|non-br.
+  function>|<cell|<math|\<lambda\><around*|(|p<rsub|1>.\<lambda\><around*|(|p<rsub|2>.e|)>|)>>>|<cell|<verbatim|fun
+  (p1,p2) p3 -\<gtr\> e>>|<cell|<verbatim|Lam>>>|<row|<cell|branching
+  function>|<cell|<math|\<lambda\><around*|(|p<rsub|1>.e<rsub|1>\<ldots\>p<rsub|n>.e<rsub|n>|)>>>|<cell|<verbatim|function
+  p1-\<gtr\>e1 \| >...<verbatim| \| pn-\<gtr\>en>>|<cell|<verbatim|Lam>>>|<row|<cell|pattern
+  match>|<cell|<math|\<lambda\><around*|(|p<rsub|1>.e<rsub|1>\<ldots\>p<rsub|n>.e<rsub|n>|)>
+  e>>|<cell|<verbatim|match e with p1-\<gtr\>e1 \| >...<verbatim| \|
+  pn-\<gtr\>en>>|<cell|<verbatim|App(Lam>...<verbatim|,e)>>>|<row|<cell|postcond.
+  function>|<cell|<math|\<lambda\><around*|[|K|]><around*|(|p<rsub|1>.e<rsub|1>\<ldots\>p<rsub|n>.e<rsub|n>|)>>>|<cell|<verbatim|efunction
+  p1-\<gtr\>e1 \| >...>|<cell|<verbatim|ExLam>>>|<row|<cell|postcond.
+  match>|<cell|<math|\<lambda\><around*|[|K|]><around*|(|p<rsub|1>.e<rsub|1>\<ldots\>p<rsub|n>.e<rsub|n>|)>
+  e>>|<cell|<verbatim|ematch e with p1-\<gtr\>e1 \|
+  >...>|<cell|<verbatim|App(ExLam>...<verbatim|)>>>|<row|<cell|rec.
+  definition>|<cell|<math|<with|math-font-series|bold|letrec> x=e<rsub|1>
+  <with|math-font-series|bold|in> e<rsub|2>>>|<cell|<verbatim|let rec x = e1
+  in e2>>|<cell|<verbatim|Letrec>>>|<row|<cell|definition>|<cell|<math|<with|math-font-series|bold|let>
+  p=e<rsub|1> <with|math-font-series|bold|in> e<rsub|2>>>|<cell|<verbatim|let
+  p1,p2 = e1 in e2>>|<cell|<verbatim|Letin>>>|<row|<cell|asserting dead
+  br.>|<cell|<math|\<b-F\>>>|<cell|<verbatim|assert
+  false>>|<cell|<verbatim|AssertFalse>>>|<row|<cell|assert equal
+  types>|<cell|<math|<with|math-font-series|bold|assert
+  >\<tau\><rsub|e<rsub|1>><wide|=|\<dot\>>\<tau\><rsub|e<rsub|2>>;e<rsub|3>>>|<cell|<verbatim|assert
+  = type e1 e2; e3>>|<cell|<verbatim|AssertEqty>>>|<row|<cell|assert
+  inequality>|<cell|<math|<with|math-font-series|bold|assert
+  >e<rsub|1>\<leqslant\>e<rsub|2>;e<rsub|3>>>|<cell|<verbatim|assert e1
+  \<less\>= e2; e3>>|<cell|<verbatim|AssertLeq>>>>>>
 
   Parts of the logic hidden from the user:
 
@@ -152,7 +189,15 @@
   filter : <math|\<forall\>>n,a. List(a,n)<math|\<rightarrow\>
   \<exists\>>k[k\<less\>=n].List(a,k)>>|<cell|<verbatim|PrimVal>>>|<row|<cell|rec.
   definition>|<cell|<verbatim|let rec f =>...>|<cell|<verbatim|LetRecVal>>>|<row|<cell|non-rec.
-  definition>|<cell|<verbatim|let v =>...>|<cell|<verbatim|LetVal>>>>>>
+  definition>|<cell|<verbatim|let p1,p2 =>...>|<cell|<verbatim|LetVal>>>|<row|<cell|definition
+  with test>|<cell|<verbatim|let rec f =>...<verbatim| test e1;
+  >...<verbatim|; en>>|<cell|<verbatim|LetRecVal>>>|<row|<cell|>|<cell|<verbatim|let
+  p1,p2 =>...<verbatim| test e1; >...<verbatim|;
+  en>>|<cell|<verbatim|LetVal>>>>>>
+
+  Tests list expressions of type <verbatim|Boolean> that at runtime have to
+  evaluate to <verbatim|True>. Type inference is affected by the constraints
+  generated to typecheck the expressions.
 
   For simplicity of theory and implementation, mutual non-nested recursion
   and or-patterns are not provided. For mutual recursion, nest one recursive
@@ -979,31 +1024,39 @@
   postconditions are not subjected to stratification. This is because the
   type system does not support nested existential types.
 
-  <subsection|Abductive disjunction elimination under quantifier prefix>
+  <subsection|Abductive disjunction elimination given quantifier prefix>
 
-  We extend the notion of disjunction elimination:
-  <math|\<exists\><wide|\<alpha\>|\<bar\>>.A> is an answer to <em|abductive
-  disjunction elimination under quantifier prefix> problem
-  <math|\<cal-Q\>.<wide|D<rsub|i>|\<bar\>>> when there exist
-  <math|\<exists\><wide|\<beta\>|\<bar\>><rsub|i,j>.B<rsub|i,j>> and
-  <math|U<rsub|i>> such that:
+  <em|Global variables> here are the variables shared by all disjuncts, i.e.
+  <math|\<cap\><rsub|i>FV<around*|(|D<rsub|i>|)>>, remaining variables are
+  <em|non-global>. Recall that for numerical disjunction elimination, we
+  either substitute-out a non-global variable in a branch if it appears in an
+  equation, or we drop the inequalities it appers in if it is not part of any
+  equation. Non-global variables can also pose problems for the term sort, by
+  forcing disjunction elimination answers to be too general. When inferring
+  the type for a function, which has a branch that does not use one of
+  arguments of the function, the existential type inferred would hide the
+  corresponding information in the result, even if the remaining branches
+  assume the argument has a single concrete type. We would like the
+  corresponding non-local variable to resolve to the concrete type suggested
+  by other branches of the resulting constraint.
+
+  We extend the notion of disjunction elimination: substitution <math|U> and
+  solved form <math|\<exists\><wide|\<alpha\>|\<bar\>>.A> is an answer to
+  <em|abductive disjunction elimination> problem
+  <math|<wide|D<rsub|i>|\<bar\>>> given a quantifier prefix <math|\<cal-Q\>>
+  when:
 
   <\enumerate>
-    <item><math|\<vDash\><around*|(|\<exists\><wide|<wide|\<beta\>|\<bar\>><rsub|i,j>|\<bar\>>.D<rsub|i>\<wedge\><rsub|j>B<rsub|i,j>|)>\<Leftrightarrow\><around*|(|D<rsub|i>\<wedge\>U<rsub|i>|)>>;
+    <item><math|<around*|(|\<forall\>i|)>\<vDash\>U<around*|(|D<rsub|i>|)>\<wedge\>\<Rightarrow\>\<exists\><wide|\<alpha\>|\<bar\>>\\FV<around*|(|U|)>.A>;
 
-    <item><math|<around*|(|\<forall\>i|)>\<vDash\>D<rsub|i>\<wedge\>U<rsub|i>\<Rightarrow\>\<exists\><wide|\<alpha\>|\<bar\>>\\FV<around*|(|U<rsub|i>|)>.A>;
+    <item>If <math|\<alpha\>\<in\>Dom<around*|(|U|)>>, then
+    <math|<around*|(|\<exists\>\<alpha\>|)>\<in\>\<cal-Q\>> -- variables
+    substituted by <math|U> are existentially quantified;
 
-    <item><math|<around*|(|\<forall\>i,j|)>\<vDash\>D<rsub|j>\<Rightarrow\>\<exists\><wide|\<beta\>|\<bar\>><rsub|i,j>.B<rsub|i,j>>;
-
-    <item><math|\<vDash\>\<forall\><wide|<wide|\<beta\>|\<bar\>><rsub|i,j>|\<bar\>>\<cal-Q\>.\<wedge\><rsub|i,j>B<rsub|i,j>>
-    and <math|\<vDash\>\<cal-Q\>.\<wedge\><rsub|i>U<rsub|i>>.
+    <item><math|<around*|(|\<forall\>i|)>\<vDash\>\<forall\><around*|(|Dom<around*|(|U|)>|)>\<exists\><around*|(|FV<around*|(|D<rsub|i>|)>\\Dom<around*|(|U|)>|)>.D<rsub|i>>.
   </enumerate>
 
-  We currently do not pursue a complete algorithm for abductive disjunction
-  elimination. Rather, we extend our algorithms in a natural way, that
-  satisfies the requirements of abductive disjunction elimination and
-  suffices in practice. The sort-integrating algorithm essentially does not
-  change:
+  The sort-integrating algorithm essentially does not change:
 
   <\enumerate>
     <item>Let <math|\<wedge\><rsub|s>D<rsub|i,s>\<equiv\>\<b-U\><around|(|D<rsub|i>|)>>
@@ -1015,11 +1068,10 @@
     <\enumerate>
       <item>Let <math|V=<around*|{|x<rsub|j>,<wide|t<rsub|i,j>|\<bar\>><mid|\|>\<forall\>i\<exists\>t<rsub|i,j>.x<rsub|j><wide|=|\<dot\>>t<rsub|i,j>\<in\>D<rsub|i,s<rsub|ty>>|}>>.
 
-      <item>Let <math|G=<around*|{|<wide|\<alpha\>|\<bar\>><rsub|j>,g<rsub|j>,<wide|u<rsub|i>|\<bar\>>,<wide|\<theta\><rsub|i,j>|\<bar\>><mid|\|>\<theta\><rsub|i,j>=<around*|[|<wide|\<alpha\>|\<bar\>><rsub|j>\<assign\><wide|g|\<bar\>><rsub|j><rsup|i>|]>,\<theta\><rsub|i,j><around*|(|g<rsub|j>|)>=u<rsub|i><around*|(|t<rsub|i,j>|)>|}>>
+      <item>Let <math|G=<around*|{|<wide|\<alpha\>|\<bar\>><rsub|j>,g<rsub|j>,u<rsub|j>,<wide|\<theta\><rsub|i,j>|\<bar\>><mid|\|>\<theta\><rsub|i,j>=<around*|[|<wide|\<alpha\>|\<bar\>><rsub|j>\<assign\><wide|g|\<bar\>><rsub|j><rsup|i>|]>,\<theta\><rsub|i,j><around*|(|g<rsub|j>|)>=u<rsub|j><around*|(|t<rsub|i,j>|)>|}>>
       be the most specific anti-unifiers of
-      <math|<wide|<rsub|>u<rsub|i><around*|(|t<rsub|i,j>|)>|\<bar\>>> for
-      each <math|j>, where <math|u<rsub|i>> is a part of
-      <math|U<rsub|><rsub|i>>.
+      <math|<wide|<rsub|>u<rsub|j><around*|(|t<rsub|i,j>|)>|\<bar\>>> for
+      each <math|j>, where <math|u<rsub|j>> is a part of <math|U<rsub|>>.
 
       <item>Let <math|D<rsub|i><rsup|u>=\<wedge\><rsub|j><wide|\<alpha\>|\<bar\>><rsub|j><wide|=|\<dot\>><wide|g|\<bar\>><rsub|j><rsup|i>>
       and <math|D<rsub|i><rsup|g>=D<rsub|i,s<rsub|ty>>\<wedge\>D<rsub|i><rsup|u>>.
@@ -1066,7 +1118,7 @@
   variables to the right of <math|\<beta\><rsub|j>> in the quantifier.
 
   Due to greater flexibility of the numerical domain, abductive extension of
-  numerical disjunction elimination it does not seem necessary.
+  numerical disjunction elimination does not seem necessary.
 
   \;
 
@@ -1512,27 +1564,26 @@
   <section|Generating OCaml/Haskell Source and Interface Code>
 
   We have a single basis from which to generate all generated output files:
-  <verbatim|.gadti>, <verbatim|.ml>, <verbatim|.mli>, and in the future
-  <verbatim|.hs> -- <verbatim|annot_item>. It contains a superset of
-  information in <verbatim|struct_item>: type scheme annotations on
-  introduced names, and source code annotated with type schemes at recursive
-  definition nodes. We use <verbatim|type a.> syntax instead of
-  <verbatim|'a.> syntax because the former supports inference for GADTs in
-  OCaml. A benefit of the nicer <verbatim|type a.> syntax is that nested type
-  schemes can have free variables, which will be correctly captured by the
-  outer type scheme. For completeness we sometimes need to annotate all
-  <verbatim|function> nodes with types. To avoid clutter, we start by only
-  annotating <verbatim|let rec> nodes, and in case <verbatim|ocamlc -c> fails
-  on generated code, we re-annotate by putting type schemes on <verbatim|let
-  rec> nodes and types on <verbatim|function> nodes. If need arises,
-  <verbatim|let-in> node annotations can also be introduced in this fallback
-  -- the corresponding <verbatim|Lam> constructors store the types. We
-  provide an option to annotate the definitions on <verbatim|let-in> nodes.
-  Type annotations are optional because they introduce a slight burden on the
-  solver -- the corresponding variables cannot be removed by the initial
-  simplification of the constraints, in <verbatim|Infer>. <verbatim|let-in>
-  node annotations are more burdensome than <verbatim|function> node
-  annotations.
+  <verbatim|.gadti>, <verbatim|.ml>, and in the future <verbatim|.hs> --
+  <verbatim|annot_item>. It contains a superset of information in
+  <verbatim|struct_item>: type scheme annotations on introduced names, and
+  source code annotated with type schemes at recursive definition nodes. We
+  use <verbatim|type a.> syntax instead of <verbatim|'a.> syntax because the
+  former supports inference for GADTs in OCaml. A benefit of the nicer
+  <verbatim|type a.> syntax is that nested type schemes can have free
+  variables, which will be correctly captured by the outer type scheme. For
+  completeness we sometimes need to annotate all <verbatim|function> nodes
+  with types. To avoid clutter, we start by only annotating <verbatim|let
+  rec> nodes, and in case <verbatim|ocamlc -c> fails on generated code, we
+  re-annotate by putting type schemes on <verbatim|let rec> nodes and types
+  on <verbatim|function> nodes. If need arises, <verbatim|let-in> node
+  annotations can also be introduced in this fallback -- the corresponding
+  <verbatim|Lam> constructors store the types. We provide an option to
+  annotate the definitions on <verbatim|let-in> nodes. Type annotations are
+  optional because they introduce a slight burden on the solver -- the
+  corresponding variables cannot be removed by the initial simplification of
+  the constraints, in <verbatim|Infer>. <verbatim|let-in> node annotations
+  are more burdensome than <verbatim|function> node annotations.
 
   Annotated items <verbatim|annot_item> use ``nice'' named variables instead
   of identifier-based variables. The renaming is computed by
@@ -1544,6 +1595,20 @@
   with <verbatim|CNam> as indentifiers of constructors, to get informative
   output for printing the various result files. We print constraint formulas
   and alien subterms in the original InvarGenT syntax, commented out.
+
+  The types <verbatim|Num> and <verbatim|Bool> should be considered built-in.
+  A parameter <verbatim|-num_is> decides the type alias definition added in
+  the generated code: <verbatim|-num_is bar> adds <verbatim|type num = bar>
+  in front of an <verbatim|.ml> file, by default <verbatim|int>. Numerals are
+  exported as integers passed to a <verbatim|bar_of_int> function. The
+  variant <verbatim|-num_is_mod> exports numerals by passing to a
+  <verbatim|Bar.of_int> function. Special treatment for <verbatim|Bool>
+  amounts to exporting <verbatim|True> and <verbatim|False> as
+  <verbatim|true> and <verbatim|false>, unlike other constants. In addition,
+  pattern matching <verbatim|match <math|\<ldots\>> with True -\<gtr\>
+  <math|\<ldots\>> \| False -\<gtr\> <math|\<ldots\>>>, i.e. the
+  corresponding beta-redex, is exported as <verbatim|if <math|\<ldots\>> then
+  <math|\<ldots\>> else <math|\<ldots\>>>.
 
   <\bibliography|bib|tm-plain|biblio.bib>
     <\bib-list|9>
@@ -1612,17 +1677,17 @@
   <\collection>
     <associate|1|<tuple|5.2|?>>
     <associate|AlienSubterms|<tuple|3.3|8>>
-    <associate|Details|<tuple|5.5|17>>
+    <associate|Details|<tuple|5.5|18>>
     <associate|ImplSubst|<tuple|4|2>>
     <associate|Main Algo|<tuple|5.3|?>>
-    <associate|MainAlgo|<tuple|5|12>>
+    <associate|MainAlgo|<tuple|5|13>>
     <associate|MainAlgoBody|<tuple|5.3|15>>
     <associate|NumConv|<tuple|4.2|11>>
-    <associate|Rg|<tuple|5|15>>
+    <associate|Rg|<tuple|5|16>>
     <associate|SCAlinear|<tuple|3.4|8>>
     <associate|SepProp|<tuple|5|3>>
     <associate|SepProp2|<tuple|6|?>>
-    <associate|Skp|<tuple|1|15>>
+    <associate|Skp|<tuple|1|16>>
     <associate|Skp1|<tuple|10|16>>
     <associate|SolSimpl|<tuple|9|12>>
     <associate|SolvedForm|<tuple|4|?>>
@@ -1631,41 +1696,41 @@
     <associate|auto-10|<tuple|3.3|8>>
     <associate|auto-11|<tuple|3.4|8>>
     <associate|auto-12|<tuple|4|10>>
-    <associate|auto-13|<tuple|4.1|10>>
+    <associate|auto-13|<tuple|4.1|11>>
     <associate|auto-14|<tuple|4.2|11>>
     <associate|auto-15|<tuple|4.3|11>>
-    <associate|auto-16|<tuple|5|12>>
-    <associate|auto-17|<tuple|5.1|12>>
+    <associate|auto-16|<tuple|5|13>>
+    <associate|auto-17|<tuple|5.1|13>>
     <associate|auto-18|<tuple|5.2|13>>
     <associate|auto-19|<tuple|5.3|15>>
-    <associate|auto-2|<tuple|2|2>>
+    <associate|auto-2|<tuple|2|3>>
     <associate|auto-20|<tuple|5.4|17>>
-    <associate|auto-21|<tuple|5.5|17>>
+    <associate|auto-21|<tuple|5.5|18>>
     <associate|auto-22|<tuple|6|18>>
-    <associate|auto-23|<tuple|6|18>>
+    <associate|auto-23|<tuple|6|19>>
     <associate|auto-24|<tuple|5.5|17>>
     <associate|auto-3|<tuple|2.1|4>>
     <associate|auto-4|<tuple|2.1.1|4>>
-    <associate|auto-5|<tuple|2.2|4>>
+    <associate|auto-5|<tuple|2.2|5>>
     <associate|auto-6|<tuple|3|5>>
     <associate|auto-7|<tuple|3.1|5>>
     <associate|auto-8|<tuple|3.1.1|7>>
     <associate|auto-9|<tuple|3.2|7>>
-    <associate|bib-AbductionSolvMaher|<tuple|3|18>>
-    <associate|bib-AntiUnifAlg|<tuple|9|18>>
+    <associate|bib-AbductionSolvMaher|<tuple|3|19>>
+    <associate|bib-AntiUnifAlg|<tuple|9|19>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
-    <associate|bib-ArithQuantElim|<tuple|1|18>>
-    <associate|bib-ConvexHull|<tuple|2|18>>
+    <associate|bib-ArithQuantElim|<tuple|1|19>>
+    <associate|bib-ConvexHull|<tuple|2|19>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
-    <associate|bib-ESOP2014|<tuple|8|18>>
+    <associate|bib-ESOP2014|<tuple|8|19>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
-    <associate|bib-disjelimTechRep|<tuple|5|18>>
-    <associate|bib-invariantsTechRep2|<tuple|6|18>>
+    <associate|bib-disjelimTechRep|<tuple|5|19>>
+    <associate|bib-invariantsTechRep2|<tuple|6|19>>
     <associate|bib-jcaqpTechRep|<tuple|8|4>>
-    <associate|bib-jcaqpTechRep2|<tuple|7|18>>
-    <associate|bib-jcaqpUNIF|<tuple|4|18>>
+    <associate|bib-jcaqpTechRep2|<tuple|7|19>>
+    <associate|bib-jcaqpUNIF|<tuple|4|19>>
     <associate|bib-simonet-pottier-hmg-toplas|<tuple|6|4>>
     <associate|bib-systemTechRep|<tuple|5|18>>
   </collection>
@@ -1762,7 +1827,7 @@
       <no-break><pageref|auto-14>>
 
       <with|par-left|<quote|1tab>|4.3<space|2spc>Abductive disjunction
-      elimination under quantifier prefix
+      elimination given quantifier prefix
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-15>>
 

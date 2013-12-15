@@ -15,16 +15,17 @@ sudo cp ./invargent /usr/local/bin/invargent # optionally, install executable
 
 Milestones: [x] - completed, [#] - finishing (75%-95%), [+] - in the middle (25%-75%), [-] - just started (5%-25%), [_] - not started.
 
-Version 2.0 goals:
-- [_] Export to OCaml using built-in or pervasives OCaml types, in particular `bool` instead of `boolean`.
-- [_] Ability to parse and import, i.e. "open", `.gadti` and `.mli` files. (v1.1)
-- [_] Export Haskell code. (v1.1)
-- [_] Factorize to make extending and adding sorts easier -- ideally, plug-in architecture for sorts. (v1.2)
-- [_] Add (relational forms of) `min` and `max` to the numerical sort -- sorely needed for datastructure invariants. (v1.2)
-- [_] Improve error reporting (likely culprit). (v1.3)
-- [_] Optimize. (v1.3)
-- [_] Support OCaml-style records, with some desambiguation roughly as in OCaml. (v1.3)
-- [_] Support source code comments preserved in the AST. (v1.3)
+Version 2.0 goals -- version targets may be reassigned:
+- [+] Export to OCaml using built-in or pervasives OCaml types, in particular `bool` instead of `boolean`. (v1.1)
+- [_] Support source code comments preserved in the AST. (v1.2)
+- [_] Ability to parse `.gadti` and `.mli` files, and use them with the module access `open M`, `let open M in ...`, `M.(...)` and `M.x` syntaxes. (v1.2)
+- [_] Export Haskell code. (v1.2)
+- [_] Factorize to make extending and adding sorts easier -- ideally, plug-in architecture for sorts. (v1.3)
+- [_] Add (relational forms of) `min` and `max` to the numerical sort -- sorely needed for datastructure invariants. (v1.3)
+- [_] Improve error reporting (likely culprit). (v1.4)
+- [_] 'Update' and 'verify' modes of inference: use an existing `.gadti` file to provide a type annotation on the toplevel `.gadt` expressions. (v1.4)
+- [_] Optimize, paying attention to the speed of the update mode. (v1.4)
+- [_] Support OCaml-style records, with some desambiguation roughly as in OCaml. (v1.4)
 - [_] Syntax for numeric multiplication. (v2.0)
 - [_] Add a new "promising" sort. Candidates: integer numbers, partial orders, ring of polynomials... (v2.0)
 
