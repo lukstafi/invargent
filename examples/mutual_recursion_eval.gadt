@@ -1,20 +1,19 @@
 newtype Term : type
 newtype Calc
-newtype Boolean
 
 external plus : ∀i,j. Num i → Num j → Num (i+j)
 external mult : ∀i,j. Num i → Num j → ∃k. Num k
-external is_zero : ∀i. Num i → Boolean
-external cond : ∀i,j. Boolean → Num i → Num j → ∃k. Num k
-external if_then : ∀a. Boolean → a → a → a
+external is_zero : ∀i. Num i → Bool
+external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k
+external if_then : ∀a. Bool → a → a → a
 
 newcons Lit : ∀k. Num k ⟶ Calc
 newcons Plus : Calc * Calc ⟶ Calc
 newcons Mult : Calc * Calc ⟶ Calc
-newcons Cond : Term Boolean * Calc * Calc ⟶ Calc
+newcons Cond : Term Bool * Calc * Calc ⟶ Calc
 
-newcons IsZero : Calc ⟶ Term Boolean
-newcons If : ∀a. Term Boolean * Term a * Term a ⟶ Term a
+newcons IsZero : Calc ⟶ Term Bool
+newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
 newcons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
 newcons Fst : ∀a, b. Term (a, b) ⟶ Term a
 newcons Snd : ∀a, b. Term (a, b) ⟶ Term b

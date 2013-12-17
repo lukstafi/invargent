@@ -67,6 +67,8 @@ let main () =
   and do_sig = ref true
   and verif_ml = ref true
   and full_annot = ref false in
+  let num_is_mod s =
+    OCaml.num_is := s; OCaml.num_is_mod := true in
   let cli = [
     "-inform", Arg.Set Infer.inform_toplevel,
     "Print type schemes of toplevel definitions as they are inferred";
@@ -76,6 +78,10 @@ let main () =
     "Do not generate the `.ml` file";
     "-no_verif", Arg.Clear verif_ml,
     "Do not call `ocamlc -c` on the generated `.ml` file";
+    "-num_is", Arg.Set_string OCaml.num_is,
+    "The exported type for which `Num` is an alias (default `int`); apply `s_of_int` to numerals.";
+    "-num_is_mod", Arg.String num_is_mod,
+    "The exported type for which `Num` is an alias (default `int`); apply `S.of_int` to numerals.";
     "-full_annot", Arg.Set full_annot,
     "Annotate the `function` and `let..in` nodes in generated OCaml code";
     "-term_abduction_timeout", Arg.Set_int Abduction.timeout_count,
@@ -109,7 +115,7 @@ let main () =
   let anon_fun f = fname := f in
   let msg = "InvarGenT version "^version^
               ". Usage: "^Sys.argv.(0)^"[OPTIONS] source.gadt" in
-  Arg.parse cli anon_fun msg;
+  Arg.parse (Arg.align cli) anon_fun msg;
   try
     ignore
       (process_file !fname ~do_sig:!do_sig ~do_ml:!do_ml

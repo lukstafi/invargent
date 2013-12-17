@@ -527,7 +527,7 @@ let constr_gen_tests gamma tests =
       (List.map
          (fun e ->
             let (cn, e), elim_ex, preserve = constr_gen_expr gamma e
-                (TCons (boolean, [])) in
+                (TCons (booltype, [])) in
             elim_cells := elim_ex :: !elim_cells;
             cn, e, preserve)
          tests) in

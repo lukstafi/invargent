@@ -6,6 +6,9 @@
     @since Mar 2013
 *)
 
+let num_is = ref "int"
+let num_is_mod = ref false
+
 open Terms
 open Format
 open Aux
@@ -164,8 +167,17 @@ let pr_annot_full lettys ppf = function
 
 
 let pr_expr funtys lettys ppf =
-  pr_expr (if funtys || lettys
-           then pr_annot_full lettys else pr_annot_rec) ppf
+  let export_if = "if", "then", "else" in
+  let export_num =
+    if !num_is = "int" then None
+    else if !num_is_mod
+    then Some (String.capitalize !num_is ^ ".of_int")
+    else Some (!num_is ^ "_of_int") in
+  let export_bool = [true, "true"; false, "false"] in
+  let pr_ann =
+    if funtys || lettys
+    then pr_annot_full lettys else pr_annot_rec in
+  pr_expr ?export_num ~export_if ~export_bool pr_ann ppf
 
 let pr_constr c_n ppf = function
   | (name, [], [], [], c_args) ->
@@ -199,7 +211,7 @@ let pr_constr c_n ppf = function
       (pr_sep_list " *" pr_ty) args pr_ty res
 
 let pr_test_line funtys lettys ppf e =
-  fprintf ppf "assert_boolean@ (%a);" (pr_expr funtys lettys) e
+  fprintf ppf "assert@ (%a);" (pr_expr funtys lettys) e
 
 let pr_ty_wildcards ppf sorts =
   match List.filter ((=) Type_sort) sorts with
@@ -208,15 +220,6 @@ let pr_ty_wildcards ppf sorts =
   | sorts ->
     fprintf ppf "(%a) "
       (pr_sep_list "," (fun ppf _ -> fprintf ppf "_")) sorts
-
-module CNames =
-    Set.Make (struct type t = cns_name let compare = Pervasives.compare end)
-let cnames_of_list l =
-  List.fold_right CNames.add l CNames.empty
-let add_cnames l vs =
-  List.fold_right CNames.add l vs
-
-let init_types = cnames_of_list [tuple; CNam "Num"]
 
 let cns_typ =
   typ_fold {(typ_make_fold CNames.union CNames.empty)
@@ -259,16 +262,19 @@ let rec pr_struct_items ~funtys ~lettys constrs ppf defined defining prog =
           | ITypConstr (c_n, _, _) when CNames.mem c_n defining -> true
           | _ -> false)
         prog in
-    (* TODO: this hack will be fixed in v1.1 when Boolean will become
-       Bool again. *)
-    if c_n = boolean && cns <> []
-    then fprintf ppf "let assert_boolean b = assert (b = True)@\n";
     altsyn := false;
     pr_struct_items ~funtys ~lettys constrs ppf (CNames.add c_n defined) defining
       (mutual @ prog)
-  | IPrimVal (name, tysch, _)::prog ->
+  | IPrimVal (name, (_,_,Fun _ as tysch), _)::prog ->
     altsyn := true;
     fprintf ppf "@[<2>external@ %s@ :@ %a = \"%s\"@]@\n"
+      name pr_typsig tysch name;
+    assert (CNames.is_empty defining);
+    altsyn := false;
+    pr_struct_items ~funtys ~lettys constrs ppf defined CNames.empty prog
+  | IPrimVal (name, tysch, _)::prog ->
+    altsyn := true;                     (* FIXME *)
+    fprintf ppf "@[<2>let@ %s@ :@ %a = %s@]@\n"
       name pr_typsig tysch name;
     assert (CNames.is_empty defining);
     altsyn := false;

@@ -11,11 +11,7 @@ type (_,
   | Here : (*∀'b.*)'b place * 'b place -> ('b, 'b) nearby
   | Transitive : (*∀'a, 'b, 'c.*)('a, 'b) nearby * ('b, 'c) nearby ->
     ('a, 'c) nearby
-type boolean =
-  | True : boolean
-  | False : boolean
-let assert_boolean b = assert (b = True)
-external is_nearby : (('a, 'b) nearby -> boolean) = "is_nearby"
+external is_nearby : (('a, 'b) nearby -> bool) = "is_nearby"
 type _ ex1 =
   | Ex1 : (*∀'a, 'b.*)('b place * ('a, 'b) nearby) -> 'a ex1
 external wander : ('a place -> 'a ex1) = "wander"
@@ -31,5 +27,5 @@ let rec walk : type a b . (a place -> b place -> (a, b) nearby) =
       | NotSame ->
           let Ex1 ((y, to_y)) = wander x in Transitive (to_y, walk y goal)) :
     (a, b) nearby))
-let () = assert_boolean (is_nearby (walk LocA LocB)); ()
+let () = assert (is_nearby (walk LocA LocB)); ()
 

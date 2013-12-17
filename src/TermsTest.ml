@@ -15,17 +15,15 @@ let tests = "Terms" >::: [
       let prog = Parser.program Lexer.token
 	(Lexing.from_string
 "newtype Term : type
-newtype Int
-newtype Boolean
 
 external plus : Int → Int → Int
-external is_zero : Int → Boolean
-external if : ∀a. Boolean → a → a → a
+external is_zero : Int → Bool
+external if : ∀a. Bool → a → a → a
 
 newcons Lit : Int ⟶ Term Int
 newcons Plus : Term Int * Term Int ⟶ Term Int
-newcons IsZero : Term Int ⟶ Term Boolean
-newcons If : ∀a. Term Boolean * Term a * Term a ⟶ Term a
+newcons IsZero : Term Int ⟶ Term Bool
+newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
 newcons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
 newcons Fst : ∀a, b. Term (a, b) ⟶ Term a
 newcons Snd : ∀a, b. Term (a, b) ⟶ Term b
@@ -44,23 +42,19 @@ let rec eval = function
       assert_equal ~printer:(fun x -> x)
 "newtype Term : type
 
-newtype Int
-
-newtype Boolean
-
 external plus : Int → Int → Int
 
-external is_zero : Int → Boolean
+external is_zero : Int → Bool
 
-external if : ∀a. Boolean → a → a → a
+external if : ∀a. Bool → a → a → a
 
 newcons Lit : ∀a[Int = a].Int ⟶ Term a
 
 newcons Plus : ∀a[Int = a].Term Int * Term Int ⟶ Term a
 
-newcons IsZero : ∀a[Boolean = a].Term Int ⟶ Term a
+newcons IsZero : ∀a[Bool = a].Term Int ⟶ Term a
 
-newcons If : ∀a.Term Boolean * Term a * Term a ⟶ Term a
+newcons If : ∀a.Term Bool * Term a * Term a ⟶ Term a
 
 newcons Pair : ∀a, b, c[((a, b)) = c].Term a * Term b ⟶ Term c
 

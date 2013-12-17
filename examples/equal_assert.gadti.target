@@ -1,32 +1,24 @@
 newtype Ty : type
 
-newtype Integer
-
 newtype List : type
 
-newcons Zero : Integer
+newcons Zero : Int
 
 newcons Nil : ∀a. List a
 
-newcons TInt : Ty Integer
+newcons TInt : Ty Int
 
 newcons TPair : ∀a, b.Ty a * Ty b ⟶ Ty ((a, b))
 
 newcons TList : ∀a.Ty a ⟶ Ty (List a)
 
-newtype Boolean
+external eq_int : Int → Int → Bool
 
-newcons True : Boolean
+external b_and : Bool → Bool → Bool
 
-newcons False : Boolean
-
-external eq_int : Integer → Integer → Boolean
-
-external b_and : Boolean → Boolean → Boolean
-
-external b_not : Boolean → Boolean
+external b_not : Bool → Bool
 
 external forall2 :
-   ∀a, b. (a → b → Boolean) → List a → List b → Boolean
+   ∀a, b. (a → b → Bool) → List a → List b → Bool
 
-val equal : ∀a, b. (Ty a, Ty b) → a → b → Boolean
+val equal : ∀a, b. (Ty a, Ty b) → a → b → Bool

@@ -6,17 +6,11 @@ newtype Heap : type * num * num
 
 newtype Order : num * num
 
-newtype Boolean
-
 newcons Le : ∀i, j[i ≤ (j + 1)]. Order (i, j)
 
 newcons Gt : ∀i, j[j ≤ (i + 1)]. Order (i, j)
 
 newcons Eq : ∀n. Order (n, n)
-
-newcons True : Boolean
-
-newcons False : Boolean
 
 newcons Node : ∀k, a[0 ≤ k].Num k * a * Forest (a, k) ⟶ Tree (a, k)
 
@@ -32,7 +26,7 @@ newcons HNil : ∀k, a. Heap (a, k, k)
 
 external compare : ∀i, j. Num i → Num j → Order (i, j)
 
-external leq : ∀a. a → a → Boolean
+external leq : ∀a. a → a → Bool
 
 external incr : ∀i. Num i → Num (i + 1)
 

@@ -91,9 +91,9 @@ tb = (G A)";
       Infer.reset_state ();
       try
         let lhs0, rhs0 =
-          [], p_formula "tA = ((Ty tB, Ty tC) → Boolean)" in
+          [], p_formula "tA = ((Ty tB, Ty tC) → Bool)" in
         let lhs1 = [] and rhs1 =
-          p_formula "tD = ((Ty Int, Ty Int) → Boolean)" in
+          p_formula "tD = ((Ty Int, Ty Int) → Bool)" in
         let lhs0, rhs0 = br_simple lhs0 rhs0 in
         let lhs1, rhs1 = br_simple lhs1 rhs1 in
         let vA = VNam (Type_sort, "tA") in
@@ -106,8 +106,8 @@ tb = (G A)";
               pr_to_str pr_formula (to_formula ans_typ)
           with Suspect _ -> "none" in
         assert_equal ~printer:(fun x -> x)
-          "tA = ((Ty tB, Ty tC) → Boolean) ∧
-tD = ((Ty Int, Ty Int) → Boolean)" ans
+          "tA = ((Ty tB, Ty tC) → Bool) ∧
+tD = ((Ty Int, Ty Int) → Bool)" ans
       with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
         Terms.pr_exception Format.str_formatter exn;

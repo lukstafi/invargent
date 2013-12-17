@@ -2,8 +2,6 @@ newtype Term : type
 
 newtype Calc
 
-newtype Boolean
-
 external plus : ∀i, j. Num i → Num j → Num (i + j)
 
 newtype Ex1
@@ -12,15 +10,15 @@ newcons Ex1 : ∀k.Num k ⟶ ∃1:k.Num k
 
 external mult : ∀i, j. Num i → Num j → ∃1:k.Num k
 
-external is_zero : ∀i. Num i → Boolean
+external is_zero : ∀i. Num i → Bool
 
 newtype Ex2
 
 newcons Ex2 : ∀k.Num k ⟶ ∃2:k.Num k
 
-external cond : ∀i, j. Boolean → Num i → Num j → ∃2:k.Num k
+external cond : ∀i, j. Bool → Num i → Num j → ∃2:k.Num k
 
-external if_then : ∀a. Boolean → a → a → a
+external if_then : ∀a. Bool → a → a → a
 
 newcons Lit : ∀k.Num k ⟶ Calc
 
@@ -28,11 +26,11 @@ newcons Plus : Calc * Calc ⟶ Calc
 
 newcons Mult : Calc * Calc ⟶ Calc
 
-newcons Cond : Term Boolean * Calc * Calc ⟶ Calc
+newcons Cond : Term Bool * Calc * Calc ⟶ Calc
 
-newcons IsZero : Calc ⟶ Term Boolean
+newcons IsZero : Calc ⟶ Term Bool
 
-newcons If : ∀a.Term Boolean * Term a * Term a ⟶ Term a
+newcons If : ∀a.Term Bool * Term a * Term a ⟶ Term a
 
 newcons Pair : ∀a, b.Term a * Term b ⟶ Term ((a, b))
 

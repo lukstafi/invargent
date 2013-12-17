@@ -8,9 +8,10 @@ Makefile targets and installation:
 ```
 make main   # build the executable
 make docs   # build the documentation
-make test   # build and perform the tests
-make clean  # remove the executable and intermediate files
+make test   # build and perform the tests, with stacktraces
+make testnative   # build and perform the tests, faster
 sudo cp ./invargent /usr/local/bin/invargent # optionally, install executable
+make clean  # remove the executable and intermediate files
 ```
 
 Milestones: [x] - completed, [#] - finishing (75%-95%), [+] - in the middle (25%-75%), [-] - just started (5%-25%), [_] - not started.

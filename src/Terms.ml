@@ -46,7 +46,17 @@ type cns_name =
 
 let tuple = CNam "Tuple"
 let numtype = CNam "Num"
-let boolean = CNam "Boolean"
+let booltype = CNam "Bool"
+
+module CNames =
+    Set.Make (struct type t = cns_name let compare = Pervasives.compare end)
+let cnames_of_list l =
+  List.fold_right CNames.add l CNames.empty
+let add_cnames l vs =
+  List.fold_right CNames.add l vs
+
+let init_types = cnames_of_list
+    [tuple; numtype; CNam "Int"; booltype]
 
 type pat =
 | Zero
@@ -750,78 +760,100 @@ type ('a, 'b) pr_expr_annot =
   | LetInOpen of 'b
   | LetInNode of 'b
 
-let rec pr_expr pr_ann ppf = function
-  | Var (s, _) -> fprintf ppf "%s" s
-  | Num (i, _) -> fprintf ppf "%d" i
-  | Cons (CNam "Tuple", exps, _) ->
-    fprintf ppf "@[<2>(%a)@]"
-      (pr_sep_list "," (pr_expr pr_ann)) exps
-  | Cons (x, [], _) ->
-    fprintf ppf "%s" (cns_str x)
-  | Cons (x, [exp], _) ->
-    fprintf ppf "@[<2>%s@ %a@]" (cns_str x) (pr_one_expr pr_ann) exp
-  | Cons (x, exps, _) ->
-    fprintf ppf "@[<2>%s@ (%a)@]" (cns_str x)
-      (pr_sep_list "," (pr_expr pr_ann)) exps
-  | Lam (_, [_], _) as exp ->
-    let pats, expr = collect_lambdas exp in
-    fprintf ppf "@[<2>(fun@ %a@ ->@ %a)@]"
-      (pr_sep_list "" pr_one_pat) pats
-      (pr_expr pr_ann) expr
-  | Lam (ann, cs, _) ->
-    fprintf ppf "@[<2>%a(function@ %a)%a@]"
-      pr_ann (LamOpen ann)
-      (pr_pre_sep_list "| " (pr_clause pr_ann)) cs
-      pr_ann (LamNode ann)
-  | ExLam (_, cs, _) ->
-    fprintf ppf "@[<0>(efunction@ %a)@]"
-      (pr_pre_sep_list "| " (pr_clause pr_ann)) cs
-  | App (Lam (ann, [(v,body)], _), def, _) ->
-    fprintf ppf "@[<0>let@ @[<4>%a%a%a@] =@ @[<2>%a@]@ in@ @[<0>%a@]@]"
-      pr_ann (LetInOpen ann)
-      pr_more_pat v pr_ann (LetInNode ann)
-      (pr_expr pr_ann) def
-      (pr_expr pr_ann) body
-  | App (Lam (ann, cls, _), def, _) ->
-    fprintf ppf "@[<0>%amatch@ @[<4>%a%a%a@] with@ @[<2>%a@]%a@]"
-      pr_ann (MatchResOpen ann)
-      pr_ann (MatchValOpen ann)
-      (pr_expr pr_ann) def
-      pr_ann (MatchVal ann)
-      (pr_pre_sep_list "| " (pr_clause pr_ann)) cls
-      pr_ann (MatchRes ann)
-  | App _ as exp ->
-    let fargs = collect_apps exp in
-    fprintf ppf "@[<2>%a@]"
-      (pr_sep_list "" (pr_one_expr pr_ann)) fargs
-  | Letrec (ann, x, exp, range, _) ->
-    fprintf ppf "@[<0>let rec %s@ %a=@ @[<2>%a@] in@ @[<0>%a@]@]"
-      x pr_ann (LetRecNode ann)
-      (pr_expr pr_ann) exp (pr_expr pr_ann) range
-  | Letin (pat, exp, range, _) ->
-    fprintf ppf "@[<0>let %a =@ @[<2>%a@] in@ @[<0>%a@]@]"
-      pr_pat pat (pr_expr pr_ann) exp
-      (pr_expr pr_ann) range
-  | AssertFalse _ -> fprintf ppf "assert false"
-  | AssertLeq (e1, e2, range, _) ->
-    fprintf ppf "@[<0>assert@[<2>@ %a@ ≤@ %a@];@ %a@]"
-      (pr_expr pr_ann) e1 (pr_expr pr_ann) e2
-      (pr_expr pr_ann) range
-  | AssertEqty (e1, e2, range, _) ->
-    fprintf ppf "@[<0>assert@ = type@[<2>@ %a@ %a@];@ %a@]"
-      (pr_expr pr_ann) e1 (pr_expr pr_ann) e2
-      (pr_expr pr_ann) range
+let pr_expr ?export_num ?export_if ?export_bool pr_ann ppf exp =
+  let rec aux ppf = function
+    | Var (s, _) -> fprintf ppf "%s" s
+    | Num (i, _) ->
+      (match export_num with
+       | None -> fprintf ppf "%d" i
+       | Some fname -> fprintf ppf "(%s %d)" fname i)
+    | Cons (CNam "Tuple", exps, _) ->
+      fprintf ppf "@[<2>(%a)@]"
+        (pr_sep_list "," aux) exps
+    | Cons (CNam "True", [], _) when export_bool <> None ->
+      fprintf ppf "%s" (List.assoc true (unsome export_bool))
+    | Cons (CNam "False", [], _) when export_bool <> None ->
+      fprintf ppf "%s" (List.assoc false (unsome export_bool))
+    | App (Lam (_, [PCons (CNam "True", [], _), e1;
+                    PCons (CNam "False", [], _), e2], _),
+           cond, _) when export_if <> None ->
+      let kwd_if, kwd_then, kwd_else = unsome export_if in
+      fprintf ppf "@[<0>(%s@ %a@ %s@ %a@ %s@ %a)@]" kwd_if aux cond
+        kwd_then aux e1 kwd_else aux e2
+    | App (Lam (_, [PCons (CNam "False", [], _), e1;
+                    PCons (CNam "True", [], _), e2], _),
+           cond, _) when export_if <> None ->
+      let kwd_if, kwd_then, kwd_else = unsome export_if in
+      fprintf ppf "@[<0>(%s@ %a@ %s@ %a@ %s@ %a)@]" kwd_if aux cond
+        kwd_then aux e1 kwd_else aux e2
+    | Cons (x, [], _) ->
+      fprintf ppf "%s" (cns_str x)
+    | Cons (x, [exp], _) ->
+      fprintf ppf "@[<2>%s@ %a@]" (cns_str x) (pr_one_expr pr_ann) exp
+    | Cons (x, exps, _) ->
+      fprintf ppf "@[<2>%s@ (%a)@]" (cns_str x)
+        (pr_sep_list "," aux) exps
+    | Lam (_, [_], _) as exp ->
+      let pats, expr = collect_lambdas exp in
+      fprintf ppf "@[<2>(fun@ %a@ ->@ %a)@]"
+        (pr_sep_list "" pr_one_pat) pats
+        aux expr
+    | Lam (ann, cs, _) ->
+      fprintf ppf "@[<2>%a(function@ %a)%a@]"
+        pr_ann (LamOpen ann)
+        (pr_pre_sep_list "| " (pr_clause pr_ann)) cs
+        pr_ann (LamNode ann)
+    | ExLam (_, cs, _) ->
+      fprintf ppf "@[<0>(efunction@ %a)@]"
+        (pr_pre_sep_list "| " (pr_clause pr_ann)) cs
+    | App (Lam (ann, [(v,body)], _), def, _) ->
+      fprintf ppf "@[<0>let@ @[<4>%a%a%a@] =@ @[<2>%a@]@ in@ @[<0>%a@]@]"
+        pr_ann (LetInOpen ann)
+        pr_more_pat v pr_ann (LetInNode ann)
+        aux def
+        aux body
+    | App (Lam (ann, cls, _), def, _) ->
+      fprintf ppf "@[<0>%amatch@ @[<4>%a%a%a@] with@ @[<2>%a@]%a@]"
+        pr_ann (MatchResOpen ann)
+        pr_ann (MatchValOpen ann)
+        aux def
+        pr_ann (MatchVal ann)
+        (pr_pre_sep_list "| " (pr_clause pr_ann)) cls
+        pr_ann (MatchRes ann)
+    | App _ as exp ->
+      let fargs = collect_apps exp in
+      fprintf ppf "@[<2>%a@]"
+        (pr_sep_list "" (pr_one_expr pr_ann)) fargs
+    | Letrec (ann, x, exp, range, _) ->
+      fprintf ppf "@[<0>let rec %s@ %a=@ @[<2>%a@] in@ @[<0>%a@]@]"
+        x pr_ann (LetRecNode ann)
+        aux exp aux range
+    | Letin (pat, exp, range, _) ->
+      fprintf ppf "@[<0>let %a =@ @[<2>%a@] in@ @[<0>%a@]@]"
+        pr_pat pat aux exp
+        aux range
+    | AssertFalse _ -> fprintf ppf "assert false"
+    | AssertLeq (e1, e2, range, _) ->
+      fprintf ppf "@[<0>assert@[<2>@ %a@ ≤@ %a@];@ %a@]"
+        aux e1 aux e2
+        aux range
+    | AssertEqty (e1, e2, range, _) ->
+      fprintf ppf "@[<0>assert@ = type@[<2>@ %a@ %a@];@ %a@]"
+        aux e1 aux e2
+        aux range
 
-and pr_clause pr_ann ppf (pat, exp) =
-  fprintf ppf "@[<2>%a@ ->@ %a@]"
-    pr_pat pat (pr_expr pr_ann) exp
+  and pr_clause pr_ann ppf (pat, exp) =
+    fprintf ppf "@[<2>%a@ ->@ %a@]"
+      pr_pat pat aux exp
 
-and pr_one_expr pr_ann ppf exp = match exp with
-  | Var _
-  | Num _
-  | Cons (_, [], _) -> pr_expr pr_ann ppf exp
-  | _ ->
-    fprintf ppf "(%a)" (pr_expr pr_ann) exp
+  and pr_one_expr pr_ann ppf exp = match exp with
+    | Var _
+    | Num _
+    | Cons (_, [], _) -> aux ppf exp
+    | _ ->
+      fprintf ppf "(%a)" aux exp in
+
+  aux ppf exp
 
 let pr_uexpr ppf = pr_expr (fun ppf _ -> fprintf ppf "") ppf
 let pr_iexpr ppf = pr_expr (fun ppf _ -> fprintf ppf "") ppf
@@ -1387,10 +1419,18 @@ let () = pr_exty :=
 (** {2 Globals} *)
 
 let parser_more_items = ref []
-let parser_unary_typs = Hashtbl.create 15
+let parser_unary_typs =
+  let t = Hashtbl.create 15 in Hashtbl.add t "Num" (); t
 let parser_unary_vals = Hashtbl.create 31
 let parser_last_typ = ref 0
 let parser_last_num = ref 0
+
+let setup_builtins () =
+  Hashtbl.add parser_unary_typs "Num" ();
+  Hashtbl.add sigma (CNam "True") ([], [], [], booltype, []);
+  Hashtbl.add sigma (CNam "False") ([], [], [], booltype, [])
+
+let () = setup_builtins ()
 
 let reset_state () =
   extype_id := 0; all_ex_types := [];
@@ -1400,4 +1440,5 @@ let reset_state () =
   Hashtbl.clear parser_unary_vals;
   Hashtbl.clear registered_notex_vars;
   parser_last_typ := 0;
-  parser_last_num := 0
+  parser_last_num := 0;
+  setup_builtins ()

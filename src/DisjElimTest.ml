@@ -60,7 +60,7 @@ let tests = "DisjElim" >::: [
   "simplified eval" >::
     (fun () ->
       test_case "eval" " (Term tf) = tc ∧ Int = tf ⟹ td = Int ∧ ta = (Term te → td) ∧ tc = (Term te)
-| (Term tg) = tc ∧ Boolean = tg ⟹ td = Boolean ∧
+| (Term tg) = tc ∧ Boolean = tg ⟹ td = Bool ∧
     ta1 = (Term Int → Int) ∧ ta = (Term te → td) ∧ tc = (Term te)
 | (Term ta3) = tc ∧ Int = ta3 ⟹ td = Int ∧
     ta9 = (Term Int → Int) ∧ ta6 = (Term Int → Int) ∧ ta = (Term te → td) ∧ tc = (Term te)

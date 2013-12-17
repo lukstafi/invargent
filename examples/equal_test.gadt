@@ -1,18 +1,14 @@
 newtype Ty : type
-newtype Integer
 newtype List : type
-newcons Zero : Integer
 newcons Nil : ∀a. List a
-newcons TInt : Ty Integer
+newcons TInt : Ty Int
 newcons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
 newcons TList : ∀a. Ty a ⟶ Ty (List a)
-newtype Boolean
-newcons True : Boolean
-newcons False : Boolean
-external eq_int : Integer → Integer → Boolean
-external b_and : Boolean → Boolean → Boolean
-external b_not : Boolean → Boolean
-external forall2 : ∀a, b. (a → b → Boolean) → List a → List b → Boolean
+external zero : Int
+external eq_int : Int → Int → Bool
+external b_and : Bool → Bool → Bool
+external b_not : Bool → Bool
+external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool
 
 let rec equal = function
   | TInt, TInt -> fun x y -> eq_int x y
@@ -22,4 +18,4 @@ let rec equal = function
               (equal (t2, u2) x2 y2))
   | TList t, TList u -> forall2 (equal (t, u))
   | _ -> fun _ _ -> False
-test b_not (equal (TInt, TList TInt) Zero Nil)
+test b_not (equal (TInt, TList TInt) zero Nil)

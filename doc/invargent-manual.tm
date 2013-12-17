@@ -77,26 +77,26 @@
 
   We start simple, with a function that can compute a value from a
   representation of an expression -- a ready to use value whether it be
-  <verbatim|Integer> or <verbatim|Boolean>. Prior to the introduction of GADT
-  types, we could only implement a function <verbatim|eval :
-  <math|\<forall\>>a. Term a <math|\<rightarrow\>> Value> where, using OCaml
-  syntax, <verbatim|type value = Integer of int \| Boolean of bool>.
+  <verbatim|Int> or <verbatim|Bool>. Prior to the introduction of GADT types,
+  we could only implement a function <verbatim|eval : <math|\<forall\>>a.
+  Term a <math|\<rightarrow\>> Value> where, using OCaml syntax,
+  <verbatim|type value = Int of int \| Bool of bool>.
 
   <\code>
     newtype Term : type
 
-    external plus : Num <math|\<rightarrow\>> Num <math|\<rightarrow\>> Num
+    external plus : Int <math|\<rightarrow\>> Int <math|\<rightarrow\>> Int
 
-    external is_zero : Integer <math|\<rightarrow\>> Boolean
+    external is_zero : Int <math|\<rightarrow\>> Bool
 
     external if_then : <math|\<forall\>>a. Bool <math|\<rightarrow\>> a
     <math|\<rightarrow\>> a <math|\<rightarrow\>> a
 
-    newcons Lit : Num <math|\<longrightarrow\>> Term Num
+    newcons Lit : Int <math|\<longrightarrow\>> Term Int
 
-    newcons Plus : Term Num * Term Num <math|\<longrightarrow\>> Term Num
+    newcons Plus : Term Int * Term Int <math|\<longrightarrow\>> Term Int
 
-    newcons IsZero : Term Num <math|\<longrightarrow\>> Term Bool
+    newcons IsZero : Term Int <math|\<longrightarrow\>> Term Bool
 
     newcons If : <math|\<forall\>>a. Term Bool * Term a * Term a
     <math|\<longrightarrow\>> Term a
@@ -118,24 +118,22 @@
   OCaml source code:
 
   <\code>
-    type num = int
-
     type _ term =
 
-    \ \ \| Lit : num -\> num term
+    \ \ \| Lit : int -\> int term
 
-    \ \ \| Plus : num term * num term -\> num term
+    \ \ \| Plus : int term * int term -\> int term
 
-    \ \ \| IsZero : num term -\> bool term
+    \ \ \| IsZero : int term -\> bool term
 
     \ \ \| If : (*<math|\<forall\>>'a.*)bool term * 'a term * 'a term
     -\<gtr\> 'a term
 
     \ \ 
 
-    external plus : (num -\> num -\> num) = "plus"
+    external plus : (int -\> int -\> int) = "plus"
 
-    external is_zero : (num -\> bool) = "is_zero"
+    external is_zero : (int -\> bool) = "is_zero"
 
     external if_then : (bool -\> 'a -\> 'a -\> 'a) = "if_then"
 
@@ -148,14 +146,20 @@
     \ \ \ \ \| If (b, t, e) -\> if_then (eval b) (eval t) (eval e))
   </code>
 
-  The <verbatim|Num> and <verbatim|Bool> types are built-in. <verbatim|Num>
-  can also be exported as a type other than <verbatim|int>. The type inferred
-  is <verbatim|eval : <math|\<forall\>>a. Term a<math|\<rightarrow\>>a>.
-  GADTs make it possible to reveal that <verbatim|IsZero x> is a
-  <verbatim|Term Bool> and therefore the result of <verbatim|eval> should in
-  its case be <verbatim|Bool>, <verbatim|Plus (x, y)> is a <verbatim|Term
-  Num> and the result of <verbatim|eval> should in its case be
-  <verbatim|Num>, etc. InvarGenT does not provide an
+  The <verbatim|Int>, <verbatim|Num> and <verbatim|Bool> types are built-in.
+  <verbatim|Int> and <verbatim|Bool> follow the general scheme of exporting a
+  datatype constructor with the same name, only lower-case. However, numerals
+  <verbatim|0>, <verbatim|1>, ... are always type-checked as <verbatim|Num
+  0>, <verbatim|Num 1>... <verbatim|Num> can also be exported as a type other
+  than <verbatim|int>, and then numerals are exported via an injection
+  function (ending with) <verbatim|of_int>.
+
+  The type inferred is <verbatim|eval : <math|\<forall\>>a. Term
+  a<math|\<rightarrow\>>a>. GADTs make it possible to reveal that
+  <verbatim|IsZero x> is a <verbatim|Term Bool> and therefore the result of
+  <verbatim|eval> should in its case be <verbatim|Bool>, <verbatim|Plus (x,
+  y)> is a <verbatim|Term Num> and the result of <verbatim|eval> should in
+  its case be <verbatim|Num>, etc. InvarGenT does not provide an
   <verbatim|if<math|\<ldots\>>then<math|\<ldots\>>else<math|\<ldots\>>>
   syntax to stress that the branching is relevant to generating
   postconditions, but it does export <verbatim|match<math|/>ematch

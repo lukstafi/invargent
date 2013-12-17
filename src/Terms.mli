@@ -32,7 +32,13 @@ type cns_name =
 | Extype of int
 val tuple : cns_name
 val numtype : cns_name
-val boolean : cns_name
+val booltype : cns_name
+
+module CNames : (Set.S with type elt = cns_name)
+val cnames_of_list : cns_name list -> CNames.t
+val add_cnames : cns_name list -> CNames.t -> CNames.t
+
+val init_types : CNames.t
 
 type pat =
     Zero
@@ -349,13 +355,12 @@ type ('a, 'b) pr_expr_annot =
   | LetInNode of 'b
 
 val pr_expr :
+  ?export_num:string -> ?export_if:(string*string*string)
+  -> ?export_bool:((bool * string) list) ->
   (Format.formatter -> ('a, 'b) pr_expr_annot -> unit) ->
   Format.formatter -> ('a, 'b) expr -> unit
 val pr_uexpr : Format.formatter -> uexpr -> unit
 val pr_iexpr : Format.formatter -> iexpr -> unit
-val pr_clause :
-  (Format.formatter -> ('a, 'b) pr_expr_annot -> unit) ->
-  Format.formatter -> ('a, 'b) clause -> unit
 val pr_atom : Format.formatter -> atom -> unit
 val pr_formula : Format.formatter -> formula -> unit
 val pr_ty : Format.formatter -> typ -> unit

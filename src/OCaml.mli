@@ -6,6 +6,11 @@
     @since Mar 2013
 *)
 
+(** See the [-num_is] option. *)
+val num_is : string ref
+(** See the [-num_is_mod] option. *)
+val num_is_mod : bool ref
+
 val pr_ml :
   funtys:bool -> lettys:bool ->
   Format.formatter -> Terms.annot_item list -> unit

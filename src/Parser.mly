@@ -197,9 +197,9 @@ expr:
 	  | [] | [_] -> assert false
 	  | [f; a] ->
 	      (match f, a with
-		| Cons (x, [], _), Cons (tuple, args, _)
+		| Cons (x, [], _), Cons (n, args, _)
 		    (* syntax... *)
-		    when not (Hashtbl.mem unary_vals x) ->
+		    when n = tuple && not (Hashtbl.mem unary_vals x) ->
 		    Cons (x, args, loc)
 		| Cons (x, [], _), _ -> Cons (x, [ a ], loc)
 		| _ -> App(f, a, loc))

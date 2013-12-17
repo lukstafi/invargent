@@ -1596,12 +1596,16 @@
   output for printing the various result files. We print constraint formulas
   and alien subterms in the original InvarGenT syntax, commented out.
 
-  The types <verbatim|Num> and <verbatim|Bool> should be considered built-in.
-  A parameter <verbatim|-num_is> decides the type alias definition added in
-  the generated code: <verbatim|-num_is bar> adds <verbatim|type num = bar>
-  in front of an <verbatim|.ml> file, by default <verbatim|int>. Numerals are
-  exported as integers passed to a <verbatim|bar_of_int> function. The
-  variant <verbatim|-num_is_mod> exports numerals by passing to a
+  The types <verbatim|Int>, <verbatim|Num> and <verbatim|Bool> should be
+  considered built-in. <verbatim|Int> and <verbatim|Bool> follow the general
+  scheme of exporting a datatype constructor with the same name, only
+  lower-case. However, numerals <verbatim|0>, <verbatim|1>, ... are always
+  type-checked as <verbatim|Num 0>, <verbatim|Num 1>... A parameter
+  <verbatim|-num_is> decides the type alias definition added in the generated
+  code: <verbatim|-num_is bar> adds <verbatim|type num = bar> in front of an
+  <verbatim|.ml> file, by default <verbatim|int>. Numerals are exported as
+  integers passed to a <verbatim|bar_of_int> function. The variant
+  <verbatim|-num_is_mod> exports numerals by passing to a
   <verbatim|Bar.of_int> function. Special treatment for <verbatim|Bool>
   amounts to exporting <verbatim|True> and <verbatim|False> as
   <verbatim|true> and <verbatim|false>, unlike other constants. In addition,
