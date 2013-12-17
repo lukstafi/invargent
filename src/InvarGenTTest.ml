@@ -130,6 +130,10 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case ~test_annot:true "mutual_recursion_eval" ());
+      "concat_strings-export" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case ~test_annot:true "concat_strings" ());
     ]
 
 

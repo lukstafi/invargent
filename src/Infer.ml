@@ -102,7 +102,7 @@ let separate_subst ?(avoid=VarSet.empty) ?(keep_uni=false) q phi =
 
 let ex_intro_elim e =
   let rec aux = function
-    | Var _ | Num _
+    | Var _ | Num _ | String _
     | Cons _ -> false
     | App (e1, _, _) -> aux e1
     | Lam _ -> false
@@ -128,7 +128,7 @@ let normalize_expr e =
       let lc = expr_loc e in
       Letin (PVar ("xcase", lc), aux None e,
              Cons (Extype k, [Var ("xcase", lc)], lc), lc)
-    | _, ((Var _ | Num _) as x) -> x
+    | _, ((Var _ | Num _ | String _) as x) -> x
     | _, Cons (k, es, lc) -> Cons (k, List.map (aux None) es, lc)
     | _, App (e1, e2, lc) -> App (aux k' e1, aux None e2, lc)
     | _, Lam ((), cls, lc) -> Lam ((), List.map (aux_cl k') cls, lc)
@@ -345,6 +345,9 @@ let constr_gen_expr gamma e t =
       e
     | Num (i, loc) as e ->
       A [Eqty (TCons (numtype, [NCst i]), t, loc)],
+      e
+    | String (_, loc) as e ->
+      A [Eqty (TCons (stringtype, []), t, loc)],
       e
     | Cons (CNam "Tuple", args, loc) ->
       let argvs =
@@ -649,8 +652,7 @@ let annotate_expr q res_sb chi_sb nice_sb e : texpr =
         (vars_of_list vs) in
     vs, nice_sb, (VarSet.elements vs, phi, res) in
   let rec aux nice_sb : iexpr -> (VarSet.t * texpr) = function
-    | Var (v, lc) -> VarSet.empty, Var (v, lc)
-    | Num (n, lc) -> VarSet.empty, Num (n, lc)
+    | (Var _ | Num _ | String _) as e -> VarSet.empty, e
     | Cons (n, args, lc) ->
       let evs, args = List.split (List.map (aux nice_sb) args) in
       List.fold_left VarSet.union VarSet.empty evs,

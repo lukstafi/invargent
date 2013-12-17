@@ -17,8 +17,8 @@ make clean  # remove the executable and intermediate files
 Milestones: [x] - completed, [#] - finishing (75%-95%), [+] - in the middle (25%-75%), [-] - just started (5%-25%), [_] - not started.
 
 Version 2.0 goals -- version targets may be reassigned:
-- [+] Export to OCaml using built-in or pervasives OCaml types, in particular `bool` instead of `boolean`. (v1.1)
-- [_] Support source code comments preserved in the AST. (v1.2)
+- [x] Export to OCaml using built-in or pervasives OCaml types, in particular `bool` instead of `boolean`. (v1.1)
+- [+] Support source code comments preserved in the AST. (v1.1)
 - [_] Ability to parse `.gadti` and `.mli` files, and use them with the module access `open M`, `let open M in ...`, `M.(...)` and `M.x` syntaxes. (v1.2)
 - [_] Export Haskell code. (v1.2)
 - [_] Factorize to make extending and adding sorts easier -- ideally, plug-in architecture for sorts. (v1.3)

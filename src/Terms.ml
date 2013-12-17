@@ -47,6 +47,7 @@ type cns_name =
 let tuple = CNam "Tuple"
 let numtype = CNam "Num"
 let booltype = CNam "Bool"
+let stringtype = CNam "String"
 
 module CNames =
     Set.Make (struct type t = cns_name let compare = Pervasives.compare end)
@@ -56,7 +57,7 @@ let add_cnames l vs =
   List.fold_right CNames.add l vs
 
 let init_types = cnames_of_list
-    [tuple; numtype; CNam "Int"; booltype]
+    [tuple; numtype; CNam "Int"; booltype; stringtype]
 
 type pat =
 | Zero
@@ -75,6 +76,7 @@ let pat_loc = function
 type ('a, 'b) expr =
 | Var of string * loc
 | Num of int * loc
+| String of string * loc
 | Cons of cns_name * ('a, 'b) expr list * loc
 | App of ('a, 'b) expr * ('a, 'b) expr * loc
 | Lam of 'b * ('a, 'b) clause list * loc
@@ -90,6 +92,7 @@ and ('a, 'b) clause = pat * ('a, 'b) expr
 let expr_loc = function
   | Var (_, loc)
   | Num (_, loc)
+  | String (_, loc)
   | Cons (_, _, loc)
   | App (_, _, loc)
   | Lam (_, _, loc)
@@ -763,6 +766,7 @@ type ('a, 'b) pr_expr_annot =
 let pr_expr ?export_num ?export_if ?export_bool pr_ann ppf exp =
   let rec aux ppf = function
     | Var (s, _) -> fprintf ppf "%s" s
+    | String (s, _) -> fprintf ppf "\"%s\"" s
     | Num (i, _) ->
       (match export_num with
        | None -> fprintf ppf "%d" i

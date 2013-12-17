@@ -1,0 +1,11 @@
+type num = int
+type _ list =
+  | LNil : (*∀'a.*) ('a (* 0 *)) list
+  | LCons : (*∀'n, 'a[0 ≤ n].*)'a * ('a (* n *)) list ->
+    ('a (* n + 1 *)) list
+external append : (string -> string -> string) = "append"
+let rec concat : (*type n .*) ((string (* n *)) list -> string) =
+  ((function LNil -> "" | LCons (x, LNil) -> x
+    | LCons (x, xs) -> append x (append (", ") (concat xs))):
+    (string (* n *)) list -> string)
+

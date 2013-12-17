@@ -114,7 +114,7 @@ let rec single_assert_false (_, e) =
 
 let postprocess elim_extypes e =
   let rec aux = function
-    | (Var _ | Num _) as e -> e
+    | (Var _ | Num _ | String _) as e -> e
     | Cons (k, args, loc) ->
       Cons (k, List.map aux args, loc)
     | App (e1, e2, loc) ->

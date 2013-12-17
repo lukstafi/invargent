@@ -33,6 +33,7 @@ type cns_name =
 val tuple : cns_name
 val numtype : cns_name
 val booltype : cns_name
+val stringtype : cns_name
 
 module CNames : (Set.S with type elt = cns_name)
 val cnames_of_list : cns_name list -> CNames.t
@@ -52,6 +53,7 @@ val pat_loc : pat -> loc
 type ('a, 'b) expr =
 | Var of string * loc
 | Num of int * loc
+| String of string * loc
 | Cons of cns_name * ('a, 'b) expr list * loc
 | App of ('a, 'b) expr * ('a, 'b) expr * loc
 | Lam of 'b * ('a, 'b) clause list * loc

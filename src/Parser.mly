@@ -31,10 +31,6 @@ let syntax_error what where =
     raise (Report_toplevel ("Syntax error: "^what,
 			   Some (rhs_loc where)))
 
-let parse_error s =
-  Format.printf
-    "@[<2>%s@ %a@]@." s pr_loc (get_loc ())
-
 let name_sort loc v =
   if List.mem v.[0]
       ['a';'b';'c';'r';'s';'t']
@@ -107,6 +103,8 @@ let extract_datatyp allvs loc = function
 %token <string> UIDENT
 %token <string> LIDENT
 %token <int> INT
+%token <string> STRING
+%token <string> DOCUCOMMENT
 %token PLUS MULTIPLY ARROW BAR AS
 %token FUNCTION EFUNCTION FUN MATCH EMATCH WITH
 %token NUM TYPE
@@ -214,6 +212,8 @@ simple_expr:
       { Cons (CNam $1, [], get_loc ()) }
   | INT
       { Num ($1, get_loc ()) }
+  | STRING
+      { String ($1, get_loc ()) }
   | LPAREN expr RPAREN
       { $2 }
   | LPAREN expr error
