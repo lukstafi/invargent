@@ -16,9 +16,8 @@ let tests = "Terms" >::: [
 	(Lexing.from_string
 "newtype Term : type
 
-external plus : Int → Int → Int
-external is_zero : Int → Bool
-external if : ∀a. Bool → a → a → a
+external let plus : Int → Int → Int = \"(+)\"
+external let is_zero : Int → Bool = \"(=) 0\"
 
 newcons Lit : Int ⟶ Term Int
 newcons Plus : Term Int * Term Int ⟶ Term Int
@@ -32,7 +31,7 @@ let rec eval = function
   | Lit i -> i
   | IsZero x -> is_zero (eval x)
   | Plus (x, y) -> plus (eval x) (eval y)
-  | If (b, t, e) -> if (eval b) (eval t) (eval e)
+  | If (b, t, e) -> (match eval b with True -> eval t | False -> eval e)
   | Pair (x, y) -> eval x, eval y
   | Fst p -> (match eval p with x, y -> x)
   | Snd p -> (match eval p with x, y -> y)") in
@@ -42,11 +41,9 @@ let rec eval = function
       assert_equal ~printer:(fun x -> x)
 "newtype Term : type
 
-external plus : Int → Int → Int
+external let plus : Int → Int → Int = \"(+)\"
 
-external is_zero : Int → Bool
-
-external if : ∀a. Bool → a → a → a
+external let is_zero : Int → Bool = \"(=) 0\"
 
 newcons Lit : ∀a[Int = a].Int ⟶ Term a
 
@@ -65,7 +62,7 @@ newcons Snd : ∀a, b.Term ((a, b)) ⟶ Term b
 let rec eval =
    (function Lit i -> i | IsZero x -> is_zero (eval x)
      | Plus (x, y) -> plus (eval x) (eval y)
-     | If (b, t, e) -> if (eval b) (eval t) (eval e)
+     | If (b, t, e) -> (match eval b with True -> eval t | False -> eval e)
      | Pair (x, y) -> (eval x, eval y) | Fst p -> let (x, y) = eval p in x
      | Snd p -> let (x, y) = eval p in y)"
         (Format.flush_str_formatter ());
@@ -79,7 +76,7 @@ let rec eval =
 "newtype List : type * num
 newcons LNil : all a. List(a, 0)
 newcons LCons : ∀n, a. a * List(a, n) ⟶ List(a, n+1)
-external filter : ∀n, a. List (a, n) → ∃k [k≤n]. List (a, k)") in
+external filter : ∀n, a. List (a, n) → ∃k [k≤n]. List (a, k) = \"filter\"") in
       ignore (Format.flush_str_formatter ());
       pr_program Format.str_formatter prog;
 
@@ -95,7 +92,8 @@ newtype Ex1 : num * type
 newcons Ex1 : ∀k, n, a[k ≤ n].List (a, k) ⟶
    ∃1:k[k ≤ n].List (a, k)
 
-external filter : ∀n, a. List (a, n) → ∃1:k[k ≤ n].List (a, k)"
+external filter : ∀n, a. List (a, n) → ∃1:k[k ≤ n].List (a, k) =
+   \"filter\""
         (Format.flush_str_formatter ());
     );
 

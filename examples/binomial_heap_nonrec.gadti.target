@@ -26,9 +26,9 @@ newcons HNil : ∀k, a. Heap (a, k, k)
 
 external compare : ∀i, j. Num i → Num j → Order (i, j)
 
-external leq : ∀a. a → a → Bool
+external val leq : ∀a. a → a → Bool
 
-external incr : ∀i. Num i → Num (i + 1)
+external val incr : ∀i. Num i → Num (i + 1)
 
 val rank : ∀n, a. Tree (a, n) → Num n
 

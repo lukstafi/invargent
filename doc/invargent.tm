@@ -1614,6 +1614,17 @@
   corresponding beta-redex, is exported as <verbatim|if <math|\<ldots\>> then
   <math|\<ldots\>> else <math|\<ldots\>>>.
 
+  In declarations <verbatim|PrimVal>, which have concrete syntax starting
+  with the word <verbatim|external>, we provide names assumed to have given
+  type scheme. The syntax has two variants, differing in the way the
+  declaration is exported. It can be either an <verbatim|external>
+  declaration in OCaml, which is the binding mechanism of the <em|foreign
+  function interface>. But in the InvarGenT form <verbatim|external let>, the
+  declaration provides an OCaml definition, which is exported as the toplevel
+  <verbatim|let> definition of OCaml. It has the benefit that the OCaml
+  compiler will verify this definition, since InvarGenT calls
+  <verbatim|ocamlc -c> to verify the exported code.
+
   <\bibliography|bib|tm-plain|biblio.bib>
     <\bib-list|9>
       <bibitem*|1><label|bib-ArithQuantElim>Sergey<nbsp>Berezin,

@@ -1,10 +1,8 @@
 newtype Term : type
 
-external plus : Int → Int → Int
+external val plus : Int → Int → Int
 
-external is_zero : Int → Bool
-
-external if_then : ∀a. Bool → a → a → a
+external val is_zero : Int → Bool
 
 newcons Lit : Int ⟶ Term Int
 

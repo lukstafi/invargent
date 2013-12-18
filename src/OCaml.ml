@@ -265,17 +265,28 @@ let rec pr_struct_items ~funtys ~lettys constrs ppf defined defining prog =
     altsyn := false;
     pr_struct_items ~funtys ~lettys constrs ppf (CNames.add c_n defined) defining
       (mutual @ prog)
-  | IPrimVal (name, (_,_,Fun _ as tysch), _)::prog ->
+  | IPrimVal (name, tysch, Left ext_def, _)::prog ->
     altsyn := true;
     fprintf ppf "@[<2>external@ %s@ :@ %a = \"%s\"@]@\n"
-      name pr_typsig tysch name;
+      name pr_typsig tysch ext_def;
     assert (CNames.is_empty defining);
     altsyn := false;
     pr_struct_items ~funtys ~lettys constrs ppf defined CNames.empty prog
-  | IPrimVal (name, tysch, _)::prog ->
-    altsyn := true;                     (* FIXME *)
-    fprintf ppf "@[<2>let@ %s@ :@ %a = %s@]@\n"
-      name pr_typsig tysch name;
+  | IPrimVal (name, (_,_,ty as tysch), Right ext_def, _)::prog ->
+    altsyn := true;
+    (match return_type ty with
+     | TCons (Extype i, _) ->
+       let args =
+         String.concat " "
+           (List.mapi (fun i _ -> "a"^string_of_int i) (arg_types ty)) in
+       fprintf ppf "@[<2>let@ %s@ :@ %a =@ %sEx%d (%s%s%s)@]@\n"
+         name pr_typsig tysch
+         (if args="" then "" else "fun "^args^" -> ")
+         i (if args="" then "" else "(") ext_def
+         (if args="" then "" else ") "^args)
+     | _ ->
+       fprintf ppf "@[<2>let@ %s@ :@ %a =@ %s@]@\n"
+         name pr_typsig tysch ext_def);
     assert (CNames.is_empty defining);
     altsyn := false;
     pr_struct_items ~funtys ~lettys constrs ppf defined CNames.empty prog

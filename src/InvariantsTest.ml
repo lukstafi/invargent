@@ -97,9 +97,8 @@ let tests = "Invariants" >::: [
       skip_if !debug "debug";
       test_case "eval term"
 "newtype Term : type
-external plus : Int → Int → Int
-external is_zero : Int → Bool
-external if : ∀a. Bool → a → a → a
+external let plus : Int → Int → Int = \"(+)\"
+external let is_zero : Int → Bool = \"(=) 0\"
 newcons Lit : Int ⟶ Term Int
 newcons Plus : Term Int * Term Int ⟶ Term Int
 newcons IsZero : Term Int ⟶ Term Bool
@@ -109,7 +108,7 @@ let rec eval = function
   | Lit i -> i
   | IsZero x -> is_zero (eval x)
   | Plus (x, y) -> plus (eval x) (eval y)
-  | If (b, t, e) -> if (eval b) (eval t) (eval e)"
+  | If (b, t, e) -> match eval b with True -> eval t | False -> eval e"
 
         [1, "∃a. δ = (Term a → a)"]
     );
@@ -120,9 +119,8 @@ let rec eval = function
        test_case "eval term"
 "newtype Term : type
 
-external plus : Int → Int → Int
-external is_zero : Int → Bool
-external if : ∀a. Bool → a → a → a
+external let plus : Int → Int → Int = \"(+)\"
+external let is_zero : Int → Bool = \"(=) 0\"
 
 newcons Lit : Int ⟶ Term Int
 newcons Plus : Term Int * Term Int ⟶ Term Int
@@ -136,7 +134,7 @@ let rec eval = function
   | Lit i -> i
   | IsZero x -> is_zero (eval x)
   | Plus (x, y) -> plus (eval x) (eval y)
-  | If (b, t, e) -> if (eval b) (eval t) (eval e)
+  | If (b, t, e) -> (match eval b with True -> eval t | False -> eval e)
   | Pair (x, y) -> eval x, eval y
   | Fst p -> (match eval p with x, y -> x)
   | Snd p -> (match eval p with x, y -> y)"
@@ -157,10 +155,10 @@ newcons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
 newcons TList : ∀a. Ty a ⟶ Ty (List a)
 newcons True : Bool
 newcons False : Bool
-external eq_int : Int → Int → Bool
-external b_and : Bool → Bool → Bool
-external b_not : Bool → Bool
-external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool
+external let eq_int : Int → Int → Bool = \"(=)\"
+external let b_and : Bool → Bool → Bool = \"(&&)\"
+external let b_not : Bool → Bool = \"not\"
+external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool = \"forall2\"
 
 let rec equal1 = function
   | TInt, TInt -> fun x y -> eq_int x y
@@ -186,10 +184,10 @@ newcons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
 newcons TList : ∀a. Ty a ⟶ Ty (List a)
 newcons True : Bool
 newcons False : Bool
-external eq_int : Int → Int → Bool
-external b_and : Bool → Bool → Bool
-external b_not : Bool → Bool
-external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool
+external let eq_int : Int → Int → Bool = \"(=)\"
+external let b_and : Bool → Bool → Bool = \"(&&)\"
+external let b_not : Bool → Bool = \"not\"
+external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool = \"forall2\"
 
 let rec equal = function
   | TInt, TInt -> fun x y -> eq_int x y
@@ -216,10 +214,10 @@ newcons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
 newcons TList : ∀a. Ty a ⟶ Ty (List a)
 newcons True : Bool
 newcons False : Bool
-external eq_int : Int → Int → Bool
-external b_and : Bool → Bool → Bool
-external b_not : Bool → Bool
-external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool
+external let eq_int : Int → Int → Bool = \"(=)\"
+external let b_and : Bool → Bool → Bool = \"(&&)\"
+external let b_not : Bool → Bool = \"not\"
+external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool = \"forall2\"
 
 let rec equal = function
   | TInt, TInt -> fun x y -> eq_int x y
@@ -245,10 +243,10 @@ newcons Nil : ∀a. List a
 newcons TInt : Ty Int
 newcons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
 newcons TList : ∀a. Ty a ⟶ Ty (List a)
-external eq_int : Int → Int → Bool
-external b_and : Bool → Bool → Bool
-external b_not : Bool → Bool
-external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool
+external let eq_int : Int → Int → Bool = \"(=)\"
+external let b_and : Bool → Bool → Bool = \"(=)\"
+external let b_not : Bool → Bool = \"not\"
+external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool = \"forall2\"
 
 let rec equal = function
   | TInt, TInt -> fun x y -> eq_int x y
@@ -318,7 +316,7 @@ newcons POne : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n+1)
 newcons CZero : Carry 0
 newcons COne : Carry 1
 
-external eq_Binary :  ∀n [0≤n]. Binary(n) → Binary(n) → Bool
+external let eq_Binary :  ∀n [0≤n]. Binary(n) → Binary(n) → Bool = \"(=)\"
 
 let rec plus =
   function CZero ->
@@ -379,8 +377,8 @@ newcons Room : Room ⟶ Placement Room
 newcons Yard : Yard ⟶ Placement Yard
 newcons Outside : Outside ⟶ Placement Outside
 
-external leave : Room → ∃t. Placement t
-external enter : Yard → Room
+external leave : Room → ∃t. Placement t = \"leave\"
+external enter : Yard → Room = \"enter\"
 
 let rec escape = function Outside x -> x
   | Room x ->
@@ -400,11 +398,11 @@ let rec escape = function Outside x -> x
 "newtype Place : type
 newtype Nearby : type * type
 newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
-external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
+external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b)) = \"wander\"
 newtype Meet : type * type
 newcons Close : ∀a,b. Nearby (a, b) ⟶ Meet (a, b)
 newcons NotClose : ∀a, b. Meet (a, b)
-external compare : ∀a,b. Place a → Place b → Meet (a, b)
+external compare : ∀a,b. Place a → Place b → Meet (a, b) = \"compare\"
 let rec walk = fun x goal ->
   match compare x goal with
   | Close g -> g
@@ -424,14 +422,14 @@ newtype A
 newtype B
 newcons LocA : Place A
 newcons LocB : Place B
-external is_nearby : ∀a,b. Nearby (a, b) → Bool
+external is_nearby : ∀a,b. Nearby (a, b) → Bool = \"is_nearby\"
 newcons Here : ∀a. Place a * Place a ⟶ Nearby (a, a)
 newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
-external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
+external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b)) = \"wander\"
 newtype Meet : type * type
 newcons Same : ∀a,b [a=b]. Meet (a, b)
 newcons NotSame : ∀a, b. Meet (a, b)
-external compare : ∀a,b. Place a → Place b → Meet (a, b)
+external compare : ∀a,b. Place a → Place b → Meet (a, b) = \"compare\"
 let rec walk = fun x goal ->
   match compare x goal with
   | Same -> Here (x, goal)
@@ -453,13 +451,13 @@ newtype A
 newtype B
 newcons LocA : Place A
 newcons LocB : Place B
-external is_nearby : ∀a,b. Nearby (a, b) → Bool
+external is_nearby : ∀a,b. Nearby (a, b) → Bool = \"is_nearby\"
 newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
-external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
+external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b)) = \"wander\"
 newtype Meet : type * type
 newcons Close : ∀a,b. Nearby (a, b) ⟶ Meet (a, b)
 newcons NotClose : ∀a, b. Meet (a, b)
-external compare : ∀a,b. Place a → Place b → Meet (a, b)
+external compare : ∀a,b. Place a → Place b → Meet (a, b) = \"compare\"
 let rec walk = fun x goal ->
   match compare x goal with
   | Close g -> g
@@ -487,7 +485,7 @@ newcons CastleRoom : Room ⟶ Placement Room
 newcons CastleYard : Yard ⟶ Placement Yard
 newcons Village : Village ⟶ Placement Village
 
-external wander : ∀a. Placement a → ∃b. Placement b
+external wander : ∀a. Placement a → ∃b. Placement b = \"wander\"
 
 let rec find_castle = efunction
   | CastleRoom x -> Room x
@@ -516,7 +514,7 @@ newcons CastleYard : Yard ⟶ Placement Yard
 newcons Garden : Garden ⟶ Placement Garden
 newcons Village : Village ⟶ Placement Village
 
-external wander : ∀a. Placement a → ∃b. Placement b
+external wander : ∀a. Placement a → ∃b. Placement b = \"wander\"
 
 let rec find = efunction
   | CastleRoom x -> Room x
@@ -549,8 +547,8 @@ newtype Explore
 newcons Ordinary : Explore
 newcons Shortcut : Yard ⟶ Explore
 
-external wander : ∀a. Placement a → ∃b. Placement b
-external check : ∀a. Placement a → Explore
+external wander : ∀a. Placement a → ∃b. Placement b = \"wander\"
+external check : ∀a. Placement a → Explore = \"check\"
 
 let rec search = efunction
   | CastleRoom x -> Room x
@@ -578,8 +576,8 @@ newcons CastleRoom : Room ⟶ Placement Room
 newcons CastleYard : Yard ⟶ Placement Yard
 newcons Village : Village ⟶ Placement Village
 
-external wander : ∀a. Placement a → ∃b. Placement b
-external closer : ∀a. Placement a → Bool
+external wander : ∀a. Placement a → ∃b. Placement b = \"wander\"
+external closer : ∀a. Placement a → Bool = \"closer\"
 
 let rec search = efunction
   | CastleRoom x -> Room x
@@ -613,8 +611,8 @@ newcons CastleRoom : Room ⟶ Placement Room
 newcons CastleYard : Yard ⟶ Placement Yard
 newcons Village : Village ⟶ Placement Village
 
-external wander : ∀a. Placement a → ∃b. Placement b
-external closer : ∀a. Placement a → ∃b. Boolean b
+external wander : ∀a. Placement a → ∃b. Placement b = \"wander\"
+external closer : ∀a. Placement a → ∃b. Boolean b = \"closer\"
 
 let rec search = efunction
   | CastleRoom x -> Room x
@@ -641,7 +639,7 @@ newcons Yard : Yard ⟶ Castle Yard
 newcons CastleYard : Yard ⟶ Placement Yard
 newcons Village : Village ⟶ Placement Village
 
-external wander : Village → ∃b. Placement b
+external wander : Village → ∃b. Placement b = \"wander\"
 
 let rec search = efunction
   | CastleYard x -> Yard x
@@ -668,8 +666,8 @@ newcons Yard : Yard ⟶ Castle Yard
 newcons CastleYard : Yard ⟶ Placement Yard
 newcons Village : Village ⟶ Placement Village
 
-external wander : Village → ∃b. Placement b
-external entrance : Village → Answer
+external wander : Village → ∃b. Placement b = \"wander\"
+external entrance : Village → Answer = \"entrance\"
 
 let rec search = efunction
   | CastleYard x -> Yard x
@@ -699,9 +697,9 @@ newcons Yard : Yard ⟶ Castle Yard
 newcons CastleYard : Yard ⟶ Placement Yard
 newcons Village : Village ⟶ Placement Village
 
-external wander : Village → ∃b. Placement b
-external entrance : Village → Answer
-external enter : ∀a. Placement a → Castle a
+external wander : Village → ∃b. Placement b = \"wander\"
+external entrance : Village → Answer = \"entrance\"
+external enter : ∀a. Placement a → Castle a = \"enter\"
 
 let rec search = efunction
   | CastleYard x -> Yard x
@@ -731,9 +729,9 @@ newcons Yard : Yard ⟶ Castle Yard
 newcons CastleYard : Yard ⟶ Placement Yard
 newcons Village : Village ⟶ Placement Village
 
-external wander : Village → ∃b. Placement b
-external entrance : Village → Answer
-external enter : ∀a. Placement a → Castle Room
+external wander : Village → ∃b. Placement b = \"wander\"
+external entrance : Village → Answer = \"entrance\"
+external enter : ∀a. Placement a → Castle Room = \"enter\"
 
 let rec search = efunction
   | CastleYard x -> Yard x
@@ -758,8 +756,8 @@ newtype Near : type
 newcons Here : ∀a. Place a ⟶ Nearby (a, a)
 newcons Near : ∀a,b. Nearby (a, b) ⟶ Near a
 newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
-external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
-external finish : ∀a. Place a → Bool
+external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b)) = \"wander\"
+external finish : ∀a. Place a → Bool = \"finish\"
 let rec walk = fun x ->
   match finish x with
   | True -> Near (Here x)
@@ -779,8 +777,8 @@ let rec walk = fun x ->
 newtype Nearby : type * type
 newcons Here : ∀a. Place a ⟶ Nearby (a, a)
 newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
-external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
-external finish : ∀a. Place a → Bool
+external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b)) = \"wander\"
+external finish : ∀a. Place a → Bool = \"finish\"
 let rec walk = fun x ->
   ematch finish x with
   | True -> Here x
@@ -826,7 +824,7 @@ let rec one_of =
 "newtype Option : type
 newcons None : ∀a. Option a
 newcons Some : ∀a. a ⟶ Option a
-external f : ∀a. a → a → a
+external f : ∀a. a → a → a = \"f\"
 
 let rec one_of =
   efunction (Some a) -> (efunction None -> a | (Some b) -> f a b)
@@ -860,7 +858,7 @@ newcons LCons : ∀a. a * List a ⟶ List a
 newtype Foo
 newtype Bar
 
-external f : Foo → Bar
+external f : Foo → Bar = \"f\"
 
 let rec map =
   efunction LNil -> LNil
@@ -896,7 +894,7 @@ newcons LCons : ∀a. a * List a ⟶ List a
 newtype Foo
 newtype Bar
 
-external f : Foo → Bar
+external f : Foo → Bar = \"f\"
 
 let rec map =
   function LNil -> LNil
@@ -916,7 +914,7 @@ newcons LCons : ∀a. a * List a ⟶ List a
 newtype Foo
 newtype Bar
 
-external f : Foo → Bar
+external f : Foo → Bar = \"f\"
 
 let rec map =
   efunction LNil -> LNil
@@ -936,7 +934,7 @@ newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 newtype Foo
 newtype Bar
 
-external f : Foo → Bar
+external f : Foo → Bar = \"f\"
 
 let rec map =
   efunction LNil -> LNil
@@ -954,7 +952,7 @@ let rec map =
 newtype List : num
 newcons LNil : List 0
 newcons LCons : ∀n [0≤n]. Bar * List n ⟶ List(n+1)
-external f : Bar → Bool
+external f : Bar → Bool = \"f\"
 
 let rec filter =
   efunction LNil -> LNil
@@ -978,7 +976,7 @@ newcons LNil : ∀a. List(a, 0)
 newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 
 newtype Bar
-external f : Bar → Bool
+external f : Bar → Bool = \"f\"
 
 let rec filter =
   efunction LNil -> LNil
@@ -1127,8 +1125,7 @@ let rec ub = efunction
 newtype Num : num
 newtype Calc : num
 
-external is_zero : ∀i. Num i → Bool
-external if : ∀a. Bool → a → a → a
+external let is_zero : ∀i. Num i → Bool = \"(=) 0\"
 
 newcons Lit : ∀k. Num k ⟶ Calc k
 
@@ -1141,7 +1138,7 @@ let rec eval =
     | Lit i -> i in
   function
   | IsZero x -> is_zero (calc x)
-  | If (b, t, e) -> if (eval b) (eval t) (eval e)"
+  | If (b, t, e) -> match eval b with True -> eval t | False -> eval e"
 
         [1, "∃a. δ = (Term a → a)";
         2, "∃n. δ = (Calc n → Num n)"]
@@ -1155,9 +1152,8 @@ let rec eval =
 newtype Num : num
 newtype Calc : num
 
-external plus : ∀i,j. Num i → Num j → Num (i+j)
-external is_zero : ∀i. Num i → Bool
-external if : ∀a. Bool → a → a → a
+external let plus : ∀i,j. Num i → Num j → Num (i+j) = \"(+)\"
+external let is_zero : ∀i. Num i → Bool = \"(=) 0\"
 
 newcons Lit : ∀k. Num k ⟶ Calc k
 newcons Plus : ∀i,j. Calc i * Calc j ⟶ Calc (i+j)
@@ -1175,7 +1171,7 @@ let rec eval =
     | Plus (i, j) -> plus (calc i) (calc j) in
   function
   | IsZero x -> is_zero (calc x)
-  | If (b, t, e) -> if (eval b) (eval t) (eval e)
+  | If (b, t, e) -> (match eval b with True -> eval t | False -> eval e)
   | Pair (x, y) -> eval x, eval y
   | Fst p -> (match eval p with x, y -> x)
   | Snd p -> (match eval p with x, y -> y)"
@@ -1192,9 +1188,8 @@ let rec eval =
 newtype Num : num
 newtype Calc
 
-external is_zero : ∀i. Num i → Bool
-external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k
-external if : ∀a. Bool → a → a → a
+external let is_zero : ∀i. Num i → Bool = \"(=) 0\"
+external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k = \"fun c a b -> if c then a else b\"
 
 newcons Lit : ∀k. Num k ⟶ Calc
 newcons Cond : Term Bool * Calc * Calc ⟶ Calc
@@ -1212,7 +1207,7 @@ let rec eval =
       cond (eval b) rt re in
   function
   | IsZero x -> let r = calc x in is_zero r
-  | If (b, t, e) -> if (eval b) (eval t) (eval e)"
+  | If (b, t, e) -> match eval b with True -> eval t | False -> eval e"
 
         [2, "∃a. δ = (Term a → a)";
         3, "∃. δ = (Calc → ∃2:n.Num n)"]
@@ -1226,9 +1221,8 @@ let rec eval =
 newtype Num : num
 newtype Calc
 
-external is_zero : ∀i. Num i → Bool
-external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k
-external if : ∀a. Bool → a → a → a
+external is_zero : ∀i. Num i → Bool = \"(=) 0\"
+external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k = \"fun c a b -> if c then a else b\"
 
 newcons Lit : ∀k. Num k ⟶ Calc
 newcons Cond : Term Bool * Calc * Calc ⟶ Calc
@@ -1247,7 +1241,7 @@ let rec eval =
       cond (eval b) rt re in
   function
   | IsZero x -> let r = calc x in is_zero r
-  | If (b, t, e) -> if (eval b) (eval t) (eval e)
+  | If (b, t, e) -> (match eval b with True -> eval t | False -> eval e)
   | Pair (x, y) -> eval x, eval y"
 
         [2, "∃a. δ = (Term a → a)";
@@ -1262,11 +1256,10 @@ let rec eval =
 newtype Num : num
 newtype Calc
 
-external plus : ∀i,j. Num i → Num j → Num (i+j)
-external mult : ∀i,j. Num i → Num j → ∃k. Num k
-external is_zero : ∀i. Num i → Bool
-external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k
-external if : ∀a. Bool → a → a → a
+external let plus : ∀i,j. Num i → Num j → Num (i+j) = \"(+)\"
+external let mult : ∀i,j. Num i → Num j → ∃k. Num k = \"(*)\"
+external let is_zero : ∀i. Num i → Bool = \"(=) 0\"
+external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k = \"fun c a b -> if c then a else b\"
 
 newcons Lit : ∀k. Num k ⟶ Calc
 newcons Plus : Calc * Calc ⟶ Calc
@@ -1297,7 +1290,7 @@ let rec eval =
       cond (eval b) rt re in
   function
   | IsZero x -> let r = calc x in is_zero r
-  | If (b, t, e) -> if (eval b) (eval t) (eval e)
+  | If (b, t, e) -> (match eval b with True -> eval t | False -> eval e)
   | Pair (x, y) -> eval x, eval y
   | Fst p -> (match eval p with x, y -> x)
   | Snd p -> (match eval p with x, y -> y)"
@@ -1315,7 +1308,7 @@ let rec eval =
        skip_if !debug "debug";
        test_nonrec_case "nonrec simple"
 "newtype Order : num * num
-external compare : ∀i, j. Num i → Num j → Order (i, j)
+external compare : ∀i, j. Num i → Num j → Order (i, j) = \"compare\"
 let cmp7and8 = compare 7 8
 "
         [1, "Order (7, 8)"];
@@ -1357,8 +1350,8 @@ newcons TCons :
   ∀a, n [0≤n]. Tree (a, n) * Forest (a, n) ⟶ Forest (a, n+1)
 newcons TNil : ∀a. Forest (a, 0)
 
-external leq : ∀a. a → a → Bool
-external incr : ∀i. Num i → Num (i+1)
+external let leq : ∀a. a → a → Bool = \"(<=)\"
+external incr : ∀i. Num i → Num (i+1) = \"(+) 1\"
 
 let rec link = function
   | (Node (r, x1, c1) as t1), (Node (_, x2, c2) as t2) ->
@@ -1395,12 +1388,12 @@ newcons HCons :
     Tree (a, k) * Heap (a, m, n) ⟶ Heap (a, k, n)
 newcons HNil : ∀a, n. Heap (a, n, n)
 
-external compare : ∀i, j. Num i → Num j → Order (i, j)
-external leq : ∀a. a → a → Bool
-external incr : ∀i. Num i → Num (i+1)
+external compare : ∀i, j. Num i → Num j → Order (i, j) = \"compare\"
+external leq : ∀a. a → a → Bool = \"(<=)\"
+external incr : ∀i. Num i → Num (i+1) = \"(+) 1\"
 
-external rank : ∀a, n. Tree (a, n) → Num n
-external link : ∀a, n. (Tree (a, n), Tree (a, n)) → Tree (a, n+1)
+external rank : ∀a, n. Tree (a, n) → Num n = \"rank\"
+external link : ∀a, n. (Tree (a, n), Tree (a, n)) → Tree (a, n+1) = \"link\"
 
 let rec ins_tree = fun t ->
   efunction

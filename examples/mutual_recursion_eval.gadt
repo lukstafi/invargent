@@ -1,11 +1,10 @@
 newtype Term : type
 newtype Calc
 
-external plus : ∀i,j. Num i → Num j → Num (i+j)
-external mult : ∀i,j. Num i → Num j → ∃k. Num k
-external is_zero : ∀i. Num i → Bool
-external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k
-external if_then : ∀a. Bool → a → a → a
+external let plus : ∀i,j. Num i → Num j → Num (i+j) = "(+)"
+external let mult : ∀i,j. Num i → Num j → ∃k. Num k = "( * )"
+external let is_zero : ∀i. Num i → Bool = "(=) 0"
+external let cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k = "fun c a b -> if c then a else b"
 
 newcons Lit : ∀k. Num k ⟶ Calc
 newcons Plus : Calc * Calc ⟶ Calc
@@ -39,7 +38,7 @@ let calc, eval =
         cond (snd eval b) rt re in
     calc, function
     | IsZero x -> let r = calc x in is_zero r
-    | If (b, t, e) -> if_then (snd eval b) (snd eval t) (snd eval e)
+    | If (b, t, e) -> (match snd eval b with True -> snd eval t | False -> snd eval e)
     | Pair (x, y) -> snd eval x, snd eval y
     | Fst p -> (match snd eval p with x, y -> x)
     | Snd p -> (match snd eval p with x, y -> y) in

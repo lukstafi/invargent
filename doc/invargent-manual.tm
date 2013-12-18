@@ -85,12 +85,10 @@
   <\code>
     newtype Term : type
 
-    external plus : Int <math|\<rightarrow\>> Int <math|\<rightarrow\>> Int
+    external let plus : Int <math|\<rightarrow\>> Int <math|\<rightarrow\>>
+    Int = "(+)"
 
-    external is_zero : Int <math|\<rightarrow\>> Bool
-
-    external if_then : <math|\<forall\>>a. Bool <math|\<rightarrow\>> a
-    <math|\<rightarrow\>> a <math|\<rightarrow\>> a
+    external let is_zero : Int <math|\<rightarrow\>> Bool = "(=) 0"
 
     newcons Lit : Int <math|\<longrightarrow\>> Term Int
 
@@ -111,7 +109,8 @@
 
     \ \ \| Plus (x, y) -\> plus (eval x) (eval y)
 
-    \ \ \| If (b, t, e) -\> if_then (eval b) (eval t) (eval e)
+    \ \ \| If (b, t, e) -\> (match eval b with True -\<gtr\> eval t \| False
+    -\<gtr\> eval e)
   </code>
 
   Let us look at the corresponding generated, also called <em|exported>,
@@ -131,11 +130,9 @@
 
     \ \ 
 
-    external plus : (int -\> int -\> int) = "plus"
+    let plus : (int -\> int -\> int) = (+)
 
-    external is_zero : (int -\> bool) = "is_zero"
-
-    external if_then : (bool -\> 'a -\> 'a -\> 'a) = "if_then"
+    let is_zero : (int -\> bool) = (=) 0
 
     let rec eval : type a . (a term -\> a) =
 
@@ -143,7 +140,7 @@
 
     \ \ \ \ \| Plus (x, y) -\> plus (eval x) (eval y)
 
-    \ \ \ \ \| If (b, t, e) -\> if_then (eval b) (eval t) (eval e))
+    \ \ \ \ \| If (b, t, e) -\> (if eval b then eval t else eval e))
   </code>
 
   The <verbatim|Int>, <verbatim|Num> and <verbatim|Bool> types are built-in.
@@ -153,6 +150,17 @@
   0>, <verbatim|Num 1>... <verbatim|Num> can also be exported as a type other
   than <verbatim|int>, and then numerals are exported via an injection
   function (ending with) <verbatim|of_int>.
+
+  The syntax <verbatim|external let> allows to name an OCaml library function
+  or give an OCaml definition which we opt-out from translating to InvarGenT.
+  Such a definition will be verified against the rest of the program when
+  InvarGenT calls <verbatim|ocamlc -c> (or Haskell in the future) to verify
+  the exported code. Another variant of <verbatim|external> (omitting the
+  <verbatim|let> keyword) exports a value using <verbatim|external> in OCaml
+  code, which is OCaml-source facing declaration of the foreign function
+  interface of OCaml. When we are not interested in linking and running the
+  exported code, we can follow the convention of reusing the name in the FFI
+  definition: <verbatim|external f : >...<verbatim| = "f">.
 
   The type inferred is <verbatim|eval : <math|\<forall\>>a. Term
   a<math|\<rightarrow\>>a>. GADTs make it possible to reveal that
@@ -582,7 +590,9 @@
   <math|\<forall\>>n,a. a * List(a,n) <math|\<longrightarrow\>>
   List(a,n+1)>>>|<row|<cell|declaration>|<cell|<verbatim|external filter :
   <math|\<forall\>>n,a. List(a,n)<math|\<rightarrow\>
-  \<exists\>>k[k\<less\>=n].List(a,k)>>>|<row|<cell|rec.
+  \<exists\>>k[k\<less\>=n].List(a,k)="filter">>>|<row|<cell|let-declaration>|<cell|<verbatim|external
+  let plus : <math|\<forall\>>n,m. Num n<math|\<rightarrow\>>Num
+  m<math|\<rightarrow\> \<exists\>>k.Num k = "(+)">>>|<row|<cell|rec.
   definition>|<cell|<verbatim|let rec f =>...>>|<row|<cell|non-rec.
   definition>|<cell|<verbatim|let a, b =>...>>|<row|<cell|definition with
   test>|<cell|<verbatim|let rec f =>...<verbatim| test e1; >...<verbatim|;

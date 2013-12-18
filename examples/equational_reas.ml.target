@@ -22,10 +22,10 @@ type (_,
 external compare : ('a place -> 'b place -> ('a, 'b) meet) = "compare"
 let rec walk : type a b . (a place -> b place -> (a, b) nearby) =
   (fun x goal ->
-    ((match (compare x goal: (a, b) meet) with
+    (((match (compare x goal: (a, b) meet) with
     Same -> Here (x, goal)
       | NotSame ->
-          let Ex1 ((y, to_y)) = wander x in Transitive (to_y, walk y goal)) :
+          let Ex1 ((y, to_y)) = wander x in Transitive (to_y, walk y goal))) :
     (a, b) nearby))
 let () = assert (is_nearby (walk LocA LocB)); ()
 

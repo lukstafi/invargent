@@ -2,15 +2,13 @@ newtype Term : type
 
 newtype Calc
 
-external is_zero : ∀i. Num i → Bool
+external val is_zero : ∀i. Num i → Bool
 
 newtype Ex1
 
 newcons Ex1 : ∀k.Num k ⟶ ∃1:k.Num k
 
-external cond : ∀i, j. Bool → Num i → Num j → ∃1:k.Num k
-
-external if_then : ∀a. Bool → a → a → a
+external val cond : ∀i, j. Bool → Num i → Num j → ∃1:k.Num k
 
 newcons Lit : ∀k.Num k ⟶ Calc
 

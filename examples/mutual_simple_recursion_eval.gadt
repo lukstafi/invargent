@@ -1,9 +1,8 @@
 newtype Term : type
 newtype Calc
 
-external is_zero : ∀i. Num i → Bool
-external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k
-external if_then : ∀a. Bool → a → a → a
+external let is_zero : ∀i. Num i → Bool = "(=) 0"
+external let cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k = "fun c a b -> if c then a else b"
 
 newcons Lit : ∀k. Num k ⟶ Calc
 newcons Cond : Term Bool * Calc * Calc ⟶ Calc
@@ -24,5 +23,5 @@ let calc, eval =
         cond (snd eval b) rt re in
     calc, function
     | IsZero x -> let r = calc x in is_zero r
-    | If (b, t, e) -> if_then (snd eval b) (snd eval t) (snd eval e) in
+    | If (b, t, e) -> (match snd eval b with True -> snd eval t | False -> snd eval e) in
   eval

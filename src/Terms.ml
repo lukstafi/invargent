@@ -553,7 +553,7 @@ type struct_item =
 | TypConstr of cns_name * sort list * loc
 | ValConstr of cns_name * var_name list * formula * typ list
   * cns_name * var_name list * loc
-| PrimVal of string * typ_scheme * loc
+| PrimVal of string * typ_scheme * (string, string) choice * loc
 | LetRecVal of string * uexpr * typ_scheme option * uexpr list * loc
 | LetVal of pat * uexpr * typ_scheme option * uexpr list * loc
 
@@ -561,7 +561,7 @@ type annot_item =
 | ITypConstr of cns_name * sort list * loc
 | IValConstr of cns_name * var_name list * formula * typ list
   * cns_name * typ list * loc
-| IPrimVal of string * typ_scheme * loc
+| IPrimVal of string * typ_scheme * (string, string) choice * loc
 | ILetRecVal of string * texpr * typ_scheme *
                   texpr list * (pat * int option) list * loc
 | ILetVal of pat * texpr * typ_scheme * (string * typ_scheme) list *
@@ -581,7 +581,7 @@ let typ_scheme_of_item ?(env=[]) = function
 | TypConstr _ -> raise Not_found
 | ValConstr (_, vs, phi, args, c_n, c_args, _) ->
   vs, phi, enc_funtype (TCons (c_n, List.map (fun v->TVar v) c_args)) args
-| PrimVal (_, t, _) -> t
+| PrimVal (_, t, _, _) -> t
 | LetRecVal (name, _, _, _, _)
 | LetVal (PVar (name, _), _, _, _, _) -> List.assoc name env
 | LetVal _ -> raise Not_found
@@ -817,7 +817,7 @@ let pr_expr ?export_num ?export_if ?export_bool pr_ann ppf exp =
         aux def
         aux body
     | App (Lam (ann, cls, _), def, _) ->
-      fprintf ppf "@[<0>%amatch@ @[<4>%a%a%a@] with@ @[<2>%a@]%a@]"
+      fprintf ppf "@[<0>%a(match@ @[<4>%a%a%a@] with@ @[<2>%a@])%a@]"
         pr_ann (MatchResOpen ann)
         pr_ann (MatchValOpen ann)
         aux def
@@ -1026,8 +1026,10 @@ let pr_sig_item ppf = function
       (pr_sep_list "," pr_tyvar) vs
       pr_formula phi
       (pr_sep_list " *" pr_ty) args pr_ty res
-  | IPrimVal (name, tysch, _) ->
+  | IPrimVal (name, tysch, Left _, _) ->
     fprintf ppf "@[<2>external@ %s@ :@ %a@]" name pr_typscheme tysch
+  | IPrimVal (name, tysch, Right _, _) ->
+    fprintf ppf "@[<2>external val@ %s@ :@ %a@]" name pr_typscheme tysch
   | ILetRecVal (name, expr, tysch, tests, _, _) ->
     fprintf ppf "@[<2>val@ %s :@ %a@]" name pr_typscheme tysch
   | ILetVal (_, _, _, tyschs, _, _, _) ->
@@ -1045,8 +1047,12 @@ let pr_struct_item ppf = function
   | ValConstr (name, vs, phi, args, c_n, c_args, lc) ->
     let c_args = List.map (fun v -> TVar v) c_args in
     pr_sig_item ppf (IValConstr (name, vs, phi, args, c_n, c_args, lc))
-  | PrimVal (name, tysch, lc) ->
-    pr_sig_item ppf (IPrimVal (name, tysch, lc))
+  | PrimVal (name, tysch, Left ext_def, _) ->
+    fprintf ppf "@[<2>external@ %s@ :@ %a@ =@ \"%s\"@]"
+      name pr_typscheme tysch ext_def
+  | PrimVal (name, tysch, Right ext_def, _) ->
+    fprintf ppf "@[<2>external let@ %s@ :@ %a@ =@ \"%s\"@]"
+      name pr_typscheme tysch ext_def
   | LetRecVal (name, expr, tysch, tests, _) ->
     fprintf ppf "@[<2>let rec@ %s%a@ =@ %a@]%a" name
       pr_opt_sig_tysch tysch pr_uexpr expr pr_opt_utests tests

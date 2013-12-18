@@ -25,11 +25,11 @@ newcons HCons :
 
 newcons HNil : ∀a, n. Heap (a, n, n)
 
-external compare : ∀i, j. Num i → Num j → Order (i, j)
+external compare : ∀i, j. Num i → Num j → Order (i, j) = "compare"
 
-external leq : ∀a. a → a → Bool
+external let leq : ∀a. a → a → Bool = "(<=)"
 
-external incr : ∀i. Num i → Num (i+1)
+external let incr : ∀i. Num i → Num (i+1) = "(+) 1"
 
 val rank : ∀a, n. Tree (a, n) → Num n
 

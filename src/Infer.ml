@@ -573,7 +573,7 @@ let infer_prog_mockup (prog : program) =
     | _, TypConstr _ -> [], VarSet.empty, And []
     | _, ValConstr _ ->
       [], VarSet.empty, And []
-    | _, PrimVal (x, tsch, loc) ->
+    | _, PrimVal (x, tsch, ext_def, loc) ->
       gamma := (x, tsch) :: !gamma;
       [], VarSet.empty, And []
     | new_ex_types, LetRecVal (x, e, defsig, tests, loc) ->
@@ -780,9 +780,9 @@ let infer_prog solver prog =
                  (Eqty (TCons (tuple, args),
                         TCons (tuple, c_args), dummy_loc)::phi)) in
           [IValConstr (name, VarSet.elements vs, phi, args, c_n, c_args, lc)]
-        | _, PrimVal (x, tsch, lc) ->
+        | _, PrimVal (x, tsch, ext_def, lc) ->
           gamma := (x, tsch) :: !gamma;
-          [IPrimVal (x, tsch, lc)]
+          [IPrimVal (x, tsch, ext_def, lc)]
         | new_ex_types, LetRecVal (x, e, defsig, tests, loc) ->
           let bvs, sig_cn, t = match defsig with
             | None ->

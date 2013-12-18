@@ -1,7 +1,7 @@
 newtype List : type * num
 newcons LNil : ∀a. List(a, 0)
 newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
-external append : String → String → String
+external let append : String → String → String = "(^)"
 
 let rec concat =
   function LNil -> ""

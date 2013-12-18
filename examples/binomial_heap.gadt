@@ -15,12 +15,12 @@ newcons HCons :
     Tree (a, k) * Heap (a, m, n) ⟶ Heap (a, k, n)
 newcons HNil : ∀a, n. Heap (a, n, n)
 
-external compare : ∀i, j. Num i → Num j → Order (i, j)
-external leq : ∀a. a → a → Bool
-external incr : ∀i. Num i → Num (i+1)
+external compare : ∀i, j. Num i → Num j → Order (i, j) = "compare"
+external let leq : ∀a. a → a → Bool = "(<=)"
+external let incr : ∀i. Num i → Num (i+1) = "(+) 1"
 
-external rank : ∀a, n. Tree (a, n) → Num n
-external link : ∀a, n. (Tree (a, n), Tree (a, n)) → Tree (a, n+1)
+external rank : ∀a, n. Tree (a, n) → Num n = "rank"
+external link : ∀a, n. (Tree (a, n), Tree (a, n)) → Tree (a, n+1) = "link"
 
 let rank = function Node (r, _, _) -> r
 

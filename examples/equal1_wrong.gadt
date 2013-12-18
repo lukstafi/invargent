@@ -5,10 +5,10 @@ newcons Nil : ∀a. List a
 newcons TInt : Ty Int
 newcons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
 newcons TList : ∀a. Ty a ⟶ Ty (List a)
-external eq_int : Int → Int → Bool
-external b_and : Bool → Bool → Bool
-external b_not : Bool → Bool
-external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool
+external let eq_int : Int → Int → Bool = "(=)"
+external let b_and : Bool → Bool → Bool = "(&&)"
+external let b_not : Bool → Bool = "not"
+external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool = "forall2"
 
 let rec equal1 = function
   | TInt, TInt -> fun x y -> eq_int x y

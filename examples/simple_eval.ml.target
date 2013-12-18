@@ -4,11 +4,10 @@ type _ term =
   | Plus : int term * int term -> int term
   | IsZero : int term -> bool term
   | If : (*∀'a.*)bool term * 'a term * 'a term -> 'a term
-external plus : (int -> int -> int) = "plus"
-external is_zero : (int -> bool) = "is_zero"
-external if_then : (bool -> 'a -> 'a -> 'a) = "if_then"
+let plus : (int -> int -> int) = (+)
+let is_zero : (int -> bool) = (=) 0
 let rec eval : type a . (a term -> a) =
   ((function Lit i -> i | IsZero x -> is_zero (eval x)
     | Plus (x, y) -> plus (eval x) (eval y)
-    | If (b, t, e) -> if_then (eval b) (eval t) (eval e)): a term -> a)
+    | If (b, t, e) -> (if eval b then eval t else eval e)): a term -> a)
 

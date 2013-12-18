@@ -448,8 +448,10 @@ structure_item_raw:
 	  "lacking type identifier" 2 }
   | NEWTYPE UIDENT
       { TypConstr (CNam $2, [], get_loc ()) }
-  | EXTERNAL LIDENT COLON opt_constr_intro typ
-      { PrimVal ($2, (fst $4, snd $4, $5), get_loc ()) }
+  | EXTERNAL LIDENT COLON opt_constr_intro typ EQUAL STRING
+      { PrimVal ($2, (fst $4, snd $4, $5), Aux.Left $7, get_loc ()) }
+  | EXTERNAL LET LIDENT COLON opt_constr_intro typ EQUAL STRING
+      { PrimVal ($3, (fst $5, snd $5, $6), Aux.Right $8, get_loc ()) }
   | EXTERNAL COLON
       { syntax_error
 	  "lacking external binding identifier" 2 }

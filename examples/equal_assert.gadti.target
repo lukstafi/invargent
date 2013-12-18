@@ -12,11 +12,11 @@ newcons TPair : ∀a, b.Ty a * Ty b ⟶ Ty ((a, b))
 
 newcons TList : ∀a.Ty a ⟶ Ty (List a)
 
-external eq_int : Int → Int → Bool
+external val eq_int : Int → Int → Bool
 
-external b_and : Bool → Bool → Bool
+external val b_and : Bool → Bool → Bool
 
-external b_not : Bool → Bool
+external val b_not : Bool → Bool
 
 external forall2 :
    ∀a, b. (a → b → Bool) → List a → List b → Bool

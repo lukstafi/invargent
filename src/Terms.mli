@@ -171,7 +171,7 @@ type struct_item =
 | TypConstr of cns_name * sort list * loc
 | ValConstr of cns_name * var_name list * formula * typ list
   * cns_name * var_name list * loc
-| PrimVal of string * typ_scheme * loc
+| PrimVal of string * typ_scheme * (string, string) Aux.choice * loc
 | LetRecVal of string * uexpr * typ_scheme option * uexpr list * loc
 | LetVal of pat * uexpr * typ_scheme option * uexpr list * loc
 
@@ -181,7 +181,7 @@ type annot_item =
 | ITypConstr of cns_name * sort list * loc
 | IValConstr of cns_name * var_name list * formula * typ list
   * cns_name * typ list * loc
-| IPrimVal of string * typ_scheme * loc
+| IPrimVal of string * typ_scheme * (string, string) Aux.choice * loc
 | ILetRecVal of string * texpr * typ_scheme *
                   texpr list * (pat * int option) list * loc
 | ILetVal of pat * texpr * typ_scheme * (string * typ_scheme) list *
