@@ -182,12 +182,14 @@
   <block|<tformat|<cwith|1|1|2|2|cell-halign|l>|<cwith|1|1|1|1|cell-halign|l>|<table|<row|<cell|type
   constructor>|<cell|<verbatim|newtype List : type *
   num>>|<cell|<verbatim|TypConstr>>>|<row|<cell|value
-  constructor>|<cell|<verbatim|newcons Cons : all n a. a * List(a,n)
-  --\<gtr\> List(a,n+1)>>|<cell|<verbatim|ValConstr>>>|<row|<cell|>|<cell|<verbatim|newcons
+  constructor>|<cell|<verbatim|newcons Cons : all n a. a *
+  List(a,n)--\<gtr\>List(a,n+1)>>|<cell|<verbatim|ValConstr>>>|<row|<cell|>|<cell|<verbatim|newcons
   Cons : <math|\<forall\>>n,a. a * List(a,n) <math|\<longrightarrow\>>
   List(a,n+1)>>|<cell|>>|<row|<cell|declaration>|<cell|<verbatim|external
-  filter : <math|\<forall\>>n,a. List(a,n)<math|\<rightarrow\>
-  \<exists\>>k[k\<less\>=n].List(a,k)>>|<cell|<verbatim|PrimVal>>>|<row|<cell|rec.
+  filter : <math|\<forall\>>n,a.List(a,n)<math|\<rightarrow\>
+  \<exists\>>k[k\<less\>=n].List(a,k)>>|<cell|<verbatim|PrimVal>>>|<row|<cell|let-declaration>|<cell|<verbatim|external
+  let mult : Int<math|\<rightarrow\>>Int<math|\<rightarrow\>>Int = "( *
+  )">>|<cell|<verbatim|PrimVal>>>|<row|<cell|rec.
   definition>|<cell|<verbatim|let rec f =>...>|<cell|<verbatim|LetRecVal>>>|<row|<cell|non-rec.
   definition>|<cell|<verbatim|let p1,p2 =>...>|<cell|<verbatim|LetVal>>>|<row|<cell|definition
   with test>|<cell|<verbatim|let rec f =>...<verbatim| test e1;
@@ -202,6 +204,18 @@
   For simplicity of theory and implementation, mutual non-nested recursion
   and or-patterns are not provided. For mutual recursion, nest one recursive
   definition inside another.
+
+  At any place between lexemes, regular comments encapsulated in
+  <verbatim|(*<math|\<ldots\>>*)> can occur. They are ignored during lexing.
+  In front of all toplevel definitions and declarations, e.g. before a
+  <verbatim|newtype>, <verbatim|newcons>, <verbatim|external>, <verbatim|let
+  rec> or <verbatim|let>, and in front of <verbatim|let rec> .. <verbatim|in>
+  and <verbatim|let> .. <verbatim|in> nodes in expressions, documentation
+  comments <verbatim|(**<math|\<ldots\>>*)> can be put. Documentation
+  comments at other places are syntax errors. Documentation comments are
+  preserved both in generated interface files and in exported source code
+  files. Documentation comments are the first parameters of corresponding
+  constructors, and are of type <verbatim|string option>.
 
   <section|Generating and Normalizing Formulas>
 

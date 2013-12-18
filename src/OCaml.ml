@@ -124,12 +124,12 @@ let postprocess elim_extypes e =
       Lam (ann, List.map (fun (p,e)->p, aux e) cls, loc)
     | AssertFalse _ -> assert false
     | (AssertLeq _ | AssertEqty _) as e -> e
-    | Letrec (ann, x, e1, e2, loc) ->
-      Letrec (ann, x, aux e1, aux e2, loc)
-    | Letin (p, e1, e2, loc) ->
+    | Letrec (docu, ann, x, e1, e2, loc) ->
+      Letrec (docu, ann, x, aux e1, aux e2, loc)
+    | Letin (docu, p, e1, e2, loc) ->
       (try match List.assq p elim_extypes with
-         | None -> Letin (p, aux e1, aux e2, loc)
-         | Some i -> Letin (PCons (Extype i, [p], loc),
+         | None -> Letin (docu, p, aux e1, aux e2, loc)
+         | Some i -> Letin (docu, PCons (Extype i, [p], loc),
                             aux e1, aux e2, loc)
        with Not_found -> assert false)
     | ExLam (ety_id, cls, loc) ->
@@ -179,36 +179,40 @@ let pr_expr funtys lettys ppf =
     then pr_annot_full lettys else pr_annot_rec in
   pr_expr ?export_num ~export_if ~export_bool pr_ann ppf
 
+let pr_rhs_docu ppf = function
+  | None -> ()
+  | Some doc -> fprintf ppf "@ (**%s*)" doc
+
 let pr_constr c_n ppf = function
-  | (name, [], [], [], c_args) ->
+  | (docu, name, [], [], [], c_args) ->
     let res = TCons (c_n, c_args) in
-    fprintf ppf "@[<2>| %s@ :@ %a@]" (cns_str name)
-      pr_ty res
-  | (name, [], [], args, c_args) ->
+    fprintf ppf "@[<2>| %s@ :@ %a%a@]" (cns_str name)
+      pr_ty res pr_rhs_docu docu
+  | (docu, name, [], [], args, c_args) ->
     let res = TCons (c_n, c_args) in
-    fprintf ppf "@[<2>| %s@ :@ %a@ ->@ %a@]" (cns_str name)
-      (pr_sep_list " *" pr_ty) args pr_ty res
-  | (name, vs, [], [], c_args) ->
+    fprintf ppf "@[<2>| %s@ :@ %a@ ->@ %a%a@]" (cns_str name)
+      (pr_sep_list " *" pr_ty) args pr_ty res pr_rhs_docu docu
+  | (docu, name, vs, [], [], c_args) ->
     let res = TCons (c_n, c_args) in
-    fprintf ppf "@[<2>| %s@ :@ (*∀%a.*)@ %a@]" (cns_str name)
+    fprintf ppf "@[<2>| %s@ :@ (*∀%a.*)@ %a%a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
-      pr_ty res
-  | (name, vs, phi, [], c_args) ->
+      pr_ty res pr_rhs_docu docu
+  | (docu, name, vs, phi, [], c_args) ->
     let res = TCons (c_n, c_args) in
-    fprintf ppf "@[<2>| %s@ :@ (*∀%a[%a].*)@ %a@]" (cns_str name)
+    fprintf ppf "@[<2>| %s@ :@ (*∀%a[%a].*)@ %a%a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
-      pr_formula phi pr_ty res
-  | (name, vs, [], args, c_args) ->
+      pr_formula phi pr_ty res pr_rhs_docu docu
+  | (docu, name, vs, [], args, c_args) ->
     let res = TCons (c_n, c_args) in
-    fprintf ppf "@[<2>| %s@ :@ (*∀%a.*)%a@ ->@ %a@]" (cns_str name)
+    fprintf ppf "@[<2>| %s@ :@ (*∀%a.*)%a@ ->@ %a%a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
-      (pr_sep_list " *" pr_ty) args pr_ty res
-  | (name, vs, phi, args, c_args) ->
+      (pr_sep_list " *" pr_ty) args pr_ty res pr_rhs_docu docu
+  | (docu, name, vs, phi, args, c_args) ->
     let res = TCons (c_n, c_args) in
-    fprintf ppf "@[<2>| %s@ :@ (*∀%a[%a].*)%a@ ->@ %a@]" (cns_str name)
+    fprintf ppf "@[<2>| %s@ :@ (*∀%a[%a].*)%a@ ->@ %a%a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
       pr_formula phi
-      (pr_sep_list " *" pr_ty) args pr_ty res
+      (pr_sep_list " *" pr_ty) args pr_ty res pr_rhs_docu docu
 
 let pr_test_line funtys lettys ppf e =
   fprintf ppf "assert@ (%a);" (pr_expr funtys lettys) e
@@ -235,9 +239,12 @@ let rec pr_struct_items ~funtys ~lettys constrs ppf defined defining prog =
       (String.concat "," (List.map cns_str (CNames.elements defining)));
   *]*)
   match prog with
-  | ITypConstr (c_n, sorts, _)::prog ->
+  | ITypConstr (docu, c_n, sorts, _)::prog ->
     assert (CNames.is_empty defining || CNames.mem c_n defining);
     altsyn := true;
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     let cns = try List.assoc c_n constrs with Not_found -> [] in
     fprintf ppf "@[<2>%s %a%a%s@\n%a@]@\n"
       (if CNames.is_empty defining then "type" else "and")
@@ -247,7 +254,7 @@ let rec pr_struct_items ~funtys ~lettys constrs ppf defined defining prog =
     let more_defs = List.fold_left
         (fun cns ty -> CNames.union cns (cns_typ ty)) CNames.empty
         (concat_map
-           (fun (name, vs, phi, args, c_args) ->
+           (fun (docu, name, vs, phi, args, c_args) ->
               let res = TCons (c_n, c_args) in res::args) cns) in
     let defining =
       CNames.union (CNames.diff more_defs defined) defining in
@@ -259,21 +266,27 @@ let rec pr_struct_items ~funtys ~lettys constrs ppf defined defining prog =
     *]*)
     let mutual, prog = List.partition
         (function
-          | ITypConstr (c_n, _, _) when CNames.mem c_n defining -> true
+          | ITypConstr (_, c_n, _, _) when CNames.mem c_n defining -> true
           | _ -> false)
         prog in
     altsyn := false;
     pr_struct_items ~funtys ~lettys constrs ppf (CNames.add c_n defined) defining
       (mutual @ prog)
-  | IPrimVal (name, tysch, Left ext_def, _)::prog ->
+  | IPrimVal (docu, name, tysch, Left ext_def, _)::prog ->
     altsyn := true;
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     fprintf ppf "@[<2>external@ %s@ :@ %a = \"%s\"@]@\n"
       name pr_typsig tysch ext_def;
     assert (CNames.is_empty defining);
     altsyn := false;
     pr_struct_items ~funtys ~lettys constrs ppf defined CNames.empty prog
-  | IPrimVal (name, (_,_,ty as tysch), Right ext_def, _)::prog ->
+  | IPrimVal (docu, name, (_,_,ty as tysch), Right ext_def, _)::prog ->
     altsyn := true;
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     (match return_type ty with
      | TCons (Extype i, _) ->
        let args =
@@ -290,29 +303,41 @@ let rec pr_struct_items ~funtys ~lettys constrs ppf defined defining prog =
     assert (CNames.is_empty defining);
     altsyn := false;
     pr_struct_items ~funtys ~lettys constrs ppf defined CNames.empty prog
-  | ILetRecVal (name, expr, tysch, [], elim_extypes, _)::prog ->
+  | ILetRecVal (docu, name, expr, tysch, [], elim_extypes, _)::prog ->
     let expr = postprocess elim_extypes expr in
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     fprintf ppf "@[<2>let rec@ %s :@ %a =@ %a@]@\n"
       name pr_typscheme (tysch, false) (pr_expr funtys lettys) expr;
     assert (CNames.is_empty defining);
     pr_struct_items ~funtys ~lettys constrs ppf defined CNames.empty prog
-  | ILetVal (p, e, tysch, _, [], elim_extypes, _)::prog ->
+  | ILetVal (docu, p, e, tysch, _, [], elim_extypes, _)::prog ->
     let e = postprocess elim_extypes e in
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     fprintf ppf "@[<2>let@ %a@ (*: %a*) =@ %a@]@\n"
       pr_pat p pr_typscheme (tysch, false) (pr_expr funtys lettys) e;
     assert (CNames.is_empty defining);
     pr_struct_items ~funtys ~lettys constrs ppf defined CNames.empty prog
-  | ILetRecVal (name, expr, tysch, tests, elim_extypes, _)::prog ->
+  | ILetRecVal (docu, name, expr, tysch, tests, elim_extypes, _)::prog ->
     let expr = postprocess elim_extypes expr in
     let tests = List.map (postprocess elim_extypes) tests in
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     fprintf ppf "@[<2>let rec@ %s :@ %a =@ %a@]@\n@[<2>let () =@ %a@ ()@]@\n"
       name pr_typscheme (tysch, false) (pr_expr funtys lettys) expr
       (pr_line_list "" (pr_test_line funtys lettys)) tests;
     assert (CNames.is_empty defining);
     pr_struct_items ~funtys ~lettys constrs ppf defined CNames.empty prog
-  | ILetVal (p, e, tysch, _, tests, elim_extypes, _)::prog ->
+  | ILetVal (docu, p, e, tysch, _, tests, elim_extypes, _)::prog ->
     let e = postprocess elim_extypes e in
     let tests = List.map (postprocess elim_extypes) tests in
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     fprintf ppf "@[<2>let@ %a@ (*: %a*) =@ %a@]@\n[<2>let () =@ %a@ ()@]@\n"
       pr_pat p pr_typscheme (tysch, false) (pr_expr funtys lettys) e
       (pr_line_list "" (pr_test_line funtys lettys)) tests;
@@ -324,8 +349,8 @@ let rec pr_struct_items ~funtys ~lettys constrs ppf defined defining prog =
 let pr_ml ~funtys ~lettys ppf prog =
   let constrs, prog = partition_map
       (function
-        | IValConstr (name, vs, phi, args, c_n, c_args, _) ->
-          Left (c_n, (name, vs, phi, args, c_args))
+        | IValConstr (docu, name, vs, phi, args, c_n, c_args, _) ->
+          Left (c_n, (docu, name, vs, phi, args, c_args))
         | i -> Right i)
       prog in
   let constrs = collect constrs in

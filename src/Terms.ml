@@ -81,8 +81,8 @@ type ('a, 'b) expr =
 | App of ('a, 'b) expr * ('a, 'b) expr * loc
 | Lam of 'b * ('a, 'b) clause list * loc
 | ExLam of int * ('a, 'b) clause list * loc
-| Letrec of 'a * string * ('a, 'b) expr * ('a, 'b) expr * loc
-| Letin of pat * ('a, 'b) expr * ('a, 'b) expr * loc
+| Letrec of string option * 'a * string * ('a, 'b) expr * ('a, 'b) expr * loc
+| Letin of string option * pat * ('a, 'b) expr * ('a, 'b) expr * loc
 | AssertFalse of loc
 | AssertLeq of ('a, 'b) expr * ('a, 'b) expr * ('a, 'b) expr * loc
 | AssertEqty of ('a, 'b) expr * ('a, 'b) expr * ('a, 'b) expr * loc
@@ -97,8 +97,8 @@ let expr_loc = function
   | App (_, _, loc)
   | Lam (_, _, loc)
   | ExLam (_, _, loc)
-  | Letrec (_, _, _, _, loc)
-  | Letin (_, _, _, loc)
+  | Letrec (_, _, _, _, _, loc)
+  | Letin (_, _, _, _, loc)
   | AssertFalse loc
   | AssertLeq (_, _, _, loc)
   | AssertEqty (_, _, _, loc)
@@ -177,12 +177,13 @@ let fuse_exprs =
     | ExLam (k1, cls1, lc1), ExLam (k2, cls2, lc2) ->
       assert (k1==k2 && lc1==lc2);
       ExLam (k1, combine_cls cls1 cls2, lc1)
-    | Letrec (ms, x, e1, e2, lc1), Letrec (ns, y, f1, f2, lc2) ->
-      assert (x==y && lc1==lc2);
-      Letrec (ms@ns, x, aux e1 f1, aux e2 f2, lc1)
-    | Letin (p1, e1, e2, lc1), Letin (p2, f1, f2, lc2) ->
-      assert (p1==p2 && lc1==lc2);
-      Letin (p1, aux e1 f1, aux e2 f2, lc1)
+    | Letrec (docu1, ms, x, e1, e2, lc1),
+      Letrec (docu2, ns, y, f1, f2, lc2) ->
+      assert (x==y && lc1==lc2 && docu1==docu2);
+      Letrec (docu1, ms@ns, x, aux e1 f1, aux e2 f2, lc1)
+    | Letin (docu1, p1, e1, e2, lc1), Letin (docu2, p2, f1, f2, lc2) ->
+      assert (p1==p2 && lc1==lc2 && docu1==docu2);
+      Letin (docu1, p1, aux e1 f1, aux e2 f2, lc1)
     | AssertLeq (e1, e2, e3, lc1), AssertLeq (f1, f2, f3, lc2) ->
       assert (lc1==lc2);
       AssertLeq (aux e1 f1, aux e2 f2, aux e3 f3, lc1)
@@ -550,22 +551,31 @@ let extype_id = ref 0
 let predvar_id = ref 0
 
 type struct_item =
-| TypConstr of cns_name * sort list * loc
-| ValConstr of cns_name * var_name list * formula * typ list
-  * cns_name * var_name list * loc
-| PrimVal of string * typ_scheme * (string, string) choice * loc
-| LetRecVal of string * uexpr * typ_scheme option * uexpr list * loc
-| LetVal of pat * uexpr * typ_scheme option * uexpr list * loc
+| TypConstr of string option * cns_name * sort list * loc
+| ValConstr of
+    string option * cns_name * var_name list * formula * typ list
+    * cns_name * var_name list * loc
+| PrimVal of
+    string option * string * typ_scheme * (string, string) choice * loc
+| LetRecVal of
+    string option * string * uexpr * typ_scheme option * uexpr list * loc
+| LetVal of
+    string option * pat * uexpr * typ_scheme option * uexpr list * loc
 
 type annot_item =
-| ITypConstr of cns_name * sort list * loc
-| IValConstr of cns_name * var_name list * formula * typ list
-  * cns_name * typ list * loc
-| IPrimVal of string * typ_scheme * (string, string) choice * loc
-| ILetRecVal of string * texpr * typ_scheme *
-                  texpr list * (pat * int option) list * loc
-| ILetVal of pat * texpr * typ_scheme * (string * typ_scheme) list *
-               texpr list * (pat * int option) list * loc
+| ITypConstr of
+    string option * cns_name * sort list * loc
+| IValConstr of
+    string option * cns_name * var_name list * formula * typ list
+    * cns_name * typ list * loc
+| IPrimVal of
+    string option * string * typ_scheme * (string, string) choice * loc
+| ILetRecVal of
+    string option * string * texpr * typ_scheme *
+      texpr list * (pat * int option) list * loc
+| ILetVal of
+    string option * pat * texpr * typ_scheme * (string * typ_scheme) list *
+      texpr list * (pat * int option) list * loc
 
 let rec enc_funtype res = function
   | [] -> res
@@ -579,11 +589,11 @@ let ty_add t1 t2 =
 
 let typ_scheme_of_item ?(env=[]) = function
 | TypConstr _ -> raise Not_found
-| ValConstr (_, vs, phi, args, c_n, c_args, _) ->
+| ValConstr (_, _, vs, phi, args, c_n, c_args, _) ->
   vs, phi, enc_funtype (TCons (c_n, List.map (fun v->TVar v) c_args)) args
-| PrimVal (_, t, _, _) -> t
-| LetRecVal (name, _, _, _, _)
-| LetVal (PVar (name, _), _, _, _, _) -> List.assoc name env
+| PrimVal (_, _, t, _, _) -> t
+| LetRecVal (_, name, _, _, _, _)
+| LetVal (_, PVar (name, _), _, _, _, _) -> List.assoc name env
 | LetVal _ -> raise Not_found
 
 type var_scope =
@@ -828,11 +838,17 @@ let pr_expr ?export_num ?export_if ?export_bool pr_ann ppf exp =
       let fargs = collect_apps exp in
       fprintf ppf "@[<2>%a@]"
         (pr_sep_list "" (pr_one_expr pr_ann)) fargs
-    | Letrec (ann, x, exp, range, _) ->
+    | Letrec (docu, ann, x, exp, range, _) ->
+      (match docu with
+       | None -> ()
+       | Some doc -> fprintf ppf "(**%s*)@\n" doc);
       fprintf ppf "@[<0>let rec %s@ %a=@ @[<2>%a@] in@ @[<0>%a@]@]"
         x pr_ann (LetRecNode ann)
         aux exp aux range
-    | Letin (pat, exp, range, _) ->
+    | Letin (docu, pat, exp, range, _) ->
+      (match docu with
+       | None -> ()
+       | Some doc -> fprintf ppf "(**%s*)@\n" doc);
       fprintf ppf "@[<0>let %a =@ @[<2>%a@] in@ @[<0>%a@]@]"
         pr_pat pat aux exp
         aux range
@@ -986,53 +1002,92 @@ let pr_opt_tests pr_ann ppf = function
 let pr_opt_utests = pr_opt_tests (fun ppf _ -> fprintf ppf "")
 
 let pr_sig_item ppf = function
-  | ITypConstr (name, [], _) ->
+  | ITypConstr (docu, name, [], _) ->
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     fprintf ppf "@[<2>newtype@ %s@]" (cns_str name)
-  | ITypConstr (name, sorts, _) ->
+  | ITypConstr (docu, name, sorts, _) ->
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     fprintf ppf "@[<2>newtype@ %s@ :@ %a@]" (cns_str name)
       (pr_sep_list " *" pr_sort) sorts
-  | IValConstr (Extype _ as name, vs, phi, [arg],
+  | IValConstr (docu, (Extype _ as name), vs, phi, [arg],
                Extype j, [c_arg], _) ->
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a[%a].%a@ ⟶@ Ex%d %a@]"
       (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
       pr_formula phi pr_ty arg j pr_ty c_arg
-  | IValConstr (name, [], [], [], c_n, c_args, _) ->
+  | IValConstr (docu, name, [], [], [], c_n, c_args, _) ->
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     let res = TCons (c_n, c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ %a@]" (cns_str name)
       pr_ty res
-  | IValConstr (name, [], [], args, c_n, c_args, _) ->
+  | IValConstr (docu, name, [], [], args, c_n, c_args, _) ->
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     let res = TCons (c_n, c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ %a@ ⟶@ %a@]" (cns_str name)
       (pr_sep_list " *" pr_ty) args pr_ty res
-  | IValConstr (name, vs, [], [], c_n, c_args, _) ->
+  | IValConstr (docu, name, vs, [], [], c_n, c_args, _) ->
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     let res = TCons (c_n, c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a.@ %a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
       pr_ty res
-  | IValConstr (name, vs, phi, [], c_n, c_args, _) ->
+  | IValConstr (docu, name, vs, phi, [], c_n, c_args, _) ->
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     let res = TCons (c_n, c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a[%a].@ %a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
       pr_formula phi pr_ty res
-  | IValConstr (name, vs, [], args, c_n, c_args, _) ->
+  | IValConstr (docu, name, vs, [], args, c_n, c_args, _) ->
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     let res = TCons (c_n, c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a.%a@ ⟶@ %a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
       (pr_sep_list " *" pr_ty) args pr_ty res
-  | IValConstr (name, vs, phi, args, c_n, c_args, _) ->
+  | IValConstr (docu, name, vs, phi, args, c_n, c_args, _) ->
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     let res = TCons (c_n, c_args) in
     fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a[%a].%a@ ⟶@ %a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
       pr_formula phi
       (pr_sep_list " *" pr_ty) args pr_ty res
-  | IPrimVal (name, tysch, Left _, _) ->
+  | IPrimVal (docu, name, tysch, Left _, _) ->
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     fprintf ppf "@[<2>external@ %s@ :@ %a@]" name pr_typscheme tysch
-  | IPrimVal (name, tysch, Right _, _) ->
+  | IPrimVal (docu, name, tysch, Right _, _) ->
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     fprintf ppf "@[<2>external val@ %s@ :@ %a@]" name pr_typscheme tysch
-  | ILetRecVal (name, expr, tysch, tests, _, _) ->
+  | ILetRecVal (docu, name, expr, tysch, tests, _, _) ->
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     fprintf ppf "@[<2>val@ %s :@ %a@]" name pr_typscheme tysch
-  | ILetVal (_, _, _, tyschs, _, _, _) ->
+  | ILetVal (docu, _, _, _, tyschs, _, _, _) ->
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     pr_line_list "\n" 
       (fun ppf (name,tysch) ->
          fprintf ppf "@[<2>val@ %s :@ %a@]" name pr_typscheme tysch)
@@ -1042,21 +1097,33 @@ let pr_signature ppf p =
   pr_line_list "\n" pr_sig_item ppf p
 
 let pr_struct_item ppf = function
-  | TypConstr (name, sorts, lc) ->
-    pr_sig_item ppf (ITypConstr (name, sorts, lc))
-  | ValConstr (name, vs, phi, args, c_n, c_args, lc) ->
+  | TypConstr (docu, name, sorts, lc) ->
+    pr_sig_item ppf (ITypConstr (docu, name, sorts, lc))
+  | ValConstr (docu, name, vs, phi, args, c_n, c_args, lc) ->
     let c_args = List.map (fun v -> TVar v) c_args in
-    pr_sig_item ppf (IValConstr (name, vs, phi, args, c_n, c_args, lc))
-  | PrimVal (name, tysch, Left ext_def, _) ->
+    pr_sig_item ppf (IValConstr (docu, name, vs, phi, args, c_n, c_args, lc))
+  | PrimVal (docu, name, tysch, Left ext_def, _) ->
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     fprintf ppf "@[<2>external@ %s@ :@ %a@ =@ \"%s\"@]"
       name pr_typscheme tysch ext_def
-  | PrimVal (name, tysch, Right ext_def, _) ->
+  | PrimVal (docu, name, tysch, Right ext_def, _) ->
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     fprintf ppf "@[<2>external let@ %s@ :@ %a@ =@ \"%s\"@]"
       name pr_typscheme tysch ext_def
-  | LetRecVal (name, expr, tysch, tests, _) ->
+  | LetRecVal (docu, name, expr, tysch, tests, _) ->
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     fprintf ppf "@[<2>let rec@ %s%a@ =@ %a@]%a" name
       pr_opt_sig_tysch tysch pr_uexpr expr pr_opt_utests tests
-  | LetVal (pat, expr, tysch, tests, _) ->
+  | LetVal (docu, pat, expr, tysch, tests, _) ->
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     fprintf ppf "@[<2>let@ %a@%a@ =@ %a@]%a" pr_pat pat
       pr_opt_sig_tysch tysch pr_uexpr expr pr_opt_utests tests
 

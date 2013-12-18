@@ -1,34 +1,49 @@
 type num = int
+(** Expressions representing computations on numbers and tuples. *)
 type _ term =
   | IsZero : calc -> bool term
   | If : (*∀'a.*)bool term * 'a term * 'a term -> 'a term
+    (** Conditional on terms is lazy -- uses pattern matching on [Bool] type
+    which is exported to OCaml source using [if] expression. *)
   | Pair : (*∀'a, 'b.*)'a term * 'b term -> (('a * 'b)) term
   | Fst : (*∀'a, 'b.*)(('a * 'b)) term -> 'a term
   | Snd : (*∀'a, 'b.*)(('a * 'b)) term -> 'b term
+(** Expressions representing computations on tuples. *)
 and calc =
-  | Lit : (*∀'k.*)(* k *) num -> calc
+  | Lit : (*∀'k.*)(* k *) num -> calc (** Numerical constants. *)
   | Plus : calc * calc -> calc
+    (** Addition. Note that we do not convey any information about the result:
+    [Calc] does not have a parameter. *)
   | Mult : calc * calc -> calc
-  | Cond : bool term * calc * calc -> calc
+  | Cond : bool term * calc * calc -> calc (** Conditional. *)
+(** Addition. *)
 let plus : ((* i *) num -> (* j *) num -> (* i + j *) num) = (+)
 type ex1 =
   | Ex1 : (*∀'k.*)(* k *) num -> ex1
+(** Multiplication packs the result into existential type. *)
 let mult : ((* i *) num -> (* j *) num -> ex1) =
   fun a0 a1 -> Ex1 ((( * )) a0 a1)
 let is_zero : ((* i *) num -> bool) = (=) 0
 type ex2 =
   | Ex2 : (*∀'k.*)(* k *) num -> ex2
+(** Conditional is eager -- computes all its arguments. *)
 let cond : (bool -> (* i *) num -> (* j *) num -> ex2) =
   fun a0 a1 a2 -> Ex2 ((fun c a b -> if c then a else b) a0 a1 a2)
+(** Small definition. *)
 let snd (*: type a b . ((a * b) -> b)*) = (fun ((_, x)) -> x)
 type ex3 =
   | Ex3 : (*∀'n.*)(* n *) num -> ex3
+(** Exposing multiple mutually recursive definitions is tricky, it would
+    be easier to only expose the external one. *)
 let (calc, eval) (*: type a . ((calc -> ex3) * (a term -> a))*) =
+  (** [eval] has to expose its "helper" function. *)
   let rec eval : type b . ((calc -> ex3) * (b term -> b)) =
   let rec calc : (calc -> ex3) =
   ((function Lit i -> let xcase = i in Ex3 xcase
     | Plus (x, y) ->
+        (** Recursive call of [calc]. *)
         let Ex3 rx = calc x in
+        (** Another recursive call. *)
         let Ex3 ry = calc y in let xcase = plus rx ry in Ex3 xcase
     | Mult (x, y) ->
         let Ex3 rx = calc x in
@@ -39,7 +54,10 @@ let (calc, eval) (*: type a . ((calc -> ex3) * (a term -> a))*) =
         let Ex2 xcase = cond (snd eval b) rt re in Ex3 xcase):
     calc -> ex3) in
   (calc,
-    ((function IsZero x -> let Ex3 r = calc x in is_zero r
+    ((function
+      IsZero x ->
+        (** Mutually-recursive call. *)
+        let Ex3 r = calc x in is_zero r
       | If (b, t, e) -> (if snd eval b then snd eval t else snd eval e)
       | Pair (x, y) -> (snd eval x, snd eval y)
       | Fst p -> let ((x, y): (b * _)) = snd eval p in x

@@ -1,0 +1,61 @@
+(** Expressions representing computations on numbers and tuples. *)
+newtype Term : type
+
+(** Expressions representing computations on tuples. *)
+newtype Calc
+
+(** Addition. *)
+external val plus : ∀i, j. Num i → Num j → Num (i + j)
+
+newtype Ex1
+
+newcons Ex1 : ∀k.Num k ⟶ ∃1:k.Num k
+
+(** Multiplication packs the result into existential type. *)
+external val mult : ∀i, j. Num i → Num j → ∃1:k.Num k
+
+external val is_zero : ∀i. Num i → Bool
+
+newtype Ex2
+
+newcons Ex2 : ∀k.Num k ⟶ ∃2:k.Num k
+
+(** Conditional is eager -- computes all its arguments. *)
+external val cond : ∀i, j. Bool → Num i → Num j → ∃2:k.Num k
+
+(** Numerical constants. *)
+newcons Lit : ∀k.Num k ⟶ Calc
+
+(** Addition. Note that we do not convey any information about the result:
+    [Calc] does not have a parameter. *)
+newcons Plus : Calc * Calc ⟶ Calc
+
+newcons Mult : Calc * Calc ⟶ Calc
+
+(** Conditional. *)
+newcons Cond : Term Bool * Calc * Calc ⟶ Calc
+
+newcons IsZero : Calc ⟶ Term Bool
+
+(** Conditional on terms is lazy -- uses pattern matching on [Bool] type
+    which is exported to OCaml source using [if] expression. *)
+newcons If : ∀a.Term Bool * Term a * Term a ⟶ Term a
+
+newcons Pair : ∀a, b.Term a * Term b ⟶ Term ((a, b))
+
+newcons Fst : ∀a, b.Term ((a, b)) ⟶ Term a
+
+newcons Snd : ∀a, b.Term ((a, b)) ⟶ Term b
+
+(** Small definition. *)
+val snd : ∀a, b. (a, b) → b
+
+newtype Ex3
+
+newcons Ex3 : ∀n.Num n ⟶ Ex3
+
+(** Exposing multiple mutually recursive definitions is tricky, it would
+    be easier to only expose the external one. *)
+val calc : Calc → ∃3:n.Num n
+
+val eval : ∀a. Term a → a

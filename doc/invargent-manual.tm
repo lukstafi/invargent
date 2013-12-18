@@ -151,16 +151,16 @@
   than <verbatim|int>, and then numerals are exported via an injection
   function (ending with) <verbatim|of_int>.
 
-  The syntax <verbatim|external let> allows to name an OCaml library function
-  or give an OCaml definition which we opt-out from translating to InvarGenT.
-  Such a definition will be verified against the rest of the program when
-  InvarGenT calls <verbatim|ocamlc -c> (or Haskell in the future) to verify
-  the exported code. Another variant of <verbatim|external> (omitting the
-  <verbatim|let> keyword) exports a value using <verbatim|external> in OCaml
-  code, which is OCaml-source facing declaration of the foreign function
-  interface of OCaml. When we are not interested in linking and running the
-  exported code, we can follow the convention of reusing the name in the FFI
-  definition: <verbatim|external f : >...<verbatim| = "f">.
+  The syntax <verbatim|external let> allows us to name an OCaml library
+  function or give an OCaml definition which we opt-out from translating to
+  InvarGenT. Such a definition will be verified against the rest of the
+  program when InvarGenT calls <verbatim|ocamlc -c> (or Haskell in the
+  future) to verify the exported code. Another variant of <verbatim|external>
+  (omitting the <verbatim|let> keyword) exports a value using
+  <verbatim|external> in OCaml code, which is OCaml source declaration of the
+  foreign function interface of OCaml. When we are not interested in linking
+  and running the exported code, we can follow the convention of reusing the
+  name in the FFI definition: <verbatim|external f : >...<verbatim| = "f">.
 
   The type inferred is <verbatim|eval : <math|\<forall\>>a. Term
   a<math|\<rightarrow\>>a>. GADTs make it possible to reveal that
@@ -591,8 +591,8 @@
   List(a,n+1)>>>|<row|<cell|declaration>|<cell|<verbatim|external filter :
   <math|\<forall\>>n,a. List(a,n)<math|\<rightarrow\>
   \<exists\>>k[k\<less\>=n].List(a,k)="filter">>>|<row|<cell|let-declaration>|<cell|<verbatim|external
-  let plus : <math|\<forall\>>n,m. Num n<math|\<rightarrow\>>Num
-  m<math|\<rightarrow\> \<exists\>>k.Num k = "(+)">>>|<row|<cell|rec.
+  let mult : <math|\<forall\>>n,m. Num n<math|\<rightarrow\>>Num
+  m<math|\<rightarrow\> \<exists\>>k.Num k = "( * )">>>|<row|<cell|rec.
   definition>|<cell|<verbatim|let rec f =>...>>|<row|<cell|non-rec.
   definition>|<cell|<verbatim|let a, b =>...>>|<row|<cell|definition with
   test>|<cell|<verbatim|let rec f =>...<verbatim| test e1; >...<verbatim|;
@@ -610,6 +610,17 @@
   For simplicity of theory and implementation, mutual non-nested recursion
   and or-patterns are not provided. For mutual recursion, nest one recursive
   definition inside another.
+
+  At any place between lexemes, regular comments encapsulated in
+  <verbatim|(*<math|\<ldots\>>*)> can occur. They are ignored during lexing.
+  In front of all toplevel definitions and declarations, e.g. before a
+  <verbatim|newtype>, <verbatim|newcons>, <verbatim|external>, <verbatim|let
+  rec> or <verbatim|let>, and in front of <verbatim|let rec> .. <verbatim|in>
+  and <verbatim|let> .. <verbatim|in> nodes in expressions, documentation
+  comments <verbatim|(**<math|\<ldots\>>*)> can be put. Documentation
+  comments at other places are syntax errors. Documentation comments are
+  preserved both in generated interface files and in exported source code
+  files.
 
   <section|Solver Parameters and CLI>
 

@@ -50,6 +50,9 @@ type pat =
 
 val pat_loc : pat -> loc
 
+(** [string option] at [Letrec] and [Letin] are documentation
+    comments. ['a] and ['b] parameters stand for annotations, e.g. type
+    annotations in the last stage of inference. *)
 type ('a, 'b) expr =
 | Var of string * loc
 | Num of int * loc
@@ -58,8 +61,8 @@ type ('a, 'b) expr =
 | App of ('a, 'b) expr * ('a, 'b) expr * loc
 | Lam of 'b * ('a, 'b) clause list * loc
 | ExLam of int * ('a, 'b) clause list * loc
-| Letrec of 'a * string * ('a, 'b) expr * ('a, 'b) expr * loc
-| Letin of pat * ('a, 'b) expr * ('a, 'b) expr * loc
+| Letrec of string option * 'a * string * ('a, 'b) expr * ('a, 'b) expr * loc
+| Letin of string option * pat * ('a, 'b) expr * ('a, 'b) expr * loc
 | AssertFalse of loc
 | AssertLeq of ('a, 'b) expr * ('a, 'b) expr * ('a, 'b) expr * loc
 | AssertEqty of ('a, 'b) expr * ('a, 'b) expr * ('a, 'b) expr * loc
@@ -167,25 +170,36 @@ val typ_out : typ_loc -> typ
 (** Set [extype_id] and [predvar_id] to [0]. *)
 val reset_state : unit -> unit
 
+(** [string option] stores the documentation comment appearing in
+    front of a definition or declaration. *)
 type struct_item =
-| TypConstr of cns_name * sort list * loc
-| ValConstr of cns_name * var_name list * formula * typ list
-  * cns_name * var_name list * loc
-| PrimVal of string * typ_scheme * (string, string) Aux.choice * loc
-| LetRecVal of string * uexpr * typ_scheme option * uexpr list * loc
-| LetVal of pat * uexpr * typ_scheme option * uexpr list * loc
+| TypConstr of string option * cns_name * sort list * loc
+| ValConstr of
+    string option * cns_name * var_name list * formula * typ list
+    * cns_name * var_name list * loc
+| PrimVal of
+    string option * string * typ_scheme * (string, string) Aux.choice * loc
+| LetRecVal of
+    string option * string * uexpr * typ_scheme option * uexpr list * loc
+| LetVal of
+    string option * pat * uexpr * typ_scheme option * uexpr list * loc
 
 (** Represents both signature items and annotated structure items to
     be printed as OCaml source code. *)
 type annot_item =
-| ITypConstr of cns_name * sort list * loc
-| IValConstr of cns_name * var_name list * formula * typ list
-  * cns_name * typ list * loc
-| IPrimVal of string * typ_scheme * (string, string) Aux.choice * loc
-| ILetRecVal of string * texpr * typ_scheme *
-                  texpr list * (pat * int option) list * loc
-| ILetVal of pat * texpr * typ_scheme * (string * typ_scheme) list *
-               texpr list * (pat * int option) list * loc
+| ITypConstr of
+    string option * cns_name * sort list * loc
+| IValConstr of
+    string option * cns_name * var_name list * formula * typ list
+    * cns_name * typ list * loc
+| IPrimVal of
+    string option * string * typ_scheme * (string, string) Aux.choice * loc
+| ILetRecVal of
+    string option * string * texpr * typ_scheme *
+      texpr list * (pat * int option) list * loc
+| ILetVal of
+    string option * pat * texpr * typ_scheme * (string * typ_scheme) list *
+      texpr list * (pat * int option) list * loc
 
 module VarSet : (Set.S with type elt = var_name)
 val typ_size : typ -> int

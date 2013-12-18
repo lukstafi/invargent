@@ -54,9 +54,9 @@ let existential evs exphi ty loc =
   let ety_cn = Extype ety_id in
   let ety = TCons (ety_cn, targs) in
   let extydec =
-    TypConstr (ety_cn, List.map var_sort pvs, loc) in
+    TypConstr (None, ety_cn, List.map var_sort pvs, loc) in
   let extydef =
-    ValConstr (ety_cn, allvs, exphi, [ty], ety_cn, pvs, loc) in
+    ValConstr (None, ety_cn, allvs, exphi, [ty], ety_cn, pvs, loc) in
   more_items := extydef :: extydec :: !more_items;
   let ex_sch = allvs, exphi, [ty], ety_cn, pvs in
   all_ex_types := (ety_id, loc) :: !all_ex_types;
@@ -141,20 +141,18 @@ let extract_datatyp allvs loc = function
 /* Grammar follows */
 %%
 expr:
-  | LET REC LIDENT EQUAL expr IN expr
-      { Letrec ((), $3, $5,
-	       (* {beg_pos = rhs_start_pos 2; FIXME: body loc
-		  end_pos = rhs_end_pos 5}, *) $7, get_loc ()) }
-  | LET pattern EQUAL expr IN expr
-      { Letin ($2, (* rhs_loc 3, *) $4, $6, get_loc ()) }
-  | LET REC EQUAL expr IN expr
-      { syntax_error "lacking let-rec-binding identifier" 3 }
-  | LET EQUAL expr IN expr
-      { syntax_error "lacking let-binding pattern" 2 }
-  | LET REC LIDENT EQUAL expr error
-      { unclosed "let" 1 "in" 6 }
-  | LET pattern EQUAL expr error
-      { unclosed "let" 1 "in" 5 }
+  | opt_docucomment LET REC LIDENT EQUAL expr IN expr
+      { Letrec ($1, (), $4, $6, $8, get_loc ()) }
+  | opt_docucomment LET pattern EQUAL expr IN expr
+      { Letin ($1, $3, $5, $7, get_loc ()) }
+  | opt_docucomment LET REC EQUAL expr IN expr
+      { syntax_error "lacking let-rec-binding identifier" 4 }
+  | opt_docucomment LET EQUAL expr IN expr
+      { syntax_error "lacking let-binding pattern" 3 }
+  | opt_docucomment LET REC LIDENT EQUAL expr error
+      { unclosed "let" 2 "in" 7 }
+  | opt_docucomment LET pattern EQUAL expr error
+      { unclosed "let" 2 "in" 6 }
   | FUNCTION opt_bar match_cases %prec below_WITH
       { Lam ((), List.rev $3, get_loc ()) }
   | EFUNCTION opt_bar match_cases %prec below_WITH
@@ -394,12 +392,13 @@ lident_list:
 ;
 
 structure_item_raw:
-  | NEWCONS UIDENT COLON opt_constr_intro typ_star_list LONGARROW typ
-      { let n = CNam $2 in
-        if List.length $5 = 1 then Hashtbl.add unary_vals n ();
-        let vs, phi = $4 in
-        let args = List.rev $5 in
-        let res = $7 in
+  | opt_docucomment
+    NEWCONS UIDENT COLON opt_constr_intro typ_star_list LONGARROW typ
+      { let n = CNam $3 in
+        if List.length $6 = 1 then Hashtbl.add unary_vals n ();
+        let vs, phi = $5 in
+        let args = List.rev $6 in
+        let res = $8 in
         let allvs = VarSet.union (vars_of_list vs)
           (VarSet.union (fvs_formula phi)
              (List.fold_left VarSet.union (fvs_typ res)
@@ -409,63 +408,73 @@ structure_item_raw:
         let vs = Aux.unique_sorted (c_args @ vs) in
         let phi = more_phi @ phi in
         Hashtbl.add sigma n (vs, phi, args, c_n, c_args);
-        ValConstr (n, vs, phi, args, c_n, c_args, get_loc ()) }
-  | NEWCONS UIDENT COLON opt_constr_intro typ_star_list error
-      { unclosed "newcons" 1 "-->" 6 }
-  | NEWCONS UIDENT COLON opt_constr_intro LONGARROW
+        ValConstr ($1, n, vs, phi, args, c_n, c_args, get_loc ()) }
+  | opt_docucomment
+    NEWCONS UIDENT COLON opt_constr_intro typ_star_list error
+      { unclosed "newcons" 2 "-->" 7 }
+  | opt_docucomment
+    NEWCONS UIDENT COLON opt_constr_intro LONGARROW
       { syntax_error
-	  "do not use --> for constructors without arguments" 5 }
-  | NEWCONS UIDENT COLON opt_constr_intro typ
-      { let n = CNam $2 in
-        let vs, phi = $4 in
-        let res = $5 in
+	  "do not use --> for constructors without arguments" 6 }
+  | opt_docucomment NEWCONS UIDENT COLON opt_constr_intro typ
+      { let n = CNam $3 in
+        let vs, phi = $5 in
+        let res = $6 in
         let allvs = VarSet.union (vars_of_list vs)
           (VarSet.union (fvs_formula phi) (fvs_typ res)) in
         let c_n, c_args, more_phi =
-          extract_datatyp allvs (rhs_loc 5) res in
+          extract_datatyp allvs (rhs_loc 6) res in
         let vs = Aux.unique_sorted (c_args @ vs) in
         let phi = more_phi @ phi in
         Hashtbl.add sigma n (vs, phi, [], c_n, c_args);
-        ValConstr (n, vs, phi, [], c_n, c_args, get_loc ()) }
-  | NEWCONS UIDENT COLON opt_constr_intro typ_star_list LONGARROW error
-      { syntax_error ("inside the constructor value type") 4 }
-  | NEWCONS UIDENT COLON opt_constr_intro error
-      { syntax_error ("inside the constructor type") 4 }
-  | NEWCONS UIDENT COLON error
+        ValConstr ($1, n, vs, phi, [], c_n, c_args, get_loc ()) }
+  | opt_docucomment
+    NEWCONS UIDENT COLON opt_constr_intro typ_star_list LONGARROW error
+      { syntax_error ("inside the constructor value type") 5 }
+  | opt_docucomment NEWCONS UIDENT COLON opt_constr_intro error
+      { syntax_error ("inside the constructor type") 5 }
+  | opt_docucomment NEWCONS UIDENT COLON error
       { syntax_error ("<all>, <with>,"^
-	  " a star-separated list of types, or a type expected") 4 }
-  | NEWCONS COLON
+	  " a star-separated list of types, or a type expected") 5 }
+  | opt_docucomment NEWCONS COLON
       { syntax_error
-	  "lacking constructor identifier" 2 }
-  | NEWCONS UIDENT error
-      { unclosed "newcons" 1 ":" 3 }
-  | NEWTYPE UIDENT COLON sort_star_list
+	  "lacking constructor identifier" 3 }
+  | opt_docucomment NEWCONS UIDENT error
+      { unclosed "newcons" 2 ":" 4 }
+  | opt_docucomment NEWTYPE UIDENT COLON sort_star_list
       {
-        if List.length ($4) = 1 then Hashtbl.add unary_typs ($2) ();
-        TypConstr (CNam ($2), List.rev ($4), get_loc ()) }
-  | NEWTYPE COLON
+        if List.length ($5) = 1 then Hashtbl.add unary_typs ($3) ();
+        TypConstr ($1, CNam ($3), List.rev ($5), get_loc ()) }
+  | opt_docucomment NEWTYPE COLON
       { syntax_error
-	  "lacking type identifier" 2 }
-  | NEWTYPE UIDENT
-      { TypConstr (CNam $2, [], get_loc ()) }
-  | EXTERNAL LIDENT COLON opt_constr_intro typ EQUAL STRING
-      { PrimVal ($2, (fst $4, snd $4, $5), Aux.Left $7, get_loc ()) }
-  | EXTERNAL LET LIDENT COLON opt_constr_intro typ EQUAL STRING
-      { PrimVal ($3, (fst $5, snd $5, $6), Aux.Right $8, get_loc ()) }
-  | EXTERNAL COLON
+	  "lacking type identifier" 3 }
+  | opt_docucomment NEWTYPE UIDENT
+      { TypConstr ($1, CNam $3, [], get_loc ()) }
+  | opt_docucomment
+    EXTERNAL LIDENT COLON opt_constr_intro typ EQUAL STRING
+      { PrimVal ($1, $3, (fst $5, snd $5, $6), Aux.Left $8, get_loc ()) }
+  | opt_docucomment
+    EXTERNAL LET LIDENT COLON opt_constr_intro typ EQUAL STRING
+      { PrimVal ($1, $4, (fst $6, snd $6, $7), Aux.Right $9, get_loc ()) }
+  | opt_docucomment EXTERNAL COLON
       { syntax_error
-	  "lacking external binding identifier" 2 }
-  | LET REC LIDENT opt_sig_typ_scheme EQUAL expr opt_tests
-      { LetRecVal ($3, $6, $4, $7, get_loc ()) }
-  | LET REC EQUAL
+	  "lacking external binding identifier" 3 }
+  | opt_docucomment LET REC LIDENT opt_sig_typ_scheme EQUAL expr opt_tests
+      { LetRecVal ($1, $4, $7, $5, $8, get_loc ()) }
+  | opt_docucomment LET REC EQUAL
       { syntax_error
-	  "lacking global let-rec-binding identifier" 3 }
-  | LET pattern opt_sig_typ_scheme EQUAL expr opt_tests
-      { LetVal ($2, $5, $3, $6, get_loc ()) }
-  | LET EQUAL
+	  "lacking global let-rec-binding identifier" 4 }
+  | opt_docucomment LET pattern opt_sig_typ_scheme EQUAL expr opt_tests
+      { LetVal ($1, $3, $6, $4, $7, get_loc ()) }
+  | opt_docucomment LET EQUAL
       { syntax_error
 	  "lacking global let-binding identifier" 3 }
 ;
+opt_docucomment:
+  | /* empty */
+      { None }
+  | DOCUCOMMENT
+      { Some $1 }
 opt_sig_typ_scheme:
   | /* empty */
       { None }
