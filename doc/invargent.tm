@@ -744,6 +744,12 @@
   However, this optimization violates completeness guarantees of the
   combination of sorts algorithm.
 
+  The dissociation interacts with the discard list mechanism. Since
+  dissociation introduces fresh variables, no answers with alien subterms
+  would be syntactically identical. When checking whether a partial answer
+  should be discarded, in case alien subterm dissociation is <em|on>, we
+  ignore alien sort variables in the comparison.
+
   <subsection|Simple constraint abduction for linear
   arithmetic><label|SCAlinear>
 
@@ -1710,56 +1716,56 @@
     <associate|ImplSubst|<tuple|4|2>>
     <associate|Main Algo|<tuple|5.3|?>>
     <associate|MainAlgo|<tuple|5|13>>
-    <associate|MainAlgoBody|<tuple|5.3|15>>
-    <associate|NumConv|<tuple|4.2|11>>
+    <associate|MainAlgoBody|<tuple|5.3|16>>
+    <associate|NumConv|<tuple|4.2|12>>
     <associate|Rg|<tuple|5|16>>
-    <associate|SCAlinear|<tuple|3.4|8>>
+    <associate|SCAlinear|<tuple|3.4|9>>
     <associate|SepProp|<tuple|5|3>>
     <associate|SepProp2|<tuple|6|?>>
     <associate|Skp|<tuple|1|16>>
-    <associate|Skp1|<tuple|10|16>>
+    <associate|Skp1|<tuple|10|17>>
     <associate|SolSimpl|<tuple|9|12>>
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1>>
     <associate|auto-10|<tuple|3.3|8>>
-    <associate|auto-11|<tuple|3.4|8>>
-    <associate|auto-12|<tuple|4|10>>
+    <associate|auto-11|<tuple|3.4|9>>
+    <associate|auto-12|<tuple|4|11>>
     <associate|auto-13|<tuple|4.1|11>>
-    <associate|auto-14|<tuple|4.2|11>>
-    <associate|auto-15|<tuple|4.3|11>>
+    <associate|auto-14|<tuple|4.2|12>>
+    <associate|auto-15|<tuple|4.3|12>>
     <associate|auto-16|<tuple|5|13>>
     <associate|auto-17|<tuple|5.1|13>>
-    <associate|auto-18|<tuple|5.2|13>>
-    <associate|auto-19|<tuple|5.3|15>>
+    <associate|auto-18|<tuple|5.2|14>>
+    <associate|auto-19|<tuple|5.3|16>>
     <associate|auto-2|<tuple|2|3>>
-    <associate|auto-20|<tuple|5.4|17>>
+    <associate|auto-20|<tuple|5.4|18>>
     <associate|auto-21|<tuple|5.5|18>>
-    <associate|auto-22|<tuple|6|18>>
-    <associate|auto-23|<tuple|6|19>>
+    <associate|auto-22|<tuple|6|19>>
+    <associate|auto-23|<tuple|6|20>>
     <associate|auto-24|<tuple|5.5|17>>
     <associate|auto-3|<tuple|2.1|4>>
-    <associate|auto-4|<tuple|2.1.1|4>>
+    <associate|auto-4|<tuple|2.1.1|5>>
     <associate|auto-5|<tuple|2.2|5>>
     <associate|auto-6|<tuple|3|5>>
-    <associate|auto-7|<tuple|3.1|5>>
+    <associate|auto-7|<tuple|3.1|6>>
     <associate|auto-8|<tuple|3.1.1|7>>
-    <associate|auto-9|<tuple|3.2|7>>
-    <associate|bib-AbductionSolvMaher|<tuple|3|19>>
-    <associate|bib-AntiUnifAlg|<tuple|9|19>>
+    <associate|auto-9|<tuple|3.2|8>>
+    <associate|bib-AbductionSolvMaher|<tuple|3|20>>
+    <associate|bib-AntiUnifAlg|<tuple|9|20>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
-    <associate|bib-ArithQuantElim|<tuple|1|19>>
-    <associate|bib-ConvexHull|<tuple|2|19>>
+    <associate|bib-ArithQuantElim|<tuple|1|20>>
+    <associate|bib-ConvexHull|<tuple|2|20>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
-    <associate|bib-ESOP2014|<tuple|8|19>>
+    <associate|bib-ESOP2014|<tuple|8|20>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
-    <associate|bib-disjelimTechRep|<tuple|5|19>>
-    <associate|bib-invariantsTechRep2|<tuple|6|19>>
+    <associate|bib-disjelimTechRep|<tuple|5|20>>
+    <associate|bib-invariantsTechRep2|<tuple|6|20>>
     <associate|bib-jcaqpTechRep|<tuple|8|4>>
-    <associate|bib-jcaqpTechRep2|<tuple|7|19>>
-    <associate|bib-jcaqpUNIF|<tuple|4|19>>
+    <associate|bib-jcaqpTechRep2|<tuple|7|20>>
+    <associate|bib-jcaqpUNIF|<tuple|4|20>>
     <associate|bib-simonet-pottier-hmg-toplas|<tuple|6|4>>
     <associate|bib-systemTechRep|<tuple|5|18>>
   </collection>

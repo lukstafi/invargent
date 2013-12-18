@@ -44,7 +44,8 @@ let test_case ?(test_annot=false) file () =
      then assert_equal ~printer:(fun x->x)
          (input_file (file^".ml.target"))
          (input_file (file^".ml"))
-   with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+   with (Terms.Report_toplevel _ | Terms.Contradiction _
+        | Terms.NoAnswer _) as exn ->
      ignore (Format.flush_str_formatter ());
      Terms.pr_exception Format.str_formatter exn;
      let msg = Format.flush_str_formatter () in

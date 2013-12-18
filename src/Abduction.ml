@@ -164,13 +164,32 @@ let revert_cst_n_uni q ~bvs ~pms ~dissociate alien_prem ans cand =
     else c6_cand in
   old_cand, c6_cand
 
-let implies_cnj ans c_ans =
+exception Distinct
+let eq_mod_numvars t1 t2 =
+  let rec aux t1 t2 =
+    match t1, t2 with
+    | TVar v1, TVar v2
+      when var_sort v1 = Num_sort && var_sort v2 = Num_sort -> ()
+    | TVar v1, TVar v2
+      when v1 = v2 -> ()
+    | TCons (f, args1), TCons (g, args2) when f=g ->
+      List.iter2 aux args1 args2
+    | Fun (a1, r1), Fun (a2, r2) -> aux a1 a2; aux r1 r2
+    | (NCst _ | Nadd _), (NCst _ | Nadd _) when t1 = t2 -> ()
+    | _ -> raise Distinct in
+  try aux t1 t2; true with Distinct -> false
+
+let implies_cnj mod_numvars ans c_ans =
   List.for_all (fun (v,(t,_)) ->
-    try fst (List.assoc v ans) = subst_typ ans t
+    try
+      if mod_numvars
+      then eq_mod_numvars (fst (List.assoc v ans)) (subst_typ ans t)
+      else fst (List.assoc v ans) = subst_typ ans t
     with Not_found -> false
   ) c_ans
 
-let implies_ans ans (_,c_ans) = implies_cnj ans c_ans
+let implies_ans mod_numvars ans (_,c_ans) =
+  implies_cnj mod_numvars ans c_ans
 
 (* Simple constraint abduction for terms
 
@@ -301,7 +320,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
             (*[* Format.printf "skipped: [%d]@ @[<2>%a@]@\n%!" ddepth pr_subst ans; *]*)
             decr skip)
           (* TODO: optimize by passing clean_ans along with ans *)
-          else if List.exists (implies_ans clean_ans) discard
+          else if List.exists (implies_ans dissociate clean_ans) discard
           then (
             (*[* Format.printf "discarding: [%d] skip=%d --@ @[<2>%a@]@\n%!"
               ddepth !skip pr_subst ans; *]*)
