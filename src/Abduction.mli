@@ -8,10 +8,13 @@
 type skip_kind = Superset_old_mod | Equ_old_mod
 val skip_kind : skip_kind ref
 
-(** If [more_general=false] works usually faster, if it doesn't work
-    try [more_general=true] (gives the same or better answers). *)
+(** [more_general=true] might produce a more general answer but is too
+    costly; default [false]. *)
 val more_general : bool ref
-
+(** [richer_answers=true] produces answers in more cases because it tries
+    answers with redundant atoms first, but can produce answers that
+    are not most general. Default [false]. *)
+val richer_answers : bool ref
 val timeout_count : int ref
 val fail_timeout_count : int ref
 val no_alien_prem : bool ref

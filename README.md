@@ -21,6 +21,7 @@ Version 2.0 goals -- version targets may be reassigned:
 - [x] Support source code comments preserved in the AST. (v1.1)
 - [_] Ability to parse `.gadti` and `.mli` files, and use them with the module access `open M`, `let open M in ...`, `M.(...)` and `M.x` syntaxes. (v1.2)
 - [_] Export Haskell code. (v1.2)
+- [_] Meta-automatic mode: retry with modified user-level parameter settings if inference fails. (v1.2)
 - [_] Factorize to make extending and adding sorts easier -- ideally, plug-in architecture for sorts. (v1.3)
 - [_] Add (relational forms of) `min` and `max` to the numerical sort -- sorely needed for datastructure invariants. (v1.3)
 - [_] Improve error reporting (likely culprit). (v1.4)

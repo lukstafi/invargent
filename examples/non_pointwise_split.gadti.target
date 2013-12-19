@@ -1,7 +1,11 @@
 newtype Split : type * type
+
 newcons Whole : Split (Int, Int)
+
 newcons Parts : ∀a, b. Split ((Int, a), (b, Bool))
+
 external val seven : Int
+
 external val three : Int
 
 val joint : ∀a. Split (a, a) → a

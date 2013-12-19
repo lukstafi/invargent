@@ -780,6 +780,18 @@
     out a couple of rotations: convex combinations of the inequalities
     defining the sides. This parameter decides how many rotations to try.
 
+    <item*|<verbatim|-richer_answers>>Keep some equations in term abduction
+    answers even if redundant. Try keeping an initial guess out of a list of
+    candidate equations before trying to drop the equation from
+    consideration. We use fully maximal abduction for single branches, which
+    cannot find answers not implied by premise and conclusion of a branch.
+    But we seed it with partial answer to branches considered so far.
+    Sometimes an atom is required to solve another branch although it is
+    redundant in given branch. <verbatim|-richer_answers> does not increase
+    computational cost but sometimes leads to answers that are not most
+    general. This can always be fixed by adding a <verbatim|test> clause to
+    the definition which uses a type conflicting with the too specific type.
+
     <item*|<verbatim|-passing_ineq_trs>>Include inequalities in conclusion
     when solving numerical abduction. This setting leads to more inequalities
     being tried for addition in numeric abduction answer.
@@ -868,7 +880,7 @@
     <associate|auto-23|<tuple|6|18|invargent.tm>>
     <associate|auto-24|<tuple|5.5|17>>
     <associate|auto-3|<tuple|3|5>>
-    <associate|auto-4|<tuple|4|6>>
+    <associate|auto-4|<tuple|4|7>>
     <associate|auto-5|<tuple|2.2|4|invargent.tm>>
     <associate|auto-6|<tuple|3|5|invargent.tm>>
     <associate|auto-7|<tuple|3.1|5|invargent.tm>>

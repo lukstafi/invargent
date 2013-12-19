@@ -584,9 +584,18 @@
     raise <verbatim|Contradiction> if they fail, choice 1 only tests
     <verbatim|implies_concl> which returns a boolean.
 
-    <item>We provide an option <verbatim|more_general>, which when set to
-    false reorders the choices into: 1, 6, 4, 2, 3, 5 -- pushing 4 up
+    <item>Default ordering of choices is 1, 6, 2, 4, 3, 5 -- pushing 4 up
     minimizes the amount of branching in 5.
+
+    <\itemize>
+      <item>We provide an option <verbatim|more_general>, which reorders the
+      choices to: 1, 6, 4, 2, 3, 5; the cost of this reordering is
+      prohibitive;
+
+      <item>and an option <verbatim|richer_answers> which reorders the
+      choices to: 6, 1, 2, 4, 3, 5; it does not increase computational cost
+      but sometimes leads to answers that are not most general.
+    </itemize>
 
     <item>Form initial candidates <math|\<b-U\><rsub|><around*|(|<wide|A|~><around*|(|D\<wedge\>C|)>|)>>.
 

@@ -678,11 +678,11 @@ let annotate_expr q res_sb chi_sb nice_sb e : texpr =
                                   List.mem_assoc a2 res_sb)
                   ann
             with Not_found ->
-              (*[*) Format.printf "a1s,a2s=%s@\nres_sb=%a@\nnice_sb=%a@\n%!"
+              (*[* Format.printf "a1s,a2s=%s@\nres_sb=%a@\nnice_sb=%a@\n%!"
                 (String.concat "; "
                    (List.map (fun (a1,a2)->var_str a1^","^var_str a2)
                       ann))
-                pr_subst res_sb pr_hvsubst nice_sb; (*]*)
+                pr_subst res_sb pr_hvsubst nice_sb; *]*)
               assert false in
           let t1 = hvsubst_typ nice_sb (fst (List.assoc a1 res_sb))
           and t2 = hvsubst_typ nice_sb (fst (List.assoc a2 res_sb)) in

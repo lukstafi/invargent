@@ -17,7 +17,7 @@ let input_file file =
    with End_of_file -> ());
   Buffer.contents buf
 
-let test_case ?(test_annot=false) file () =
+let test_case ?(test_annot=false) ?(richer_answers=false) file () =
   if !debug then Printexc.record_backtrace true;
   let ntime = Sys.time () in
   Terms.reset_state ();
@@ -31,6 +31,8 @@ let test_case ?(test_annot=false) file () =
       else (
         (*[* Format.printf "not found f=%s@\n%!" (f^".gadt"); *]*)
         assert false) in
+  let old_richer_answers = !Abduction.richer_answers in
+  Abduction.richer_answers := richer_answers;
   (try
      let verif_res =
        InvarGenT.process_file ~do_sig:true ~do_ml:true
@@ -52,6 +54,7 @@ let test_case ?(test_annot=false) file () =
      Format.printf "@\n%s@\n%!"  msg;
      Printexc.print_backtrace stdout;
      assert_failure msg);
+  Abduction.richer_answers := old_richer_answers;
   Format.printf " t=%.3fs " (Sys.time () -. ntime)
 
 let tests = "InvarGenT" >::: [
@@ -135,18 +138,18 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case ~test_annot:true "concat_strings" ());
-      "non_pointwise_vary" >::
-        (fun () ->
-           todo "harder test";
-           test_case "non_pointwise_vary" ());
       "non_pointwise_split" >::
         (fun () ->
-           todo "harder test";
-           test_case "non_pointwise_split" ());
+           skip_if !debug "debug";
+           test_case ~richer_answers:true "non_pointwise_split" ());
       "non_pointwise_avl" >::
         (fun () ->
            todo "harder test";
            test_case "non_pointwise_avl" ());
+      "non_pointwise_vary" >::
+        (fun () ->
+           todo "harder test";
+           test_case "non_pointwise_vary" ());
     ]
 
 

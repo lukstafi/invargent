@@ -102,6 +102,8 @@ let main () =
     "Limit on backtracking steps in numerical joint abduction (default 10)";
     "-disjelim_rotations", Arg.Set_int NumS.disjelim_rotations,
     "Disjunction elimination: check coefficients from 1/N (default 3)";
+    "-richer_answers", Arg.Set Abduction.richer_answers,
+    "Keep some equations in term abduction answers even if redundant.";
     "-passing_ineq_trs", Arg.Set NumS.passing_ineq_trs,
     "Include inequalities in conclusion when solving numerical abduction";
     "-not_annotating_fun", Arg.Clear Infer.annotating_fun,

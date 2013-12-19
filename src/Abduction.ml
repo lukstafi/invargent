@@ -12,6 +12,9 @@ open Joint
 let timeout_count = ref 700(* 5000 *)(* 50000 *)
 let fail_timeout_count = ref 4
 let no_alien_prem = ref (* true *)false
+let more_general = ref false
+let richer_answers = ref false
+
 
 let abd_fail_flag = ref false
 let abd_timeout_flag = ref false
@@ -36,8 +39,6 @@ let empty_q =
 
 type skip_kind = Superset_old_mod | Equ_old_mod
 let skip_kind = ref Superset_old_mod
-
-let more_general = ref false
 
 let rich_return_type_heur bvs ans cand =
   let types = map_some
@@ -224,8 +225,12 @@ let implies_ans mod_numvars ans (_,c_ans) =
    * we recompute modifications of parameters due to partial answer,
      e.g. [cparams], for clarity of [abd_typ] and [abd]
    * we sort the initial candidates by decreasing size
-   * if [more_general] is false, the ordering of choices is instead:
+   * the default ordering, [more_general] [richer_answers] are false, is:
      1, 6, 2, 4, 3, 5
+   * if [richer_answers] is true, the ordering of choices is instead:
+     6, 1, 2, 4, 3, 5
+   * if [more_general] is true, the ordering of choices is:
+     1, 6, 2, 3, 4, 5
  *)
 
 exception Timeout
@@ -239,7 +244,9 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
   let allvs = ref VarSet.empty in
   try
     let prem, prem_num = subst_solved ~use_quants:false q ans ~cnj:prem in
-    (*[* Format.printf "abd_simple:@ prem_num=%a@\n%!" pr_formula prem_num;
+    (*[* Format.printf
+      "abd_simple:@ prem_num=%a@\ndiscard=%a@\n%!" pr_formula prem_num
+      (pr_line_list "| " pr_subst) (List.map snd discard);
     *]*)
     let concl, _ = subst_solved ~use_quants:false q ans ~cnj:concl in
     (*[* Format.printf
@@ -344,62 +351,68 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
           (String.concat ","(List.map var_str vs))
           pr_subst ans (var_str x) pr_ty t
           (List.length (fst cand)) pr_subst (fst cand); *]*)
-        (* Choice 1: drop premise/conclusion atom from answer *)
-        if implies_concl vs (ans @ fst cand)
-        then (
+        let choice1 () =
+          (* Choice 1: drop premise/conclusion atom from answer *)
+          if implies_concl vs (ans @ fst cand)
+          then (
+            (*[* Format.printf
+              "abd_simple: [%d] choice 1@ drop %s = %a@ (%s = %a)@\n%!"
+              ddepth (var_str x) pr_ty t
+              (var_str c6x) pr_ty c6t; *]*)
+            (*[* try *]*)
+              abstract deep repls bvs pms vs ans cand
+              (*[*; Format.printf "abd_simple: [%d] choice 1 failed@\n%!"
+                ddepth; *]*)               
+              (*[* with Result (bvs, pms, vs, ans) as e ->
+              Format.printf "abd_simple: [%d] preserve choice 1@ %s =@ %a@ -- returned@ ans=%a@\n%!"
+                ddepth (var_str x) pr_ty t pr_subst ans;
+              raise e *]*) );
           (*[* Format.printf
-            "abd_simple: [%d] choice 1@ drop %s = %a@ (%s = %a)@\n%!"
+            "abd_simple: [%d]@ recover after choice 1@ %s =@ %a (%s = %a)@\ncand=%a@\n%!"
             ddepth (var_str x) pr_ty t
-            (var_str c6x) pr_ty c6t; *]*)
-          (*[* try *]*)
-            abstract deep repls bvs pms vs ans cand
-            (*[*; Format.printf "abd_simple: [%d] choice 1 failed@\n%!"
-              ddepth; *]*)               
-          (*[* with Result (bvs, pms, vs, ans) as e ->
-            Format.printf "abd_simple: [%d] preserve choice 1@ %s =@ %a@ -- returned@ ans=%a@\n%!"
-              ddepth (var_str x) pr_ty t pr_subst ans;
-            raise e *]*) );
-        (*[* Format.printf
-          "abd_simple: [%d]@ recover after choice 1@ %s =@ %a (%s = %a)@\ncand=%a@\n%!"
-          ddepth (var_str x) pr_ty t
-          (var_str c6x) pr_ty c6t pr_subst (fst cand); *]*)
-        (* Choice 6: preserve atom in a "generalized" form *)
-        if not !more_general && implies_concl vs (ans @ c6sx::fst cand)
-        then (
+            (var_str c6x) pr_ty c6t pr_subst (fst cand); *]*)
+          () in
+        let choice6 () =
+          (* Choice 6: preserve atom in a "generalized" form *)
+          if not !more_general && implies_concl vs (ans @ c6sx::fst cand)
+          then (
+            (*[* Format.printf
+              "abd_simple: [%d]@ choice 6@ keep %s = %a@ (%s = %a)@\n%!"
+              ddepth (var_str c6x) pr_ty c6t
+              (var_str x) pr_ty t; *]*)
+            try
+              let bvs' =
+                if is_p then VarSet.union
+                    (VarSet.filter (not % q.uni_v)
+                       (VarSet.add c6x (fvs_typ c6t))) bvs
+                else bvs in
+              let ans', _, so =
+                unify ~bvs:bvs' ~pms ~sb:ans
+                  q [Eqty (TVar c6x, c6t, c6lc)] in
+              (*[* Format.printf
+                "abd_simple: [%d] validate 6 ans'=@ %a@\n%!" ddepth pr_subst ans'; *]*)
+              validate (vs, ans');
+              (*[* Format.printf "abd_simple: [%d] choice 6 OK@\n%!" ddepth; *]*)
+              assert (so = []);
+              abstract deep repls bvs' pms vs ans' cand
+            with
+            (*[* | Result (bvs, pms, vs, ans) as e ->
+              (* FIXME: remove try-with case after debug over *)
+              Format.printf "abd_simple: [%d]@ preserve choice 6@ %s =@ %a@ -- returned@ ans=%a@\n%!"
+                ddepth (var_str c6x)
+                pr_ty c6t pr_subst ans;
+              raise e *]*)
+                  | Contradiction _ (*[* as e *]*) ->
+                    (*[* Format.printf
+                      "abd_simple: [%d]@ invalid choice 6 reason:@\n%a@\n%!"
+                      ddepth pr_exception e; *]*)
+                    ());
           (*[* Format.printf
-            "abd_simple: [%d]@ choice 6@ keep %s = %a@ (%s = %a)@\n%!"
-            ddepth (var_str c6x) pr_ty c6t
-            (var_str x) pr_ty t; *]*)
-          try
-            let bvs' =
-              if is_p then VarSet.union
-                  (VarSet.filter (not % q.uni_v)
-                     (VarSet.add c6x (fvs_typ c6t))) bvs
-              else bvs in
-            let ans', _, so =
-              unify ~bvs:bvs' ~pms ~sb:ans
-                q [Eqty (TVar c6x, c6t, c6lc)] in
-            (*[* Format.printf
-              "abd_simple: [%d] validate 6 ans'=@ %a@\n%!" ddepth pr_subst ans'; *]*)
-            validate (vs, ans');
-            (*[* Format.printf "abd_simple: [%d] choice 6 OK@\n%!" ddepth; *]*)
-            assert (so = []);
-            abstract deep repls bvs' pms vs ans' cand
-          with
-          (*[* | Result (bvs, pms, vs, ans) as e ->
-            (* FIXME: remove try-with case after debug over *)
-            Format.printf "abd_simple: [%d]@ preserve choice 6@ %s =@ %a@ -- returned@ ans=%a@\n%!"
-              ddepth (var_str c6x)
-              pr_ty c6t pr_subst ans;
-            raise e *]*)
-          | Contradiction _ (*[* as e *]*) ->
-            (*[* Format.printf
-              "abd_simple: [%d]@ invalid choice 6 reason:@\n%a@\n%!"
-              ddepth pr_exception e; *]*)
-            ());
-        (*[* Format.printf
-          "abd_simple: [%d]@ recover after choice 6@ %s =@ %a@\n%!"
-          ddepth (var_str c6x) pr_ty c6t; *]*)
+            "abd_simple: [%d]@ recover after choice 6@ %s =@ %a@\n%!"
+            ddepth (var_str c6x) pr_ty c6t; *]*)
+          () in
+        if !richer_answers then (choice6 (); choice1 ())
+        else (choice1 (); choice6 ());
         step deep x lc {typ_sub=t; typ_ctx=[]} repls
           is_p bvs pms vs ans cand
     and step deep x lc loc repls is_p bvs pms vs ans cand =
@@ -524,23 +537,23 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
                     else bvs in
                   let ans', _, so =
                     (*[* try *]*)
-                    unify ~bvs:bvs' ~pms ~sb:ans
-                      q [Eqty (TVar x, t', lc)]
-                      (*[* with Terms.Contradiction _ as e ->
-                        Format.printf
-                        "abd_simple: [%d] @ c.5 above failed:@\n%a@\n%!" ddepth
-                        pr_exception e;
-                        raise e *]*) in
+                      unify ~bvs:bvs' ~pms ~sb:ans
+                        q [Eqty (TVar x, t', lc)]
+                  (*[* with Terms.Contradiction _ as e ->
+                    Format.printf
+                      "abd_simple: [%d] @ c.5 above failed:@\n%a@\n%!" ddepth
+                      pr_exception e;
+                    raise e *]*) in
                   (*[* Format.printf
                     "abd_simple: [%d] validate 5 ans'=@ %a@\n%!"
                     ddepth pr_subst ans'; *]*)
                   (*[*(try*]*)
-                  validate (vs, ans');
-                  (*[*with Terms.Contradiction _ as e ->
-                    Format.printf
-                      "abd_simple: [%d] @ c.5 validate failed:@\n%a@\n%!" ddepth
-                      pr_exception e;
-                    raise e); *]*)
+                          validate (vs, ans');
+                          (*[*with Terms.Contradiction _ as e ->
+                         Format.printf
+                           "abd_simple: [%d] @ c.5 validate failed:@\n%a@\n%!" ddepth
+                           pr_exception e;
+                         raise e); *]*)
                   (*[* Format.printf "abd_simple: choice 5 OK@\n%!"; *]*)
                   assert (so = []);
                   (*[* Format.printf
@@ -589,7 +602,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
         validate (vs, ans);
         (*[* Format.printf
           "abd_simple: Final validation passed@\nans=%a@\n%!"
-           pr_subst ans; *]*)
+          pr_subst ans; *]*)
         Some (bvs, cleanup q vs ans)
   with
   | Contradiction _ ->
