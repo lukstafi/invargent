@@ -135,6 +135,18 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case ~test_annot:true "concat_strings" ());
+      "non_pointwise_vary" >::
+        (fun () ->
+           todo "harder test";
+           test_case "non_pointwise_vary" ());
+      "non_pointwise_split" >::
+        (fun () ->
+           todo "harder test";
+           test_case "non_pointwise_split" ());
+      "non_pointwise_avl" >::
+        (fun () ->
+           todo "harder test";
+           test_case "non_pointwise_avl" ());
     ]
 
 

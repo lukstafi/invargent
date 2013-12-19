@@ -61,9 +61,9 @@ let existential evs exphi ty loc =
   let ex_sch = allvs, exphi, [ty], ety_cn, pvs in
   all_ex_types := (ety_id, loc) :: !all_ex_types;
   Hashtbl.add sigma ety_cn ex_sch;
-  (* Format.printf "Parser-existential-ex_types: id=%d@ phi=%a@ ty=%a@\n%!"
-    ety_id pr_formula exphi (pr_ty false) ty;
-  * *)
+  (*[* Format.printf "Parser-existential-ex_types: id=%d@ phi=%a@ ty=%a@\n%!"
+    ety_id pr_formula exphi pr_ty ty;
+  *]*)
   (* Here in [ety] the variables are free, unlike the
      occurrences in [exphi]. *)
   ety
@@ -74,7 +74,8 @@ let last_typ = parser_last_typ
 let last_num = parser_last_num
 
 let extract_datatyp allvs loc = function
-  | TCons (CNam m as n, args) ->
+  | TCons (CNam m as n, args) (*[*as ty*]*) ->
+    (*[*Format.printf "Parser-extract_datatyp: ty=%a@\n%!" pr_ty ty; *]*)
     let args = match args with
       | [TCons (CNam "Tuple", targs)] when not (Hashtbl.mem unary_typs m) ->
         targs
@@ -84,12 +85,16 @@ let extract_datatyp allvs loc = function
       | TVar v as t ->
         if not (VarSet.mem v used) then (VarSet.add v used, phi), v
         else
-          let v' = next_var allvs (typ_sort t) in
+          let v' = next_var (VarSet.union used allvs) (typ_sort t) in
           (VarSet.add v' used, Eqty (t, TVar v', loc)::phi), v'
       | t ->
-        let v = next_var allvs (typ_sort t) in
+        let v = next_var (VarSet.union used allvs) (typ_sort t) in
         (VarSet.add v used, Eqty (t, TVar v, loc)::phi), v)
       (VarSet.empty, []) args in
+    (*[*Format.printf
+      "Parser-extract_datatyp: n=%s@ args=%s@ phi=%a@\n%!"
+      (cns_str n) (String.concat "," (List.map var_str args))
+      pr_formula phi; *]*)
     n, args, phi
   | _ -> raise (Report_toplevel ("Syntax error: expected datatype",
 			         Some loc))

@@ -1,0 +1,11 @@
+newtype EquLR : type * type * type
+newcons EquL : ∀a, b. EquLR (a, a, b)
+newcons EquR : ∀a, b. EquLR (a, b, b)
+newtype Box : type
+newcons Cons : ∀a. a ⟶ Box a
+external let eq : ∀a. a → a → Bool = "(=)"
+
+let vary = fun e y ->
+  match e with
+  | EquL, EquL -> eq y "c"
+  | EquR, EquR -> Cons (match y with True -> 5 | False -> 7)

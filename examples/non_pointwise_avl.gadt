@@ -1,0 +1,29 @@
+(** Normally we would use [num], but this is a stress test for [type]. *)
+newtype Z
+newtype S : type
+newtype Balance : type * type * type
+newcons Less : ∀a. Balance (a, S a, S a)
+newcons Same : ∀a. Balance (a, a, a)
+newcons More : ∀a. Balance (S a, a, S a)
+newtype AVL : type
+newcons Leaf : AVL Z
+newcons Node :
+  ∀a, b, c. Balance (a, b, c) * AVL a * Int * AVL b ⟶ AVL (S c)
+
+newtype Choice : type * type
+newcons Left : ∀a, b. a ⟶ Choice (a, b)
+newcons Right : ∀a, b. b ⟶ Choice (a, b)
+
+let rotr = fun z d -> function
+  | Leaf -> assert false
+  | Node (Less, a, x, Leaf) -> assert false
+  | Node (Same, a, x, (Node (_,_,_,_) as b)) ->
+    Right (Node (Less, a, x, Node (More, b, z, d)))
+  | Node (More, a, x, (Node (_,_,_,_) as b)) ->
+    Left (Node (Same, a, x, Node (Same, b, z, d)))
+  | Node (Less, a, x, Node (Same, b, y, c)) ->
+    Left (Node (Same, Node (Same, a, x, b), y, Node (Same, c, z, d)))
+  | Node (Less, a, x, Node (Less, b, y, c)) ->
+    Left (Node (Same, Node (More, a, x, b), y, Node (Same, c, z, d)))
+  | Node (Less, a, x, Node (More, b, y, c)) ->
+    Left (Node (Same, Node (Same, a, x, b), y, Node (Less, c, z, d)))

@@ -1,0 +1,9 @@
+newtype EquLR : type * type * type
+newcons EquL : ∀a, b. EquLR (a, a, b)
+newcons EquR : ∀a, b. EquLR (a, b, b)
+newtype Box : type
+newcons Cons : ∀a. a ⟶ Box a
+external val eq : ∀a. a → a → Bool
+
+val vary :
+  ∀a, b. (EquLR (String, a, Bool), EquLR (Bool, b, Box Int)) → a → b
