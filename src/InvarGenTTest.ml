@@ -142,10 +142,22 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case ~richer_answers:true "non_pointwise_split" ());
+      "non_pointwise_avl_small_rec" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case ~richer_answers:true "non_pointwise_avl_small" ());
+      "non_pointwise_avl_small" >::
+        (fun () ->
+           todo "harder test";
+           test_case ~richer_answers:true "non_pointwise_avl_small" ());
+      "non_pointwise_avl_rec" >::
+        (fun () ->
+           todo "harder test";
+           test_case ~richer_answers:true "non_pointwise_avl_rec" ());
       "non_pointwise_avl" >::
         (fun () ->
            todo "harder test";
-           test_case "non_pointwise_avl" ());
+           test_case ~richer_answers:true "non_pointwise_avl" ());
       "non_pointwise_vary" >::
         (fun () ->
            todo "harder test";

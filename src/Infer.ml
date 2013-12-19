@@ -1282,7 +1282,7 @@ let vs_hist_sb increase sb =
 let simplify preserve q brs =
   (* Prune "implies true" branches. *)
   let brs = List.filter
-    (function _, [] -> false | _ -> true) brs in
+      (function _, [] -> false | _ -> true) brs in
   (* Predicate variables for invariants of recursive definitions (some
      positive occs of unary pred vars are for postconditions). *)
   let chi_rec = Hashtbl.create 2 in
@@ -1301,8 +1301,8 @@ let simplify preserve q brs =
     try Hashtbl.find ht v with Not_found -> 0 in
   List.iter
     (fun (prem,concl) ->
-      List.iter (vs_hist_atom increase) prem;
-      List.iter (vs_hist_atom increase) concl)
+       List.iter (vs_hist_atom increase) prem;
+       List.iter (vs_hist_atom increase) concl)
     brs;
   let redundant_atom in_prem = function
     | Eqty (TVar v, _, _) | Leq (TVar v, _, _)
@@ -1319,35 +1319,37 @@ let simplify preserve q brs =
     not (List.exists (function
         | PredVarB (i, _, _, _) -> true | _ -> false) prem) in
   let brs = List.map
-    (fun (prem,concl) ->
-      List.filter nonred_pr_atom prem,
-      List.filter nonred_atom concl)
-    brs in
+      (fun (prem,concl) ->
+         List.filter nonred_pr_atom prem,
+         List.filter nonred_atom concl)
+      brs in
   (* Merge branches with the same premise. Do not merge branches when
      one is non-recursive and the other is recursive. *)
   (* Roughly like [map_reduce (@) [] brs] *)
   let equiv cnj1 cnj2 =
-    let c1_ty, c1_num, c1_so = unify ~use_quants:false q cnj1 in
-    let c2_ty, c2_num, c2_so = unify ~use_quants:false q cnj2 in
-    let c1_ty = List.map (fun (v,(t,_)) -> v,t) c1_ty
-    and c2_ty = List.map (fun (v,(t,_)) -> v,t) c2_ty
-    and c1_num = replace_loc dummy_loc c1_num
-    and c2_num = replace_loc dummy_loc c2_num
-    and c1_so = replace_loc dummy_loc c1_so
-    and c2_so = replace_loc dummy_loc c2_so in
-    let res =
-      List.sort compare c1_ty = List.sort compare c2_ty &&
-      (* NumS.equivalent q c1_num c2_num && *)
-      List.sort compare c1_num = List.sort compare c2_num &&
-      List.sort compare c1_so = List.sort compare c2_so in
-    (*[* Format.printf
-      "simplify: equiv? res=%b ty=%b num=%b so=%b@\nc1=%a@\nc2=%a@\n%!"
-      res (List.sort compare c1_ty = List.sort compare c2_ty)
-      (* (NumS.equivalent q c1_num c2_num)  *)
-      (List.sort compare c1_num = List.sort compare c2_num)
-      (List.sort compare c1_so = List.sort compare c2_so)
-      pr_formula cnj1 pr_formula cnj2; *]*)
-    res in
+    try
+      let c1_ty, c1_num, c1_so = unify ~use_quants:false q cnj1 in
+      let c2_ty, c2_num, c2_so = unify ~use_quants:false q cnj2 in
+      let c1_ty = List.map (fun (v,(t,_)) -> v,t) c1_ty
+      and c2_ty = List.map (fun (v,(t,_)) -> v,t) c2_ty
+      and c1_num = replace_loc dummy_loc c1_num
+      and c2_num = replace_loc dummy_loc c2_num
+      and c1_so = replace_loc dummy_loc c1_so
+      and c2_so = replace_loc dummy_loc c2_so in
+      let res =
+        List.sort compare c1_ty = List.sort compare c2_ty &&
+        (* NumS.equivalent q c1_num c2_num && *)
+        List.sort compare c1_num = List.sort compare c2_num &&
+        List.sort compare c1_so = List.sort compare c2_so in
+      (*[* Format.printf
+        "simplify: equiv? res=%b ty=%b num=%b so=%b@\nc1=%a@\nc2=%a@\n%!"
+        res (List.sort compare c1_ty = List.sort compare c2_ty)
+        (* (NumS.equivalent q c1_num c2_num)  *)
+        (List.sort compare c1_num = List.sort compare c2_num)
+        (List.sort compare c1_so = List.sort compare c2_so)
+        pr_formula cnj1 pr_formula cnj2; *]*)
+      res
+    with Contradiction _ -> false in
   let rec meet nonrec prem concl = function
     | [] -> raise Not_found
     | (prem2, concl2 as br) :: brs ->
@@ -1361,6 +1363,7 @@ let simplify preserve q brs =
       try merge acc (meet (is_nonrec prem concl) prem concl brs)
       with Not_found -> merge (br::acc) brs in
   let brs = merge [] brs in
+  (*[* Format.printf "simplify: ended.@\n%!"; *]*)
   List.stable_sort
     (fun (prem1,_) (prem2,_) -> List.length prem1 - List.length prem2)
     brs

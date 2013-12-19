@@ -1,0 +1,28 @@
+(** Normally we would use [num], but this is a stress test for [type]. *)
+newtype Z
+
+newtype S : type
+
+newtype Balance : type * type * type
+
+newcons Less : ∀a. Balance (a, S a, S a)
+
+newcons Same : ∀b. Balance (b, b, b)
+
+newcons More : ∀a. Balance (S a, a, S a)
+
+newtype AVL : type
+
+newcons Leaf : AVL Z
+
+newcons Node : ∀a, b, c.Balance (a, b, c) * AVL a * Int * AVL b ⟶
+   AVL (S c)
+
+newtype Choice : type * type
+
+newcons Left : ∀a, b.a ⟶ Choice (a, b)
+
+newcons Right : ∀a, b.b ⟶ Choice (a, b)
+
+val rotr :
+   ∀a, b. Int → AVL b → AVL (S (S b)) → Choice (a, AVL (S (S (S b))))
