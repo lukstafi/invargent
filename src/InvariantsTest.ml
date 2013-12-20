@@ -1308,10 +1308,10 @@ let rec eval =
        skip_if !debug "debug";
        test_nonrec_case "nonrec simple"
 "newtype Order : num * num
-external compare : ∀i, j. Num i → Num j → Order (i, j) = \"compare\"
-let cmp7and8 = compare 7 8
+external compare : ∀i, j. Num i → Num j → (Order (i, j), Int) = \"compare\"
+let cmp7and8, res = compare 7 8
 "
-        [1, "Order (7, 8)"];
+        [1, "(Order (7, 8), Int)"];
 
     );
 

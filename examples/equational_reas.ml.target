@@ -2,10 +2,8 @@ type num = int
 type _ place =
   | LocA : a place
   | LocB : b place
-and a
-  
-and b
-  
+and a = A_phantom
+and b = B_phantom
 type (_,
   _) nearby =
   | Here : (*∀'b.*)'b place * 'b place -> ('b, 'b) nearby

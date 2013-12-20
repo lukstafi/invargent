@@ -246,11 +246,17 @@ let rec pr_struct_items ~funtys ~lettys constrs ppf defined defining prog =
      | None -> ()
      | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     let cns = try List.assoc c_n constrs with Not_found -> [] in
-    fprintf ppf "@[<2>%s %a%a%s@\n%a@]@\n"
-      (if CNames.is_empty defining then "type" else "and")
-      pr_ty_wildcards sorts pr_tycns c_n
-      (if cns=[] then "" else " =")
-      (pr_line_list "" (pr_constr c_n)) cns;
+    if cns=[]
+    then
+      fprintf ppf "@[<2>%s %a%a =@ %s_phantom@]@\n"
+        (if CNames.is_empty defining then "type" else "and")
+        pr_ty_wildcards sorts pr_tycns c_n
+        (cns_str c_n)
+    else
+      fprintf ppf "@[<2>%s %a%a =@\n%a@]@\n"
+        (if CNames.is_empty defining then "type" else "and")
+        pr_ty_wildcards sorts pr_tycns c_n
+        (pr_line_list "" (pr_constr c_n)) cns;
     let more_defs = List.fold_left
         (fun cns ty -> CNames.union cns (cns_typ ty)) CNames.empty
         (concat_map
