@@ -772,6 +772,7 @@ let rec walk = fun x ->
   "existential with param" >::
     (fun () ->
        skip_if !debug "debug";
+       todo "make no abduction for postconditions & not in bvs on iter=0";
        test_case "existential with param"
 "newtype Place : type
 newtype Nearby : type * type

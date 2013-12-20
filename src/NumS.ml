@@ -238,6 +238,8 @@ let eqineq_loc_union (eqn, ineqn) =
 let un_ans (eqs, ineqs) = unsubst eqs, unsolve ineqs
 
 (* Assumption: [v] is downstream of all [vars] *)
+(* TODO: understand why the equivalent of [Terms.quant_viol] utterly
+   fails here. *)
 let quant_viol uni_v bvs v vars =
   let res = uni_v v && not (VarSet.mem v bvs) in
   (*[* if res then

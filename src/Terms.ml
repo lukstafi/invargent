@@ -1218,37 +1218,31 @@ let connected ?(validate=fun _ -> ()) target (vs, phi) =
 let var_not_left_of q v t =
   VarSet.for_all (fun w -> q.cmp_v v w <> Left_of) (fvs_typ t)
 
-(* If there are no [bvs] parameters, the LHS variable has to be
+(* If [v] is not a [bvs] parameter, the LHS variable has to be
    existential and not upstream (i.e. left of) of any RHS variable
    that is not in [pms].
 
-   If [v] is a [bvs] parameter, every universal variable must be
-   left of some [bv] parameter. (Note that a [bv] parameter that
-   is sufficiently downstream is a "savior".) Existential variables
-   are not constrained: do not need to be same as or to the left of [v]. *)
+   If [v] is a [bvs] parameter, the RHS must not contain a universal
+   non-[bvs] variable. Existential variables are not constrained: do not
+   need to be same as or to the left of [v]. *)
 let quant_viol q bvs pms v t =
-  let uv = q.uni_v v in
-  let pvs, npvs = List.partition (fun v->VarSet.mem v bvs)
+  let uv = q.uni_v v and bv = VarSet.mem v bvs in
+  let npvs = List.filter (fun v-> not (VarSet.mem v bvs))
     (VarSet.elements (fvs_typ t)) in
-  let pvs = if VarSet.mem v bvs then v::pvs else pvs in
   let uni_vs =
-    List.filter q.uni_v (if VarSet.mem v bvs then npvs else v::npvs) in
+    List.filter q.uni_v (if bv then npvs else v::npvs) in
   (*[* Format.printf "quant_viol: vrels %!"; *]*)
   let res =
-  if not (VarSet.mem v bvs) then uv ||
+  if not bv then
+    uv ||
     List.exists
     (fun v2 ->
       (*[* Format.printf "%s %s %s; " (var_str v)
         (var_scope_str (q.cmp_v v v2)) (var_str v2); *]*)
       not (VarSet.mem v2 pms) && q.cmp_v v v2 = Left_of) npvs
-  else
-    not
-      (List.for_all
-         (fun uv -> q.cmp_v v uv = Same_quant ||
-                    List.exists (fun pv -> q.cmp_v uv pv = Left_of) pvs)
-         uni_vs) in
+  else uni_vs <> [] in
   (*[* Format.printf
-    "@\nquant_viol: %b; v=%s; uv=%b;@ t=%a;@ bvs=%a;@ pms=%a;@ pvs=%a;@
+    "@\nquant_viol: %b; v=%s; uv=%b;@ t=%a;@ bvs=%a;@ pms=%a;@ \
    uni_vs=%a; npvs=%a@\n%!"
     res (var_str v) uv (pr_ty false) t
     pr_vars bvs pr_vars pms pr_vars (vars_of_list pvs)

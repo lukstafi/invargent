@@ -611,6 +611,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                 brs) in
          more @ prem, concl)
       neg_brs in
+  (*[* Format.printf "solve: pos_brs=@ %a@\n%!" Infer.pr_rbrs pos_brs; *]*)
   (*[* Format.printf "solve: neg_brs=@ %a@\n%!" Infer.pr_rbrs neg_brs; *]*)
   let neg_cns = List.map
       (fun (prem, concl) ->

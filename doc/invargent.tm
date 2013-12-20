@@ -484,7 +484,10 @@
   In fact, when performing unification, we check more than
   <math|\<b-U\><rsub|<wide|\<alpha\>|\<bar\>><wide|\<beta\>|\<bar\>>><around*|(|\<cal-Q\>.A|)>>
   requires. We also ensure that the use of parameters will not cause problems
-  in the <verbatim|split> phase of the main algorithm.
+  in the <verbatim|split> phase of the main algorithm. To this effect, we
+  forbid substitution of a variable from <math|<wide|\<beta\>|\<bar\>>> with
+  a term containing a universally quantified variable that is not in
+  <math|<wide|\<beta\>|\<bar\>>>.
 
   In implementing <cite|AbductionSolvMaher> p. 13, we follow top-down
   approach where bigger subterms are abstracted first -- replaced by fresh
@@ -1762,7 +1765,7 @@
     <associate|auto-5|<tuple|2.2|5>>
     <associate|auto-6|<tuple|3|5>>
     <associate|auto-7|<tuple|3.1|6>>
-    <associate|auto-8|<tuple|3.1.1|7>>
+    <associate|auto-8|<tuple|3.1.1|8>>
     <associate|auto-9|<tuple|3.2|8>>
     <associate|bib-AbductionSolvMaher|<tuple|3|20>>
     <associate|bib-AntiUnifAlg|<tuple|9|20>>
