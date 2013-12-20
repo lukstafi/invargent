@@ -538,14 +538,15 @@ let constr_gen_tests gamma tests =
   List.fold_left cn_and (And []) cns,
   tests, !elim_cells, List.concat preserve
 
-let constr_gen_letrec gamma x e sig_cn tb tests =
+let constr_gen_letrec ?(nonrec=false) gamma x e sig_cn tb tests =
   let a = fresh_typ_var () in
   let chi_id = incr fresh_chi_id; !fresh_chi_id in
   let chi_b = PredVarU (chi_id, tb, expr_loc e) in
   let chi_a = PredVarU (chi_id, TVar a, expr_loc e) in
   let bvs = VarSet.union (fvs_typ tb) (fvs_formula sig_cn) in
   let def_typ = VarSet.elements bvs, [chi_b], tb in
-  let gamma = (x, def_typ)::gamma in
+  let gamma =
+    if nonrec then gamma else (x, def_typ)::gamma in
   let (expr_cn, e), elim_cell, preserve = constr_gen_expr gamma e tb in
   let def_cn =
     All (bvs, Impl (chi_b::sig_cn, expr_cn)) in
@@ -577,7 +578,10 @@ let infer_prog_mockup (prog : program) =
     | _, PrimVal (docu, x, tsch, ext_def, loc) ->
       gamma := (x, tsch) :: !gamma;
       [], VarSet.empty, And []
-    | new_ex_types, LetRecVal (docu, x, e, defsig, tests, loc) ->
+    | new_ex_types,
+      (LetRecVal (docu, x, e, defsig, tests, loc) as it)
+    | new_ex_types,
+      (LetVal (docu, PVar (x, _), e, defsig, tests, loc) as it) ->
       let bvs, sig_cn, t = match defsig with
         | None ->
           let b = fresh_typ_var () in
@@ -585,8 +589,9 @@ let infer_prog_mockup (prog : program) =
           [b], [], tb
         | Some (vs, phi, t) -> vs, phi, t in
       let preserve = VarSet.union (fvs_typ t) (fvs_formula sig_cn) in
+      let nonrec = match it with LetVal _ -> true | _ -> false in
       let chi_id, typ_sch, cn, e, tests, elim_cells, more_preserve =
-        constr_gen_letrec !gamma x e sig_cn t tests in
+        constr_gen_letrec ~nonrec !gamma x e sig_cn t tests in
       gamma := (x, typ_sch) :: !gamma;
       new_ex_types, add_vars more_preserve preserve, cn
     | new_ex_types, LetVal (docu, p, e, defsig, tests, loc) ->
@@ -787,15 +792,22 @@ let infer_prog solver prog =
         | _, PrimVal (docu, x, tsch, ext_def, lc) ->
           gamma := (x, tsch) :: !gamma;
           [IPrimVal (docu, x, tsch, ext_def, lc)]
-        | new_ex_types, LetRecVal (docu, x, e, defsig, tests, loc) ->
+        | new_ex_types,
+          (LetRecVal (docu, x, e, defsig, tests, loc) as it)
+        | new_ex_types,
+          (LetVal (docu, PVar (x, _), e, defsig, tests, loc) as it) ->
           let bvs, sig_cn, t = match defsig with
             | None ->
               let b = fresh_typ_var () in
               let tb = TVar b in
               [b], [], tb
             | Some (vs, phi, t) -> vs, phi, t in
+          let pat_loc = match it with
+            | LetVal (_, PVar (_, lc), _, _, _, _) -> Some lc
+            | _ -> None in
           let chi_id, _, cn, e, tests, elim_cells, preserve =
-            constr_gen_letrec !gamma x e sig_cn t tests in
+            constr_gen_letrec ~nonrec:(pat_loc<>None)
+              !gamma x e sig_cn t tests in
           (*[* Format.printf "LetRecVal: x=%s@\ncn=%a@\n%!" x
              pr_cnstrnt cn; *]*)
           let preserve = add_vars preserve
@@ -833,8 +845,15 @@ let infer_prog solver prog =
           if !inform_toplevel
           then Format.printf
               "@[<2>val@ %s :@ %a@]@\n%!" x pr_typscheme typ_sch;
-          ex_items @
-            [ILetRecVal (docu, x, e, typ_sch, tests, elim_extypes, loc)]
+          (match pat_loc with
+           | Some lc ->
+             ex_items @
+               [ILetVal (docu, PVar (x, lc), e, typ_sch, [x, typ_sch],
+                         tests, elim_extypes, loc)]
+           | None ->
+             ex_items @
+               [ILetRecVal (docu, x, e, typ_sch,
+                            tests, elim_extypes, loc)])
         | new_ex_types, LetVal (docu, p, e, defsig, tests, loc) ->
           let avs, sig_vs, sig_cn, t = match defsig with
             | None ->
