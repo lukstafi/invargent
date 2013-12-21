@@ -732,6 +732,16 @@
     with the nodes cannot be eliminated from the constraint during initial
     simplification.
 
+    <item*|<verbatim|-keep_assert_false>>Keep <verbatim|assert false> clauses
+    in exported code. When faced with multiple maximally general types of a
+    function, we sometimes want to prevent some interpretations by asserting
+    that a combination of arguments is not possible. These arguments will not
+    be compatible with the type inferred, causing exported code to fail to
+    typecheck. Sometimes we indicate unreachable cases just for
+    documentation. If the type is tight this will cause exported code to fail
+    to typecheck too. This option keeps pattern matching branches with
+    <verbatim|assert false> in their bodies in exported code nevertheless.
+
     <item*|<verbatim|-term_abduction_timeout>>Limit on term simple abduction
     steps (default 700). Simple abduction works with a single implication
     branch, which roughly corresponds to a single branch -- an execution path

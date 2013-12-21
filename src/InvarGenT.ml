@@ -84,6 +84,8 @@ let main () =
     "The exported type for which `Num` is an alias (default `int`); apply `S.of_int` to numerals.";
     "-full_annot", Arg.Set full_annot,
     "Annotate the `function` and `let..in` nodes in generated OCaml code";
+    "-keep_assert_false", Arg.Clear OCaml.drop_assert_false,
+    "Keep `assert false` clauses in exported code";
     "-term_abduction_timeout", Arg.Set_int Abduction.timeout_count,
     "Limit on term simple abduction steps (default 700)";
     "-term_abduction_fail", Arg.Set_int Abduction.fail_timeout_count,

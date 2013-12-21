@@ -145,15 +145,15 @@ let tests = "InvarGenT" >::: [
       "non_pointwise_avl_small_rec" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~richer_answers:true "non_pointwise_avl_small_rec" ());
+           test_case "non_pointwise_avl_small_rec" ());
       "non_pointwise_avl_small" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~richer_answers:true "non_pointwise_avl_small" ());
+           test_case "non_pointwise_avl_small" ());
       "non_pointwise_avl" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~richer_answers:true "non_pointwise_avl" ());
+           test_case "non_pointwise_avl" ());
       "non_pointwise_vary" >::
         (fun () ->
            todo "harder test";

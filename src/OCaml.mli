@@ -10,6 +10,9 @@
 val num_is : string ref
 (** See the [-num_is_mod] option. *)
 val num_is_mod : bool ref
+(** Drop [assert false] clauses from exported code, see the
+    [-drop_assert_false] option. *)
+val drop_assert_false : bool ref
 
 val pr_ml :
   funtys:bool -> lettys:bool ->

@@ -8,6 +8,7 @@
 
 let num_is = ref "int"
 let num_is_mod = ref false
+let drop_assert_false = ref true
 
 open Terms
 open Format
@@ -120,9 +121,12 @@ let postprocess elim_extypes e =
     | App (e1, e2, loc) ->
       App (aux e1, aux e2, loc)
     | Lam (ann, cls, loc) ->
-      let cls = List.filter (not % single_assert_false) cls in
+      let cls =
+        if !drop_assert_false
+        then List.filter (not % single_assert_false) cls
+        else cls in
       Lam (ann, List.map (fun (p,e)->p, aux e) cls, loc)
-    | AssertFalse _ -> assert false
+    | AssertFalse _ as e -> e
     | (AssertLeq _ | AssertEqty _) as e -> e
     | Letrec (docu, ann, x, e1, e2, loc) ->
       Letrec (docu, ann, x, aux e1, aux e2, loc)
