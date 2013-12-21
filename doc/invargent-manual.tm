@@ -235,9 +235,10 @@
 
   InvarGenT returns an unexpected type: <verbatim|equal<math|:\<forall\>>a,b.(Ty
   a, Ty b)<math|\<rightarrow\>>a<math|\<rightarrow\>>a<math|\<rightarrow\>>Bool>,
-  one of four maximally general types of <verbatim|equal1>. The other
-  maximally general ``wrong'' types are <verbatim|<math|\<forall\>>a,b.(Ty a,
-  Ty b)<math|\<rightarrow\>>b<math|\<rightarrow\>>b<math|\<rightarrow\>>Bool>
+  one of four maximally general types of <verbatim|equal> as defined above.
+  The other maximally general ``wrong'' types are
+  <verbatim|<math|\<forall\>>a,b.(Ty a, Ty
+  b)<math|\<rightarrow\>>b<math|\<rightarrow\>>b<math|\<rightarrow\>>Bool>
   and <verbatim|<math|\<forall\>>a,b.(Ty a, Ty
   b)<math|\<rightarrow\>>b<math|\<rightarrow\>>a<math|\<rightarrow\>>Bool>.
   This illustrates that unrestricted type systems with GADTs lack principal
@@ -263,11 +264,7 @@
   <verbatim|equal<math|:\<forall\>>a,b.(Ty a, Ty
   b)<math|\<rightarrow\>>a<math|\<rightarrow\>>b<math|\<rightarrow\>>Bool>
   when either the two <verbatim|assert false> clauses or the <verbatim|test>
-  clause is added. When using <verbatim|test>, the program should declare the
-  type <verbatim|Boolean> and constant <verbatim|True>. In a future version,
-  this will be replaced by a built-in type <verbatim|Bool> with constants
-  <verbatim|True> and <verbatim|False>, exported into OCaml as type
-  <verbatim|bool> with constants <verbatim|true> and <verbatim|false>.
+  clause is added.
 
   Now we demonstrate numerical invariants:
 
@@ -675,7 +672,7 @@
     examples/<no-break>equal_assert.gadt
 
     val equal : <math|\<forall\>>a, b. (Ty a, Ty b) <math|\<rightarrow\>> a
-    <math|\<rightarrow\>> b <math|\<rightarrow\>> Boolean
+    <math|\<rightarrow\>> b <math|\<rightarrow\>> Bool
 
     InvarGenT: Generated file examples/equal_assert.gadti
 
