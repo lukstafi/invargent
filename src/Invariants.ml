@@ -5,6 +5,8 @@
     @author Lukasz Stafiniak lukstafi (AT) gmail.com
     @since Mar 2013
 *)
+let early_postcond_abd = ref false
+
 open Terms
 open Aux
 type chi_subst = (int * (var_name list * formula)) list
@@ -254,7 +256,7 @@ let strat q b ans =
   let avs, ans_l = List.split ans in
   List.concat avs, ans_l, ans_r
   
-let split avs ans negchi_locs bvs cand_bvs q =
+let split do_postcond avs ans negchi_locs bvs cand_bvs q =
   (* 1 FIXME: do we really need this? *)
   let cmp_v v1 v2 =
     let a = q.cmp_v v1 v2 in
@@ -266,6 +268,9 @@ let split avs ans negchi_locs bvs cand_bvs q =
       else if c1 then Left_of
       else if c2 then Right_of
       else Same_quant in
+  let negbs =
+    if do_postcond then q.negbs
+    else List.filter (fun b->not (q.is_chiK (q.find_chi b))) q.negbs in
   let rec loop avs ans discard sol =
     (* 2 *)
     (*[* Format.printf "split-loop: starting@ avs=%a@\nans=@ %a@\nsol=@ %a@\n%!"
@@ -289,7 +294,7 @@ let split avs ans negchi_locs bvs cand_bvs q =
         b,
         snd (connected
                (b::VarSet.elements (Hashtbl.find q.b_vs b)) ([],ans0)))
-      q.negbs in
+      negbs in
     (*[* Format.printf "split-loop-3: ans1=@\n%a@\n%!"
       pr_bchi_subst (List.map (fun (b,a)->b,(VarSet.elements (Hashtbl.find q.b_vs b),a))
                        ans_cand); *]*)
@@ -403,7 +408,7 @@ let split avs ans negchi_locs bvs cand_bvs q =
     let avss = List.map
       (fun (b, avs) ->
         let lbs = List.filter
-          (fun b' -> q.cmp_v b b' = Right_of) q.negbs in
+          (fun b' -> q.cmp_v b b' = Right_of) negbs in
         let uvs = List.fold_left VarSet.union VarSet.empty
           (List.map (flip List.assoc avss) lbs) in
         VarSet.diff avs uvs)
@@ -434,7 +439,7 @@ let split avs ans negchi_locs bvs cand_bvs q =
       (* 18 *)
       ans_res, more_discard @ discard,
       List.map2 (fun avs (b, ans) -> b, (avs, ans)) avsl sol' in
-  let solT = List.map (fun b->b, []) q.negbs in
+  let solT = List.map (fun b->b, []) negbs in
   loop (vars_of_list avs) ans [] solT  
 
 (** Eliminate provided variables if they do not contribute to
@@ -611,7 +616,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                 brs) in
          more @ prem, concl)
       neg_brs in
-  (*[* Format.printf "solve: pos_brs=@ %a@\n%!" Infer.pr_rbrs pos_brs; *]*)
+  (*[* Format.printf "solve: pos_brs=@ %a@\n%!" Infer.pr_rbrs brs; *]*)
   (*[* Format.printf "solve: neg_brs=@ %a@\n%!" Infer.pr_rbrs neg_brs; *]*)
   let neg_cns = List.map
       (fun (prem, concl) ->
@@ -672,10 +677,18 @@ let solve q_ops new_ex_types exty_res_chi brs =
         | Eqty (TVar a, _, _) when Hashtbl.mem alphasK a -> false
         | Eqty (_, TVar a, _) when Hashtbl.mem alphasK a -> false
         | _ -> true) in
-  let bparams () =
-    List.fold_left
-      (fun bvs b -> VarSet.union bvs (Hashtbl.find q.b_vs b))
-      VarSet.empty q.negbs in
+  let bparams iter_no =
+    if iter_no=0 && not !early_postcond_abd
+    then
+      List.fold_left
+        (fun bvs b ->
+           if q.is_chiK (q.find_chi b)
+           then bvs else VarSet.union bvs (Hashtbl.find q.b_vs b))
+        VarSet.empty q.negbs
+    else
+      List.fold_left
+        (fun bvs b -> VarSet.union bvs (Hashtbl.find q.b_vs b))
+        VarSet.empty q.negbs in
   (* keys in sorted order! *)
   let solT = List.map
       (fun i -> i, ([], []))
@@ -746,7 +759,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                            "chiK: i=%d@ t1=%a@ t2=%a@ prem=%a@\nphi=%a@\n%!"
                            i pr_ty t1 pr_ty t2
                            pr_formula prem pr_formula phi;
-                         *]*)
+                          *]*)
                          i, phi)
                       chiK_pos
                   else [])
@@ -792,7 +805,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
             rol1 in
         (*[* Format.printf "solve: iter_no=%d@\ng_rol.A=%a@\n%!"
           iter_no pr_chi_subst g_rol;
-        *]*)
+         *]*)
         (* 5a *)
         let lift_ex_types cmp_v i (g_vs, g_ans) =
           let g_vs, g_ans = simplify q_ops (g_vs, g_ans) in
@@ -815,7 +828,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
             pr_vars (vars_of_list pvs)
             pr_vars (vars_of_list g_vs) pr_ty tpar
             pr_formula g_ans pr_formula phi;
-          *]*)
+           *]*)
           tpar, (pvs @ g_vs, phi) in
         (* 5b *)
         let g_rol = List.map2
@@ -893,7 +906,10 @@ let solve q_ops new_ex_types exty_res_chi brs =
     let neg_cns1 = List.map
         (fun (prem,loc) -> sb_formula_pred q false g_rol sol1 prem, loc)
         neg_cns in
-    let bvs = bparams () in
+    let bvs = bparams iter_no in
+    let early_chiKbs =
+      if iter_no>0 || !early_postcond_abd then VarSet.empty
+      else VarSet.diff (bparams 1) bvs in
     let answer =
       try
         (* 7b *)
@@ -931,11 +947,20 @@ let solve q_ops new_ex_types exty_res_chi brs =
             neg_cns1;
         (* 8 *)
         let brs1 = List.map
-            (fun (nonrec,_,_,prem,concl) -> nonrec,prem,concl) brs1 in
+            (fun (nonrec,_,_,prem,concl) ->
+               let concl =
+                 if iter_no>0 || !early_postcond_abd then concl
+                 else
+                   List.filter
+                     (fun a->VarSet.is_empty
+                         (VarSet.inter (fvs_atom a) early_chiKbs))
+                     concl in
+               nonrec,prem,concl) brs1 in
         let cand_bvs, alien_eqs, (vs, ans) =
           Abduction.abd q.op ~bvs ~iter_no ~discard brs1 in
         let ans_res, more_discard, ans_sol =
-          split vs ans negchi_locs bvs cand_bvs q in
+          split (iter_no>0 || !early_postcond_abd)
+            vs ans negchi_locs bvs cand_bvs q in
         (*[* Format.printf
           "solve: loop -- answer split@ more_discard=@ %a@\nans_res=@ %a@\n%!"
           pr_formula more_discard pr_formula ans_res; *]*)
@@ -947,7 +972,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
         (*[* Format.printf
           "Fallback: iter_no=%d; sort=%s;@ error=@\n%a@\n%!"
           iter_no (sort_str sort) pr_exception e;
-        *]*)
+         *]*)
         Aux.Left (sort, e) in
     match answer with
     | Aux.Left _ as e -> e
@@ -1004,7 +1029,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
                  | [Eqty (tv, tpar, _)] -> tpar
                  | [] -> assert false
                  | _::_ -> assert false in
-               let bs = List.filter (not % q.positive_b) (q.find_b i) in
+               let bs =
+                 if iter_no=0 && not !early_postcond_abd then []
+                 else List.filter (not % q.positive_b) (q.find_b i) in
                let ds = List.map (fun b-> b, List.assoc b ans_sol) bs in
                let dans = concat_map
                    (fun (b, (dvs, dans)) ->
@@ -1110,7 +1137,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
     let ans_sb, _ = Infer.separate_subst q.op ans_res in
     (*[* Format.printf "solve: final@\nans_res=%a@\nans_sb=%a@\n%!"
       pr_formula ans_res pr_subst ans_sb;
-    *]*)
+     *]*)
     (* Substitute the solutions for existential types. *)
     let etys_sb = List.map
         (fun (ex_i,_) ->
@@ -1175,7 +1202,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
            pr_vars (vars_of_list chi_vs) pr_ty rty
            pr_vars allvs pr_vars (vars_of_list pvs)
            pr_formula rphi pr_formula phi;
-         *]*)
+          *]*)
          let ety_n = Extype ex_i in
          Hashtbl.replace sigma ety_n
            (VarSet.elements allvs, rphi, [rty], ety_n, pvs)) new_ex_types;

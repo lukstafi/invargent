@@ -751,6 +751,13 @@
     abduction. This makes it faster but less likely to find the correct
     solution.
 
+    <item*|<verbatim|-early_postcond_abd>>Include postconditions from
+    recursive calls in abduction from the start. We do not derive
+    requirements put on postconditions by recursive calls on first iteration.
+    The requirements may turn smaller after some derived invariants are
+    included in the premises. This option turns off the special treatment of
+    postconditions on first iteration.
+
     <item*|<verbatim|-num_abduction_rotations>>Numerical abduction:
     coefficients from <math|\<pm\>1/N> to <math|\<pm\>N> (default 3).
     Numerical abduction answers are built, roughly speaking, by adding

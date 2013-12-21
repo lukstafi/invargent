@@ -1517,22 +1517,31 @@
 
   Changes in the algorithm between iterations were mentioned above but not
   clearly exposed. Invariant inference and postcondition inference go through
-  similar stages. Invariants, solved by abduction:
+  similar stages. Abduction solves for invariants and helps solve for
+  postconditions:
 
   <\enumerate>
-    <item><math|k=j<rsub|0>=0> Only term abduction -- invariants of type
-    shapes -- is performed, for all branches.
+    <item><math|j<rsub|0>\<leqslant\>k\<less\>j<rsub|2>> Only term abduction
+    -- invariants of type shapes -- is performed, for all branches.
 
-    <item><math|k=j<rsub|1>=1> Both term abduction and numerical abduction
-    are performed, but numerical abduction only for non-recursive branches.
+    <item><math|k\<less\>j<rsub|1>> Do not perform abduction for
+    postconditions. Remove atoms with variables containing postcondition
+    parameters from conclusions sent to abduction.
 
-    <item><math|k\<geqslant\>j<rsub|2>=2> Abduction is performed on all
+    <item><math|j<rsub|2>\<leqslant\>k\<less\>j<rsub|3>> Both term abduction
+    and numerical abduction are performed, but numerical abduction only for
+    non-recursive branches.
+
+    <item><math|j<rsub|3>\<leqslant\>k> Abduction is performed on all
     branches -- type and numerical invariants are found.
   </enumerate>
 
-  For testing purposes, we have option <verbatim|early_num_abduction> that
-  sets <math|j<rsub|2>=1>. In a single iteration, disjunction elimination
-  precedes abduction.
+  Default settings is <math|<around*|[|j<rsub|0>;j<rsub|1>;j<rsub|2>;j<rsub|3>|]>=<around*|[|0;1;1;2|]>>.
+  <math|j<rsub|1>> is not tied to <math|j<rsub|0>,j<rsub|2>,j<rsub|3>>. We
+  have options: <verbatim|early_postcond_abd> and
+  <verbatim|early_num_abduction> that set <math|j<rsub|1>=0> and
+  <math|j<rsub|3>=1> respectively. In a single iteration, disjunction
+  elimination precedes abduction.
 
   <\enumerate>
     <item><math|k<rsub|0>\<leqslant\>k\<less\>k<rsub|1>> Term disjunction

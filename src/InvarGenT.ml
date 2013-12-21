@@ -92,6 +92,8 @@ let main () =
     "Do not include alien (e.g. numerical) premise info in term abduction";
     "-early_num_abduction", Arg.Set NumS.early_num_abduction,
     "Include recursive branches in numerical abduction from the start";
+    "-early_postcond_abd", Arg.Set Invariants.early_postcond_abd,
+    "Include postconditions from recursive calls in abduction from the start";
     "-num_abduction_rotations", Arg.Set_int NumS.abd_rotations,
     "Numerical abduction: coefficients from +/- 1/N to +/- N (default 3)";
     "-num_prune_at", Arg.Set_int NumS.abd_prune_at,
