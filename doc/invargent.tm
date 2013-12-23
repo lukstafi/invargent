@@ -1156,7 +1156,75 @@
   Due to greater flexibility of the numerical domain, abductive extension of
   numerical disjunction elimination does not seem necessary.
 
-  \;
+  <section|<em|opti>: <em|minimum> and <em|maximum> relations in
+  <verbatim|num>>
+
+  We extend the numerical domain with a relation <em|opti> defined below.
+  Operations <em|min> and <em|max> can then be defined using it. Let
+  <math|k,v,w> be any linear combinations.
+
+  <\eqnarray*>
+    <tformat|<table|<row|<cell|opti<around*|(|v,w|)>>|<cell|=>|<cell|v\<leqslant\>0\<wedge\>w\<leqslant\>0\<wedge\><around*|(|v<wide|=|\<dot\>>0\<vee\>w<wide|=|\<dot\>>0|)>\<wedge\>\<varphi\><around*|(|v,w|)>>>|<row|<cell|\<varphi\><around*|(|v,w|)>>|<cell|=>|<cell|\<exists\>n\<in\>FV<around*|(|v|)>\<cap\>FV<around*|(|w|)>.sign<around*|(|n,v|)>=sign<around*|(|n,w|)>>>|<row|<cell|k<wide|=|\<dot\>>min<around*|(|v,w|)>>|<cell|\<equiv\>>|<cell|opti<around*|(|k-v,k-w|)>>>|<row|<cell|k<wide|=|\<dot\>>max<around*|(|v,w|)>>|<cell|\<equiv\>>|<cell|opti<around*|(|v-k,w-k|)>>>>>
+  </eqnarray*>
+
+  Not to bloat the generated formulas with either un-intuitive or trivial
+  <em|opti> facts, we require that there is a variable <math|n> that appears
+  in <math|v> and <math|w> with the same sign. This restriction is formulated
+  above as <math|\<varphi\><around*|(|v,w|)>>. Note that
+  <math|opti<around*|(|v,w|)>=<around*|(|min<around*|(|v,w|)><wide|=|\<dot\>>0\<wedge\>\<varphi\><around*|(|v,w|)>|)>>.
+
+  We support <em|min> and <em|max> in concrete syntax and when possible, use
+  <em|opti> facts to derive substitutions of variables indicated in
+  <math|\<varphi\>>, by <em|min> or <em|max> terms. The <em|min> and <em|max>
+  terms in abstract syntax have three arguments. The additional argument is
+  the first argument, and an occurrence of e.g. <math|min<around*|(|k,v,w|)>>
+  corresponds to <math|k<wide|=|\<dot\>>min<around*|(|v,w|)>>, i.e.
+  <math|opti<around*|(|k-v,k-w|)>>, conjoined with the atom in which
+  <math|min<around*|(|k,v,w|)>> appeared. A fresh variable is generated for
+  <math|k> during parsing, and this additional argument is ignored during
+  non-debug printing.
+
+  If need arises, in a future version, we can extend <em|opti> to a larger
+  arity <math|N>.
+
+  <subsection|Normalization, validity and implication checking>
+
+  [TODO: The usual mess when disjunction gets into the picture...]
+
+  <subsection|Abduction>
+
+  We eliminate <em|opti> in premises by expanding the definition-- ignoring
+  the <math|\<varphi\>> restriction -- and converting the branch into two
+  branches, i.e. <math|D\<wedge\><around*|(|v<wide|=|\<dot\>>0\<vee\>w<wide|=|\<dot\>>0|)>\<Rightarrow\>C>
+  into <math|<around*|(|D\<wedge\>v<wide|=|\<dot\>>0\<Rightarrow\>C|)>\<wedge\><around*|(|D\<wedge\>w<wide|=|\<dot\>>0\<Rightarrow\>C|)>>.
+  We do not eliminate <em|opti> in conclusions. Rather, we consider whether
+  to keep or drop it in the answer, like with other cnadidate atoms. The
+  transformations apply to an <em|opti> atom by applying to both its
+  arguments.
+
+  Generating a new <em|opti> atom for inclusion in an answer means finding a
+  pair of equations (resp. a set of <math|N> equations) such that following
+  conditions hold. Each equation, together with remaining atoms of an answer
+  but without the other equation selected, is a correct answer to a simple
+  abduction problem. The equations selected share a variable and are oriented
+  so that the variable appears with the same sign in them. The resulting
+  <em|opti> atom passes the validation test for joint constraint abduction.
+  We will implement generating new <em|opti> atoms for abduction answers when
+  need arises.
+
+  <subsection|Disjunction elimination>
+
+  We eliminate <em|opti> atoms prior to finding the extended convex hull of
+  <math|<wide|D<rsub|i>|\<bar\>>> by expanding the definition -- ignoring the
+  <math|\<varphi\>> restriction -- and converting the disjunction
+  <math|\<vee\><rsub|i>D<rsub|i>> to disjunctive normal form. In addition to
+  finding the extended convex hull, we need to discover <em|opti> relations
+  that are implied by <math|\<vee\><rsub|i>D<rsub|i>>. We select these faces
+  of the convex hull which also appear as an equation in some disjuncts. Out
+  of these faces, we find all minimal covers of size 2 (or <math|N>), i.e.
+  subsets of faces (pairs, resp. subsets of size <math|N>) such that in each
+  disjunct, either one or the other linear combination appears as an
+  equation. We only keep subsets whose faces share a same-sign variable.
 
   <section|Solving for Predicate Variables><label|MainAlgo>
 
@@ -1737,11 +1805,11 @@
   <\collection>
     <associate|1|<tuple|5.2|?>>
     <associate|AlienSubterms|<tuple|3.3|8>>
-    <associate|Details|<tuple|5.5|18>>
+    <associate|Details|<tuple|6.5|19>>
     <associate|ImplSubst|<tuple|4|2>>
     <associate|Main Algo|<tuple|5.3|?>>
-    <associate|MainAlgo|<tuple|5|13>>
-    <associate|MainAlgoBody|<tuple|5.3|16>>
+    <associate|MainAlgo|<tuple|6|13>>
+    <associate|MainAlgoBody|<tuple|6.3|16>>
     <associate|NumConv|<tuple|4.2|12>>
     <associate|Rg|<tuple|5|16>>
     <associate|SCAlinear|<tuple|3.4|9>>
@@ -1762,13 +1830,16 @@
     <associate|auto-16|<tuple|5|13>>
     <associate|auto-17|<tuple|5.1|13>>
     <associate|auto-18|<tuple|5.2|14>>
-    <associate|auto-19|<tuple|5.3|16>>
+    <associate|auto-19|<tuple|5.3|14>>
     <associate|auto-2|<tuple|2|3>>
-    <associate|auto-20|<tuple|5.4|18>>
-    <associate|auto-21|<tuple|5.5|18>>
-    <associate|auto-22|<tuple|6|19>>
-    <associate|auto-23|<tuple|6|20>>
-    <associate|auto-24|<tuple|5.5|17>>
+    <associate|auto-20|<tuple|6|16>>
+    <associate|auto-21|<tuple|6.1|18>>
+    <associate|auto-22|<tuple|6.2|19>>
+    <associate|auto-23|<tuple|6.3|19>>
+    <associate|auto-24|<tuple|6.4|20>>
+    <associate|auto-25|<tuple|6.5|?>>
+    <associate|auto-26|<tuple|7|?>>
+    <associate|auto-27|<tuple|7|?>>
     <associate|auto-3|<tuple|2.1|4>>
     <associate|auto-4|<tuple|2.1.1|5>>
     <associate|auto-5|<tuple|2.2|5>>
@@ -1891,39 +1962,46 @@
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-15>>
 
-      <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|5<space|2spc>Solving
-      for Predicate Variables> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|5<space|2spc><with|font-shape|<quote|italic>|Opti>:
+      <with|font-shape|<quote|italic>|minimum> and
+      <with|font-shape|<quote|italic>|maximum> relations in
+      <with|font-family|<quote|tt>|language|<quote|verbatim>|num>>
+      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-16><vspace|0.5fn>
 
-      <with|par-left|<quote|1tab>|5.1<space|2spc>Invariant Parameter
-      Candidates <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-17>>
+      <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|6<space|2spc>Solving
+      for Predicate Variables> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-17><vspace|0.5fn>
 
-      <with|par-left|<quote|1tab>|5.2<space|2spc>Solving for Predicates in
-      Negative Positions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <with|par-left|<quote|1tab>|6.1<space|2spc>Invariant Parameter
+      Candidates <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-18>>
 
-      <with|par-left|<quote|1tab>|5.3<space|2spc>Solving for Existential
-      Types Predicates and Main Algorithm
-      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <with|par-left|<quote|1tab>|6.2<space|2spc>Solving for Predicates in
+      Negative Positions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-19>>
 
-      <with|par-left|<quote|1tab>|5.4<space|2spc>Stages of iteration
+      <with|par-left|<quote|1tab>|6.3<space|2spc>Solving for Existential
+      Types Predicates and Main Algorithm
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-20>>
 
-      <with|par-left|<quote|1tab>|5.5<space|2spc>Implementation details
+      <with|par-left|<quote|1tab>|6.4<space|2spc>Stages of iteration
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-21>>
 
-      <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|6<space|2spc>Generating
+      <with|par-left|<quote|1tab>|6.5<space|2spc>Implementation details
+      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-22>>
+
+      <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|7<space|2spc>Generating
       OCaml/Haskell Source and Interface Code>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-22><vspace|0.5fn>
+      <no-break><pageref|auto-23><vspace|0.5fn>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-23><vspace|0.5fn>
+      <no-break><pageref|auto-24><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>
