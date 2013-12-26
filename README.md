@@ -19,8 +19,9 @@ Milestones: [x] - completed, [#] - finishing (75%-95%), [+] - in the middle (25%
 Version 2.0 goals -- version targets may be reassigned:
 - [x] Export to OCaml using built-in or pervasives OCaml types, in particular `bool` instead of `boolean`. (v1.1)
 - [x] Support source code comments preserved in the AST. (v1.1)
-- [_] Factorize to make extending and adding sorts easier -- ideally, plug-in architecture for sorts. (v1.2)
-- [_] Add (relational forms of) `min` and `max` to the numerical sort -- sorely needed for datastructure invariants. (v1.2)
+- [#] Factorize to make extending and adding sorts easier. (v1.2)
+- [+] Syntax for numeric multiplication. (v1.2)
+- [-] Add (relational forms of) `min` and `max` to the numerical sort -- sorely needed for datastructure invariants. (v1.2)
 - [_] Ability to parse `.gadti` and `.mli` files, and use them with the module access `open M`, `let open M in ...`, `M.(...)` and `M.x` syntaxes. (v1.3)
 - [_] Export Haskell code. (v1.3)
 - [_] Meta-automatic mode: retry with modified user-level parameter settings if inference fails. (v1.3)
@@ -29,7 +30,6 @@ Version 2.0 goals -- version targets may be reassigned:
 - [_] Optimize, paying attention to the speed of the update mode. (v1.4)
 - [_] Support OCaml-style records, with some desambiguation roughly as in OCaml. (v1.4)
 - [_] Or-patterns `p1 | p2` expanded for inference but preserved in exported code. (v1.4)
-- [_] Syntax for numeric multiplication. (v2.0)
 - [_] Add a new "promising" sort. Candidates: integer numbers, partial orders, ring of polynomials... (v2.0)
 
 Version 1.0 milestones are now completed:

@@ -19,5 +19,6 @@ docs:
 
 clean:
 	ocamlbuild -clean
-	rm -f src/*.annot *~ src/*~ InvarGenT
+	rm -f src/*.annot *~ src/*~ InvarGenT src/a.out
+	rm -f examples/*.ml examples/*.cmi examples/*.cmo examples/*.gadti
 	cd src; ocamlbuild -clean
