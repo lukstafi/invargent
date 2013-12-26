@@ -90,6 +90,12 @@ let extract_datatyp allvs loc = function
         else
           let v' = next_var (VarSet.union used allvs) (typ_sort t) in
           (VarSet.add v' used, Eqty (t, TVar v', loc)::phi), v'
+      | Alien (Num_term (NumDefs.Lin (1,1,v) as t)) ->
+        if not (VarSet.mem v used) then (VarSet.add v used, phi), v
+        else
+          let v' = next_var (VarSet.union used allvs) Num_sort in
+          (VarSet.add v' used,
+           A (Num_atom NumDefs.(Eq (t, Lin (1,1,v'), loc)))::phi), v'
       | t ->
         let v = next_var (VarSet.union used allvs) (typ_sort t) in
         (VarSet.add v used, Eqty (t, TVar v, loc)::phi), v)

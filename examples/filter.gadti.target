@@ -6,10 +6,10 @@ newcons LCons : ∀n, a[0 ≤ n].a * List (a, n) ⟶ List (a, n + 1)
 
 newtype Ex2 : num * type
 
-newcons Ex2 : ∀k, n, a[k ≤ n ∧ 0 ≤ n ∧ 0 ≤ k].List (a, k) ⟶
+newcons Ex2 : ∀k, n, a[0 ≤ n ∧ 0 ≤ k ∧ k ≤ n].List (a, k) ⟶
    Ex2 (n, a)
 
 val filter :
    ∀n, a.
-   (a → Bool) → List (a, n) → ∃2:k[k ≤ n ∧ 0 ≤ n ∧
-     0 ≤ k].List (a, k)
+   (a → Bool) → List (a, n) → ∃2:k[0 ≤ n ∧ 0 ≤ k ∧
+     k ≤ n].List (a, k)

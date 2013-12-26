@@ -824,6 +824,9 @@ let pr_alien_atom ppf = function
 let pr_alien_ty ppf = function
   | Num_term t -> NumDefs.pr_term ppf t
 
+let alien_no_parens = function
+  | Num_term t -> NumDefs.term_no_parens t
+
 (* Using "X" because "script chi" is not available on all systems. *)
 let rec pr_atom ppf = function
   | Eqty (t1, t2, _) ->
@@ -844,7 +847,9 @@ and pr_ty ppf = function
   | TCons (CNam c, []) -> fprintf ppf "%s" c
   | TCons (CNam "Tuple", exps) ->
     fprintf ppf "@[<2>(%a)@]" (pr_sep_list "," pr_ty) exps
-  | TCons (CNam c, [ty]) ->
+  | TCons (CNam c, [(TVar _ | TCons (_, [])) as ty]) ->
+    fprintf ppf "@[<2>%s@ %a@]" c pr_one_ty ty
+  | TCons (CNam c, [Alien t as ty]) when alien_no_parens t ->
     fprintf ppf "@[<2>%s@ %a@]" c pr_one_ty ty
   | TCons (CNam c, exps) ->
     fprintf ppf "@[<2>%s@ (%a)@]" c (pr_sep_list "," pr_ty ) exps
@@ -1191,6 +1196,13 @@ let unify ?use_quants ?bvs ?pms ?(sb=[]) q cnj =
           Left (t1, t2, loc)
         | Eqty (Alien (Num_term t1), Alien (Num_term t2), loc) ->
           Right (Left (NumDefs.Eq (t1, t2, loc)))
+        | (Eqty (TVar v1, Alien (Num_term t2), loc)
+          | Eqty (Alien (Num_term t2), TVar v1, loc))
+          when var_sort v1 = Num_sort ->
+          Right (Left NumDefs.(Eq (Lin (1,1,v1), t2, loc)))
+        | Eqty (TVar v1, TVar v2, loc)
+          when var_sort v1 = Num_sort && var_sort v2 = Num_sort ->
+          Right (Left NumDefs.(Eq (Lin (1,1,v1), Lin (1,1,v2), loc)))
         | Eqty (t1, t2, loc) ->
            raise (Contradiction (typ_sort t1, "Sort mismatch",
                                  Some (t1, t2), loc))
@@ -1208,6 +1220,12 @@ let unify ?use_quants ?bvs ?pms ?(sb=[]) q cnj =
       | t1, t2 when t1 = t2 -> aux sb num_cn cnj
       | Alien (Num_term t1), Alien (Num_term t2) ->
         aux sb (NumDefs.Eq (t1, t2, loc)::num_cn) cnj
+      | (TVar v, Alien (Num_term t)
+        | Alien (Num_term t), TVar v) when var_sort v = Num_sort ->
+        aux sb NumDefs.(Eq (Lin (1,1,v), t, loc)::num_cn) cnj
+      | TVar v1, TVar v2
+        when var_sort v1 = Num_sort && var_sort v2 = Num_sort ->
+        aux sb NumDefs.(Eq (Lin (1,1,v1), Lin (1,1,v2), loc)::num_cn) cnj
       | (Alien _ as t1, t2 | t1, (Alien _ as t2)) ->
         raise
           (Contradiction (Type_sort, "Type sort mismatch",

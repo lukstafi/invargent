@@ -52,3 +52,5 @@ val iter_term_vars : (Defs.var_name -> unit) -> term -> unit
 val pr_term : Format.formatter -> term -> unit
 val pr_atom : Format.formatter -> atom -> unit
 val pr_formula : Format.formatter -> formula -> unit
+
+val term_no_parens : term -> bool

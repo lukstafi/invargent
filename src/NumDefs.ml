@@ -157,7 +157,7 @@ let rec pr_term ppf = function
   | Lin (1, 1, v) -> fprintf ppf "%s" (var_str v)
   | Lin (m, 1, v) -> fprintf ppf "%d %s" m (var_str v)
   | Lin (m, n, v) -> fprintf ppf "(%d/%d) %s" m n (var_str v)
-  | Add cmb -> fprintf ppf "(%a)" (pr_sep_list " +" pr_term) cmb
+  | Add cmb -> fprintf ppf "%a" (pr_sep_list " +" pr_term) cmb
   | Min (v, t1, t2) -> fprintf ppf "min(%a, %a)" pr_term t1 pr_term t2
   | Max (v, t1, t2) -> fprintf ppf "max(%a, %a)" pr_term t1 pr_term t2
 
@@ -167,7 +167,11 @@ let pr_atom ppf = function
   | Leq (t1, t2, _) ->
     fprintf ppf "@[<2>%a@ ≤@ %a@]" pr_term t1 pr_term t2
   | Opti (t1, t2, _) ->
-    fprintf ppf "@[<2>Opti@ (%a,@ %a)@]" pr_term t1 pr_term t2
+    fprintf ppf "@[<2>min max@ (%a,@ %a)@]" pr_term t1 pr_term t2
 
 let pr_formula ppf atoms =
   pr_sep_list " ∧" pr_atom ppf atoms
+
+let term_no_parens = function
+  | Lin (1, 1, _) | Cst _ -> true
+  | _ -> false

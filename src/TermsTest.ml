@@ -87,7 +87,7 @@ external filter : ∀n, a. List (a, n) → ∃k [k≤n]. List (a, k) = \"filter\
 
 newcons LNil : ∀n, a[0 = n]. List (a, n)
 
-newcons LCons : ∀k, n, a[(n + 1) = k].a * List (a, n) ⟶ List (a, k)
+newcons LCons : ∀k, n, a[n + 1 = k].a * List (a, n) ⟶ List (a, k)
 
 newtype Ex1 : num * type
 

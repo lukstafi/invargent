@@ -1013,8 +1013,8 @@ let rec filter = fun f ->
           filter f xs"
         [2,"∃n, a.
   δ =
-    ((a → Bool) → List (a, n) → ∃2:k[k ≤ n ∧ 0 ≤ n ∧
-       0 ≤ k].List (a, k))"];
+    ((a → Bool) → List (a, n) → ∃2:k[0 ≤ n ∧ 0 ≤ k ∧
+       k ≤ n].List (a, k))"];
 
     );
 
@@ -1037,8 +1037,8 @@ let rec filter = fun f g ->
           filter f g xs"
         [2,"∃n, a, b.
   δ =
-    ((a → Bool) → (a → b) → List (a, n) → ∃2:k[k ≤ n ∧
-       0 ≤ n ∧ 0 ≤ k].List (b, k))"];
+    ((a → Bool) → (a → b) → List (a, n) → ∃2:k[0 ≤ n ∧
+       0 ≤ k ∧ k ≤ n].List (b, k))"];
 
     );
 
@@ -1075,8 +1075,8 @@ let rec ub = efunction
           POne r)"
         [2,"∃n, k.
   δ =
-    (Binary k → Binary n → ∃4:i[n ≤ i ∧ i ≤ (k + n) ∧
-       0 ≤ k].Binary i)"]
+    (Binary k → Binary n → ∃4:i[0 ≤ k ∧ n ≤ i ∧
+       i ≤ n + k].Binary i)"]
     );
 
   "binary upper bound" >::
@@ -1114,8 +1114,8 @@ let rec ub = efunction
           POne r)"
         [2,"∃n, k.
   δ =
-    (Binary k → Binary n → ∃4:i[n ≤ i ∧ k ≤ i ∧
-       i ≤ (k + n) ∧ 0 ≤ n ∧ 0 ≤ k].Binary i)"]
+    (Binary k → Binary n → ∃4:i[0 ≤ n ∧ 0 ≤ k ∧ n ≤ i ∧
+       k ≤ i ∧ i ≤ n + k].Binary i)"]
     );
 
   "nested recursion simple eval" >::
