@@ -10,6 +10,7 @@ let num_is = ref "int"
 let num_is_mod = ref false
 let drop_assert_false = ref true
 
+open Defs
 open Terms
 open Format
 open Aux
@@ -32,7 +33,6 @@ let pr_tycns ppf c =
 
 let rec pr_ty ppf = function
   | TVar v -> pr_tyvar ppf v
-  | NCst i -> fprintf ppf "%d" i
   | TCons (c, []) -> pr_tycns ppf c
   | TCons (CNam "Tuple", exps) ->
     fprintf ppf "@[<2>(%a)@]" (pr_some_tys " *") exps
@@ -46,7 +46,9 @@ let rec pr_ty ppf = function
   | TCons (c, exps) ->
     fprintf ppf "@[<2>(* %a *)@ %a@]"
       (pr_sep_list "," Terms.pr_ty) exps pr_tycns c
-  | Nadd _ -> assert false
+  | Alien t ->
+    fprintf ppf "@[<0>(* %a *)@]" pr_alien_ty t
+    
   | Fun _ as ty ->
     let tys = collect_argtys ty in
     fprintf ppf "@[<2>(%a)@]"
@@ -69,7 +71,7 @@ and pr_some_tys sep ppf tys =
   aux tys
     
 and pr_one_ty ppf ty = match ty with
-  | TVar _ | NCst _ | Nadd [] | Nadd [_]
+  | TVar _ | Alien _
   | TCons (_, []) -> pr_ty ppf ty
   | _ -> fprintf ppf "(%a)" pr_ty ty
 

@@ -8,24 +8,6 @@
 (** {2 Definitions} *)
 
 val debug : bool ref
-val current_file_name : string ref
-
-(** Source location for reporting parsing and inference problems. *)
-type loc = {beg_pos : Lexing.position; end_pos : Lexing.position}
-val dummy_loc : loc
-
-exception Report_toplevel of string * loc option
-
-val min_pos : Lexing.position -> Lexing.position -> Lexing.position
-val max_pos : Lexing.position -> Lexing.position -> Lexing.position
-
-(** The span containing the provided locations, or the optional [loc]
-    if given. *)
-val loc_union : ?loc:loc -> loc -> loc -> loc
-(** The location with smaller span. *)
-val loc_tighter : loc -> loc -> loc
-(** The locations have nonempty intersection. *)
-val interloc : loc -> loc -> bool
 
 type cns_name =
 | CNam of string
@@ -41,60 +23,66 @@ val add_cnames : cns_name list -> CNames.t -> CNames.t
 
 val init_types : CNames.t
 
+type lc = Defs.loc
+
 type pat =
     Zero
-  | One of loc
-  | PVar of string * loc
-  | PAnd of pat * pat * loc
-  | PCons of cns_name * pat list * loc
+  | One of lc
+  | PVar of string * lc
+  | PAnd of pat * pat * lc
+  | PCons of cns_name * pat list * lc
 
-val pat_loc : pat -> loc
+val pat_loc : pat -> lc
 
 (** [string option] at [Letrec] and [Letin] are documentation
     comments. ['a] and ['b] parameters stand for annotations, e.g. type
     annotations in the last stage of inference. *)
 type ('a, 'b) expr =
-| Var of string * loc
-| Num of int * loc
-| String of string * loc
-| Cons of cns_name * ('a, 'b) expr list * loc
-| App of ('a, 'b) expr * ('a, 'b) expr * loc
-| Lam of 'b * ('a, 'b) clause list * loc
-| ExLam of int * ('a, 'b) clause list * loc
-| Letrec of string option * 'a * string * ('a, 'b) expr * ('a, 'b) expr * loc
-| Letin of string option * pat * ('a, 'b) expr * ('a, 'b) expr * loc
-| AssertFalse of loc
-| AssertLeq of ('a, 'b) expr * ('a, 'b) expr * ('a, 'b) expr * loc
-| AssertEqty of ('a, 'b) expr * ('a, 'b) expr * ('a, 'b) expr * loc
+| Var of string * lc
+| Num of int * lc
+| String of string * lc
+| Cons of cns_name * ('a, 'b) expr list * lc
+| App of ('a, 'b) expr * ('a, 'b) expr * lc
+| Lam of 'b * ('a, 'b) clause list * lc
+| ExLam of int * ('a, 'b) clause list * lc
+| Letrec of string option * 'a * string * ('a, 'b) expr * ('a, 'b) expr * lc
+| Letin of string option * pat * ('a, 'b) expr * ('a, 'b) expr * lc
+| AssertFalse of lc
+| AssertLeq of ('a, 'b) expr * ('a, 'b) expr * ('a, 'b) expr * lc
+| AssertEqty of ('a, 'b) expr * ('a, 'b) expr * ('a, 'b) expr * lc
 
 and ('a, 'b) clause = pat * ('a, 'b) expr
 
-val expr_loc : ('a, 'b) expr -> loc
-val clause_loc : ('a, 'b) clause -> loc
+val expr_loc : ('a, 'b) expr -> lc
+val clause_loc : ('a, 'b) clause -> lc
 
-type sort = Num_sort | Type_sort
-(** Type variables (and constants) remember their sort. Sort
-    inference is performed on user-supplied types and constraints. *)
-type var_name =
-| VNam of sort * string
-| VId of sort * int
+type alien_subterm =
+  | Num_term of NumDefs.term
 
 type typ =
-| TVar of var_name
-| TCons of cns_name * typ list
-| Fun of typ * typ
-| NCst of int
-| Nadd of typ list
+  | TVar of Defs.var_name
+  | TCons of cns_name * typ list
+  | Fun of typ * typ
+  | Alien of alien_subterm
+
+val num : NumDefs.term -> typ
+
+type alien_atom =
+  | Num_atom of NumDefs.atom
+
 type atom =
-| Eqty of typ * typ * loc
-| Leq of typ * typ * loc
-| CFalse of loc
-| PredVarU of int * typ * loc
-| PredVarB of int * typ * typ * loc
-| NotEx of typ * loc
+  | Eqty of typ * typ * lc
+  | CFalse of lc
+  | PredVarU of int * typ * lc
+  | PredVarB of int * typ * typ * lc
+  | NotEx of typ * lc
+  | A of alien_atom
+
+val a_num : NumDefs.atom -> atom
+
 type formula = atom list
-type typ_scheme = var_name list * formula * typ
-type answer = var_name list * formula
+type typ_scheme = Defs.var_name list * formula * typ
+type answer = Defs.var_name list * formula
 
 (** User input expression: no type annotations. *)
 type uexpr = (unit, unit) expr
@@ -103,7 +91,7 @@ type uexpr = (unit, unit) expr
     variable holding the invariant for each [let rec] expression;
     variables standing for the argument and return type of each
     [function] expression. *)
-type iexpr = (int list, (var_name * var_name) list) expr
+type iexpr = (int list, (Defs.var_name * Defs.var_name) list) expr
 
 (** The annotation, besides providing the type scheme, tells whether
     nested type schemes have free variables in scope of the
@@ -111,17 +99,12 @@ type iexpr = (int list, (var_name * var_name) list) expr
     return type separately. *)
 type texpr = (typ_scheme * bool, (typ * typ) option) expr
 val fuse_exprs : iexpr list -> iexpr
-
-val delta : var_name
-val delta' : var_name
 val tdelta : typ
 val tdelta' : typ
 
 val return_type : typ -> typ
 val arg_types : typ -> typ list
 
-val var_sort : var_name -> sort
-val var_str : var_name -> string
 val cns_str : cns_name -> string
 
 val extype_id : int ref
@@ -129,21 +112,19 @@ val predvar_id : int ref
 
 (** {3 Mapping and folding over types.} *)
 type typ_map = {
-  map_tvar : var_name -> typ;
+  map_tvar : Defs.var_name -> typ;
   map_tcons : string -> typ list -> typ;
   map_exty : int -> typ list -> typ;
   map_fun : typ -> typ -> typ;
-  map_ncst : int -> typ;
-  map_nadd : typ list -> typ
+  map_alien : alien_subterm -> typ
 }
 
 type 'a typ_fold = {
-  fold_tvar : var_name -> 'a;
+  fold_tvar : Defs.var_name -> 'a;
   fold_tcons : string -> 'a list -> 'a;
   fold_exty : int -> 'a list -> 'a;
   fold_fun : 'a -> 'a -> 'a;
-  fold_ncst : int -> 'a;
-  fold_nadd : 'a list -> 'a
+  fold_alien : alien_subterm -> 'a
 }
 
 val typ_id_map : typ_map
@@ -159,7 +140,6 @@ type typ_dir =
 | TCons_dir of cns_name * typ list * typ list
 | Fun_left of typ
 | Fun_right of typ
-| Nadd_dir of typ list * typ list
 type typ_loc = {typ_sub : typ; typ_ctx : typ_dir list}
 
 val typ_up : typ_loc -> typ_loc option
@@ -173,66 +153,76 @@ val reset_state : unit -> unit
 (** [string option] stores the documentation comment appearing in
     front of a definition or declaration. *)
 type struct_item =
-| TypConstr of string option * cns_name * sort list * loc
+| TypConstr of string option * cns_name * Defs.sort list * lc
 | ValConstr of
-    string option * cns_name * var_name list * formula * typ list
-    * cns_name * var_name list * loc
+    string option * cns_name * Defs.var_name list * formula * typ list
+    * cns_name * Defs.var_name list * lc
 | PrimVal of
-    string option * string * typ_scheme * (string, string) Aux.choice * loc
+    string option * string * typ_scheme * (string, string) Aux.choice * lc
 | LetRecVal of
-    string option * string * uexpr * typ_scheme option * uexpr list * loc
+    string option * string * uexpr * typ_scheme option * uexpr list * lc
 | LetVal of
-    string option * pat * uexpr * typ_scheme option * uexpr list * loc
+    string option * pat * uexpr * typ_scheme option * uexpr list * lc
 
 (** Represents both signature items and annotated structure items to
     be printed as OCaml source code. *)
 type annot_item =
 | ITypConstr of
-    string option * cns_name * sort list * loc
+    string option * cns_name * Defs.sort list * lc
 | IValConstr of
-    string option * cns_name * var_name list * formula * typ list
-    * cns_name * typ list * loc
+    string option * cns_name * Defs.var_name list * formula * typ list
+    * cns_name * typ list * lc
 | IPrimVal of
-    string option * string * typ_scheme * (string, string) Aux.choice * loc
+    string option * string * typ_scheme * (string, string) Aux.choice * lc
 | ILetRecVal of
     string option * string * texpr * typ_scheme *
-      texpr list * (pat * int option) list * loc
+      texpr list * (pat * int option) list * lc
 | ILetVal of
     string option * pat * texpr * typ_scheme * (string * typ_scheme) list *
-      texpr list * (pat * int option) list * loc
+      texpr list * (pat * int option) list * lc
 
-module VarSet : (Set.S with type elt = var_name)
 val typ_size : typ -> int
 val atom_size : atom -> int
-val fvs_typ : typ -> VarSet.t
-val fvs_atom : atom -> VarSet.t
-val fvs_formula : formula -> VarSet.t
-val formula_loc : formula -> loc
-val vars_of_list : var_name list -> VarSet.t
-val add_vars : var_name list -> VarSet.t -> VarSet.t
-val no_vs : VarSet.t
-
-val map_in_atom : (typ -> typ) -> atom -> atom
+val fvs_typ : typ -> Defs.VarSet.t
+val fvs_atom : atom -> Defs.VarSet.t
+val fvs_formula : formula -> Defs.VarSet.t
+val formula_loc : formula -> lc
 
 (** {3 Formulas} *)
 
-val atom_loc : atom -> loc
+val atom_loc : atom -> lc
 
-type subst = (var_name * (typ * loc)) list
-type hvsubst = (var_name * var_name) list
+type subst = (Defs.var_name * (typ * lc)) list
+type hvsubst = (Defs.var_name * Defs.var_name) list
 
+type sep_formula = {
+  cnj_typ : subst;
+  cnj_num : NumDefs.formula;
+  cnj_so : formula
+}
+(** We could define [sep_formula = (subst, NumDefs.formula formula)
+    sep_sorts], but [sep_formula] is used frequently enough to earn
+    a dedicated type. *)
+type ('a, 'b, 'c) sep_sorts = {
+  at_typ : 'a;
+  at_num : 'b;
+  at_so : 'c
+}
+
+val num_unbox : t2:typ -> Defs.loc -> typ -> NumDefs.term
+val num_v_unbox : Defs.var_name -> Defs.loc -> typ -> NumDefs.term
 val subst_atom : subst -> atom -> atom
 val subst_formula : subst -> formula -> formula
+val hvsubst_formula : hvsubst -> formula -> formula
 val subst_fo_atom : subst -> atom -> atom
 val subst_fo_formula : subst -> formula -> formula
-val fvs_sb : subst -> VarSet.t
+val fvs_sb : subst -> Defs.VarSet.t
 val eq_atom : atom -> atom -> bool
 val subformula : formula -> formula -> bool
 val formula_inter : formula -> formula -> formula
-val map_in_formula : (typ -> typ) -> formula -> formula
 
-val replace_loc_atom : loc -> atom -> atom
-val replace_loc : loc -> formula -> formula
+val replace_loc_atom : lc -> atom -> atom
+val replace_loc : lc -> formula -> formula
 
 (** Substitutions of variables [delta] and [delta']. *)
 val sb_typ_unary : typ -> typ -> typ
@@ -243,7 +233,6 @@ val sb_phi_unary : typ -> formula -> formula
 val sb_phi_binary : typ -> typ -> formula -> formula
 
 val enc_funtype : typ -> typ list -> typ
-val ty_add : typ -> typ -> typ
 val typ_scheme_of_item :
   ?env:(string * typ_scheme) list -> struct_item -> typ_scheme
 
@@ -262,25 +251,13 @@ val collect_apps : ('a, 'b) expr -> ('a, 'b) expr list
     [Contradiction] when a result is incorrect. *)
 val connected :
   ?validate:(formula -> unit) ->
-  var_name list -> answer -> answer
+  Defs.var_name list -> answer -> answer
 
 (** {2 Substitutions and unification} *)
 
-type var_scope =
-| Left_of | Same_quant | Right_of
-
-val var_scope_str : var_scope -> string
-
-type quant_ops = {
-  cmp_v : var_name -> var_name -> var_scope;
-  uni_v : var_name -> bool;
-  same_as : var_name -> var_name -> unit;
-}
-val empty_q : quant_ops
-
-exception Contradiction of sort * string * (typ * typ) option * loc
-exception NoAnswer of sort * string * (typ * typ) option * loc
-exception Suspect of formula * loc
+exception Contradiction of Defs.sort * string * (typ * typ) option * lc
+exception NoAnswer of Defs.sort * string * (typ * typ) option * lc
+exception Suspect of formula * lc
 (** Change [Contradiction] to [NoAnswer] and vice-versa, identity on
     other exceptions. *)
 val convert : exn -> exn
@@ -290,19 +267,25 @@ val hvsubst_typ : hvsubst -> typ -> typ
 val subst_sb : sb:subst -> subst -> subst
 val hvsubst_sb : hvsubst -> subst -> subst
 val update_sb : more_sb:subst -> subst -> subst
+(** Union/conjunction of sort-separated formulas, additionally
+    perform an update of the term substitution. *)
+val update_sep :
+   ?typ_updated:bool -> more:sep_formula -> sep_formula -> sep_formula
+(** Separate atoms into their sorts. Warning: ignores type sort atoms
+    which are not solved form equations. *)
+val sep_formulas : formula -> sep_formula
 val map_in_subst : (typ -> typ) -> subst -> subst
 (** Substitute constants, and generally subterms identical to a term,
     with another term. [loc] is not used. *)
-val c_subst_typ : (typ * (typ * loc)) list -> typ -> typ
+val c_subst_typ : (typ * (typ * lc)) list -> typ -> typ
 val n_subst_typ : (cns_name * (typ list -> typ)) list -> typ -> typ
-val typ_sort : typ -> sort
-val atom_sort : atom -> sort
-val split_sorts : formula -> (sort * formula) list
+val typ_sort : typ -> Defs.sort
+val atom_sort : atom -> Defs.sort
 
-val var_not_left_of : quant_ops -> var_name -> typ -> bool
+val var_not_left_of : Defs.quant_ops -> Defs.var_name -> typ -> bool
 
 (** Register variable as [NotEx]. *)
-val register_notex : var_name -> unit
+val register_notex : Defs.var_name -> unit
 (** [use_quants] whether to check for quantifier violations. [bvs] are
     variables that are parameters of invariants (or are candidates for
     such in the partial answer). [pms] are parameters to be ignored
@@ -311,53 +294,43 @@ val register_notex : var_name -> unit
     unifier, the second are numeric constraints including equations,
     the third one are predicate variables and [NotEx] atoms. The
     substitution is not applied to the third element atoms! *)
-val unify : ?use_quants:bool -> ?bvs:VarSet.t -> ?pms:VarSet.t ->
-  ?sb:subst -> quant_ops ->
-  atom list -> subst * atom list * atom list
+val unify :
+  ?use_quants:bool -> ?bvs:Defs.VarSet.t -> ?pms:Defs.VarSet.t ->
+  ?sb:subst -> Defs.quant_ops ->
+  atom list -> sep_formula
 val to_formula : subst -> formula
 (** Find the atoms in the formula which are valid substitutions. *)
-val subst_of_cnj : ?elim_uni:bool -> quant_ops -> formula -> subst
-val combine_sbs : ?ignore_so:unit ->
-  ?use_quants:bool -> ?bvs:VarSet.t -> ?pms:VarSet.t ->
-  quant_ops ->
-  ?more_phi:formula -> subst list -> subst * formula
-val subst_solved : ?ignore_so:unit ->
-  ?use_quants:bool -> ?bvs:VarSet.t -> ?pms:VarSet.t ->
-  quant_ops ->
-  subst -> cnj:subst -> subst * formula
+val subst_of_cnj : ?elim_uni:bool -> Defs.quant_ops -> formula -> subst
+val combine_sbs :
+  ?use_quants:bool -> ?bvs:Defs.VarSet.t -> ?pms:Defs.VarSet.t ->
+  Defs.quant_ops ->
+  ?more_phi:formula -> subst list -> sep_formula
+val subst_solved :
+  ?use_quants:bool -> ?bvs:Defs.VarSet.t -> ?pms:Defs.VarSet.t ->
+  Defs.quant_ops ->
+  subst -> cnj:subst -> sep_formula
 val cleanup :
-  quant_ops -> var_name list -> subst -> var_name list * subst
+  Defs.quant_ops -> Defs.var_name list -> subst ->
+  Defs.var_name list * subst
 
 (** {2 Global tables} *)
 
 type sigma =
-  (cns_name, var_name list * formula * typ list * cns_name * var_name list)
+  (cns_name, Defs.var_name list * formula * typ list *
+               cns_name * Defs.var_name list)
     Hashtbl.t
 
 val sigma : sigma
-val all_ex_types : (int * loc) list ref
+val all_ex_types : (int * lc) list ref
+
+val fresh_typ_var : unit -> Defs.var_name
+val fresh_num_var : unit -> Defs.var_name
+val fresh_var : Defs.sort -> Defs.var_name
+val freshen_var : Defs.var_name -> Defs.var_name
 
 (** {2 Printing} *)
 
-val sort_str : sort -> string
-val pr_loc_pos_only : Format.formatter -> loc -> unit
-val pr_loc_short : Format.formatter -> loc -> unit
-val pr_loc_long : Format.formatter -> loc -> unit
-val pr_loc_emb : Format.formatter -> loc -> unit
-val pr_loc : Format.formatter -> loc -> unit
-val pr_sep_list :
-  string ->
-  ?pr_hd:(Format.formatter -> 'a -> unit) ->
-  (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list -> unit
-val pr_pre_sep_list :
-  string ->
-  (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list -> unit
-val pr_line_list :
-  string ->
-  (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a list -> unit
 val pr_pat : Format.formatter -> pat -> unit
-val pr_tyvar : Format.formatter -> var_name -> unit
-val pr_vars : Format.formatter -> VarSet.t -> unit
 
 type ('a, 'b) pr_expr_annot =
   | LetRecNode of 'a
@@ -380,7 +353,8 @@ val pr_iexpr : Format.formatter -> iexpr -> unit
 val pr_atom : Format.formatter -> atom -> unit
 val pr_formula : Format.formatter -> formula -> unit
 val pr_ty : Format.formatter -> typ -> unit
-val pr_sort : Format.formatter -> sort -> unit
+val pr_alien_ty : Format.formatter -> alien_subterm -> unit
+val pr_sort : Format.formatter -> Defs.sort -> unit
 val pr_typscheme :
   Format.formatter -> typ_scheme -> unit
 val pr_ans :
@@ -404,7 +378,8 @@ val parser_last_num : int ref
 
 (** {2 Nice variables} *)
 
-val next_var : VarSet.t -> sort -> var_name
+val next_var : Defs.VarSet.t -> Defs.sort -> Defs.var_name
 (** The [fvs] argument only lists additional variable names to
     consider "occupied" besides variables in the answer provided. *)
-val nice_ans : ?sb:hvsubst -> ?fvs:VarSet.t -> answer -> hvsubst * answer
+val nice_ans :
+  ?sb:hvsubst -> ?fvs:Defs.VarSet.t -> answer -> hvsubst * answer

@@ -7,6 +7,7 @@
 *)
 let early_postcond_abd = ref false
 
+open Defs
 open Terms
 open Aux
 type chi_subst = (int * (var_name list * formula)) list
@@ -105,7 +106,7 @@ let matchup_vars ~self_owned q b vs =
   let nrvs =
     if self_owned
     then List.map (fun v->v, v) nvs
-    else List.map (fun v->v, Infer.freshen_var v) nvs in
+    else List.map (fun v->v, freshen_var v) nvs in
   (*[* Format.printf "matchup_vars: b=%s;@ vs=%s;@ orvs=%s;@ nrvs=%s@\n%!"
     (var_str b)
     (String.concat ", " (List.map var_str vs))
@@ -221,15 +222,16 @@ type state = subst * NumS.state
 let empty_state : state = [], NumS.empty_state
 
 let holds q avs (ty_st, num_st) cnj =
-  let ty_st, num_cnj, _ =
+  let {cnj_typ=ty_st; cnj_num; cnj_so=_} =
     unify ~pms:avs ~sb:ty_st q.op cnj in
-  let num_st = NumS.holds q.op avs num_st num_cnj in
+  let num_st = NumS.holds q.op avs num_st cnj_num in
   ty_st, num_st
 
 let satisfiable q (ty_st, num_st) cnj =
-  let ty_st, num_cnj, _ = unify ~use_quants:false ~sb:ty_st q.op cnj in
+  let {cnj_typ=ty_st; cnj_num; cnj_so=_} =
+    unify ~use_quants:false ~sb:ty_st q.op cnj in
   let num_st =
-    match NumS.satisfiable ~state:num_st num_cnj with
+    match NumS.satisfiable ~state:num_st cnj_num with
     | Right s -> s | Left e -> raise e in
   ty_st, num_st
 
@@ -247,7 +249,7 @@ let strat q b ans =
             raise (NoAnswer
                      (var_sort bad, "Escaping universal variable",
                       Some (TVar b, TVar bad), loc)));
-         let avs = List.map Infer.freshen_var vs in
+         let avs = List.map freshen_var vs in
          let ans_r =
            List.map2 (fun a b -> b, (TVar a, loc)) avs vs @ ans_r in
          (VarSet.union pvs (vars_of_list vs), ans_r),
@@ -455,12 +457,12 @@ let simplify q_ops (vs, cnj) =
     if c1 && c2 then Same_quant
     else if c1 then Right_of
     else if c2 then Left_of
-    else q_ops.Terms.cmp_v v1 v2 in
+    else q_ops.Defs.cmp_v v1 v2 in
   let q_ops = {q_ops with cmp_v} in
-  let ty_ans, num_ans, _ =
+  let {cnj_typ=ty_ans; cnj_num=num_ans; cnj_so=_} =
     unify ~use_quants:false q_ops cnj in
   (* We "cheat": eliminate variables introduced earlier, so that
-     convergence check has easier job (just syntactic). *)
+     convergence check has easier job (i.e. just syntactic). *)
   let ty_sb, ty_ans = List.partition
       (function
         | v, (TVar v2, _)
@@ -476,26 +478,29 @@ let simplify q_ops (vs, cnj) =
     NumS.separate_subst q_ops num_ans in
   let num_sb, more_num_ans = List.partition
       (fun (v,_) -> VarSet.mem v vs && v <> delta && v <> delta') num_sb in
-  let num_ans = to_formula more_num_ans @ num_ans in
+  let num_ans = NumS.sort_of_subst more_num_ans @ num_ans in
   let _, num_ans' = NumS.simplify q_ops VarSet.empty num_ans in
   (*[* Format.printf "simplify:@\nnum_ans=%a@\nnum_ans'=%a@\n%!"
     pr_formula num_ans pr_formula num_ans'; *]*)
   let ty_ans = subst_sb ~sb:num_sb ty_ans in
   let ty_sb, ty_ans = List.partition
       (fun (v,_) -> VarSet.mem v vs && v <> delta && v <> delta') ty_ans in
-  let ans = to_formula ty_ans @ num_ans' in
+  let ans = to_formula ty_ans @ NumS.formula_of_sort num_ans' in
   let vs = VarSet.inter vs (fvs_formula ans) in
   (*[* Format.printf "simplify: vs=%a@ ty_sb=%a@ num_sb=%a@ ans=%a@\n%!"
     pr_vars vs pr_subst ty_sb pr_subst num_sb pr_formula ans; *]*)
   VarSet.elements vs, ans
 
+(* TODO: rather ugly, rewrite or provide a medium-level description. *)
 let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
   (*[* Format.printf
     "converge: check_only=%b@ vs1=%a@ vs2=%a@\ncnj1=%a@\ncnj2=%a\n%!"
     check_only pr_vars (vars_of_list vs1) pr_vars (vars_of_list vs2)
     pr_formula cnj1 pr_formula cnj2; *]*)
-  let c1_ty, c1_num, c1_so = unify ~use_quants:false q_ops cnj1 in
-  let c2_ty, c2_num, c2_so = unify ~use_quants:false q_ops cnj2 in
+  let {cnj_typ=c1_ty; cnj_num=c1_num; cnj_so=c1_so} =
+    unify ~use_quants:false q_ops cnj1 in
+  let {cnj_typ=c2_ty; cnj_num=c2_num; cnj_so=c2_so} =
+    unify ~use_quants:false q_ops cnj2 in
   let recover_param c_ty cnj =
     try match
         List.find
@@ -521,28 +526,54 @@ let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
     with Not_found -> VarSet.empty in
   let vs_new = VarSet.diff (vars_of_list vs2) pms_new in
   let valid_sb = map_some
-    (function
-    | v1, (TVar v2, _) as sx
-      when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new -> Some sx
-    | v2, (TVar v1, lc)
-      when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
-      Some (v1, (TVar v2, lc))
-    | _ -> None) in
+      (function
+        | v1, (TVar v2, _) as sx
+          when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new -> Some sx
+        | v2, (TVar v1, lc)
+          when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
+          Some (v1, (TVar v2, lc))
+        | _ -> None) in
   let cmp (v1,_) (v2,_) = compare v1 v2 in
   let c1_ty = List.sort cmp c1_ty and c2_ty = List.sort cmp c2_ty in
   let cnj_tys = inter_merge cmp
-    (fun (v,(t1,_)) (_,(t2,_)) ->
-      if v=delta'
-      then Eqty (TCons (tuple,[]), TCons (tuple,[]),dummy_loc) (* i.e. none *)
-      else Eqty (t1,t2,dummy_loc)) c1_ty c2_ty in
-  let renaming, ren_num, _ = unify ~use_quants:false q_ops cnj_tys in
+      (fun (v,(t1,_)) (_,(t2,_)) ->
+         if v=delta'
+         then Eqty (TCons (tuple,[]), TCons (tuple,[]),dummy_loc)
+         (* i.e. none *)
+         else Eqty (t1,t2,dummy_loc)) c1_ty c2_ty in
+  let {cnj_typ=renaming; cnj_num=ren_num; cnj_so=_} =
+    unify ~use_quants:false q_ops cnj_tys in
   (*[* Format.printf "converge: cnj_tys=%a@\nren_num=%a@\nrenaming1=%a@\n%!"
     pr_formula cnj_tys pr_formula ren_num pr_subst renaming; *]*)
-  let v_notin_vs_cn vs =
-      map_some
-        (function
-          | Eqty (TVar v, t, lc) when not (List.mem v vs) -> Some (v, (t, lc))
-          | Eqty (t, TVar v, lc) when not (List.mem v vs) -> Some (v, (t, lc))
+  let v_notin_vs_num vs =
+    map_some
+      NumDefs.(function
+          | Eq (Lin (j,k,v), t, lc) when not (List.mem v vs) ->
+            let t =
+              if j=1 && k=1 then num t
+              else num (scale_term k j t) in
+            Some (v, (t, lc))
+          | Eq (t, Lin (j,k,v), lc) when not (List.mem v vs) ->
+            let t =
+              if j=1 && k=1 then num t
+              else num (scale_term k j t) in
+            Some (v, (t, lc))
+          | _ -> None) in 
+  let valid_num =
+    map_some
+      NumDefs.(function
+          | Eq (Lin (j1,k1,v1), Lin (j2,k2,v2), lc)
+            when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
+            let t =
+              if j1=1 && k1=1 && j2=1 && k2=1 then TVar v2
+              else num (Lin (j2*k1,k2*j1,v2)) in
+            Some (v1, (t, lc))
+          | Eq (Lin (j2,k2,v2), Lin (j1,k1,v1), lc)
+            when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
+            let t =
+              if j1=1 && k1=1 && j2=1 && k2=1 then TVar v2
+              else num (Lin (j2*k1,k2*j1,v2)) in
+            Some (v1, (t, lc))
           | _ -> None) in 
   let valid_cn =
       map_some
@@ -554,10 +585,10 @@ let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
             when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
             Some (v1, (t, lc))
           | _ -> None) in 
-  let renaming = valid_cn ren_num @ valid_sb renaming in
+  let renaming = valid_num ren_num @ valid_sb renaming in
   (*[* Format.printf "converge: renaming2=%a@\n%!" pr_subst renaming; *]*)
-  let c1_nr = List.sort cmp (v_notin_vs_cn vs1 c1_num)
-  and c2_nr = List.sort cmp (v_notin_vs_cn vs2 c2_num) in
+  let c1_nr = List.sort cmp (v_notin_vs_num vs1 c1_num)
+  and c2_nr = List.sort cmp (v_notin_vs_num vs2 c2_num) in
   let num_ren = inter_merge
       (fun (v1,_) (v2,_) -> compare v1 v2)
       (fun (_,(t1,_)) (_,(t2,_)) -> Eqty (t1,t2,dummy_loc))
@@ -565,17 +596,17 @@ let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
   let renaming = valid_cn num_ren @ renaming in
   (*[* Format.printf
     "converge: pms_old=%a@ pms_new=%a@ vs_old=%a@ vs_new=%a@
-  renaming3=%a@ old c2_ty=%a@\n%!"
+    renaming3=%a@ old c2_ty=%a@\n%!"
     pr_vars pms_old pr_vars pms_new pr_vars vs_old pr_vars vs_new
     pr_subst renaming pr_subst c2_ty; *]*)
   let c2_ty = subst_sb ~sb:renaming c2_ty
-  and c2_num = subst_formula renaming c2_num
+  and c2_num = NumS.subst_formula renaming c2_num
   and vs2 = List.map
-    (fun v ->
-      try match List.assoc v renaming with
-      | TVar v2, _ -> v2 | _ -> assert false
-      with Not_found -> v)
-    vs2 in
+      (fun v ->
+         try match List.assoc v renaming with
+           | TVar v2, _ -> v2 | _ -> assert false
+         with Not_found -> v)
+      vs2 in
   let c_num =
     if check_only then c2_num
     else NumS.converge q_ops c1_num c2_num in
@@ -583,10 +614,13 @@ let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
     "converge: check_only=%b vs2=%a@\nc2_ty=%a@\nc2_num=%a@\nc_num=%a\n%!"
     check_only pr_vars (vars_of_list vs2)
     pr_subst c2_ty pr_formula c2_num pr_formula c_num; *]*)
-  vs2, to_formula c2_ty @ c_num
+  vs2, to_formula c2_ty @ NumS.formula_of_sort c_num
 
 
 let neg_constrns = ref true
+
+let empty_disc = {at_typ=[],[]; at_num=[]; at_so=()}
+let empty_dl = {at_typ=[]; at_num=[]; at_so=()}
 
 (* Captures where the repeat step is/are. *)
 let disj_step = [|0; 0; 2; 4|]
@@ -731,7 +765,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
              (*[* Format.printf
                "validate-postcond: ans=%a@ prem=%a@ concl=%a@\n%!"
                pr_formula ans pr_formula prem pr_formula concl; *]*)
-             let sb_ty, ans_num, ans_so =
+             let {cnj_typ=sb_ty; cnj_num=ans_num; cnj_so=ans_so} =
                unify ~use_quants:false q_ops (ans @ prem @ concl) in
              (*[* Format.printf
                "validate-postcond: sb_ty=@ %a@\nans_num=@ %a@\n%!"
@@ -881,7 +915,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                       (vars_of_list (delta::delta'::vs))) in
                let nvs = List.filter
                    (fun v -> not (q.uni_v v) && q.cmp_v b v = Left_of) fvs in
-               let nvs = List.map (fun v -> v, Infer.freshen_var v) nvs in
+               let nvs = List.map (fun v -> v, freshen_var v) nvs in
                let phi = subst_formula (renaming_sb nvs) phi in
                (*[* Format.printf
                  "lift-params: i=%d@ vs=%a@ fvs=%a@ nvs=%a@ phi=%a@ phi'=%a@\n%!"
@@ -921,7 +955,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                try
                  (*[* Format.printf "neg_cl_check: cnj=@ %a@\n%!" pr_formula
                    cnj; *]*)
-                 let ty_cn (*_*), num_cn, _ =
+                 let {cnj_typ=ty_cn; cnj_num=num_cn; cnj_so=_} =
                    unify ~use_quants:false q.op cnj in
                  if num_cn = [] then (
                    (*[* Format.printf
@@ -983,24 +1017,30 @@ let solve q_ops new_ex_types exty_res_chi brs =
       (* 12 *)
       let finish rol2 sol2 =
         (* start fresh at (iter_no+1) *)
-        match loop (iter_no+1) [] rol2 sol2
+        match loop (iter_no+1) empty_dl rol2 sol2
         with Aux.Right _ as res -> res
            | Aux.Left (sort, e) ->
              (*[* Format.printf
                "solve-finish: fallback call iter_no=%d sort=%s@\ndisc=%a@\n%!"
                iter_no (sort_str sort) pr_formula more_discard; *]*)
              let sort, s_discard =
-               let s_discard = split_sorts more_discard in
+               let s_discard = sep_formulas more_discard in
                (* The complication is because we do not always do
                   alien subterm dissociation. *)
-               let disc = List.assoc sort s_discard in
-               if disc <> [] || sort <> Type_sort then sort, disc
-               else match
-                   List.filter (fun (_,cnj) -> cnj<>[]) s_discard
-                 with
-                 | [s_disc] -> s_disc
-                 | _ -> sort, [] in
-             if s_discard = [] then (
+               let disc =
+                 match sort with
+                 | Type_sort ->
+                   (* Abduction answer variables do not have an
+                      effect on checking the discard list anyway. *)
+                   {empty_disc with at_typ=[],s_discard.cnj_typ}
+                 | Num_sort ->
+                   {empty_disc with at_num=s_discard.cnj_num} in
+               if disc <> empty_disc || sort <> Type_sort
+               then sort, disc
+               else if s_discard.cnj_num <> []
+               then Num_sort, {empty_disc with at_num=s_discard.cnj_num}
+               else sort, empty_disc in
+             if s_discard = empty_disc then (
                (*[* Format.printf
                  "solve-finish: fallback has no discard@\n%!"; *]*)
                raise e);
@@ -1008,7 +1048,11 @@ let solve q_ops new_ex_types exty_res_chi brs =
                "solve-finish: ultimately sort=%s@ disc=%a@\n%!"
                (sort_str sort) pr_formula s_discard; *]*)
              let discard =
-               update_assoc sort [] (fun dl -> s_discard::dl) discard in
+               match sort with
+               | Type_sort ->
+                 {discard with at_typ=s_discard.at_typ::discard.at_typ}
+               | Num_sort ->
+                 {discard with at_num=s_discard.at_num::discard.at_num} in
              loop iter_no discard rol1 sol1 in
       (* 9 *)
       let ans_sb, _ = Infer.separate_subst ~avoid:bvs q.op ans_res in
@@ -1117,9 +1161,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
         Aux.Right (ans_res, rol2, sol2)
         (* Do at least three iterations: 0, 1, 2. *)
       else if iter_no <= 1 && finished
-      then loop (iter_no+1) [] rol2 sol1
+      then loop (iter_no+1) empty_dl rol2 sol1
       else finish rol2 sol2 in
-  match loop 0 [] rolT solT with
+  match loop 0 empty_dl rolT solT with
   | Aux.Left (_, e) -> raise e
   | Aux.Right (ans_res, rol, sol) ->
     (*[* Format.printf "solve: checking assert false@\n%!"; *]*)

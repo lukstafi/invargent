@@ -17,21 +17,21 @@ type cnstrnt =
 | And of cnstrnt list
 | Impl of Terms.formula * cnstrnt
 | Or of (cnstrnt * (unit -> unit)) list
-| All of Terms.VarSet.t * cnstrnt
-| Ex of Terms.VarSet.t * cnstrnt
+| All of Defs.VarSet.t * cnstrnt
+| Ex of Defs.VarSet.t * cnstrnt
 
 val cn_and : cnstrnt -> cnstrnt -> cnstrnt
 
 (** {2 Constraint inference} *)
 
 val freshen_cns_scheme :
-  Terms.var_name list * Terms.atom list * Terms.typ list *
-  Terms.cns_name * Terms.var_name list ->
-  Terms.var_name list * Terms.atom list * Terms.typ list *
-  Terms.cns_name * Terms.var_name list
+  Defs.var_name list * Terms.atom list * Terms.typ list *
+  Terms.cns_name * Defs.var_name list ->
+  Defs.var_name list * Terms.atom list * Terms.typ list *
+  Terms.cns_name * Defs.var_name list
 val freshen_val_scheme : Terms.typ_scheme -> Terms.typ_scheme
 val constr_gen_pat : Terms.pat -> Terms.typ -> cnstrnt
-type envfrag = Terms.VarSet.t * Terms.formula * (string * Terms.typ) list
+type envfrag = Defs.VarSet.t * Terms.formula * (string * Terms.typ) list
 val typ_to_sch : 'a * Terms.typ -> 'a * Terms.typ_scheme
 (** Return a store cell where triggers will put which existentials are
     eliminated by which let-in patterns, and variables to preserve in
@@ -40,47 +40,47 @@ val constr_gen_expr :
   (string * Terms.typ_scheme) list ->
   Terms.uexpr -> Terms.typ ->
   (cnstrnt * Terms.iexpr) * (Terms.pat * int option) list ref *
-    Terms.var_name list
-type program = ((int * Terms.loc) list * Terms.struct_item) list
+    Defs.var_name list
+type program = ((int * Defs.loc) list * Terms.struct_item) list
 type solution =
-  Terms.quant_ops * Terms.formula *
-    (int * (Terms.var_name list * Terms.formula)) list
+  Defs.quant_ops * Terms.formula *
+    (int * (Defs.var_name list * Terms.formula)) list
 val infer_prog_mockup :
-  program -> (int * Terms.loc) list * Terms.VarSet.t * cnstrnt
+  program -> (int * Defs.loc) list * Defs.VarSet.t * cnstrnt
 val infer_prog :
-  (new_ex_types:(int * Terms.loc) list ->
-   preserve:Terms.VarSet.t -> cnstrnt -> solution) ->
+  (new_ex_types:(int * Defs.loc) list ->
+   preserve:Defs.VarSet.t -> cnstrnt -> solution) ->
   program ->
   (string * Terms.typ_scheme) list * Terms.annot_item list
 
 (** {2 Normalization} *)
-val normalize_expr : Terms.uexpr -> (int * Terms.loc) list * Terms.uexpr
+val normalize_expr : Terms.uexpr -> (int * Defs.loc) list * Terms.uexpr
 val normalize_program :
-  Terms.struct_item list -> ((int * Terms.loc) list * Terms.struct_item) list
+  Terms.struct_item list -> ((int * Defs.loc) list * Terms.struct_item) list
 
 type branch = Terms.formula * Terms.formula
-val fresh_typ_var : unit -> Terms.var_name
-val fresh_num_var : unit -> Terms.var_name
-val fresh_var : Terms.sort -> Terms.var_name
-val freshen_var : Terms.var_name -> Terms.var_name
 
-val prenexize : cnstrnt -> Terms.quant_ops * cnstrnt
+val prenexize : cnstrnt -> Defs.quant_ops * cnstrnt
 (** Returns a map from existential type to the unary predicate variable
     in which it will appear as result type. *)
 val normalize :
-  Terms.quant_ops -> cnstrnt -> (int, int) Hashtbl.t * branch list
+  Defs.quant_ops -> cnstrnt -> (int, int) Hashtbl.t * branch list
 
 (* Eliminate shared conclusions during {!simplify}. *)
 val simplify :
-  Terms.VarSet.t ->
-  Terms.quant_ops -> branch list -> branch list
+  Defs.VarSet.t ->
+  Defs.quant_ops -> branch list -> branch list
 
 (** {2 Postprocessing and printing} *)
 
 val separate_subst :
-  ?avoid:Terms.VarSet.t -> ?keep_uni:bool ->
-  Terms.quant_ops -> Terms.formula ->
+  ?avoid:Defs.VarSet.t -> ?keep_uni:bool ->
+  Defs.quant_ops -> Terms.formula ->
   Terms.subst * Terms.formula
+val separate_sep_subst :
+  ?avoid:Defs.VarSet.t -> ?keep_uni:bool ->
+  Defs.quant_ops -> Terms.sep_formula ->
+  Terms.subst * Terms.sep_formula
 
 val pr_cnstrnt : Format.formatter -> cnstrnt -> unit
 val pr_brs : Format.formatter -> branch list -> unit

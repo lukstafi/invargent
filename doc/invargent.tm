@@ -107,13 +107,16 @@
   by first letter of the variable. In the future, sorts could be inferred
   after parsing. The syntax of types and formulas:
 
-  <block|<tformat|<cwith|1|1|2|2|cell-halign|c>|<cwith|1|1|1|1|cell-halign|l>|<cwith|2|2|2|2|cell-halign|c>|<cwith|2|2|1|1|cell-halign|l>|<table|<row|<cell|type
-  variable: types>|<cell|<math|\<alpha\>,\<beta\>,\<gamma\>,\<tau\>>>|<cell|<verbatim|a>,<verbatim|b>,<verbatim|c>,<verbatim|r>,<verbatim|s>,<verbatim|t>,<verbatim|a1>,...>|<cell|>|<cell|<tiny|<verbatim|TVar(VNam(Type_sort,>...<verbatim|))>>>>|<row|<cell|type
-  variable: nums>|<cell|<math|k,m,n>>|<cell|<verbatim|i>,<verbatim|j>,<verbatim|k>,<verbatim|l>,<verbatim|m>,<verbatim|n>,<verbatim|i1>,...>|<cell|>|<cell|<tiny|<verbatim|TVar(VNam(Num_sort,>...<verbatim|))>>>>|<row|<cell|type
+  <block|<tformat|<cwith|1|1|1|1|cell-halign|l>|<cwith|2|2|1|1|cell-halign|l>|<cwith|3|3|2|2|cell-halign|l>|<cwith|2|2|2|2|cell-halign|l>|<cwith|1|1|2|2|cell-halign|l>|<cwith|3|3|4|4|cell-col-span|2>|<cwith|2|2|4|4|cell-col-span|2>|<cwith|1|1|4|4|cell-col-span|2>|<cwith|1|1|4|4|cell-halign|r>|<cwith|2|2|4|4|cell-halign|r>|<cwith|3|3|4|4|cell-halign|r>|<table|<row|<cell|type
+  variable: types>|<cell|<math|\<alpha\>,\<beta\>,\<gamma\>,\<tau\>>>|<cell|<verbatim|a>,<verbatim|b>,<verbatim|c>,<verbatim|r>,<verbatim|s>,<verbatim|t>,<verbatim|a1>,...>|<cell|<verbatim|TVar(VNam(Type_sort,>...<verbatim|))>>|<cell|>>|<row|<cell|type
+  variable: nums>|<cell|<math|k,m,n>>|<cell|<verbatim|i>,<verbatim|j>,<verbatim|k>,<verbatim|l>,<verbatim|m>,<verbatim|n>,<verbatim|i1>,...>|<cell|<verbatim|TVar(VNam(Num_sort,>...<verbatim|))>>|<cell|>>|<row|<cell|type
+  var. with coef.>|<cell|<math|<frac|1|3>n>>|<cell|<verbatim|1/3*n>>|<cell|<small|<verbatim|Alien(Lin(1,3,VNam(Num_sort,"n")))>>>|<cell|>>|<row|<cell|type
   constructor>|<cell|<math|List>>|<cell|<verbatim|List>>|<cell|>|<cell|<verbatim|TCons(CNamed>...<verbatim|)>>>|<row|<cell|number
-  (type)>|<cell|<math|7>>|<cell|<verbatim|7>>|<cell|>|<cell|<verbatim|NCst>>>|<row|<cell|numeral
+  (type)>|<cell|<math|7>>|<cell|<verbatim|7>>|<cell|>|<cell|<verbatim|Alien
+  (Cst<math|\<ldots\>>)>>>|<row|<cell|numeral
   (expr.)>|<cell|<math|7>>|<cell|<verbatim|7>>|<cell|>|<cell|<verbatim|Num>>>|<row|<cell|numerical
-  sum (type)>|<cell|<math|m+n>>|<cell|<verbatim|m+n>>|<cell|>|<cell|<verbatim|Nadd>>>|<row|<cell|existential
+  sum (type)>|<cell|<math|m+n>>|<cell|<verbatim|m+n>>|<cell|>|<cell|<verbatim|Alien
+  (Add<math|\<ldots\>>)>>>|<row|<cell|existential
   type>|<cell|<math|\<exists\>k,n<around*|[|k\<leqslant\>n|]>.\<tau\>>>|<cell|<verbatim|ex
   k n [k\<less\>=n].t>>|<cell|<verbatim|<math|\<exists\>>k,n[k<math|\<leq\>>n].t>>|<cell|<verbatim|TCons(Extype>...<verbatim|)>>>|<row|<cell|type
   sort>|<cell|<math|s<rsub|ty>>>|<cell|<verbatim|type>>|<cell|>|<cell|<verbatim|Type_sort>>>|<row|<cell|number
@@ -123,7 +126,7 @@
   t2>>>|<cell|<verbatim|Fun>>>|<row|<cell|equation>|<cell|<math|a<wide|=|\<dot\>>b>>|<cell|<verbatim|a
   = b>>|<cell|>|<cell|<verbatim|Eqty>>>|<row|<cell|inequation>|<cell|<math|k\<leqslant\>n>>|<cell|<verbatim|k
   \<less\>= n>>|<cell|<verbatim|k <math|\<leq\>>
-  n>>|<cell|<verbatim|Leq>>>|<row|<cell|conjunction>|<cell|<math|\<varphi\><rsub|1>\<wedge\>\<varphi\><rsub|2>>>|<cell|<verbatim|a=b
+  n>>|<cell|<verbatim|A(Num_atom(Leq<math|\<ldots\>>))>>>|<row|<cell|conjunction>|<cell|<math|\<varphi\><rsub|1>\<wedge\>\<varphi\><rsub|2>>>|<cell|<verbatim|a=b
   && b=a>>|<cell|<verbatim|a=b <math|\<wedge\>> b=a>>|<cell|built-in
   lists>>>>>
 
@@ -742,9 +745,9 @@
   Subsets <math|A<rsup|i><rsub|p>\<wedge\>A<rsup|i><rsub|c>=A<rsup|i>\<subset\><wide|\<alpha\><rsub|s><wide|=|\<dot\>>n<rsub|s>|\<bar\>>>
   such that <math|\<exists\><wide|\<alpha\>|\<bar\>><wide|\<alpha\><rsub|s>|\<bar\>>.A<rprime|'>,<wide|A<rsup|i><rsub|p>,A<rsup|i><rsub|c>|\<bar\>>>
   is a JCAQPAS answer will be recovered automatically by a residuum-finding
-  process at the end of <verbatim|ans_typ>. This process is needed regardless
-  of the ``dissociation'' issue, to uncover the full content of numeric sort
-  constraints.
+  process at the end of <verbatim|ans_typ>. [FIXME: this approach might not
+  work.] This process is needed regardless of the ``dissociation'' issue, to
+  uncover the full content of numeric sort constraints.
 
   To face efficiency of numerical abduction with many variables, we modify
   the approach. On the first iteration of the main algorithm, we remove alien
@@ -758,13 +761,16 @@
   (see main algorithm in section <reference|MainAlgo>). They also have more
   information to work with, present in the instatiation of partial answers.
   However, this optimization violates completeness guarantees of the
-  combination of sorts algorithm.
+  combination of sorts algorithm. To faciliate finding term abduction
+  solutions that hold under the quantifiers, we substitute-out other sort
+  variables, by variables more to the left in the quantifier, using equations
+  from the premise.
 
   The dissociation interacts with the discard list mechanism. Since
   dissociation introduces fresh variables, no answers with alien subterms
   would be syntactically identical. When checking whether a partial answer
   should be discarded, in case alien subterm dissociation is <em|on>, we
-  ignore alien sort variables in the comparison.
+  ignore alien sort subterms in the comparison.
 
   <subsection|Simple constraint abduction for linear
   arithmetic><label|SCAlinear>
@@ -1189,7 +1195,7 @@
 
   <subsection|Normalization, validity and implication checking>
 
-  [TODO: The usual mess when disjunction gets into the picture...]
+  \;
 
   <subsection|Abduction>
 
@@ -1808,14 +1814,14 @@
     <associate|Details|<tuple|6.5|19>>
     <associate|ImplSubst|<tuple|4|2>>
     <associate|Main Algo|<tuple|5.3|?>>
-    <associate|MainAlgo|<tuple|6|13>>
-    <associate|MainAlgoBody|<tuple|6.3|16>>
+    <associate|MainAlgo|<tuple|6|14>>
+    <associate|MainAlgoBody|<tuple|6.3|17>>
     <associate|NumConv|<tuple|4.2|12>>
-    <associate|Rg|<tuple|5|16>>
+    <associate|Rg|<tuple|5|17>>
     <associate|SCAlinear|<tuple|3.4|9>>
     <associate|SepProp|<tuple|5|3>>
     <associate|SepProp2|<tuple|6|?>>
-    <associate|Skp|<tuple|1|16>>
+    <associate|Skp|<tuple|1|17>>
     <associate|Skp1|<tuple|10|17>>
     <associate|SolSimpl|<tuple|9|12>>
     <associate|SolvedForm|<tuple|4|?>>
@@ -1828,18 +1834,18 @@
     <associate|auto-14|<tuple|4.2|12>>
     <associate|auto-15|<tuple|4.3|12>>
     <associate|auto-16|<tuple|5|13>>
-    <associate|auto-17|<tuple|5.1|13>>
+    <associate|auto-17|<tuple|5.1|14>>
     <associate|auto-18|<tuple|5.2|14>>
     <associate|auto-19|<tuple|5.3|14>>
     <associate|auto-2|<tuple|2|3>>
-    <associate|auto-20|<tuple|6|16>>
-    <associate|auto-21|<tuple|6.1|18>>
-    <associate|auto-22|<tuple|6.2|19>>
-    <associate|auto-23|<tuple|6.3|19>>
-    <associate|auto-24|<tuple|6.4|20>>
-    <associate|auto-25|<tuple|6.5|?>>
-    <associate|auto-26|<tuple|7|?>>
-    <associate|auto-27|<tuple|7|?>>
+    <associate|auto-20|<tuple|6|14>>
+    <associate|auto-21|<tuple|6.1|14>>
+    <associate|auto-22|<tuple|6.2|14>>
+    <associate|auto-23|<tuple|6.3|17>>
+    <associate|auto-24|<tuple|6.4|19>>
+    <associate|auto-25|<tuple|6.5|19>>
+    <associate|auto-26|<tuple|7|20>>
+    <associate|auto-27|<tuple|7|20>>
     <associate|auto-3|<tuple|2.1|4>>
     <associate|auto-4|<tuple|2.1.1|5>>
     <associate|auto-5|<tuple|2.2|5>>
@@ -1848,19 +1854,19 @@
     <associate|auto-8|<tuple|3.1.1|8>>
     <associate|auto-9|<tuple|3.2|8>>
     <associate|bib-AbductionSolvMaher|<tuple|3|20>>
-    <associate|bib-AntiUnifAlg|<tuple|9|20>>
+    <associate|bib-AntiUnifAlg|<tuple|9|21>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
     <associate|bib-ArithQuantElim|<tuple|1|20>>
     <associate|bib-ConvexHull|<tuple|2|20>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
-    <associate|bib-ESOP2014|<tuple|8|20>>
+    <associate|bib-ESOP2014|<tuple|8|21>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
     <associate|bib-disjelimTechRep|<tuple|5|20>>
     <associate|bib-invariantsTechRep2|<tuple|6|20>>
     <associate|bib-jcaqpTechRep|<tuple|8|4>>
-    <associate|bib-jcaqpTechRep2|<tuple|7|20>>
+    <associate|bib-jcaqpTechRep2|<tuple|7|21>>
     <associate|bib-jcaqpUNIF|<tuple|4|20>>
     <associate|bib-simonet-pottier-hmg-toplas|<tuple|6|4>>
     <associate|bib-systemTechRep|<tuple|5|18>>
@@ -1962,46 +1968,58 @@
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-15>>
 
-      <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|5<space|2spc><with|font-shape|<quote|italic>|Opti>:
+      <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|5<space|2spc><with|font-shape|<quote|italic>|opti>:
       <with|font-shape|<quote|italic>|minimum> and
       <with|font-shape|<quote|italic>|maximum> relations in
       <with|font-family|<quote|tt>|language|<quote|verbatim>|num>>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-16><vspace|0.5fn>
 
+      <with|par-left|<quote|1tab>|5.1<space|2spc>Normalization, validity and
+      implication checking <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-17>>
+
+      <with|par-left|<quote|1tab>|5.2<space|2spc>Abduction
+      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-18>>
+
+      <with|par-left|<quote|1tab>|5.3<space|2spc>Disjunction elimination
+      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-19>>
+
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|6<space|2spc>Solving
       for Predicate Variables> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-17><vspace|0.5fn>
+      <no-break><pageref|auto-20><vspace|0.5fn>
 
       <with|par-left|<quote|1tab>|6.1<space|2spc>Invariant Parameter
       Candidates <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-18>>
+      <no-break><pageref|auto-21>>
 
       <with|par-left|<quote|1tab>|6.2<space|2spc>Solving for Predicates in
       Negative Positions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-19>>
+      <no-break><pageref|auto-22>>
 
       <with|par-left|<quote|1tab>|6.3<space|2spc>Solving for Existential
       Types Predicates and Main Algorithm
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-20>>
+      <no-break><pageref|auto-23>>
 
       <with|par-left|<quote|1tab>|6.4<space|2spc>Stages of iteration
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-21>>
+      <no-break><pageref|auto-24>>
 
       <with|par-left|<quote|1tab>|6.5<space|2spc>Implementation details
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-22>>
+      <no-break><pageref|auto-25>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|7<space|2spc>Generating
       OCaml/Haskell Source and Interface Code>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-23><vspace|0.5fn>
+      <no-break><pageref|auto-26><vspace|0.5fn>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-24><vspace|0.5fn>
+      <no-break><pageref|auto-27><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>

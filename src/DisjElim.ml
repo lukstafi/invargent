@@ -6,6 +6,7 @@
     @since Mar 2013
 *)
 
+open Defs
 open Terms
 open Aux
 
@@ -28,8 +29,8 @@ let antiunif q ts =
           (t2::List.map
                (function Fun (_, tk2) -> tk2 | _ -> assert false) ts) in
       vs1 @ vs2, Fun (s1, s2), usb, gsb
-    | t::_ as ts when typ_sort t = Num_sort ->
-          let x = Infer.fresh_num_var () in
+    | t::_ as ts when typ_sort t <> Type_sort ->
+          let x = fresh_var (typ_sort t) in
           [x], TVar x, usb, (ts, x)::gsb
     | t::_ as ts ->
       try [], TVar (List.assoc ts gsb), usb, gsb
@@ -50,7 +51,7 @@ let antiunif q ts =
               (fun (sb, avs as acc) -> function
                  | TVar v ->
                    let vs = List.map
-                       (fun t -> Infer.fresh_var (typ_sort t)) args in
+                       (fun t -> fresh_var (typ_sort t)) args in
                    let t = TCons (n, List.map (fun v->TVar v) vs) in
                    let usb =
                      update_sb ~more_sb:[v, (t, dummy_loc)] usb in
@@ -80,7 +81,7 @@ let antiunif q ts =
           let ts = List.map (subst_typ usb) ts in
           aux usb gsb ts
         else(* *)
-          let x = Infer.fresh_var (typ_sort t) in
+          let x = fresh_var (typ_sort t) in
           [x], TVar x, usb, (ts, x)::gsb
 
   and auxn usb gsb = function
@@ -113,9 +114,10 @@ let disjelim_typ q ~preserve brs =
   (*[* Format.printf "disjelim_typ: preserve=%a@\nbrs=@ %a@\n%!"
     pr_vars preserve (pr_line_list "| " pr_subst) brs; *]*)
   let empty_brs = List.map (fun _ -> []) brs in
+  let empty_eqs = {at_typ=empty_brs; at_num=empty_brs; at_so=()} in
   match brs with
   | [] -> assert false
-  | [br] -> [], br, empty_brs, empty_brs
+  | [br] -> [], br, empty_eqs
   | br::more_brs ->
     (* (a) V *)
     let gs = List.map (fun (v,(t,lc)) -> v,([t],[lc])) br in
@@ -123,7 +125,7 @@ let disjelim_typ q ~preserve brs =
       inter_merge
         cmp_k (fun (_,(ts,lcs)) (v,(t,lc)) -> v, (t::ts,lc::lcs)) in
     let gs = List.fold_left aux gs more_brs in
-    if gs = [] then [], [], empty_brs, empty_brs
+    if gs = [] then [], [], empty_eqs
     else
       let gs = List.map
         (fun (v,(ts,lcs)) -> v, (List.rev ts, List.rev lcs)) gs in
@@ -196,18 +198,23 @@ let disjelim_typ q ~preserve brs =
       let num_eqs, ty_eqs = List.split
         (List.map (List.partition
                      (fun (_,(t,_)) -> typ_sort t = Num_sort)) eqs) in
-      avs, ty_ans @ eqv_ans, ty_eqs, List.map to_formula num_eqs
+      let eqs = {
+        at_typ = ty_eqs;
+        at_num = List.map NumS.sort_of_subst num_eqs;
+        at_so = ()} in
+      avs, ty_ans @ eqv_ans, eqs
 
 (* Do not simplify redundancy! Just remove spurious introduced variables. *)
 (* FIXME *)
-let simplify_dsjelim q preserve (vs, ty_ans, num_ans) =
+let simplify_dsjelim q preserve vs ans =
   (* For the sake of numerical disjelim we added [vs] to [preserve] *)
   let preserve = VarSet.diff preserve (vars_of_list vs) in
   (*[* Format.printf
     "disjelim-simplify: initial@ preserve=%a@ ty_ans=%a@ num_ans=%a@\n%!"
     pr_vars preserve pr_subst ty_ans pr_formula num_ans;  *]*)
   let ty_sb, ty_ans = List.partition
-    (fun (v,_) -> not (VarSet.mem v preserve) || List.mem v vs) ty_ans in
+    (fun (v,_) -> not (VarSet.mem v preserve) || List.mem v vs)
+    ans.at_typ in
   let ty_ans =
     List.filter
       (function Eqty (t1, t2, _) when t1 = t2 -> false | _ -> true)
@@ -218,7 +225,7 @@ let simplify_dsjelim q preserve (vs, ty_ans, num_ans) =
   let vs = List.filter (fun v -> not (List.mem_assoc v ty_sb)) vs in
   (*let n_sb = subst_of_cnj ~elim_uni:true q num_ans in
   let ty_ans = subst_formula n_sb ty_ans in*)
-  vs, num_ans @ ty_ans
+  vs, NumS.formula_of_sort ans.at_num @ ty_ans
 
 let disjelim q ~preserve ~do_num brs =
   (* (1) D_i,s *)
@@ -229,66 +236,45 @@ let disjelim q ~preserve ~do_num brs =
   (* [avs] contains variables introduced by anti-unification, also
      of sorts other than "type" *)
   (* (2) *)
-  let avs, ty_ans, ty_eqs, num_eqs =
-    disjelim_typ q ~preserve (List.map fst3 brs) in
+  let avs, ty_ans, eqs =
+    disjelim_typ q ~preserve (List.map (fun br->br.cnj_typ) brs) in
   if do_num
   then
     (* Variables not in [q] will behave as rightmost. *)
     (* (3) *)
     let preserve = add_vars avs preserve in
     let num_brs = List.map (fun (a,b)->a@b)
-        (List.combine (List.map snd3 brs) num_eqs) in
+        (List.combine (List.map (fun br->br.cnj_num) brs) eqs.at_num) in
     let num_avs, num_ans = NumS.disjelim q ~preserve num_brs in
     (*[* Format.printf "disjelim: before simpl@ vs=%a@ ty_ans=%a@ num_ans=%a@\n%!"
       pr_vars (vars_of_list (num_avs @ avs))
       pr_subst ty_ans pr_formula num_ans; *]*)
     (* (4) *)
     (* Dooes not simplify redundancy. *)
-    simplify_dsjelim q preserve (num_avs @ avs, ty_ans, num_ans)
+    simplify_dsjelim q preserve (num_avs @ avs)
+      {at_typ=ty_ans; at_num=num_ans; at_so=()}
   else
-    simplify_dsjelim q preserve (avs, ty_ans, [])
+    simplify_dsjelim q preserve avs
+      {at_typ=ty_ans; at_num=[]; at_so=()}
     
 let transitive_cl cnj =
-  let eqs = Hashtbl.create 8 in
-  let ineqs = Hashtbl.create 4 in
-  let nodes = Hashtbl.create 8 in
-  List.iter
+  let {cnj_typ=_; cnj_num; cnj_so=_} = sep_formulas cnj in
+  let cnj_typ = concat_map
     (function
       | Eqty (t1, t2, loc) ->
-        Hashtbl.add nodes t1 (); Hashtbl.add nodes t2 ();
-        Hashtbl.add eqs (t1, t2) loc; Hashtbl.add eqs (t2, t1) loc
-      | Leq (t1, t2, loc) ->
-        Hashtbl.add nodes t1 (); Hashtbl.add nodes t2 ();
-        Hashtbl.add ineqs (t1, t2) loc
-      | _ -> ())
-    cnj;
-  (* Floyd-Warshall algo *)
-  let add tbl i j k =
-    if not (Hashtbl.mem tbl (i, j)) then
-      let lc1 = Hashtbl.find tbl (i, k)
-      and lc2 = Hashtbl.find tbl (k, j) in
-      let lc = loc_union lc1 lc2 in
-      Hashtbl.add tbl (i, j) lc in
-  Hashtbl.iter
-    (fun k _ ->
-    Hashtbl.iter
-      (fun i _ ->
-      Hashtbl.iter
-        (fun j _ ->
-           (try add eqs i j k with Not_found -> ());
-           (try add ineqs i j k with Not_found -> ());
-        ) nodes) nodes) nodes;
-  let cnj = Hashtbl.fold
+        [t1, t2, loc; t2, t1, loc]
+      | _ -> [])
+    cnj in
+  let cnj_typ = Hashtbl.fold
       (fun (i,j) lc cnj -> if i<j then Eqty (i, j, lc)::cnj else cnj)
-      eqs [] in
-  let cnj = Hashtbl.fold
-      (fun (i,j) lc cnj -> Leq (i, j, lc)::cnj)
-      ineqs cnj in
-  cnj
+      (Joint.transitive_cl cnj_typ) [] in
+  let cnj_num = NumS.transitive_cl cnj_num in
+  cnj_typ @ NumS.formula_of_sort cnj_num
 
 let initstep_heur q ~preserve cnj =
   (*[* let init_cnj = cnj in *]*)
-  let cnj = NumS.cleanup_formula cnj in
+  (* FIXME *)
+  (* let cnj = NumS.cleanup_formula cnj in *)
   let preserve = add_vars [delta; delta'] preserve in
   let preserve = List.fold_left
       (fun preserve a ->

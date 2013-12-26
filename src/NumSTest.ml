@@ -6,7 +6,10 @@
     @since Mar 2013
 *)
 open OUnit
-open Terms
+open Aux
+open Defs
+open NumDefs
+(* open Terms *)
 open NumS
 
 let cmp_v v1 v2 = Same_quant
@@ -27,7 +30,7 @@ let tests = "NumS" >::: [
 	  (Lexing.from_string " ⟹ n1 = n2 ∧ n3 <= n2 + 2
 |  ⟹ n1 = n2 ∧ n3 <= n2
 |  ⟹ n1 = n2 ∧ n3 <= n2 + 1") in
-        let brs = List.map snd brs in
+        let brs = List.map (sort_formula % snd) brs in
         let preserve = List.fold_left
             (fun vs br -> VarSet.union vs (fvs_formula br))
             VarSet.empty brs in
@@ -38,7 +41,7 @@ let tests = "NumS" >::: [
         assert_equal ~printer:(fun x -> x)
           "∃. n1 = n2 ∧ n3 ≤ (2 + n2)"
           (Format.flush_str_formatter ())
-      with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+      with (Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
         Terms.pr_exception Format.str_formatter exn;
         assert_failure (Format.flush_str_formatter ())
@@ -57,7 +60,7 @@ let tests = "NumS" >::: [
         let brs = Parser.cn_branches Lexer.token
 	  (Lexing.from_string " ⟹ n1 = n3 ∧ n2 = n3
 |  ⟹ n1 = n4 ∧ n2 = n4") in
-        let brs = List.map snd brs in
+        let brs = List.map (sort_formula % snd) brs in
         let preserve = List.fold_left
             (fun vs br -> VarSet.union vs (fvs_formula br))
             VarSet.empty brs in
@@ -68,7 +71,7 @@ let tests = "NumS" >::: [
         assert_equal ~printer:(fun x -> x)
           "∃. n1 = n2"
           (Format.flush_str_formatter ())
-      with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+      with (Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
         Terms.pr_exception Format.str_formatter exn;
         assert_failure (Format.flush_str_formatter ())
@@ -87,7 +90,7 @@ let tests = "NumS" >::: [
         let brs = Parser.cn_branches Lexer.token
 	  (Lexing.from_string " ⟹ n1 <= n2 ∧ 0 <= n1 ∧ n2 <= 1
 |  ⟹ n2 <= n1 + 2 ∧ 2 <= n2 ∧ n1 <= 1") in
-        let brs = List.map snd brs in
+        let brs = List.map (sort_formula % snd) brs in
         let preserve = List.fold_left
             (fun vs br -> VarSet.union vs (fvs_formula br))
             VarSet.empty brs in
@@ -98,7 +101,7 @@ let tests = "NumS" >::: [
         assert_equal ~printer:(fun x -> x)
           "∃. 0 ≤ n1 ∧ n1 ≤ 1 ∧ n1 ≤ n2 ∧ n2 ≤ (2 + n1)"
           (Format.flush_str_formatter ())
-      with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+      with (Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
         Terms.pr_exception Format.str_formatter exn;
         assert_failure (Format.flush_str_formatter ())
@@ -117,7 +120,7 @@ let tests = "NumS" >::: [
         let brs = Parser.cn_branches Lexer.token
 	  (Lexing.from_string " ⟹ n1 <= n2 ∧ 0 <= n1 ∧ n2 <= 1
 |  ⟹ n2 <= n1 ∧ 2 <= n2 ∧ n1 <= 3") in
-        let brs = List.map snd brs in
+        let brs = List.map (sort_formula % snd) brs in
         let preserve = List.fold_left
             (fun vs br -> VarSet.union vs (fvs_formula br))
             VarSet.empty brs in
@@ -129,7 +132,7 @@ let tests = "NumS" >::: [
           "∃. 0 ≤ n1 ∧ n1 ≤ 3 ∧ (n1 + n1) ≤ (n2 + n2 + n2) ∧
   (n2 + n2 + n2) ≤ (3 + n1 + n1)"
           (Format.flush_str_formatter ())
-      with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+      with (Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
         Terms.pr_exception Format.str_formatter exn;
         assert_failure (Format.flush_str_formatter ())

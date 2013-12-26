@@ -6,6 +6,8 @@
     @since Mar 2013
 *)
 open OUnit
+open Defs
+open NumDefs
 open Terms
 
 let tests = "Terms" >::: [
@@ -100,25 +102,15 @@ external filter : ∀n, a. List (a, n) → ∃1:k[k ≤ n].List (a, k) =
   "zipper" >::
     (fun () ->
       let t = TCons (CNam "f", [TVar (VNam (Type_sort, "x"));
-                                Nadd [NCst 1; NCst 2]]) in
+                                num (Add [Cst (1,1); Cst (2,1)])]) in
       let loc1 = Aux.unsome
         (Aux.bind_opt (typ_up {typ_sub=t; typ_ctx=[]}) typ_next) in
-      let loc2 = Aux.unsome
-        (Aux.bind_opt (typ_up loc1) typ_next) in
       assert_equal ~msg:"next (up `f (x, 1+2)`)"
         ~printer:(pr_to_str pr_typ_loc)
-        {typ_sub=Nadd [NCst 1; NCst 2];
+        {typ_sub=num (Add [Cst (1,1); Cst (2,1)]);
          typ_ctx=[TCons_dir (CNam "f", [TVar (VNam (Type_sort, "x"))],
                              [])]}
         loc1;
-      assert_equal ~msg:"next (up (next (up `f (x, 1+2)`)))"
-        ~printer:(pr_to_str pr_typ_loc)
-        {typ_sub=NCst 2;
-         typ_ctx=[Nadd_dir ([NCst 1], []);
-                  TCons_dir (CNam "f", [TVar (VNam (Type_sort, "x"))],
-                             [])]}
-        loc2;
-        ;
     );
 
 

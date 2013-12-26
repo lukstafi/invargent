@@ -6,6 +6,7 @@
     @since Mar 2013
 *)
 
+open Defs
 open Terms
 open Aux
 
@@ -35,3 +36,5 @@ module JointAbduction (P : ABD_PARAMS) : sig
     P.args -> discard:P.discarded list -> validate:(P.answer -> unit) ->
     P.accu -> P.branch list -> P.accu
 end
+
+val transitive_cl : ('a * 'a * loc) list -> ('a * 'a, loc) Hashtbl.t

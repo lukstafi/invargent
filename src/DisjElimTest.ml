@@ -6,6 +6,7 @@
     @since Mar 2013
 *)
 open OUnit
+open Defs
 open Terms
 open Aux
 
@@ -33,7 +34,7 @@ let test_case msg test result =
     assert_equal ~msg ~printer:(fun x -> x)
       result
       (Format.flush_str_formatter ());
-  with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+  with (Report_toplevel _ | Contradiction _) as exn ->
     ignore (Format.flush_str_formatter ());
     Terms.pr_exception Format.str_formatter exn;
     assert_failure (Format.flush_str_formatter ())

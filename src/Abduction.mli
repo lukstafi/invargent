@@ -23,39 +23,44 @@ val abd_fail_flag : bool ref
 val abd_timeout_flag : bool ref
 
 val abd_simple :
-  Terms.quant_ops ->
+  Defs.quant_ops ->
   ?without_quant:unit ->
-  bvs:Terms.VarSet.t ->
-  pms:Terms.VarSet.t -> dissociate:bool ->
-  validate:((Terms.var_name list * Terms.subst) -> unit) ->
-  discard:((Terms.var_name list * Terms.subst) list) ->
+  bvs:Defs.VarSet.t ->
+  pms:Defs.VarSet.t -> dissociate:bool ->
+  validate:((Defs.var_name list * Terms.subst) -> unit) ->
+  discard:((Defs.var_name list * Terms.subst) list) ->
   int ->
-  Terms.var_name list * Terms.subst ->
-  Terms.subst * Terms.formula * Terms.subst ->
-  (Terms.VarSet.t * (Terms.var_name list * Terms.subst)) option
+  Defs.var_name list * Terms.subst ->
+  Terms.sep_formula * Terms.subst ->
+  (Defs.VarSet.t * (Defs.var_name list * Terms.subst)) option
 val abd_typ :
-  Terms.quant_ops ->
-  bvs:Terms.VarSet.t ->
+  Defs.quant_ops ->
+  bvs:Defs.VarSet.t ->
   ?dissociate:bool ->
-  validate:((Terms.var_name list * Terms.subst) -> unit) ->
-  discard:((Terms.var_name list * Terms.subst) list) ->
-  (Terms.subst * Terms.formula * Terms.subst) list ->
-  Terms.VarSet.t * Terms.subst *        (* alien_eqs *)
-  Terms.var_name list * Terms.subst * (Terms.formula * Terms.formula) list
+  validate:((Defs.var_name list * Terms.subst) -> unit) ->
+  discard:((Defs.var_name list * Terms.subst) list) ->
+  (Terms.sep_formula * Terms.subst) list ->
+  Defs.VarSet.t * Terms.subst *        (* alien_eqs *)
+  Defs.var_name list * Terms.subst *
+    (Terms.sep_formula * Terms.sep_formula) list
+
+type discarded =
+  ((Defs.var_name list * Terms.subst) list,
+   NumDefs.formula list, unit) Terms.sep_sorts
 (** Raises [Contradiction] if constraints are contradictory and
     [NoAnswer] when no answer can be found. Returns candidate
     parameters [cand_bvs], alien subterm substitution [alien_eqs] and
     the answer. *)
 val abd :
-  Terms.quant_ops ->
-  bvs:Terms.VarSet.t ->
+  Defs.quant_ops ->
+  bvs:Defs.VarSet.t ->
   ?iter_no:int ->
-  discard:(Terms.sort * Terms.formula list) list ->
+  discard:discarded ->
   (bool * Terms.formula * Terms.formula) list ->
-  Terms.VarSet.t * Terms.subst *
-  (Terms.var_name list * Terms.formula)
+  Defs.VarSet.t * Terms.subst *
+  (Defs.var_name list * Terms.formula)
 val abd_mockup_num :
-  Terms.quant_ops ->
-  bvs:Terms.VarSet.t ->
+  Defs.quant_ops ->
+  bvs:Defs.VarSet.t ->
   (Terms.formula * Terms.formula) list ->
-  (Terms.formula * Terms.formula) list option
+  (NumDefs.formula * NumDefs.formula) list option

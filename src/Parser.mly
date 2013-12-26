@@ -7,6 +7,7 @@
 */
 
 %{
+open Defs
 open Terms
 open Lexing
 
@@ -106,11 +107,15 @@ let extract_datatyp allvs loc = function
 %token UNDERSCORE EXCLAMATION LOGAND
 %token LET REC IN ALL EX
 %token <string> UIDENT
-%token <string> LIDENT
+%token <string> LIDENT_ABCRST LIDENT_IJKLMN LIDENT_DEFGH
+  LIDENT_OPQ LIDENT_UVWXYZ
 %token <int> INT
 %token <string> STRING
 %token <string> DOCUCOMMENT
-%token PLUS MULTIPLY ARROW BAR AS
+%token STAR SLASH
+%token MINUS
+%token PLUS ARROW BAR AS
+%token MIN MAX
 %token FUNCTION EFUNCTION FUN MATCH EMATCH WITH
 %token NUM TYPE
 %token LESSEQUAL
@@ -133,7 +138,7 @@ let extract_datatyp allvs loc = function
 %left COMMA
 %nonassoc DOT
 %left PLUS
-%nonassoc MULTIPLY
+%nonassoc STAR
 %nonassoc prec_constr_appl              /* above AS BAR COLONCOLON COMMA */
 %nonassoc LPAREN LBRACKET
 
@@ -145,8 +150,63 @@ let extract_datatyp allvs loc = function
 
 /* Grammar follows */
 %%
+/* Add new sort entries to these rules */
+sort:
+  | NUM
+      { Num_sort }
+  | TYPE
+      { Type_sort }
+;
+
+alien_term:
+  | num_term { Num_term $1 }
+;
+
+alien_atom:
+  | num_atom { Num_atom $1 }
+;
+
+/* Add new sort syntax here (most recent domain first) */
+
+/* Numerical sort */
+
+num_term:
+  | num_coef
+    { let j,k = $1 in NumDefs.Cst (j,k) }
+  | num_coef LIDENT_IJKLMN
+    { let j,k = $1 in NumDefs.Lin (j,k,VNam (Num_sort, $2)) }
+  | num_term PLUS num_term
+    { NumDefs.add $1 $3 }
+  | MIN LPAREN num_term COMMA num_term RPAREN
+    { let v = fresh_var Num_sort in
+      NumDefs.Min (v, $3, $5) }
+  | MAX LPAREN num_term COMMA num_term RPAREN
+    { let v = fresh_var Num_sort in
+      NumDefs.Max (v, $3, $5) }
+  | LPAREN num_term RPAREN
+    { $2 }
+;
+
+num_atom:
+  | num_term LESSEQUAL num_term
+    { NumDefs.Leq ($1, $3, get_loc ()) }
+  | num_term EQUAL num_term
+    { NumDefs.Eq ($1, $3, get_loc ()) }
+  | MIN MAX LPAREN num_term COMMA num_term RPAREN
+    { NumDefs.Opti ($4, $6, get_loc ()) }
+
+num_coef:
+  | INT  { $1, 1 }
+  | MINUS INT { ~- $2, 1 }
+  | INT SLASH INT { $1, $3 }
+  | MINUS INT SLASH INT { ~- $2, $4 }
+  | LPAREN INT SLASH INT RPAREN { $2, $4 }
+  | LPAREN MINUS INT SLASH INT RPAREN { ~- $3, $5 }
+
+
+/* Remaining grammar */ 
 expr:
-  | opt_docucomment LET REC LIDENT EQUAL expr IN expr
+  | opt_docucomment LET REC lident EQUAL expr IN expr
       { Letrec ($1, (), $4, $6, $8, get_loc ()) }
   | opt_docucomment LET pattern EQUAL expr IN expr
       { Letin ($1, $3, $5, $7, get_loc ()) }
@@ -154,7 +214,7 @@ expr:
       { syntax_error "lacking let-rec-binding identifier" 4 }
   | opt_docucomment LET EQUAL expr IN expr
       { syntax_error "lacking let-binding pattern" 3 }
-  | opt_docucomment LET REC LIDENT EQUAL expr error
+  | opt_docucomment LET REC lident EQUAL expr error
       { unclosed "let" 2 "in" 7 }
   | opt_docucomment LET pattern EQUAL expr error
       { unclosed "let" 2 "in" 6 }
@@ -209,7 +269,7 @@ expr:
 			  end_pos = (expr_loc a).end_pos})) f args }
 ;     
 simple_expr:
-  | LIDENT
+  | lident
       { Var ($1, get_loc ()) }
   | UIDENT
       { Cons (CNam $1, [], get_loc ()) }
@@ -277,7 +337,7 @@ pattern_comma_list:
 ;
 
 simple_pattern:
-  LIDENT                                    { PVar ($1, get_loc ()) }
+  lident                                    { PVar ($1, get_loc ()) }
   | UNDERSCORE                              { One (get_loc ())}
   | EXCLAMATION                             { Zero }
   | UIDENT
@@ -320,29 +380,18 @@ typ_comma_list:
 ;
 
 simple_typ:
-  | simple_typ PLUS simple_typ
-      { ty_add $1 $3 }
-  | LIDENT   { TVar (VNam (name_sort 1 $1, $1)) }
-  | UIDENT   { TCons (CNam $1, []) }
-  | INT      { NCst $1 }
+  | LIDENT_ABCRST   { TVar (VNam (Type_sort, $1)) }
+  | UIDENT          { TCons (CNam $1, []) }
+  | alien_term      { Alien $1 }
   | LPAREN typ RPAREN
       { $2 }
   | LPAREN typ error
       { unclosed "(" 1 ")" 3 }
 ;
 
-sort:
-  | NUM
-      { Num_sort }
-  | TYPE
-      { Type_sort }
-;
-
 formula:
   | formula_logand_list %prec below_LOGAND
       { List.rev $1 }
-  | typ LESSEQUAL typ
-      { [Leq ($1, $3, get_loc ())] }
   | typ EQUAL typ
       { [Eqty ($1, $3, get_loc ())] }
   | FALSE    { [CFalse (get_loc ())] }
@@ -388,11 +437,11 @@ opt_constr_intro:
 ;
 
 lident_list:
-  | LIDENT
+  | lident
       { [ VNam (name_sort 1 $1, $1) ] }
-  | lident_list LIDENT
+  | lident_list lident
       { VNam (name_sort 2 $2, $2) :: $1 }
-  | lident_list COMMA LIDENT
+  | lident_list COMMA lident
       { VNam (name_sort 3 $3, $3) :: $1 }
 ;
 
@@ -456,15 +505,15 @@ structure_item_raw:
   | opt_docucomment NEWTYPE UIDENT
       { TypConstr ($1, CNam $3, [], get_loc ()) }
   | opt_docucomment
-    EXTERNAL LIDENT COLON opt_constr_intro typ EQUAL STRING
+    EXTERNAL lident COLON opt_constr_intro typ EQUAL STRING
       { PrimVal ($1, $3, (fst $5, snd $5, $6), Aux.Left $8, get_loc ()) }
   | opt_docucomment
-    EXTERNAL LET LIDENT COLON opt_constr_intro typ EQUAL STRING
+    EXTERNAL LET lident COLON opt_constr_intro typ EQUAL STRING
       { PrimVal ($1, $4, (fst $6, snd $6, $7), Aux.Right $9, get_loc ()) }
   | opt_docucomment EXTERNAL COLON
       { syntax_error
 	  "lacking external binding identifier" 3 }
-  | opt_docucomment LET REC LIDENT opt_sig_typ_scheme EQUAL expr opt_tests
+  | opt_docucomment LET REC lident opt_sig_typ_scheme EQUAL expr opt_tests
       { LetRecVal ($1, $4, $7, $5, $8, get_loc ()) }
   | opt_docucomment LET REC EQUAL
       { syntax_error
@@ -499,13 +548,13 @@ structure_item:
 typ_star_list:
   | typ
       { [ $1 ] }
-  | typ_star_list MULTIPLY typ
+  | typ_star_list STAR typ
       { $3 :: $1 }
 ;
 
 sort_star_list:
   | sort           { [ $1 ] }
-  | sort_star_list MULTIPLY sort
+  | sort_star_list STAR sort
       { $3 :: $1 }
   | error
       { syntax_error "unrecognized sort" 1 }
@@ -526,3 +575,9 @@ program:
   | structure_item_list EOF { List.concat (List.rev $1) }
 ;
 
+lident:
+  | LIDENT_ABCRST { $1 }
+  | LIDENT_IJKLMN { $1 }
+  | LIDENT_DEFGH  { $1 }
+  | LIDENT_OPQ    { $1 }
+  | LIDENT_UVWXYZ { $1 }

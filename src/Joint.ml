@@ -6,6 +6,7 @@
     @since Mar 2013
 *)
 
+open Defs
 open Terms
 open Aux
 
@@ -97,3 +98,28 @@ module JointAbduction (P : ABD_PARAMS) = struct
     else loop 0 discard init_acc [] [] brs    
 
 end
+
+
+let transitive_cl edge_l =
+  let edges = Hashtbl.create 8 in
+  let nodes = Hashtbl.create 8 in
+  List.iter
+    (fun (t1, t2, loc) ->
+        Hashtbl.replace nodes t1 (); Hashtbl.replace nodes t2 ();
+        Hashtbl.replace edges (t1, t2) loc)
+    edge_l;
+  (* Floyd-Warshall algo *)
+  let add i j k =
+    if not (Hashtbl.mem edges (i, j)) then
+      let lc1 = Hashtbl.find edges (i, k)
+      and lc2 = Hashtbl.find edges (k, j) in
+      let lc = loc_union lc1 lc2 in
+      Hashtbl.add edges (i, j) lc in
+  Hashtbl.iter
+    (fun k _ ->
+    Hashtbl.iter
+      (fun i _ ->
+      Hashtbl.iter
+        (fun j _ -> try add i j k with Not_found -> ())
+        nodes) nodes) nodes;
+  edges

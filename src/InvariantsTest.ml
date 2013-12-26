@@ -6,6 +6,7 @@
     @since Mar 2013
 *)
 open OUnit
+open Defs
 open Terms
 open Aux
 
@@ -67,7 +68,7 @@ let test_case ?(more_general=false) msg test answers =
         result
         (Format.flush_str_formatter ()) in
     List.iter test_sol answers
-  with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+  with (Defs.Report_toplevel _ | Terms.Contradiction _) as exn ->
     ignore (Format.flush_str_formatter ());
     Terms.pr_exception Format.str_formatter exn;
     assert_failure (Format.flush_str_formatter ())
@@ -85,7 +86,7 @@ let test_nonrec_case ?(more_general=false) msg test answers =
         result
         (Format.flush_str_formatter ()) in
     List.iter test_sol answers
-  with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+  with (Report_toplevel _ | Contradiction _) as exn ->
     ignore (Format.flush_str_formatter ());
     Terms.pr_exception Format.str_formatter exn;
     assert_failure (Format.flush_str_formatter ())

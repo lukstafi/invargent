@@ -1,5 +1,6 @@
 {
   open Parser
+  open Defs
   open Terms
   open Lexing
   let incr_lineno lexbuf =
@@ -63,7 +64,9 @@ rule token = parse
   | digit+ as num
 		{ INT (int_of_string num) }
   | '+'		{ PLUS }
-  | '*'		{ MULTIPLY }
+  | '-'		{ MINUS }
+  | '*'		{ STAR }
+  | '/'		{ SLASH }
   | '('		{ LPAREN }
   | ')'		{ RPAREN }
   | '['		{ LBRACKET }
@@ -111,6 +114,8 @@ rule token = parse
   | "as"        { AS }
   | "->"        { ARROW }
   | "→"         { ARROW }
+  | "min"       { MIN }
+  | "max"       { MAX }
   | "==>"       { DOUBLEARROW }
   | "⟹"        { DOUBLEARROW }
   | "(**"
@@ -149,8 +154,16 @@ rule token = parse
         is_in_string := false;
         lexbuf.lex_start_p <- string_start;
         STRING (Buffer.contents string_buff) }
-  | (lowercase ident_body*) as id
-      { LIDENT id }
+  | (['a' 'b' 'c' 'r' 's' 't'] ident_body*) as id
+      { LIDENT_ABCRST id }
+  | (['i' 'j' 'k' 'l' 'm' 'n'] ident_body*) as id
+      { LIDENT_IJKLMN id }
+  | (['d' 'e' 'f' 'g' 'h'] ident_body*) as id
+      { LIDENT_DEFGH id }
+  | (['o' 'p' 'q'] ident_body*) as id
+      { LIDENT_OPQ id }
+  | (['u' 'v' 'w' 'x' 'y' 'z'] ident_body*) as id
+      { LIDENT_UVWXYZ id }
   | (uppercase ident_body*) as id
       { UIDENT id }
   | eof		{ EOF }

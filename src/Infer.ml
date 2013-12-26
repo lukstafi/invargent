@@ -10,6 +10,7 @@ let annotating_fun = ref true
 let annotating_letin = ref false
 let inform_toplevel = ref false
 
+open Defs
 open Terms
 open Aux
 
@@ -87,16 +88,24 @@ let pr_rbrs5 ppf brs =
       nonrec pr_formula prem pr_formula concl) ppf brs
 
 
-let separate_subst ?(avoid=VarSet.empty) ?(keep_uni=false) q phi =
+let separate_sep_subst ?(avoid=VarSet.empty) ?(keep_uni=false)
+    q {cnj_typ; cnj_num; cnj_so} =
   let filter sb = List.filter
       (fun (v,_) -> not (VarSet.mem v avoid) &&
                     (keep_uni || not (q.uni_v v))) sb in
-  let sb_ty, phi_num, phi_so = unify ~use_quants:false q phi in
-  let sb_ty = filter sb_ty in
-  let sb_num, phi_num = NumS.separate_subst q phi_num in
+  let sb_ty = filter cnj_typ in
+  let sb_num, cnj_num = NumS.separate_subst q cnj_num in
   let sb_num = filter sb_num in
   let sb = update_sb ~more_sb:sb_num sb_ty in
-  sb, phi_num @ subst_formula sb_num phi_so
+  sb, {cnj_typ=[]; cnj_num;
+       cnj_so=subst_formula sb_num cnj_so}
+
+let separate_subst ?(avoid=VarSet.empty) ?(keep_uni=false) q phi =
+  let sb, {cnj_typ; cnj_num; cnj_so} =
+    separate_sep_subst ~avoid ~keep_uni q
+      (unify ~use_quants:false q phi) in
+  assert (cnj_typ=[]);
+  sb, NumS.formula_of_sort cnj_num @ cnj_so
 
 (** {2 Constraint inference} *)
 
@@ -115,7 +124,6 @@ let ex_intro_elim e =
   aux e
 
 (* Global state for fresh variable guarantees: not re-entrant. *)
-let fresh_var_id = ref 0
 let fresh_chi_id = ref 0
 let fresh_expr_var_id = ref 0
 
@@ -188,49 +196,18 @@ let rec flat_and = function
 let cn_and cn1 cn2 = And (flat_and cn1 @ flat_and cn2)
 
 
-let fresh_typ_var () =
-  incr fresh_var_id; VId (Type_sort, !fresh_var_id)  
-
-let fresh_num_var () =
-  incr fresh_var_id; VId (Num_sort, !fresh_var_id)  
-
-let fresh_var s =
-  incr fresh_var_id; VId (s, !fresh_var_id)  
-
-let freshen_var v =
-  incr fresh_var_id; VId (var_sort v, !fresh_var_id)  
-
-let rec freshen_typ env = function
-  | TVar v as tv ->
-    (try TVar (List.assoc v env) with Not_found -> tv)
-  | TCons (n, tys) -> TCons (n, List.map (freshen_typ env) tys)
-  | Fun (t1, t2) -> Fun (freshen_typ env t1, freshen_typ env t2)
-  | NCst _ as c -> c
-  | Nadd tys -> Nadd (List.map (freshen_typ env) tys)
-
-let freshen_atom env = function
-  | Eqty (t1, t2, loc) ->
-    Eqty (freshen_typ env t1, freshen_typ env t2, loc)
-  | Leq (t1, t2, loc) ->
-    Leq (freshen_typ env t1, freshen_typ env t2, loc)
-  | CFalse _ as a -> a
-  | PredVarU (i, t, lc) -> PredVarU (i, freshen_typ env t, lc)
-  | PredVarB (i, t1, t2, lc) ->
-    PredVarB (i, freshen_typ env t1, freshen_typ env t2, lc)
-  | NotEx (t, lc) -> NotEx (freshen_typ env t, lc)
-
 let freshen_cns_scheme (vs, phi, argtys, c_n, c_args) =
   let env = List.map (fun v->v, freshen_var v) vs in
-  let argtys = List.map (freshen_typ env) argtys in
-  let phi = List.map (freshen_atom env) phi in
+  let argtys = List.map (hvsubst_typ env) argtys in
+  let phi = hvsubst_formula env phi in
   let vs = List.map snd env in
   let c_args = List.map (flip List.assoc env) c_args in
   vs, phi, argtys, c_n, c_args
 
 let freshen_val_scheme (vs, phi, res) =
   let env = List.map (fun v->v, freshen_var v) vs in
-  let res = freshen_typ env res in
-  let phi = List.map (freshen_atom env) phi in
+  let res = hvsubst_typ env res in
+  let phi = hvsubst_formula env phi in
   let vs = List.map snd env in
   vs, phi, res
 
@@ -345,7 +322,7 @@ let constr_gen_expr gamma e t =
       Ex (vars_of_list vs, cn_and (A [Eqty (res, t, loc)]) (A phi)),
       e
     | Num (i, loc) as e ->
-      A [Eqty (TCons (numtype, [NCst i]), t, loc)],
+      A [Eqty (TCons (numtype, [num (NumDefs.Cst (i,1))]), t, loc)],
       e
     | String (_, loc) as e ->
       A [Eqty (TCons (stringtype, []), t, loc)],
@@ -426,7 +403,8 @@ let constr_gen_expr gamma e t =
       let cn2, e2 = aux gamma nt2 e2 in
       let cn3, e3 = aux gamma t3 e3 in
       let cn =
-        cn_and (A [Leq (t1, t2, loc)])
+        cn_and (A [Terms.A NumDefs.(Num_atom (
+            Leq (Lin (1,1,a1), Lin (1,1,a2), loc)))])
           (cn_and cn1 (cn_and cn2 cn3)) in
       Ex (vars_of_list [a1; a2; a3], cn),
       AssertLeq (e1, e2, e3, loc)
@@ -565,9 +543,9 @@ let constr_gen_let gamma p e ta =
 
 type solution =
   quant_ops * Terms.formula *
-    (int * (Terms.var_name list * Terms.formula)) list
+    (int * (Defs.var_name list * Terms.formula)) list
 
-type program = ((int * Terms.loc) list * Terms.struct_item) list
+type program = ((int * Defs.loc) list * Terms.struct_item) list
 
 let infer_prog_mockup (prog : program) =
   let gamma = ref [] in
@@ -1068,8 +1046,10 @@ let normalize q cn =
          then prem, concl
          else
            (* 1 *)
-           let sb, _, _ = unify (guard_cnj @ prem @ concl) in
-           let concl_typ, concl_num, concl_so = unify concl in
+           let {cnj_typ=sb; _} = unify (guard_cnj @ prem @ concl) in
+           let {cnj_typ=concl_typ; cnj_num=concl_num; cnj_so=concl_so} =
+             unify concl in
+           (* FIXME: only filter out if known to hold *)
            let concl_so = List.filter
                (function NotEx (_, _) -> false | _ -> true) concl_so in
            (* 2 *)
@@ -1129,7 +1109,9 @@ let normalize q cn =
                     Hashtbl.replace v_exty b (Hashtbl.find chi_exty i)))
                v_chi;
            prem,
-           to_formula concl_typ @ concl_num @ concl_so) in
+           (* TODO: keep [sep_formula] *)
+           to_formula concl_typ @
+             NumS.formula_of_sort concl_num @ concl_so) in
   (* Produces: a formula, formula-constraint pairs,
      constraint-trigger pairs list. *)
   let rec flat_and = function
@@ -1193,7 +1175,7 @@ let normalize q cn =
      of the disjuncts as Left (calls trigger first), or the filtered
      disjuncts as Right. *)
   let solve_dsj step (guard_cnj, dsjs) =
-    let sb, _, _ = unify guard_cnj in
+    let {cnj_typ=sb; _} = unify guard_cnj in
     (*[* Format.printf "dsj-checking: init #dsjs=%d@ sb=%a@\n%!"
       (List.length dsjs) pr_subst sb; *]*)
     let first_exn = ref None in
@@ -1206,7 +1188,8 @@ let normalize q cn =
              || (
                (*[* Format.printf "dsj-test: br@ prem=%a@ concl=%a@\n%!"
                  pr_formula prem pr_formula concl; *]*)
-               let sb', _, so = unify ~sb (guard_cnj @ prem @ concl) in
+               let {cnj_typ=sb'; cnj_so=so; _} =
+                 unify ~sb (guard_cnj @ prem @ concl) in
                (*[* Format.printf "dsj-test: br@ sb'=%a@\n%!"
                  pr_subst sb'; *]*)
                List.iter
@@ -1282,18 +1265,27 @@ let normalize q cn =
   assert (dsj_brs = []);
   exty_res_chi, brs
 
+let vs_hist_alien_term increase = function
+  | Num_term t -> NumDefs.iter_term_vars increase t
+
 let vs_hist_typ increase =
   typ_fold {(typ_make_fold (fun _ _ -> ()) ())
-            with fold_tvar = (fun v -> increase v)}
+            with fold_tvar = (fun v -> increase v);
+                 fold_alien = vs_hist_alien_term increase}
+
+let vs_hist_alien_atom increase = function
+    | Num_atom a -> NumDefs.iter_terms
+                      (NumDefs.iter_term_vars increase) a
 
 let vs_hist_atom increase = function
-  | Eqty (t1, t2, _) | Leq (t1, t2, _) ->
+  | Eqty (t1, t2, _) ->
     vs_hist_typ increase t1; vs_hist_typ increase t2
   | CFalse _ -> ()
   | PredVarU (_, t, _) -> vs_hist_typ increase t
   | PredVarB (_, t1, t2, _) ->
     vs_hist_typ increase t1; vs_hist_typ increase t2
   | NotEx (t, _) -> vs_hist_typ increase t
+  | Terms.A a -> vs_hist_alien_atom increase a
 
 let vs_hist_sb increase sb =
   List.iter (fun (v,(t,_)) -> increase v; vs_hist_typ increase t) sb
@@ -1324,11 +1316,11 @@ let simplify preserve q brs =
        List.iter (vs_hist_atom increase) concl)
     brs;
   let redundant_atom in_prem = function
-    | Eqty (TVar v, _, _) | Leq (TVar v, _, _)
-    | Eqty (_, TVar v, _) | Leq (_, TVar v, _) ->
+    | Eqty (TVar v, _, _)
+    | Eqty (_, TVar v, _) ->
       not (VarSet.mem v preserve) && count v = 1
       && (in_prem || not (q.uni_v v))       (* FIXME: use cmp_v? *)
-    | _ -> false in
+    | _ -> false in                         (* FIXME: check other sorts? *)
   let nonred_pr_atom a = not (redundant_atom true a) in
   let nonred_atom a = not (redundant_atom false a) in
   let is_nonrec prem concl =
@@ -1347,12 +1339,14 @@ let simplify preserve q brs =
   (* Roughly like [map_reduce (@) [] brs] *)
   let equiv cnj1 cnj2 =
     try
-      let c1_ty, c1_num, c1_so = unify ~use_quants:false q cnj1 in
-      let c2_ty, c2_num, c2_so = unify ~use_quants:false q cnj2 in
+      let {cnj_typ=c1_ty; cnj_num=c1_num; cnj_so=c1_so} =
+        unify ~use_quants:false q cnj1 in
+      let {cnj_typ=c2_ty; cnj_num=c2_num; cnj_so=c2_so} =
+        unify ~use_quants:false q cnj2 in
       let c1_ty = List.map (fun (v,(t,_)) -> v,t) c1_ty
       and c2_ty = List.map (fun (v,(t,_)) -> v,t) c2_ty
-      and c1_num = replace_loc dummy_loc c1_num
-      and c2_num = replace_loc dummy_loc c2_num
+      and c1_num = NumDefs.replace_loc dummy_loc c1_num
+      and c2_num = NumDefs.replace_loc dummy_loc c2_num
       and c1_so = replace_loc dummy_loc c1_so
       and c2_so = replace_loc dummy_loc c2_so in
       let res =
@@ -1390,4 +1384,4 @@ let simplify preserve q brs =
 (** {2 Postprocessing and printing} *)
 
 let reset_state () =
-  fresh_expr_var_id := 0; fresh_var_id := 0; fresh_chi_id := 0
+  fresh_expr_var_id := 0; fresh_chi_id := 0

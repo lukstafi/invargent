@@ -226,6 +226,19 @@ let inter_merge (type a) (type b) (type c)
       else aux acc (l1, tl2) in
   aux [] (l1, l2)
 
+let union_merge (type a) (type b) (type c)
+    (cmp : a -> b -> int) (f : a -> b -> c) (g : a  -> c) (h : b -> c)
+    (l1 : a list) (l2 : b list) : c list =
+  let rec aux acc = function
+    | [], l -> List.rev acc
+    | l, [] -> List.rev acc
+    | e1::tl1 as l1, (e2::tl2 as l2) ->
+      let c = cmp e1 e2 in
+      if c = 0 then aux (f e1 e2::acc) (tl1, tl2)
+      else if c < 0 then aux (g e1::acc) (tl1, l2)
+      else aux (h e2::acc) (l1, tl2) in
+  aux [] (l1, l2)
+
 let list_inter a b = List.filter (fun e -> List.mem e b) a
 let list_diff a b = List.filter (fun e -> not (List.mem e b)) a
 
@@ -372,3 +385,34 @@ let laz_single a = lazy (LazCons (a, lazy LazNil))
 let pr_lazy_list_aux f ppf = function
   | lazy LazNil -> 
 *)
+
+(** {2 Printing} *)
+
+open Format
+
+let pr_sep_list sep ?pr_hd pr_tl ppf l =
+  let pr_hd = match pr_hd with
+    | None -> pr_tl | Some pr_a -> pr_a in
+  let rec aux = function
+    | [] -> ()
+    | [hd] -> pr_hd ppf hd
+    | hd::tl ->
+      fprintf ppf "%a%s@ %a" pr_hd hd sep more_aux tl
+  and more_aux ppf = function
+    | [] -> ()
+    | [hd] -> pr_tl ppf hd
+    | hd::tl ->
+      fprintf ppf "%a%s@ %a" pr_tl hd sep more_aux tl in
+  aux l
+
+let rec pr_pre_sep_list sep pr_a ppf = function
+  | [] -> ()
+  | [hd] -> pr_a ppf hd
+  | hd::tl ->
+      fprintf ppf "%a@ %s%a" pr_a hd sep (pr_pre_sep_list sep pr_a) tl
+
+let rec pr_line_list sep pr_a ppf = function
+  | [] -> ()
+  | [hd] -> pr_a ppf hd
+  | hd::tl ->
+      fprintf ppf "%a@\n%s%a" pr_a hd sep (pr_line_list sep pr_a) tl

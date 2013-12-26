@@ -7,12 +7,12 @@
 *)
 
 val disjelim :
-  Terms.quant_ops -> preserve:Terms.VarSet.t -> do_num:bool ->
+  Defs.quant_ops -> preserve:Defs.VarSet.t -> do_num:bool ->
   Terms.formula list ->
-  Terms.var_name list * Terms.atom list
+  Defs.var_name list * Terms.atom list
 
 (** Filter the initial postcondition, found from non-recursive
     branches only, so that it does not constrain variables to
     constants if other constraints on the variables are available. *)
 val initstep_heur :
-  Terms.quant_ops -> preserve:Terms.VarSet.t -> Terms.formula -> Terms.formula
+  Defs.quant_ops -> preserve:Defs.VarSet.t -> Terms.formula -> Terms.formula

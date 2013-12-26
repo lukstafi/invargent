@@ -10,6 +10,7 @@ let version = "1.1"
 (** Annotate [let-in] nodes in fallback mode of .ml generation. *)
 let let_in_fallback = ref false
 
+open Defs
 open Terms
 open Aux
 

@@ -5,6 +5,7 @@
     @author Lukasz Stafiniak lukstafi (AT) gmail.com
     @since Mar 2013
 *)
+open Defs
 open Terms
 open Aux
 open Joint
@@ -21,10 +22,7 @@ let abd_timeout_flag = ref false
 
 let residuum q prem concl =
   let concl = to_formula concl in
-  let res_ty, res_num, res_so =
-    unify ~use_quants:false q (subst_formula prem concl) in
-  assert (res_so = []);
-  res_ty, res_num
+  unify ~use_quants:false q (subst_formula prem concl)
 
 (* Result remembers both the invariant parameters [bvs] and the
    abduction parameters [pms]. [pms] include variables introduced by
@@ -87,12 +85,13 @@ let rich_return_type_heur bvs ans cand =
 let rich_return_type = ref true
 
 (* FIXME: should [bvs] variables be considered not universal? *)
-let revert_cst_n_uni q ~bvs ~pms ~dissociate alien_prem ans cand =
+let revert_cst_n_uni q ~bvs ~pms ~dissociate prem ans cand =
   let fresh_id = ref 0 in
   let cand =
     if dissociate || !no_alien_prem then cand
     else
-      let prem_sb, _ = Infer.separate_subst q ~keep_uni:true alien_prem in
+      let prem_sb, _ = Infer.separate_sep_subst q ~keep_uni:true
+          {prem with cnj_typ=[]} in
       let prem_sb = map_some
           (function
             | v1, (TVar v2, lc)
@@ -166,31 +165,31 @@ let revert_cst_n_uni q ~bvs ~pms ~dissociate alien_prem ans cand =
   old_cand, c6_cand
 
 exception Distinct
-let eq_mod_numvars t1 t2 =
+let eq_mod_aliens t1 t2 =
   let rec aux t1 t2 =
     match t1, t2 with
     | TVar v1, TVar v2
-      when var_sort v1 = Num_sort && var_sort v2 = Num_sort -> ()
+      when var_sort v1 <> Type_sort && var_sort v2 <> Type_sort -> ()
     | TVar v1, TVar v2
       when v1 = v2 -> ()
     | TCons (f, args1), TCons (g, args2) when f=g ->
       List.iter2 aux args1 args2
     | Fun (a1, r1), Fun (a2, r2) -> aux a1 a2; aux r1 r2
-    | (NCst _ | Nadd _), (NCst _ | Nadd _) when t1 = t2 -> ()
+    | Alien _, Alien _ -> ()
     | _ -> raise Distinct in
   try aux t1 t2; true with Distinct -> false
 
-let implies_cnj mod_numvars ans c_ans =
+let implies_cnj mod_aliens ans c_ans =
   List.for_all (fun (v,(t,_)) ->
     try
-      if mod_numvars
-      then eq_mod_numvars (fst (List.assoc v ans)) (subst_typ ans t)
+      if mod_aliens
+      then eq_mod_aliens (fst (List.assoc v ans)) (subst_typ ans t)
       else fst (List.assoc v ans) = subst_typ ans t
     with Not_found -> false
   ) c_ans
 
-let implies_ans mod_numvars ans (_,c_ans) =
-  implies_cnj mod_numvars ans c_ans
+let implies_ans mod_aliens ans (_,c_ans) =
+  implies_cnj mod_aliens ans c_ans
 
 (* Simple constraint abduction for terms
 
@@ -236,32 +235,37 @@ let implies_ans mod_numvars ans (_,c_ans) =
 exception Timeout
 
 let abd_simple q ?without_quant ~bvs ~pms ~dissociate
-    ~validate ~discard skip (vs, ans) (prem, alien_prem, concl) =
+    ~validate ~discard skip (vs, ans) (prem, concl) =
   let counter = ref 0 in
   let pms = add_vars vs pms in
   let skip = ref skip in
   let skipped = ref [] in
   let allvs = ref VarSet.empty in
   try
-    let prem, prem_num = subst_solved ~use_quants:false q ans ~cnj:prem in
+    let more_prem =
+      subst_solved ~use_quants:false q ans ~cnj:prem.cnj_typ in
+    let prem = update_sep ~typ_updated:true ~more:more_prem prem in
     (*[* Format.printf
       "abd_simple:@ prem_num=%a@\ndiscard=%a@\n%!" pr_formula prem_num
       (pr_line_list "| " pr_subst) (List.map snd discard);
     *]*)
-    let concl, _ = subst_solved ~use_quants:false q ans ~cnj:concl in
+    let {cnj_typ=concl; _} =
+      subst_solved ~use_quants:false q ans ~cnj:concl in
     (*[* Format.printf
       "abd_simple: skip=%d,@ bvs=@ %a;@ vs=@ %s;@ ans=@ %a@ --@\n@[<2>%a@ ⟹@ %a@]@\n%!"
       !skip pr_vars bvs (String.concat "," (List.map var_str vs))
       pr_subst ans pr_subst prem pr_subst concl; *]*)
     let prem_and ans =
       (* TODO: optimize, don't redo work *)
-      combine_sbs ~use_quants:false q [ans; prem] in
+      combine_sbs ~use_quants:false q [ans; prem.cnj_typ] in
     let implies_concl vs ans =
-      let cnj_typ, cnj_num = prem_and ans in
-      let res_ty, res_num = residuum q cnj_typ concl in
-      let num = res_num @ cnj_num in
-      let impl_ty = res_ty = [] in
-      let impl_num = is_right (NumS.satisfiable num) in
+      let more_prem = prem_and ans in
+      (* Add [impl_X] for new sort [X] below. *)
+      let {cnj_typ=_; cnj_num=_; cnj_so=_} as res =
+        residuum q more_prem.cnj_typ concl in
+      let cnj = update_sep ~typ_updated:true ~more:res more_prem in
+      let impl_ty = res.cnj_typ = [] in
+      let impl_num = is_right (NumS.satisfiable cnj.cnj_num) in
       (*[* Format.printf "abd_simple:@ implies?@ %b@ #res_ty=%d@\nans=@ %a@\nres_ty=@ %a@\n%!"
         (impl_ty && impl_num)
         (List.length res_ty) pr_subst ans pr_subst res_ty; *]*)
@@ -386,14 +390,13 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
                     (VarSet.filter (not % q.uni_v)
                        (VarSet.add c6x (fvs_typ c6t))) bvs
                 else bvs in
-              let ans', _, so =
+              let {cnj_typ=ans'; _} =
                 unify ~bvs:bvs' ~pms ~sb:ans
                   q [Eqty (TVar c6x, c6t, c6lc)] in
               (*[* Format.printf
                 "abd_simple: [%d] validate 6 ans'=@ %a@\n%!" ddepth pr_subst ans'; *]*)
               validate (vs, ans');
               (*[* Format.printf "abd_simple: [%d] choice 6 OK@\n%!" ddepth; *]*)
-              assert (so = []);
               abstract deep repls bvs' pms vs ans' cand
             with
             (*[* | Result (bvs, pms, vs, ans) as e ->
@@ -425,7 +428,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
         pr_subst ans (var_str x) pr_subst (fst cand); *]*)
       (* Choice 2: remove subterm from answer *)
       let choice2 () =
-        let a = Infer.fresh_var (typ_sort loc.typ_sub) in
+        let a = fresh_var (typ_sort loc.typ_sub) in
         let repls' = (loc.typ_sub, a)::repls in
         (*[* Format.printf "abd_simple: [%d]@ choice 2@ repls'=@ %a@\n%!"
           ddepth pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls'); *]*)
@@ -443,14 +446,13 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
                    (VarSet.filter (not % q.uni_v)
                       (VarSet.add x (fvs_typ t'))) bvs
                else bvs in
-             let ans', _, so =
+             let {cnj_typ=ans'; _} =
                unify ~bvs:bvs' ~pms:pms' ~sb:ans
                  q [Eqty (TVar x, t', lc)] in
              (*[* Format.printf
                "abd_simple: [%d] validate 2 ans=@ %a@\n%!" ddepth pr_subst ans; *]*)
              validate (vs', ans');
              (*[* Format.printf "abd_simple: [%d] choice 2 OK@\n%!" ddepth; *]*)
-             assert (so = []);
              abstract deep repls' bvs' pms' vs' ans' cand
            with Contradiction _ ->
              ())
@@ -478,14 +480,13 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
              (*[* Format.printf
                "abd_simple: [%d] trying choice 4 a=%a@ sb=@ %a@\n%!"
                ddepth pr_formula [Eqty (TVar x, t, lc)] pr_subst ans; *]*)
-             let ans, _, so =
+             let {cnj_typ=ans; _} =
                unify ~bvs ~pms ~sb:ans
                  q [Eqty (TVar x, t, lc)] in
              (*[* Format.printf
                "abd_simple: [%d] validate 4 ans=@ %a@\n%!" ddepth pr_subst ans; *]*)
              validate (vs, ans);
              (*[* Format.printf "abd_simple: [%d] choice 4 OK@\n%!" ddepth; *]*)
-             assert (so = []);
              abstract deep repls bvs pms vs ans cand
            with Contradiction
                       (*[* (_, msg, Some (ty1, ty2), *]*) _ (*[* ) *]*) ->
@@ -535,7 +536,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
                         (VarSet.filter (not % q.uni_v)
                            (VarSet.add x (fvs_typ t'))) bvs
                     else bvs in
-                  let ans', _, so =
+                  let {cnj_typ=ans'; _} =
                     (*[* try *]*)
                       unify ~bvs:bvs' ~pms ~sb:ans
                         q [Eqty (TVar x, t', lc)]
@@ -555,7 +556,6 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
                            pr_exception e;
                          raise e); *]*)
                   (*[* Format.printf "abd_simple: choice 5 OK@\n%!"; *]*)
-                  assert (so = []);
                   (*[* Format.printf
                     "abd_simple: [%d]@ choice 5@ match earlier %s =@ %a@\n%!"
                     ddepth (var_str x) pr_ty t'; *]*)
@@ -574,12 +574,11 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
     in
     if implies_concl vs ans then Some (bvs, (vs, ans))
     else
-      let cnj_typ, more_alien = prem_and ((* ans @ *) concl) in
-      let alien_prem = more_alien @ prem_num @ alien_prem in
+      let {cnj_typ; _} as prem_n_concl = prem_and ((* ans @ *) concl) in
       (* FIXME: hmm... *)
       (* let cnj_typ = list_diff cnj_typ discard in *)
       let init_cand =
-        revert_cst_n_uni q ~bvs ~pms ~dissociate alien_prem ans cnj_typ in
+        revert_cst_n_uni q ~bvs ~pms ~dissociate prem_n_concl ans cnj_typ in
       (* From shortest to longest. *)
       let init_cand = List.sort
           (fun ((_,(t1,_)),_) ((_,(t2,_)),_) -> typ_size t1 - typ_size t2)
@@ -596,7 +595,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
         abstract true [] bvs pms vs ans init_cand; None
       with Result (bvs, pms, vs, ans) ->
         (*[* Format.printf "abd_simple: Final validation@\n%!"; *]*)
-        let ans, cnj_num, _ =
+        let {cnj_typ=ans; cnj_num; cnj_so=_} =
           unify ~bvs ~pms q (to_formula ans) in
         assert (cnj_num = []);
         validate (vs, ans);
@@ -626,8 +625,8 @@ module TermAbd = struct
   type args = quant_ops * VarSet.t * bool
   type answer = var_name list * subst
   type discarded = answer
-  (* premise, alien premise, conclusion *)
-  type branch = subst * formula * subst
+  (* premise including alien premise, conclusion *)
+  type branch = sep_formula * subst
 
   let abd_fail_timeout = !fail_timeout_count
   let abd_fail_flag = abd_fail_flag
@@ -638,39 +637,42 @@ module TermAbd = struct
   let extract_ans (bvs, vs_ans) = vs_ans
   let discard_ans = extract_ans
 
-  let concl_of_br (prem, alien_prem, concl) = to_formula concl
+  let concl_of_br (prem, concl) = to_formula concl
 
   let is_taut (vs, ans) = ans=[]
 
-  let pr_branch pp (prem, _, concl) =
-    Format.fprintf pp "@[<2>%a@ ⟹@ %a@]" pr_subst prem pr_subst concl
+  let pr_branch pp (prem, concl) =
+    Format.fprintf pp "@[<2>%a@ ⟹@ %a@]"
+      pr_subst prem.cnj_typ pr_subst concl
 
   let pr_ans pp (vs, ans) = pr_subst pp ans
 end
 
 module JCA = Joint.JointAbduction (TermAbd)
 
-let abd_typ q ~bvs ?(dissociate=false) ~validate ~discard brs =
+let abd_typ q ~bvs ?(dissociate=false) ~validate ~discard
+    (brs : TermAbd.branch list) =
   (*[* Format.printf "abd_typ:@ bvs=@ %a@\n%!"
     pr_vars bvs; *]*)
   abd_timeout_flag := false;
   let alien_vs = ref [] in
   let alien_eqs = ref [] in
   let rec purge = function
-    | t when typ_sort t = Num_sort ->
-      let n = Infer.fresh_num_var () in
+    | t when typ_sort t <> Type_sort ->
+      let n = fresh_var (typ_sort t) in
       (* Alien vars become abduction answer vars. *)
       alien_eqs := (n, (t, dummy_loc)):: !alien_eqs;
       alien_vs := n :: !alien_vs;
       TVar n
     | TCons (n, tys) -> TCons (n, List.map purge tys)
     | Fun (t1, t2) -> Fun (purge t1, purge t2)
-    | (TVar _ | NCst _ | Nadd _) as t -> t in
+    | TVar _ as t -> t
+    | Alien _ -> assert false in
   let brs =
     if dissociate
     then List.map
-        (fun (prem,prem_num,concl) ->
-           map_in_subst purge prem, prem_num,
+        (fun (prem,concl) ->
+           {prem with cnj_typ = map_in_subst purge prem.cnj_typ},
            map_in_subst purge concl)
         brs
     else brs in
@@ -691,39 +693,37 @@ let abd_typ q ~bvs ?(dissociate=false) ~validate ~discard brs =
     dissociate (String.concat ","(List.map var_str vs))
     pr_subst !alien_eqs
     pr_subst ans; *]*)
-  let num = List.map
-    (fun (prem, _, concl) ->
+  let more_in_brs = List.map
+    (fun (prem, concl) ->
       try
-        (* FIXME: rethink, JCAQPAS *)
-        let cnj_ty, cnj_num =
-          combine_sbs ~use_quants:false q [prem; ans] in
-        let res_ty, res_num =
-          residuum q cnj_ty concl in
+        let more_prem =
+          combine_sbs ~use_quants:false q [prem.cnj_typ; ans] in
+        let more_res =
+          residuum q more_prem.cnj_typ concl in
         (*[* Format.printf
           "abd_typ-num:@ prem=%a@ concl=%a@ res_ty=%a@ res_num=%a@\ncnj_num=%a@\n%!"
           pr_subst prem pr_subst concl
           pr_subst res_ty pr_formula res_num pr_formula cnj_num; *]*)
-        (* FIXME *)
-        assert (res_ty = []);
-        cnj_num, res_num
+        assert (more_res.cnj_typ = []);
+        more_prem, more_res
       with Contradiction _ -> assert false)
     brs in
-  cand_bvs, !alien_eqs, vs, ans, num
+  cand_bvs, !alien_eqs, vs, ans, more_in_brs
 
 let abd_mockup_num q ~bvs brs =
   (* Do not change the order and no. of branches afterwards. *)
-  let brs_typ, brs_num, brs_so = split3
+  let brs_typ, brs_num = List.split
     (map_some (fun (prem, concl) ->
       let prems_opt =
         try Some (unify q prem)
         with Contradiction _ -> None in
       match prems_opt with
-      | Some (prem_typ, prem_num, prem_so) ->
+      | Some prem ->
         if List.exists
-          (function CFalse _ -> true | _ -> false) prem_so
+          (function CFalse _ -> true | _ -> false) prem.cnj_so
         then None
         else                          (* can raise Contradiction *)
-          let concl_typ, concl_num, concl_so =
+          let {cnj_typ=concl_typ; cnj_num=concl_num; cnj_so=concl_so} =
             unify q concl in
           List.iter (function
           | CFalse loc ->
@@ -731,76 +731,67 @@ let abd_mockup_num q ~bvs brs =
                                   "assert false is possible", None, loc))
           | _ -> ()) concl_so;
           if not (is_right (NumS.satisfiable concl_num)) then None
-          else Some ((prem_typ, prem_num, concl_typ),
-                     (prem_num, concl_num),
-                     (prem_so, concl_so))
+          else Some ((prem, concl_typ),
+                     (prem.cnj_num, concl_num))
       | None -> None)
        brs) in
   let validate (vs, ans) = List.iter2
-    (fun (prem_ty, _, concl_ty) (prem_num, concl_num) ->
+    (fun (prem, concl_ty) (_, concl_num) ->
       (* Do not use quantifiers, because premise is in the conjunction. *)
       (* TODO: after cleanup optimized in abd_simple, pass clean_ans
          and remove cleanup here *)
       let vs, ans = cleanup q vs ans in
-      let sb_ty, ans_num =
-        combine_sbs q [prem_ty; concl_ty; ans] in
-      let cnj_num = ans_num @ prem_num @ concl_num in
+      let {cnj_typ=sb_ty; cnj_num=ans_num; cnj_so=_} =
+        combine_sbs q [prem.cnj_typ; concl_ty; ans] in
+      let cnj_num = ans_num @ prem.cnj_num @ concl_num in
       ignore (NumS.satisfiable cnj_num))
     brs_typ brs_num in
   try
-    let cand_bvs, alien_eqs, tvs, ans_typ, more_num =
+    let cand_bvs, alien_eqs, tvs, ans_typ, more_in_brs =
       abd_typ q ~bvs ~validate ~discard:[] brs_typ in
     Some (List.map2
-            (fun (prem,concl) (more_p, more_c) ->
-              more_p @ prem, more_c @ concl)
-            brs_num more_num)
+            (fun (prem_num,concl_num) (more_p, more_c) ->
+               prem_num @ more_p.cnj_num,
+               concl_num @ more_c.cnj_num)
+            brs_num more_in_brs)
   with Suspect _ -> None
+
+type discarded =
+  (TermAbd.answer list, NumDefs.formula list, unit) sep_sorts
 
 let abd q ~bvs ?(iter_no=2) ~discard brs =
   let dissociate = iter_no <= 0 in
   (* Do not change the order and no. of branches afterwards. *)
   (*[* Format.printf "abd: prepare branches@\n%!"; *]*)
-  let discard_typ =
-    try List.assoc Type_sort discard with Not_found -> [] in
-  let discard_num =
-    try List.assoc Num_sort discard with Not_found -> [] in
-  let discard_typ = List.map
-      (fun ans ->
-         [], List.map
-           (function Eqty (TVar v, t, lc) -> v, (t, lc)
-                   | _ -> assert false) ans)
-    discard_typ in
-  let brs_typ, brs_num, brs_so = split3
+  let brs_typ, brs_num = List.split
     (map_some (fun (nonrec, prem, concl) ->
       let prems_opt =
         try Some (unify ~use_quants:false q prem)
         with Contradiction _ -> None in
       match prems_opt with
-      | Some (prem_typ, prem_num, prem_so) ->
+      | Some prem ->
         if List.exists
-          (function CFalse _ -> true | _ -> false) prem_so
+          (function CFalse _ -> true | _ -> false) prem.cnj_so
         then None
         else                          (* can raise Contradiction *)
-          let concl_typ, concl_num, concl_so =
-            unify ~use_quants:false q concl in
-          assert (concl_so = []);
-          if not (is_right (NumS.satisfiable prem_num)) then None
-          else Some ((prem_typ, prem_num, concl_typ),
-                     (nonrec, prem_num, concl_num),
-                     (prem_so, concl_so))
+          let concl = unify ~use_quants:false q concl in
+          assert (concl.cnj_so = []);
+          if not (is_right (NumS.satisfiable prem.cnj_num)) then None
+          else Some ((prem, concl.cnj_typ),
+                     (nonrec, prem.cnj_num, concl.cnj_num))
       | None -> None)
        brs) in
   (* FIXME: remove the fallback mechanism, move it to [Invariants]. *)
   let validate (vs, ans) = List.iter2
-    (fun (prem_ty, _, concl_ty) (nonrec, prem_num, concl_num) ->
+    (fun (prem, concl_ty) (nonrec, _, concl_num) ->
       (* Do not use quantifiers, because premise is in the conjunction. *)
       (* TODO: after cleanup optimized in abd_simple, pass clean_ans
          and remove cleanup here *)
       let vs, ans = cleanup q vs ans in
-      let sb_ty, ans_num =
-        combine_sbs ~use_quants:false q [prem_ty; concl_ty; ans] in
+      let {cnj_typ=sb_ty; cnj_num=ans_num; cnj_so=_} =
+        combine_sbs ~use_quants:false q [prem.cnj_typ; concl_ty; ans] in
       if not dissociate then
-        let cnj_num = ans_num @ prem_num @ concl_num in
+        let cnj_num = ans_num @ prem.cnj_num @ concl_num in
         (*[* Format.printf "validate-typ: sb_ty=@ %a@\ncnj_num=@ %a@\n%!"
            pr_subst sb_ty pr_formula cnj_num; *]*)
         let (*[* num_state *]*) _ =
@@ -813,9 +804,9 @@ let abd q ~bvs ?(iter_no=2) ~discard brs =
     brs_typ brs_num in
   (* We do not remove nonrecursive branches for types -- it will help
      other sorts do better validation. *)
-  let cand_bvs, alien_eqs, tvs, ans_typ, more_num =
+  let cand_bvs, alien_eqs, tvs, ans_typ, more_in_brs =
     try
-      abd_typ q ~bvs ~dissociate ~validate ~discard:discard_typ brs_typ
+      abd_typ q ~bvs ~dissociate ~validate ~discard:discard.at_typ brs_typ
     with Suspect (cnj, lc) ->
       (*[* Format.printf
         "abd: fallback abd_typ loc=%a@\nsuspect=%a@\n%!"
@@ -824,14 +815,14 @@ let abd q ~bvs ?(iter_no=2) ~discard brs =
       raise (NoAnswer (Type_sort, "term abduction failed", None, lc)) in
   let brs_num = List.map2
     (fun (nonrec,prem,concl) (more_p, more_c) ->
-      nonrec, more_p @ prem, more_c @ concl)
-    brs_num more_num in
+      nonrec, more_p.cnj_num @ prem, more_c.cnj_num @ concl)
+    brs_num more_in_brs in
   (*[* Format.printf "abd: solve for numbers@\n%!"; *]*)
   let nvs, ans_num =
     try
       if dissociate then [], []
       (* [tvs] includes alien variables! *)
-      else NumS.abd q ~bvs ~discard:discard_num ~iter_no brs_num
+      else NumS.abd q ~bvs ~discard:discard.at_num ~iter_no brs_num
     with
     | Suspect (cnj, lc) ->
       (*[* Format.printf
@@ -840,11 +831,11 @@ let abd q ~bvs ?(iter_no=2) ~discard brs =
       *]*)
       raise (NoAnswer (Num_sort, "numerical abduction failed",
                        None, lc)) in
-  let n_sb = subst_of_cnj ~elim_uni:true q ans_num in
+  let n_sb, ans_num = NumS.separate_subst q ans_num in
   (*[* Format.printf "abd: n_sb=@ %a@\n@\n%!" pr_subst n_sb; *]*)
   let ans_typ = subst_formula n_sb (to_formula ans_typ) in
   cand_bvs, alien_eqs,
-  (nvs @ tvs, ans_typ @ ans_num)
+  (nvs @ tvs, ans_typ @ NumS.formula_of_sort ans_num)
 
 
 

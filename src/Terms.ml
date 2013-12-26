@@ -9,36 +9,8 @@
 
 let debug = ref false
 
-open Lexing
 open Aux
-
-type loc = {beg_pos : position; end_pos : position}
-let dummy_loc =
-  {beg_pos = dummy_pos; end_pos = dummy_pos}
-
-exception Report_toplevel of string * loc option
-
-let min_pos p1 p2 =
-  if p1.pos_cnum <> -1 && p1.pos_cnum < p2.pos_cnum then p1 else p2
-let max_pos p1 p2 =
-  if p2.pos_cnum < p1.pos_cnum then p1 else p2
-let loc_union ?loc loc1 loc2 =
-  match loc with
-    | Some loc -> loc
-    | None ->
-      if loc1 = dummy_loc then loc2
-      else if loc2 = dummy_loc then loc1
-      else
-	{beg_pos = min_pos loc1.beg_pos loc2.beg_pos;
-	 end_pos = max_pos loc1.end_pos loc2.end_pos}
-let loc_tighter loc1 loc2 =
-  if loc1.end_pos.pos_cnum - loc1.beg_pos.pos_cnum <
-    loc2.end_pos.pos_cnum - loc2.beg_pos.pos_cnum &&
-    loc1.beg_pos.pos_cnum <> -1
-  then loc1 else loc2
-let interloc loc1 loc2 =
-  not (loc1.end_pos.pos_cnum < loc2.beg_pos.pos_cnum ||
-         loc1.beg_pos.pos_cnum > loc2.end_pos.pos_cnum)
+open Defs
 
 type cns_name =
 | CNam of string
@@ -58,6 +30,8 @@ let add_cnames l vs =
 
 let init_types = cnames_of_list
     [tuple; numtype; CNam "Int"; booltype; stringtype]
+
+type lc = loc
 
 type pat =
 | Zero
@@ -107,49 +81,23 @@ let expr_loc = function
 let clause_loc (pat, exp) =
   loc_union (pat_loc pat) (expr_loc exp)
 
-type sort = Num_sort | Type_sort
-
-let sort_str = function
-  | Num_sort -> "num"
-  | Type_sort -> "type"
-
-
-(** Type variables (and constants) remember their sort. Sort
-    inference is performed on user-supplied types and constraints. *)
-type var_name =
-| VNam of sort * string
-| VId of sort * int
-
-let delta = VId (Type_sort, -1)
-let delta' = VId (Type_sort, -2)
-
-let var_sort = function VNam (s,_) -> s | VId (s,_) -> s
-let var_str = function
-  | VNam (_,v) -> v
-  | VId _ as d when d = delta -> "δ"
-  | VId _ as d when d = delta' -> "δ'"
-  | VId (s,i) -> Char.escaped (sort_str s).[0]^string_of_int i
 let cns_str = function
   | CNam c -> c
   | Extype i -> "Ex"^string_of_int i
 
+type alien_subterm =
+  | Num_term of NumDefs.term
+
 type typ =
-| TVar of var_name
-| TCons of cns_name * typ list
-| Fun of typ * typ
-| NCst of int
-| Nadd of typ list
+  | TVar of var_name
+  | TCons of cns_name * typ list
+  | Fun of typ * typ
+  | Alien of alien_subterm
 
 let tdelta = TVar delta
 let tdelta' = TVar delta'
 
-module VarSet =
-    Set.Make (struct type t = var_name let compare = Pervasives.compare end)
-let vars_of_list l =
-  List.fold_right VarSet.add l VarSet.empty
-let add_vars l vs =
-  List.fold_right VarSet.add l vs
-let no_vs = VarSet.empty
+let num x = Alien (Num_term x)
 
 let rec return_type = function
   | Fun (_, r) -> return_type r
@@ -214,8 +162,7 @@ type typ_map = {
   map_tcons : string -> typ list -> typ;
   map_exty : int -> typ list -> typ;
   map_fun : typ -> typ -> typ;
-  map_ncst : int -> typ;
-  map_nadd : typ list -> typ
+  map_alien : alien_subterm -> typ
 }
 
 type 'a typ_fold = {
@@ -223,8 +170,7 @@ type 'a typ_fold = {
   fold_tcons : string -> 'a list -> 'a;
   fold_exty : int -> 'a list -> 'a;
   fold_fun : 'a -> 'a -> 'a;
-  fold_ncst : int -> 'a;
-  fold_nadd : 'a list -> 'a
+  fold_alien : alien_subterm -> 'a
 }
 
 let typ_id_map = {
@@ -232,8 +178,7 @@ let typ_id_map = {
   map_tcons = (fun n tys -> TCons (CNam n, tys));
   map_exty = (fun i tys -> TCons (Extype i, tys));
   map_fun = (fun t1 t2 -> Fun (t1, t2));
-  map_ncst = (fun i -> NCst i);
-  map_nadd = (fun tys -> Nadd tys)
+  map_alien = (fun a -> Alien a)
 }
 
 let typ_make_fold op base = {
@@ -241,8 +186,7 @@ let typ_make_fold op base = {
   fold_tcons = (fun _ tys -> List.fold_left op base tys);
   fold_exty = (fun _ tys -> List.fold_left op base tys);
   fold_fun = (fun t1 t2 -> op t1 t2);
-  fold_ncst = (fun _ -> base);
-  fold_nadd = (fun tys -> List.fold_left op base tys)
+  fold_alien = (fun _ -> base)
 }
 
 let typ_map tmap t =
@@ -251,8 +195,7 @@ let typ_map tmap t =
     | TCons (CNam n, tys) -> tmap.map_tcons n (List.map aux tys)
     | TCons (Extype i, tys) -> tmap.map_exty i (List.map aux tys)
     | Fun (t1, t2) -> tmap.map_fun (aux t1) (aux t2)
-    | NCst i -> tmap.map_ncst i
-    | Nadd tys -> tmap.map_nadd (List.map aux tys) in
+    | Alien a -> tmap.map_alien a in
   aux t
 
 let typ_fold tfold t =
@@ -261,8 +204,7 @@ let typ_fold tfold t =
     | TCons (CNam n, tys) -> tfold.fold_tcons n (List.map aux tys)
     | TCons (Extype i, tys) -> tfold.fold_exty i (List.map aux tys)
     | Fun (t1, t2) -> tfold.fold_fun (aux t1) (aux t2)
-    | NCst i -> tfold.fold_ncst i
-    | Nadd tys -> tfold.fold_nadd (List.map aux tys) in
+    | Alien a -> tfold.fold_alien a in
   aux t
 
 
@@ -280,7 +222,6 @@ type typ_dir =
 | TCons_dir of cns_name * typ list * typ list
 | Fun_left of typ
 | Fun_right of typ
-| Nadd_dir of typ list * typ list
 type typ_loc = {typ_sub : typ; typ_ctx : typ_dir list}
 
 let typ_up t =
@@ -291,10 +232,7 @@ let typ_up t =
     Some {typ_sub = t1; typ_ctx = TCons_dir (n, [], ts) :: t.typ_ctx}
   | Fun (t1, t2) ->
     Some {typ_sub = t1; typ_ctx = Fun_left t2 :: t.typ_ctx}
-  | NCst i -> None
-  | Nadd [] -> None
-  | Nadd (t1::ts) ->
-    Some {typ_sub = t1; typ_ctx = Nadd_dir ([], ts) :: t.typ_ctx}
+  | Alien _ -> None
 
 let typ_down t =
   match t.typ_ctx with
@@ -305,8 +243,6 @@ let typ_down t =
     Some {typ_sub=Fun (t.typ_sub, t2); typ_ctx=ctx}
   | Fun_right t1::ctx ->
     Some {typ_sub=Fun (t1, t.typ_sub); typ_ctx=ctx}
-  | Nadd_dir (ts_l, ts_r)::ctx ->
-    Some {typ_sub=Nadd (ts_l@[t.typ_sub]@ts_r); typ_ctx=ctx}   
 
 let rec typ_next ?(same_level=false) t =
   match t.typ_ctx with
@@ -321,11 +257,6 @@ let rec typ_next ?(same_level=false) t =
   | Fun_right _ :: _ when not same_level ->
     bind_opt (typ_down t) (typ_next ~same_level)
   | Fun_right _ :: _ (* when same_level *) -> None
-  | (Nadd_dir (ts_l, []))::_ when not same_level ->
-    bind_opt (typ_down t) (typ_next ~same_level)
-  | (Nadd_dir (ts_l, []))::_ (* when same_level *) -> None
-  | (Nadd_dir (ts_l, t_r::ts_r))::ctx ->
-    Some {typ_sub=t_r; typ_ctx=Nadd_dir (ts_l@[t.typ_sub], ts_r)::ctx}
 
 let rec typ_out t =
   if t.typ_ctx = [] then t.typ_sub
@@ -333,22 +264,58 @@ let rec typ_out t =
 
 (** {3 Substitutions} *)
 
-let typ_size = typ_fold (typ_make_fold (fun i j -> i+j+1) 1)
+let alien_term_size = function
+  | Num_term t -> NumDefs.term_size t
 
-let fvs_typ =
-  typ_fold {(typ_make_fold VarSet.union VarSet.empty)
-  with fold_tvar = (fun v -> VarSet.singleton v)}
+let typ_size = typ_fold
+    {(typ_make_fold (fun i j -> i+j+1) 1)
+     with fold_alien = alien_term_size}
+
+let fvs_alien_term = function
+  | Num_term t -> NumDefs.fvs_term t
+
+let fvs_typ = typ_fold
+    {(typ_make_fold VarSet.union VarSet.empty)
+     with fold_tvar = (fun v -> VarSet.singleton v);
+          fold_alien = fvs_alien_term}
 
 type subst = (var_name * (typ * loc)) list
 type hvsubst = (var_name * var_name) list
 
+exception Contradiction of sort * string * (typ * typ) option * loc
+
+let num_unbox ~t2 lc = function
+  | Alien (Num_term t) -> t
+  | TVar v when var_sort v = Num_sort -> NumDefs.Lin (1,1,v)
+  | t ->
+    raise (Contradiction (Num_sort, "sort mismatch",
+                          Some (t2, t), lc))
+
+let num_v_unbox v2 lc = function
+  | Alien (Num_term t) -> t
+  | TVar v when var_sort v = Num_sort -> NumDefs.Lin (1,1,v)
+  | t ->
+    raise (Contradiction (Num_sort, "sort mismatch",
+                          Some (TVar v2, t), lc))
+
+let subst_alien_term sb = function
+  | Num_term t ->
+    Num_term (NumDefs.subst_term num_v_unbox sb t)
+
 let subst_typ sb =
-  typ_map {typ_id_map with map_tvar =
-      fun v -> try fst (List.assoc v sb) with Not_found -> TVar v}
+  typ_map {typ_id_map with
+           map_tvar = (fun v -> try fst (List.assoc v sb)
+                        with Not_found -> TVar v);
+           map_alien = fun t -> Alien (subst_alien_term sb t)}
+
+let hvsubst_alien_term sb = function
+  | Num_term t -> Num_term (NumDefs.hvsubst_term sb t)
 
 let hvsubst_typ sb =
-  typ_map {typ_id_map with map_tvar =
-      fun v -> TVar (try List.assoc v sb with Not_found -> v)}
+  typ_map {typ_id_map with
+           map_tvar = (fun v ->
+               TVar (try List.assoc v sb with Not_found -> v));
+           map_alien = fun t -> Alien (hvsubst_alien_term sb t)}
 
 let subst_one v s t =
   let modif = ref false in
@@ -375,8 +342,7 @@ let c_subst_typ sb t =
       | TVar _ -> t
       | TCons (n, args) -> TCons (n, List.map aux args)
       | Fun (t1, t2) -> Fun (aux t1, aux t2)
-      | NCst _ -> t
-      | Nadd args -> Nadd (List.map aux args) in
+      | Alien _ -> t in
   aux t
 
 let n_subst_typ sb t =
@@ -386,8 +352,7 @@ let n_subst_typ sb t =
       (try List.assoc n sb args
        with Not_found -> TCons (n, List.map aux args))
     | Fun (t1, t2) -> Fun (aux t1, aux t2)
-    | NCst _ as n -> n
-    | Nadd args -> Nadd (List.map aux args) in
+    | Alien _ as n -> n in
   aux t
 
 
@@ -396,48 +361,66 @@ let map_in_subst f =
 
 
 (** {3 Formulas} *)
+type alien_atom =
+  | Num_atom of NumDefs.atom
 
 type atom =
-| Eqty of typ * typ * loc
-| Leq of typ * typ * loc
-| CFalse of loc
-| PredVarU of int * typ * loc
-| PredVarB of int * typ * typ * loc
-| NotEx of typ * loc
+  | Eqty of typ * typ * loc
+  | CFalse of loc
+  | PredVarU of int * typ * loc
+  | PredVarB of int * typ * typ * loc
+  | NotEx of typ * loc
+  | A of alien_atom
+
+let a_num a = A (Num_atom a)
+
+let fvs_alien_atom = function
+  | Num_atom a -> NumDefs.fvs_atom a
 
 let fvs_atom = function
-  | Eqty (t1, t2, _) | Leq (t1, t2, _) ->
+  | Eqty (t1, t2, _) ->
     VarSet.union (fvs_typ t1) (fvs_typ t2)
   | CFalse _ -> VarSet.empty
   | PredVarU (_, t, _) -> fvs_typ t
   | PredVarB (_, t1, t2, _) ->
     VarSet.union (fvs_typ t1) (fvs_typ t2)
   | NotEx (t, _) -> fvs_typ t
+  | A a -> fvs_alien_atom a
+
+let alien_atom_loc = function
+  | Num_atom a -> NumDefs.atom_loc a  
 
 let atom_loc = function
-  | Eqty (_, _, loc) | Leq (_, _, loc) | CFalse loc
+  | Eqty (_, _, loc) | CFalse loc
   | PredVarU (_, _, loc) | PredVarB (_, _, _, loc) | NotEx (_, loc)
     -> loc
+  | A a -> alien_atom_loc a
+
+let replace_loc_alien_atom loc = function
+  | Num_atom a -> Num_atom (NumDefs.replace_loc_atom loc a)
 
 let replace_loc_atom loc = function
   | Eqty (t1, t2, _) -> Eqty (t1, t2, loc)
-  | Leq (t1, t2, _) -> Leq (t1, t2, loc)
   | CFalse _ -> CFalse loc
   | PredVarU (n, t, _) -> PredVarU (n, t, loc)
   | PredVarB (n, t1, t2, _) -> PredVarB (n, t1, t2, loc)
   | NotEx (t, _) -> NotEx (t, loc)
+  | A a -> A (replace_loc_alien_atom loc a)
+
+let eq_alien_atom = function
+  | Num_atom a1, Num_atom a2 -> NumDefs.eq_atom a1 a2
+  (* | _ -> false *)
 
 let eq_atom a1 a2 =
   match a1, a2 with
   | Eqty (t1, t2, _), Eqty (t3, t4, _)
     when t1=t3 && t2=t4 || t1=t4 && t2=t3 -> true
-  | Leq (t1, t2, _), Leq (t3, t4, _)
-    when t1=t3 && t2=t4 -> true
   | CFalse _, CFalse _ -> true
   | PredVarU (n1, t1, _), PredVarU (n2, t2, _)
     when n1=n2 && t1=t2 -> true
   | PredVarB (n1, t1, t2, _), PredVarB (n2, t3, t4, _)
     when n1=n2 && t1=t3 && t2=t4 -> true
+  | A a1, A a2 -> eq_alien_atom (a1, a2)
   | _ -> false
 
 (* TODO: optimize *)
@@ -446,68 +429,79 @@ let subformula phi1 phi2 =
 let formula_inter cnj1 cnj2 =
     List.filter (fun a -> List.exists (eq_atom a) cnj2) cnj1
 
+let subst_alien_atom sb = function
+  | Num_atom a -> Num_atom (NumDefs.subst_atom num_v_unbox sb a)
 
 let subst_atom sb = function
   | Eqty (t1, t2, loc) -> Eqty (subst_typ sb t1, subst_typ sb t2, loc)
-  | Leq (t1, t2, loc) -> Leq (subst_typ sb t1, subst_typ sb t2, loc)
   | CFalse _ as a -> a
   | PredVarU (n, t, lc) -> PredVarU (n, subst_typ sb t, lc)
   | PredVarB (n, t1, t2, lc) ->
     PredVarB (n, subst_typ sb t1, subst_typ sb t2, lc)
   | NotEx (t, lc) -> NotEx (subst_typ sb t, lc)
+  | A a -> A (subst_alien_atom sb a)
+
+let hvsubst_alien_atom sb = function
+  | Num_atom a ->
+    Num_atom (NumDefs.hvsubst_atom sb a)
 
 let hvsubst_atom sb = function
   | Eqty (t1, t2, loc) -> Eqty (hvsubst_typ sb t1, hvsubst_typ sb t2, loc)
-  | Leq (t1, t2, loc) -> Leq (hvsubst_typ sb t1, hvsubst_typ sb t2, loc)
   | CFalse _ as a -> a
   | PredVarU (n, t, lc) -> PredVarU (n, hvsubst_typ sb t, lc)
   | PredVarB (n, t1, t2, lc) ->
     PredVarB (n, hvsubst_typ sb t1, hvsubst_typ sb t2, lc)
   | NotEx (t, lc) -> NotEx (hvsubst_typ sb t, lc)
+  | A a -> A (hvsubst_alien_atom sb a)
 
 let sb_atom_unary arg = function
   | Eqty (t1, t2, lc) ->
     Eqty (sb_typ_unary arg t1, sb_typ_unary arg t2, lc)
-  | Leq (t1, t2, lc) ->
-    Leq (sb_typ_unary arg t1, sb_typ_unary arg t2, lc)
   | CFalse _ as a -> a
   | PredVarU (_, t, _) -> assert false
   | PredVarB (_, t1, t2, _) -> assert false
   | NotEx _ -> assert false
+  | A _ as a -> a
 
 let sb_atom_binary arg1 arg2 = function
   | Eqty (t1, t2, lc) ->
     Eqty (sb_typ_binary arg1 arg2 t1, sb_typ_binary arg1 arg2 t2, lc)
-  | Leq (t1, t2, lc) ->
-    Leq (sb_typ_binary arg1 arg2 t1, sb_typ_binary arg1 arg2 t2, lc)
   | CFalse _ as a -> a
   | PredVarU (_, t, _) -> assert false
   | PredVarB (_, t1, t2, _) -> assert false
   | NotEx _ -> assert false
+  | A _ as a -> a
 
 let subst_fo_atom sb = function
   | Eqty (t1, t2, loc) -> Eqty (subst_typ sb t1, subst_typ sb t2, loc)
-  | Leq (t1, t2, loc) -> Leq (subst_typ sb t1, subst_typ sb t2, loc)
   | CFalse _ as a -> a
   | (PredVarU _ | PredVarB _ | NotEx _) as a -> a
+  | A a -> A (subst_alien_atom sb a)
+
+let alien_atom_size = function
+  | Num_atom a -> NumDefs.atom_size a
 
 let atom_size = function
-  | Eqty (t1, t2, _) | Leq (t1, t2, _) -> typ_size t1 + typ_size t2 + 1
+  | Eqty (t1, t2, _) -> typ_size t1 + typ_size t2 + 1
   | CFalse _ -> 1
   | PredVarU (_, t, _) -> typ_size t + 1
   | PredVarB (_, t1, t2, _) -> typ_size t1 + typ_size t2 + 1
   | NotEx (t, _) -> typ_size t + 1
-
-let map_in_atom f = function
-  | Eqty (t1, t2, loc) -> Eqty (f t1, f t2, loc)
-  | Leq (t1, t2, loc) -> Leq (f t1, f t2, loc)
-  | CFalse _ as a -> a
-  | PredVarU (n, t, lc) -> PredVarU (n, f t, lc)
-  | PredVarB (n, t1, t2, lc) ->
-    PredVarB (n, f t1, f t2, lc)
-  | NotEx (t, lc) -> NotEx (f t, lc)
+  | A a -> alien_atom_size a
 
 type formula = atom list
+
+type sep_formula = {
+  cnj_typ : subst;
+  cnj_num : NumDefs.formula;
+  cnj_so : formula
+}
+
+type ('a, 'b, 'c) sep_sorts = {
+  at_typ : 'a;
+  at_num : 'b;
+  at_so : 'c
+}
 
 let fvs_formula phi =
   List.fold_left VarSet.union VarSet.empty (List.map fvs_atom phi)
@@ -523,6 +517,36 @@ let subst_formula sb phi =
 let hvsubst_formula sb phi =
   List.map (hvsubst_atom sb) phi
 
+let update_sep ?(typ_updated=false) ~more phi =
+  {cnj_typ =
+     if typ_updated then more.cnj_typ
+     else update_sb ~more_sb:more.cnj_typ phi.cnj_typ;
+   cnj_num = more.cnj_num @ phi.cnj_num; cnj_so = more.cnj_so @ phi.cnj_so}
+
+let typ_sort = function
+  | TCons _ | Fun _ -> Type_sort
+  | TVar (VNam (s, _) | VId (s, _)) -> s
+  | Alien (Num_term _) -> Num_sort
+
+let sep_formulas cnj =
+  let cnj_typ, cnj_num, cnj_so = List.fold_left
+    (fun (cnj_typ, cnj_num, cnj_so) ->
+      function
+      | (Eqty (TVar v, t, lc) | Eqty (t, TVar v, lc))
+        when var_sort v = Type_sort ->
+        (v,(t,lc))::cnj_typ, cnj_num, cnj_so
+      | Eqty (t1, t2, lc) when typ_sort t1 = Num_sort ->
+        cnj_typ,
+        NumDefs.Eq (num_unbox ~t2 lc t1, num_unbox ~t2:t1 lc t2, lc)
+        ::cnj_num, cnj_so
+      | Eqty _ -> assert false
+      | A (Num_atom a) -> cnj_typ, a::cnj_num, cnj_so
+      | (PredVarU _ | PredVarB _ | NotEx _ | CFalse _) as a ->
+        cnj_typ, cnj_num, a::cnj_so)
+    ([], [], []) cnj in
+  {cnj_typ=[]; cnj_num; cnj_so}
+  
+
 let replace_loc loc phi =
   List.map (replace_loc_atom loc) phi
 
@@ -532,8 +556,6 @@ let formula_loc phi =
 
 let subst_fo_formula sb phi =
   if sb=[] then phi else List.map (subst_fo_atom sb) phi
-
-let map_in_formula f = List.map (map_in_atom f)
 
 let sb_phi_unary arg = List.map (sb_atom_unary arg)
 
@@ -581,12 +603,6 @@ let rec enc_funtype res = function
   | [] -> res
   | arg::args -> Fun (arg, enc_funtype res args)
 
-let ty_add t1 t2 =
-  match t1, t2 with
-  | Nadd ds, Nadd es -> Nadd (ds @ es)
-  | Nadd es, t | t, Nadd es -> Nadd (t::es)
-  | _ -> Nadd [t1; t2]
-
 let typ_scheme_of_item ?(env=[]) = function
 | TypConstr _ -> raise Not_found
 | ValConstr (_, _, vs, phi, args, c_n, c_args, _) ->
@@ -596,28 +612,6 @@ let typ_scheme_of_item ?(env=[]) = function
 | LetVal (_, PVar (name, _), _, _, _, _) -> List.assoc name env
 | LetVal _ -> raise Not_found
 
-type var_scope =
-| Left_of | Same_quant | Right_of
-
-type quant_ops = {
-  cmp_v : var_name -> var_name -> var_scope;
-  uni_v : var_name -> bool;
-  same_as : var_name -> var_name -> unit;
-}
-
-let empty_q = {
-  cmp_v = (fun _ _ -> Same_quant);
-  uni_v = (fun _ -> false);
-  same_as = (fun _ _ -> ());
-}
-  
-
-let var_scope_str = function
-| Left_of -> "left_of"
-| Same_quant -> "same_quant"
-| Right_of -> "right_of"
-
-exception Contradiction of sort * string * (typ * typ) option * loc
 exception NoAnswer of sort * string * (typ * typ) option * loc
 exception Suspect of formula * loc
 
@@ -628,12 +622,8 @@ let convert = function
     NoAnswer (sort, msg, tys, lc)
   | e -> e
 
-let typ_sort = function
-  | TCons _ | Fun _ |
-      TVar (VNam (Type_sort, _) | VId (Type_sort, _)) -> Type_sort
-  | NCst _ | Nadd _ |
-      TVar (VNam (Num_sort, _)
-                 | VId (Num_sort, _)) -> Num_sort
+let alien_atom_sort = function
+  | Num_atom _ -> Num_sort
 
 let atom_sort = function
   | Eqty (t1, t2, lc) ->
@@ -641,11 +631,11 @@ let atom_sort = function
     if s1 = s2 then s1
     else raise
         (Contradiction (s1, "Sort mismatch", Some (t1, t2), lc))
-  | Leq _ -> Num_sort
   | CFalse _ -> Type_sort
   | PredVarU _ -> Type_sort
   | PredVarB _ -> Type_sort
   | NotEx _ -> Type_sort
+  | A a -> alien_atom_sort a
 
 (** {2 Global tables} *)
 
@@ -657,61 +647,8 @@ let sigma : sigma = Hashtbl.create 128
 let all_ex_types = ref []
 
 (** {2 Printing} *)
-let current_file_name = ref ""
 
 open Format
-
-let pr_loc_pos_only ppf loc =
-  fprintf ppf "@[<1>:%d@,-%d:@]"
-    loc.beg_pos.pos_cnum loc.end_pos.pos_cnum
-
-let pr_loc_short ppf loc =
-  let clbeg = loc.beg_pos.pos_cnum - loc.beg_pos.pos_bol in
-  fprintf ppf "@[<1>%s:%d:%d@,-%d:I:@]"
-  !current_file_name loc.beg_pos.pos_lnum clbeg
-  (clbeg+(loc.end_pos.pos_cnum - loc.beg_pos.pos_cnum))
-
-let pr_loc_long ppf loc =
-  if loc = dummy_loc then fprintf ppf "@[<0>{no@ loc}@]" else
-    let clbeg = loc.beg_pos.pos_cnum - loc.beg_pos.pos_bol in
-    fprintf ppf "@[<2>File@ \"%s\",@ line@ %d,@ characters@ %d-%d:@]"
-      !current_file_name loc.beg_pos.pos_lnum clbeg
-      (clbeg+(loc.end_pos.pos_cnum - loc.beg_pos.pos_cnum))
-
-let pr_loc_emb ppf loc =
-  let clbeg = loc.beg_pos.pos_cnum - loc.beg_pos.pos_bol in
-  let clend = loc.end_pos.pos_cnum - loc.end_pos.pos_bol in
-  fprintf ppf "@[<1>{%d:%d@,-%d:%d}@]"
-    loc.beg_pos.pos_lnum clbeg loc.end_pos.pos_lnum clend
-
-let pr_loc ppf loc = pr_loc_long ppf loc
-
-let pr_sep_list sep ?pr_hd pr_tl ppf l =
-  let pr_hd = match pr_hd with
-    | None -> pr_tl | Some pr_a -> pr_a in
-  let rec aux = function
-    | [] -> ()
-    | [hd] -> pr_hd ppf hd
-    | hd::tl ->
-      fprintf ppf "%a%s@ %a" pr_hd hd sep more_aux tl
-  and more_aux ppf = function
-    | [] -> ()
-    | [hd] -> pr_tl ppf hd
-    | hd::tl ->
-      fprintf ppf "%a%s@ %a" pr_tl hd sep more_aux tl in
-  aux l
-
-let rec pr_pre_sep_list sep pr_a ppf = function
-  | [] -> ()
-  | [hd] -> pr_a ppf hd
-  | hd::tl ->
-      fprintf ppf "%a@ %s%a" pr_a hd sep (pr_pre_sep_list sep pr_a) tl
-
-let rec pr_line_list sep pr_a ppf = function
-  | [] -> ()
-  | [hd] -> pr_a ppf hd
-  | hd::tl ->
-      fprintf ppf "%a@\n%s%a" pr_a hd sep (pr_line_list sep pr_a) tl
 
 let rec pr_pat ppf = function
   | Zero -> fprintf ppf "%s" "!"
@@ -756,11 +693,6 @@ let rec collect_apps e =
     | App (f, arg, _) -> aux (arg::args) f
     | expr -> expr::args in
   aux [] e
-
-let pr_tyvar ppf v = pp_print_string ppf (var_str v)
-
-let pr_vars ppf vs =
-  pr_sep_list "," pr_tyvar ppf (VarSet.elements vs)
 
 type ('a, 'b) pr_expr_annot =
   | LetRecNode of 'a
@@ -886,25 +818,29 @@ let collect_argtys ty =
 
 let pr_exty = ref (fun ppf (i, rty) -> failwith "not implemented")
 
+let pr_alien_atom ppf = function
+  | Num_atom a -> NumDefs.pr_atom ppf a
+
+let pr_alien_ty ppf = function
+  | Num_term t -> NumDefs.pr_term ppf t
+
 (* Using "X" because "script chi" is not available on all systems. *)
 let rec pr_atom ppf = function
   | Eqty (t1, t2, _) ->
     fprintf ppf "@[<2>%a@ =@ %a@]" pr_one_ty t1 pr_one_ty t2
-  | Leq (t1, t2, _) ->
-    fprintf ppf "@[<2>%a@ ≤@ %a@]" pr_one_ty t1 pr_one_ty t2
   | CFalse _ -> pp_print_string ppf "FALSE"
   | PredVarU (i,ty,lc) -> fprintf ppf "@[<2>X%d(%a)@]" i pr_ty ty
   | PredVarB (i,t1,t2,lc) ->
     fprintf ppf "@[<2>X%d(%a,@ %a)@]" i pr_ty t1 pr_ty t2
   | NotEx (t,lc) ->
     fprintf ppf "@[<2>NotEx(%a)@]" pr_ty t
+  | A a -> pr_alien_atom ppf a
 
 and pr_formula ppf atoms =
   pr_sep_list " ∧" pr_atom ppf atoms
 
 and pr_ty ppf = function
   | TVar v -> fprintf ppf "%s" (var_str v)
-  | NCst i -> fprintf ppf "%d" i
   | TCons (CNam c, []) -> fprintf ppf "%s" c
   | TCons (CNam "Tuple", exps) ->
     fprintf ppf "@[<2>(%a)@]" (pr_sep_list "," pr_ty) exps
@@ -913,18 +849,14 @@ and pr_ty ppf = function
   | TCons (CNam c, exps) ->
     fprintf ppf "@[<2>%s@ (%a)@]" c (pr_sep_list "," pr_ty ) exps
   | TCons (Extype i, args) -> !pr_exty ppf (i, args)
-  | Nadd []  -> fprintf ppf "0"
-  | Nadd [ty] -> pr_ty ppf ty
-  | Nadd tys ->
-    fprintf ppf "@[<2>%a@]" (pr_sep_list " +" pr_ty) tys
   | Fun _ as ty ->
     let tys = collect_argtys ty in
     fprintf ppf "@[<2>%a@]"
       (pr_sep_list " →" pr_fun_ty) tys
-    
+  | Alien t -> pr_alien_ty ppf t    
     
 and pr_one_ty ppf ty = match ty with
-  | TVar _ | NCst _ | Nadd [] | Nadd [_]
+  | TVar _ | Alien _
   | TCons (_, []) -> pr_ty ppf ty
   | _ ->
     fprintf ppf "(%a)" pr_ty ty
@@ -977,13 +909,6 @@ let pr_typ_dir ppf = function
     fprintf ppf "@[<2>^ →@ %a@]" pr_ty t2
   | Fun_right t1 ->
     fprintf ppf "@[<2>%a →@ ^@]" pr_ty t1
-  | Nadd_dir (ts_l, []) ->
-    fprintf ppf "@[<2>%a@ + ^@]"
-      (pr_sep_list " +" pr_ty) ts_l
-  | Nadd_dir (ts_l, ts_r) ->
-    fprintf ppf "@[<2>%a@ + ^@ + %a@]"
-      (pr_sep_list " +" pr_ty) ts_l
-      (pr_sep_list " +" pr_ty) ts_r
 
 let pr_typ_loc ppf t =
   fprintf ppf "@[<2>%a@ <-@ [%a]@]" pr_ty t.typ_sub
@@ -1164,19 +1089,6 @@ let pr_to_str pr_f e =
 
 (** {2 Unification} *)
 
-let split_sorts cnj =
-  let cnj_typ, cnj = List.partition
-    (function
-    | Eqty (_,t,_) when typ_sort t = Type_sort -> true
-    | _ -> false) cnj in
-  let cnj_num, cnj = List.partition
-    (function
-    | Eqty (_,t,_) when typ_sort t = Num_sort -> true
-    | Leq _ -> true
-    | _ -> false) cnj in
-  assert (cnj=[]);
-  [Type_sort, cnj_typ; Num_sort, cnj_num]
-
 let connected ?(validate=fun _ -> ()) target (vs, phi) =
   let phi = List.sort (fun a b -> atom_size a - atom_size b) phi in
   (*[* Format.printf "connected: target=%a@ vs=%a@\nphi=%a@\n%!"
@@ -1277,16 +1189,15 @@ let unify ?use_quants ?bvs ?pms ?(sb=[]) q cnj =
       (function
         | Eqty (t1, t2, loc) when typ_sort t1 = Type_sort ->
           Left (t1, t2, loc)
-        | Eqty (t1, t2, loc) as a when typ_sort t1 = Num_sort ->
-          Right (Left a)
-        | Leq _ as a -> Right (Left a)
+        | Eqty (Alien (Num_term t1), Alien (Num_term t2), loc) ->
+          Right (Left (NumDefs.Eq (t1, t2, loc)))
+        | Eqty (t1, t2, loc) ->
+           raise (Contradiction (typ_sort t1, "Sort mismatch",
+                                 Some (t1, t2), loc))
+        | A (Num_atom a) -> Right (Left a)
         | (CFalse _ | PredVarU _ | PredVarB _) as a ->
           Right (Right a)
-        | NotEx _ as a -> new_notex := true; Right (Right a)
-        | Eqty (t1, t2, loc) ->
-          raise
-            (Contradiction (Type_sort, "Type sort mismatch",
-                            Some (t1, t2), loc)))
+        | NotEx _ as a -> new_notex := true; Right (Right a))
       cnj in
   let cnj_num, cnj_so = partition_choice more_cnj in
   let rec aux sb num_cn = function
@@ -1295,9 +1206,9 @@ let unify ?use_quants ?bvs ?pms ?(sb=[]) q cnj =
     | (t1, t2, loc)::cnj ->
       match subst_typ sb t1, subst_typ sb t2 with
       | t1, t2 when t1 = t2 -> aux sb num_cn cnj
-      | t1, t2 when typ_sort t1 = Num_sort && typ_sort t2 = Num_sort ->
-        aux sb (Eqty (t1, t2, loc)::num_cn) cnj
-      | t1, t2 when typ_sort t1 = Num_sort || typ_sort t2 = Num_sort ->
+      | Alien (Num_term t1), Alien (Num_term t2) ->
+        aux sb (NumDefs.Eq (t1, t2, loc)::num_cn) cnj
+      | (Alien _ as t1, t2 | t1, (Alien _ as t2)) ->
         raise
           (Contradiction (Type_sort, "Type sort mismatch",
                           Some (t1, t2), loc))
@@ -1356,7 +1267,7 @@ let unify ?use_quants ?bvs ?pms ?(sb=[]) q cnj =
                                    Some (t, st), loc))        
            | _ -> ())
         | _ -> ()) cnj_so;
-  cnj_typ, cnj_num, cnj_so
+  {cnj_typ; cnj_num; cnj_so}
 
 let to_formula =
   List.map (fun (v,(t,loc)) -> Eqty (TVar v, t, loc))
@@ -1377,21 +1288,15 @@ let subst_of_cnj ?(elim_uni=false) q cnj =
       | _ -> None)
     cnj
 
-let combine_sbs ?ignore_so ?use_quants ?bvs ?pms q ?(more_phi=[]) sbs =
-  let cnj_typ, cnj_num, cnj_so =
-    unify ?use_quants ?bvs ?pms q
-      (more_phi @ concat_map to_formula sbs) in
-  assert (ignore_so<>None || cnj_so = []);
-  cnj_typ, cnj_num
+let combine_sbs ?use_quants ?bvs ?pms q ?(more_phi=[]) sbs =
+  unify ?use_quants ?bvs ?pms q
+      (more_phi @ concat_map to_formula sbs)
 
-let subst_solved ?ignore_so ?use_quants ?bvs ?pms q sb ~cnj =
+let subst_solved ?use_quants ?bvs ?pms q sb ~cnj =
   let cnj = List.map
     (fun (v,(t,lc)) -> Eqty (subst_typ sb (TVar v), subst_typ sb t, lc))
     cnj in
-  let cnj_typ, cnj_num, cnj_so =
-    unify ?use_quants ?bvs ?pms q cnj in
-  assert (ignore_so<>None || cnj_so = []);
-  cnj_typ, cnj_num
+  unify ?use_quants ?bvs ?pms q cnj
 
 let cleanup q vs ans =
   let clean, ans = partition_map
@@ -1399,13 +1304,13 @@ let cleanup q vs ans =
     | y, (TVar x, lc) when List.mem x vs -> Left (x, (TVar y, lc))
     | sy -> Right sy) ans in
   (* TODO: could use [unify] by treating [vs] as [Downstream] in [q.cmp_v] *)
-  let clean, cn_num, cn_so = unify ~use_quants:false q
-     (to_formula clean) in
+  let {cnj_typ=clean; cnj_num; cnj_so} =
+    unify ~use_quants:false q (to_formula clean) in
   let sb, more_ans = List.partition
     (function x, _ when List.mem x vs -> true
     | _ -> false) clean in    
-  assert (cn_num = []);
-  assert (cn_so = []);
+  assert (cnj_num = []);
+  assert (cnj_so = []);
   let ans = subst_sb ~sb (more_ans @ ans) in
   let ansvs = fvs_sb ans in
   List.filter (flip VarSet.mem ansvs) vs, ans
@@ -1489,6 +1394,20 @@ let () = pr_exty :=
 
 (** {2 Globals} *)
 
+let fresh_var_id = ref 0
+
+let fresh_typ_var () =
+  incr fresh_var_id; VId (Type_sort, !fresh_var_id)  
+
+let fresh_num_var () =
+  incr fresh_var_id; VId (Num_sort, !fresh_var_id)  
+
+let fresh_var s =
+  incr fresh_var_id; VId (s, !fresh_var_id)  
+
+let freshen_var v =
+  incr fresh_var_id; VId (var_sort v, !fresh_var_id)  
+
 let parser_more_items = ref []
 let parser_unary_typs =
   let t = Hashtbl.create 15 in Hashtbl.add t "Num" (); t
@@ -1506,6 +1425,7 @@ let () = setup_builtins ()
 let reset_state () =
   extype_id := 0; all_ex_types := [];
   predvar_id := 0; Hashtbl.clear sigma;
+  fresh_var_id := 0;
   parser_more_items := [];
   Hashtbl.clear parser_unary_typs;
   Hashtbl.clear parser_unary_vals;

@@ -6,6 +6,7 @@
     @since Mar 2013
 *)
 open OUnit
+open Defs
 open Terms
 open Abduction
 
@@ -17,9 +18,10 @@ let uni_v v = v=VNam (Type_sort, "tx")
 let q = {cmp_v; uni_v; same_as = fun _ _ -> ()}
 
 let p_formula s = Parser.formula Lexer.token (Lexing.from_string s)
+
 let br_simple lhs rhs =
-  let lhs, _, _ = unify ~use_quants:false q lhs in
-  let rhs, _, _ = unify ~use_quants:false q rhs in
+  let lhs = unify ~use_quants:false q lhs in
+  let {cnj_typ=rhs; _} = unify ~use_quants:false q rhs in
   lhs, rhs
 
 let test_simple lhs_m rhs_m ?(validate=(fun _ -> ())) skip res =
@@ -28,7 +30,7 @@ let test_simple lhs_m rhs_m ?(validate=(fun _ -> ())) skip res =
   let ans =
     match abd_simple q ~without_quant:()
       ~bvs:VarSet.empty ~pms:VarSet.empty ~dissociate:false
-      ~validate ~discard:[] skip ([],[]) (lhs, [], rhs) with
+      ~validate ~discard:[] skip ([],[]) (lhs, rhs) with
     | None -> "none"
     | Some (bvs, (vs, ans_typ)) ->
       pr_to_str pr_formula
@@ -60,7 +62,7 @@ td = Int";
 ta = (Term tb)";
         test_simple lhs1 rhs1 5 "ta = (Term tb)";
         test_simple lhs1 rhs1 6 "none";
-      with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+      with (Defs.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
         Terms.pr_exception Format.str_formatter exn;
         assert_failure (Format.flush_str_formatter ())
@@ -78,7 +80,7 @@ ta = (Term tb)";
 tb = (G A)"; 
         test_simple lhs1 rhs1 2 "tb = (G A)"; 
         test_simple lhs1 rhs1 3 "none";
-      with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+      with (Defs.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
         Terms.pr_exception Format.str_formatter exn;
         assert_failure (Format.flush_str_formatter ())
@@ -102,13 +104,13 @@ tb = (G A)";
           try let cand_bvs, alien_eqs, vs, ans_typ, _ =
                 abd_typ q ~bvs
                   ~validate:(fun _ -> ()) ~discard:[]
-                [lhs0, [], rhs0; lhs1, [], rhs1] in
+                [lhs0, rhs0; lhs1, rhs1] in
               pr_to_str pr_formula (to_formula ans_typ)
           with Suspect _ -> "none" in
         assert_equal ~printer:(fun x -> x)
           "tA = ((Ty tB, Ty tC) → Bool) ∧
 tD = ((Ty Int, Ty Int) → Bool)" ans
-      with (Terms.Report_toplevel _ | Terms.Contradiction _) as exn ->
+      with (Defs.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
         Terms.pr_exception Format.str_formatter exn;
         assert_failure (Format.flush_str_formatter ())
