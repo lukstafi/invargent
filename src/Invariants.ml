@@ -481,7 +481,7 @@ let simplify q_ops (vs, cnj) =
   let num_ans = NumS.sort_of_subst more_num_ans @ num_ans in
   let _, num_ans' = NumS.simplify q_ops VarSet.empty num_ans in
   (*[* Format.printf "simplify:@\nnum_ans=%a@\nnum_ans'=%a@\n%!"
-    pr_formula num_ans pr_formula num_ans'; *]*)
+    NumDefs.pr_formula num_ans NumDefs.pr_formula num_ans'; *]*)
   let ty_ans = subst_sb ~sb:num_sb ty_ans in
   let ty_sb, ty_ans = List.partition
       (fun (v,_) -> VarSet.mem v vs && v <> delta && v <> delta') ty_ans in
@@ -544,7 +544,7 @@ let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
   let {cnj_typ=renaming; cnj_num=ren_num; cnj_so=_} =
     unify ~use_quants:false q_ops cnj_tys in
   (*[* Format.printf "converge: cnj_tys=%a@\nren_num=%a@\nrenaming1=%a@\n%!"
-    pr_formula cnj_tys pr_formula ren_num pr_subst renaming; *]*)
+    pr_formula cnj_tys NumDefs.pr_formula ren_num pr_subst renaming; *]*)
   let v_notin_vs_num vs =
     map_some
       NumDefs.(function
@@ -613,7 +613,7 @@ let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
   (*[* Format.printf
     "converge: check_only=%b vs2=%a@\nc2_ty=%a@\nc2_num=%a@\nc_num=%a\n%!"
     check_only pr_vars (vars_of_list vs2)
-    pr_subst c2_ty pr_formula c2_num pr_formula c_num; *]*)
+    pr_subst c2_ty NumDefs.pr_formula c2_num NumDefs.pr_formula c_num; *]*)
   vs2, to_formula c2_ty @ NumS.formula_of_sort c_num
 
 
@@ -769,11 +769,11 @@ let solve q_ops new_ex_types exty_res_chi brs =
                unify ~use_quants:false q_ops (ans @ prem @ concl) in
              (*[* Format.printf
                "validate-postcond: sb_ty=@ %a@\nans_num=@ %a@\n%!"
-               pr_subst sb_ty pr_formula ans_num; *]*)
-             let (*[*num_state*]*) _ =
+               pr_subst sb_ty NumDefs.pr_formula ans_num; *]*)
+             let (*[*num_state*]*)_ =
                NumS.satisfiable_exn ans_num in
              (*[* Format.printf "validate-postcond: num_state=@ %a@\n%!"
-               pr_formula (NumS.formula_of_state num_state); *]*)
+               NumDefs.pr_formula (NumS.formula_of_state num_state); *]*)
              ()))
         verif_brs in
     let sol1, brs1, g_rol =
@@ -966,13 +966,13 @@ let solve q_ops new_ex_types exty_res_chi brs =
                  if Aux.is_right (NumS.satisfiable num_cn) then (
                    (*[* Format.printf
                      "neg_cl_check: fallback num@ num_cn=@ %a@\n%!"
-                     pr_formula num_cn; *]*)
+                     NumDefs.pr_formula num_cn; *]*)
                    raise
                      (NoAnswer (Num_sort,
                                 "negative clause", None, loc)));
                  (*[* Format.printf
                    "neg_cl_check: passed (num)@ ty_cn=@ %a@\nnum_cn=@ %a@\n%!"
-                   pr_subst ty_cn pr_formula num_cn; *]*)
+                   pr_subst ty_cn NumDefs.pr_formula num_cn; *]*)
                with Contradiction _ (*[*as e*]*) ->
                  (*[* Format.printf
                    "neg_cl_check: passed (typ) by contradicting=@\n%a@\n%!"
@@ -1035,6 +1035,10 @@ let solve q_ops new_ex_types exty_res_chi brs =
                    {empty_disc with at_typ=[],s_discard.cnj_typ}
                  | Num_sort ->
                    {empty_disc with at_num=s_discard.cnj_num} in
+               (*[* Format.printf
+                 "solve-finish: sep_disc.typ=%a@ \
+                 sep_disc.num=%a@\n%!" pr_subst s_discard.cnj_typ
+                 NumDefs.pr_formula s_discard.cnj_num; *]*)
                if disc <> empty_disc || sort <> Type_sort
                then sort, disc
                else if s_discard.cnj_num <> []
@@ -1042,11 +1046,14 @@ let solve q_ops new_ex_types exty_res_chi brs =
                else sort, empty_disc in
              if s_discard = empty_disc then (
                (*[* Format.printf
-                 "solve-finish: fallback has no discard@\n%!"; *]*)
+                 "solve-finish: fallback has no discard@\ndisc.typ=%a@ \
+                 disc.num=%a@\n%!" pr_subst (snd s_discard.at_typ)
+                 NumDefs.pr_formula s_discard.at_num; *]*)
                raise e);
              (*[* Format.printf
-               "solve-finish: ultimately sort=%s@ disc=%a@\n%!"
-               (sort_str sort) pr_formula s_discard; *]*)
+               "solve-finish: ultimately sort=%s@ disc_ty=%a@ disc_num=%a@\n%!"
+               (sort_str sort) pr_subst (snd s_discard.at_typ)
+               NumDefs.pr_formula s_discard.at_num; *]*)
              let discard =
                match sort with
                | Type_sort ->

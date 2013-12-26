@@ -544,7 +544,7 @@ let sep_formulas cnj =
       | (PredVarU _ | PredVarB _ | NotEx _ | CFalse _) as a ->
         cnj_typ, cnj_num, a::cnj_so)
     ([], [], []) cnj in
-  {cnj_typ=[]; cnj_num; cnj_so}
+  {cnj_typ; cnj_num; cnj_so}
   
 
 let replace_loc loc phi =
