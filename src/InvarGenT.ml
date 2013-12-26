@@ -5,7 +5,7 @@
     @author Lukasz Stafiniak lukstafi (AT) gmail.com
     @since Mar 2013
 *)
-let version = "1.1"
+let version = "1.2"
 
 (** Annotate [let-in] nodes in fallback mode of .ml generation. *)
 let let_in_fallback = ref false

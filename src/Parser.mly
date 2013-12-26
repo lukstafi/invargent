@@ -11,6 +11,8 @@ open Defs
 open Terms
 open Lexing
 
+let pr i s = Printf.printf "%d-%s;%!" i s
+
 let get_loc () =
   try
     {beg_pos = symbol_start_pos (); end_pos = symbol_end_pos ()}
@@ -175,6 +177,8 @@ num_term:
     { let j,k = $1 in NumDefs.Cst (j,k) }
   | num_coef LIDENT_IJKLMN
     { let j,k = $1 in NumDefs.Lin (j,k,VNam (Num_sort, $2)) }
+  | LIDENT_IJKLMN
+    { NumDefs.Lin (1,1,VNam (Num_sort, $1)) }
   | num_term PLUS num_term
     { NumDefs.add $1 $3 }
   | MIN LPAREN num_term COMMA num_term RPAREN
@@ -394,6 +398,8 @@ formula:
       { List.rev $1 }
   | typ EQUAL typ
       { [Eqty ($1, $3, get_loc ())] }
+  | alien_atom
+      { [A $1] }
   | FALSE    { [CFalse (get_loc ())] }
 ;
 

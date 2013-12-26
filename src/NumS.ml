@@ -247,8 +247,11 @@ let expand_w (vars, cst, loc) =
          Lin (j, k, v)) vars in
   let cst =
     let j, k = frac_of_num cst in
-    Cst (j, k) in
-  Add (List.rev (cst::vars))
+    if j=0 then [] else [Cst (j, k)] in
+  match List.rev (cst @ vars) with
+  | [] -> Cst (0,1)
+  | [t] -> t
+  | ts -> Add ts
 
 let expand_sides (vars, cst, loc) =
   let left_vars, right_vars = partition_map
@@ -260,10 +263,12 @@ let expand_sides (vars, cst, loc) =
   let left_cst, right_cst =
     let j, k = frac_of_num cst in
     assert (k > 0);
-    if j>0 then [Cst (j, k)], [] else [], [Cst ((-1)*j, k)] in
+    if j>0 then [Cst (j, k)], []
+    else if j<0 then [], [Cst ((-1)*j, k)]
+    else [], [] in
   let pack cst vars =
     match List.rev (cst @ vars) with
-    | [] -> assert false
+    | [] -> Cst (0,1)
     | [t] -> t
     | ts -> Add ts in
   pack left_cst left_vars, pack right_cst right_vars
