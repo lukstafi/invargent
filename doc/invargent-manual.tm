@@ -275,11 +275,11 @@
 
     newcons Zero : Binary 0
 
-    newcons PZero : <math|\<forall\>>n[0<math|\<leq\>>n]. Binary(n)
-    <math|\<longrightarrow\>> Binary(n+n)
+    newcons PZero : <math|\<forall\>>n[0<math|\<leq\>>n]. Binary n
+    <math|\<longrightarrow\>> Binary(2 n)
 
-    newcons POne : <math|\<forall\>>n[0<math|\<leq\>>n]. Binary(n)
-    <math|\<longrightarrow\>> Binary(n+n+1)
+    newcons POne : <math|\<forall\>>n[0<math|\<leq\>>n]. Binary n
+    <math|\<longrightarrow\>> Binary(2 n + 1)
 
     newcons CZero : Carry 0
 
@@ -336,9 +336,9 @@
     \ \ \ \ \ \ \ \ \ \ \| POne b1 -\> POne (plus COne a1 b1)))
   </code>
 
-  We get <verbatim|plus<math|:\<forall\>>i,j,k.Carry
-  i<math|\<rightarrow\>>Binary j<math|\<rightarrow\>>Binary
-  k<math|\<rightarrow\>>Binary (i+j+k)>.
+  We get <verbatim|plus<math|:\<forall\>>i,k,n.Carry
+  i<math|\<rightarrow\>>Binary k<math|\<rightarrow\>>Binary
+  n<math|\<rightarrow\>>Binary (n + k + i)>.
 
   We can introduce existential types directly in type declarations. To have
   an existential type inferred, we have to use <verbatim|efunction> or
@@ -430,9 +430,11 @@
     \ \ \ \ \ \ \ \ \ \ filter f xs
   </code>
 
-  We get <verbatim|filter<math|:\<forall\>>a,i.(a<math|\<rightarrow\>>Bool)<math|\<rightarrow\>>List
-  (a, i)<math|\<rightarrow\>> <math|\<exists\>>j[j<math|\<leq\>>i].List (a,
-  j)>. Note that we need to use both <verbatim|efunction> and
+  We get <verbatim|filter<math|:\<forall\>>n,
+  a.(a<math|\<rightarrow\>>Bool)<math|\<rightarrow\>>List (a,
+  n)<math|\<rightarrow\>> <math|\<exists\>>k[0<math|\<leq\>>n
+  <math|\<wedge\>> 0<math|\<leq\>>k <math|\<wedge\>> k<math|\<leq\>>n].List
+  (a, k)>. Note that we need to use both <verbatim|efunction> and
   <verbatim|ematch> above, since every use of <verbatim|function> or
   <verbatim|match> will force the types of its branches to be equal. In
   particular, for lists with length the resulting length would have to be the
@@ -448,11 +450,11 @@
 
     newcons Zero : Binary 0
 
-    newcons PZero : <math|\<forall\>>n [0<math|\<leq\>>n]. Binary(n)
-    <math|\<longrightarrow\>> Binary(n+n)
+    newcons PZero : <math|\<forall\>>n [0<math|\<leq\>>n]. Binary n
+    <math|\<longrightarrow\>> Binary(2 n)
 
-    newcons POne : <math|\<forall\>>n [0<math|\<leq\>>n]. Binary(n)
-    <math|\<longrightarrow\>> Binary(n+n+1)
+    newcons POne : <math|\<forall\>>n [0<math|\<leq\>>n]. Binary n
+    <math|\<longrightarrow\>> Binary(2 n + 1)
 
     \;
 
@@ -499,9 +501,10 @@
     \ \ \ \ \ \ \ \ \ \ POne r)
   </code>
 
-  Type: <verbatim|ub:<math|\<forall\>>k,n.Binary k<math|\<rightarrow\>>Binary
-  n<math|\<rightarrow\>><math|\<exists\>>:i[n<math|\<leq\>>i<math|\<wedge\>>k<math|\<leq\>>i<math|\<wedge\>>i<math|\<leq\>>k+n<math|\<wedge\>>0<math|\<leq\>>n<math|\<wedge\>>0<math|\<leq\>>k].Binary
-  i>.
+  <verbatim|ub:<math|\<forall\>>k,n.Binary k<math|\<rightarrow\>>Binary
+  n<math|\<rightarrow\>><math|\<exists\>>:i[0<math|\<leq\>>n <math|\<wedge\>>
+  0<math|\<leq\>>k <math|\<wedge\>> n<math|\<leq\>>i <math|\<wedge\>>
+  k<math|\<leq\>>i <math|\<wedge\>> i<math|\<leq\>>n+k].Binary i>.
 
   Why cannot we shorten the above code by converting the initial cases to
   <verbatim|Zero -\<gtr\> (efunction b -\<gtr\> b)>? Without pattern
@@ -509,9 +512,9 @@
   Knowing <verbatim|n<math|=>i> and not knowing <verbatim|0<math|\<leq\>>n>,
   for the case <verbatim|k<math|=>0>, we get:
   <verbatim|ub:<math|\<forall\>>k,n.Binary k<math|\<rightarrow\>>Binary
-  n<math|\<rightarrow\>><math|\<exists\>>:i[n<math|\<leq\>>i<math|\<wedge\>>i<math|\<leq\>>k+n<math|\<wedge\>>0<math|\<leq\>>k].Binary
+  n<math|\<rightarrow\>><math|\<exists\>>:i[0<math|\<leq\>>k<math|\<wedge\>>n<math|\<leq\>>i<math|\<wedge\>>i<math|\<leq\>>n+k].Binary
   i>. <verbatim|n<math|\<leq\><no-break>>i> follows from
-  <verbatim|n<math|=>i>, <verbatim|i<math|\<leq\>>k+n> follows from
+  <verbatim|n<math|=>i>, <verbatim|i<math|\<leq\>>n+k> follows from
   <verbatim|n<math|=>i> and <verbatim|0<math|\<leq\>>k>, but
   <verbatim|k<math|\<leq\>>i> cannot be inferred from <verbatim|k<math|=>0>
   and <verbatim|n<math|=>i> without knowing that <verbatim|0<math|\<leq\>>n>.
@@ -526,14 +529,15 @@
   notation, the concrete syntax in ASCII and the concrete syntax using
   Unicode.
 
-  <block|<tformat|<cwith|1|1|2|2|cell-halign|c>|<cwith|1|1|1|1|cell-halign|l>|<cwith|2|2|2|2|cell-halign|c>|<cwith|2|2|1|1|cell-halign|l>|<table|<row|<cell|type
+  <block|<tformat|<cwith|1|1|2|2|cell-halign|c>|<cwith|1|1|1|1|cell-halign|l>|<cwith|2|2|2|2|cell-halign|c>|<cwith|2|2|1|1|cell-halign|l>|<cwith|3|3|2|2|cell-halign|l>|<table|<row|<cell|type
   variable: types>|<cell|<math|\<alpha\>,\<beta\>,\<gamma\>,\<tau\>>>|<cell|<verbatim|a>,<verbatim|b>,<verbatim|c>,<verbatim|r>,<verbatim|s>,<verbatim|t>,<verbatim|a1>,...>|<cell|>>|<row|<cell|type
   variable: nums>|<cell|<math|k,m,n>>|<cell|<verbatim|i>,<verbatim|j>,<verbatim|k>,<verbatim|l>,<verbatim|m>,<verbatim|n>,<verbatim|i1>,...>|<cell|>>|<row|<cell|type
-  constructor>|<cell|<math|List>>|<cell|<verbatim|List>>|<cell|>>|<row|<cell|number
+  var. with coef.>|<cell|<math|<frac|1|3>n>>|<cell|<verbatim|1/3
+  n>>|<cell|>>|<row|<cell|type constructor>|<cell|<math|List>>|<cell|<verbatim|List>>|<cell|>>|<row|<cell|number
   (type)>|<cell|<math|7>>|<cell|<verbatim|7>>|<cell|>>|<row|<cell|numerical
   sum (type)>|<cell|<math|m+n>>|<cell|<verbatim|m+n>>|<cell|>>|<row|<cell|existential
   type>|<cell|<math|\<exists\>k,n<around*|[|k\<leqslant\>n|]>.\<tau\>>>|<cell|<verbatim|ex
-  k n [k\<less\>=n].t>>|<cell|<verbatim|<math|\<exists\>>k,n[k<math|\<leq\>>n].t>>>|<row|<cell|type
+  k, n [k\<less\>=n].t>>|<cell|<verbatim|<math|\<exists\>>k,n[k<math|\<leq\>>n].t>>>|<row|<cell|type
   sort>|<cell|<math|s<rsub|ty>>>|<cell|<verbatim|type>>|<cell|>>|<row|<cell|number
   sort>|<cell|<math|s<rsub|R>>>|<cell|<verbatim|num>>|<cell|>>|<row|<cell|function
   type>|<cell|<math|\<tau\><rsub|1>\<rightarrow\>\<tau\><rsub|2>>>|<cell|<verbatim|t1

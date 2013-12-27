@@ -1,7 +1,7 @@
 newtype Binary : num
 newcons Zero : Binary 0
-newcons PZero : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n)
-newcons POne : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n+1)
+newcons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
+newcons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
 
 let rec ub = efunction
   | Zero ->

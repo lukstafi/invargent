@@ -271,8 +271,8 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
 newtype Carry : num
 
 newcons Zero : Binary 0
-newcons PZero : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n)
-newcons POne : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n+1)
+newcons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
+newcons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
 
 newcons CZero : Carry 0
 newcons COne : Carry 1
@@ -312,12 +312,12 @@ let rec plus =
 newtype Carry : num
 
 newcons Zero : Binary 0
-newcons PZero : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n)
-newcons POne : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n+1)
+newcons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
+newcons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
 newcons CZero : Carry 0
 newcons COne : Carry 1
 
-external let eq_Binary :  ∀n [0≤n]. Binary(n) → Binary(n) → Bool = \"(=)\"
+external let eq_Binary :  ∀n [0≤n]. Binary n → Binary n → Bool = \"(=)\"
 
 let rec plus =
   function CZero ->
@@ -1052,8 +1052,8 @@ let rec filter = fun f g ->
        test_case "binary upper bound -- bitwise or"
 "newtype Binary : num
 newcons Zero : Binary 0
-newcons PZero : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n)
-newcons POne : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n+1)
+newcons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
+newcons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
 
 let rec ub = efunction
   | Zero -> (efunction b -> b)

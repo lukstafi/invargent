@@ -110,7 +110,8 @@
   <block|<tformat|<cwith|1|1|1|1|cell-halign|l>|<cwith|2|2|1|1|cell-halign|l>|<cwith|3|3|2|2|cell-halign|l>|<cwith|2|2|2|2|cell-halign|l>|<cwith|1|1|2|2|cell-halign|l>|<cwith|3|3|4|4|cell-col-span|2>|<cwith|2|2|4|4|cell-col-span|2>|<cwith|1|1|4|4|cell-col-span|2>|<cwith|1|1|4|4|cell-halign|r>|<cwith|2|2|4|4|cell-halign|r>|<cwith|3|3|4|4|cell-halign|r>|<table|<row|<cell|type
   variable: types>|<cell|<math|\<alpha\>,\<beta\>,\<gamma\>,\<tau\>>>|<cell|<verbatim|a>,<verbatim|b>,<verbatim|c>,<verbatim|r>,<verbatim|s>,<verbatim|t>,<verbatim|a1>,...>|<cell|<verbatim|TVar(VNam(Type_sort,>...<verbatim|))>>|<cell|>>|<row|<cell|type
   variable: nums>|<cell|<math|k,m,n>>|<cell|<verbatim|i>,<verbatim|j>,<verbatim|k>,<verbatim|l>,<verbatim|m>,<verbatim|n>,<verbatim|i1>,...>|<cell|<verbatim|TVar(VNam(Num_sort,>...<verbatim|))>>|<cell|>>|<row|<cell|type
-  var. with coef.>|<cell|<math|<frac|1|3>n>>|<cell|<verbatim|1/3*n>>|<cell|<small|<verbatim|Alien(Lin(1,3,VNam(Num_sort,"n")))>>>|<cell|>>|<row|<cell|type
+  var. with coef.>|<cell|<math|<frac|1|3>n>>|<cell|<verbatim|1/3
+  n>>|<cell|<small|<verbatim|Alien(Lin(1,3,VNam(Num_sort,"n")))>>>|<cell|>>|<row|<cell|type
   constructor>|<cell|<math|List>>|<cell|<verbatim|List>>|<cell|>|<cell|<verbatim|TCons(CNamed>...<verbatim|)>>>|<row|<cell|number
   (type)>|<cell|<math|7>>|<cell|<verbatim|7>>|<cell|>|<cell|<verbatim|Alien
   (Cst<math|\<ldots\>>)>>>|<row|<cell|numeral
