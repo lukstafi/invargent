@@ -770,7 +770,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
              (*[* Format.printf
                "validate-postcond: sb_ty=@ %a@\nans_num=@ %a@\n%!"
                pr_subst sb_ty NumDefs.pr_formula ans_num; *]*)
-             let (*[*num_state*]*)_ =
+             let (*[*num_state*]*) _ =
                NumS.satisfiable_exn ans_num in
              (*[* Format.printf "validate-postcond: num_state=@ %a@\n%!"
                NumDefs.pr_formula (NumS.formula_of_state num_state); *]*)
@@ -992,6 +992,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
                nonrec,prem,concl) brs1 in
         let cand_bvs, alien_eqs, (vs, ans) =
           Abduction.abd q.op ~bvs ~iter_no ~discard brs1 in
+        (*[* Format.printf
+          "solve: iter_no=%d abd answer=@ %a@\n%!"
+          iter_no pr_formula ans; *]*)
         let ans_res, more_discard, ans_sol =
           split (iter_no>0 || !early_postcond_abd)
             vs ans negchi_locs bvs cand_bvs q in

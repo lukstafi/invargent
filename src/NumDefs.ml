@@ -171,6 +171,10 @@ let pr_atom ppf = function
 
 let pr_formula ppf atoms =
   pr_sep_list " ∧" pr_atom ppf atoms
+  
+let pr_num_subst ppf sb =
+  pr_sep_list ";" (fun ppf (v,(t,_)) ->
+    fprintf ppf "%s:=%a" (var_str v) pr_term t) ppf sb
 
 let term_no_parens = function
   | Lin (1, 1, _) | Cst _ -> true

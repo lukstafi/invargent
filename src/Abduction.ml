@@ -103,8 +103,8 @@ let revert_cst_n_uni q ~bvs ~pms ~dissociate prem ans cand =
             | _ -> None)
           prem_sb in
       (*[* Format.printf
-        "revert_cst_n_uni: cand with aliens=@ %a@ prem_sb=%a@ alien_prem=%a@\n%!"
-        pr_subst cand pr_subst prem_sb pr_formula alien_prem;
+        "revert_cst_n_uni: cand with aliens=@ %a@ prem_sb=%a@ prem.num=%a@\n%!"
+        pr_subst cand pr_subst prem_sb NumDefs.pr_formula prem.cnj_num;
       *]*)
       subst_sb ~sb:prem_sb cand in
   let old_sb, cand = partition_map
@@ -246,7 +246,8 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
       subst_solved ~use_quants:false q ans ~cnj:prem.cnj_typ in
     let prem = update_sep ~typ_updated:true ~more:more_prem prem in
     (*[* Format.printf
-      "abd_simple:@ prem_num=%a@\ndiscard=%a@\n%!" pr_formula prem_num
+      "abd_simple:@ prem.num=%a@\ndiscard=%a@\n%!"
+      NumDefs.pr_formula prem.cnj_num
       (pr_line_list "| " pr_subst) (List.map snd discard);
     *]*)
     let {cnj_typ=concl; _} =
@@ -254,7 +255,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
     (*[* Format.printf
       "abd_simple: skip=%d,@ bvs=@ %a;@ vs=@ %s;@ ans=@ %a@ --@\n@[<2>%a@ ⟹@ %a@]@\n%!"
       !skip pr_vars bvs (String.concat "," (List.map var_str vs))
-      pr_subst ans pr_subst prem pr_subst concl; *]*)
+      pr_subst ans pr_subst prem.cnj_typ pr_subst concl; *]*)
     let prem_and ans =
       (* TODO: optimize, don't redo work *)
       combine_sbs ~use_quants:false q [ans; prem.cnj_typ] in
@@ -268,7 +269,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
       let impl_num = is_right (NumS.satisfiable cnj.cnj_num) in
       (*[* Format.printf "abd_simple:@ implies?@ %b@ #res_ty=%d@\nans=@ %a@\nres_ty=@ %a@\n%!"
         (impl_ty && impl_num)
-        (List.length res_ty) pr_subst ans pr_subst res_ty; *]*)
+        (List.length res.cnj_typ) pr_subst ans pr_subst res.cnj_typ; *]*)
       impl_ty && impl_num in
     let reorder bvs init_cand =
       let rec aux acc c6acc cand =
@@ -608,13 +609,13 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
     (*[* Format.printf
       "abd_simple: conflicts with premises skip=%d,@ vs=@ %s;@ ans=@ %a@ --@\n@[<2>%a@ ⟹@ %a@]@\n%!"
       !skip (String.concat "," (List.map var_str vs))
-      pr_subst ans pr_subst prem pr_subst concl; *]*)
+      pr_subst ans pr_subst prem.cnj_typ pr_subst concl; *]*)
     None          (* subst_solved or implies_concl *)
   | Timeout ->
     (*[* Format.printf
       "abd_simple: TIMEOUT conflicts with premises skip=%d,@ vs=@ %s;@ ans=@ %a@ --@\n@[<2>%a@ ⟹@ %a@]@\n%!"
       !skip (String.concat "," (List.map var_str vs))
-      pr_subst ans pr_subst prem pr_subst concl; *]*)
+      pr_subst ans pr_subst prem.cnj_typ pr_subst concl; *]*)
     abd_timeout_flag := true;
     None
 
@@ -701,9 +702,10 @@ let abd_typ q ~bvs ?(dissociate=false) ~validate ~discard
         let more_res =
           residuum q more_prem.cnj_typ concl in
         (*[* Format.printf
-          "abd_typ-num:@ prem=%a@ concl=%a@ res_ty=%a@ res_num=%a@\ncnj_num=%a@\n%!"
-          pr_subst prem pr_subst concl
-          pr_subst res_ty pr_formula res_num pr_formula cnj_num; *]*)
+          "abd_typ-num:@ prem=%a@ concl=%a@ res_ty=%a@ res_num=%a@\nprem_num=%a@\n%!"
+          pr_subst prem.cnj_typ pr_subst concl
+          pr_subst more_res.cnj_typ NumDefs.pr_formula more_res.cnj_num
+          NumDefs.pr_formula more_prem.cnj_num; *]*)
         assert (more_res.cnj_typ = []);
         more_prem, more_res
       with Contradiction _ -> assert false)
@@ -793,12 +795,12 @@ let abd q ~bvs ?(iter_no=2) ~discard brs =
       if not dissociate then
         let cnj_num = ans_num @ prem.cnj_num @ concl_num in
         (*[* Format.printf "validate-typ: sb_ty=@ %a@\ncnj_num=@ %a@\n%!"
-           pr_subst sb_ty pr_formula cnj_num; *]*)
+           pr_subst sb_ty NumDefs.pr_formula cnj_num; *]*)
         let (*[* num_state *]*) _ =
           (* FIXME: It's like [satisfiable] because of [empty_q]. *)
           NumS.holds empty_q VarSet.empty NumS.empty_state cnj_num in
         (*[* Format.printf "validate-typ: num_state=@ %a@\n%!"
-           pr_formula (NumS.formula_of_state num_state); *]*)
+           NumDefs.pr_formula (NumS.formula_of_state num_state); *]*)
         ()
     )
     brs_typ brs_num in
@@ -831,9 +833,7 @@ let abd q ~bvs ?(iter_no=2) ~discard brs =
       *]*)
       raise (NoAnswer (Num_sort, "numerical abduction failed",
                        None, lc)) in
-  let n_sb, ans_num = NumS.separate_subst q ans_num in
-  (*[* Format.printf "abd: n_sb=@ %a@\n@\n%!" pr_subst n_sb; *]*)
-  let ans_typ = subst_formula n_sb (to_formula ans_typ) in
+  let ans_typ = to_formula ans_typ in
   cand_bvs, alien_eqs,
   (nvs @ tvs, ans_typ @ NumS.formula_of_sort ans_num)
 

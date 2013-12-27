@@ -129,7 +129,7 @@ let pr_ineqn ppf ineqn =
   pr_sep_list "," pr_ineq ppf ineqn
 let pr_eqnineqn ppf (eqn, ineqn) =
   Format.fprintf ppf "%a@ ∧@ %a" pr_eqn eqn pr_ineqn ineqn
-let pr_eqineq_br ppf ((d_eqn, d_ineqn), (c_eqn, c_ineqn)) =
+let pr_eqineq_br ppf ((d_eqn, d_ineqn, _), (c_eqn, c_ineqn, _)) =
     Format.fprintf ppf "@[<2>%a,@ %a@ ⟹@ %a,@ %a@]"
     pr_eqn d_eqn pr_ineqn d_ineqn
     pr_eqn c_eqn pr_ineqn c_ineqn
@@ -695,7 +695,7 @@ let abd_simple cmp cmp_w cmp_v uni_v ~bvs ~discard ~validate
             when msg != no_pass_msg ->
             (*[* Format.printf
               "NumS.abd_simple: [%d] 7. invalid, error=@\n%a@\n%!"
-              ddepth pr_exception e;
+              ddepth Terms.pr_exception e;
             *]*)
             () in
         try_trans c6a;
@@ -1230,7 +1230,7 @@ let separate_subst_aux q cnj =
   (* FIXME *)
   let phi_num = cnj_to_num_formula ([], ineqn, optis) in
   (*[* Format.printf "NumS.separate_subst:@ sb=%a@ phi=%a@\n%!"
-    pr_subst sb pr_formula phi_num; *]*)
+    pr_num_subst sb pr_formula phi_num; *]*)
   sb, phi_num
 
 (* Optimization. TODO: check if worth it. *)

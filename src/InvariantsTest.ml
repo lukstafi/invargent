@@ -301,7 +301,7 @@ let rec plus =
         (function Zero -> PZero (plus COne a1 Zero)
 	  | PZero b1 -> PZero (plus COne a1 b1)
 	  | POne b1 -> POne (plus COne a1 b1)))"
-        [1,"∃n, k, i. δ = (Carry i → Binary k → Binary n → Binary (i + k + n))"]
+        [1,"∃n, k, i. δ = (Carry i → Binary k → Binary n → Binary (n + k + i))"]
     );
 
   "binary plus with test" >::
@@ -345,7 +345,7 @@ let rec plus =
 	  | POne b1 -> POne (plus COne a1 b1)))
 test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
                    (POne (POne Zero)))"
-        [1,"∃n, k, i. δ = (Carry i → Binary k → Binary n → Binary (i + k + n))"]
+        [1,"∃n, k, i. δ = (Carry i → Binary k → Binary n → Binary (n + k + i))"]
     );
 
   "flatten_pairs" >::
@@ -362,7 +362,7 @@ let rec flatten_pairs =
   function LNil -> LNil
     | LCons ((x, y), l) ->
       LCons (x, LCons (y, flatten_pairs l))"
-        [1,"∃n, a. δ = (List ((a, a), n) → List (a, n + n))"];
+        [1,"∃n, a. δ = (List ((a, a), n) → List (a, 2 n))"];
     );
 
   "escape castle" >::
@@ -964,7 +964,7 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
-        [2,"∃n. δ = (List n → ∃2:k[k ≤ n ∧ 0 ≤ n ∧ 0 ≤ k].List k)"];
+        [2,"∃n. δ = (List n → ∃2:k[0 ≤ n ∧ 0 ≤ k ∧ k ≤ n].List k)"];
 
     );
 
@@ -990,7 +990,7 @@ let rec filter =
           filter xs"
         [2,"∃n.
   δ =
-    (List (Bar, n) → ∃2:k[k ≤ n ∧ 0 ≤ n ∧ 0 ≤ k].List (Bar, k))"];
+    (List (Bar, n) → ∃2:k[0 ≤ n ∧ 0 ≤ k ∧ k ≤ n].List (Bar, k))"];
 
     );
 
@@ -1360,7 +1360,7 @@ let rec link = function
     | True -> Node (incr r, x1, TCons (t2, c1))
     | False -> Node (incr r, x2, TCons (t1, c2))
 "
-        [1,"∃n, a. δ = ((Tree (a, n), Tree (a, n)) → Tree (a, 1 + n))"];
+        [1,"∃n, a. δ = ((Tree (a, n), Tree (a, n)) → Tree (a, n + 1))"];
     );
 
   "binomial heap--ins_tree" >::
