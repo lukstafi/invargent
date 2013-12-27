@@ -24,6 +24,8 @@ external link : ∀a, n. (Tree (a, n), Tree (a, n)) → Tree (a, n+1) = "link"
 
 let rank = function Node (r, _, _) -> r
 
+let root = function Node (_, x, _) -> x
+
 let link = function
   | (Node (r, x1, c1) as t1), (Node (_, x2, c2) as t2) ->
     match leq x1 x2 with
@@ -41,8 +43,36 @@ let rec ins_tree = fun t ->
       let rts = ins_tree t ts' in
       HCons (t', rts)
 
-let rec merge =
+let insert = fun x ts -> ins_tree (Node (0, x, TNil)) ts
 
-let rec remove_min_tree =
+let rec merge = efunction
+  | HNil, HNil -> HNil
+  | (HCons (_,_) as ts1), HNil -> ts1
+  | HNil, (HCons (_,_) as ts2) -> ts2
+  | (HCons (t1, ts1') as ts1), (HCons (t2, ts2') as ts2) ->
+    ematch compare (rank t1) (rank t2) with
+    | Le -> HCons (t1, merge (ts1', ts2))
+    | Eq -> ins_tree (link (t1, t2)) (merge (ts1', ts2'))
+    | Gt -> HCons (t2, merge (ts1, ts2'))
 
-let delete_min =
+let rec remove_min_tree = efunction
+  | HNil -> assert false
+  | HCons (t, HNil) -> t, HNil
+  | HCons (t, (HCons (_, _) as ts)) ->
+    let t', ts' = remove_min_tree ts in
+    ematch leq (root t) (root t') with
+    | True -> t, ts
+    | False -> t', HCons (t, ts')
+
+let find_min ts =
+  let t, _ = remove_min_tree ts in
+  root t
+
+let rec heap_of_forset = function
+  | TNil -> HNil
+  | TCons (t, ts) ->
+    HCons (t, heap_of_forset ts)
+
+let delete_min = fun ts ->
+  let Node (_, _, ts1), ts2 = remove_min_tree ts in
+  merge (heap_of_forest ts1, ts2)

@@ -1407,11 +1407,7 @@ let rec ins_tree = fun t ->
       let rts = ins_tree t ts' in
       HCons (t', rts)
 "
-        [1,"∃a, k, m, n.
-  δ =
-    (Tree (a, k) → Heap (a, m, n) →
-            ∃4:i, j[min (i, k, m) ∧ max (j, k, n) ∧ 0 ≤ i ∧ 0 ≤ j].
-               Heap (a, i, j))"];
+        [1,""];
     );
 
 ]
