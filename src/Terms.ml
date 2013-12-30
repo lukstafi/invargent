@@ -428,6 +428,8 @@ let subformula phi1 phi2 =
   List.for_all (fun a1 -> List.exists (eq_atom a1) phi2) phi1
 let formula_inter cnj1 cnj2 =
     List.filter (fun a -> List.exists (eq_atom a) cnj2) cnj1
+let formula_diff cnj1 cnj2 =
+    List.filter (fun a -> not (List.exists (eq_atom a) cnj2)) cnj1
 
 let subst_alien_atom sb = function
   | Num_atom a -> Num_atom (NumDefs.subst_atom num_v_unbox sb a)

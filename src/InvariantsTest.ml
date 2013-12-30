@@ -263,7 +263,118 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
         [1, "∃a, b. δ = ((Ty a, Ty b) → a → b → Bool)"]
     );
 
-  "binary plus" >::
+  "map mono" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "list map simplest numeric"
+"newtype Elem
+newtype List : num
+newcons LNil : List 0
+newcons LCons : ∀n [0≤n]. Elem * List n ⟶ List (n+1)
+
+let rec map = fun f ->
+  function LNil -> LNil
+    | LCons (x, xs) ->
+      let ys = map f xs in
+      LCons (f x, ys)"
+        [1,"∃n. δ = ((Elem → Elem) → List n → List n)"];
+    );
+
+  "append expanded" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "list append simple numeric"
+"newtype Elem
+newtype List : num
+newcons LNil : List 0
+newcons LCons : ∀n [0≤n]. Elem * List n ⟶ List (n+1)
+
+let rec append =
+  function LNil -> (function LNil -> LNil | LCons (_,_) as l -> l)
+    | LCons (x, xs) ->
+      (function LNil -> LCons (x, append xs LNil)
+        | LCons (_,_) as l -> LCons (x, append xs l))"
+        [1,"∃n, k. δ = (List k → List n → List (n + k))"];
+    );
+
+  "interleave" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "list interleave simple numeric"
+"newtype Elem
+newtype List : num
+newcons LNil : List 0
+newcons LCons : ∀n [0≤n]. Elem * List n ⟶ List (n+1)
+
+let rec interleave =
+  function LNil -> (function LNil -> LNil | LCons (_,_) as l -> l)
+    | LCons (x, xs) as l1 ->
+      function LNil -> l1
+        | LCons (y,ys) -> LCons (x, LCons (y, interleave xs ys))"
+        [1,"∃n, k. δ = (List k → List n → List (n + k))"];
+    );
+
+  "interleave 3" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "list interleave 3 args simple numeric"
+"newtype Elem
+newtype List : num
+newcons LNil : List 0
+newcons LCons : ∀n [0≤n]. Elem * List n ⟶ List (n+1)
+
+let rec interleave3 =
+  function LNil -> 
+    (function LNil -> (function LNil -> LNil | LCons (_,_) as l -> l)
+      | LCons (x,xs) as l2 ->
+        (function LNil -> l2
+          | LCons (y,ys) -> LCons (x, LCons (y, interleave3 LNil xs ys))))
+  | LCons (x, xs) as l1 ->
+    (function
+      | LNil ->
+        (function LNil -> l1
+        | LCons (z,zs) -> LCons (x, LCons (z, interleave3 xs LNil zs)))
+      | LCons (y,ys) as l2 ->
+        (function LNil -> LCons (x, LCons (y, interleave3 xs ys LNil))
+          | LCons (z,zs) ->
+            LCons (x, LCons (y, LCons (z, interleave3 xs ys zs)))))"
+        [1,"∃n, k, i. δ = (List i → List k → List n → List (n + k + i))"];
+    );
+
+  "append" >::
+    (fun () ->
+       todo "disjunctive patterns";
+       skip_if !debug "debug";
+       test_case "list append numeric"
+"newtype Elem
+newtype List : num
+newcons LNil : List 0
+newcons LCons : ∀n [0≤n]. Elem * List n ⟶ List (n+1)
+
+let rec append =
+  function LNil -> (function (LNil | LCons (_,_)) as l -> l)
+    | LCons (x, xs) -> (fun l -> LCons (x, append xs l))"
+        [1,"∃n, k. δ = (List n → List k → List (n + k))"];
+    );
+
+  "binary increment" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "binary increment"
+"newtype Binary : num
+
+newcons Zero : Binary 0
+newcons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
+newcons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
+
+let rec increment =
+  function Zero -> POne Zero
+    | PZero a1 -> POne a1
+    | POne a1 -> PZero (increment a1)"
+        [1,"∃n. δ = (Binary n → Binary (n + 1))"]
+    );
+
+  "binary plus expanded" >::
     (fun () ->
        skip_if !debug "debug";
        test_case "binary plus"
@@ -279,7 +390,52 @@ newcons COne : Carry 1
 
 let rec plus =
   function CZero ->
-    (function Zero -> (fun b -> b)
+    (function Zero ->
+        (function Zero -> Zero
+          | PZero _ as b -> b
+          | POne _ as b -> b)
+      | PZero a1 as a ->
+        (function Zero -> a
+	  | PZero b1 -> PZero (plus CZero a1 b1)
+	  | POne b1 -> POne (plus CZero a1 b1))
+      | POne a1 as a ->
+        (function Zero -> a
+	  | PZero b1 -> POne (plus CZero a1 b1)
+	  | POne b1 -> PZero (plus COne a1 b1)))
+    | COne ->
+    (function Zero ->
+        (function Zero -> POne(Zero)
+	  | PZero b1 -> POne b1
+	  | POne b1 -> PZero (plus COne Zero b1))
+      | PZero a1 as a ->
+        (function Zero -> POne a1
+	  | PZero b1 -> POne (plus CZero a1 b1)
+	  | POne b1 -> PZero (plus COne a1 b1))
+      | POne a1 as a ->
+        (function Zero -> PZero (plus COne a1 Zero)
+	  | PZero b1 -> PZero (plus COne a1 b1)
+	  | POne b1 -> POne (plus COne a1 b1)))"
+        [1,"∃n, k, i. δ = (Carry i → Binary k → Binary n → Binary (n + k + i))"]
+    );
+
+  "binary plus" >::
+    (fun () ->
+       todo "disjunctive patterns";
+       skip_if !debug "debug";
+       test_case "binary plus"
+"newtype Binary : num
+newtype Carry : num
+
+newcons Zero : Binary 0
+newcons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
+newcons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
+
+newcons CZero : Carry 0
+newcons COne : Carry 1
+
+let rec plus =
+  function CZero ->
+    (function Zero -> (function (Zero | PZero _ | POne _) as b -> b)
       | PZero a1 as a ->
         (function Zero -> a
 	  | PZero b1 -> PZero (plus CZero a1 b1)
@@ -793,7 +949,7 @@ let rec walk = fun x ->
   "universal option" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case "list without length map not existential poly"
+       test_case "universal option"
 "newtype Option : type
 newcons None : ∀a. Option a
 newcons Some : ∀a. a ⟶ Option a
@@ -807,7 +963,7 @@ let rec one_of =
   "existential option" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case "list without length map not existential poly"
+       test_case "existential option"
 "newtype Option : type
 newcons None : ∀a. Option a
 newcons Some : ∀a. a ⟶ Option a
@@ -821,7 +977,7 @@ let rec one_of =
   "not existential option" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case "list without length map not existential poly"
+       test_case "not existential option"
 "newtype Option : type
 newcons None : ∀a. Option a
 newcons Some : ∀a. a ⟶ Option a
@@ -1042,7 +1198,6 @@ let rec filter = fun f g ->
 
     );
 
-
   "binary upper bound-wrong" >::
     (fun () ->
        skip_if !debug "debug";
@@ -1079,7 +1234,7 @@ let rec ub = efunction
        i ≤ n + k].Binary i)"]
     );
 
-  "binary upper bound" >::
+  "binary upper bound expanded" >::
     (fun () ->
        skip_if !debug "debug";
        (* We need to expand the branch when the first argument is
@@ -1116,6 +1271,43 @@ let rec ub = efunction
   δ =
     (Binary k → Binary n → ∃4:i[0 ≤ n ∧ 0 ≤ k ∧ n ≤ i ∧
        k ≤ i ∧ i ≤ n + k].Binary i)"]
+    );
+
+  "binary upper bound" >::
+    (fun () ->
+       todo "disjunctive patterns";
+       skip_if !debug "debug";
+       (* We need to expand the branch when the first argument is
+          [Zero] from [efunction b -> b] to the cases as below, to
+          convey the fact that the numerical parameter is non-negative. *)
+       test_case "binary upper bound -- bitwise or"
+"newtype Binary : num
+newcons Zero : Binary 0
+newcons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
+newcons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
+
+let rec ub = efunction
+  | Zero -> (efunction (Zero | PZero _ | POne _) as b -> b)
+  | PZero a1 as a ->
+      (efunction Zero -> a
+        | PZero b1 ->
+          let r = ub a1 b1 in
+          PZero r
+        | POne b1 ->
+          let r = ub a1 b1 in
+          POne r)
+  | POne a1 as a ->
+      (efunction Zero -> a
+        | PZero b1 ->
+          let r = ub a1 b1 in
+          POne r
+        | POne b1 ->
+          let r = ub a1 b1 in
+          POne r)"
+        [2,"∃n, k.
+  δ =
+    (Binary k → Binary n → ∃4:i[0 ≤ k ∧ n ≤ i ∧
+       i ≤ n + k].Binary i)"]
     );
 
   "nested recursion simple eval" >::
@@ -1352,7 +1544,7 @@ newcons TCons :
 newcons TNil : ∀a. Forest (a, 0)
 
 external let leq : ∀a. a → a → Bool = \"(<=)\"
-external incr : ∀i. Num i → Num (i+1) = \"(+) 1\"
+external let incr : ∀i. Num i → Num (i+1) = \"(+) 1\"
 
 let rec link = function
   | (Node (r, x1, c1) as t1), (Node (_, x2, c2) as t2) ->

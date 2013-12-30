@@ -798,6 +798,13 @@
     out a couple of rotations: convex combinations of the inequalities
     defining the sides. This parameter decides how many rotations to try.
 
+    <item*|<verbatim|-iterations_timeout>>Limit on main algorithm iterations
+    (default 6). Answers found in an iteration of the main algorithm are
+    propagated to use sites in the next iteration. However, for about four
+    initial iterations, each iteration turns on additional processing which
+    makes better sense with the results from the previous iteration
+    propagated. At least three iterations will always be performed.
+
     <item*|<verbatim|-richer_answers>>Keep some equations in term abduction
     answers even if redundant. Try keeping an initial guess out of a list of
     candidate equations before trying to drop the equation from

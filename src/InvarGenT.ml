@@ -107,6 +107,8 @@ let main () =
     "Limit on backtracking steps in numerical joint abduction (default 10)";
     "-disjelim_rotations", Arg.Set_int NumS.disjelim_rotations,
     "Disjunction elimination: check coefficients from 1/N (default 3)";
+    "-iterations_timeout", Arg.Set_int Invariants.timeout_count,
+    "Limit on main algorithm iterations (default 6)";
     "-richer_answers", Arg.Set Abduction.richer_answers,
     "Keep some equations in term abduction answers even if redundant.";
     "-passing_ineq_trs", Arg.Set NumS.passing_ineq_trs,
@@ -137,6 +139,8 @@ let main () =
         "Perhaps increase the -num_abduction_timeout parameter.@\n%!";
     if !NumS.abd_fail_flag then Format.printf
         "Perhaps increase the -num_abduction_fail parameter.@\n%!";
+    if !Invariants.timeout_flag then Format.printf
+        "Perhaps increase the -iterations_timeout parameter.@\n%!";
     exit 2
   
 

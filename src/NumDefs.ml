@@ -167,7 +167,7 @@ let pr_atom ppf = function
   | Leq (t1, t2, _) ->
     fprintf ppf "@[<2>%a@ ≤@ %a@]" pr_term t1 pr_term t2
   | Opti (t1, t2, _) ->
-    fprintf ppf "@[<2>min max@ (%a,@ %a)@]" pr_term t1 pr_term t2
+    fprintf ppf "@[<2>min|max@ (%a,@ %a)@]" pr_term t1 pr_term t2
 
 let pr_formula ppf atoms =
   pr_sep_list " ∧" pr_atom ppf atoms

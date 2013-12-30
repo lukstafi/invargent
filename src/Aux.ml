@@ -60,6 +60,13 @@ let concat_map f l =
   in
   List.rev (cmap_f [] l)
 
+let concat_map2 f l1 l2 =
+  let rec cmap_f accu = function
+    | [], [] -> accu
+    | a1::l1, a2::l2 -> cmap_f (List.rev_append (f a1 a2) accu) (l1, l2)
+    | _ -> invalid_arg "concat_map2" in
+  List.rev (cmap_f [] (l1, l2))
+
 let rec concat_fold f a = function
   | [] -> [a]
   | x::xs -> 
@@ -137,6 +144,9 @@ let split3 l =
     | [] -> List.rev l1, List.rev l2, List.rev l3
     | (e1,e2,e3)::tl -> aux (e1::l1) (e2::l2) (e3::l3) tl in
   aux [] [] [] l
+
+let flat2 l =
+  List.fold_left (fun acc (x,y) -> x::y::acc) [] l
 
 let fst3 (a,_,_) = a
 let snd3 (_,b,_) = b

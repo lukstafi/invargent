@@ -220,6 +220,7 @@ val fvs_sb : subst -> Defs.VarSet.t
 val eq_atom : atom -> atom -> bool
 val subformula : formula -> formula -> bool
 val formula_inter : formula -> formula -> formula
+val formula_diff : formula -> formula -> formula
 
 val replace_loc_atom : lc -> atom -> atom
 val replace_loc : lc -> formula -> formula

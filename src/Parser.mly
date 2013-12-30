@@ -202,8 +202,8 @@ num_atom:
     { NumDefs.Leq ($1, $3, get_loc ()) }
   | num_term EQUAL num_term
     { NumDefs.Eq ($1, $3, get_loc ()) }
-  | MIN MAX LPAREN num_term COMMA num_term RPAREN
-    { NumDefs.Opti ($4, $6, get_loc ()) }
+  | MIN BAR MAX LPAREN num_term COMMA num_term RPAREN
+    { NumDefs.Opti ($5, $7, get_loc ()) }
 
 num_coef:
   | INT  { $1, 1 }

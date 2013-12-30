@@ -6,6 +6,8 @@
     @since Mar 2013
 *)
 let early_postcond_abd = ref false
+let timeout_count = ref 6
+let timeout_flag = ref false
 
 open Defs
 open Terms
@@ -626,6 +628,7 @@ let empty_dl = {at_typ=[]; at_num=[]; at_so=()}
 let disj_step = [|0; 0; 2; 4|]
 
 let solve q_ops new_ex_types exty_res_chi brs =
+  timeout_flag := false;
   (* DEBUG *)
   (*[* List.iter
     (fun (prem,concl) ->
@@ -793,7 +796,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                            "chiK: i=%d@ t1=%a@ t2=%a@ prem=%a@\nphi=%a@\n%!"
                            i pr_ty t1 pr_ty t2
                            pr_formula prem pr_formula phi;
-                          *]*)
+                         *]*)
                          i, phi)
                       chiK_pos
                   else [])
@@ -839,7 +842,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
             rol1 in
         (*[* Format.printf "solve: iter_no=%d@\ng_rol.A=%a@\n%!"
           iter_no pr_chi_subst g_rol;
-         *]*)
+        *]*)
         (* 5a *)
         let lift_ex_types cmp_v i (g_vs, g_ans) =
           let g_vs, g_ans = simplify q_ops (g_vs, g_ans) in
@@ -862,7 +865,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
             pr_vars (vars_of_list pvs)
             pr_vars (vars_of_list g_vs) pr_ty tpar
             pr_formula g_ans pr_formula phi;
-           *]*)
+          *]*)
           tpar, (pvs @ g_vs, phi) in
         (* 5b *)
         let g_rol = List.map2
@@ -1009,7 +1012,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
         (*[* Format.printf
           "Fallback: iter_no=%d; sort=%s;@ error=@\n%a@\n%!"
           iter_no (sort_str sort) pr_exception e;
-         *]*)
+        *]*)
         Aux.Left (sort, e) in
     match answer with
     | Aux.Left _ as e -> e
@@ -1040,7 +1043,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                    {empty_disc with at_num=s_discard.cnj_num} in
                (*[* Format.printf
                  "solve-finish: sep_disc.typ=%a@ \
-                 sep_disc.num=%a@\n%!" pr_subst s_discard.cnj_typ
+                  sep_disc.num=%a@\n%!" pr_subst s_discard.cnj_typ
                  NumDefs.pr_formula s_discard.cnj_num; *]*)
                if disc <> empty_disc || sort <> Type_sort
                then sort, disc
@@ -1050,7 +1053,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
              if s_discard = empty_disc then (
                (*[* Format.printf
                  "solve-finish: fallback has no discard@\ndisc.typ=%a@ \
-                 disc.num=%a@\n%!" pr_subst (snd s_discard.at_typ)
+                  disc.num=%a@\n%!" pr_subst (snd s_discard.at_typ)
                  NumDefs.pr_formula s_discard.at_num; *]*)
                raise e);
              (*[* Format.printf
@@ -1149,7 +1152,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
         iter_no >= 1 && List.for_all2
           (fun (i,(_,ans2)) (j,(_,ans1)) -> assert (i=j);
             (*[* Format.printf
-              "solve-finished: comparing X%d@\nans2=%a@\nans1=%a@\nsubformula=%b%!"
+              "solve-finished: comparing X%d@\nans2=%a@\nans1=%a@\nsubformula=%b@\n%!"
               i pr_formula ans2 pr_formula ans1 (subformula ans2 ans1); *]*)
             subformula ans2 ans1)
           sol2 sol1 in
@@ -1172,6 +1175,27 @@ let solve q_ops new_ex_types exty_res_chi brs =
         (* Do at least three iterations: 0, 1, 2. *)
       else if iter_no <= 1 && finished
       then loop (iter_no+1) empty_dl rol2 sol1
+      else if iter_no >= !timeout_count
+      then
+        let unfinished1 =
+          concat_map2
+            (fun (i,(_,ans2)) (j,(_,ans1)) ->
+               formula_diff ans2 ans1)
+            sol2 sol1 in
+        let unfinished2 =
+          concat_map2
+            (fun (i,(_,ans2)) (j,(_,ans1)) ->
+               formula_diff ans2 ans1)
+            rol2 rol1 in
+        let unfinished3 =
+          concat_map2
+            (fun (i,(_,ans1)) (j,(_,ans2)) ->
+               formula_diff ans1 ans2)
+            rol1 rol2 in
+        let loc = formula_loc
+            (unfinished1 @ unfinished2 @ unfinished3) in
+        timeout_flag := true;
+        raise (NoAnswer (Type_sort, "Answers do not converge", None, loc))
       else finish rol2 sol2 in
   match loop 0 empty_dl rolT solT with
   | Aux.Left (_, e) -> raise e
@@ -1191,7 +1215,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
     let ans_sb, _ = Infer.separate_subst q.op ans_res in
     (*[* Format.printf "solve: final@\nans_res=%a@\nans_sb=%a@\n%!"
       pr_formula ans_res pr_subst ans_sb;
-     *]*)
+    *]*)
     (* Substitute the solutions for existential types. *)
     let etys_sb = List.map
         (fun (ex_i,_) ->
@@ -1256,7 +1280,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
            pr_vars (vars_of_list chi_vs) pr_ty rty
            pr_vars allvs pr_vars (vars_of_list pvs)
            pr_formula rphi pr_formula phi;
-          *]*)
+         *]*)
          let ety_n = Extype ex_i in
          Hashtbl.replace sigma ety_n
            (VarSet.elements allvs, rphi, [rty], ety_n, pvs)) new_ex_types;

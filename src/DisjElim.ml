@@ -211,7 +211,7 @@ let simplify_dsjelim q preserve vs ans =
   let preserve = VarSet.diff preserve (vars_of_list vs) in
   (*[* Format.printf
     "disjelim-simplify: initial@ preserve=%a@ ty_ans=%a@ num_ans=%a@\n%!"
-    pr_vars preserve pr_subst ty_ans pr_formula num_ans;  *]*)
+    pr_vars preserve pr_subst ans.at_typ NumDefs.pr_formula ans.at_num;  *]*)
   let ty_sb, ty_ans = List.partition
     (fun (v,_) -> not (VarSet.mem v preserve) || List.mem v vs)
     ans.at_typ in
@@ -248,7 +248,7 @@ let disjelim q ~preserve ~do_num brs =
     let num_avs, num_ans = NumS.disjelim q ~preserve num_brs in
     (*[* Format.printf "disjelim: before simpl@ vs=%a@ ty_ans=%a@ num_ans=%a@\n%!"
       pr_vars (vars_of_list (num_avs @ avs))
-      pr_subst ty_ans pr_formula num_ans; *]*)
+      pr_subst ty_ans NumDefs.pr_formula num_ans; *]*)
     (* (4) *)
     (* Dooes not simplify redundancy. *)
     simplify_dsjelim q preserve (num_avs @ avs)
