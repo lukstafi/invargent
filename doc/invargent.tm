@@ -614,9 +614,9 @@
     <math|\<alpha\><rsub|1>\<assign\>\<tau\>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<tau\>>
     with <math|\<alpha\><rsub|1>\<assign\>\<alpha\><rsub|i>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<alpha\><rsub|i>,\<tau\>\<assign\>\<alpha\><rsub|i>>
     (excluding <math|\<alpha\><rsub|i>\<assign\>\<alpha\><rsub|i>>) where
-    <math|\<alpha\><rsub|i>> is the most upstream existential variable and
-    <math|\<tau\>> is a universal variable or constant, and propagate the
-    substitution.
+    <math|\<alpha\><rsub|i>> is the most upstream existential variable (or
+    parameter) and <math|\<tau\>> is a universal variable (but not a
+    parameter) or constant, and propagate the substitution.
 
     <\itemize>
       <item>Since for efficiency reasons we do not always remove alien
@@ -806,7 +806,8 @@
   section <em|4.2 Online Fourier-Motzkin Elimination for Reals>. We add
   detection of implicit equalities, and more online treatment of equations,
   introducing known inequalities on eliminated variables to the projection
-  process.
+  process. When implicit equalities have been found, we iterate the process
+  to normalize them as well.
 
   Our abduction algorithm follows a familiar incrementally-generate-and-test
   scheme as in term abduction. During the iteration, we build a lazy list of
@@ -852,15 +853,16 @@
       <item>Replace <math|\<alpha\><rsub|1>\<assign\>k<rsub|1>*\<beta\>+c<rsub|1>,\<ldots\>,\<alpha\><rsub|n>\<assign\>k<rsub|n>*\<beta\>+c<rsub|n>>
       with <math|\<alpha\><rsub|i>\<assign\>k<rsub|i>*\<beta\>+c<rsub|i>,\<alpha\><rsub|1>\<assign\><frac|k<rsub|1>|k<rsub|i>>\<alpha\><rsub|i>+<around*|(|c<rsub|1>-<frac|k<rsub|1>*c<rsub|i>|k<rsub|i>>|)>,\<ldots\>,\<alpha\><rsub|n>\<assign\><frac|k<rsub|n>|k<rsub|i>>\<alpha\><rsub|i>+<around*|(|c<rsub|n>-<frac|k<rsub|n>*c<rsub|i>|k<rsub|i>>|)>>
       (excluding <math|\<alpha\><rsub|i>\<assign\>\<alpha\><rsub|i>>) where
-      <math|\<alpha\><rsub|i>> is the most upstream existential variable and
-      <math|\<beta\>> is a universal variable, and propagate the substitution
+      <math|\<alpha\><rsub|i>> is the most upstream existential variable, or
+      a parameter, and <math|\<beta\>> is a universal variable but not a
+      parameter, and propagate the substitution
       <math|\<beta\>\<assign\><frac|1|k<rsub|i>>*\<alpha\><rsub|i>+<frac|-c<rsub|i>|k<rsub|i>>>.
 
       <item>Replace <math|\<alpha\><rsub|1>\<assign\>c,\<ldots\>,\<alpha\><rsub|n>\<assign\>c>
       with <math|\<alpha\><rsub|i>\<assign\>c,\<alpha\><rsub|1>\<assign\>\<alpha\><rsub|i>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<alpha\><rsub|i>>
       (excluding <math|\<alpha\><rsub|i>\<assign\>\<alpha\><rsub|i>>) where
-      <math|\<alpha\><rsub|i>> is the most upstream existential variable and
-      <math|c> is a constant.
+      <math|\<alpha\><rsub|i>> is the most upstream existential variable (or
+      parameter) and <math|c> is a constant.
     </enumerate>
 
     <item>Start from <math|Acc\<assign\><around*|{||}>>. Try atoms
@@ -1171,67 +1173,88 @@
   <math|k,v,w> be any linear combinations.
 
   <\eqnarray*>
-    <tformat|<table|<row|<cell|opti<around*|(|v,w|)>>|<cell|=>|<cell|v\<leqslant\>0\<wedge\>w\<leqslant\>0\<wedge\><around*|(|v<wide|=|\<dot\>>0\<vee\>w<wide|=|\<dot\>>0|)>\<wedge\>\<varphi\><around*|(|v,w|)>>>|<row|<cell|\<varphi\><around*|(|v,w|)>>|<cell|=>|<cell|\<exists\>n\<in\>FV<around*|(|v|)>\<cap\>FV<around*|(|w|)>.sign<around*|(|n,v|)>=sign<around*|(|n,w|)>>>|<row|<cell|k<wide|=|\<dot\>>min<around*|(|v,w|)>>|<cell|\<equiv\>>|<cell|opti<around*|(|k-v,k-w|)>>>|<row|<cell|k<wide|=|\<dot\>>max<around*|(|v,w|)>>|<cell|\<equiv\>>|<cell|opti<around*|(|v-k,w-k|)>>>>>
+    <tformat|<table|<row|<cell|opti<around*|(|v,w|)>>|<cell|=>|<cell|v\<leqslant\>0\<wedge\>w\<leqslant\>0\<wedge\><around*|(|v<wide|=|\<dot\>>0\<vee\>w<wide|=|\<dot\>>0|)>>>|<row|<cell|\<varphi\><around*|(|v,w|)>>|<cell|=>|<cell|\<exists\>n\<in\>FV<around*|(|v|)>\<cap\>FV<around*|(|w|)>.sign<around*|(|n,v|)>=sign<around*|(|n,w|)>>>|<row|<cell|k<wide|=|\<dot\>>min<around*|(|v,w|)>>|<cell|\<equiv\>>|<cell|opti<around*|(|k-v,k-w|)>>>|<row|<cell|k<wide|=|\<dot\>>max<around*|(|v,w|)>>|<cell|\<equiv\>>|<cell|opti<around*|(|v-k,w-k|)>>>>>
   </eqnarray*>
 
+  In particular, <math|opti<around*|(|v,w|)>\<equiv\>max<around*|(|v,w|)><wide|=|\<dot\>>0>.
   Not to bloat the generated formulas with either un-intuitive or trivial
-  <em|opti> facts, we require that there is a variable <math|n> that appears
-  in <math|v> and <math|w> with the same sign. This restriction is formulated
-  above as <math|\<varphi\><around*|(|v,w|)>>. Note that
-  <math|opti<around*|(|v,w|)>=<around*|(|min<around*|(|v,w|)><wide|=|\<dot\>>0\<wedge\>\<varphi\><around*|(|v,w|)>|)>>.
+  <em|opti> facts, we restrict what <em|opti> atoms can appear in solved form
+  formulas. We call an <em|opti> atom <em|directed> when there is a variable
+  <math|n> that appears in <math|v> and <math|w> with the same sign. Only
+  directed <em|opti> atoms are considered to be in solved form. Note that a
+  formula with an <em|opti> atom might not have an equivalent solved form.
 
   We support <em|min> and <em|max> in concrete syntax and when possible, use
-  <em|opti> facts to derive substitutions of variables indicated in
-  <math|\<varphi\>>, by <em|min> or <em|max> terms. The <em|min> and <em|max>
-  terms in abstract syntax have three arguments. The additional argument is
-  the first argument, and an occurrence of e.g. <math|min<around*|(|k,v,w|)>>
-  corresponds to <math|k<wide|=|\<dot\>>min<around*|(|v,w|)>>, i.e.
+  <em|opti> facts to derive substitutions of variables by <em|min> or
+  <em|max> terms when presenting results to the user. The <em|min> and
+  <em|max> terms in abstract syntax have three arguments. The additional
+  argument is the first argument, and an occurrence of e.g.
+  <math|min<around*|(|k,v,w|)>> corresponds to
+  <math|k<wide|=|\<dot\>>min<around*|(|v,w|)>>, i.e.
   <math|opti<around*|(|k-v,k-w|)>>, conjoined with the atom in which
   <math|min<around*|(|k,v,w|)>> appeared. A fresh variable is generated for
   <math|k> during parsing, and this additional argument is ignored during
-  non-debug printing.
+  non-debug printing. Not to pollute the syntax with a new keyword, we use
+  concrete syntax <verbatim|min\|max(m,n)> for <math|opti<around*|(|m,n|)>>.
 
   If need arises, in a future version, we can extend <em|opti> to a larger
   arity <math|N>.
 
   <subsection|Normalization, validity and implication checking>
 
-  \;
+  In the solved form producing function <verbatim|solve_aux>, we treat
+  <em|opti> clauses in an efficient but incomplete manner, doing a single
+  step of constraint solving. We include the <em|opti> terms in processed
+  inequalities. After equations have been solved, we apply the substitution
+  to the <em|opti> disjunctions. When one of the <em|opti> disjunct terms
+  becomes contradictory or the disjunct terms become equal, we include the
+  other in implicit equalities. When one of the <em|opti> terms becomes
+  tautological, we drop the disjunction. Recall that we iterate calls of
+  <verbatim|solve_aux> to propagate implicit equalities. We do not perform
+  case splitting on <em|opti> disjunctions, therefore some contradictions may
+  be undetected. However, abduction and disjunction elimination currently
+  perform upfront case splitting on <em|opti> disjunctions, sometimes leading
+  to splits that a smarter solver would avoid.
 
   <subsection|Abduction>
 
-  We eliminate <em|opti> in premises by expanding the definition-- ignoring
+  We eliminate <em|opti> in premises by expanding the definition -- ignoring
   the <math|\<varphi\>> restriction -- and converting the branch into two
   branches, i.e. <math|D\<wedge\><around*|(|v<wide|=|\<dot\>>0\<vee\>w<wide|=|\<dot\>>0|)>\<Rightarrow\>C>
   into <math|<around*|(|D\<wedge\>v<wide|=|\<dot\>>0\<Rightarrow\>C|)>\<wedge\><around*|(|D\<wedge\>w<wide|=|\<dot\>>0\<Rightarrow\>C|)>>.
-  We do not eliminate <em|opti> in conclusions. Rather, we consider whether
-  to keep or drop it in the answer, like with other cnadidate atoms. The
+  This is one form of <em|case splitting>: we consider cases
+  <math|v<wide|=|\<dot\>>0> and <math|w<wide|=|\<dot\>>0> separately. We do
+  not eliminate <em|opti> in conclusions. Rather, we consider whether to keep
+  or drop it in the answer, like with other candidate atoms. The
   transformations apply to an <em|opti> atom by applying to both its
   arguments.
 
   Generating a new <em|opti> atom for inclusion in an answer means finding a
   pair of equations (resp. a set of <math|N> equations) such that following
   conditions hold. Each equation, together with remaining atoms of an answer
-  but without the other equation selected, is a correct answer to a simple
-  abduction problem. The equations selected share a variable and are oriented
-  so that the variable appears with the same sign in them. The resulting
-  <em|opti> atom passes the validation test for joint constraint abduction.
-  We will implement generating new <em|opti> atoms for abduction answers when
-  need arises.
+  but without the remaining equation(s) selected, is a correct answer to a
+  simple abduction problem. The equations selected share a variable and are
+  oriented so that the variable appears with the same sign in them. The
+  resulting <em|opti> atom passes the validation test for joint constraint
+  abduction. We may implement generating new <em|opti> atoms for abduction
+  answers in a future version, when need arises. Currently, we only generate
+  new <em|opti> atoms for postconditions, i.e. during disjunction
+  elimination.
 
   <subsection|Disjunction elimination>
 
   We eliminate <em|opti> atoms prior to finding the extended convex hull of
   <math|<wide|D<rsub|i>|\<bar\>>> by expanding the definition -- ignoring the
   <math|\<varphi\>> restriction -- and converting the disjunction
-  <math|\<vee\><rsub|i>D<rsub|i>> to disjunctive normal form. In addition to
-  finding the extended convex hull, we need to discover <em|opti> relations
-  that are implied by <math|\<vee\><rsub|i>D<rsub|i>>. We select these faces
-  of the convex hull which also appear as an equation in some disjuncts. Out
-  of these faces, we find all minimal covers of size 2 (or <math|N>), i.e.
-  subsets of faces (pairs, resp. subsets of size <math|N>) such that in each
-  disjunct, either one or the other linear combination appears as an
-  equation. We only keep subsets whose faces share a same-sign variable.
+  <math|\<vee\><rsub|i>D<rsub|i>> to disjunctive normal form. This is another
+  form of case splitting. In addition to finding the extended convex hull, we
+  need to discover <em|opti> relations that are implied by
+  <math|\<vee\><rsub|i>D<rsub|i>>. We select these faces of the convex hull
+  which also appear as an equation in some disjuncts. Out of these faces, we
+  find all minimal covers of size 2 (or <math|N>), i.e. subsets of faces
+  (pairs, resp. subsets of size <math|N>) such that in each disjunct, either
+  one or the other linear combination appears as an equation. We only keep
+  subsets whose faces share a same-sign variable.
 
   <section|Solving for Predicate Variables><label|MainAlgo>
 
@@ -1812,7 +1835,7 @@
   <\collection>
     <associate|1|<tuple|5.2|?>>
     <associate|AlienSubterms|<tuple|3.3|8>>
-    <associate|Details|<tuple|6.5|19>>
+    <associate|Details|<tuple|6.5|20>>
     <associate|ImplSubst|<tuple|4|2>>
     <associate|Main Algo|<tuple|5.3|?>>
     <associate|MainAlgo|<tuple|6|14>>
@@ -1823,7 +1846,7 @@
     <associate|SepProp|<tuple|5|3>>
     <associate|SepProp2|<tuple|6|?>>
     <associate|Skp|<tuple|1|17>>
-    <associate|Skp1|<tuple|10|17>>
+    <associate|Skp1|<tuple|10|18>>
     <associate|SolSimpl|<tuple|9|12>>
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
@@ -1840,13 +1863,13 @@
     <associate|auto-19|<tuple|5.3|14>>
     <associate|auto-2|<tuple|2|3>>
     <associate|auto-20|<tuple|6|14>>
-    <associate|auto-21|<tuple|6.1|14>>
-    <associate|auto-22|<tuple|6.2|14>>
+    <associate|auto-21|<tuple|6.1|15>>
+    <associate|auto-22|<tuple|6.2|15>>
     <associate|auto-23|<tuple|6.3|17>>
     <associate|auto-24|<tuple|6.4|19>>
-    <associate|auto-25|<tuple|6.5|19>>
+    <associate|auto-25|<tuple|6.5|20>>
     <associate|auto-26|<tuple|7|20>>
-    <associate|auto-27|<tuple|7|20>>
+    <associate|auto-27|<tuple|7|21>>
     <associate|auto-3|<tuple|2.1|4>>
     <associate|auto-4|<tuple|2.1.1|5>>
     <associate|auto-5|<tuple|2.2|5>>
@@ -1854,21 +1877,21 @@
     <associate|auto-7|<tuple|3.1|6>>
     <associate|auto-8|<tuple|3.1.1|8>>
     <associate|auto-9|<tuple|3.2|8>>
-    <associate|bib-AbductionSolvMaher|<tuple|3|20>>
+    <associate|bib-AbductionSolvMaher|<tuple|3|21>>
     <associate|bib-AntiUnifAlg|<tuple|9|21>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
-    <associate|bib-ArithQuantElim|<tuple|1|20>>
-    <associate|bib-ConvexHull|<tuple|2|20>>
+    <associate|bib-ArithQuantElim|<tuple|1|21>>
+    <associate|bib-ConvexHull|<tuple|2|21>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
     <associate|bib-ESOP2014|<tuple|8|21>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
-    <associate|bib-disjelimTechRep|<tuple|5|20>>
-    <associate|bib-invariantsTechRep2|<tuple|6|20>>
+    <associate|bib-disjelimTechRep|<tuple|5|21>>
+    <associate|bib-invariantsTechRep2|<tuple|6|21>>
     <associate|bib-jcaqpTechRep|<tuple|8|4>>
     <associate|bib-jcaqpTechRep2|<tuple|7|21>>
-    <associate|bib-jcaqpUNIF|<tuple|4|20>>
+    <associate|bib-jcaqpUNIF|<tuple|4|21>>
     <associate|bib-simonet-pottier-hmg-toplas|<tuple|6|4>>
     <associate|bib-systemTechRep|<tuple|5|18>>
   </collection>

@@ -477,7 +477,11 @@ external let eq_Binary :  ∀n [0≤n]. Binary n → Binary n → Bool = \"(=)\"
 
 let rec plus =
   function CZero ->
-    (function Zero -> (fun b -> b)
+    (function
+      | Zero ->
+        (function Zero -> Zero
+          | PZero _ as b -> b
+          | POne _ as b -> b)
       | PZero a1 as a ->
         (function Zero -> a
 	  | PZero b1 -> PZero (plus CZero a1 b1)

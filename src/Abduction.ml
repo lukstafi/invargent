@@ -87,6 +87,7 @@ let rich_return_type = ref true
 (* FIXME: should [bvs] variables be considered not universal? *)
 let revert_cst_n_uni q ~bvs ~pms ~dissociate prem ans cand =
   let fresh_id = ref 0 in
+  let univar v = not (VarSet.mem v bvs) && q.uni_v v in
   let cand =
     if dissociate || !no_alien_prem then cand
     else
@@ -94,12 +95,10 @@ let revert_cst_n_uni q ~bvs ~pms ~dissociate prem ans cand =
           {prem with cnj_typ=[]} in
       let prem_sb = map_some
           (function
-            | v1, (TVar v2, lc)
-              when not (VarSet.mem v2 bvs) && q.uni_v v2 ->
+            | v1, (TVar v2, lc) when univar v2 && not (univar v1) ->
               Some (v2, (TVar v1, lc))
-            | v1, (TVar v2, lc) as sv
-              when not (VarSet.mem v1 bvs) &&
-                   (VarSet.mem v2 bvs || not (q.uni_v v2)) -> Some sv
+            | v1, (TVar v2, lc) as sv when univar v1 && not (univar v2) ->
+              Some sv
             | _ -> None)
           prem_sb in
       (*[* Format.printf
@@ -109,15 +108,15 @@ let revert_cst_n_uni q ~bvs ~pms ~dissociate prem ans cand =
       subst_sb ~sb:prem_sb cand in
   let old_sb, cand = partition_map
       (function
-        | v2, (TVar v1, loc) when q.uni_v v2 && not (q.uni_v v1) ->
+        | v2, (TVar v1, loc) when univar v2 && not (univar v1) ->
           incr fresh_id;
           Left ((TVar v2, (v1, (loc,!fresh_id))),
                 (v2, (TVar v1, (loc,!fresh_id))))
-        | v1, (TVar v2 as tv2, loc) when q.uni_v v2 && not (q.uni_v v1) ->
+        | v1, (TVar v2 as tv2, loc) when univar v2 && not (univar v1) ->
           incr fresh_id;
           Left ((tv2, (v1, (loc,!fresh_id))),
                 (v1, (TVar v2, (loc,!fresh_id))))
-        | v1, (TCons (n, []) as c, loc) when not (q.uni_v v1) ->
+        | v1, (TCons (n, []) as c, loc) when not (univar v1) ->
           incr fresh_id;
           Left ((c, (v1, (loc,!fresh_id))),
                 (v1, (TCons (n, []), (loc,!fresh_id))))

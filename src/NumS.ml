@@ -529,18 +529,19 @@ let implies_ans cmp cmp_w uni_v (eqs, ineqs, optis) (c_eqn, c_ineqn, c_optis) =
 
 (* FIXME: should [bvs] variables be considered not universal? *)
 let revert_cst_n_uni cmp cmp_v uni_v ~bvs eqs0 c_ineqn0 c_optis0 =
+  let univar v = not (VarSet.mem v bvs) && uni_v v in
   let fresh_id = ref 0 in
   let old_sb, eqs0 = partition_map
       (function
         | v2, ([v1, k1], cst, loc) as sv
-          when uni_v v2 && not (uni_v v1) ->
+          when univar v2 && not (univar v1) ->
           incr fresh_id;
           Left (Left (v2, (v1, (!/1//k1, (!/(-1)//k1) */ cst,
                                 k1,cst,
                                 (loc,!fresh_id)))),
                 (!fresh_id, sv))
         | v1, ([v2, k2], cst, loc) as sv
-          when uni_v v2 && not (uni_v v1) ->
+          when univar v2 && not (univar v1) ->
           incr fresh_id;
           Left (Left (v2, (v1, (k2, cst,
                                 !/1//k2, (!/(-1)//k2) */ cst,
