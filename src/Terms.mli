@@ -184,6 +184,7 @@ type annot_item =
 val typ_size : typ -> int
 val atom_size : atom -> int
 val fvs_typ : typ -> Defs.VarSet.t
+val fvs_typs : typ list -> Defs.VarSet.t
 val fvs_atom : atom -> Defs.VarSet.t
 val fvs_formula : formula -> Defs.VarSet.t
 val formula_loc : formula -> lc

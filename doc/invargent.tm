@@ -1069,6 +1069,12 @@
   postconditions are not subjected to stratification. This is because the
   type system does not support nested existential types.
 
+  In <verbatim|simplify_dsjelim>, we try to preserve alien variables that are
+  parameters rather than substituting them by constants. A parameter can only
+  equal a constant if not all branches have been considered for disjunction
+  elimination. The parameter is both as informative as the constant, and less
+  likely to contradict other branches.
+
   <subsection|Abductive disjunction elimination given quantifier prefix>
 
   <em|Global variables> here are the variables shared by all disjuncts, i.e.

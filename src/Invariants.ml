@@ -810,16 +810,17 @@ let solve q_ops new_ex_types exty_res_chi brs =
             fvs_formula ans
           with Not_found -> VarSet.empty in
         (* 3 *)
+        let bvs = bparams iter_no in    (* for [disjelim] *)
         let g_rol = List.map
             (fun (i,_) ->
                (*[* Format.printf "solve: approaching disjelim for %d@\n%!"
                  i; *]*)
                try
                  let cnjs = List.assoc i g_rol in
-                 let preserve = dsj_preserve i in
+                 let preserve = VarSet.add delta (dsj_preserve i) in
                  let g_vs, g_ans =
                    (* FIXME *)
-                   DisjElim.disjelim q_ops ~preserve
+                   DisjElim.disjelim q_ops ~bvs ~preserve
                      ~do_num:(disj_step.(1) <= iter_no) cnjs in
                  let target = delta::g_vs in
                  let g_ans = List.filter
@@ -827,14 +828,19 @@ let solve q_ops new_ex_types exty_res_chi brs =
                         let cvs = fvs_atom c in
                         List.exists (flip VarSet.mem cvs) target)
                      g_ans in
+                 (*[* Format.printf "solve-3: target=%a@ g_ans=%a@\n%!"
+                   pr_vars (vars_of_list target) pr_formula g_ans; *]*)
                  (* FIXME *) 
                  let g_ans =
                    if iter_no < disj_step.(2)
                    then
                      DisjElim.initstep_heur q.op ~preserve g_ans
                    else g_ans in
-                 i, connected ~validate [delta; delta']
-                   (g_vs, g_ans)
+                 let g_ans = connected ~validate [delta; delta']
+                     (g_vs, g_ans) in
+                 (*[* Format.printf "solve-3: connected g_ans@ =%a@\n%!"
+                   pr_ans g_ans; *]*)
+                 i, g_ans
                with Not_found ->
                  (*[* Format.printf "solve: disjelim branches for %d not found@\n%!"
                    i; *]*)

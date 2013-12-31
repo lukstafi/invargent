@@ -508,6 +508,9 @@ type ('a, 'b, 'c) sep_sorts = {
 let fvs_formula phi =
   List.fold_left VarSet.union VarSet.empty (List.map fvs_atom phi)
 
+let fvs_typs phi =
+  List.fold_left VarSet.union VarSet.empty (List.map fvs_typ phi)
+
 let fvs_sb sb =
   List.fold_left VarSet.union
     (vars_of_list (List.map fst sb))

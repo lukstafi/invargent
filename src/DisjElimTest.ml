@@ -26,7 +26,7 @@ let test_case msg test result =
     let preserve = List.fold_left VarSet.union VarSet.empty
         (List.map (fun (prem,concl) -> fvs_formula (prem@concl)) brs) in
     let vs, ans = DisjElim.disjelim q
-        ~preserve ~do_num:true
+        ~bvs:VarSet.empty ~preserve ~do_num:true
         (List.map (uncurry (@)) brs) in
     ignore (Format.flush_str_formatter ());
     Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"

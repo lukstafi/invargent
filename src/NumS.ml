@@ -1266,8 +1266,18 @@ let subst_formula sb phi =
   if sb=[] then phi
   else List.map (subst_atom Terms.num_v_unbox sb) phi
 
-let separate_subst_aux q cnj =
-  let cmp_v = make_cmp q in
+(* match q.cmp_v v1 v2 with
+  | Left_of -> 1
+  | Right_of -> -1
+  | Same_quant -> compare v2 v1
+ *)
+let separate_subst_aux q ~keep cnj =
+  let cmp_v v1 v2 =
+    let c1 = VarSet.mem v1 keep and c2 = VarSet.mem v2 keep in
+    if c1 && c2 then 0
+    else if c1 then -1
+    else if c2 then 1
+    else make_cmp q v1 v2 in
   let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
   let cmp_w (vars1,_,_) (vars2,_,_) =
     match vars1, vars2 with
@@ -1296,14 +1306,24 @@ let separate_subst_aux q cnj =
 (* Optimization. TODO: check if worth it. *)
 exception Not_substitution
 
-let separate_num_subst q cnj =
+let separate_num_subst q ~keep cnj =
   try
     let sb, phi = partition_map
         (function
+          | Eq (Lin (j,k,v1), (Lin (_,_,v2) as t), lc)
+            when VarSet.mem v2 keep ->
+            (* inverted coefficient *)
+            Left (v1, (scale_term k j t, lc))
+          | Eq (Lin (_,_,v1) as t, Lin (j,k,v2), lc)
+            when VarSet.mem v1 keep ->
+            Left (v2, (scale_term k j t, lc))
+          | Eq (_, Lin (_,_,v), _) as a when VarSet.mem v keep ->
+            Right a
+          | Eq (Lin (_,_,v), _, _) as a when VarSet.mem v keep ->
+            Right a
           | Eq (Lin (j,k,v1), t, lc)
             when VarSet.for_all
                 (fun v2 -> q.cmp_v v1 v2 <> Left_of) (fvs_term t) ->
-            (* inverted coefficient *)
             Left (v1, (scale_term k j t, lc))
           | Eq (t, Lin (j,k,v1), lc)
             when VarSet.for_all
@@ -1312,16 +1332,32 @@ let separate_num_subst q cnj =
           | Eq _ -> raise Not_substitution
           | a -> Right a)
         cnj in
+    (*[* Format.printf "NumS.separate_subst:@ pre-sb=%a@\n%!"
+      pr_num_subst sb; *]*)
+    let sb = List.map
+        (function
+          | _, [] -> assert false
+          | v, [t, lc] -> v, (t, lc)
+          | v, (sv :: _ as rhs) ->
+            try v, List.find (fun (t,_) ->
+                VarSet.exists (fun v->VarSet.mem v keep) (fvs_term t))
+                rhs
+            with Not_found -> v, sv)
+        (collect sb) in
+    (*[* Format.printf "NumS.separate_subst:@ post-sb=%a@\n%!"
+      pr_num_subst sb; *]*)
     let keys = vars_of_list (List.map fst sb) in
     List.iter (fun (_,(t,_)) ->
         iter_term_vars (fun v->if VarSet.mem v keys
                          then raise Not_substitution) t)
       sb;
     sb, subst_num_formula sb phi
-  with Not_substitution -> separate_subst_aux q cnj
+  with Not_substitution -> separate_subst_aux q ~keep cnj
 
-let separate_subst q cnj =
-  let sb, phi = separate_num_subst q cnj in
+let separate_subst q ?(keep=VarSet.empty) cnj =
+  (*[* Format.printf "NumS.separate_subst: keep=%a@ cnj=%a@\n%!"
+    pr_vars keep pr_formula cnj; *]*)
+  let sb, phi = separate_num_subst q ~keep cnj in
   List.map (fun (v,(t,lc)) -> v, (Terms.num t, lc)) sb, phi
 
     

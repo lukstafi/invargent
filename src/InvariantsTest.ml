@@ -1029,6 +1029,25 @@ let rec map =
         [2,"∃. δ = (List Foo → ∃1:.List Bar)"];
     );
 
+  "map not existential mono" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "list map not existential mono"
+"newtype Elem
+newtype List : num
+newcons LNil : List 0
+newcons LCons : ∀n [0≤n]. Elem * List n ⟶ List(n+1)
+
+external f : Elem → Elem = \"f\"
+
+let rec map =
+  efunction LNil -> LNil
+    | LCons (x, xs) ->
+      let ys = map xs in
+      LCons (f x, ys)"
+        [2,"∃n. δ = (List n → ∃1:.List n)"];
+    );
+
   "map not existential poly" >::
     (fun () ->
        skip_if !debug "debug";
@@ -1045,47 +1064,7 @@ let rec map = fun f ->
         [2,"∃n, a, b. δ = ((a → b) → List (a, n) → ∃1:.List (b, n))"];
     );
 
-  "non-num map universal mono" >::
-    (fun () ->
-       skip_if !debug "debug";
-       test_case "list map not existential mono"
-"newtype List : type
-newcons LNil : ∀a. List a
-newcons LCons : ∀a. a * List a ⟶ List a
-newtype Foo
-newtype Bar
-
-external f : Foo → Bar = \"f\"
-
-let rec map =
-  function LNil -> LNil
-    | LCons (x, xs) ->
-      let ys = map xs in
-      LCons (f x, ys)"
-        [1,"∃. δ = (List Foo → List Bar)"];
-    );
-
-  "non-num map not existential mono" >::
-    (fun () ->
-       skip_if !debug "debug";
-       test_case "list map not existential mono"
-"newtype List : type
-newcons LNil : ∀a. List a
-newcons LCons : ∀a. a * List a ⟶ List a
-newtype Foo
-newtype Bar
-
-external f : Foo → Bar = \"f\"
-
-let rec map =
-  efunction LNil -> LNil
-    | LCons (x, xs) ->
-      let ys = map xs in
-      LCons (f x, ys)"
-        [2,"∃. δ = (List Foo → ∃1:.List Bar)"];
-    );
-
-  "map not existential mono" >::
+  "map not existential instance" >::
     (fun () ->
        skip_if !debug "debug";
        test_case "list map not existential mono"
