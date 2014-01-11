@@ -15,25 +15,128 @@
 <link title="Infer" rel="Chapter" href="Infer.html">
 <link title="Abduction" rel="Chapter" href="Abduction.html">
 <link title="DisjElim" rel="Chapter" href="DisjElim.html">
-<link title="Invariants" rel="Chapter" href="Invariants.html"><title>Infer</title>
+<link title="Invariants" rel="Chapter" href="Invariants.html"><link title="Constraint inference" rel="Section" href="#2_Constraintinference">
+<link title="Postprocessing and printing" rel="Section" href="#2_Postprocessingandprinting">
+<title>Infer</title>
 </head>
 <body>
-<div class="navbar"><a href="Terms.html">Previous</a>
-&nbsp;<a href="index.html">Up</a>
-&nbsp;<a href="Abduction.html">Next</a>
+<div class="navbar"><a class="pre" href="Terms.html" title="Terms">Previous</a>
+&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="Abduction.html" title="Abduction">Next</a>
 </div>
-<center><h1>Module <a href="type_Infer.html">Infer</a></h1></center>
-<br>
-<pre><span class="keyword">module</span> Infer: <code class="code">sig</code> <a href="Infer.html">..</a> <code class="code">end</code></pre>Inferring and normalizing formulas for InvarGenT.
+<h1>Module <a href="type_Infer.html">Infer</a></h1>
+
+<pre><span class="keyword">module</span> Infer: <code class="code">sig</code> <a href="Infer.html">..</a> <code class="code">end</code></pre><div class="info module top">
+Inferring and normalizing formulas for InvarGenT.
 <p>
 
     Released under the GNU General Public Licence (version 2 or
     higher), NO WARRANTY of correctness etc. (C) Lukasz Stafiniak 2013<br>
 <b>Author(s):</b> Lukasz Stafiniak lukstafi (AT) gmail.com<br>
 <b>Since</b> Mar 2013<br>
-<hr width="100%">
-<pre><span id="EXCEPTIONContradiction"><span class="keyword">exception</span> Contradiction</span> <span class="keyword">of</span> <code class="type">string * (<a href="Terms.html#TYPEtyp">Terms.typ</a> * <a href="Terms.html#TYPEtyp">Terms.typ</a>) option * <a href="Terms.html#TYPEloc">Terms.loc</a></code></pre>
-<div class="info">
-Shortcut for deriving <code class="code">false</code>.<br>
 </div>
-</body></html>
+<hr width="100%">
+
+<pre><span id="VALannotating_fun"><span class="keyword">val</span> annotating_fun</span> : <code class="type">bool Pervasives.ref</code></pre>
+<pre><span id="VALannotating_letin"><span class="keyword">val</span> annotating_letin</span> : <code class="type">bool Pervasives.ref</code></pre>
+<pre><span id="VALinform_toplevel"><span class="keyword">val</span> inform_toplevel</span> : <code class="type">bool Pervasives.ref</code></pre>
+<pre><code><span id="TYPEcnstrnt"><span class="keyword">type</span> <code class="type"></code>cnstrnt</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTcnstrnt.A"><span class="constructor">A</span></span> <span class="keyword">of</span> <code class="type"><a href="Terms.html#TYPEformula">Terms.formula</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTcnstrnt.And"><span class="constructor">And</span></span> <span class="keyword">of</span> <code class="type"><a href="Infer.html#TYPEcnstrnt">cnstrnt</a> list</code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTcnstrnt.Impl"><span class="constructor">Impl</span></span> <span class="keyword">of</span> <code class="type"><a href="Terms.html#TYPEformula">Terms.formula</a> * <a href="Infer.html#TYPEcnstrnt">cnstrnt</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTcnstrnt.Or"><span class="constructor">Or</span></span> <span class="keyword">of</span> <code class="type">(<a href="Infer.html#TYPEcnstrnt">cnstrnt</a> * (unit -> unit)) list</code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTcnstrnt.All"><span class="constructor">All</span></span> <span class="keyword">of</span> <code class="type">Defs.VarSet.t * <a href="Infer.html#TYPEcnstrnt">cnstrnt</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTcnstrnt.Ex"><span class="constructor">Ex</span></span> <span class="keyword">of</span> <code class="type">Defs.VarSet.t * <a href="Infer.html#TYPEcnstrnt">cnstrnt</a></code></code></td>
+
+</tr></table>
+
+<div class="info ">
+Each disjunct stores a trigger to be called when other disjuncts
+    are eliminated during normalization-simplification.<br>
+</div>
+
+
+<pre><span id="VALcn_and"><span class="keyword">val</span> cn_and</span> : <code class="type"><a href="Infer.html#TYPEcnstrnt">cnstrnt</a> -> <a href="Infer.html#TYPEcnstrnt">cnstrnt</a> -> <a href="Infer.html#TYPEcnstrnt">cnstrnt</a></code></pre><br>
+<h2 id="2_Constraintinference">Constraint inference</h2><br>
+
+<pre><span id="VALfreshen_cns_scheme"><span class="keyword">val</span> freshen_cns_scheme</span> : <code class="type">Defs.var_name list * <a href="Terms.html#TYPEatom">Terms.atom</a> list * <a href="Terms.html#TYPEtyp">Terms.typ</a> list * <a href="Terms.html#TYPEcns_name">Terms.cns_name</a> *<br>       Defs.var_name list -><br>       Defs.var_name list * <a href="Terms.html#TYPEatom">Terms.atom</a> list * <a href="Terms.html#TYPEtyp">Terms.typ</a> list * <a href="Terms.html#TYPEcns_name">Terms.cns_name</a> *<br>       Defs.var_name list</code></pre>
+<pre><span id="VALfreshen_val_scheme"><span class="keyword">val</span> freshen_val_scheme</span> : <code class="type"><a href="Terms.html#TYPEtyp_scheme">Terms.typ_scheme</a> -> <a href="Terms.html#TYPEtyp_scheme">Terms.typ_scheme</a></code></pre>
+<pre><span id="VALconstr_gen_pat"><span class="keyword">val</span> constr_gen_pat</span> : <code class="type"><a href="Terms.html#TYPEpat">Terms.pat</a> -> <a href="Terms.html#TYPEtyp">Terms.typ</a> -> <a href="Infer.html#TYPEcnstrnt">cnstrnt</a></code></pre>
+<pre><span id="TYPEenvfrag"><span class="keyword">type</span> <code class="type"></code>envfrag</span> = <code class="type">Defs.VarSet.t * <a href="Terms.html#TYPEformula">Terms.formula</a> * (string * <a href="Terms.html#TYPEtyp">Terms.typ</a>) list</code> </pre>
+
+
+<pre><span id="VALtyp_to_sch"><span class="keyword">val</span> typ_to_sch</span> : <code class="type">'a * <a href="Terms.html#TYPEtyp">Terms.typ</a> -> 'a * <a href="Terms.html#TYPEtyp_scheme">Terms.typ_scheme</a></code></pre><div class="info ">
+Return a store cell where triggers will put which existentials are
+    eliminated by which let-in patterns, and variables to preserve in
+    the result (i.e. prevent from being dropped by simplification).<br>
+</div>
+
+<pre><span id="VALconstr_gen_expr"><span class="keyword">val</span> constr_gen_expr</span> : <code class="type">(string * <a href="Terms.html#TYPEtyp_scheme">Terms.typ_scheme</a>) list -><br>       <a href="Terms.html#TYPEuexpr">Terms.uexpr</a> -><br>       <a href="Terms.html#TYPEtyp">Terms.typ</a> -><br>       (<a href="Infer.html#TYPEcnstrnt">cnstrnt</a> * <a href="Terms.html#TYPEiexpr">Terms.iexpr</a>) *<br>       (<a href="Terms.html#TYPEpat">Terms.pat</a> * int option) list Pervasives.ref * Defs.var_name list</code></pre>
+<pre><span id="TYPEprogram"><span class="keyword">type</span> <code class="type"></code>program</span> = <code class="type">((int * Defs.loc) list * <a href="Terms.html#TYPEstruct_item">Terms.struct_item</a>) list</code> </pre>
+
+
+<pre><span id="TYPEsolution"><span class="keyword">type</span> <code class="type"></code>solution</span> = <code class="type">Defs.quant_ops * <a href="Terms.html#TYPEformula">Terms.formula</a> *<br>       (int * (Defs.var_name list * <a href="Terms.html#TYPEformula">Terms.formula</a>)) list</code> </pre>
+
+
+<pre><span id="VALinfer_prog_mockup"><span class="keyword">val</span> infer_prog_mockup</span> : <code class="type"><a href="Infer.html#TYPEprogram">program</a> -> (int * Defs.loc) list * Defs.VarSet.t * <a href="Infer.html#TYPEcnstrnt">cnstrnt</a></code></pre>
+<pre><span id="VALinfer_prog"><span class="keyword">val</span> infer_prog</span> : <code class="type">(new_ex_types:(int * Defs.loc) list -><br>        preserve:Defs.VarSet.t -> <a href="Infer.html#TYPEcnstrnt">cnstrnt</a> -> <a href="Infer.html#TYPEsolution">solution</a>) -><br>       <a href="Infer.html#TYPEprogram">program</a> -> (string * <a href="Terms.html#TYPEtyp_scheme">Terms.typ_scheme</a>) list * <a href="Terms.html#TYPEannot_item">Terms.annot_item</a> list</code></pre>
+<pre><span id="VALnormalize_expr"><span class="keyword">val</span> normalize_expr</span> : <code class="type"><a href="Terms.html#TYPEuexpr">Terms.uexpr</a> -> (int * Defs.loc) list * <a href="Terms.html#TYPEuexpr">Terms.uexpr</a></code></pre><div class="info ">
+<h2 id="2_Normalization">Normalization</h2><br>
+</div>
+
+<pre><span id="VALnormalize_program"><span class="keyword">val</span> normalize_program</span> : <code class="type"><a href="Terms.html#TYPEstruct_item">Terms.struct_item</a> list -> ((int * Defs.loc) list * <a href="Terms.html#TYPEstruct_item">Terms.struct_item</a>) list</code></pre>
+<pre><span id="TYPEbranch"><span class="keyword">type</span> <code class="type"></code>branch</span> = <code class="type"><a href="Terms.html#TYPEformula">Terms.formula</a> * <a href="Terms.html#TYPEformula">Terms.formula</a></code> </pre>
+
+
+<pre><span id="VALprenexize"><span class="keyword">val</span> prenexize</span> : <code class="type"><a href="Infer.html#TYPEcnstrnt">cnstrnt</a> -> Defs.quant_ops * <a href="Infer.html#TYPEcnstrnt">cnstrnt</a></code></pre><div class="info ">
+Returns a map from existential type to the unary predicate variable
+    in which it will appear as result type.<br>
+</div>
+
+<pre><span id="VALnormalize"><span class="keyword">val</span> normalize</span> : <code class="type">Defs.quant_ops -> <a href="Infer.html#TYPEcnstrnt">cnstrnt</a> -> (int, int) Hashtbl.t * <a href="Infer.html#TYPEbranch">branch</a> list</code></pre>
+<pre><span id="VALsimplify"><span class="keyword">val</span> simplify</span> : <code class="type">Defs.VarSet.t -> Defs.quant_ops -> <a href="Infer.html#TYPEbranch">branch</a> list -> <a href="Infer.html#TYPEbranch">branch</a> list</code></pre><br>
+<h2 id="2_Postprocessingandprinting">Postprocessing and printing</h2><br>
+
+<pre><span id="VALseparate_subst"><span class="keyword">val</span> separate_subst</span> : <code class="type">?avoid:Defs.VarSet.t -><br>       ?keep_uni:bool -><br>       Defs.quant_ops -> <a href="Terms.html#TYPEformula">Terms.formula</a> -> <a href="Terms.html#TYPEsubst">Terms.subst</a> * <a href="Terms.html#TYPEformula">Terms.formula</a></code></pre>
+<pre><span id="VALseparate_sep_subst"><span class="keyword">val</span> separate_sep_subst</span> : <code class="type">?avoid:Defs.VarSet.t -><br>       ?keep_uni:bool -><br>       Defs.quant_ops -> <a href="Terms.html#TYPEsep_formula">Terms.sep_formula</a> -> <a href="Terms.html#TYPEsubst">Terms.subst</a> * <a href="Terms.html#TYPEsep_formula">Terms.sep_formula</a></code></pre>
+<pre><span id="VALpr_cnstrnt"><span class="keyword">val</span> pr_cnstrnt</span> : <code class="type">Format.formatter -> <a href="Infer.html#TYPEcnstrnt">cnstrnt</a> -> unit</code></pre>
+<pre><span id="VALpr_brs"><span class="keyword">val</span> pr_brs</span> : <code class="type">Format.formatter -> <a href="Infer.html#TYPEbranch">branch</a> list -> unit</code></pre>
+<pre><span id="VALpr_rbrs"><span class="keyword">val</span> pr_rbrs</span> : <code class="type">Format.formatter -> (<a href="Terms.html#TYPEformula">Terms.formula</a> * <a href="Terms.html#TYPEformula">Terms.formula</a>) list -> unit</code></pre>
+<pre><span id="VALpr_rbrs3"><span class="keyword">val</span> pr_rbrs3</span> : <code class="type">Format.formatter -> (bool * <a href="Terms.html#TYPEformula">Terms.formula</a> * <a href="Terms.html#TYPEformula">Terms.formula</a>) list -> unit</code></pre>
+<pre><span id="VALpr_rbrs4"><span class="keyword">val</span> pr_rbrs4</span> : <code class="type">Format.formatter -> (bool * 'a * <a href="Terms.html#TYPEformula">Terms.formula</a> * <a href="Terms.html#TYPEformula">Terms.formula</a>) list -> unit</code></pre>
+<pre><span id="VALpr_rbrs5"><span class="keyword">val</span> pr_rbrs5</span> : <code class="type">Format.formatter -><br>       (bool * 'a * 'b * <a href="Terms.html#TYPEformula">Terms.formula</a> * <a href="Terms.html#TYPEformula">Terms.formula</a>) list -> unit</code></pre>
+<pre><span id="VALreset_state"><span class="keyword">val</span> reset_state</span> : <code class="type">unit -> unit</code></pre></body></html>

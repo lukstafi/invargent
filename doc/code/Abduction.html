@@ -18,18 +18,67 @@
 <link title="Invariants" rel="Chapter" href="Invariants.html"><title>Abduction</title>
 </head>
 <body>
-<div class="navbar"><a href="Infer.html">Previous</a>
-&nbsp;<a href="index.html">Up</a>
-&nbsp;<a href="DisjElim.html">Next</a>
+<div class="navbar"><a class="pre" href="Infer.html" title="Infer">Previous</a>
+&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="DisjElim.html" title="DisjElim">Next</a>
 </div>
-<center><h1>Module <a href="type_Abduction.html">Abduction</a></h1></center>
-<br>
-<pre><span class="keyword">module</span> Abduction: <code class="code">sig</code> <a href="Abduction.html">..</a> <code class="code">end</code></pre>Abduction for InvarGenT.
+<h1>Module <a href="type_Abduction.html">Abduction</a></h1>
+
+<pre><span class="keyword">module</span> Abduction: <code class="code">sig</code> <a href="Abduction.html">..</a> <code class="code">end</code></pre><div class="info module top">
+Abduction for InvarGenT.
 <p>
 
     Released under the GNU General Public Licence (version 2 or
     higher), NO WARRANTY of correctness etc. (C) Lukasz Stafiniak 2013<br>
 <b>Author(s):</b> Lukasz Stafiniak lukstafi (AT) gmail.com<br>
 <b>Since</b> Mar 2013<br>
+</div>
 <hr width="100%">
-</body></html>
+
+<pre><code><span id="TYPEskip_kind"><span class="keyword">type</span> <code class="type"></code>skip_kind</span> = </code></pre><table class="typetable">
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTskip_kind.Superset_old_mod"><span class="constructor">Superset_old_mod</span></span></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTskip_kind.Equ_old_mod"><span class="constructor">Equ_old_mod</span></span></code></td>
+
+</tr></table>
+
+
+
+<pre><span id="VALskip_kind"><span class="keyword">val</span> skip_kind</span> : <code class="type"><a href="Abduction.html#TYPEskip_kind">skip_kind</a> Pervasives.ref</code></pre>
+<pre><span id="VALmore_general"><span class="keyword">val</span> more_general</span> : <code class="type">bool Pervasives.ref</code></pre><div class="info ">
+<code class="code">more_general=true</code> might produce a more general answer but is too
+    costly; default <code class="code">false</code>.
+<p>
+<code class="code">richer_answers=true</code> produces answers in more cases because it tries
+    answers with redundant atoms first, but can produce answers that
+    are not most general. Default <code class="code">false</code>.<br>
+</div>
+
+<pre><span id="VALricher_answers"><span class="keyword">val</span> richer_answers</span> : <code class="type">bool Pervasives.ref</code></pre>
+<pre><span id="VALtimeout_count"><span class="keyword">val</span> timeout_count</span> : <code class="type">int Pervasives.ref</code></pre>
+<pre><span id="VALfail_timeout_count"><span class="keyword">val</span> fail_timeout_count</span> : <code class="type">int Pervasives.ref</code></pre>
+<pre><span id="VALno_alien_prem"><span class="keyword">val</span> no_alien_prem</span> : <code class="type">bool Pervasives.ref</code></pre>
+<pre><span id="VALabd_fail_flag"><span class="keyword">val</span> abd_fail_flag</span> : <code class="type">bool Pervasives.ref</code></pre>
+<pre><span id="VALabd_timeout_flag"><span class="keyword">val</span> abd_timeout_flag</span> : <code class="type">bool Pervasives.ref</code></pre>
+<pre><span id="VALabd_simple"><span class="keyword">val</span> abd_simple</span> : <code class="type">Defs.quant_ops -><br>       ?without_quant:unit -><br>       bvs:Defs.VarSet.t -><br>       pms:Defs.VarSet.t -><br>       dissociate:bool -><br>       validate:(Defs.var_name list * <a href="Terms.html#TYPEsubst">Terms.subst</a> -> unit) -><br>       discard:(Defs.var_name list * <a href="Terms.html#TYPEsubst">Terms.subst</a>) list -><br>       int -><br>       Defs.var_name list * <a href="Terms.html#TYPEsubst">Terms.subst</a> -><br>       <a href="Terms.html#TYPEsep_formula">Terms.sep_formula</a> * <a href="Terms.html#TYPEsubst">Terms.subst</a> -><br>       (Defs.VarSet.t * (Defs.var_name list * <a href="Terms.html#TYPEsubst">Terms.subst</a>)) option</code></pre>
+<pre><span id="VALabd_typ"><span class="keyword">val</span> abd_typ</span> : <code class="type">Defs.quant_ops -><br>       bvs:Defs.VarSet.t -><br>       ?dissociate:bool -><br>       validate:(Defs.var_name list * <a href="Terms.html#TYPEsubst">Terms.subst</a> -> unit) -><br>       discard:(Defs.var_name list * <a href="Terms.html#TYPEsubst">Terms.subst</a>) list -><br>       (<a href="Terms.html#TYPEsep_formula">Terms.sep_formula</a> * <a href="Terms.html#TYPEsubst">Terms.subst</a>) list -><br>       Defs.VarSet.t * <a href="Terms.html#TYPEsubst">Terms.subst</a> * Defs.var_name list * <a href="Terms.html#TYPEsubst">Terms.subst</a> *<br>       (<a href="Terms.html#TYPEsep_formula">Terms.sep_formula</a> * <a href="Terms.html#TYPEsep_formula">Terms.sep_formula</a>) list</code></pre>
+<pre><span id="TYPEdiscarded"><span class="keyword">type</span> <code class="type"></code>discarded</span> = <code class="type">((Defs.var_name list * <a href="Terms.html#TYPEsubst">Terms.subst</a>) list, NumDefs.formula list, unit)<br>       <a href="Terms.html#TYPEsep_sorts">Terms.sep_sorts</a></code> </pre>
+<div class="info ">
+Raises <code class="code">Contradiction</code> if constraints are contradictory and
+    <code class="code">NoAnswer</code> when no answer can be found. Returns candidate
+    parameters <code class="code">cand_bvs</code>, alien subterm substitution <code class="code">alien_eqs</code> and
+    the answer.<br>
+</div>
+
+
+<pre><span id="VALabd"><span class="keyword">val</span> abd</span> : <code class="type">Defs.quant_ops -><br>       bvs:Defs.VarSet.t -><br>       ?iter_no:int -><br>       discard:<a href="Abduction.html#TYPEdiscarded">discarded</a> -><br>       (bool * <a href="Terms.html#TYPEformula">Terms.formula</a> * <a href="Terms.html#TYPEformula">Terms.formula</a>) list -><br>       Defs.VarSet.t * <a href="Terms.html#TYPEsubst">Terms.subst</a> * (Defs.var_name list * <a href="Terms.html#TYPEformula">Terms.formula</a>)</code></pre>
+<pre><span id="VALabd_mockup_num"><span class="keyword">val</span> abd_mockup_num</span> : <code class="type">Defs.quant_ops -><br>       bvs:Defs.VarSet.t -><br>       (<a href="Terms.html#TYPEformula">Terms.formula</a> * <a href="Terms.html#TYPEformula">Terms.formula</a>) list -><br>       (NumDefs.formula * NumDefs.formula) list option</code></pre></body></html>

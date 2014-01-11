@@ -3,22 +3,6 @@
 <style|article>
 
 <\body>
-  <doc-data|<doc-title|InvarGenT -- Manual>||<doc-author|<author-data|<author-name|Šukasz
-  Stafiniak>|<\author-affiliation>
-    Institute of Computer Science
-
-    University of Wrocªaw
-  </author-affiliation>>>>
-
-  <\abstract>
-    InvarGenT is a proof-of-concept system for invariant generation by full
-    type inference with Guarded Algebraic Data Types and existential types
-    encoded as automatically generated GADTs. This user manual discusses
-    motivating examples, briefly presents the syntax of the InvarGenT
-    language, and describes the parameters of the inference process that can
-    be passed to the InvarGenT executable.
-  </abstract>
-
   <section|Introduction>
 
   Type systems are an established natural deduction-style means to reason
@@ -704,7 +688,7 @@
   <verbatim|efunction> expressions and formulas constraining their type
   variables -- we want the strongest possible solutions, because stronger
   postcondition provides more information at use sites of a definition.
-  Therefore we use LUB, disjunction elimination, but only if existential
+  Therefore we use GLB, disjunction elimination, but only if existential
   types have been introduced by <verbatim|efunction> or <verbatim|ematch>.
 
   Below we discuss all of the InvarGenT options.

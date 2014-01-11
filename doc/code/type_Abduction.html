@@ -13,4 +13,50 @@
 <link title="Invariants" rel="Chapter" href="Invariants.html"><title>Abduction</title>
 </head>
 <body>
-<code class="code"><span class="keyword">sig</span>&nbsp;&nbsp;<span class="keyword">end</span></code></body></html>
+<code class="code"><span class="keyword">sig</span><br>
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;skip_kind&nbsp;=&nbsp;<span class="constructor">Superset_old_mod</span>&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Equ_old_mod</span><br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;skip_kind&nbsp;:&nbsp;<span class="constructor">Abduction</span>.skip_kind&nbsp;<span class="constructor">Pervasives</span>.ref<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;more_general&nbsp;:&nbsp;bool&nbsp;<span class="constructor">Pervasives</span>.ref<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;richer_answers&nbsp;:&nbsp;bool&nbsp;<span class="constructor">Pervasives</span>.ref<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;timeout_count&nbsp;:&nbsp;int&nbsp;<span class="constructor">Pervasives</span>.ref<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;fail_timeout_count&nbsp;:&nbsp;int&nbsp;<span class="constructor">Pervasives</span>.ref<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;no_alien_prem&nbsp;:&nbsp;bool&nbsp;<span class="constructor">Pervasives</span>.ref<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;abd_fail_flag&nbsp;:&nbsp;bool&nbsp;<span class="constructor">Pervasives</span>.ref<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;abd_timeout_flag&nbsp;:&nbsp;bool&nbsp;<span class="constructor">Pervasives</span>.ref<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;abd_simple&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Defs</span>.quant_ops&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;?without_quant:unit&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;bvs:<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;pms:<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;dissociate:bool&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;validate:(<span class="constructor">Defs</span>.var_name&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit)&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;discard:(<span class="constructor">Defs</span>.var_name&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst)&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Defs</span>.var_name&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Terms</span>.sep_formula&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;*&nbsp;(<span class="constructor">Defs</span>.var_name&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst))&nbsp;option<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;abd_typ&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Defs</span>.quant_ops&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;bvs:<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;?dissociate:bool&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;validate:(<span class="constructor">Defs</span>.var_name&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit)&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;discard:(<span class="constructor">Defs</span>.var_name&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst)&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="constructor">Terms</span>.sep_formula&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst)&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst&nbsp;*&nbsp;<span class="constructor">Defs</span>.var_name&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst&nbsp;*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="constructor">Terms</span>.sep_formula&nbsp;*&nbsp;<span class="constructor">Terms</span>.sep_formula)&nbsp;list<br>
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;discarded&nbsp;=<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;((<span class="constructor">Defs</span>.var_name&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst)&nbsp;list,&nbsp;<span class="constructor">NumDefs</span>.formula&nbsp;list,&nbsp;unit)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Terms</span>.sep_sorts<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;abd&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Defs</span>.quant_ops&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;bvs:<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;?iter_no:int&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;discard:<span class="constructor">Abduction</span>.discarded&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;(bool&nbsp;*&nbsp;<span class="constructor">Terms</span>.formula&nbsp;*&nbsp;<span class="constructor">Terms</span>.formula)&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst&nbsp;*&nbsp;(<span class="constructor">Defs</span>.var_name&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.formula)<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;abd_mockup_num&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Defs</span>.quant_ops&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;bvs:<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="constructor">Terms</span>.formula&nbsp;*&nbsp;<span class="constructor">Terms</span>.formula)&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="constructor">NumDefs</span>.formula&nbsp;*&nbsp;<span class="constructor">NumDefs</span>.formula)&nbsp;list&nbsp;option<br>
+<span class="keyword">end</span></code></body></html>

@@ -14,46 +14,138 @@
 <link title="Invariants" rel="Chapter" href="Invariants.html"><title>Index of types</title>
 </head>
 <body>
-<center><h1>Index of types</h1></center>
+<div class="navbar">&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;</div>
+<h1>Index of types</h1>
 <table>
 <tr><td align="left"><br>A</td></tr>
+<tr><td><a href="Terms.html#TYPEalien_atom">alien_atom</a> [<a href="Terms.html">Terms</a>]</td>
+<td></td></tr>
+<tr><td><a href="Terms.html#TYPEalien_subterm">alien_subterm</a> [<a href="Terms.html">Terms</a>]</td>
+<td></td></tr>
+<tr><td><a href="Terms.html#TYPEannot_item">annot_item</a> [<a href="Terms.html">Terms</a>]</td>
+<td><div class="info">
+Represents both signature items and annotated structure items to
+    be printed as OCaml source code.
+</div>
+</td></tr>
+<tr><td><a href="Terms.html#TYPEanswer">answer</a> [<a href="Terms.html">Terms</a>]</td>
+<td></td></tr>
 <tr><td><a href="Terms.html#TYPEatom">atom</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
+<tr><td align="left"><br>B</td></tr>
+<tr><td><a href="Infer.html#TYPEbranch">branch</a> [<a href="Infer.html">Infer</a>]</td>
+<td></td></tr>
 <tr><td align="left"><br>C</td></tr>
+<tr><td><a href="Invariants.html#TYPEchi_subst">chi_subst</a> [<a href="Invariants.html">Invariants</a>]</td>
+<td></td></tr>
 <tr><td><a href="Terms.html#TYPEclause">clause</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
 <tr><td><a href="Terms.html#TYPEcns_name">cns_name</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
+<tr><td><a href="Infer.html#TYPEcnstrnt">cnstrnt</a> [<a href="Infer.html">Infer</a>]</td>
+<td><div class="info">
+Each disjunct stores a trigger to be called when other disjuncts
+    are eliminated during normalization-simplification.
+</div>
+</td></tr>
+<tr><td align="left"><br>D</td></tr>
+<tr><td><a href="Abduction.html#TYPEdiscarded">discarded</a> [<a href="Abduction.html">Abduction</a>]</td>
+<td><div class="info">
+Raises <code class="code">Contradiction</code> if constraints are contradictory and
+    <code class="code">NoAnswer</code> when no answer can be found.
+</div>
+</td></tr>
 <tr><td align="left"><br>E</td></tr>
-<tr><td><a href="Terms.html#TYPEexpr">expr</a> [<a href="Terms.html">Terms</a>]</td>
+<tr><td><a href="Infer.html#TYPEenvfrag">envfrag</a> [<a href="Infer.html">Infer</a>]</td>
 <td></td></tr>
+<tr><td><a href="Terms.html#TYPEexpr">expr</a> [<a href="Terms.html">Terms</a>]</td>
+<td><div class="info">
+<code class="code">string option</code> at <code class="code">Letrec</code> and <code class="code">Letin</code> are documentation
+    comments.
+</div>
+</td></tr>
 <tr><td align="left"><br>F</td></tr>
 <tr><td><a href="Terms.html#TYPEformula">formula</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
-<tr><td align="left"><br>L</td></tr>
-<tr><td><a href="Terms.html#TYPEloc">loc</a> [<a href="Terms.html">Terms</a>]</td>
+<tr><td align="left"><br>H</td></tr>
+<tr><td><a href="Terms.html#TYPEhvsubst">hvsubst</a> [<a href="Terms.html">Terms</a>]</td>
+<td></td></tr>
+<tr><td align="left"><br>I</td></tr>
+<tr><td><a href="Terms.html#TYPEiexpr">iexpr</a> [<a href="Terms.html">Terms</a>]</td>
 <td><div class="info">
-Source location for reporting parsing and inference problems.
+Post-constraint generation expression: number of predicate
+    variable holding the invariant for each <code class="code">let rec</code> expression;
+    variables standing for the argument and return type of each
+    <code class="code">function</code> expression.
 </div>
 </td></tr>
+<tr><td align="left"><br>L</td></tr>
+<tr><td><a href="Terms.html#TYPElc">lc</a> [<a href="Terms.html">Terms</a>]</td>
+<td></td></tr>
 <tr><td align="left"><br>P</td></tr>
 <tr><td><a href="Terms.html#TYPEpat">pat</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
-<tr><td><a href="Terms.html#TYPEprogram">program</a> [<a href="Terms.html">Terms</a>]</td>
+<tr><td><a href="Terms.html#TYPEpr_expr_annot">pr_expr_annot</a> [<a href="Terms.html">Terms</a>]</td>
+<td></td></tr>
+<tr><td><a href="Infer.html#TYPEprogram">program</a> [<a href="Infer.html">Infer</a>]</td>
 <td></td></tr>
 <tr><td align="left"><br>S</td></tr>
-<tr><td><a href="Terms.html#TYPEsort">sort</a> [<a href="Terms.html">Terms</a>]</td>
+<tr><td><a href="Terms.html#TYPEsep_formula">sep_formula</a> [<a href="Terms.html">Terms</a>]</td>
+<td><div class="info">
+We could define <code class="code">sep_formula = (subst, NumDefs.formula formula)
+    sep_sorts</code>, but <code class="code">sep_formula</code> is used frequently enough to earn
+    a dedicated type.
+</div>
+</td></tr>
+<tr><td><a href="Terms.html#TYPEsep_sorts">sep_sorts</a> [<a href="Terms.html">Terms</a>]</td>
+<td></td></tr>
+<tr><td><a href="Terms.html#TYPEsigma">sigma</a> [<a href="Terms.html">Terms</a>]</td>
+<td></td></tr>
+<tr><td><a href="Abduction.html#TYPEskip_kind">skip_kind</a> [<a href="Abduction.html">Abduction</a>]</td>
+<td></td></tr>
+<tr><td><a href="Infer.html#TYPEsolution">solution</a> [<a href="Infer.html">Infer</a>]</td>
 <td></td></tr>
 <tr><td><a href="Terms.html#TYPEstruct_item">struct_item</a> [<a href="Terms.html">Terms</a>]</td>
+<td><div class="info">
+<code class="code">string option</code> stores the documentation comment appearing in
+    front of a definition or declaration.
+</div>
+</td></tr>
+<tr><td><a href="Terms.html#TYPEsubst">subst</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
 <tr><td align="left"><br>T</td></tr>
+<tr><td><a href="Terms.html#TYPEtexpr">texpr</a> [<a href="Terms.html">Terms</a>]</td>
+<td><div class="info">
+The annotation, besides providing the type scheme, tells whether
+    nested type schemes have free variables in scope of the
+    scheme.
+</div>
+</td></tr>
 <tr><td><a href="Terms.html#TYPEtyp">typ</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
+<tr><td><a href="Terms.html#TYPEtyp_dir">typ_dir</a> [<a href="Terms.html">Terms</a>]</td>
+<td><div class="info">
+Zippers.
+</div>
+</td></tr>
+<tr><td><a href="Terms.html#TYPEtyp_fold">typ_fold</a> [<a href="Terms.html">Terms</a>]</td>
+<td></td></tr>
+<tr><td><a href="Terms.html#TYPEtyp_loc">typ_loc</a> [<a href="Terms.html">Terms</a>]</td>
+<td></td></tr>
+<tr><td><a href="Terms.html#TYPEtyp_map">typ_map</a> [<a href="Terms.html">Terms</a>]</td>
+<td><div class="info">
+Mapping and folding over types.
+</div>
+</td></tr>
 <tr><td><a href="Terms.html#TYPEtyp_scheme">typ_scheme</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
-<tr><td align="left"><br>V</td></tr>
-<tr><td><a href="Terms.html#TYPEvar_name">var_name</a> [<a href="Terms.html">Terms</a>]</td>
-<td></td></tr>
-</table><br>
+<tr><td align="left"><br>U</td></tr>
+<tr><td><a href="Terms.html#TYPEuexpr">uexpr</a> [<a href="Terms.html">Terms</a>]</td>
+<td><div class="info">
+User input expression: no type annotations.
+</div>
+</td></tr>
+</table>
 </body>
 </html>

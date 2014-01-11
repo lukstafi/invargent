@@ -13,4 +13,16 @@
 <link title="Invariants" rel="Chapter" href="Invariants.html"><title>Invariants</title>
 </head>
 <body>
-<code class="code"><span class="keyword">sig</span>&nbsp;&nbsp;<span class="keyword">end</span></code></body></html>
+<code class="code"><span class="keyword">sig</span><br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;early_postcond_abd&nbsp;:&nbsp;bool&nbsp;<span class="constructor">Pervasives</span>.ref<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;timeout_count&nbsp;:&nbsp;int&nbsp;<span class="constructor">Pervasives</span>.ref<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;timeout_flag&nbsp;:&nbsp;bool&nbsp;<span class="constructor">Pervasives</span>.ref<br>
+&nbsp;&nbsp;<span class="keyword">type</span>&nbsp;chi_subst&nbsp;=&nbsp;(int&nbsp;*&nbsp;(<span class="constructor">Defs</span>.var_name&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.formula))&nbsp;list<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;neg_constrns&nbsp;:&nbsp;bool&nbsp;<span class="constructor">Pervasives</span>.ref<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;solve&nbsp;:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Defs</span>.quant_ops&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;(int&nbsp;*&nbsp;<span class="constructor">Defs</span>.loc)&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;(int,&nbsp;int)&nbsp;<span class="constructor">Hashtbl</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;(<span class="constructor">Terms</span>.formula&nbsp;*&nbsp;<span class="constructor">Terms</span>.formula)&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Defs</span>.quant_ops&nbsp;*&nbsp;<span class="constructor">Terms</span>.formula&nbsp;*&nbsp;<span class="constructor">Invariants</span>.chi_subst<br>
+<span class="keyword">end</span></code></body></html>

@@ -18,18 +18,27 @@
 <link title="Invariants" rel="Chapter" href="Invariants.html"><title>DisjElim</title>
 </head>
 <body>
-<div class="navbar"><a href="Abduction.html">Previous</a>
-&nbsp;<a href="index.html">Up</a>
-&nbsp;<a href="Invariants.html">Next</a>
+<div class="navbar"><a class="pre" href="Abduction.html" title="Abduction">Previous</a>
+&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;<a class="post" href="Invariants.html" title="Invariants">Next</a>
 </div>
-<center><h1>Module <a href="type_DisjElim.html">DisjElim</a></h1></center>
-<br>
-<pre><span class="keyword">module</span> DisjElim: <code class="code">sig</code> <a href="DisjElim.html">..</a> <code class="code">end</code></pre>Disjunction elimination for InvarGenT.
+<h1>Module <a href="type_DisjElim.html">DisjElim</a></h1>
+
+<pre><span class="keyword">module</span> DisjElim: <code class="code">sig</code> <a href="DisjElim.html">..</a> <code class="code">end</code></pre><div class="info module top">
+Disjunction elimination for InvarGenT.
 <p>
 
     Released under the GNU General Public Licence (version 2 or
     higher), NO WARRANTY of correctness etc. (C) Lukasz Stafiniak 2013<br>
 <b>Author(s):</b> Lukasz Stafiniak lukstafi (AT) gmail.com<br>
 <b>Since</b> Mar 2013<br>
+</div>
 <hr width="100%">
+
+<pre><span id="VALdisjelim"><span class="keyword">val</span> disjelim</span> : <code class="type">Defs.quant_ops -><br>       bvs:Defs.VarSet.t -><br>       preserve:Defs.VarSet.t -><br>       do_num:bool -> <a href="Terms.html#TYPEformula">Terms.formula</a> list -> Defs.var_name list * <a href="Terms.html#TYPEatom">Terms.atom</a> list</code></pre>
+<pre><span id="VALinitstep_heur"><span class="keyword">val</span> initstep_heur</span> : <code class="type">Defs.quant_ops -> preserve:Defs.VarSet.t -> <a href="Terms.html#TYPEformula">Terms.formula</a> -> <a href="Terms.html#TYPEformula">Terms.formula</a></code></pre><div class="info ">
+Filter the initial postcondition, found from non-recursive
+    branches only, so that it does not constrain variables to
+    constants if other constraints on the variables are available.<br>
+</div>
 </body></html>

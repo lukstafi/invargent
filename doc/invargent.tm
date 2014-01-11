@@ -3,21 +3,6 @@
 <style|article>
 
 <\body>
-  <doc-data|<doc-title|InvarGenT: Implementation>||<doc-author|<author-data|<author-name|Šukasz
-  Stafiniak>|<\author-affiliation>
-    Institute of Computer Science
-
-    University of Wrocªaw
-  </author-affiliation>>>>
-
-  <\abstract>
-    InvarGenT is a proof-of-concept system for invariant generation by full
-    type inference with Guarded Algebraic Data Types and existential types
-    encoded as automatically generated GADTs. This implementation
-    documentation focuses on source code, refers to separate technical
-    reports on theory and algorithms.
-  </abstract>
-
   <section|Data Structures and Concrete Syntax>
 
   Following <cite|ESOP2014>, we have the following nodes in the abstract
@@ -1773,61 +1758,6 @@
   <verbatim|let> definition of OCaml. It has the benefit that the OCaml
   compiler will verify this definition, since InvarGenT calls
   <verbatim|ocamlc -c> to verify the exported code.
-
-  <\bibliography|bib|tm-plain|biblio.bib>
-    <\bib-list|9>
-      <bibitem*|1><label|bib-ArithQuantElim>Sergey<nbsp>Berezin,
-      Vijay<nbsp>Ganesh<localize| and >David L.<nbsp>Dill.<newblock> An
-      online proof-producing decision procedure for mixed-integer linear
-      arithmetic.<newblock> <localize|In ><with|font-shape|italic|Proceedings
-      of the 9th international conference on Tools and algorithms for the
-      construction and analysis of systems>, TACAS'03, <localize|pages
-      >521--536. Berlin, Heidelberg, 2003. Springer-Verlag.<newblock>
-
-      <bibitem*|2><label|bib-ConvexHull>Komei<nbsp>Fukuda, Thomas
-      M.<nbsp>Liebling<localize| and >Christine<nbsp>Lütolf.<newblock>
-      Extended convex hull.<newblock> <localize|In
-      ><with|font-shape|italic|Proceedings of the 12th Canadian Conference on
-      Computational Geometry, Fredericton, New Brunswick, Canada, August
-      16-19, 2000>. 2000.<newblock>
-
-      <bibitem*|3><label|bib-AbductionSolvMaher>Michael<nbsp>Maher<localize|
-      and >Ge<nbsp>Huang.<newblock> On computing constraint abduction
-      answers.<newblock> <localize|In >Iliano<nbsp>Cervesato,
-      Helmut<nbsp>Veith<localize| and >Andrei<nbsp>Voronkov<localize|,
-      editors>, <with|font-shape|italic|Logic for Programming, Artificial
-      Intelligence, and Reasoning>, <localize|volume> 5330<localize| of
-      ><with|font-shape|italic|Lecture Notes in Computer Science>,
-      <localize|pages >421--435. Springer Berlin / Heidelberg,
-      2008.<newblock> 10.1007/978-3-540-89439-1<rsub|3>0.<newblock>
-
-      <bibitem*|4><label|bib-jcaqpUNIF>Šukasz<nbsp>Stafiniak.<newblock> Joint
-      constraint abduction problems.<newblock> <with|font-shape|italic|>, ,
-      2011.<newblock> The International Workshop on Unification.<newblock>
-
-      <bibitem*|5><label|bib-disjelimTechRep>Šukasz<nbsp>Stafiniak.<newblock>
-      Constraint disjunction elimination problems.<newblock> Manuscript,
-      2013.<newblock>
-
-      <bibitem*|6><label|bib-invariantsTechRep2>Šukasz<nbsp>Stafiniak.<newblock>
-      Finding gadt invariants via abduction.<newblock> Manuscript,
-      2013.<newblock>
-
-      <bibitem*|7><label|bib-jcaqpTechRep2>Šukasz<nbsp>Stafiniak.<newblock>
-      Joint constraint abduction problems.<newblock> Manuscript,
-      2013.<newblock> Available at <hlink|http://www.ii.uni.wroc.pl/~lukstafi/pubs/abduction-revised.pdf|http://www.ii.uni.wroc.pl/~lukstafi/pubs/abduction-revised.pdf>
-
-      <bibitem*|8><label|bib-ESOP2014>Šukasz<nbsp>Stafiniak.<newblock> Gadts
-      for invariants and postconditions.<newblock> 2014.<newblock> Submitted
-      for publication.<newblock> Available at
-      <hlink|http://www.ii.uni.wroc.pl/~lukstafi/pubs/ESOP2014.pdf|http://www.ii.uni.wroc.pl/~lukstafi/pubs/ESOP2014.pdf>
-
-      <bibitem*|9><label|bib-AntiUnifAlg>B<nbsp>Østvold.<newblock> A
-      functional reconstruction of anti-unification.<newblock>
-      <localize|Technical Report>, Norwegian Computing Center, Oslo, Norway,
-      2004.<newblock>
-    </bib-list>
-  </bibliography>
 </body>
 
 <\initial>

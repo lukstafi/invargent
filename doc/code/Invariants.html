@@ -17,17 +17,27 @@
 <link title="Invariants" rel="Chapter" href="Invariants.html"><title>Invariants</title>
 </head>
 <body>
-<div class="navbar"><a href="DisjElim.html">Previous</a>
-&nbsp;<a href="index.html">Up</a>
+<div class="navbar"><a class="pre" href="DisjElim.html" title="DisjElim">Previous</a>
+&nbsp;<a class="up" href="index.html" title="Index">Up</a>
 &nbsp;</div>
-<center><h1>Module <a href="type_Invariants.html">Invariants</a></h1></center>
-<br>
-<pre><span class="keyword">module</span> Invariants: <code class="code">sig</code> <a href="Invariants.html">..</a> <code class="code">end</code></pre>Solving second-order i.e. formula variables for InvarGenT.
+<h1>Module <a href="type_Invariants.html">Invariants</a></h1>
+
+<pre><span class="keyword">module</span> Invariants: <code class="code">sig</code> <a href="Invariants.html">..</a> <code class="code">end</code></pre><div class="info module top">
+Solving second-order i.e. formula variables for InvarGenT.
 <p>
 
     Released under the GNU General Public Licence (version 2 or
     higher), NO WARRANTY of correctness etc. (C) Lukasz Stafiniak 2013<br>
 <b>Author(s):</b> Lukasz Stafiniak lukstafi (AT) gmail.com<br>
 <b>Since</b> Mar 2013<br>
+</div>
 <hr width="100%">
-</body></html>
+
+<pre><span id="VALearly_postcond_abd"><span class="keyword">val</span> early_postcond_abd</span> : <code class="type">bool Pervasives.ref</code></pre>
+<pre><span id="VALtimeout_count"><span class="keyword">val</span> timeout_count</span> : <code class="type">int Pervasives.ref</code></pre>
+<pre><span id="VALtimeout_flag"><span class="keyword">val</span> timeout_flag</span> : <code class="type">bool Pervasives.ref</code></pre>
+<pre><span id="TYPEchi_subst"><span class="keyword">type</span> <code class="type"></code>chi_subst</span> = <code class="type">(int * (Defs.var_name list * <a href="Terms.html#TYPEformula">Terms.formula</a>)) list</code> </pre>
+
+
+<pre><span id="VALneg_constrns"><span class="keyword">val</span> neg_constrns</span> : <code class="type">bool Pervasives.ref</code></pre>
+<pre><span id="VALsolve"><span class="keyword">val</span> solve</span> : <code class="type">Defs.quant_ops -><br>       (int * Defs.loc) list -><br>       (int, int) Hashtbl.t -><br>       (<a href="Terms.html#TYPEformula">Terms.formula</a> * <a href="Terms.html#TYPEformula">Terms.formula</a>) list -><br>       Defs.quant_ops * <a href="Terms.html#TYPEformula">Terms.formula</a> * <a href="Invariants.html#TYPEchi_subst">chi_subst</a></code></pre></body></html>
