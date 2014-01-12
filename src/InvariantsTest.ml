@@ -1538,53 +1538,6 @@ let rec link = function
         [1,"∃n, a. δ = ((Tree (a, n), Tree (a, n)) → Tree (a, n + 1))"];
     );
 
-  "binomial heap--ins_tree" >::
-    (fun () ->
-       todo "requires `min` and `max`";
-       (* [Heap (a, i, j)] is a list of trees of increasing rank,
-          starting with rank [i] and finishing with rank [j-1] -- for
-          "technical reasons" the singleton heap at the end of
-          [Heap (a, i, j)] is [Heap (a, j-1, j)] and the empty heap is
-          [Heap (a, j, j)]. *)
-       test_case "binomial heap--ins_tree"
-"newtype Tree : type * num
-newtype Forest : type * num
-newtype Heap : type * num * num
-newtype Order : num * num
-newcons Le : ∀i, j [i≤j+1]. Order (i, j)
-newcons Gt : ∀i, j [j≤i+1]. Order (i, j)
-newcons Eq : ∀i. Order (i, i)
-
-newcons Node : ∀a, k [0≤k]. Num k * a * Forest (a, k) ⟶ Tree (a, k)
-newcons TCons :
-  ∀a, n [0≤n]. Tree (a, n) * Forest (a, n) ⟶ Forest (a, n+1)
-newcons TNil : ∀a. Forest (a, 0)
-newcons HCons :
-  ∀a, k, m, n [0≤k ∧ k+1≤m ∧ m≤n].
-    Tree (a, k) * Heap (a, m, n) ⟶ Heap (a, k, n)
-newcons HNil : ∀a, n. Heap (a, n, n)
-
-external compare : ∀i, j. Num i → Num j → Order (i, j) = \"compare\"
-external leq : ∀a. a → a → Bool = \"(<=)\"
-external incr : ∀i. Num i → Num (i+1) = \"(+) 1\"
-
-external rank : ∀a, n. Tree (a, n) → Num n = \"rank\"
-external link : ∀a, n. (Tree (a, n), Tree (a, n)) → Tree (a, n+1) = \"link\"
-
-let rec ins_tree = fun t ->
-  efunction
-  | HNil -> HCons (t, HNil)
-  | HCons (t', ts') as ts ->
-    ematch compare (rank t) (rank t') with
-    | Le -> HCons (t, ts)
-    | Eq -> ins_tree (link (t, t')) ts'
-    | Gt ->
-      let rts = ins_tree t ts' in
-      HCons (t', rts)
-"
-        [1,""];
-    );
-
 ]
 
 

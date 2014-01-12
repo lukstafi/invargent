@@ -114,10 +114,10 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "mutual_recursion_eval" ());
-      "binomial_heap" >::
+      "avl_tree" >::
         (fun () ->
            todo "requires `min` and `max`";
-           test_case "binomial_heap" ());
+           test_case "avl_tree" ());
       "simple eval-annot" >::
         (fun () ->
            skip_if !debug "debug";
