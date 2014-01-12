@@ -66,7 +66,7 @@ let sum_w cmp (vars1, cst1, loc1) (vars2, cst2, loc2) =
 let diff cmp w1 w2 = sum_w cmp w1 (mult !/(-1) w2)
 
 let zero_p (vars, cst, _) = vars = [] && cst =/ !/0
-let taut iseq (vars, cst, _) =
+let taut_w iseq (vars, cst, _) =
   vars = [] && ((iseq && cst =/ !/0) || (not iseq && cst <=/ !/0))
 
 let equal_w cmp w1 w2 = zero_p (diff cmp w1 w2)
@@ -135,7 +135,7 @@ let pr_ineqn ppf ineqn =
   pr_sep_list "," pr_ineq ppf ineqn
 let pr_eqnineqn ppf (eqn, ineqn) =
   Format.fprintf ppf "%a@ ∧@ %a" pr_eqn eqn pr_ineqn ineqn
-let pr_eqineq_br ppf ((d_eqn, d_ineqn, _), (c_eqn, c_ineqn, _)) =
+let pr_eqineq_br ppf ((d_eqn, d_ineqn), (c_eqn, c_ineqn, _)) =
     Format.fprintf ppf "@[<2>%a,@ %a@ ⟹@ %a,@ %a@]"
     pr_eqn d_eqn pr_ineqn d_ineqn
     pr_eqn c_eqn pr_ineqn c_ineqn
@@ -276,8 +276,8 @@ let expand_opti ((_,_,lc1) as w1, (_,_,lc2 as w2)) =
 let expand_subst eqs =
   List.map (fun (v, (_,_,loc as w)) -> v, (expand_w w, loc)) eqs    
 
-let expand_opti ((_,_,loc as w1), w2) =
-  Opti (expand_w w1, expand_w w2, loc)
+let expand_opti ((_,_,lc1 as w1), (_,_,lc2 as w2)) =
+  Opti (expand_w w1, expand_w w2, loc_union lc1 lc2)
 
 let ans_to_num_formula (eqs, ineqs, optis) =
   List.map (expand_atom true) (unsubst eqs)
@@ -303,6 +303,13 @@ let eqineq_loc_union (eqn, ineqn) =
     (List.map (fun (_,_,lc) -> lc) (eqn @ ineqn))
 
 let un_ans (eqs, ineqs) = unsubst eqs, unsolve ineqs
+
+(* TODO: make wider use of [clean] pruning. *)
+let clean_ws preserve iseq eqs = List.filter
+    (fun (vars,_,_ as w) ->
+       List.for_all (fun (v,_) -> VarSet.mem v preserve) vars &&
+       not (taut_w iseq w))
+    eqs
 
 (* Assumption: [v] is downstream of all [vars] *)
 (* TODO: understand why the equivalent of [Terms.quant_viol] utterly
@@ -881,9 +888,13 @@ end
 module JCA = Joint.JointAbduction (NumAbd)
 
 (* Simultaneous case split on several opti disjunctions. *)
-let choices optis = product
-    (List.map
-       (fun (w1,w2) -> [w1;w2]) optis)
+let choices optis =
+  let res = product
+      (List.map
+         (fun (w1,w2) -> [w1;w2]) optis) in
+  (*[* Format.printf "NumS.choices: optis %d cases@\n%!"
+    (List.length res); *]*)
+  res
 
 (* FIXME: eliminate optis from premise, but first try simplifying
    them with both premise and conclusion of a branch. *)
@@ -1022,8 +1033,6 @@ let disjelim q ~preserve brs =
      work is done twice, for the benefit of less redundant [faces]. *)
   let polytopes = concat_map2
       (fun (eqs, ineqs, optis) esb ->
-         (* FIXME: the [esb] variables should be already eliminated,
-            check and if so remove the substitution. *)
          List.map
            (fun opti_eqs ->
               let eqs, _, _ =
@@ -1041,18 +1050,23 @@ let disjelim q ~preserve brs =
            (fun optis -> esb, List.map (fun w-> Some (Left w)) optis @ br)
            optis)
       brs elim_eqs in
+  (* Aggressive pruning: drop faces with "unwanted" variables. *)
   let faces = List.map
     (fun (esb, br) ->
       concat_map
         (function
-          | Some (Right w) -> [subst_w cmp esb w]
+          | Some (Right w) ->
+            clean_ws common false [subst_w cmp esb w]
           | Some (Left w) ->
-            let w = subst_w cmp esb w in [w; mult !/(-1) w]
+            let w = subst_w cmp esb w in
+            clean_ws common false [w; mult !/(-1) w]
           | None -> [])
         br)
     faces in
   (*[* Format.printf "NumS.disjelim: faces=@\n%a@\n%!"
     (pr_line_list "| " pr_ineqn) faces; *]*)
+  (* Check if a polytope face is also a face of resulting convex hull
+     -- its outside does not contain any piece of any polytope. *)
   let check face =
     let ineqn = [mult !/(-1) face] in
     List.for_all
@@ -1103,6 +1117,7 @@ let disjelim q ~preserve brs =
     pr_ineqn result; *]*)
   let rec idemp eqn ineqn = function
     | e1::(e2::_ as tl) when nonq_cmp_w e1 e2 = 0 -> idemp eqn ineqn tl
+    (* FIXME: shouldn't it be [equal_w], i.e. checking a diff? *)
     | e::tl when List.exists (fun w -> zero_p (sum_w cmp e w)) tl ->
       idemp (e::eqn) ineqn
         (List.filter (fun w -> not (zero_p (sum_w cmp e w))) tl)
@@ -1140,9 +1155,12 @@ let disjelim q ~preserve brs =
   (* Generating opti atoms. *)
   let brs_eqs = List.map
       (fun (eqs, _) ->
+         (* FIXME: need to add transitive closure, right? *)
          let eqn = eqn_of_eqs eqs in
          eqn @ List.map (mult !/(-1)) eqn)
       polytopes in
+  (*[* Format.printf "NumS.disjelim: brs_eqs=@\n%a@\n%!"
+    (pr_line_list "| " pr_eqn) brs_eqs; *]*)  
   let opt_cands = map_some
       (fun w ->
          let inds = mapi_some
@@ -1152,6 +1170,12 @@ let disjelim q ~preserve brs =
          if inds=[] then None
          else Some (w, ints_of_list inds))
       ineqn in
+  (*[* let pr_opt_cand ppf (w, inds) =
+    Format.fprintf ppf "%a:@ %s" pr_w w
+      (String.concat "," (List.map string_of_int
+                            (Ints.elements inds))) in
+  Format.printf "NumS.disjelim: opt_cands=@\n%a@\n%!"
+    (pr_line_list "| " pr_opt_cand) opt_cands; *]*)  
   let allbrs =
     ints_of_list (List.mapi (fun i _ -> i) brs_eqs) in
   let optis = map_some
@@ -1159,6 +1183,8 @@ let disjelim q ~preserve brs =
       if Ints.is_empty (Ints.diff allbrs (Ints.union inds1 inds2))
       then Some (w1, w2) else None)
     (triangle opt_cands) in
+  (*[* Format.printf "NumS.disjelim: optis=@\n%a@\n%!"
+    pr_optis optis; *]*)  
   [],
   List.map expand_opti optis @
   List.map (expand_atom true) (eqn @ redundant_eqn)
@@ -1193,46 +1219,6 @@ let simplify q elimvs cnj =
   (*[* Format.printf "NumS.simplify:@\nres=%a@\n%!" pr_formula res; *]*)
   VarSet.elements vs, res
 
-(*
-let rec cleanup_typ t =
-  let rec flat (vars, cst as acc) = function
-    | Nadd sum -> List.fold_left flat acc sum
-    | NCst i -> vars, cst + i
-    | (TVar _ | TCons (_, [])) as t -> t::vars, cst
-    | TCons (n, ts) -> TCons (n, List.map cleanup_typ ts)::vars, cst
-    | Fun (t1, t2) -> Fun (cleanup_typ t1, cleanup_typ t2)::vars, cst in
-  match flat ([], 0) t with
-  | [], i -> NCst i
-  | [tv], 0 -> tv
-  | tvs, i -> Nadd (NCst i::tvs)
-   
-let cleanup_formula = map_in_formula cleanup_typ
-*)
-
-(*
-let equivalent q cnj1 cnj2 =
-  (*[* Format.printf "NumS.equivalent:@ cnj1=@ %a@ cnj2=@ %a@\n%!"
-    pr_formula cnj1 pr_formula cnj2; *]*)
-  let cmp_v = make_cmp VarSet.empty cmp_v in
-  let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
-  let cmp_w (vars1,_,_) (vars2,_,_) =
-    match vars1, vars2 with
-    | [], [] -> 0
-    | _, [] -> -1
-    | [], _ -> 1
-    | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
-  let cmp_vw (v1, w1) (v2, w2) =
-    let c = compare v1 v2 in
-    if c=0 then cmp_w w1 w2 else c in
-  let eqs1, (ineqs1, implicits1) =
-    solve ~cnj:cnj1 cmp cmp_w uni_v in
-  let eqs1, _ = solve ~eqs:eqs1 ~eqn:implicits1 cmp cmp_w uni_v in
-  let eqs2, (ineqs2, implicits2) =
-    solve ~cnj:cnj2 cmp cmp_w uni_v in
-  let eqs2, _ = solve ~eqs:eqs2 ~eqn:implicits2 cmp cmp_w uni_v in
-  let eqs1 = List.map (fun (v,w) -> v, unloc w) eqs1
-  and eqs2 = List.map (fun (v,w) -> v, unloc w) eqs2 in
-*) (* and now what... *)
 
 let converge q cnj1 cnj2 =
   (*[* Format.printf "NumS.converge:@\ncnj1=@ %a@\ncnj2=@ %a@\n%!"

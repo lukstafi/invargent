@@ -1168,12 +1168,11 @@
   </eqnarray*>
 
   In particular, <math|opti<around*|(|v,w|)>\<equiv\>max<around*|(|v,w|)><wide|=|\<dot\>>0>.
-  Not to bloat the generated formulas with either un-intuitive or trivial
-  <em|opti> facts, we restrict what <em|opti> atoms can appear in solved form
-  formulas. We call an <em|opti> atom <em|directed> when there is a variable
-  <math|n> that appears in <math|v> and <math|w> with the same sign. Only
-  directed <em|opti> atoms are considered to be in solved form. Note that a
-  formula with an <em|opti> atom might not have an equivalent solved form.
+  We call an <em|opti> atom <em|directed> when there is a variable <math|n>
+  that appears in <math|v> and <math|w> with the same sign. In the future, if
+  the generated formulas are bloated with either un-intuitive or trivial
+  <em|opti> facts, we can restrict generation to only introduce directed
+  <em|opti> atoms.
 
   We support <em|min> and <em|max> in concrete syntax and when possible, use
   <em|opti> facts to derive substitutions of variables by <em|min> or
@@ -1184,9 +1183,13 @@
   <math|k<wide|=|\<dot\>>min<around*|(|v,w|)>>, i.e.
   <math|opti<around*|(|k-v,k-w|)>>, conjoined with the atom in which
   <math|min<around*|(|k,v,w|)>> appeared. A fresh variable is generated for
-  <math|k> during parsing, and this additional argument is ignored during
-  non-debug printing. Not to pollute the syntax with a new keyword, we use
-  concrete syntax <verbatim|min\|max(m,n)> for <math|opti<around*|(|m,n|)>>.
+  <math|k> during parsing, and <math|min<around*|(|k,v,w|)>>, resp.
+  <math|max<around*|(|k,v,w|)>> is printed using
+  <verbatim|k=min(<math|\<ldots\>>,<math|\<ldots\>>)>, resp.
+  <verbatim|k=max(<math|\<ldots\>>,<math|\<ldots\>>)> -- intuitive, although
+  at first sight confusing, syntax. Not to pollute the syntax with a new
+  keyword, we use concrete syntax <verbatim|min\|max(m,n)> for
+  <math|opti<around*|(|m,n|)>>.
 
   If need arises, in a future version, we can extend <em|opti> to a larger
   arity <math|N>.
@@ -1209,9 +1212,9 @@
 
   <subsection|Abduction>
 
-  We eliminate <em|opti> in premises by expanding the definition -- ignoring
-  the <math|\<varphi\>> restriction -- and converting the branch into two
-  branches, i.e. <math|D\<wedge\><around*|(|v<wide|=|\<dot\>>0\<vee\>w<wide|=|\<dot\>>0|)>\<Rightarrow\>C>
+  We eliminate <em|opti> in premises by expanding the definition and
+  converting the branch into two branches, i.e.
+  <math|D\<wedge\><around*|(|v<wide|=|\<dot\>>0\<vee\>w<wide|=|\<dot\>>0|)>\<Rightarrow\>C>
   into <math|<around*|(|D\<wedge\>v<wide|=|\<dot\>>0\<Rightarrow\>C|)>\<wedge\><around*|(|D\<wedge\>w<wide|=|\<dot\>>0\<Rightarrow\>C|)>>.
   This is one form of <em|case splitting>: we consider cases
   <math|v<wide|=|\<dot\>>0> and <math|w<wide|=|\<dot\>>0> separately. We do
@@ -1976,10 +1979,6 @@
       OCaml/Haskell Source and Interface Code>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-26><vspace|0.5fn>
-
-      <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
-      <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-27><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>
