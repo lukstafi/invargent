@@ -80,6 +80,14 @@ let map_some f l =
   in
   List.rev (maps_f [] l)
 
+let mapi_some f l =
+  let rec maps_f accu i = function
+    | [] -> accu
+    | a::l -> maps_f (match f i a with None -> accu
+	| Some r -> r::accu) (i+1) l
+  in
+  List.rev (maps_f [] 0 l)
+
 let map_some_append f l postfix =
   let rec maps_f = function
     | [] -> postfix
@@ -97,6 +105,10 @@ let map_some2 f l1 l2 =
     | _, _ -> invalid_arg "Aux.map_some2"
   in
   List.rev (maps_f [] (l1, l2))
+
+let list_some = function
+  | Some a -> [a]
+  | None -> []
 
 let unsome = function None -> invalid_arg "Aux.unsome" | Some e -> e
 
