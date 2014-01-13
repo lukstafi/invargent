@@ -1169,10 +1169,9 @@
 
   In particular, <math|opti<around*|(|v,w|)>\<equiv\>max<around*|(|v,w|)><wide|=|\<dot\>>0>.
   We call an <em|opti> atom <em|directed> when there is a variable <math|n>
-  that appears in <math|v> and <math|w> with the same sign. In the future, if
-  the generated formulas are bloated with either un-intuitive or trivial
-  <em|opti> facts, we can restrict generation to only introduce directed
-  <em|opti> atoms.
+  that appears in <math|v> and <math|w> with the same sign. We do not
+  prohibit undirected <em|opti> atoms, but we do not introduce them, to avoid
+  bloat.
 
   We support <em|min> and <em|max> in concrete syntax and when possible, use
   <em|opti> facts to derive substitutions of variables by <em|min> or
@@ -1248,7 +1247,10 @@
   find all minimal covers of size 2 (or <math|N>), i.e. subsets of faces
   (pairs, resp. subsets of size <math|N>) such that in each disjunct, either
   one or the other linear combination appears as an equation. We only keep
-  subsets whose faces share a same-sign variable.
+  subsets whose faces share a same-sign variable. For the purposes of
+  detecting <em|opti> relations, we need to perform transitive closure of the
+  extended convex hull equations and inequalities, because the redundant
+  inequalities might be required to find a cover.
 
   <section|Solving for Predicate Variables><label|MainAlgo>
 

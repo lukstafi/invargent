@@ -246,7 +246,7 @@ let expand_w (vars, cst, loc) =
   | [t] -> t
   | ts -> Add ts
 
-let expand_sides (vars, cst, loc) =
+let expand_sides (vars, cst, _) =
   let left_vars, right_vars = partition_map
       (fun (v,c) ->
          let j, k = frac_of_num c in
@@ -265,6 +265,20 @@ let expand_sides (vars, cst, loc) =
     | [t] -> t
     | ts -> Add ts in
   pack left_cst left_vars, pack right_cst right_vars
+
+let unexpand_sides cmp ((lhs, rhs), lc) =
+  let unlin = function
+    | Lin (i, j, v) -> v, !/i // !/j
+    | _ -> assert false in
+  let unpack = function
+    | Cst (i, j) -> [], !/i // !/j, lc
+    | Lin (i, j, v) -> [v, !/i // !/j], !/0, lc
+    | Min _ | Max _ -> assert false
+    | Add ts ->
+      match List.rev ts with
+      | Cst (i, j) :: vars -> List.map unlin vars, !/i // !/j, lc
+      | vars -> List.map unlin vars, !/0, lc in
+  diff cmp (unpack lhs) (unpack rhs)
 
 let expand_atom equ (_,_,loc as w) =
   let left, right = expand_sides w in
@@ -915,6 +929,8 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
       (fun (nonrec, prem, concl) ->
          let d_eqn, d_ineqn, d_optis = split_flatten cmp prem in
          (* We normalize to reduce the number of opti disjunctions. *)
+         (* FIXME: new equations will be introduced for successful
+            simplification! *)
          let _, _, d_optis = solve cmp cmp_w q.uni_v
              ~eqn:d_eqn ~ineqn:d_ineqn ~optis:d_optis in
          let concl = split_flatten cmp concl in
@@ -1155,23 +1171,39 @@ let disjelim q ~preserve brs =
   (* Generating opti atoms. *)
   let brs_eqs = List.map
       (fun (eqs, _) ->
-         (* FIXME: need to add transitive closure, right? *)
          let eqn = eqn_of_eqs eqs in
-         eqn @ List.map (mult !/(-1)) eqn)
+         let eqn = eqn @ List.map (mult !/(-1)) eqn in
+         let eqn = List.map
+             (fun (_,_,lc as w) ->
+                let lhs, rhs = expand_sides w in lhs, rhs, lc) eqn in
+         Joint.transitive_cl eqn)
       polytopes in
-  (*[* Format.printf "NumS.disjelim: brs_eqs=@\n%a@\n%!"
-    (pr_line_list "| " pr_eqn) brs_eqs; *]*)  
+  (*[* let pr_hasheqs ppf h =
+    let eqs = Hashtbl.fold
+        (fun (lhs,rhs) lc eqs -> Eq (lhs,rhs,lc)::eqs) h [] in
+    pr_formula ppf eqs in
+  Format.printf "NumS.disjelim: brs_eqs=@\n%a@\n%!"
+    (pr_line_list "| " pr_hasheqs) brs_eqs; *]*)  
+  (* Transitive closure of resulting equations and inequalities. *)
+  let result = List.map
+      (fun (_,_,lc as w) ->
+         let (lhs, rhs as w_key) = expand_sides w in
+         lhs, rhs, lc)
+      result in
+  let result = Joint.transitive_cl result in
+  let result = Hashtbl.fold
+      (fun w_key loc cnj -> (w_key, loc)::cnj) result [] in
   let opt_cands = map_some
-      (fun w ->
+      (fun ((w_lhs, w_rhs as w_key), w_lc as w) ->
          let inds = mapi_some
              (fun i eqs ->
-                if List.exists (equal_w cmp w) eqs then Some i else None)
+                if Hashtbl.mem eqs w_key then Some i else None)
              brs_eqs in
          if inds=[] then None
          else Some (w, ints_of_list inds))
-      ineqn in
-  (*[* let pr_opt_cand ppf (w, inds) =
-    Format.fprintf ppf "%a:@ %s" pr_w w
+      result in
+  (*[* let pr_opt_cand ppf (((w_lhs, w_rhs), w_lc), inds) =
+    Format.fprintf ppf "%a:@ %s" pr_atom (Eq (w_lhs, w_rhs, w_lc))
       (String.concat "," (List.map string_of_int
                             (Ints.elements inds))) in
   Format.printf "NumS.disjelim: opt_cands=@\n%a@\n%!"
@@ -1183,6 +1215,14 @@ let disjelim q ~preserve brs =
       if Ints.is_empty (Ints.diff allbrs (Ints.union inds1 inds2))
       then Some (w1, w2) else None)
     (triangle opt_cands) in
+  (* TODO: redundant conversion, remove [unexpand_sides] and
+     [expand_opti] and implement [is_directed]. *)
+  let optis = List.map
+      (fun (w1, w2) -> unexpand_sides cmp w1, unexpand_sides cmp w2)
+      optis in
+  let optis =
+    List.map (fun (_,_,w1, w2) -> w1, w2)
+      (map_some direct_opti optis) in
   (*[* Format.printf "NumS.disjelim: optis=@\n%a@\n%!"
     pr_optis optis; *]*)  
   [],
