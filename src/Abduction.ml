@@ -835,6 +835,3 @@ let abd q ~bvs ?(iter_no=2) ~discard brs =
   let ans_typ = to_formula ans_typ in
   cand_bvs, alien_eqs,
   (nvs @ tvs, ans_typ @ NumS.formula_of_sort ans_num)
-
-
-

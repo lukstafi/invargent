@@ -55,6 +55,12 @@ val simplify :
   Defs.VarSet.t -> NumDefs.formula -> 
   Defs.var_name list * NumDefs.formula
 
+(** Prune atoms implied by other atoms -- for efficiency, only single
+    other atoms, i.e. "atom-on-atom", are considered. Prefer other
+    atoms over opti atoms. *)
+val prune_redundant :
+  Defs.quant_ops -> NumDefs.formula -> NumDefs.formula
+
 (** Intersect atoms of the formulas, but only after generating
     consequences via Fourier elimination and turning equations into
     pairs of inequalities. *)

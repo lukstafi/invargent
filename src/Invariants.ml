@@ -493,7 +493,7 @@ let simplify q_ops (vs, cnj) =
     pr_vars vs pr_subst ty_sb pr_subst num_sb pr_formula ans; *]*)
   VarSet.elements vs, ans
 
-(* TODO: rather ugly, rewrite or provide a medium-level description. *)
+(* TODO: ugly, rewrite or provide a medium-level description. *)
 let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
   (*[* Format.printf
     "converge: check_only=%b@ vs1=%a@ vs2=%a@\ncnj1=%a@\ncnj2=%a\n%!"
@@ -610,7 +610,7 @@ let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
          with Not_found -> v)
       vs2 in
   let c_num =
-    if check_only then c2_num
+    if check_only then NumS.prune_redundant q_ops c2_num
     else NumS.converge q_ops c1_num c2_num in
   (*[* Format.printf
     "converge: check_only=%b vs2=%a@\nc2_ty=%a@\nc2_num=%a@\nc_num=%a\n%!"
@@ -813,8 +813,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
         let bvs = bparams iter_no in    (* for [disjelim] *)
         let g_rol = List.map
             (fun (i,_) ->
-               (*[* Format.printf "solve: approaching disjelim for %d@\n%!"
-                 i; *]*)
+               (*[* Format.printf
+                 "solve: iter_no=%d approaching disjelim for %d@\n%!"
+                 iter_no i; *]*)
                try
                  let cnjs = List.assoc i g_rol in
                  let preserve = VarSet.add delta (dsj_preserve i) in
@@ -822,16 +823,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
                    (* FIXME *)
                    DisjElim.disjelim q_ops ~bvs ~preserve
                      ~do_num:(disj_step.(1) <= iter_no) cnjs in
-                 let target = delta::g_vs in
-                 (*[* Format.printf "solve-3: pre-filter g_ans=%a@\n%!"
+                 (*[* Format.printf "solve-3: disjelim g_ans=%a@\n%!"
                    pr_formula g_ans; *]*)
-                 let g_ans = List.filter
-                     (fun c ->
-                        let cvs = fvs_atom c in
-                        List.exists (flip VarSet.mem cvs) target)
-                     g_ans in
-                 (*[* Format.printf "solve-3: target=%a@ g_ans=%a@\n%!"
-                   pr_vars (vars_of_list target) pr_formula g_ans; *]*)
                  (* FIXME *) 
                  let g_ans =
                    if iter_no < disj_step.(2)

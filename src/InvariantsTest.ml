@@ -1045,7 +1045,7 @@ let rec map =
     | LCons (x, xs) ->
       let ys = map xs in
       LCons (f x, ys)"
-        [2,"∃n. δ = (List n → ∃1:.List n)"];
+        [2,"∃n. δ = (List n → ∃1:[0 ≤ n].List n)"];
     );
 
   "map not existential poly" >::
@@ -1061,7 +1061,7 @@ let rec map = fun f ->
     | LCons (x, xs) ->
       let ys = map f xs in
       LCons (f x, ys)"
-        [2,"∃n, a, b. δ = ((a → b) → List (a, n) → ∃1:.List (b, n))"];
+        [2,"∃n, a, b. δ = ((a → b) → List (a, n) → ∃1:[0 ≤ n].List (b, n))"];
     );
 
   "map not existential instance" >::
@@ -1081,7 +1081,7 @@ let rec map =
     | LCons (x, xs) ->
       let ys = map xs in
       LCons (f x, ys)"
-        [2,"∃n. δ = (List (Foo, n) → ∃1:.List (Bar, n))"];
+        [2,"∃n. δ = (List (Foo, n) → ∃1:[0 ≤ n].List (Bar, n))"];
     );
 
   "filter mono" >::
@@ -1103,7 +1103,7 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
-        [2,"∃n. δ = (List n → ∃2:k[0 ≤ n ∧ 0 ≤ k ∧ k ≤ n].List k)"];
+        [2,"∃n. δ = (List n → ∃2:k[k ≤ n ∧ 0 ≤ k ∧ 0 ≤ n].List k)"];
 
     );
 
@@ -1129,7 +1129,7 @@ let rec filter =
           filter xs"
         [2,"∃n.
   δ =
-    (List (Bar, n) → ∃2:k[0 ≤ n ∧ 0 ≤ k ∧ k ≤ n].List (Bar, k))"];
+    (List (Bar, n) → ∃2:k[k ≤ n ∧ 0 ≤ k ∧ 0 ≤ n].List (Bar, k))"];
 
     );
 
@@ -1152,8 +1152,8 @@ let rec filter = fun f ->
           filter f xs"
         [2,"∃n, a.
   δ =
-    ((a → Bool) → List (a, n) → ∃2:k[0 ≤ n ∧ 0 ≤ k ∧
-       k ≤ n].List (a, k))"];
+    ((a → Bool) → List (a, n) → ∃2:k[k ≤ n ∧ 0 ≤ k ∧
+       0 ≤ n].List (a, k))"];
 
     );
 
@@ -1176,8 +1176,8 @@ let rec filter = fun f g ->
           filter f g xs"
         [2,"∃n, a, b.
   δ =
-    ((a → Bool) → (a → b) → List (a, n) → ∃2:k[0 ≤ n ∧
-       0 ≤ k ∧ k ≤ n].List (b, k))"];
+    ((a → Bool) → (a → b) → List (a, n) → ∃2:k[k ≤ n ∧
+       0 ≤ k ∧ 0 ≤ n].List (b, k))"];
 
     );
 
@@ -1213,8 +1213,8 @@ let rec ub = efunction
           POne r)"
         [2,"∃n, k.
   δ =
-    (Binary k → Binary n → ∃4:i[0 ≤ k ∧ n ≤ i ∧
-       i ≤ n + k].Binary i)"]
+    (Binary k → Binary n → ∃4:i[i ≤ n + k ∧ n ≤ i ∧
+       0 ≤ k].Binary i)"]
     );
 
   "binary upper bound expanded" >::
@@ -1252,8 +1252,8 @@ let rec ub = efunction
           POne r)"
         [2,"∃n, k.
   δ =
-    (Binary k → Binary n → ∃4:i[0 ≤ n ∧ 0 ≤ k ∧ n ≤ i ∧
-       k ≤ i ∧ i ≤ n + k].Binary i)"]
+    (Binary k → Binary n → ∃4:i[i ≤ n + k ∧ k ≤ i ∧ n ≤ i ∧
+       0 ≤ k ∧ 0 ≤ n].Binary i)"]
     );
 
   "binary upper bound" >::
@@ -1557,8 +1557,8 @@ let rec zip =
 (* TODO: actually, needs cleanup, but is correct *)
         [2,"∃n, k.
   δ =
-    ((Unary n, Unary k) → ∃1:i[0 ≤ i ∧ 0 ≤ n ∧ 0 ≤ k ∧
-       i ≤ n ∧ i ≤ k ∧ min|max (-1 n + i, -1 k + i)].Unary i)"]
+    ((Unary n, Unary k) → ∃1:i[min|max (-1 n + i, -1 k + i) ∧
+       0 ≤ i ∧ 0 ≤ k ∧ 0 ≤ n].Unary i)"]
     );
 
   "list zip prefix expanded" >::
@@ -1580,14 +1580,13 @@ let rec zip =
 (* TODO: actually, needs cleanup, but is correct *)
         [2,"∃n, k, a, b.
   δ =
-    ((List (a, n), List (b, k)) → ∃1:i[0 ≤ i ∧ 0 ≤ n ∧
-       0 ≤ k ∧ i ≤ n ∧ i ≤ k ∧
-       min|max (-1 n + i, -1 k + i)].List ((a, b), i))"]
+    ((List (a, n), List (b, k)) → ∃1:i[min|max (-1 n + i, -1 k + i) ∧
+       0 ≤ i ∧ 0 ≤ k ∧ 0 ≤ n].List ((a, b), i))"]
     );
 
   "unary maximum expanded" >::
     (fun () ->
-       skip_if !debug "debug";
+       (* skip_if !debug "debug"; *)
        test_case "unary minimum expanded"
 "newtype Unary : num
 newcons UNil : Unary 0
@@ -1604,8 +1603,9 @@ let rec map2 =
 (* TODO: actually, needs cleanup, but is correct *)
         [2,"∃n, k.
   δ =
-    ((Unary n, Unary k) → ∃1:i[0 ≤ i ∧ 0 ≤ n ∧ 0 ≤ k ∧
-       i ≤ n ∧ i ≤ k ∧ min|max (n - i, k - i)].Unary i)"]
+    ((Unary n, Unary k) → ∃1:i[min|max (n + -1 i, k + -1 i) ∧
+       i ≤ n + k ∧ 0 ≤ i ∧ 0 ≤ n + k ∧ 0 ≤ k ∧
+       0 ≤ n].Unary i)"]
     );
 
   "list map2 with postfix expanded" >::

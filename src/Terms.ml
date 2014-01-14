@@ -1158,23 +1158,13 @@ let quant_viol q bvs pms v t =
     (VarSet.elements (fvs_typ t)) in
   let uni_vs =
     List.filter q.uni_v (if bv then npvs else v::npvs) in
-  (*[* Format.printf "quant_viol: vrels %!"; *]*)
   let res =
   if not bv then
     uv ||
     List.exists
     (fun v2 ->
-      (*[* Format.printf "%s %s %s; " (var_str v)
-        (var_scope_str (q.cmp_v v v2)) (var_str v2); *]*)
       not (VarSet.mem v2 pms) && q.cmp_v v v2 = Left_of) npvs
   else uni_vs <> [] in
-  (*[* Format.printf
-    "@\nquant_viol: %b; v=%s; uv=%b;@ t=%a;@ bvs=%a;@ pms=%a;@ \
-   uni_vs=%a; npvs=%a@\n%!"
-    res (var_str v) uv (pr_ty false) t
-    pr_vars bvs pr_vars pms pr_vars (vars_of_list pvs)
-    pr_vars (vars_of_list uni_vs) pr_vars (vars_of_list npvs);
-  *]*)
   res  
 
 let registered_notex_vars = Hashtbl.create 32
@@ -1275,13 +1265,13 @@ let unify ?use_quants ?bvs ?pms ?(sb=[]) q cnj =
       | (TCons (f, _) as t1,
                          (TCons (g, _) as t2)) ->
         (*[* Format.printf "unify: mismatch f=%s g=%s@ t1=%a@ t2=%a@\n%!"
-          (cns_str f) (cns_str g) (pr_ty false) t1 (pr_ty false) t2; *]*)
+          (cns_str f) (cns_str g) pr_ty t1 pr_ty t2; *]*)
         raise
           (Contradiction (Type_sort, "Type mismatch",
                           Some (t1, t2), loc))
       | t1, t2 ->
         (*[* Format.printf "unify: mismatch@ t1=%a@ t2=%a@\n%!"
-          (pr_ty false) t1 (pr_ty false) t2; *]*)
+          pr_ty t1 pr_ty t2; *]*)
         raise
           (Contradiction (Type_sort, "Type mismatch",
                           Some (t1, t2), loc)) in
@@ -1400,7 +1390,7 @@ let () = pr_exty :=
       else subst_formula sb phi, subst_typ sb ty in
     (*[* Format.printf
       "@\npr_exty: i=%d ty=%a@ vs=%a@ pvs=%a@ phi=%a@\n%!"
-      i (pr_ty false) ty pr_vars (vars_of_list vs) pr_vars
+      i pr_ty ty pr_vars (vars_of_list vs) pr_vars
        (vars_of_list pvs) pr_formula phi; *]*)
     let evs = VarSet.elements
         (VarSet.diff (vars_of_list vs) (vars_of_list pvs)) in
