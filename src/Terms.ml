@@ -550,7 +550,12 @@ let sep_formulas cnj =
         cnj_typ, cnj_num, a::cnj_so)
     ([], [], []) cnj in
   {cnj_typ; cnj_num; cnj_so}
-  
+
+let to_formula =
+  List.map (fun (v,(t,loc)) -> Eqty (TVar v, t, loc))
+
+let unsep_formulas {cnj_typ; cnj_so; cnj_num} =
+  cnj_so @ to_formula cnj_typ @ List.map (fun a -> A (Num_atom a)) cnj_num
 
 let replace_loc loc phi =
   List.map (replace_loc_atom loc) phi
@@ -1291,9 +1296,6 @@ let unify ?use_quants ?bvs ?pms ?(sb=[]) q cnj =
            | _ -> ())
         | _ -> ()) cnj_so;
   {cnj_typ; cnj_num; cnj_so}
-
-let to_formula =
-  List.map (fun (v,(t,loc)) -> Eqty (TVar v, t, loc))
     
 let subst_of_cnj ?(elim_uni=false) q cnj =
   map_some

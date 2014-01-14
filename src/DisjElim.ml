@@ -216,9 +216,11 @@ let simplify_dsjelim q ~keep ~preserve vs ans =
     ans.at_typ in
   let ty_ans = to_formula ty_ans in
   let num_ans = NumS.transitive_cl ans.at_num in
-  let num_sb, num_ans = NumS.separate_subst q ~keep num_ans in
+  (* FIXME: shouldn't [no_csts] only be used on "initstep"? *)
+  let num_sb, num_ans = NumS.separate_subst q ~no_csts:true ~keep num_ans in
   let num_sb, more_num_ans = List.partition
-    (fun (v,_) -> not (VarSet.mem v preserve) || List.mem v vs)
+      (* FIXME: do not just eliminate potential parameters? *)
+    (fun (v,(t,_)) -> not (VarSet.mem v preserve) || List.mem v vs)
     num_sb in
   let sb = update_sb ~more_sb:num_sb ty_sb in
   let ty_ans =
@@ -226,8 +228,8 @@ let simplify_dsjelim q ~keep ~preserve vs ans =
       (function Eqty (t1, t2, _) when t1 = t2 -> false | _ -> true)
       (subst_formula sb ty_ans) in
   (*[* Format.printf
-    "disjelim-simplify: parts@ ty_sb=%a@ ty_ans=%a@\n%!"
-    pr_subst ty_sb pr_formula ty_ans;  *]*)
+    "disjelim-simplify: parts@ ty_sb=%a@ ty_ans=%a@ num_ans=%a@\n%!"
+    pr_subst ty_sb pr_formula ty_ans NumDefs.pr_formula num_ans;  *]*)
   let vs = List.filter (fun v -> not (List.mem_assoc v ty_sb)) vs in
   vs, to_formula more_num_ans @ NumS.formula_of_sort num_ans @ ty_ans
 
@@ -312,6 +314,10 @@ let initstep_heur q ~preserve cnj =
   let cvs = fvs_formula cnj in
   let cst_eqs = map_some
       (fun (v,c) -> if VarSet.mem v cvs then None else Some c) cst_eqs in
+  let {cnj_typ; cnj_num; cnj_so} = sep_formulas cnj in
+  let cnj = unsep_formulas
+      {cnj_typ; cnj_so;
+       cnj_num = NumS.initstep_heur q ~preserve cnj_num} in
   (*[* Format.printf
     "DisjElim.initstep_heur: preserve=%a@\ninit_cnj=%a@\ncst_eqs=%a@ cnj=%a@\n%!"
     pr_vars preserve pr_formula init_cnj pr_formula cst_eqs pr_formula cnj; *]*)

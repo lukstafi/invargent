@@ -276,6 +276,7 @@ val update_sep :
 (** Separate atoms into their sorts. Warning: ignores type sort atoms
     which are not solved form equations. *)
 val sep_formulas : formula -> sep_formula
+val unsep_formulas : sep_formula -> formula
 val map_in_subst : (typ -> typ) -> subst -> subst
 (** Substitute constants, and generally subterms identical to a term,
     with another term. [loc] is not used. *)

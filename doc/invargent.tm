@@ -1215,7 +1215,9 @@
   converting the branch into two branches, i.e.
   <math|D\<wedge\><around*|(|v<wide|=|\<dot\>>0\<vee\>w<wide|=|\<dot\>>0|)>\<Rightarrow\>C>
   into <math|<around*|(|D\<wedge\>v<wide|=|\<dot\>>0\<Rightarrow\>C|)>\<wedge\><around*|(|D\<wedge\>w<wide|=|\<dot\>>0\<Rightarrow\>C|)>>.
-  This is one form of <em|case splitting>: we consider cases
+  Recall that an <em|opti> atom also implies inequalities
+  <math|v\<leqslant\>\<wedge\>w\<leqslant\>0> assumed to be in <math|D>
+  above. This is one form of <em|case splitting>: we consider cases
   <math|v<wide|=|\<dot\>>0> and <math|w<wide|=|\<dot\>>0> separately. We do
   not eliminate <em|opti> in conclusions. Rather, we consider whether to keep
   or drop it in the answer, like with other candidate atoms. The
@@ -1237,11 +1239,10 @@
   <subsection|Disjunction elimination>
 
   We eliminate <em|opti> atoms prior to finding the extended convex hull of
-  <math|<wide|D<rsub|i>|\<bar\>>> by expanding the definition -- ignoring the
-  <math|\<varphi\>> restriction -- and converting the disjunction
-  <math|\<vee\><rsub|i>D<rsub|i>> to disjunctive normal form. This is another
-  form of case splitting. In addition to finding the extended convex hull, we
-  need to discover <em|opti> relations that are implied by
+  <math|<wide|D<rsub|i>|\<bar\>>> by expanding the definition and converting
+  the disjunction <math|\<vee\><rsub|i>D<rsub|i>> to disjunctive normal form.
+  This is another form of case splitting. In addition to finding the extended
+  convex hull, we need to discover <em|opti> relations that are implied by
   <math|\<vee\><rsub|i>D<rsub|i>>. We select these faces of the convex hull
   which also appear as an equation in some disjuncts. Out of these faces, we
   find all minimal covers of size 2 (or <math|N>), i.e. subsets of faces
@@ -1251,6 +1252,14 @@
   detecting <em|opti> relations, we need to perform transitive closure of the
   extended convex hull equations and inequalities, because the redundant
   inequalities might be required to find a cover.
+
+  We provide an <verbatim|initstep_heur> function for the numerical domain to
+  remove <em|opti> atoms of the form <math|k<wide|=|\<dot\>>min<around*|(|c,v|)>>,
+  <math|k<wide|=|\<dot\>>min<around*|(|v,c|)>>,
+  <math|k<wide|=|\<dot\>>max<around*|(|c,v|)>> or
+  <math|k<wide|=|\<dot\>>min<around*|(|v,c|)>> for a constant <math|c>, while
+  in initial iterations where disjunction elimination is only performed for
+  non-recursive branches.
 
   <section|Solving for Predicate Variables><label|MainAlgo>
 

@@ -1538,6 +1538,112 @@ let rec link = function
         [1,"∃n, a. δ = ((Tree (a, n), Tree (a, n)) → Tree (a, n + 1))"];
     );
 
+  "unary minimum expanded" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "unary minimum expanded"
+"newtype Unary : num
+newcons UNil : Unary 0
+newcons UCons : ∀n [0≤n]. Unary n ⟶ Unary (n+1)
+
+let rec zip =
+  efunction
+    | UNil, UNil -> UNil
+    | UNil, UCons _ -> UNil
+    | UCons _, UNil -> UNil
+    | UCons xs, UCons ys ->
+      let zs = zip (xs, ys) in
+      UCons zs"
+(* TODO: actually, needs cleanup, but is correct *)
+        [2,"∃n, k.
+  δ =
+    ((Unary n, Unary k) → ∃1:i[0 ≤ i ∧ 0 ≤ n ∧ 0 ≤ k ∧
+       i ≤ n ∧ i ≤ k ∧ min|max (-1 n + i, -1 k + i)].Unary i)"]
+    );
+
+  "list zip prefix expanded" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "list zip prefix expanded"
+"newtype List : type * num
+newcons LNil : ∀a. List(a, 0)
+newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+
+let rec zip =
+  efunction
+    | LNil, LNil -> LNil
+    | LNil, LCons (_, _) -> LNil
+    | LCons (_, _), LNil -> LNil
+    | LCons (x, xs), LCons (y, ys) ->
+      let zs = zip (xs, ys) in
+      LCons ((x, y), zs)"
+(* TODO: actually, needs cleanup, but is correct *)
+        [2,"∃n, k, a, b.
+  δ =
+    ((List (a, n), List (b, k)) → ∃1:i[0 ≤ i ∧ 0 ≤ n ∧
+       0 ≤ k ∧ i ≤ n ∧ i ≤ k ∧
+       min|max (-1 n + i, -1 k + i)].List ((a, b), i))"]
+    );
+
+  "unary maximum expanded" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "unary minimum expanded"
+"newtype Unary : num
+newcons UNil : Unary 0
+newcons UCons : ∀n [0≤n]. Unary n ⟶ Unary (n+1)
+
+let rec map2 =
+  efunction
+    | UNil, UNil -> UNil
+    | UNil, (UCons _ as l) -> l
+    | (UCons _ as l), UNil -> l
+    | UCons xs, UCons ys ->
+      let zs = map2 (xs, ys) in
+      UCons zs"
+(* TODO: actually, needs cleanup, but is correct *)
+        [2,"∃n, k.
+  δ =
+    ((Unary n, Unary k) → ∃1:i[0 ≤ i ∧ 0 ≤ n ∧ 0 ≤ k ∧
+       i ≤ n ∧ i ≤ k ∧ min|max (n - i, k - i)].Unary i)"]
+    );
+
+  "list map2 with postfix expanded" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "list map2 with postfix expanded"
+"newtype List : type * num
+newcons LNil : ∀a. List(a, 0)
+newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+
+let rec map2 = fun f ->
+  efunction
+    | LNil, LNil -> LNil
+    | LNil, (LCons (_, _) as l) -> l
+    | (LCons (_, _) as l), LNil -> l
+    | LCons (x, xs), LCons (y, ys) ->
+      let zs = map2 f (xs, ys) in
+      LCons (f x y, zs)"
+(* TODO: actually, needs cleanup, but is correct *)
+        [2,"∃n, k, a, b.
+  δ =
+    ((List (a, n), List (b, k)) → ∃1:i[0 ≤ i ∧ 0 ≤ n ∧
+       0 ≤ k ∧ i ≤ n ∧ i ≤ k ∧
+       min|max (n - i, k - i)].List ((a, b), i))"]
+    );
+
+  "avl_tree--" >::
+    (fun () ->
+       todo "`min` and `max` details";
+       skip_if !debug "debug";
+       (* Here [link] is defined using [let rec], the correct [let]
+          forms are tested from {!InvarGenTTest}. *)
+       test_case "binomial heap--link"
+""
+        [1,"∃n, a. δ = ((Tree (a, n), Tree (a, n)) → Tree (a, n + 1))"];
+    );
+
+
 ]
 
 

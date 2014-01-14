@@ -823,6 +823,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
                    DisjElim.disjelim q_ops ~bvs ~preserve
                      ~do_num:(disj_step.(1) <= iter_no) cnjs in
                  let target = delta::g_vs in
+                 (*[* Format.printf "solve-3: pre-filter g_ans=%a@\n%!"
+                   pr_formula g_ans; *]*)
                  let g_ans = List.filter
                      (fun c ->
                         let cvs = fvs_atom c in

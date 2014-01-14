@@ -73,7 +73,10 @@ val holds :
   Defs.quant_ops -> Defs.VarSet.t ->
   state -> NumDefs.formula -> state
 val separate_subst :
-  Defs.quant_ops -> ?keep:Defs.VarSet.t -> NumDefs.formula ->
+  Defs.quant_ops -> ?no_csts:bool -> ?keep:Defs.VarSet.t -> NumDefs.formula ->
   Terms.subst * NumDefs.formula
+val initstep_heur :
+  Defs.quant_ops -> preserve:Defs.VarSet.t ->
+  NumDefs.formula -> NumDefs.formula
 
 val transitive_cl : NumDefs.formula -> NumDefs.formula

@@ -372,7 +372,8 @@ let solve_aux ?use_quants ?(strict=false)
          List.map (subst_w cmp eqs') wr)) ineqs in
   let more_eqn, more_ineqn, more_optis = split_flatten cmp cnj in
   let eqn = eqn @ flat2 optis @ more_eqn in
-  let ineqn = ineqn @ more_ineqn in
+  let optis = optis @ more_optis in
+  let ineqn = ineqn @ more_ineqn @ flat2 optis in
   assert (not strict || eqn = []);
   let eqn = if eqs=[] then eqn else List.map (subst_w cmp eqs) eqn in
   let ineqn = if eqs=[] then ineqn else List.map (subst_w cmp eqs) ineqn in
@@ -655,7 +656,6 @@ let trans_w_atom cmp tr = function
   | Ineq_w w -> Ineq_w (sum_w cmp tr w)
   | Opti_w (w1, w2) -> Opti_w (sum_w cmp tr w1, sum_w cmp tr w2)
 
-(* FIXME: [d_optis] will be eliminated prior to entering here. *)
 let abd_simple cmp cmp_w cmp_v uni_v ~bvs ~discard ~validate
     skip (eqs_i, ineqs_i, optis_i)
     ((d_eqn, d_ineqn), (c_eqn, c_ineqn, c_optis)) =
@@ -928,16 +928,18 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
   let brs = concat_map
       (fun (nonrec, prem, concl) ->
          let d_eqn, d_ineqn, d_optis = split_flatten cmp prem in
-         (* We normalize to reduce the number of opti disjunctions. *)
-         (* FIXME: new equations will be introduced for successful
-            simplification! *)
-         let _, _, d_optis = solve cmp cmp_w q.uni_v
+         (* We normalize to reduce the number of opti
+            disjunctions. Also recovers implicit equalities
+            due to optis. *)
+         let _,_,(d_optis,d_opti_eqn) =
+           solve_aux cmp cmp_w q.uni_v
              ~eqn:d_eqn ~ineqn:d_ineqn ~optis:d_optis in
+         let d_ineqn = flat2 d_optis @ d_ineqn in
          let concl = split_flatten cmp concl in
          List.map
            (fun opti_eqs ->
               nonrec,
-              (opti_eqs @ d_eqn, d_ineqn),
+              (d_opti_eqn @ opti_eqs @ d_eqn, d_ineqn),
               concl)
            (choices d_optis))
       brs in
@@ -1049,10 +1051,12 @@ let disjelim q ~preserve brs =
      work is done twice, for the benefit of less redundant [faces]. *)
   let polytopes = concat_map2
       (fun (eqs, ineqs, optis) esb ->
+         let opti_ineqs = flat2 optis in
          List.map
            (fun opti_eqs ->
-              let eqs, _, _ =
-                solve ~eqs ~ineqs ~eqn:opti_eqs cmp cmp_w q.uni_v in
+              let eqs, ineqs, _ =
+                solve ~eqs ~ineqs ~eqn:opti_eqs ~ineqn:opti_ineqs
+                  cmp cmp_w q.uni_v in
               List.map (fun (v,w) -> v, subst_w cmp esb w) eqs,
               subst_ineqs cmp esb ineqs)
            (choices optis))
@@ -1061,10 +1065,15 @@ let disjelim q ~preserve brs =
       (fun br esb ->
          let br, optis = List.split
              (List.map (flatten cmp) br) in
-         let optis = choices (List.concat optis) in
+         let optis = List.concat optis in
+         let opti_ineqs = flat2 optis in
          List.map
-           (fun optis -> esb, List.map (fun w-> Some (Left w)) optis @ br)
-           optis)
+           (fun opti_eqs ->
+              esb,
+              List.map (fun w-> Some (Left w)) opti_eqs @
+                List.map (fun w-> Some (Right w)) opti_ineqs @
+                br)
+           (choices optis))
       brs elim_eqs in
   (* Aggressive pruning: drop faces with "unwanted" variables. *)
   let faces = List.map
@@ -1249,8 +1258,6 @@ let simplify q elimvs cnj =
     List.filter (fun (v,_) -> not (VarSet.mem v elimvs)) eqs in
   (*let ineqs =
     List.filter (fun (v,_) -> not (VarSet.mem v elimvs)) ineqs in*)
-  (* FIXME *)
-  let optis = [] in
   let ans = ans_to_num_formula (eqs, ineqs, optis) in
   let vs = VarSet.inter elimvs (fvs_formula ans) in
   let cmp a1 a2 = compare
@@ -1278,8 +1285,6 @@ let converge q cnj1 cnj2 =
     solve ~cnj:cnj1 cmp cmp_w q.uni_v in
   let eqs2, ineqs2, optis2 =
     solve ~cnj:cnj2 cmp cmp_w q.uni_v in
-  (* FIXME *)
-  let optis1 = [] and optis2 = [] in
   let ans1 = ans_to_num_formula (eqs1, ineqs1, optis1) in
   let ans2 = ans_to_num_formula (eqs2, ineqs2, optis2) in
   let eq2ineq = function
@@ -1291,6 +1296,17 @@ let converge q cnj1 cnj2 =
     pr_formula ans1 pr_formula ans2; *]*)
   (* FIXME: Actually, include transitivity! *)
   formula_inter (cnj1 @ ans1) (cnj2 @ ans2)
+
+
+let initstep_heur q ~preserve cnj =
+  (* Currently, only removes opti atoms k=min(a,b) | k=max(a,b) where
+     a or b is a constant, assuming the atom is directed. *)
+  List.filter
+    (function
+      | Eq _ | Leq _ -> true
+      | Opti (Add (_::_::_), Add (_::_::_), _) -> true
+      | Opti _ -> false)
+    cnj
 
 type state = w_subst * ineqs
 let empty_state = [], []
@@ -1362,7 +1378,7 @@ let subst_formula sb phi =
   | Right_of -> -1
   | Same_quant -> compare v2 v1
  *)
-let separate_subst_aux q ~keep cnj =
+let separate_subst_aux q ~no_csts ~keep cnj =
   let cmp_v v1 v2 =
     let c1 = VarSet.mem v1 keep and c2 = VarSet.mem v2 keep in
     if c1 && c2 then 0
@@ -1380,27 +1396,33 @@ let separate_subst_aux q ~keep cnj =
     solve ~cnj cmp cmp_w q.uni_v in
   (*[* Format.printf "NumS.separate_subst: eq-keys=%a@\n%!"
     pr_vars (vars_of_list (List.map fst eqs)); *]*)
-  (* FIXME *)
   let _, ineqn, optis = split_flatten cmp cnj in
   let ineqn = List.map (subst_w cmp eqs) ineqn in
   let optis = List.map (subst_2w cmp eqs) optis in
   let ineqn = List.filter
     (function [], cst, _ when cst <=/ !/0 -> false | _ -> true)
     ineqn in
-  let sb = expand_subst eqs in
-  (* FIXME *)
+  let sb, more = List.partition
+      (fun (v,(t,_)) ->
+         not (no_csts && match t with Cst _ -> true | _ -> false) &&
+         not (VarSet.mem v keep))
+      (expand_subst eqs) in
   let phi_num = cnj_to_num_formula ([], ineqn, optis) in
-  (*[* Format.printf "NumS.separate_subst:@ sb=%a@ phi=%a@\n%!"
-    pr_num_subst sb pr_formula phi_num; *]*)
-  sb, phi_num
+  (*[* Format.printf "NumS.separate_subst:@ sb=%a@ more=%a@ phi=%a@\n%!"
+    pr_num_subst sb pr_num_subst more pr_formula phi_num; *]*)
+  let more = List.map
+      (fun (v,(t,lc)) -> Eq (Lin (1,1,v), t, lc)) more in
+  sb, more @ phi_num
 
 (* Optimization. TODO: check if worth it. *)
 exception Not_substitution
 
-let separate_num_subst q ~keep cnj =
+let separate_num_subst q ~no_csts ~keep cnj =
   try
     let sb, phi = partition_map
         (function
+          | Eq (Lin _, Cst _, _) as a when no_csts -> Right a
+          | Eq (Cst _, Lin _, _) as a when no_csts -> Right a
           | Eq (Lin (j,k,v1), (Lin (_,_,v2) as t), lc)
             when VarSet.mem v2 keep ->
             (* inverted coefficient *)
@@ -1443,12 +1465,14 @@ let separate_num_subst q ~keep cnj =
                          then raise Not_substitution) t)
       sb;
     sb, subst_num_formula sb phi
-  with Not_substitution -> separate_subst_aux q ~keep cnj
+  with Not_substitution -> separate_subst_aux q ~no_csts ~keep cnj
 
-let separate_subst q ?(keep=VarSet.empty) cnj =
+let separate_subst q ?(no_csts=false) ?(keep=VarSet.empty) cnj =
   (*[* Format.printf "NumS.separate_subst: keep=%a@ cnj=%a@\n%!"
     pr_vars keep pr_formula cnj; *]*)
-  let sb, phi = separate_num_subst q ~keep cnj in
+  let sb, phi = separate_num_subst q ~no_csts ~keep cnj in
+  (*[* Format.printf "NumS.separate_subst: res phi=%a@\n%!"
+    pr_formula phi; *]*)
   List.map (fun (v,(t,lc)) -> v, (Terms.num t, lc)) sb, phi
 
     
@@ -1463,6 +1487,9 @@ let transitive_cl cnj =
       | Leq (t1, t2, loc) -> [t1, t2, loc]
       | _ -> [])
     cnj in
+  let other = map_some
+    (function Eq _ | Leq _ -> None | a -> Some a)
+    cnj in
   let eqs = Joint.transitive_cl eqs in
   let ineqs = Joint.transitive_cl ineqs in
   let cnj = Hashtbl.fold
@@ -1471,4 +1498,4 @@ let transitive_cl cnj =
   let cnj = Hashtbl.fold
       (fun (i,j) lc cnj -> Leq (i, j, lc)::cnj)
       ineqs cnj in
-  cnj
+  other @ cnj
