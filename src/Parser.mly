@@ -183,6 +183,8 @@ num_term:
     { let j,k = $1 in NumDefs.Cst (j,k) }
   | num_coef LIDENT_IJKLMN
     { let j,k = $1 in NumDefs.Lin (j,k,VNam (Num_sort, $2)) }
+  | MINUS LIDENT_IJKLMN
+    { NumDefs.Lin ((-1),1,VNam (Num_sort, $2)) }
   | LIDENT_IJKLMN
     { NumDefs.Lin (1,1,VNam (Num_sort, $1)) }
   | num_term PLUS num_term

@@ -1173,9 +1173,12 @@
   prohibit undirected <em|opti> atoms, but we do not introduce them, to avoid
   bloat.
 
-  We support <em|min> and <em|max> in concrete syntax and when possible, use
-  <em|opti> facts to derive substitutions of variables by <em|min> or
-  <em|max> terms when presenting results to the user. The <em|min> and
+  We support <em|min> and <em|max> as subterms in concrete syntax. However,
+  these subterms are expanded to <em|opti> atoms during processing. We do not
+  recover <em|min> and <em|max> as subterms from <em|opti> atoms, but we
+  print directed <em|opti> atoms using the
+  <math|k<wide|=|\<dot\>>min<around*|(|v,w|)>>, resp.
+  <math|k<wide|=|\<dot\>>max<around*|(|v,w|)>> syntax. The <em|min> and
   <em|max> terms in abstract syntax have three arguments. The additional
   argument is the first argument, and an occurrence of e.g.
   <math|min<around*|(|k,v,w|)>> corresponds to

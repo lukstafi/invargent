@@ -1557,8 +1557,8 @@ let rec zip =
 (* TODO: actually, needs cleanup, but is correct *)
         [2,"∃n, k.
   δ =
-    ((Unary n, Unary k) → ∃1:i[min|max (-1 n + i, -1 k + i) ∧
-       0 ≤ i ∧ 0 ≤ k ∧ 0 ≤ n].Unary i)"]
+    ((Unary n, Unary k) → ∃1:i[i=min (n, k) ∧ 0 ≤ i ∧ 0 ≤ k ∧
+       0 ≤ n].Unary i)"]
     );
 
   "list zip prefix expanded" >::
@@ -1580,8 +1580,8 @@ let rec zip =
 (* TODO: actually, needs cleanup, but is correct *)
         [2,"∃n, k, a, b.
   δ =
-    ((List (a, n), List (b, k)) → ∃1:i[min|max (-1 n + i, -1 k + i) ∧
-       0 ≤ i ∧ 0 ≤ k ∧ 0 ≤ n].List ((a, b), i))"]
+    ((List (a, n), List (b, k)) → ∃1:i[i=min (n, k) ∧ 0 ≤ i ∧
+       0 ≤ k ∧ 0 ≤ n].List ((a, b), i))"]
     );
 
   "unary maximum expanded" >::
@@ -1603,9 +1603,8 @@ let rec map2 =
 (* TODO: actually, needs cleanup, but is correct *)
         [2,"∃n, k.
   δ =
-    ((Unary n, Unary k) → ∃1:i[min|max (n + -1 i, k + -1 i) ∧
-       i ≤ n + k ∧ 0 ≤ i ∧ 0 ≤ n + k ∧ 0 ≤ k ∧
-       0 ≤ n].Unary i)"]
+    ((Unary n, Unary k) → ∃1:i[i=max (n, k) ∧ i ≤ n + k ∧
+       0 ≤ i ∧ 0 ≤ n + k ∧ 0 ≤ k ∧ 0 ≤ n].Unary i)"]
     );
 
   "list map2 with postfix expanded" >::

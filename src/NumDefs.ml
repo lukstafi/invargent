@@ -155,11 +155,37 @@ let rec pr_term ppf = function
   | Cst (m, 1) -> fprintf ppf "%d" m
   | Cst (m, n) -> fprintf ppf "(%d/%d)" m n
   | Lin (1, 1, v) -> fprintf ppf "%s" (var_str v)
+  | Lin (-1, 1, v) -> fprintf ppf "-%s" (var_str v)
   | Lin (m, 1, v) -> fprintf ppf "%d %s" m (var_str v)
   | Lin (m, n, v) -> fprintf ppf "(%d/%d) %s" m n (var_str v)
   | Add cmb -> fprintf ppf "%a" (pr_sep_list " +" pr_term) cmb
   | Min (v, t1, t2) -> fprintf ppf "min(%a, %a)" pr_term t1 pr_term t2
   | Max (v, t1, t2) -> fprintf ppf "max(%a, %a)" pr_term t1 pr_term t2
+
+(* Simplified, i.e. non-normalizing, detection of directed opti atoms. *)
+let direct_opti t1 t2 =
+  let rec flat (vars, (j,k as cst) as acc) = function
+    | Add sum -> List.fold_left flat acc sum
+    | Cst (j2,k2) -> vars, (j2*k+j*k2, k*k2)
+    | Lin (j,k,v) -> (j,k,v)::vars, cst
+    | Min _ | Max _ -> raise Not_found in
+  let unpack (j,k,v) = Lin (j,k,v) in
+  let uncst (j,k) = if j=0 then [] else [Cst (j,k)] in
+  let negate = List.map (fun (j,k,v) -> ~-j,k,v) in
+  try
+    let ts1, cst1 = flat ([], (0,1)) t1
+    and ts2, cst2 = flat ([], (0,1)) t2 in
+    let (j,k,v as i) = List.find (fun e -> List.mem e ts2) ts1 in
+    let vs1, ts1 = List.partition ((=) i) ts1
+    and vs2, ts2 = List.partition ((=) i) ts2 in
+    let ts1 = List.tl vs1 @ ts1 and ts2 = List.tl vs2 @ ts2 in
+    let s = j*k>0 in
+    let ts1, ts2 =
+      if not s then ts1, ts2
+      else negate ts1, negate ts2 in
+    Some (v, s, Add (map_append unpack ts1 (uncst cst1)),
+          Add (map_append unpack ts2 (uncst cst2)))
+  with Not_found -> None
 
 let pr_atom ppf = function
   | Eq (t1, t2, _) ->
@@ -167,7 +193,15 @@ let pr_atom ppf = function
   | Leq (t1, t2, _) ->
     fprintf ppf "@[<2>%a@ ≤@ %a@]" pr_term t1 pr_term t2
   | Opti (t1, t2, _) ->
-    fprintf ppf "@[<2>min|max@ (%a,@ %a)@]" pr_term t1 pr_term t2
+    match direct_opti t1 t2 with
+    | None ->
+      fprintf ppf "@[<2>min|max@ (%a,@ %a)@]" pr_term t1 pr_term t2
+    | Some (v, true, t1, t2) ->
+      fprintf ppf "@[<2>%s=min@ (%a,@ %a)@]"(var_str v)
+        pr_term t1 pr_term t2
+    | Some (v, false, t1, t2) ->
+      fprintf ppf "@[<2>%s=max@ (%a,@ %a)@]"(var_str v)
+        pr_term t1 pr_term t2
 
 let pr_formula ppf atoms =
   pr_sep_list " ∧" pr_atom ppf atoms
