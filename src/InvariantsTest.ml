@@ -1584,9 +1584,9 @@ let rec zip =
        0 ≤ k ∧ 0 ≤ n].List ((a, b), i))"]
     );
 
-  "unary maximum expanded" >::
+  "unary maximum" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "unary minimum expanded"
 "newtype Unary : num
 newcons UNil : Unary 0
@@ -1607,10 +1607,10 @@ let rec map2 =
        0 ≤ i ∧ 0 ≤ n + k ∧ 0 ≤ k ∧ 0 ≤ n].Unary i)"]
     );
 
-  "list map2 with postfix expanded" >::
+  "list map2 with postfix too existential" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case "list map2 with postfix expanded"
+       test_case "list map2 with postfix too existential"
 "newtype List : type * num
 newcons LNil : ∀a. List(a, 0)
 newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
@@ -1624,11 +1624,11 @@ let rec map2 = fun f ->
       let zs = map2 f (xs, ys) in
       LCons (f x y, zs)"
 (* TODO: actually, needs cleanup, but is correct *)
-        [2,"∃n, k, a, b.
+        [2,"∃n, k, a, b, c.
   δ =
-    ((List (a, n), List (b, k)) → ∃1:i[0 ≤ i ∧ 0 ≤ n ∧
-       0 ≤ k ∧ i ≤ n ∧ i ≤ k ∧
-       min|max (n - i, k - i)].List ((a, b), i))"]
+    ((a → b → c) → (List (a, n), List (b, k)) → ∃1:i,
+       a[i=max (n, k) ∧ i ≤ n + k ∧ 0 ≤ i ∧ 0 ≤ n + k ∧
+       0 ≤ k ∧ 0 ≤ n].List (a, i))"]
     );
 
   "avl_tree--" >::

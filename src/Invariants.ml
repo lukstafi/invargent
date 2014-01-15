@@ -493,6 +493,7 @@ let simplify q_ops (vs, cnj) =
     pr_vars vs pr_subst ty_sb pr_subst num_sb pr_formula ans; *]*)
   VarSet.elements vs, ans
 
+(* Rename the new solution to match variables of the old solution. *)
 (* TODO: ugly, rewrite or provide a medium-level description. *)
 let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
   (*[* Format.printf
@@ -1160,11 +1161,17 @@ let solve q_ops new_ex_types exty_res_chi brs =
       let finished2 =
         List.for_all2
           (fun (i,(_,ans2)) (j,(_,ans1)) -> assert (i=j);
+            (*[* Format.printf
+              "solve-finished: comparing ex.2>1 X%d@\nans2=%a@\nans1=%a@\nsubformula=%b@\n%!"
+              i pr_formula ans2 pr_formula ans1 (subformula ans2 ans1); *]*)
             subformula ans2 ans1)
           rol2 rol1 in
       let finished3 =
         List.for_all2
           (fun (i,(_,ans1)) (j,(_,ans2)) -> assert (i=j);
+            (*[* Format.printf
+              "solve-finished: comparing ex.1>2 X%d@\nans2=%a@\nans1=%a@\nsubformula=%b@\n%!"
+              i pr_formula ans2 pr_formula ans1 (subformula ans1 ans2); *]*)
             subformula ans1 ans2)
           rol1 rol2 in
       let finished = finished1 && finished2 && finished3 in
@@ -1193,6 +1200,10 @@ let solve q_ops new_ex_types exty_res_chi brs =
             (fun (i,(_,ans1)) (j,(_,ans2)) ->
                formula_diff ans1 ans2)
             rol1 rol2 in
+        (*[* Format.printf
+          "solve-loop: unfinished!@\nunf1=%a@\nunf2=%a@\nunf3=%a@\n%!"
+          pr_formula unfinished1 pr_formula unfinished2
+          pr_formula unfinished3; *]*)
         let loc = formula_loc
             (unfinished1 @ unfinished2 @ unfinished3) in
         timeout_flag := true;

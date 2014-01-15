@@ -19,9 +19,9 @@ Milestones: [x] - completed, [#] - finishing (75%-95%), [+] - in the middle (25%
 Version 2.0 goals -- version targets may be reassigned:
 - [x] Export to OCaml using built-in or pervasives OCaml types, in particular `bool` instead of `boolean`. (v1.1)
 - [x] Support source code comments preserved in the AST. (v1.1)
-- [#] Factorize to make extending and adding sorts easier. (v1.2)
+- [x] Factorize to make extending and adding sorts easier. (v1.2)
 - [x] Syntax for numeric multiplication by constant. (v1.2)
-- [+] Add (relational forms of) `min` and `max` to the numerical sort -- sorely needed for datastructure invariants. (v1.2)
+- [x] Add (relational forms of) `min` and `max` to the numerical sort. (v1.2)
 - [_] Or-patterns `p1 | p2` introducing disjunctions in premises, either eliminated by disjunction elimination or expanded by implication clause duplication -- depending on user-level option; preserved in exported code. (v1.3)
 - [_] `when` clauses for patterns, that add equation/inequality atoms to premises.
 - [_] Export Haskell code. (v1.3)

@@ -141,6 +141,9 @@ let revert_cst_n_uni q ~bvs ~pms ~dissociate prem ans cand =
         | t, (TVar v, lc) -> v, (t, lc)
         | _ -> assert false)
       c6_sb in
+  (* FIXME: sort here rather than later? *)
+  (*let c6_cnj = List.sort
+      c6_cnj in*)
   let old_cnj = List.map
       (fun (_, (_, (_,id1))) ->
          List.find (fun (_,(_,(_,id2))) -> id1=id2)
@@ -266,8 +269,8 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
       let cnj = update_sep ~typ_updated:true ~more:res more_prem in
       let impl_ty = res.cnj_typ = [] in
       let impl_num = is_right (NumS.satisfiable cnj.cnj_num) in
-      (*[* Format.printf "abd_simple:@ implies?@ %b@ #res_ty=%d@\nans=@ %a@\nres_ty=@ %a@\n%!"
-        (impl_ty && impl_num)
+      (*[* Format.printf "abd_simple: implies? %b impl_num=%b@ #res_ty=%d@\nans=@ %a@\nres_ty=@ %a@\n%!"
+        (impl_ty && impl_num) impl_num
         (List.length res.cnj_typ) pr_subst ans pr_subst res.cnj_typ; *]*)
       impl_ty && impl_num in
     let reorder bvs init_cand =
@@ -579,9 +582,11 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
       (* let cnj_typ = list_diff cnj_typ discard in *)
       let init_cand =
         revert_cst_n_uni q ~bvs ~pms ~dissociate prem_n_concl ans cnj_typ in
-      (* From shortest to longest. *)
+      (* From longest to shortest. *)
+      (* FIXME: revert to shortest-to-longest, have better idea how
+         to deal with badly dropped short atoms. *)
       let init_cand = List.sort
-          (fun ((_,(t1,_)),_) ((_,(t2,_)),_) -> typ_size t1 - typ_size t2)
+          (fun ((_,(t1,_)),_) ((_,(t2,_)),_) -> typ_size t2 - typ_size t1)
           (uncurry List.combine init_cand) in
       let init_cand = List.split init_cand in
       (*[* Format.printf

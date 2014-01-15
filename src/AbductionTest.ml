@@ -35,8 +35,8 @@ let test_simple lhs_m rhs_m ?(validate=(fun _ -> ())) skip res =
     | Some (bvs, (vs, ans_typ)) ->
       pr_to_str pr_formula
         (to_formula ans_typ) in
-  assert_equal ~printer:(fun x -> x)
-    ~msg:(string_of_int skip^":"^lhs_m^" ⟹ "^rhs_m) res ans
+  let msg = "["^string_of_int skip^"] "^lhs_m^" ⟹ "^rhs_m in
+  assert_equal ~printer:(fun x -> x) ~msg res ans
 
 let prepare_brs (brs : Infer.branch list) = List.map
   (fun (prem, concl) ->
@@ -58,10 +58,8 @@ let tests = "Abduction" >::: [
 td = Int"; 
         test_simple lhs1 rhs1 2 "tb = td";
         test_simple lhs1 rhs1 3 "tb = Int";
-        test_simple lhs1 rhs1 4 "td = Int ∧
-ta = (Term tb)";
-        test_simple lhs1 rhs1 5 "ta = (Term tb)";
-        test_simple lhs1 rhs1 6 "none";
+        test_simple lhs1 rhs1 4 "ta = (Term tb)";
+        test_simple lhs1 rhs1 5 "none";
       with (Defs.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
         Terms.pr_exception Format.str_formatter exn;
@@ -76,8 +74,8 @@ ta = (Term tb)";
       Infer.reset_state ();
       try
         test_simple lhs1 rhs1 0 "tb = (G ta)";
-        test_simple lhs1 rhs1 1 "ta = A ∧
-tb = (G A)"; 
+        test_simple lhs1 rhs1 1 "tb = (G A) ∧
+ta = A"; 
         test_simple lhs1 rhs1 2 "tb = (G A)"; 
         test_simple lhs1 rhs1 3 "none";
       with (Defs.Report_toplevel _ | Terms.Contradiction _) as exn ->
@@ -118,3 +116,12 @@ tD = ((Ty Int, Ty Int) → Bool)" ans
 
 
 ]
+
+
+let () =
+  let executable = Filename.basename Sys.executable_name in
+  let chop f =
+    try Filename.chop_extension f with Invalid_argument _ -> f in
+  let executable = chop (chop executable) in
+  if executable = "AbductionTest"
+  then ignore (OUnit.run_test_tt ~verbose:true tests)

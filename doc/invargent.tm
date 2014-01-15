@@ -584,13 +584,13 @@
     minimizes the amount of branching in 5.
 
     <\itemize>
-      <item>We provide an option <verbatim|more_general>, which reorders the
-      choices to: 1, 6, 4, 2, 3, 5; the cost of this reordering is
-      prohibitive;
+      <item>There is an option <verbatim|more_general>, which reorders the
+      choices to: 1, 6, 4, 2, 3, 5; however the option is not exposed in the
+      interface because the cost of this reordering is prohibitive.
 
-      <item>and an option <verbatim|richer_answers> which reorders the
-      choices to: 6, 1, 2, 4, 3, 5; it does not increase computational cost
-      but sometimes leads to answers that are not most general.
+      <item>An option <verbatim|richer_answers> reorders the choices to: 6,
+      1, 2, 4, 3, 5; it does not increase computational cost but sometimes
+      leads to answers that are not most general.
     </itemize>
 
     <item>Form initial candidates <math|\<b-U\><rsub|><around*|(|<wide|A|~><around*|(|D\<wedge\>C|)>|)>>.
@@ -613,10 +613,20 @@
       particular we try to eliminate universal variables.
     </itemize>
 
-    <item>Sort the initial candidates by increasing size, so that
-    replacements of step 2 are formed at a root position before they are used
-    in step 5 -- instead of forming a replacement at a subterm, and using it
-    in step 5 at a root.
+    <item>Sort the initial candidates by decreasing size, because shorter
+    answer atoms are more valuable and dropping a candidate from
+    participating in an answer is the first choice.
+
+    <\itemize>
+      <item>There is an argument in favor of sorting by increasing size: so
+      that the replacements of step 2 are formed at a root position before
+      they are used in step 5 -- instead of forming a replacement at a
+      subterm, and using it in step 5 at a root.
+
+      <item>If ordering in increasing size turns out to be necessary, a
+      workaround should be introduced to favor answers that, if possible, do
+      not have parameters <math|<wide|\<beta\>|\<bar\>>> as left-hand-sides.
+    </itemize>
   </itemize>
 
   The above ordering of choices ensures that more general answers are tried
