@@ -780,8 +780,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
                NumDefs.pr_formula (NumS.formula_of_state num_state); *]*)
              ()))
         verif_brs in
-    let sol1, brs1, g_rol =
-      if iter_no < disj_step.(0) then sol1, brs1, rol1
+    let sol1, brs1, abdsjelim, g_rol =
+      if iter_no < disj_step.(0) then sol1, brs1, [], rol1
       else
         (* 2 *)
         (* The [t2] arguments should in the solution become equal! *)
@@ -812,6 +812,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
           with Not_found -> VarSet.empty in
         (* 3 *)
         let bvs = bparams iter_no in    (* for [disjelim] *)
+        let abdsjelim = ref [] in
         let g_rol = List.map
             (fun (i,_) ->
                (*[* Format.printf
@@ -820,13 +821,15 @@ let solve q_ops new_ex_types exty_res_chi brs =
                try
                  let cnjs = List.assoc i g_rol in
                  let preserve = VarSet.add delta (dsj_preserve i) in
-                 let g_vs, g_ans =
+                 (* [usb] is additional abductive the answer. *)
+                 let usb, (g_vs, g_ans) =
                    (* FIXME *)
                    DisjElim.disjelim q_ops ~bvs ~preserve
                      ~do_num:(disj_step.(1) <= iter_no) cnjs in
                  (*[* Format.printf "solve-3: disjelim g_ans=%a@\n%!"
                    pr_formula g_ans; *]*)
-                 (* FIXME *) 
+                 (* FIXME: shouldn't we pick the connected component
+                    _before_ passing branches to disjunction elimination? *) 
                  let g_ans =
                    if iter_no < disj_step.(2)
                    then
@@ -836,14 +839,17 @@ let solve q_ops new_ex_types exty_res_chi brs =
                      (g_vs, g_ans) in
                  (*[* Format.printf "solve-3: connected g_ans@ =%a@\n%!"
                    pr_ans g_ans; *]*)
+                 abdsjelim := to_formula usb @ !abdsjelim;
                  i, g_ans
                with Not_found ->
                  (*[* Format.printf "solve: disjelim branches for %d not found@\n%!"
                    i; *]*)
                  i, ([], []))
             rol1 in
-        (*[* Format.printf "solve: iter_no=%d@\ng_rol.A=%a@\n%!"
-          iter_no pr_chi_subst g_rol;
+        let abdsjelim = !abdsjelim in
+        (*[* Format.printf
+          "solve: iter_no=%d@\nabdsjelim=%a@\n@\ng_rol.A=%a@\n%!"
+          iter_no pr_formula abdsjelim pr_chi_subst g_rol;
         *]*)
         (* 5a *)
         let lift_ex_types cmp_v i (g_vs, g_ans) =
@@ -937,7 +943,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
         let brs1 = sb_brs_PredB q g_rol g_par brs0 in
         (*[* Format.printf "solve: substituting params at step 5@\n%!"; *]*)
         let brs1 = sb_brs_vK q v_par brs1 in
-        sol1, brs1, g_rol in
+        sol1, brs1, abdsjelim, g_rol in
     (*[* Format.printf "solve-loop: iter_no=%d -- ex. brs substituted@\n%!"
       iter_no; *]*)
     (*[* Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs5 brs1; *]*)
@@ -995,6 +1001,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
                          (VarSet.inter (fvs_atom a) early_chiKbs))
                      concl in
                nonrec,prem,concl) brs1 in
+        let brs1 =
+          if abdsjelim=[] then brs1
+          else (true,[],abdsjelim)::brs1 in
         let cand_bvs, alien_eqs, (vs, ans) =
           Abduction.abd q.op ~bvs ~iter_no ~discard brs1 in
         (*[* Format.printf

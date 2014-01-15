@@ -1623,21 +1623,18 @@ let rec map2 = fun f ->
     | LCons (x, xs), LCons (y, ys) ->
       let zs = map2 f (xs, ys) in
       LCons (f x y, zs)"
-(* TODO: actually, needs cleanup, but is correct *)
-        [2,"∃n, k, a, b, c.
+        [2,"∃n, k, a.
   δ =
-    ((a → b → c) → (List (a, n), List (b, k)) → ∃1:i,
-       a[i=max (n, k) ∧ i ≤ n + k ∧ 0 ≤ i ∧ 0 ≤ n + k ∧
+    ((a → a → a) → (List (a, n), List (a, k)) →
+       ∃1:i[i=max (n, k) ∧ i ≤ n + k ∧ 0 ≤ i ∧ 0 ≤ n + k ∧
        0 ≤ k ∧ 0 ≤ n].List (a, i))"]
     );
 
-  "avl_tree--" >::
+  "avl_tree--element" >::
     (fun () ->
-       todo "`min` and `max` details";
+       todo "write";
        skip_if !debug "debug";
-       (* Here [link] is defined using [let rec], the correct [let]
-          forms are tested from {!InvarGenTTest}. *)
-       test_case "binomial heap--link"
+       test_case "avl_tree--element"
 ""
         [1,"∃n, a. δ = ((Tree (a, n), Tree (a, n)) → Tree (a, n + 1))"];
     );

@@ -9,7 +9,7 @@
 val disjelim :
   Defs.quant_ops -> bvs:Defs.VarSet.t -> preserve:Defs.VarSet.t
   -> do_num:bool -> Terms.formula list ->
-  Defs.var_name list * Terms.atom list
+  Terms.subst * (Defs.var_name list * Terms.atom list)
 
 (** Filter the initial postcondition, found from non-recursive
     branches only, so that it does not constrain variables to

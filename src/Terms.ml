@@ -302,11 +302,13 @@ let subst_alien_term sb = function
   | Num_term t ->
     Num_term (NumDefs.subst_term num_v_unbox sb t)
 
-let subst_typ sb =
-  typ_map {typ_id_map with
-           map_tvar = (fun v -> try fst (List.assoc v sb)
-                        with Not_found -> TVar v);
-           map_alien = fun t -> Alien (subst_alien_term sb t)}
+let subst_typ sb t =
+  if sb = [] then t
+  else typ_map
+      {typ_id_map with
+       map_tvar = (fun v -> try fst (List.assoc v sb)
+                    with Not_found -> TVar v);
+       map_alien = fun t -> Alien (subst_alien_term sb t)} t
 
 let hvsubst_alien_term sb = function
   | Num_term t -> Num_term (NumDefs.hvsubst_term sb t)

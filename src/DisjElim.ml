@@ -10,18 +10,23 @@ open Defs
 open Terms
 open Aux
 
-let antiunif q ts =
+let antiunif q ~bvs ts =
+  let is_uni v = q.uni_v v && not (VarSet.mem v bvs) in
   let rec aux usb gsb = function
     | [] -> assert false
     | t::ts when List.for_all ((=) t) ts-> [], t, usb, gsb
     | TCons (n, t1s)::ts when List.for_all
           (function TCons (n2, _) when n2=n -> true | _ -> false) ts ->
+      (*[* Format.printf "antiunif: tcons=%s@ ts=@ %a@\n%!"
+        (cns_str n) (pr_sep_list " |" pr_ty) ts; *]*)
       let vs, ss, usb, gsb = auxn usb gsb
           (t1s::List.map
                (function TCons (_, tks) -> tks | _ -> assert false) ts) in
       vs, TCons (n, ss), usb, gsb
     | Fun (t1, t2)::ts when List.for_all
           (function Fun _ -> true | _ -> false) ts ->
+      (*[* Format.printf "antiunif: tfun@ ts=@ %a@\n%!"
+        (pr_sep_list " |" pr_ty) ts; *]*)
       let vs1, s1, usb, gsb = aux usb gsb
           (t1::List.map
                (function Fun (tk1, _) -> tk1 | _ -> assert false) ts) in
@@ -30,23 +35,29 @@ let antiunif q ts =
                (function Fun (_, tk2) -> tk2 | _ -> assert false) ts) in
       vs1 @ vs2, Fun (s1, s2), usb, gsb
     | t::_ as ts when typ_sort t <> Type_sort ->
-          let x = fresh_var (typ_sort t) in
-          [x], TVar x, usb, (ts, x)::gsb
+      let x = fresh_var (typ_sort t) in
+      (*[* Format.printf "antiunif: num x=%s@ ts=@ %a@\n%!"
+        (var_str x) (pr_sep_list " |" pr_ty) ts; *]*)
+      [x], TVar x, usb, (ts, x)::gsb
     | t::_ as ts ->
+      (*[* Format.printf "antiunif: other@ ts=@ %a@\n%!"
+        (pr_sep_list " |" pr_ty) ts; *]*)
       try [], TVar (List.assoc ts gsb), usb, gsb
       with Not_found ->
         let n =
           find_map (function TCons (n, _) -> Some n | _ -> None) ts in
         let b = find_map
-            (function TVar v when q.uni_v v -> Some v | _ -> None)
+            (function TVar v when is_uni v -> Some v | _ -> None)
             ts in
-        (* *)if n <> None && List.for_all
+        if n <> None && List.for_all
              (function TCons (n2, _) when Some n2=n -> true
-                     | TVar v -> not (q.uni_v v) | _ -> false) ts
+                     | TVar v -> not (is_uni v) | _ -> false) ts
         then
           let n, args = unsome
               (find_map (function TCons (n, a) -> Some (n,a)
                                 | _ -> None) ts) in
+          (*[* Format.printf "antiunif: abduct n=@ %s@\n%!"
+            (cns_str n); *]*)
           let usb, avs = List.fold_left
               (fun (sb, avs as acc) -> function
                  | TVar v ->
@@ -63,7 +74,7 @@ let antiunif q ts =
           let vs', g, usb, gsb = aux usb gsb ts in
           avs @ vs', g, usb, gsb
         else if n = None && List.for_all
-                  (function TVar v -> Some v = b || not (q.uni_v v)
+                  (function TVar v -> Some v = b || not (is_uni v)
                           | _ -> false) ts
         then
           let vars = List.map
@@ -73,6 +84,8 @@ let antiunif q ts =
             | None ->
               (* get the leftmost variable *)
               maximum ~leq:(fun v w -> q.cmp_v v w <> Left_of) vars in
+          (*[* Format.printf "antiunif: abduct b=@ %s@\n%!"
+            (var_str b); *]*)
           let tb = TVar b in
           let more_sb = map_some
             (fun v -> if v=b then None else Some (v, (tb, dummy_loc)))
@@ -82,6 +95,14 @@ let antiunif q ts =
           aux usb gsb ts
         else(* *)
           let x = fresh_var (typ_sort t) in
+          (*[* Format.printf "antiunif: abduct x=@ %s@\n%!"
+            (var_str x);
+          if n = None then (List.iter
+              (function TVar v -> Format.printf "uni(%s)=%b; "
+                                    (var_str v) (is_uni v);
+                          | t -> Format.printf "non-v %a; " pr_ty t)
+              ts; Format.printf "@\n%!");
+          *]*)
           [x], TVar x, usb, (ts, x)::gsb
 
   and auxn usb gsb = function
@@ -108,7 +129,7 @@ let pr_ty_brs ppf brs =
   pr_line_list "|  " pr_subst ppf brs
 
 (* TODO: filter according to [preserve] variables. *)
-let disjelim_typ q ~preserve brs =
+let disjelim_typ q ~bvs ~preserve brs =
   let cmp_k (v1,_) (v2,_) = compare v1 v2 in
   let brs = List.map (List.sort cmp_k) brs in
   (*[* Format.printf "disjelim_typ: preserve=%a@\nbrs=@ %a@\n%!"
@@ -117,7 +138,7 @@ let disjelim_typ q ~preserve brs =
   let empty_eqs = {at_typ=empty_brs; at_num=empty_brs; at_so=()} in
   match brs with
   | [] -> assert false
-  | [br] -> [], br, empty_eqs
+  | [br] -> [], [], br, empty_eqs
   | br::more_brs ->
     (* (a) V *)
     let gs = List.map (fun (v,(t,lc)) -> v,([t],[lc])) br in
@@ -125,17 +146,17 @@ let disjelim_typ q ~preserve brs =
       inter_merge
         cmp_k (fun (_,(ts,lcs)) (v,(t,lc)) -> v, (t::ts,lc::lcs)) in
     let gs = List.fold_left aux gs more_brs in
-    if gs = [] then [], [], empty_eqs
+    if gs = [] then [], [], [], empty_eqs
     else
       let gs = List.map
         (fun (v,(ts,lcs)) -> v, (List.rev ts, List.rev lcs)) gs in
       (* (b) G *)
-      let gs = List.map
-        (fun (v,(ts,lcs)) ->
-          let gvs,gt,_,tss = antiunif q ts in
-          (* [usb] not used currently *)
-          v, gvs, gt, tss, lcs)
-        gs in
+      let usb, gs = fold_map
+        (fun usb (v,(ts,lcs)) ->
+          let ts = List.map (subst_typ usb) ts in
+          let gvs,gt,usb',tss = antiunif q ~bvs ts in
+          update_sb ~more_sb:usb' usb, (v, gvs, gt, tss, lcs))
+        [] gs in
       let avs = concat_map (fun (_,vs,_,_, _) -> vs) gs in
       (* A set of sequences position-matched with branches. *)
       (* (c) D^u_i *)
@@ -202,7 +223,7 @@ let disjelim_typ q ~preserve brs =
         at_typ = ty_eqs;
         at_num = List.map NumS.sort_of_subst num_eqs;
         at_so = ()} in
-      avs, ty_ans @ eqv_ans, eqs
+      usb, avs, ty_ans @ eqv_ans, eqs
 
 (* Do not simplify redundancy! Just remove spurious introduced variables. *)
 (* FIXME: too much mess together with [disjelim] *)
@@ -242,8 +263,8 @@ let disjelim q ~bvs ~preserve ~do_num brs =
   (* [avs] contains variables introduced by anti-unification, also
      of sorts other than "type" *)
   (* (2) *)
-  let avs, ty_ans, eqs =
-    disjelim_typ q ~preserve (List.map (fun br->br.cnj_typ) brs) in
+  let usb, avs, ty_ans, eqs =
+    disjelim_typ q ~bvs ~preserve (List.map (fun br->br.cnj_typ) brs) in
   let keep = fvs_typs
       (map_some
          (fun (v,(t,_)) -> if VarSet.mem v bvs then Some t else None)
@@ -267,10 +288,10 @@ let disjelim q ~bvs ~preserve ~do_num brs =
       pr_subst ty_ans NumDefs.pr_formula num_ans; *]*)
     (* (4) *)
     (* Dooes not simplify redundancy. *)
-    simplify_dsjelim q ~keep ~preserve (num_avs @ avs)
+    usb, simplify_dsjelim q ~keep ~preserve (num_avs @ avs)
       {at_typ=ty_ans; at_num=num_ans; at_so=()}
   else
-    simplify_dsjelim q ~keep ~preserve avs
+    usb, simplify_dsjelim q ~keep ~preserve avs
       {at_typ=ty_ans; at_num=[]; at_so=()}
     
 let transitive_cl cnj =

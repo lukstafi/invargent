@@ -25,7 +25,7 @@ let test_case msg test result =
       (Lexing.from_string test) in
     let preserve = List.fold_left VarSet.union VarSet.empty
         (List.map (fun (prem,concl) -> fvs_formula (prem@concl)) brs) in
-    let vs, ans = DisjElim.disjelim q
+    let usb, (vs, ans) = DisjElim.disjelim q
         ~bvs:VarSet.empty ~preserve ~do_num:true
         (List.map (uncurry (@)) brs) in
     ignore (Format.flush_str_formatter ());
