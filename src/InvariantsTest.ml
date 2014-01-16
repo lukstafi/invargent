@@ -12,7 +12,7 @@ open Aux
 
 let debug = ref false(* true *)
 
-let test_common more_general msg test =
+let test_common more_general more_existential msg test =
   let ntime = Sys.time () in
   Terms.reset_state ();
   Infer.reset_state ();
@@ -38,8 +38,11 @@ let test_common more_general msg test =
     !all_ex_types;
   *]*)
   Abduction.more_general := more_general;
+  DisjElim.more_existential := more_existential;
   let _, res, sol =
     Invariants.solve q_ops new_ex_types exty_res_of_chi brs in
+  Abduction.more_general := false;
+  DisjElim.more_existential := false;
   (*[* Format.printf
     "Test: res=@\n%a@\n%!" pr_formula res;
   List.iter
@@ -55,10 +58,12 @@ let test_common more_general msg test =
   Format.printf " t=%.3fs " (Sys.time () -. ntime);
   q_ops, res, sol
 
-let test_case ?(more_general=false) msg test answers =
+let test_case ?(more_general=false) ?(more_existential=false)
+    msg test answers =
   if !debug then Printexc.record_backtrace true;
   try
-    let q, res, sol = test_common more_general msg test in
+    let q, res, sol =
+      test_common more_general more_existential msg test in
     let test_sol (chi, result) =
       let _, (vs, ans) = nice_ans (List.assoc chi sol) in
       ignore (Format.flush_str_formatter ());
@@ -71,12 +76,15 @@ let test_case ?(more_general=false) msg test answers =
   with (Defs.Report_toplevel _ | Terms.Contradiction _) as exn ->
     ignore (Format.flush_str_formatter ());
     Terms.pr_exception Format.str_formatter exn;
+    Abduction.more_general := false;
+    DisjElim.more_existential := false;
     assert_failure (Format.flush_str_formatter ())
 
-let test_nonrec_case ?(more_general=false) msg test answers =
+let test_nonrec_case ?(more_general=false) ?(more_existential=false)
+    msg test answers =
   if !debug then Printexc.record_backtrace true;
   try
-    let q, res, sol = test_common more_general msg test in
+    let q, res, sol = test_common more_general more_existential msg test in
     let test_sol (v, result) =
       let res_sb, _ = Infer.separate_subst q res in
       let ty = fst (List.assoc (VId (Type_sort, v)) res_sb) in
@@ -89,6 +97,8 @@ let test_nonrec_case ?(more_general=false) msg test answers =
   with (Report_toplevel _ | Contradiction _) as exn ->
     ignore (Format.flush_str_formatter ());
     Terms.pr_exception Format.str_formatter exn;
+    Abduction.more_general := false;
+    DisjElim.more_existential := false;
     assert_failure (Format.flush_str_formatter ())
 
 let tests = "Invariants" >::: [
@@ -933,7 +943,7 @@ let rec walk = fun x ->
   "existential with param" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case "existential with param"
+       test_case ~more_existential:true "existential with param"
 "newtype Place : type
 newtype Nearby : type * type
 newcons Here : ∀a. Place a ⟶ Nearby (a, a)
@@ -967,7 +977,7 @@ let rec one_of =
   "existential option" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case "existential option"
+       test_case ~more_existential:true "existential option"
 "newtype Option : type
 newcons None : ∀a. Option a
 newcons Some : ∀a. a ⟶ Option a

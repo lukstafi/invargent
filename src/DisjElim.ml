@@ -6,12 +6,16 @@
     @since Mar 2013
 *)
 
+let more_existential = ref false
+
 open Defs
 open Terms
 open Aux
 
 let antiunif q ~bvs ts =
-  let is_uni v = q.uni_v v && not (VarSet.mem v bvs) in
+  let is_uni =
+    if !more_existential then q.uni_v
+    else (fun v -> q.uni_v v && not (VarSet.mem v bvs)) in
   let rec aux usb gsb = function
     | [] -> assert false
     | t::ts when List.for_all ((=) t) ts-> [], t, usb, gsb
@@ -73,9 +77,12 @@ let antiunif q ~bvs ts =
           let ts = List.map (subst_typ usb) ts in
           let vs', g, usb, gsb = aux usb gsb ts in
           avs @ vs', g, usb, gsb
-        else if n = None && List.for_all
-                  (function TVar v -> Some v = b || not (is_uni v)
-                          | _ -> false) ts
+        else if n = None && not !more_existential &&
+                (b = None && List.for_all
+                  (function TVar v -> not (is_uni v) | _ -> false) ts
+                 || List.for_all
+                  (function TVar v -> Some v = b || not (q.uni_v v)
+                          | _ -> false) ts)
         then
           let vars = List.map
               (function TVar v -> v | _ -> assert false) ts in
@@ -132,8 +139,8 @@ let pr_ty_brs ppf brs =
 let disjelim_typ q ~bvs ~preserve brs =
   let cmp_k (v1,_) (v2,_) = compare v1 v2 in
   let brs = List.map (List.sort cmp_k) brs in
-  (*[* Format.printf "disjelim_typ: preserve=%a@\nbrs=@ %a@\n%!"
-    pr_vars preserve (pr_line_list "| " pr_subst) brs; *]*)
+  (*[* Format.printf "disjelim_typ: bvs=%a@ preserve=%a@\nbrs=@ %a@\n%!"
+    pr_vars bvs pr_vars preserve (pr_line_list "| " pr_subst) brs; *]*)
   let empty_brs = List.map (fun _ -> []) brs in
   let empty_eqs = {at_typ=empty_brs; at_num=empty_brs; at_so=()} in
   match brs with

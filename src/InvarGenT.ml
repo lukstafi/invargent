@@ -111,6 +111,8 @@ let main () =
     "Limit on main algorithm iterations (default 6)";
     "-richer_answers", Arg.Set Abduction.richer_answers,
     "Keep some equations in term abduction answers even if redundant.";
+    "-more_existential", Arg.Set DisjElim.more_existential,
+    "More general invariant at expense of more existential postcondition.";
     "-passing_ineq_trs", Arg.Set NumS.passing_ineq_trs,
     "Include inequalities in conclusion when solving numerical abduction";
     "-not_annotating_fun", Arg.Clear Infer.annotating_fun,
@@ -140,7 +142,8 @@ let main () =
     if !NumS.abd_fail_flag then Format.printf
         "Perhaps increase the -num_abduction_fail parameter.@\n%!";
     if !Invariants.timeout_flag then Format.printf
-        "Perhaps increase the -iterations_timeout parameter.@\n%!";
+        "Perhaps increase the -iterations_timeout parameter or try the \
+         -more_existential option.@\n%!";
     exit 2
   
 

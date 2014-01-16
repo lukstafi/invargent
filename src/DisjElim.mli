@@ -6,6 +6,10 @@
     @since Mar 2013
 *)
 
+(** Allow more general argument types by inferring more existential
+    result type. Default value [false]. *)
+val more_existential : bool ref
+
 val disjelim :
   Defs.quant_ops -> bvs:Defs.VarSet.t -> preserve:Defs.VarSet.t
   -> do_num:bool -> Terms.formula list ->

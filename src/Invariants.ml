@@ -305,24 +305,6 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
     (* 4 *)
     let ans_cand = List.map
       (fun (b,ans) -> b,
-       let chi_locs = Hashtbl.find_all negchi_locs b in
-       (*[* Format.printf "chi_locs: b=%s@ locs=%a@\n%!"
-         (var_str b) (pr_sep_list "; " pr_loc_pos_only) chi_locs;
-       *]*)
-       List.filter
-         (fun c -> let lc = atom_loc c in
-                   (*[* Format.printf "ans_loc: c=%a@ loc=%a@\n%!"
-                     pr_atom c pr_loc_pos_only lc;
-                   *]*)
-                   List.exists (interloc lc) chi_locs)
-         ans)
-      ans_cand in
-    (*[* Format.printf "split-loop-4: ans2=@\n%a@\n%!"
-      pr_bchi_subst (List.map (fun (b,a)->b,([],a))
-                       ans_cand); *]*)
-    (* 5 *)
-    let ans_cand = List.map
-      (fun (b,ans) -> b,
        List.filter
          (fun c ->
            List.for_all (fun (b',ans') ->
@@ -330,14 +312,14 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
              || not (List.memq c ans')) ans_cand)
          ans)
       ans_cand in
-    (*[* Format.printf "split-loop-5: ans3=@\n%a@\ncand_bvs=%a@\n%!"
+    (*[* Format.printf "split-loop-4: ans3=@\n%a@\ncand_bvs=%a@\n%!"
       pr_bchi_subst (List.map (fun (b,a)->b,([],a))
                        ans_cand)
       pr_vars cand_bvs; *]*)
-    (* 6 *)
+    (* 5 *)
     let ans_cand = List.map
       (fun (b, ans) ->
-        (*[* Format.printf "split-loop-6: b=%s@ target=%a@\n%!"
+        (*[* Format.printf "split-loop-5: b=%s@ target=%a@\n%!"
           (var_str b) pr_vars (VarSet.inter (fvs_formula ans) cand_bvs); *]*)
         let avs = fvs_formula ans in
         let ans = List.filter
@@ -353,15 +335,15 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
     (*[* Format.printf "split-loop-6: ans4=@\n%a@\n%!"
       pr_bchi_subst (List.map (fun (b,a)->b,(VarSet.elements (Hashtbl.find q.b_vs b),a))
                        ans_cand); *]*)
-    (* 7 *)
+    (* 6 *)
     let init_res = List.filter
       (fun c -> not (List.exists (List.memq c % snd) ans_cand)) ans0 in
-    (*[* Format.printf "split-loop-7: ans0=@\n%a@\ninit_res=%a@\n%!"
+    (*[* Format.printf "split-loop-6: ans0=@\n%a@\ninit_res=%a@\n%!"
       pr_formula ans0 pr_formula init_res; *]*)
     let init_state =
       try holds q avs empty_state init_res
       with Contradiction _ as e -> raise (convert e) in
-    (* 8 *)
+    (* 7 *)
     (* TODO: would it be better to implement it through
        [connected ~validate]? *)
     let ans_res = ref init_res and state = ref init_state in
@@ -376,10 +358,10 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
       ans_cand in
     let ans_res = !ans_res in    
     let more_discard = concat_map snd ans_ps in
-    (*[* Format.printf "split-loop-8: ans+=@\n%a@\nans_res=%a@\n%!"
+    (*[* Format.printf "split-loop-7: ans+=@\n%a@\nans_res=%a@\n%!"
       pr_bchi_subst (List.map (fun (b,a)->b,([],a)) ans_ps)
       pr_formula ans_res; *]*)
-    (* 9 *)
+    (* 8 *)
     let ans_strat = List.map
       (fun (b, ans_p) ->
         let bvs = Hashtbl.find q.b_vs b in
@@ -388,27 +370,27 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
                  (b::VarSet.elements bvs)
                  ([],ans_p)) in
         (*[* Format.printf
-          "select-10: bvs=%a@\nb=%s@\nans_p=%a@\nans_p'=%a@\n%!"
+          "select-9: bvs=%a@\nb=%s@\nans_p=%a@\nans_p'=%a@\n%!"
           pr_vars bvs
           (var_str b) pr_formula ans_p pr_formula ans_p'; *]*)
-        (* 10 *)
+        (* 9 *)
         let (avs_p, ans_l, ans_r) = strat q b ans_p' in
         (*[* Format.printf "select: ans_l(%s)=@ %a@\n%!"
           (var_str b) pr_formula ans_l; *]*)
         (* Negatively occurring [b] "owns" these formal parameters *)
         q.add_b_vs_of b (List.map (fun v->v,v) avs_p);
-        (* 11 *)
+        (* 10 *)
         let ans0 = List.assoc b sol in
         let ans = ans0 @ ans_l in
-        (* 12 *)
+        (* 11 *)
         let avs0 = VarSet.inter avs (fvs_formula ans) in
-        (* 13.a *)
+        (* 12.a *)
         let avs = VarSet.union avs0 (vars_of_list avs_p) in
         (b, avs), (b, ans), (avs_p, ans_r))
       ans_ps in
     let avss, sol', more = split3 ans_strat in
     let avs_ps, ans_rs = List.split more in
-    (* 13.b *)
+    (* 12.b *)
     let avss = List.map
       (fun (b, avs) ->
         let lbs = List.filter
@@ -417,7 +399,7 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
           (List.map (flip List.assoc avss) lbs) in
         VarSet.diff avs uvs)
       avss in
-    (* 14 *)
+    (* 13 *)
     let ans_p = List.concat ans_rs in
     (*[* Format.printf "split: ans_p=@ %a@ --@ ans_res=@ %a@\n%!"
       pr_subst ans_p pr_formula ans_res; *]*)
@@ -427,20 +409,20 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
     let avs_p = List.concat avs_ps in
     let avsl = List.map VarSet.elements avss in
     let ans_res = ab_eqs @ ans_res in
-    (* 15 *)
+    (* 14 *)
     if avs_p <> []
     then
-      (* 16 *)
+      (* 15 *)
       let avs' = VarSet.diff avs
         (List.fold_left VarSet.union VarSet.empty avss) in
       let ans_res', discard', sol' =
         loop avs' ans_res (more_discard @ discard) sol' in
-      (* 17 *)
+      (* 16 *)
       ans_res', discard',
       List.map2
         (fun avs (b, (avs', ans')) -> b, (avs@avs', ans')) avsl sol'
     else
-      (* 18 *)
+      (* 17 *)
       ans_res, more_discard @ discard,
       List.map2 (fun avs (b, ans) -> b, (avs, ans)) avsl sol' in
   let solT = List.map (fun b->b, []) negbs in
@@ -725,7 +707,11 @@ let solve q_ops new_ex_types exty_res_chi brs =
         VarSet.empty q.negbs
     else
       List.fold_left
-        (fun bvs b -> VarSet.union bvs (Hashtbl.find q.b_vs b))
+        (fun bvs b ->
+           (*[* Format.printf
+             "solve: bvs += %s -> %a@\n%!"
+             (var_str b) pr_vars (Hashtbl.find q.b_vs b); *]*)
+           VarSet.union bvs (Hashtbl.find q.b_vs b))
         VarSet.empty q.negbs in
   (* keys in sorted order! *)
   let solT = List.map

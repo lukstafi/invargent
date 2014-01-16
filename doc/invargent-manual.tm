@@ -801,6 +801,12 @@
     general. This can always be fixed by adding a <verbatim|test> clause to
     the definition which uses a type conflicting with the too specific type.
 
+    <item*|<verbatim|-more_existential>>More general invariant at expense of
+    more existential postcondition. To avoid too abstract postconditions,
+    disjunction elimination can infer additional constraints over invariant
+    parameters. In rare cases a weaker postcondition but a more general
+    invariant can be beneficial.
+
     <item*|<verbatim|-passing_ineq_trs>>Include inequalities in conclusion
     when solving numerical abduction. This setting leads to more inequalities
     being tried for addition in numeric abduction answer.
