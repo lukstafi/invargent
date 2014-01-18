@@ -124,7 +124,7 @@ let extract_datatyp allvs loc = function
 %token MINUS
 %token PLUS ARROW BAR AS
 %token MIN MAX
-%token FUNCTION EFUNCTION FUN MATCH EMATCH WITH
+%token FUNCTION EFUNCTION FUN MATCH EMATCH WITH WHEN
 %token NUM TYPE
 %token LESSEQUAL
 %token ASSERT FALSE TEST
@@ -134,7 +134,7 @@ let extract_datatyp allvs loc = function
 %nonassoc IN
 %nonassoc LET AND
 %nonassoc below_WITH
-%nonassoc FUNCTION EFUNCTION WITH
+%nonassoc FUNCTION EFUNCTION WITH WHEN
 %right ARROW
 %nonassoc AS
 %nonassoc BAR
@@ -239,7 +239,7 @@ expr:
   | EFUNCTION error
       { syntax_error "existential function case branches expected" 2 }
   | FUN simple_pattern_list match_action
-      { List.fold_right (fun p e -> Lam ((), [p, e], get_loc ()))
+      { List.fold_right (fun p e -> Lam ((), [p, [], e], get_loc ()))
 	  (List.rev $2) $3 }
   | MATCH expr WITH opt_bar match_cases %prec below_WITH
       { App (Lam ((), List.rev $5,
@@ -315,10 +315,22 @@ expr_semicolon_list:
 
 match_cases:
   |  pattern match_action
-      { [$1, $2] }
+      { [$1, [], $2] }
   | match_cases BAR pattern match_action
-      { ($3, $4) :: $1 }
+      { ($3, [], $4) :: $1 }
+  |  pattern when_guards match_action
+      { [$1, $2, $3] }
+  | match_cases BAR pattern when_guards match_action
+      { ($3, $4, $5) :: $1 }
 ;
+when_guards:
+  | WHEN expr_leqs_list { List.rev $2 }
+;
+expr_leqs_list:
+  | expr LESSEQUAL expr
+    { [$1, $3] }
+  | expr_leqs_list LOGAND expr LESSEQUAL expr
+    { ($3, $5) :: $1 } 
 match_action:
   | ARROW expr %prec below_WITH
       { $2 }

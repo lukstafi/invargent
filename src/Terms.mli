@@ -51,7 +51,8 @@ type ('a, 'b) expr =
 | AssertLeq of ('a, 'b) expr * ('a, 'b) expr * ('a, 'b) expr * lc
 | AssertEqty of ('a, 'b) expr * ('a, 'b) expr * ('a, 'b) expr * lc
 
-and ('a, 'b) clause = pat * ('a, 'b) expr
+and ('a, 'b) clause =
+  pat * (('a, 'b) expr * ('a, 'b) expr) list * ('a, 'b) expr
 
 val expr_loc : ('a, 'b) expr -> lc
 val clause_loc : ('a, 'b) clause -> lc

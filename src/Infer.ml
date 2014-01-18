@@ -164,7 +164,9 @@ let normalize_expr e =
       AssertLeq (e1, e2, aux k' range, lc)
     | _, AssertEqty (e1, e2, range, lc) ->
       AssertEqty (e1, e2, aux k' range, lc)
-  and aux_cl k' (p, e) = p, aux k' e in
+  and aux_cl k' (p, guards, e) =
+    p, List.map (fun (e1,e2) -> aux None e1, aux None e2) guards,
+    aux k' e in
   !new_ex_types, aux None e
 
 let normalize_item = function
@@ -296,10 +298,9 @@ let rec envfrag_gen_pat count p t =
       List.fold_left envfrag_x ef0 (List.map2 aux args ps) in
   aux t p
 
-let rec single_assert_false (_, e) =
-  match e with
+let rec single_assert_false = function
     | AssertFalse _ -> true
-    | Lam (_, [cl], loc) -> single_assert_false cl
+    | Lam (_, [_, _, e], loc) -> single_assert_false e
     | _ -> false
 
 let impl prem concl =
@@ -366,16 +367,6 @@ let constr_gen_expr gamma e t =
       Ex (VarSet.singleton a,
           cn_and cn1 (cn_and cn2 (A [NotEx (ta, loc)]))),
       App (e1, e2, loc)
-    | Lam ((), [cl], loc) when single_assert_false cl ->
-      let a1 = fresh_typ_var () in
-      let t1 = TVar a1 in
-      let a2 = fresh_typ_var () in
-      let t2 = TVar a2 in
-      let cn, cl =
-        aux_cl_negcn gamma t1 t2
-          (Eqty (Fun (t1, t2), t, loc)) cl in
-      Ex (vars_of_list [a1; a2], cn),
-      Lam ([], [cl], loc)
     | Lam ((), cls, loc) ->
       let a1 = fresh_typ_var () in
       let t1 = TVar a1 in
@@ -454,11 +445,11 @@ let constr_gen_expr gamma e t =
                   elim_extype := (p, Some i) :: !elim_extype in
                 let cn, e =
                   aux_cl count gamma t0 t
-                    (PCons (Extype i, [p], loc), e2) in
+                    (PCons (Extype i, [p], loc), [], e2) in
                 (cn, trigger), e)
              !all_ex_types) in
-      let e2s = List.map snd e2s in
-      let altcn0, (_,e2) = aux_cl count gamma t0 t (p,e2) in
+      let e2s = List.map thr3 e2s in
+      let altcn0, (_,_,e2) = aux_cl count gamma t0 t (p,[],e2) in
       let altcn = cn_and altcn0 (A [NotEx (t0, loc)]) in
       let alttr () =
         elim_extype := (p, None) :: !elim_extype in
@@ -474,31 +465,43 @@ let constr_gen_expr gamma e t =
       Ex (vars_of_list [a0], cn_and cn0 (Or ((altcn,alttr)::disjs))),
       Letin (docu, p, e1, e2, loc)
     | ExLam (ety_id, cls, loc) -> assert false
-
-  and aux_cl_negcn gamma t1 t2 tcn (p, e) =
-    (*[* Format.printf "aux_cl_negcn: p=@ %a ->@ e= %a@\n%!" pr_pat p
-       pr_uexpr e; *]*)
-    let pcns = constr_gen_pat p t1 in
-    let bs, prem, env = envfrag_gen_pat 0 p t1 in
-    let concl, e = aux (List.map typ_to_sch env @ gamma) t2 e in
-    let cn = atoms_of_cnstrnt
-      (fun pcns -> Impl (tcn::pcns @ prem, concl)) pcns in
-    let res = if VarSet.is_empty bs then cn else All (bs, cn) in
-    (*[* Format.printf "aux_cl_negcn: res=@ %a@\n%!" pr_cnstrnt res; *]*)
-    res, (p, e)
       
-  and aux_cl count gamma t1 t2 (p, e) =
-    let pcns = constr_gen_pat p t1 in
-    let bs, prem, env = envfrag_gen_pat count p t1 in
-    (*[* Format.printf "constr_gen-aux_cl: [%d] t1=%a@ t2=%a@ bs=%a@ prem=%a@\n%!"
-      count pr_ty t1 pr_ty t2 pr_vars bs pr_formula prem; *]*)
-    let concl, e = aux (List.map typ_to_sch env @ gamma) t2 e in
-    let cn = impl prem concl in
+  and aux_cl count gamma t1 t2 (p, guards, e) =
+    let is_neg = single_assert_false e in
+    let t3 = if is_neg then TVar (fresh_typ_var ()) else t1 in
+    let pcns = constr_gen_pat p t3 in
+    let bs, prem, env = envfrag_gen_pat count p t3 in
+    (*[* Format.printf "constr_gen-aux_cl: [%d] t1=%a@ t2=%a@ t3=%a@ bs=%a@ prem=%a@\n%!"
+      count pr_ty t1 pr_ty t2 pr_ty t3 pr_vars bs pr_formula prem; *]*)
+    let gamma' = List.map typ_to_sch env @ gamma in
+    let (g_concl, g_cond), guards = fold_map
+        (fun (g_concl, g_cond) (e1,e2) ->
+           let a1 = fresh_var Num_sort and a2 = fresh_var Num_sort in
+           let cn1,e1 = aux gamma' (TCons (numtype, [TVar a1])) e1
+           and cn2,e2 = aux gamma' (TCons (numtype, [TVar a2])) e2 in
+           (cn_and (cn_and cn1 cn2) g_concl,
+            Terms.A (Num_atom (NumDefs.Leq
+                                 (NumDefs.Lin (1,1,a1),
+                                  NumDefs.Lin (1,1,a2),
+                                  dummy_loc))) :: g_cond),
+           (e1,e2))
+        (And [], []) guards in
+    let concl, e = aux gamma' t2 e in
+    let neg_prem =
+      if is_neg
+      then [Eqty (t1, t3, dummy_loc)]
+      else [] in
+    let cn = impl prem
+        (cn_and g_concl (impl (neg_prem @ g_cond) concl)) in
     let cn = if VarSet.is_empty bs then cn else All (bs, cn) in
     (*[* Format.printf "constr_gen-aux_cl: [%d]@ cn=%a@\n%!"
       count pr_cnstrnt cn; *]*)
-    cn_and pcns cn,
-    (p, e) in
+    let exvs = 
+        VarSet.union (if is_neg then fvs_typ t3 else VarSet.empty)
+          (fvs_formula g_cond) in
+    let cn = cn_and pcns cn in
+    (if VarSet.is_empty exvs then cn else Ex (exvs, cn)),
+    (p, guards, e) in
   
   let cn = aux gamma t e in
   cn, elim_extype, !preserve
@@ -646,14 +649,13 @@ let annotate_expr q res_sb chi_sb nice_sb e : texpr =
       and evs2, e2 = aux nice_sb e2 in
       VarSet.union evs1 evs2,
       App (e1, e2, lc)
-    | Lam (_, [cl], loc) when single_assert_false cl ->
-      let evs, cl = aux_cl nice_sb cl in
-      evs, Lam (None, [cl], loc)
     | Lam (ann, cls, lc) ->
       let evs, cls = List.split (List.map (aux_cl nice_sb) cls) in
       let evs = List.fold_left VarSet.union VarSet.empty evs in
       let ann =
-        if match cls with [_] -> !annotating_letin | _ -> !annotating_fun
+        if match cls with
+          | [p,_,e] -> !annotating_letin && not (single_assert_false e)
+          | _ -> !annotating_fun
         then
           let a1, a2 =
             try List.find
@@ -701,9 +703,16 @@ let annotate_expr q res_sb chi_sb nice_sb e : texpr =
       and evs3, e3 = aux nice_sb e3 in
       VarSet.union evs1 (VarSet.union evs2 evs3),
       AssertEqty (e1, e2, e3, lc)
-  and aux_cl nice_sb (p, e) =
+  and aux_cl nice_sb (p, guards, e) =
     let evs, e = aux nice_sb e in
-    evs, (p, e) in
+    let evs, guards = fold_map
+        (fun evs (e1,e2) ->
+           let evs1, e1 = aux nice_sb e1
+           and evs2, e2 = aux nice_sb e2 in
+           VarSet.union evs (VarSet.union evs1 evs2),
+           (e1, e2))
+        evs guards in
+    evs, (p, guards, e) in
   snd (aux nice_sb e)
     
 let prepare_scheme phi res =

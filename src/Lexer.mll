@@ -80,6 +80,7 @@ rule token = parse
   | "fun"       { FUN }
   | "match"     { MATCH }
   | "ematch"    { EMATCH }
+  | "when"      { WHEN }
   | "with"      { WITH }
   | "num"       { NUM }
   | "type"      { TYPE }

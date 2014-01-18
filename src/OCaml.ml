@@ -109,7 +109,7 @@ let pr_typsig ppf (vs, phi, ty) =
   if phi<>[] then fprintf ppf "(*%a*)@ " pr_formula phi;
   fprintf ppf "%a@]" pr_ty ty
 
-let rec single_assert_false (_, e) =
+let rec single_assert_false (_,_,e) =
   match e with
     | AssertFalse _ -> true
     | Lam (_, [cl], loc) -> single_assert_false cl
@@ -127,7 +127,12 @@ let postprocess elim_extypes e =
         if !drop_assert_false
         then List.filter (not % single_assert_false) cls
         else cls in
-      Lam (ann, List.map (fun (p,e)->p, aux e) cls, loc)
+      Lam (ann,
+           List.map
+             (fun (p,guards,e)->
+                p, List.map (fun (e1,e2) -> aux e1, aux e2) guards,
+                aux e)
+             cls, loc)
     | AssertFalse _ as e -> e
     | (AssertLeq _ | AssertEqty _) as e -> e
     | Letrec (docu, ann, x, e1, e2, loc) ->
@@ -140,7 +145,12 @@ let postprocess elim_extypes e =
        with Not_found -> assert false)
     | ExLam (ety_id, cls, loc) ->
       let cls = List.filter (not % single_assert_false) cls in
-      ExLam (ety_id, List.map (fun (p,e)->p, aux e) cls, loc) in
+      ExLam (ety_id,
+           List.map
+             (fun (p,guards,e)->
+                p, List.map (fun (e1,e2) -> aux e1, aux e2) guards,
+                aux e)
+             cls, loc) in
   aux e
 
 let pr_annot_rec ppf = function

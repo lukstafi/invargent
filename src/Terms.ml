@@ -61,7 +61,8 @@ type ('a, 'b) expr =
 | AssertLeq of ('a, 'b) expr * ('a, 'b) expr * ('a, 'b) expr * loc
 | AssertEqty of ('a, 'b) expr * ('a, 'b) expr * ('a, 'b) expr * loc
 
-and ('a, 'b) clause = pat * ('a, 'b) expr
+and ('a, 'b) clause =
+  pat * (('a, 'b) expr * ('a, 'b) expr) list * ('a, 'b) expr
 
 let expr_loc = function
   | Var (_, loc)
@@ -78,7 +79,7 @@ let expr_loc = function
   | AssertEqty (_, _, _, loc)
     -> loc
 
-let clause_loc (pat, exp) =
+let clause_loc (pat, _, exp) =
   loc_union (pat_loc pat) (expr_loc exp)
 
 let cns_str = function
@@ -145,9 +146,13 @@ let fuse_exprs =
     | _ -> assert false
 
   and combine es fs = List.map2 aux es fs
-  and aux_cl (p1, e1) (p2, e2) =
+  and aux_cl (p1, guards1, e1) (p2, guards2, e2) =
     assert (p1 = p2);
-    p1, aux e1 e2
+    let guards =
+      List.map2
+        (fun (e1, e2) (f1, f2) -> aux e1 f1, aux e2 f2)
+        guards1 guards2 in
+    p1, guards, aux e1 e2
   and combine_cls es fs =
     List.map2 aux_cl es fs in
   function
@@ -696,7 +701,7 @@ and pr_one_pat ppf = function
 
 let collect_lambdas e =
   let rec aux pats = function
-    | Lam (_, [pat, exp], _) -> aux (pat::pats) exp
+    | Lam (_, [pat, [], exp], _) -> aux (pat::pats) exp
     | expr -> List.rev pats, expr in
   aux [] e
 
@@ -732,14 +737,14 @@ let pr_expr ?export_num ?export_if ?export_bool pr_ann ppf exp =
       fprintf ppf "%s" (List.assoc true (unsome export_bool))
     | Cons (CNam "False", [], _) when export_bool <> None ->
       fprintf ppf "%s" (List.assoc false (unsome export_bool))
-    | App (Lam (_, [PCons (CNam "True", [], _), e1;
-                    PCons (CNam "False", [], _), e2], _),
+    | App (Lam (_, [PCons (CNam "True", [], _), [], e1;
+                    PCons (CNam "False", [], _), [], e2], _),
            cond, _) when export_if <> None ->
       let kwd_if, kwd_then, kwd_else = unsome export_if in
       fprintf ppf "@[<0>(%s@ %a@ %s@ %a@ %s@ %a)@]" kwd_if aux cond
         kwd_then aux e1 kwd_else aux e2
-    | App (Lam (_, [PCons (CNam "False", [], _), e1;
-                    PCons (CNam "True", [], _), e2], _),
+    | App (Lam (_, [PCons (CNam "False", [], _), [], e1;
+                    PCons (CNam "True", [], _), [], e2], _),
            cond, _) when export_if <> None ->
       let kwd_if, kwd_then, kwd_else = unsome export_if in
       fprintf ppf "@[<0>(%s@ %a@ %s@ %a@ %s@ %a)@]" kwd_if aux cond
@@ -764,7 +769,7 @@ let pr_expr ?export_num ?export_if ?export_bool pr_ann ppf exp =
     | ExLam (_, cs, _) ->
       fprintf ppf "@[<0>(efunction@ %a)@]"
         (pr_pre_sep_list "| " (pr_clause pr_ann)) cs
-    | App (Lam (ann, [(v,body)], _), def, _) ->
+    | App (Lam (ann, [(v,[],body)], _), def, _) ->
       fprintf ppf "@[<0>let@ @[<4>%a%a%a@] =@ @[<2>%a@]@ in@ @[<0>%a@]@]"
         pr_ann (LetInOpen ann)
         pr_more_pat v pr_ann (LetInNode ann)
@@ -806,9 +811,15 @@ let pr_expr ?export_num ?export_if ?export_bool pr_ann ppf exp =
         aux e1 aux e2
         aux range
 
-  and pr_clause pr_ann ppf (pat, exp) =
-    fprintf ppf "@[<2>%a@ ->@ %a@]"
-      pr_pat pat aux exp
+  and pr_guard_leq ppf (e1, e2) =
+    fprintf ppf "@[<2>%a@ <=@ %a@]" aux e1 aux e2
+
+  and pr_clause pr_ann ppf (pat, guards, exp) =
+    if guards = []
+    then fprintf ppf "@[<2>%a@ ->@ %a@]"
+        pr_pat pat aux exp
+    else fprintf ppf "@[<2>%a@ when@ %a@ ->@ %a@]"
+        pr_pat pat (pr_sep_list "&&" pr_guard_leq) guards aux exp
 
   and pr_one_expr pr_ann ppf exp = match exp with
     | Var _

@@ -54,6 +54,11 @@
     <item*|<verbatim|Clause>><math|p.e:> Branch of pattern matching. Concrete
     syntax: e.g. <verbatim|p -\<gtr\> e>.
 
+    <item*|<verbatim|ClauseWhen>><math|p<with|math-font-series|bold| when
+    >\<wedge\><rsub|i>m<rsub|i>\<leqslant\>n<rsub|i>.e:> Branch of pattern
+    matching with a condition. Concrete syntax: e.g. <verbatim|p when a
+    \<less\>= b && c \<less\>= d -\<gtr\> e>.
+
     <item*|<verbatim|CstrIntro>>Does not figure in neither concrete nor
     abstract syntax. Scope of existential types is thought to retroactively
     cover the whole program.
@@ -128,12 +133,15 @@
   \ --upper-case identifier>|<cell|<verbatim|Cons>>>|<row|<cell|application>|<cell|<math|e<rsub|1>
   e<rsub|2>>>|<cell|<verbatim|e1 e2>>|<cell|<verbatim|App>>>|<row|<cell|non-br.
   function>|<cell|<math|\<lambda\><around*|(|p<rsub|1>.\<lambda\><around*|(|p<rsub|2>.e|)>|)>>>|<cell|<verbatim|fun
-  (p1,p2) p3 -\<gtr\> e>>|<cell|<verbatim|Lam>>>|<row|<cell|branching
+  (p1,p2) p3 -\<gtr\> e>>|<cell|<verbatim|Lam(<math|\<ldots\>>)>>>|<row|<cell|branching
   function>|<cell|<math|\<lambda\><around*|(|p<rsub|1>.e<rsub|1>\<ldots\>p<rsub|n>.e<rsub|n>|)>>>|<cell|<verbatim|function
-  p1-\<gtr\>e1 \| >...<verbatim| \| pn-\<gtr\>en>>|<cell|<verbatim|Lam>>>|<row|<cell|pattern
+  p1-\<gtr\>e1 \| >...<verbatim| \| pn-\<gtr\>en>>|<cell|<verbatim|Lam(<math|\<ldots\>>)>>>|<row|<cell|cond.
+  branch>|<cell|<math|\<lambda\><around*|(|p<rsub|1><with|math-font-series|bold|
+  when >m\<leqslant\>n.e<rsub|1>\<ldots\>|)>>>|<cell|<verbatim|function p1
+  when m\<less\>=n-\<gtr\>e1\|>...<verbatim|>>|<cell|<verbatim|Lam(<math|\<ldots\>>)>>>|<row|<cell|pattern
   match>|<cell|<math|\<lambda\><around*|(|p<rsub|1>.e<rsub|1>\<ldots\>p<rsub|n>.e<rsub|n>|)>
-  e>>|<cell|<verbatim|match e with p1-\<gtr\>e1 \| >...<verbatim| \|
-  pn-\<gtr\>en>>|<cell|<verbatim|App(Lam>...<verbatim|,e)>>>|<row|<cell|postcond.
+  e>>|<cell|<verbatim|match e with p1-\<gtr\>e1 \|
+  >...>|<cell|<verbatim|App(Lam>...<verbatim|,e)>>>|<row|<cell|postcond.
   function>|<cell|<math|\<lambda\><around*|[|K|]><around*|(|p<rsub|1>.e<rsub|1>\<ldots\>p<rsub|n>.e<rsub|n>|)>>>|<cell|<verbatim|efunction
   p1-\<gtr\>e1 \| >...>|<cell|<verbatim|ExLam>>>|<row|<cell|postcond.
   match>|<cell|<math|\<lambda\><around*|[|K|]><around*|(|p<rsub|1>.e<rsub|1>\<ldots\>p<rsub|n>.e<rsub|n>|)>
