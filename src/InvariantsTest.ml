@@ -141,6 +141,62 @@ let rec eval = function
         [1, "∃a. δ = (Term a → a)"]
     );
 
+
+  "foo without when 1" >::
+    (fun () ->
+      skip_if !debug "debug";
+      test_case "foo without when, positive"
+"newtype Positive : num
+newcons Pos : ∀n [0 ≤ n]. Num n ⟶ Positive n
+
+let rec foo = function i -> Pos (i + -7)"
+
+        [1, "∃n. δ = (Num (n + 7) → Positive n) ∧ 0 ≤ n"]
+    );
+
+  "foo without when 2" >::
+    (fun () ->
+      skip_if !debug "debug";
+      test_case "foo without when, non-negative and non-positive"
+"newtype Signed : num
+newcons Pos : ∀n [0 ≤ n]. Num n ⟶ Signed n
+newcons Neg : ∀n [n ≤ 0]. Num n ⟶ Signed n
+
+let rec foo = function
+  | i -> Pos (i + -7)
+  | i -> Neg (i + -7)"
+
+        [1, "∃. δ = (Num 7 → Signed 0)"]
+    );
+
+  "foo with when 1" >::
+    (fun () ->
+      skip_if !debug "debug";
+      test_case "foo with when"
+"newtype Signed : num
+newcons Pos : ∀n [0 ≤ n]. Num n ⟶ Signed n
+newcons Neg : ∀n [n ≤ 0]. Num n ⟶ Signed n
+
+let rec foo = function
+  | i when 7 <= i -> Pos (i + -7)
+  | i when i <= 7 -> Neg (i + -7)"
+
+        [1, "∃n. δ = (Num (n + 7) → Signed n)"]
+    );
+
+  "foo with when 2" >::
+    (fun () ->
+      skip_if !debug "debug";
+      test_case "foo with when, unsafe positive"
+"newtype Positive : num
+newcons Pos : ∀n [0 ≤ n]. Num n ⟶ Positive n
+
+let rec foo = function
+  | i when 7 <= i -> Pos (i + -7)"
+
+        [1, "∃n. δ = (Num (n + 7) → Positive n)"]
+    );
+
   "eval" >::
     (fun () ->
        skip_if !debug "debug";

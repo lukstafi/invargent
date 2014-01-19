@@ -66,6 +66,10 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "eval" ());
+      "simple when" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "simple_when" ());
       "equal1_wrong" >::
         (fun () ->
            skip_if !debug "debug";

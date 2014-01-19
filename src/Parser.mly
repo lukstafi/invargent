@@ -289,6 +289,8 @@ simple_expr:
       { Cons (CNam $1, [], get_loc ()) }
   | INT
       { Num ($1, get_loc ()) }
+  | MINUS INT
+      { Num ( ~- $2, get_loc ()) }
   | STRING
       { String ($1, get_loc ()) }
   | LPAREN expr RPAREN
