@@ -149,7 +149,7 @@ let normalize_expr e =
         [tdelta], ety_cn, [delta'] in
       Hashtbl.add sigma ety_cn ex_sch;
       (*[* Format.printf "normalize_expr: adding exty %d head pat=%a@\n%!"
-        chi_id pr_pat (fst (List.hd cls)); *]*)
+        chi_id pr_pat (fst3 (List.hd cls)); *]*)
       new_ex_types := (k, lc) :: !new_ex_types;
       all_ex_types := (k, lc) :: !all_ex_types;
       Lam ((), List.map (aux_cl (Some k)) cls, lc)
@@ -1049,15 +1049,20 @@ let normalize q cn =
   (* Raises [Contradiction] *)
   let simplify_brs = List.map
       (fun {guard_cnj; prem; concl} ->
+         (*[* Format.printf
+           "simplify_brs:@\nguard_cnj=%a@\nprem=%a@\nconcl=%a@\n%!"
+           pr_formula guard_cnj pr_formula prem pr_formula concl; *]*)
          (* Past this point, the branches are definitely part of the
               constraint, try not raising contradiction. *)
-         if List.exists (function CFalse _ -> true | _ -> false) concl
+         if concl=[] ||
+            List.exists (function CFalse _ -> true | _ -> false) concl
          then prem, concl
          else
            (* 1 *)
            let {cnj_typ=sb; _} = unify (guard_cnj @ prem @ concl) in
            let {cnj_typ=concl_typ; cnj_num=concl_num; cnj_so=concl_so} =
              unify concl in
+           (*[* Format.printf "simplify_brs: passed unify@\n%!"; *]*)
            (* FIXME: only filter out if known to hold *)
            let concl_so = List.filter
                (function NotEx (_, _) -> false | _ -> true) concl_so in

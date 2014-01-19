@@ -124,6 +124,23 @@ let rec eval = function
         [1, "∃a. δ = (Term a → a)"]
     );
 
+  "simple assert false" >::
+    (fun () ->
+      skip_if !debug "debug";
+      test_case "eval term"
+"newtype Term : type
+newcons Lit : Int ⟶ Term Int
+newcons IsZero : Term Int ⟶ Term Bool
+external let is_zero : Int → Bool = \"(=) 0\"
+
+let rec eval = function
+  | Lit i -> i
+  | True -> assert false
+  | IsZero x -> is_zero (eval x)"
+
+        [1, "∃a. δ = (Term a → a)"]
+    );
+
   "eval" >::
     (fun () ->
        skip_if !debug "debug";

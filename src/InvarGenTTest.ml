@@ -156,10 +156,9 @@ let tests = "InvarGenT" >::: [
            test_case "non_pointwise_avl" ());
       "non_pointwise_vary" >::
         (fun () ->
-           todo "harder test";
+           todo "should not pass, turn into a test for error reporting";
            test_case "non_pointwise_vary" ());
     ]
-
 
 let () =
   let executable = Filename.basename Sys.executable_name in
