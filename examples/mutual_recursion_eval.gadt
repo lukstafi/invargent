@@ -1,7 +1,6 @@
 newtype Term : type
 newtype Calc
 
-external let plus : ∀i,j. Num i → Num j → Num (i+j) = "(+)"
 external let mult : ∀i,j. Num i → Num j → ∃k. Num k = "( * )"
 external let is_zero : ∀i. Num i → Bool = "(=) 0"
 external let cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k = "fun c a b -> if c then a else b"
@@ -27,7 +26,7 @@ let calc, eval =
       | Plus (x, y) ->
         let rx = calc x in
         let ry = calc y in
-        plus rx ry
+        rx + ry
       | Mult (x, y) ->
         let rx = calc x in
         let ry = calc y in

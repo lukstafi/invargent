@@ -32,7 +32,7 @@ Version 2.0 goals -- version targets may be reassigned:
 - [_] 'Update' and 'verify' modes of inference: use an existing `.gadti` file to provide a type annotation on the toplevel `.gadt` expressions. (v1.4)
 - [_] Optimize, paying attention to the speed of the update mode. (v1.4)
 - [_] Support OCaml-style records, with some desambiguation roughly as in OCaml. (v1.4)
-- [_] More general `when` clauses for patterns. (v2.0)
+- [_] More general `when` clauses for patterns. Factorize `Num` and `NumAdd` out of the `expr` type. (v2.0)
 - [_] Add a new "promising" sort. Candidates: integer numbers, partial orders, ring of polynomials... (v2.0)
 
 Version 1.0 milestones are now completed:

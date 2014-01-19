@@ -40,6 +40,7 @@ val pat_loc : pat -> lc
 type ('a, 'b) expr =
 | Var of string * lc
 | Num of int * lc
+| NumAdd of ('a, 'b) expr * ('a, 'b) expr * lc
 | String of string * lc
 | Cons of cns_name * ('a, 'b) expr list * lc
 | App of ('a, 'b) expr * ('a, 'b) expr * lc
@@ -348,7 +349,8 @@ type ('a, 'b) pr_expr_annot =
   | LetInNode of 'b
 
 val pr_expr :
-  ?export_num:string -> ?export_if:(string*string*string)
+  ?export_num:(string * string * string * string) ->
+  ?export_if:(string*string*string)
   -> ?export_bool:((bool * string) list) ->
   (Format.formatter -> ('a, 'b) pr_expr_annot -> unit) ->
   Format.formatter -> ('a, 'b) expr -> unit

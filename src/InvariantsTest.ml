@@ -1355,7 +1355,6 @@ let rec eval =
 newtype Num : num
 newtype Calc : num
 
-external let plus : ∀i,j. Num i → Num j → Num (i+j) = \"(+)\"
 external let is_zero : ∀i. Num i → Bool = \"(=) 0\"
 
 newcons Lit : ∀k. Num k ⟶ Calc k
@@ -1371,7 +1370,7 @@ let rec eval =
   let rec calc =
     function
     | Lit i -> i
-    | Plus (i, j) -> plus (calc i) (calc j) in
+    | Plus (i, j) -> calc i + calc j in
   function
   | IsZero x -> is_zero (calc x)
   | If (b, t, e) -> (match eval b with True -> eval t | False -> eval e)
@@ -1459,7 +1458,6 @@ let rec eval =
 newtype Num : num
 newtype Calc
 
-external let plus : ∀i,j. Num i → Num j → Num (i+j) = \"(+)\"
 external let mult : ∀i,j. Num i → Num j → ∃k. Num k = \"(*)\"
 external let is_zero : ∀i. Num i → Bool = \"(=) 0\"
 external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k = \"fun c a b -> if c then a else b\"
@@ -1482,7 +1480,7 @@ let rec eval =
     | Plus (x, y) ->
       let rx = calc x in
       let ry = calc y in
-      plus rx ry
+      rx + ry
     | Mult (x, y) ->
       let rx = calc x in
       let ry = calc y in
@@ -1554,13 +1552,12 @@ newcons TCons :
 newcons TNil : ∀a. Forest (a, 0)
 
 external let leq : ∀a. a → a → Bool = \"(<=)\"
-external let incr : ∀i. Num i → Num (i+1) = \"(+) 1\"
 
 let rec link = function
   | (Node (r, x1, c1) as t1), (Node (_, x2, c2) as t2) ->
     match leq x1 x2 with
-    | True -> Node (incr r, x1, TCons (t2, c1))
-    | False -> Node (incr r, x2, TCons (t1, c2))
+    | True -> Node (r+1, x1, TCons (t2, c1))
+    | False -> Node (r+1, x2, TCons (t1, c2))
 "
         [1,"∃n, a. δ = ((Tree (a, n), Tree (a, n)) → Tree (a, n + 1))"];
     );

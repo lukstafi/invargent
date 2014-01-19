@@ -50,6 +50,7 @@ let pat_loc = function
 type ('a, 'b) expr =
 | Var of string * loc
 | Num of int * loc
+| NumAdd of ('a, 'b) expr * ('a, 'b) expr * loc
 | String of string * loc
 | Cons of cns_name * ('a, 'b) expr list * loc
 | App of ('a, 'b) expr * ('a, 'b) expr * loc
@@ -67,6 +68,7 @@ and ('a, 'b) clause =
 let expr_loc = function
   | Var (_, loc)
   | Num (_, loc)
+  | NumAdd (_, _, loc)
   | String (_, loc)
   | Cons (_, _, loc)
   | App (_, _, loc)
@@ -117,6 +119,9 @@ let fuse_exprs =
     | Cons (n1, es, lc1), Cons (n2, fs, lc2) ->
       assert (n1==n2 && lc1==lc2);
       Cons (n1, combine es fs, lc1)
+    | NumAdd (e1, e2, lc1), NumAdd (f1, f2, lc2) ->
+      assert (lc1==lc2);
+      NumAdd (aux e1 f1, aux e2 f2, lc1)
     | App (e1, e2, lc1), App (f1, f2, lc2) ->
       assert (lc1==lc2);
       App (aux e1 f1, aux e2 f2, lc1)
@@ -729,7 +734,12 @@ let pr_expr ?export_num ?export_if ?export_bool pr_ann ppf exp =
     | Num (i, _) ->
       (match export_num with
        | None -> fprintf ppf "%d" i
-       | Some fname -> fprintf ppf "(%s %d)" fname i)
+       | Some (fname, _, _, _) -> fprintf ppf "(%s %d)" fname i)
+    | NumAdd (a, b, _) ->
+      (match export_num with
+       | None -> fprintf ppf "@[<2>%a@ +@ %a@]" aux a aux b
+       | Some (_, lbr, op, rbr) ->
+         fprintf ppf "@[<2>%s%a@ %s@ %a%s@]" lbr aux a op aux b rbr)
     | Cons (CNam "Tuple", exps, _) ->
       fprintf ppf "@[<2>(%a)@]"
         (pr_sep_list "," aux) exps

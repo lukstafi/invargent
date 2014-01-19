@@ -4,9 +4,6 @@ newtype Term : type
 (** Expressions representing computations on tuples. *)
 newtype Calc
 
-(** Addition. *)
-external val plus : ∀i, j. Num i → Num j → Num (i + j)
-
 newtype Ex1
 
 newcons Ex1 : ∀k.Num k ⟶ ∃1:k.Num k

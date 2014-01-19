@@ -3,8 +3,6 @@ newtype Term : type
 (** Expressions representing computations on tuples. *)
 newtype (* this part ignored*) Calc
 
-(** Addition. *)
-external let plus : ∀i,j. Num i → Num j → Num (i+j) = "(+)"
 (** Multiplication packs the result into existential type. *)
 external let mult : ∀i,j. Num i → Num j → ∃k. Num k = "( * )"
 external let is_zero : ∀i. Num i → Bool = "(=) 0"
@@ -44,7 +42,7 @@ let (* nested *) calc, (* and outer *) eval =
         let rx = calc x in
         (** Another recursive call. *)
         let ry = calc y in
-        plus rx ry
+        rx + ry
       | Mult (x, y) ->
         let rx = calc x in
         let ry = calc y in

@@ -2,14 +2,6 @@ newtype Tree : type * num
 
 newtype Forest : type * num
 
-newtype Order : num * num
-
-newcons Le : ∀i, j[i ≤ j + 1]. Order (i, j)
-
-newcons Gt : ∀i, j[j ≤ i + 1]. Order (i, j)
-
-newcons Eq : ∀n. Order (n, n)
-
 newcons Node : ∀k, a[0 ≤ k].Num k * a * Forest (a, k) ⟶ Tree (a, k)
 
 newcons TCons : ∀n, a[0 ≤ n].Tree (a, n) * Forest (a, n) ⟶
@@ -17,11 +9,7 @@ newcons TCons : ∀n, a[0 ≤ n].Tree (a, n) * Forest (a, n) ⟶
 
 newcons TNil : ∀a. Forest (a, 0)
 
-external compare : ∀i, j. Num i → Num j → Order (i, j)
-
 external val leq : ∀a. a → a → Bool
-
-external val incr : ∀i. Num i → Num (i + 1)
 
 val rank : ∀n, a. Tree (a, n) → Num n
 

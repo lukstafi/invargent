@@ -1,23 +1,17 @@
 newtype Tree : type * num
 newtype Forest : type * num
-newtype Order : num * num
-newcons Le : ∀i, j [i≤j+1]. Order (i, j)
-newcons Gt : ∀i, j [j≤i+1]. Order (i, j)
-newcons Eq : ∀i. Order (i, i)
 
 newcons Node : ∀a, k [0≤k]. Num k * a * Forest (a, k) ⟶ Tree (a, k)
 newcons TCons :
   ∀a, n [0≤n]. Tree (a, n) * Forest (a, n) ⟶ Forest (a, n+1)
 newcons TNil : ∀a. Forest (a, 0)
 
-external compare : ∀i, j. Num i → Num j → Order (i, j) = "compare"
 external let leq : ∀a. a → a → Bool = "(<=)"
-external let incr : ∀i. Num i → Num (i+1) = "(+) 1"
 
 let rank = function Node (r, _, _) -> r
 
 let link = function
   | (Node (r, x1, c1) as t1), (Node (_, x2, c2) as t2) ->
     match leq x1 x2 with
-    | True -> Node (incr r, x1, TCons (t2, c1))
-    | False -> Node (incr r, x2, TCons (t1, c2))
+    | True -> Node (r+1, x1, TCons (t2, c1))
+    | False -> Node (r+1, x2, TCons (t1, c2))

@@ -260,6 +260,8 @@ expr:
       { AssertLeq ($2, $4, $6, get_loc ()) }
   | ASSERT EQUAL TYPE expr expr SEMICOLON expr
       { AssertEqty ($4, $5, $7, get_loc ()) }
+  | expr PLUS expr
+      { NumAdd ($1, $3, get_loc ()) }
   | expr_comma_list %prec below_COMMA
       { Cons (tuple, (List.rev $1), get_loc ()) }
   | simple_expr

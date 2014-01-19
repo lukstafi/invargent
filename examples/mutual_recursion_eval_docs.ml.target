@@ -16,8 +16,6 @@ and calc =
     [Calc] does not have a parameter. *)
   | Mult : calc * calc -> calc
   | Cond : bool term * calc * calc -> calc (** Conditional. *)
-(** Addition. *)
-let plus : ((* i *) num -> (* j *) num -> (* i + j *) num) = (+)
 type ex1 =
   | Ex1 : (*∀'k.*)(* k *) num -> ex1
 (** Multiplication packs the result into existential type. *)
@@ -44,7 +42,7 @@ let (calc, eval) (*: type a . ((calc -> ex3) * (a term -> a))*) =
         (** Recursive call of [calc]. *)
         let Ex3 rx = calc x in
         (** Another recursive call. *)
-        let Ex3 ry = calc y in let xcase = plus rx ry in Ex3 xcase
+        let Ex3 ry = calc y in let xcase = rx + ry in Ex3 xcase
     | Mult (x, y) ->
         let Ex3 rx = calc x in
         let Ex3 ry = calc y in let Ex1 xcase = mult rx ry in Ex3 xcase
