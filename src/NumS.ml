@@ -1408,6 +1408,7 @@ let satisfiable ?state cnj =
   try
     let eqs, ineqs, optis =
       solve ?eqs ?ineqs ~cnj cmp cmp_w uni_v in
+    (* FIXME: split on optis *)
     Right (eqs, ineqs)
   with Terms.Contradiction _ as e -> Left e
 
@@ -1426,6 +1427,7 @@ let satisfiable_exn ?state cnj =
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
   let eqs, ineqs, optis =
     solve ?eqs ?ineqs ~cnj cmp cmp_w uni_v in
+  (* FIXME: split on optis *)
   eqs, ineqs
 
 let holds q avs (eqs, ineqs : state) cnj : state =
@@ -1440,6 +1442,7 @@ let holds q avs (eqs, ineqs : state) cnj : state =
   let eqs, ineqs, optis =
     solve ~use_quants:avs
       ~eqs ~ineqs ~cnj cmp cmp_w q.uni_v in
+  (* FIXME: split on optis *)
   eqs, ineqs
 
 type subst = (var_name * (term * loc)) list

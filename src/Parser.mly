@@ -191,9 +191,11 @@ num_term:
     { NumDefs.add $1 $3 }
   | MIN LPAREN num_term COMMA num_term RPAREN
     { let v = fresh_var Num_sort in
+      (* FIXME: handle introduced variables *)
       NumDefs.Min (v, $3, $5) }
   | MAX LPAREN num_term COMMA num_term RPAREN
     { let v = fresh_var Num_sort in
+      (* FIXME: handle introduced variables *)
       NumDefs.Max (v, $3, $5) }
   | LPAREN num_term RPAREN
     { $2 }

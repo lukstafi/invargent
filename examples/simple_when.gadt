@@ -1,0 +1,7 @@
+newtype Signed : num
+newcons Pos : ∀n [0 ≤ n]. Num n ⟶ Signed n
+newcons Neg : ∀n [n ≤ 0]. Num n ⟶ Signed n
+
+let foo = function
+  | i when 7 <= i -> Pos (i + -7)
+  | i when i <= 7 -> Neg (i + -7)

@@ -1,0 +1,79 @@
+(** We follow the implementation from Chris Okasaki "Purely Functional
+    Data Structures". The only difference is that instead of a generic
+    list type, we need two specific data types, [Forest] and [Heap]. *)
+
+newtype Tree : type * num
+newtype Forest : type * num
+newtype Heap : type * num * num
+
+newcons Node : ∀a, k [0≤k]. Num k * a * Forest (a, k) ⟶ Tree (a, k)
+newcons TCons :
+  ∀a, n [0≤n]. Tree (a, n) * Forest (a, n) ⟶ Forest (a, n+1)
+newcons TNil : ∀a. Forest (a, 0)
+newcons HCons :
+  ∀a, k, m, n [0≤k ∧ k+1≤m ∧ m≤n].
+    Tree (a, k) * Heap (a, m, n) ⟶ Heap (a, k, n)
+newcons HNil : ∀a, n. Heap (a, n, n)
+
+external let leq : ∀a. a → a → Bool = "(<=)"
+
+let rank = function Node (r, _, _) -> r
+
+let root = function Node (_, x, _) -> x
+
+let link = function
+  | (Node (r, x1, c1) as t1), (Node (_, x2, c2) as t2) ->
+    match leq x1 x2 with
+    | True -> Node (r+1, x1, TCons (t2, c1))
+    | False -> Node (r+1, x2, TCons (t1, c2))
+
+let rec ins_tree = fun t ->
+  efunction
+  | HNil -> HCons (t, HNil)
+  | HCons (t', ts') as ts ->
+    ematch rank t, rank t' with
+    | i, j when i+1<=j -> HCons (t, ts)
+    | i, j when i<=j && j<=i -> ins_tree (link (t, t')) ts'
+    | i, j when j+1<=i ->
+      let rts = ins_tree t ts' in
+      HCons (t', rts)
+
+let insert = fun x ts -> ins_tree (Node (0, x, TNil)) ts
+
+let rec merge = efunction
+  | HNil, HNil -> HNil
+  | (HCons (_,_) as ts1), HNil -> ts1
+  | HNil, (HCons (_,_) as ts2) -> ts2
+  | (HCons (t1, ts1') as ts1), (HCons (t2, ts2') as ts2) ->
+    ematch rank t1, rank t2 with
+    | i, j when i+1<=j ->
+      let rts = merge (ts1', ts2) in
+      HCons (t1, rts)
+    | i, j when i<=j && j<=i ->
+      let rts = merge (ts1', ts2') in
+      ins_tree (link (t1, t2)) rts 
+    | i, j when j+1<=i ->
+      let rts = merge (ts1, ts2') in
+      HCons (t2, rts)
+
+let rec remove_min_tree = efunction
+  | HNil -> assert false
+  | HCons (t, HNil) -> t, HNil
+  | HCons (t, (HCons (_, _) as ts)) ->
+    let t', ts' = remove_min_tree ts in
+    ematch leq (root t) (root t') with
+    | True -> t, ts
+    | False -> t', HCons (t, ts')
+
+let find_min ts =
+  let t, _ = remove_min_tree ts in
+  root t
+
+let rec heap_of_forset = function
+  | TNil -> HNil
+  | TCons (t, ts) ->
+    HCons (t, heap_of_forset ts)
+
+let delete_min = fun ts ->
+  let Node (_, _, ts1), ts2 = remove_min_tree ts in
+  merge (heap_of_forest ts1, ts2)
