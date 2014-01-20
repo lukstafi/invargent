@@ -164,23 +164,7 @@ let flatten cmp a : (w, w) choice option * (w*w) list =
     | Add sum ->
       List.fold_left flat acc sum
     | Cst (j,k) -> (vars, cst +/ (!/j // !/k), loc), optis
-    | Lin (j,k,v) -> ((v, !/j // !/k)::vars, cst, loc), optis
-    | Min (v,t1,t2) ->
-      let zero = [], !/0, loc in
-      let (vars1, cst1, lc1), optis = flat (zero, optis) t1 in
-      let (vars2, cst2, lc2), optis = flat (zero, optis) t2 in
-      ((v, !/1)::vars, cst, loc),
-      (((v, !/1)::List.map (fun (v,k) -> v, !/(-1) */ k) vars1, cst1, lc1),
-       ((v, !/1)::List.map (fun (v,k) -> v, !/(-1) */ k) vars2, cst2, lc2))
-      ::optis
-    | Max (v,t1,t2) -> 
-      let zero = [], !/0, loc in
-      let (vars1, cst1, lc1), optis = flat (zero, optis) t1 in
-      let (vars2, cst2, lc2), optis = flat (zero, optis) t2 in
-      ((v, !/1)::vars, cst, loc),
-      (((v, !/(-1))::vars1, cst1, lc1),
-       ((v, !/(-1))::vars2, cst2, lc2))
-      ::optis in
+    | Lin (j,k,v) -> ((v, !/j // !/k)::vars, cst, loc), optis in
   let collect t1 t2 loc =
     let zero = [], !/0, loc in
     let w1, optis = flat (zero, []) t1 in
@@ -290,7 +274,6 @@ let unexpand_sides cmp ((lhs, rhs), lc) =
   let unpack = function
     | Cst (i, j) -> [], !/i // !/j, lc
     | Lin (i, j, v) -> [v, !/i // !/j], !/0, lc
-    | Min _ | Max _ -> assert false
     | Add ts ->
       match List.rev ts with
       | Cst (i, j) :: vars -> List.map unlin vars, !/i // !/j, lc

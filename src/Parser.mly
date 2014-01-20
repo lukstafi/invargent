@@ -189,14 +189,6 @@ num_term:
     { NumDefs.Lin (1,1,VNam (Num_sort, $1)) }
   | num_term PLUS num_term
     { NumDefs.add $1 $3 }
-  | MIN LPAREN num_term COMMA num_term RPAREN
-    { let v = fresh_var Num_sort in
-      (* FIXME: handle introduced variables *)
-      NumDefs.Min (v, $3, $5) }
-  | MAX LPAREN num_term COMMA num_term RPAREN
-    { let v = fresh_var Num_sort in
-      (* FIXME: handle introduced variables *)
-      NumDefs.Max (v, $3, $5) }
   | LPAREN num_term RPAREN
     { $2 }
 ;
@@ -204,10 +196,14 @@ num_term:
 num_atom:
   | num_term LESSEQUAL num_term
     { NumDefs.Leq ($1, $3, get_loc ()) }
-  | num_term EQUAL num_term
-    { NumDefs.Eq ($1, $3, get_loc ()) }
   | MIN BAR MAX LPAREN num_term COMMA num_term RPAREN
     { NumDefs.Opti ($5, $7, get_loc ()) }
+  | num_term EQUAL MIN LPAREN num_term COMMA num_term RPAREN
+    { NumDefs.Opti (NumDefs.diff $1 $5, NumDefs.diff $1 $7, get_loc ()) }
+  | num_term EQUAL MAX LPAREN num_term COMMA num_term RPAREN
+    { NumDefs.Opti (NumDefs.diff $5 $1, NumDefs.diff $7 $1, get_loc ()) }
+  | num_term EQUAL num_term
+    { NumDefs.Eq ($1, $3, get_loc ()) }
 
 num_coef:
   | INT  { $1, 1 }

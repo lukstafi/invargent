@@ -1206,7 +1206,7 @@
   <math|k,v,w> be any linear combinations.
 
   <\eqnarray*>
-    <tformat|<table|<row|<cell|opti<around*|(|v,w|)>>|<cell|=>|<cell|v\<leqslant\>0\<wedge\>w\<leqslant\>0\<wedge\><around*|(|v<wide|=|\<dot\>>0\<vee\>w<wide|=|\<dot\>>0|)>>>|<row|<cell|\<varphi\><around*|(|v,w|)>>|<cell|=>|<cell|\<exists\>n\<in\>FV<around*|(|v|)>\<cap\>FV<around*|(|w|)>.sign<around*|(|n,v|)>=sign<around*|(|n,w|)>>>|<row|<cell|k<wide|=|\<dot\>>min<around*|(|v,w|)>>|<cell|\<equiv\>>|<cell|opti<around*|(|k-v,k-w|)>>>|<row|<cell|k<wide|=|\<dot\>>max<around*|(|v,w|)>>|<cell|\<equiv\>>|<cell|opti<around*|(|v-k,w-k|)>>>>>
+    <tformat|<table|<row|<cell|opti<around*|(|v,w|)>>|<cell|=>|<cell|v\<leqslant\>0\<wedge\>w\<leqslant\>0\<wedge\><around*|(|v<wide|=|\<dot\>>0\<vee\>w<wide|=|\<dot\>>0|)>>>|<row|<cell|k<wide|=|\<dot\>>min<around*|(|v,w|)>>|<cell|\<equiv\>>|<cell|opti<around*|(|k-v,k-w|)>>>|<row|<cell|k<wide|=|\<dot\>>max<around*|(|v,w|)>>|<cell|\<equiv\>>|<cell|opti<around*|(|v-k,w-k|)>>>>>
   </eqnarray*>
 
   In particular, <math|opti<around*|(|v,w|)>\<equiv\>max<around*|(|v,w|)><wide|=|\<dot\>>0>.
@@ -1215,25 +1215,16 @@
   prohibit undirected <em|opti> atoms, but we do not introduce them, to avoid
   bloat.
 
-  We support <em|min> and <em|max> as subterms in concrete syntax. However,
-  these subterms are expanded to <em|opti> atoms during processing. We do not
-  recover <em|min> and <em|max> as subterms from <em|opti> atoms, but we
-  print directed <em|opti> atoms using the
-  <math|k<wide|=|\<dot\>>min<around*|(|v,w|)>>, resp.
-  <math|k<wide|=|\<dot\>>max<around*|(|v,w|)>> syntax. The <em|min> and
-  <em|max> terms in abstract syntax have three arguments. The additional
-  argument is the first argument, and an occurrence of e.g.
-  <math|min<around*|(|k,v,w|)>> corresponds to
-  <math|k<wide|=|\<dot\>>min<around*|(|v,w|)>>, i.e.
-  <math|opti<around*|(|k-v,k-w|)>>, conjoined with the atom in which
-  <math|min<around*|(|k,v,w|)>> appeared. A fresh variable is generated for
-  <math|k> during parsing, and <math|min<around*|(|k,v,w|)>>, resp.
-  <math|max<around*|(|k,v,w|)>> is printed using
+  For simplicity, we do not support <em|min> and <em|max> as subterms in
+  concrete syntax. Instead, we parse atoms of the form
   <verbatim|k=min(<math|\<ldots\>>,<math|\<ldots\>>)>, resp.
-  <verbatim|k=max(<math|\<ldots\>>,<math|\<ldots\>>)> -- intuitive, although
-  at first sight confusing, syntax. Not to pollute the syntax with a new
-  keyword, we use concrete syntax <verbatim|min\|max(m,n)> for
-  <math|opti<around*|(|m,n|)>>.
+  <verbatim|k=max(<math|\<ldots\>>,<math|\<ldots\>>)> into the corresponding
+  <em|opti> atoms, where <verbatim|k> is any numerical term. We also print
+  directed <em|opti> atoms using the <math|k<wide|=|\<dot\>>min<around*|(|v,w|)>>,
+  resp. <math|k<wide|=|\<dot\>>max<around*|(|v,w|)>> syntax, where <math|k>
+  is a variable. Not to pollute the syntax with a new keyword, we use
+  concrete syntax <verbatim|min\|max(<math|\<ldots\>>,<math|\<ldots\>>)> for
+  parsing arbitrary, and printing non-directed, <em|opti> atoms.
 
   If need arises, in a future version, we can extend <em|opti> to a larger
   arity <math|N>.

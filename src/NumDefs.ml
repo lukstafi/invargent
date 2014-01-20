@@ -14,16 +14,11 @@ type term =
   | Cst of int * int                  (** [Cst (i,j)] = $(i/j)$ *)
   | Lin of int * int * var_name       (** [Lin [i,j,n]] = $(i/j)*n$ *)
   | Add of term list
-  | Min of var_name * term * term
-  | Max of var_name * term * term
 
 let rec fvs_term = function
   | Cst _ -> VarSet.empty
   | Lin (_, _, v) -> VarSet.singleton v
   | Add cmb -> vars_of_map fvs_term cmb
-  | Min (v, t1, t2)
-  | Max (v, t1, t2) ->
-    VarSet.add v (VarSet.union (fvs_term t1) (fvs_term t2))
 
 type atom =
   | Eq of term * term * Defs.loc
@@ -63,17 +58,13 @@ let scale_term j k t =
   let rec aux = function
     | Cst (m, n) -> Cst (m*j, n*k)
     | Lin (m, n, v) -> Lin (m*j, n*k, v)
-    | Add cmb -> Add (List.map aux cmb)
-    | Min (v, t1, t2) -> Min (v, aux t1, aux t2)
-    | Max (v, t1, t2) -> Max (v, aux t1, aux t2) in
+    | Add cmb -> Add (List.map aux cmb) in
   if j=1 && k=1 then t else aux t
 
 let rec iter_term_vars f = function
   | Cst _ -> ()
   | Lin (_, _, v) -> f v
   | Add cmb -> List.iter (iter_term_vars f) cmb
-  | Min (v, t1, t2) -> iter_term_vars f t1; iter_term_vars f t2
-  | Max (v, t1, t2) -> iter_term_vars f t1; iter_term_vars f t2
 
 
 let subst_term unbox sb t =
@@ -84,13 +75,7 @@ let subst_term unbox sb t =
          let t, lc = List.assoc v sb in
          scale_term j k (unbox v lc t)
        with Not_found -> t)
-    | Add cmb -> Add (List.map aux cmb)
-    | Min (v, t1, t2) ->
-      assert (not (List.mem_assoc v sb));
-      Min (v, aux t1, aux t2)
-    | Max (v, t1, t2) ->
-      assert (not (List.mem_assoc v sb));
-      Max (v, aux t1, aux t2) in
+    | Add cmb -> Add (List.map aux cmb) in
   aux t
 
 let hvsubst_term sb t =
@@ -99,21 +84,13 @@ let hvsubst_term sb t =
     | Lin (j, k, v) as t ->
       (try Lin (j, k, List.assoc v sb)
        with Not_found -> t)
-    | Add cmb -> Add (List.map aux cmb)
-    | Min (v, t1, t2) ->
-      assert (not (List.mem_assoc v sb));
-      Min (v, aux t1, aux t2)
-    | Max (v, t1, t2) ->
-      assert (not (List.mem_assoc v sb));
-      Max (v, aux t1, aux t2) in
+    | Add cmb -> Add (List.map aux cmb) in
   aux t
 
 let rec term_size = function
   | Cst _
   | Lin _ -> 1
   | Add cmb -> List.fold_left (fun acc t -> acc+term_size t) 1 cmb
-  | Min (v, t1, t2)
-  | Max (v, t1, t2) -> term_size t1 + term_size t2 + 1
 
 let add t1 t2 =
   match t1, t2 with
@@ -121,6 +98,8 @@ let add t1 t2 =
   | Add ds, Add es -> Add (ds @ es)
   | Add es, t | t, Add es -> Add (t::es)
   | _ -> Add [t1; t2]
+
+let diff t1 t2 = add t1 (scale_term (-1) 1 t2)
 
 let subst_atom unbox sb = function
   | Eq (t1, t2, loc) ->
@@ -159,16 +138,13 @@ let rec pr_term ppf = function
   | Lin (m, 1, v) -> fprintf ppf "%d %s" m (var_str v)
   | Lin (m, n, v) -> fprintf ppf "(%d/%d) %s" m n (var_str v)
   | Add cmb -> fprintf ppf "%a" (pr_sep_list " +" pr_term) cmb
-  | Min (v, t1, t2) -> fprintf ppf "min(%a, %a)" pr_term t1 pr_term t2
-  | Max (v, t1, t2) -> fprintf ppf "max(%a, %a)" pr_term t1 pr_term t2
 
 (* Simplified, i.e. non-normalizing, detection of directed opti atoms. *)
 let direct_opti t1 t2 =
   let rec flat (vars, (j,k as cst) as acc) = function
     | Add sum -> List.fold_left flat acc sum
     | Cst (j2,k2) -> vars, (j2*k+j*k2, k*k2)
-    | Lin (j,k,v) -> (j,k,v)::vars, cst
-    | Min _ | Max _ -> raise Not_found in
+    | Lin (j,k,v) -> (j,k,v)::vars, cst in
   let unpack (j,k,v) = Lin (j,k,v) in
   let uncst (j,k) = if j=0 then [] else [Cst (j,k)] in
   let negate = List.map (fun (j,k,v) -> ~-j,k,v) in

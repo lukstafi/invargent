@@ -12,10 +12,9 @@ type term =
   | Cst of int * int                  (** [Cst (i,j)] = $(i/j)$ *)
   | Lin of int * int * Defs.var_name  (** [Lin [i,j,n]] = $(i/j)*n$ *)
   | Add of term list
-  | Min of Defs.var_name * term * term
-  | Max of Defs.var_name * term * term
 
 val add : term -> term -> term
+val diff : term -> term -> term
 
 type atom =
   | Eq of term * term * Defs.loc

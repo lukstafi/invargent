@@ -1710,13 +1710,40 @@ let rec map2 = fun f ->
        0 ≤ k ∧ 0 ≤ n].List (a, i))"]
     );
 
-  "avl_tree--element" >::
+  "avl_tree--height" >::
     (fun () ->
-       todo "write";
        skip_if !debug "debug";
-       test_case "avl_tree--element"
-""
-        [1,"∃n, a. δ = ((Tree (a, n), Tree (a, n)) → Tree (a, n + 1))"];
+       test_case "avl_tree--height"
+"newtype Avl : type * num
+newcons Empty : ∀a. Avl (a, 0)
+newcons Node :
+  ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
+     Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
+
+let height = function
+  | Empty -> 0
+  | Node (_, _, _, k) -> k"
+        [1,"∃n, a. δ = (Avl (a, n) → Num n)"];
+    );
+
+  "avl_tree--create" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "avl_tree--height"
+"newtype Avl : type * num
+newcons Empty : ∀a. Avl (a, 0)
+newcons Node :
+  ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
+     Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
+
+external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+
+let create = fun l x r ->
+  ematch height l, height r with
+  | i, j when j <= i -> Node (l, x, r, i+1)
+  | i, j when i <= j -> Node (l, x, r, j+1)"
+        [2,"∃n, k, a.
+  δ = (Avl (a, n) → a → Avl (a, k) → ∃1:m[m=max(n, k) ∧ 0 ≤ n ∧ 0 ≤ k].Avl (a, m + 1))"];
     );
 
 
