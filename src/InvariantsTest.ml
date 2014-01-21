@@ -1634,7 +1634,6 @@ let rec zip =
     | UCons xs, UCons ys ->
       let zs = zip (xs, ys) in
       UCons zs"
-(* TODO: actually, needs cleanup, but is correct *)
         [2,"∃n, k.
   δ =
     ((Unary n, Unary k) → ∃1:i[i=min (n, k) ∧ 0 ≤ i ∧ 0 ≤ k ∧
@@ -1657,7 +1656,6 @@ let rec zip =
     | LCons (x, xs), LCons (y, ys) ->
       let zs = zip (xs, ys) in
       LCons ((x, y), zs)"
-(* TODO: actually, needs cleanup, but is correct *)
         [2,"∃n, k, a, b.
   δ =
     ((List (a, n), List (b, k)) → ∃1:i[i=min (n, k) ∧ 0 ≤ i ∧
@@ -1680,11 +1678,10 @@ let rec map2 =
     | UCons xs, UCons ys ->
       let zs = map2 (xs, ys) in
       UCons zs"
-(* TODO: actually, needs cleanup, but is correct *)
         [2,"∃n, k.
   δ =
     ((Unary n, Unary k) → ∃1:i[i=max (n, k) ∧ i ≤ n + k ∧
-       0 ≤ i ∧ 0 ≤ n + k ∧ 0 ≤ k ∧ 0 ≤ n].Unary i)"]
+       0 ≤ k ∧ 0 ≤ n].Unary i)"]
     );
 
   "list map2 with postfix too existential" >::
@@ -1706,8 +1703,8 @@ let rec map2 = fun f ->
         [2,"∃n, k, a.
   δ =
     ((a → a → a) → (List (a, n), List (a, k)) →
-       ∃1:i[i=max (n, k) ∧ i ≤ n + k ∧ 0 ≤ i ∧ 0 ≤ n + k ∧
-       0 ≤ k ∧ 0 ≤ n].List (a, i))"]
+       ∃1:i[i=max (n, k) ∧ i ≤ n + k ∧ 0 ≤ k ∧
+       0 ≤ n].List (a, i))"]
     );
 
   "avl_tree--height" >::
@@ -1742,10 +1739,14 @@ let create = fun l x r ->
   ematch height l, height r with
   | i, j when j <= i -> Node (l, x, r, i+1)
   | i, j when i <= j -> Node (l, x, r, j+1)"
+        (* A bit ugly (too much info), but correct. *)
         [2,"∃n, k, a.
-  δ = (Avl (a, n) → a → Avl (a, k) → ∃1:m[m=max(n, k) ∧ 0 ≤ n ∧ 0 ≤ k].Avl (a, m + 1))"];
+  δ =
+    (Avl (a, k) → a → Avl (a, n) → ∃1:i[i=max (k + 1, n + 1) ∧
+       i ≤ n + k + 1 ∧ i ≤ k + 3 ∧ i ≤ n + 3 ∧ k ≤ n + 2 ∧
+       n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].Avl (a, i)) ∧
+  k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n"];
     );
-
 
 ]
 

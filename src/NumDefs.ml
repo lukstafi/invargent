@@ -148,6 +148,7 @@ let direct_opti t1 t2 =
   let unpack (j,k,v) = Lin (j,k,v) in
   let uncst (j,k) = if j=0 then [] else [Cst (j,k)] in
   let negate = List.map (fun (j,k,v) -> ~-j,k,v) in
+  let negcst (j,k) = ~-j,k in
   try
     let ts1, cst1 = flat ([], (0,1)) t1
     and ts2, cst2 = flat ([], (0,1)) t2 in
@@ -156,9 +157,9 @@ let direct_opti t1 t2 =
     and vs2, ts2 = List.partition ((=) i) ts2 in
     let ts1 = List.tl vs1 @ ts1 and ts2 = List.tl vs2 @ ts2 in
     let s = j*k>0 in
-    let ts1, ts2 =
-      if not s then ts1, ts2
-      else negate ts1, negate ts2 in
+    let ts1, ts2, cst1, cst2 =
+      if not s then ts1, ts2, cst1, cst2
+      else negate ts1, negate ts2, negcst cst1, negcst cst2 in
     Some (v, s, Add (map_append unpack ts1 (uncst cst1)),
           Add (map_append unpack ts2 (uncst cst2)))
   with Not_found -> None

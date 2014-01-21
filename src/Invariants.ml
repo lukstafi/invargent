@@ -1098,6 +1098,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                       let sb =
                         List.map (fun (v,w) -> w,v)
                           (Hashtbl.find q.b_renaming b) in
+                      (* FIXME: on what grounds the renaming? *)
                       let sb = renaming_sb ((b, delta)::sb) in
                       (*[* Format.printf
                         "solve-loop-9: renaming=@ %a@\ndans'=%a@\n%!"

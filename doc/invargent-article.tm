@@ -92,6 +92,7 @@
     <associate|MainAlgo|<tuple|6|15|invargent.tm>>
     <associate|MainAlgoBody|<tuple|6.3|18|invargent.tm>>
     <associate|NumConv|<tuple|4.2|12|invargent.tm>>
+    <associate|OptiAtoms|<tuple|5|?|invargent.tm>>
     <associate|Rg|<tuple|5|18|invargent.tm>>
     <associate|SCAlinear|<tuple|3.4|9|invargent.tm>>
     <associate|SepProp|<tuple|5|3>>
@@ -223,7 +224,7 @@
       <no-break><pageref|auto-10>>
 
       <with|par-left|<quote|1tab>|3.4<space|2spc>Simple constraint abduction
-      for linear arithmetic <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      for linear arithmetics <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-11>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|4<space|2spc>Disjunction

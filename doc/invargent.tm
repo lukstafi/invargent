@@ -777,7 +777,7 @@
   ignore alien sort subterms in the comparison.
 
   <subsection|Simple constraint abduction for linear
-  arithmetic><label|SCAlinear>
+  arithmetics><label|SCAlinear>
 
   For checking validity or satisfiability, we use <em|Fourier-Motzkin
   elimination>. To avoid complexities we only handle the rational number
@@ -853,6 +853,17 @@
     reordered to match <math|C<rsub|6>>.
 
     <\enumerate>
+      <item>We say that a variable <math|\<alpha\>> is an <em|opti-LHS> if it
+      appears as <math|\<alpha\><wide|=|\<dot\>>min<around*|(|\<ldots\>,\<ldots\>|)>>
+      or <math|\<alpha\><wide|=|\<dot\>>max<around*|(|\<ldots\>,\<ldots\>|)>>
+      in the premise of the original constraint, before case splitting -- see
+      section <reference|OptiAtoms>. Direct each substitution
+      <math|\<alpha\>\<assign\>k*\<beta\>+\<ldots\>> of
+      <math|C<rsub|0><rsup|=>> where <math|\<alpha\>> is an opti-LHS, into
+      <math|\<beta\>\<assign\><frac|-1|k><around*|(|-\<alpha\>+\<ldots\>|)>>,
+      and apply the changed substitutions to <math|C<rsub|0><rsup|=>> and
+      <math|C<rsub|0><rsup|\<leqslant\>>>.
+
       <item>Replace <math|\<alpha\><rsub|1>\<assign\>k<rsub|1>*\<beta\>+c<rsub|1>,\<ldots\>,\<alpha\><rsub|n>\<assign\>k<rsub|n>*\<beta\>+c<rsub|n>>
       with <math|\<alpha\><rsub|i>\<assign\>k<rsub|i>*\<beta\>+c<rsub|i>,\<alpha\><rsub|1>\<assign\><frac|k<rsub|1>|k<rsub|i>>\<alpha\><rsub|i>+<around*|(|c<rsub|1>-<frac|k<rsub|1>*c<rsub|i>|k<rsub|i>>|)>,\<ldots\>,\<alpha\><rsub|n>\<assign\><frac|k<rsub|n>|k<rsub|i>>\<alpha\><rsub|i>+<around*|(|c<rsub|n>-<frac|k<rsub|n>*c<rsub|i>|k<rsub|i>>|)>>
       (excluding <math|\<alpha\><rsub|i>\<assign\>\<alpha\><rsub|i>>) where
@@ -866,6 +877,10 @@
       (excluding <math|\<alpha\><rsub|i>\<assign\>\<alpha\><rsub|i>>) where
       <math|\<alpha\><rsub|i>> is the most upstream existential variable (or
       parameter) and <math|c> is a constant.
+
+      <item>When choosing <math|\<alpha\><rsub|i>> in (b) and (c) above from
+      equally upstream variables, if possible pick <math|\<alpha\><rsub|i>>
+      is an opti-LHS.
     </enumerate>
 
     <item>Start from <math|Acc\<assign\><around*|{||}>>. Try atoms
@@ -1199,7 +1214,7 @@
   numerical disjunction elimination does not seem necessary.
 
   <section|<em|opti>: <em|minimum> and <em|maximum> relations in
-  <verbatim|num>>
+  <verbatim|num>><label|OptiAtoms>
 
   We extend the numerical domain with a relation <em|opti> defined below.
   Operations <em|min> and <em|max> can then be defined using it. Let
@@ -1820,6 +1835,7 @@
     <associate|MainAlgo|<tuple|6|15>>
     <associate|MainAlgoBody|<tuple|6.3|18>>
     <associate|NumConv|<tuple|4.2|12>>
+    <associate|OptiAtoms|<tuple|5|?>>
     <associate|Rg|<tuple|5|18>>
     <associate|SCAlinear|<tuple|3.4|9>>
     <associate|SepProp|<tuple|5|3>>
