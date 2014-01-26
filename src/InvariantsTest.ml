@@ -1742,7 +1742,6 @@ let create = fun l x r ->
 
   "avl_tree--min_binding" >::
     (fun () ->
-       todo "problems with numerical abduction?";
        skip_if !debug "debug";
        test_case "avl_tree--height"
 "newtype Avl : type * num
@@ -1755,7 +1754,7 @@ let rec min_binding = function
   | Empty -> assert false
   | Node (Empty, x, r, _) -> x
   | Node ((Node (_,_,_,_) as l), x, r, _) -> min_binding l"
-        [2,""];
+        [1,"∃n, a. δ = (Avl (a, n) → a) ∧ 1 ≤ n"];
     );
 
 ]

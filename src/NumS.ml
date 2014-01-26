@@ -744,15 +744,19 @@ let abd_simple cmp cmp_w cmp_v uni_v ~bvs ~discard ~validate
     let zero = [], !/0, dummy_loc in
     let prune (vars, _, _ as w) =
       if List.length vars < !abd_prune_at then Some w else None in
-    let add_tr ks_eq eq_trs a =
-      (* TODO: the transformations repeat, optimize *)
-      (*[* Format.printf "add_eq/ineq_tr: a=%a@\n%!" pr_w a; *]*)
-      let kas = lazmap (fun k -> mult k a) ks_eq in
-      let add_kas tr =
-        lazmap_some (fun ka -> prune (sum_w cmp ka tr)) kas in
-      lazconcat_map add_kas eq_trs in
+    let add_tr ks_eq eq_trs (vars,_,_ as a) =
+      if vars=[] then eq_trs
+      else (
+        (* TODO: the transformations repeat, optimize *)
+        (*[* Format.printf "add_eq/ineq_tr: a=%a@\n%!" pr_w a; *]*)
+        let kas = lazmap (fun k -> mult k a) ks_eq in
+        let add_kas tr =
+          lazmap_some (fun ka -> prune (sum_w cmp ka tr)) kas in
+        lazconcat_map add_kas eq_trs) in
     let add_atom_tr is_ineq ks_eq eq_trs = function
+      | Eq_w ([], cst, _) when cst <>/ !/0 -> assert false
       | Eq_w a -> add_tr ks_eq eq_trs a
+      | Leq_w ([], cst, _) when cst >/ !/0 -> assert false
       | Leq_w a when is_ineq -> add_tr ks_eq eq_trs a
       | Opti_w (a1, a2) when is_ineq ->
         add_tr ks_eq (add_tr ks_eq eq_trs a1) a2

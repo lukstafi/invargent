@@ -868,12 +868,14 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
              try Some (NumS.satisfiable_exn (ans_num @ prem @ concl))
              with Contradiction _ -> None)
           brs_num in
-      let num_neg_cns = List.map
+      (* Filter out already solved negative constraints. *)
+      let num_neg_cns = map_some
           (fun (c,lc)->
              let cnj = c.cnj_num in
              let elimvs =
                VarSet.diff (NumDefs.fvs_formula cnj) bvs in
-             snd (NumS.simplify q elimvs cnj), lc)
+             try Some (snd (NumS.simplify q elimvs cnj), lc)
+             with Contradiction _ -> None)
           neg_cns in
       NumS.negation_elim q ~verif_cns:verif_cns_num
         num_neg_cns in
