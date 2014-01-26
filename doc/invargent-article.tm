@@ -86,18 +86,19 @@
   <\collection>
     <associate|1|<tuple|5.2|?>>
     <associate|AlienSubterms|<tuple|3.3|9|invargent.tm>>
-    <associate|Details|<tuple|6.5|20|invargent.tm>>
+    <associate|Details|<tuple|6.5|21|invargent.tm>>
     <associate|ImplSubst|<tuple|4|2>>
     <associate|Main Algo|<tuple|5.3|?>>
-    <associate|MainAlgo|<tuple|6|15|invargent.tm>>
-    <associate|MainAlgoBody|<tuple|6.3|18|invargent.tm>>
+    <associate|MainAlgo|<tuple|6|16|invargent.tm>>
+    <associate|MainAlgoBody|<tuple|6.3|19|invargent.tm>>
+    <associate|NegElim|<tuple|4.4|14|invargent.tm>>
     <associate|NumConv|<tuple|4.2|12|invargent.tm>>
-    <associate|OptiAtoms|<tuple|5|?|invargent.tm>>
-    <associate|Rg|<tuple|5|18|invargent.tm>>
+    <associate|OptiAtoms|<tuple|5|15|invargent.tm>>
+    <associate|Rg|<tuple|5|19|invargent.tm>>
     <associate|SCAlinear|<tuple|3.4|9|invargent.tm>>
     <associate|SepProp|<tuple|5|3>>
     <associate|SepProp2|<tuple|6|?>>
-    <associate|Skp|<tuple|1|18|invargent.tm>>
+    <associate|Skp|<tuple|1|19|invargent.tm>>
     <associate|Skp1|<tuple|10|19|invargent.tm>>
     <associate|SolSimpl|<tuple|9|12>>
     <associate|SolvedForm|<tuple|4|?>>
@@ -106,43 +107,44 @@
     <associate|auto-10|<tuple|3.3|9|invargent.tm>>
     <associate|auto-11|<tuple|3.4|9|invargent.tm>>
     <associate|auto-12|<tuple|4|11|invargent.tm>>
-    <associate|auto-13|<tuple|4.1|11|invargent.tm>>
+    <associate|auto-13|<tuple|4.1|12|invargent.tm>>
     <associate|auto-14|<tuple|4.2|12|invargent.tm>>
-    <associate|auto-15|<tuple|4.3|12|invargent.tm>>
-    <associate|auto-16|<tuple|5|14|invargent.tm>>
-    <associate|auto-17|<tuple|5.1|14|invargent.tm>>
-    <associate|auto-18|<tuple|5.2|15|invargent.tm>>
-    <associate|auto-19|<tuple|5.3|15|invargent.tm>>
+    <associate|auto-15|<tuple|4.3|13|invargent.tm>>
+    <associate|auto-16|<tuple|4.4|14|invargent.tm>>
+    <associate|auto-17|<tuple|5|15|invargent.tm>>
+    <associate|auto-18|<tuple|5.1|15|invargent.tm>>
+    <associate|auto-19|<tuple|5.2|16|invargent.tm>>
     <associate|auto-2|<tuple|2|3|invargent.tm>>
-    <associate|auto-20|<tuple|6|15|invargent.tm>>
-    <associate|auto-21|<tuple|6.1|15|invargent.tm>>
-    <associate|auto-22|<tuple|6.2|16|invargent.tm>>
-    <associate|auto-23|<tuple|6.3|18|invargent.tm>>
-    <associate|auto-24|<tuple|6.4|20|invargent.tm>>
-    <associate|auto-25|<tuple|6.5|20|invargent.tm>>
-    <associate|auto-26|<tuple|7|21|invargent.tm>>
-    <associate|auto-27|<tuple|7|22>>
-    <associate|auto-3|<tuple|2.1|4|invargent.tm>>
+    <associate|auto-20|<tuple|5.3|16|invargent.tm>>
+    <associate|auto-21|<tuple|6|16|invargent.tm>>
+    <associate|auto-22|<tuple|6.1|16|invargent.tm>>
+    <associate|auto-23|<tuple|6.2|16|invargent.tm>>
+    <associate|auto-24|<tuple|6.3|19|invargent.tm>>
+    <associate|auto-25|<tuple|6.4|21|invargent.tm>>
+    <associate|auto-26|<tuple|6.5|21|invargent.tm>>
+    <associate|auto-27|<tuple|7|22|invargent.tm>>
+    <associate|auto-28|<tuple|7|22>>
+    <associate|auto-3|<tuple|2.1|5|invargent.tm>>
     <associate|auto-4|<tuple|2.1.1|5|invargent.tm>>
     <associate|auto-5|<tuple|2.2|5|invargent.tm>>
-    <associate|auto-6|<tuple|3|5|invargent.tm>>
+    <associate|auto-6|<tuple|3|6|invargent.tm>>
     <associate|auto-7|<tuple|3.1|6|invargent.tm>>
     <associate|auto-8|<tuple|3.1.1|8|invargent.tm>>
     <associate|auto-9|<tuple|3.2|8|invargent.tm>>
     <associate|bib-AbductionSolvMaher|<tuple|3|22>>
-    <associate|bib-AntiUnifAlg|<tuple|9|22>>
+    <associate|bib-AntiUnifAlg|<tuple|9|23>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
     <associate|bib-ArithQuantElim|<tuple|1|22>>
     <associate|bib-ConvexHull|<tuple|2|22>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
-    <associate|bib-ESOP2014|<tuple|8|22>>
+    <associate|bib-ESOP2014|<tuple|8|23>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
     <associate|bib-disjelimTechRep|<tuple|5|22>>
     <associate|bib-invariantsTechRep2|<tuple|6|22>>
     <associate|bib-jcaqpTechRep|<tuple|8|4>>
-    <associate|bib-jcaqpTechRep2|<tuple|7|22>>
+    <associate|bib-jcaqpTechRep2|<tuple|7|23>>
     <associate|bib-jcaqpUNIF|<tuple|4|22>>
     <associate|bib-simonet-pottier-hmg-toplas|<tuple|6|4>>
     <associate|bib-systemTechRep|<tuple|5|18>>
@@ -244,58 +246,62 @@
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-15>>
 
+      <with|par-left|<quote|1tab>|4.4<space|2spc>Incorporating negative
+      constraints <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-16>>
+
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|5<space|2spc><with|font-shape|<quote|italic>|opti>:
       <with|font-shape|<quote|italic>|minimum> and
       <with|font-shape|<quote|italic>|maximum> relations in
       <with|font-family|<quote|tt>|language|<quote|verbatim>|num>>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-16><vspace|0.5fn>
+      <no-break><pageref|auto-17><vspace|0.5fn>
 
       <with|par-left|<quote|1tab>|5.1<space|2spc>Normalization, validity and
       implication checking <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-17>>
+      <no-break><pageref|auto-18>>
 
       <with|par-left|<quote|1tab>|5.2<space|2spc>Abduction
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-18>>
+      <no-break><pageref|auto-19>>
 
       <with|par-left|<quote|1tab>|5.3<space|2spc>Disjunction elimination
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-19>>
+      <no-break><pageref|auto-20>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|6<space|2spc>Solving
       for Predicate Variables> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-20><vspace|0.5fn>
+      <no-break><pageref|auto-21><vspace|0.5fn>
 
       <with|par-left|<quote|1tab>|6.1<space|2spc>Invariant Parameter
       Candidates <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-21>>
+      <no-break><pageref|auto-22>>
 
       <with|par-left|<quote|1tab>|6.2<space|2spc>Solving for Predicates in
       Negative Positions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-22>>
+      <no-break><pageref|auto-23>>
 
       <with|par-left|<quote|1tab>|6.3<space|2spc>Solving for Existential
       Types Predicates and Main Algorithm
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-23>>
+      <no-break><pageref|auto-24>>
 
       <with|par-left|<quote|1tab>|6.4<space|2spc>Stages of iteration
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-24>>
+      <no-break><pageref|auto-25>>
 
       <with|par-left|<quote|1tab>|6.5<space|2spc>Implementation details
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-25>>
+      <no-break><pageref|auto-26>>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|7<space|2spc>Generating
       OCaml/Haskell Source and Interface Code>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-26><vspace|0.5fn>
+      <no-break><pageref|auto-27><vspace|0.5fn>
 
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|Bibliography>
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
-      <no-break><pageref|auto-27><vspace|0.5fn>
+      <no-break><pageref|auto-28><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>

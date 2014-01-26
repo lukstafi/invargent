@@ -128,6 +128,12 @@ let iter_terms f = function
   | Leq (t1, t2, loc)
   | Opti (t1, t2, loc) -> f t1; f t2
 
+let rec denom = function
+  | Cst (_, d) -> d
+  | Lin (_, d, _) -> d
+  | Add cmb ->
+    List.fold_left lcm 1 (List.map denom cmb)
+
 open Format
 
 let rec pr_term ppf = function

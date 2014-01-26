@@ -237,8 +237,6 @@ newcons Nil : ∀a. List a
 newcons TInt : Ty Int
 newcons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
 newcons TList : ∀a. Ty a ⟶ Ty (List a)
-newcons True : Bool
-newcons False : Bool
 external let eq_int : Int → Int → Bool = \"(=)\"
 external let b_and : Bool → Bool → Bool = \"(&&)\"
 external let b_not : Bool → Bool = \"not\"
@@ -266,8 +264,6 @@ newcons Nil : ∀a. List a
 newcons TInt : Ty Int
 newcons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
 newcons TList : ∀a. Ty a ⟶ Ty (List a)
-newcons True : Bool
-newcons False : Bool
 external let eq_int : Int → Int → Bool = \"(=)\"
 external let b_and : Bool → Bool → Bool = \"(&&)\"
 external let b_not : Bool → Bool = \"not\"
@@ -296,8 +292,6 @@ newcons Nil : ∀a. List a
 newcons TInt : Ty Int
 newcons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
 newcons TList : ∀a. Ty a ⟶ Ty (List a)
-newcons True : Bool
-newcons False : Bool
 external let eq_int : Int → Int → Bool = \"(=)\"
 external let b_and : Bool → Bool → Bool = \"(&&)\"
 external let b_not : Bool → Bool = \"not\"
@@ -596,8 +590,6 @@ test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
        skip_if !debug "debug";
        test_case "list flatten_pairs"
 "newtype List : type * num
-newcons True : Bool
-newcons False : Bool
 newcons LNil : ∀a. List(a, 0)
 newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 
@@ -1746,6 +1738,24 @@ let create = fun l x r ->
        i ≤ n + k + 1 ∧ i ≤ k + 3 ∧ i ≤ n + 3 ∧ k ≤ n + 2 ∧
        n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].Avl (a, i)) ∧
   k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n"];
+    );
+
+  "avl_tree--min_binding" >::
+    (fun () ->
+       todo "problems with numerical abduction?";
+       skip_if !debug "debug";
+       test_case "avl_tree--height"
+"newtype Avl : type * num
+newcons Empty : ∀a. Avl (a, 0)
+newcons Node :
+  ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
+     Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
+
+let rec min_binding = function
+  | Empty -> assert false
+  | Node (Empty, x, r, _) -> x
+  | Node ((Node (_,_,_,_) as l), x, r, _) -> min_binding l"
+        [2,""];
     );
 
 ]

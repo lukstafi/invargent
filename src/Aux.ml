@@ -12,6 +12,16 @@ let (%) f g x = f (g x)
 let (%>) f g x = g (f x)
 let (|>) x f = f x
 
+let rec gcd a b =
+  if b > a then gcd b a
+  else if b = 0 then a
+  else gcd b (a mod b)
+
+let lcm a b = (a * b) / gcd a b
+
+let lcm_big_int a b =
+  Big_int.(div_big_int (mult_big_int a b) (gcd_big_int a b))
+
 module Ints = Set.Make
   (struct type t = int let compare x y = x - y end)
 let add_ints nvs vs =
@@ -49,6 +59,12 @@ let fold_map f acc l =
     | hd::tl ->
       let acc, hd = f acc hd in aux acc (hd::res) tl in
   aux acc [] l
+
+let one_out l =
+  let rec aux acc lhs = function
+    | [] -> List.rev acc
+    | a::rhs -> aux ((a, List.rev_append lhs rhs)::acc) (a::lhs) rhs in
+  aux [] [] l
 
 let rec list_make_n e n =
   if n <= 0 then [] else e :: list_make_n e (n-1)
@@ -110,6 +126,10 @@ let list_some = function
   | Some a -> [a]
   | None -> []
 
+let list_some_list = function
+  | Some a -> a
+  | None -> []
+
 let unsome = function None -> invalid_arg "Aux.unsome" | Some e -> e
 
 let array_mapi_some f a =
@@ -136,6 +156,14 @@ let find_map f l =
     | a::l ->
       match f a with None -> aux l
 	| Some _ as ans -> ans in
+  aux l
+
+let find_some f l =
+  let rec aux = function
+    | [] -> raise Not_found
+    | a::l ->
+      match f a with None -> aux l
+	| Some ans -> ans in
   aux l
 
 let map_upto postfix f l =
@@ -438,3 +466,8 @@ let rec pr_line_list sep pr_a ppf = function
   | [hd] -> pr_a ppf hd
   | hd::tl ->
       fprintf ppf "%a@\n%s%a" pr_a hd sep (pr_line_list sep pr_a) tl
+
+let pr_some pr_a ppf = function
+  | None -> fprintf ppf "%s" "none"
+  | Some a -> pr_a ppf a
+

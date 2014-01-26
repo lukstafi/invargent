@@ -71,6 +71,7 @@ val converge :
 type state
 val empty_state : state
 val formula_of_state : state -> NumDefs.formula
+val pr_state : Format.formatter -> state -> unit
 val satisfiable :
   ?state:state -> NumDefs.formula -> (exn, state) Aux.choice
 val satisfiable_exn : ?state:state -> NumDefs.formula -> state
@@ -78,6 +79,11 @@ val satisfiable_exn : ?state:state -> NumDefs.formula -> state
 val holds :
   Defs.quant_ops -> Defs.VarSet.t ->
   state -> NumDefs.formula -> state
+val negation_elim :
+  Defs.quant_ops ->
+  verif_cns:state list ->
+  (NumDefs.formula * Defs.loc) list ->
+  NumDefs.formula
 val separate_subst :
   Defs.quant_ops -> ?no_csts:bool -> ?keep:Defs.VarSet.t -> NumDefs.formula ->
   Terms.subst * NumDefs.formula

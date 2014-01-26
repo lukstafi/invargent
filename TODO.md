@@ -9,4 +9,5 @@ Place for TODOs/FIXMEs, especially if not expressed in other places. See README.
 * TODO: term abduction seems to no longer need alien premises. Rethink and remove.
 * FIXME: missing `newtype` declarations should be errors. Do sort checking against declaration.
 * TODO: introduce to the parser the syntax for `min` and `max` terms used by printing.
-* FIXME: filtering / checking connected / simplification / initstep heuristic, for disjunction elimination, sorely need rethinking and cleanup.
+* FIXME: filtering / checking connected / simplification / initstep heuristic, for disjunction elimination, need rethinking and cleanup.
+* TODO: optimization--perhaps remove duplicates from solved form of ineqs

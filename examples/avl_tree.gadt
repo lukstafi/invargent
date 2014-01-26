@@ -78,7 +78,7 @@ let rec mem = fun x -> function
 let rec min_binding = function
   | Empty -> assert false
   | Node (Empty, x, r, _) -> x
-  | Node (Node (_,_,_,_) as l, x, r, _) -> min_binding l
+  | Node ((Node (_,_,_,_) as l), x, r, _) -> min_binding l
 
 let rec remove_min_binding = efunction
   | Empty -> assert false

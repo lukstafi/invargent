@@ -57,6 +57,7 @@ val abd :
   ?iter_no:int ->
   discard:discarded ->
   (bool * Terms.formula * Terms.formula) list ->
+  (Terms.formula * Defs.loc) list ->
   Defs.VarSet.t * Terms.subst *
   (Defs.var_name list * Terms.formula)
 val abd_mockup_num :

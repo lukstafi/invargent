@@ -41,6 +41,7 @@ let abd_prune_at = ref (* 4 *)6(* 10 *)
 let abd_timeout_count = ref (* 500 *)1000(* 5000 *)(* 50000 *)
 let abd_fail_timeout_count = ref 10
 let disjelim_rotations = ref 3
+let abd_int_negation = ref true
 let passing_ineq_trs = ref false
 
 let abd_fail_flag = ref false
@@ -132,6 +133,10 @@ let pr_optis ppf (optis : optis) =
 
 let pr_ans ppf (eqs, ineqs) =
   Format.fprintf ppf "%a@ ∧@ %a" pr_w_subst eqs pr_ineqs ineqs
+
+let pr_state ppf (eqs, ineqs, optis) =
+  Format.fprintf ppf "%a@ ∧@ %a@ ∧@ %a" pr_w_subst eqs pr_ineqs ineqs
+    pr_optis optis
 
 let pr_eq ppf w = Format.fprintf ppf "%a@ = 0" pr_w w
 let pr_ineq ppf w = Format.fprintf ppf "%a@ ≤ 0" pr_w w
@@ -237,6 +242,17 @@ let frac_of_num k =
   let k = ratio_of_num k in
   Big_int.int_of_big_int (Ratio.numerator_ratio k),
   Big_int.int_of_big_int (Ratio.denominator_ratio k)
+
+let denom_of_num k =
+  let k = ratio_of_num k in
+  Ratio.denominator_ratio k
+
+let denom_w (vars,cst,_) =
+  let k = List.fold_left
+      (fun acc (_,k) ->
+         lcm_big_int acc (denom_of_num k))
+      (denom_of_num cst) vars in
+  num_of_big_int k
 
 let expand_w (vars, cst, loc) =
   let vars = List.map
@@ -365,8 +381,7 @@ let direct_opti ((vars1,cst1,lc1 as w1), (vars2,cst2,lc2 as w2)) =
   with Not_found -> None
 
 let solve_aux ?use_quants ?(strict=false)
-    ?(eqs=[]) ?(ineqs=[]) ?(eqs'=[])
-    ?(optis=[]) ?(eqn=[]) ?(ineqn=[]) ?(cnj=[])
+    ~eqs ~ineqs ~eqs' ~optis ~eqn ~ineqn ~cnj
     cmp cmp_w uni_v =
   let use_quants, bvs = match use_quants with
     | None -> false, VarSet.empty
@@ -527,8 +542,10 @@ let solve_aux ?use_quants ?(strict=false)
 
 type num_solution = w_subst * ineqs * optis
 
-let solve ?use_quants ?strict ?eqs ?ineqs ?eqs' ?optis ?eqn ?ineqn ?cnj
-    cmp cmp_w uni_v : num_solution =
+let solve ?use_quants ?strict
+    ?(eqs=[]) ?(ineqs=[]) ?(eqs'=[])
+    ?(optis=[]) ?(eqn=[]) ?(ineqn=[]) ?(cnj=[])
+    cmp cmp_w uni_v =
   let rec loop (eqs,(ineqs,implicits1),(optis,implicits2)) =
     let implicits = implicits2 @ implicits1 in
     if implicits=[] then eqs, ineqs, optis
@@ -537,9 +554,12 @@ let solve ?use_quants ?strict ?eqs ?ineqs ?eqs' ?optis ?eqn ?ineqn ?cnj
         pr_eqn implicits; *]*)
       loop
         (solve_aux ?use_quants ?strict ~eqs ~ineqs ~optis ~eqn:implicits
-           cmp cmp_w uni_v)) in
-  loop (solve_aux ?use_quants ?strict ?eqs ?ineqs ?eqs' ?optis
-          ?eqn ?ineqn ?cnj cmp cmp_w uni_v)
+           ~eqs':[] ~ineqn:[] ~cnj:[] cmp cmp_w uni_v)) in
+  if eqn=[] && (eqs=[] || eqs'=[]) && ineqn=[] && optis=[] && cnj=[]
+  then eqs @ eqs', ineqs, []
+  else
+    loop (solve_aux ?use_quants ?strict ~eqs ~ineqs ~eqs' ~optis
+            ~eqn ~ineqn ~cnj cmp cmp_w uni_v)
 
 let fvs_w (vars, _, _) = vars_of_list (List.map fst vars)
 
@@ -550,6 +570,7 @@ let debug_dep = ref 0
 let no_pass_msg = "Could not solve numeric SCA (algorithm step 5b)"
 
 let implies cmp cmp_w uni_v eqs ineqs c_eqn c_ineqn =
+  (*[* Format.printf "implies: prem=@ %a@\n%!" pr_ans (eqs, ineqs); *]*)
   List.for_all
     (fun w ->
       match subst_w cmp eqs w with
@@ -989,6 +1010,7 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
          try
            let _,_,(d_optis,d_opti_eqn) =
              solve_aux cmp cmp_w q.uni_v
+               ~eqs:[] ~ineqs:[] ~eqs':[] ~cnj:[]
                ~eqn:d_eqn ~ineqn:d_ineqn ~optis:d_optis in
            let d_ineqn = flat2 d_optis @ d_ineqn in
            let opti_lhs = List.fold_left
@@ -1086,7 +1108,7 @@ let expand_eqineqs eqs ineqs =
   let ans = List.map (expand_atom true) (unsubst eqs) in
   ans @ List.map (expand_atom false) (unsolve ineqs)
 
-let disjelim q ~preserve brs =
+let disjelim_aux q ~preserve brs =
   (*[* Format.printf "NumS.disjelim: init brs=@\n%a@\n%!"
     (pr_line_list "| " pr_formula) brs; *]*)
   let vars = List.map fvs_formula brs in
@@ -1330,6 +1352,12 @@ let disjelim q ~preserve brs =
     List.map (expand_atom true) (eqn @ redundant_eqn)
   @ List.map (expand_atom false) ineqn
 
+let disjelim q ~preserve brs =
+  match brs with
+  | [] -> assert false
+  | [br] -> [], br
+  | _ -> disjelim_aux q ~preserve brs
+
 (* [atomic_impl a b] means [a] is stronger than [b], or equal in
    strength unless [a] is [Opti_w] -- prune opti atoms as side effect. *)
 let atomic_impl cmp a b =
@@ -1446,15 +1474,20 @@ let initstep_heur q ~preserve cnj =
       | Opti _ -> false)
     cnj
 
-type state = w_subst * ineqs
-let empty_state = [], []
+type state = w_subst * ineqs * optis
+let empty_state = [], [], []
 
-let formula_of_state (eqs, ineqs) = expand_eqineqs eqs ineqs
+let formula_of_state (eqs, ineqs, optis) =
+  let cnj = expand_eqineqs eqs ineqs in
+  map_append (fun ((_,_,lc as w1), w2) ->
+      let t1 = expand_w w1 and t2 = expand_w w2 in
+      Opti (t1, t2, lc))
+    optis cnj
 
 let satisfiable ?state cnj =
-  let eqs, ineqs = match state with
-    | None -> None, None
-    | Some (eqs, ineqs) -> Some eqs, Some ineqs in
+  let eqs, ineqs, optis = match state with
+    | None -> None, None, None
+    | Some (eqs, ineqs, optis) -> Some eqs, Some ineqs, Some optis in
   let uni_v _ = false in
   let cmp_v v1 v2 = compare v1 v2 in
   let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
@@ -1466,15 +1499,14 @@ let satisfiable ?state cnj =
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
   try
     let eqs, ineqs, optis =
-      solve ?eqs ?ineqs ~cnj cmp cmp_w uni_v in
-    (* FIXME: split on optis *)
-    Right (eqs, ineqs)
+      solve ?eqs ?ineqs ?optis ~cnj cmp cmp_w uni_v in
+    Right (eqs, ineqs, optis)
   with Terms.Contradiction _ as e -> Left e
 
 let satisfiable_exn ?state cnj =
-  let eqs, ineqs = match state with
-    | None -> None, None
-    | Some (eqs, ineqs) -> Some eqs, Some ineqs in
+  let eqs, ineqs, optis = match state with
+    | None -> None, None, None
+    | Some (eqs, ineqs, optis) -> Some eqs, Some ineqs, Some optis in
   let uni_v _ = false in
   let cmp_v v1 v2 = compare v1 v2 in
   let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
@@ -1485,11 +1517,10 @@ let satisfiable_exn ?state cnj =
     | [], _ -> 1
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
   let eqs, ineqs, optis =
-    solve ?eqs ?ineqs ~cnj cmp cmp_w uni_v in
-  (* FIXME: split on optis *)
-  eqs, ineqs
+    solve ?eqs ?ineqs ?optis ~cnj cmp cmp_w uni_v in
+  eqs, ineqs, optis
 
-let holds q avs (eqs, ineqs : state) cnj : state =
+let holds q avs (eqs, ineqs, optis : state) cnj : state =
   let cmp_v = make_cmp q in
   let cmp (v1,_) (v2,_) = cmp_v v1 v2 in
   let cmp_w (vars1,_,_) (vars2,_,_) =
@@ -1500,9 +1531,53 @@ let holds q avs (eqs, ineqs : state) cnj : state =
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
   let eqs, ineqs, optis =
     solve ~use_quants:avs
-      ~eqs ~ineqs ~cnj cmp cmp_w q.uni_v in
-  (* FIXME: split on optis *)
-  eqs, ineqs
+      ~eqs ~ineqs ~optis ~cnj cmp cmp_w q.uni_v in
+  eqs, ineqs, optis
+
+let negation_elim q ~verif_cns neg_cns =
+  (*[* Format.printf "NumS.negation_elim:@\nneg_cns=@ %a@\n%!"
+    (pr_line_list "| " pr_formula) (List.map fst neg_cns); *]*)
+  (*[* Format.printf "verif_cns=@ %a@\n%!"
+    (pr_line_list "| " pr_state) verif_cns; *]*)
+  let validated_num d_n_cs =
+    try
+      List.iter
+        (fun state -> ignore (satisfiable_exn ~state d_n_cs))
+        verif_cns; true
+    with Terms.Contradiction _ -> false in
+  (* The formula will be conjoined to the branches. Note that the
+          branch will be non-recursive.  *)
+  let res = concat_map
+      (fun (cnj, loc) ->
+         let d_n_cs = find_map
+             (fun (c, cs) ->
+                match c with
+                | Leq (lhs, rhs, lc) ->
+                  let w = NumDefs.diff lhs rhs in
+                  let k = denom w in
+                  let lhs = NumDefs.scale_term ~-k 1 w in
+                  let d_n_cs = Leq (lhs, Cst (-1, 1), loc)::cs in
+                  if validated_num d_n_cs
+                  then Some d_n_cs else None
+                | Eq (lhs, rhs, lc) ->
+                  let w = NumDefs.diff lhs rhs in
+                  let k = denom w in
+                  let lhs1 = NumDefs.scale_term ~-k 1 w in
+                  let d1_n_cs = Leq (lhs1, Cst (-1, 1), loc)::cs in
+                  if validated_num d1_n_cs then Some d1_n_cs
+                  else
+                    let lhs2 = NumDefs.scale_term k 1 w in
+                    let d2_n_cs = Leq (lhs2, Cst (-1, 1), loc)::cs in
+                    if validated_num d2_n_cs then Some d2_n_cs
+                    else None
+                | Opti _ -> None) (one_out cnj) in
+         (*[* Format.printf "NumS.negation_elim: selected d=@ %a@\n%!"
+           (pr_some pr_formula) d_n_cs; *]*)
+         list_some_list d_n_cs)
+      neg_cns in
+  (*[* Format.printf "NumS.negation_elim:@\nres=@ %a@\n%!"
+    pr_formula res; *]*)
+  res
 
 type subst = (var_name * (term * loc)) list
 

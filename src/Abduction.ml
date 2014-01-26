@@ -765,49 +765,50 @@ let abd_mockup_num q ~bvs brs =
 type discarded =
   (TermAbd.answer list, NumDefs.formula list, unit) sep_sorts
 
-let abd q ~bvs ?(iter_no=2) ~discard brs =
+let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
   let dissociate = iter_no <= 0 in
   (* Do not change the order and no. of branches afterwards. *)
-  (*[* Format.printf "abd: prepare branches@\n%!"; *]*)
+  (*[* Format.printf "abd: iter_no=%d prepare branches@\n%!" iter_no; *]*)
   let brs_typ, brs_num = List.split
-    (map_some (fun (nonrec, prem, concl) ->
-      let prems_opt =
-        try Some (unify ~use_quants:false q prem)
-        with Contradiction _ -> None in
-      match prems_opt with
-      | Some prem ->
-        if List.exists
-          (function CFalse _ -> true | _ -> false) prem.cnj_so
-        then None
-        else                          (* can raise Contradiction *)
-          let concl = unify ~use_quants:false q concl in
-          assert (concl.cnj_so = []);
-          if not (is_right (NumS.satisfiable prem.cnj_num)) then None
-          else Some ((prem, concl.cnj_typ),
-                     (nonrec, prem.cnj_num, concl.cnj_num))
-      | None -> None)
-       brs) in
-  (* FIXME: remove the fallback mechanism, move it to [Invariants]. *)
+      (map_some (fun (nonrec, prem, concl) ->
+           let prems_opt =
+             try Some (unify ~use_quants:false q prem)
+             with Contradiction _ -> None in
+           match prems_opt with
+           | Some prem ->
+             if List.exists
+                 (function CFalse _ -> true | _ -> false) prem.cnj_so
+             then None
+             else                          (* can raise Contradiction *)
+               let concl = unify ~use_quants:false q concl in
+               assert (concl.cnj_so = []);
+               if not (is_right (NumS.satisfiable prem.cnj_num)) then None
+               else Some ((prem, concl.cnj_typ),
+                          (nonrec, prem.cnj_num, concl.cnj_num))
+           | None -> None)
+          brs) in
   let validate (vs, ans) = List.iter2
-    (fun (prem, concl_ty) (nonrec, _, concl_num) ->
-      (* Do not use quantifiers, because premise is in the conjunction. *)
-      (* TODO: after cleanup optimized in abd_simple, pass clean_ans
-         and remove cleanup here *)
-      let vs, ans = cleanup q vs ans in
-      let {cnj_typ=sb_ty; cnj_num=ans_num; cnj_so=_} =
-        combine_sbs ~use_quants:false q [prem.cnj_typ; concl_ty; ans] in
-      if not dissociate then
-        let cnj_num = ans_num @ prem.cnj_num @ concl_num in
-        (*[* Format.printf "validate-typ: sb_ty=@ %a@\ncnj_num=@ %a@\n%!"
-           pr_subst sb_ty NumDefs.pr_formula cnj_num; *]*)
-        let (*[* num_state *]*) _ =
-          (* FIXME: It's like [satisfiable] because of [empty_q]. *)
-          NumS.holds empty_q VarSet.empty NumS.empty_state cnj_num in
-        (*[* Format.printf "validate-typ: num_state=@ %a@\n%!"
-           NumDefs.pr_formula (NumS.formula_of_state num_state); *]*)
-        ()
-    )
-    brs_typ brs_num in
+      (fun (prem, concl_ty) (nonrec, _, concl_num) ->
+         (* Do not use quantifiers, because premise is in the conjunction. *)
+         (* TODO: after cleanup optimized in abd_simple, pass clean_ans
+            and remove cleanup here *)
+         let vs, ans = cleanup q vs ans in
+         let {cnj_typ=sb_ty; cnj_num=ans_num; cnj_so=_} =
+           combine_sbs ~use_quants:false q [prem.cnj_typ; concl_ty; ans] in
+         if not dissociate then
+           let cnj_num = ans_num @ prem.cnj_num @ concl_num in
+           (*[* Format.printf "validate-typ: sb_ty=@ %a@\ncnj_num=@ %a@\n%!"
+             pr_subst sb_ty NumDefs.pr_formula cnj_num; *]*)
+           (* TODO: optimize by mapping numerical branches into states
+              upfront. *)
+           let (*[* num_state *]*) _ =
+             (* FIXME: It's like [satisfiable] because of [empty_q]. *)
+             NumS.holds empty_q VarSet.empty NumS.empty_state cnj_num in
+           (*[* Format.printf "validate-typ: num_state=@ %a@\n%!"
+             NumDefs.pr_formula (NumS.formula_of_state num_state); *]*)
+           ()
+      )
+      brs_typ brs_num in
   (* We do not remove nonrecursive branches for types -- it will help
      other sorts do better validation. *)
   let cand_bvs, alien_eqs, tvs, ans_typ, more_in_brs =
@@ -820,9 +821,9 @@ let abd q ~bvs ?(iter_no=2) ~discard brs =
       *]*)
       raise (NoAnswer (Type_sort, "term abduction failed", None, lc)) in
   let brs_num = List.map2
-    (fun (nonrec,prem,concl) (more_p, more_c) ->
-      nonrec, more_p.cnj_num @ prem, more_c.cnj_num @ concl)
-    brs_num more_in_brs in
+      (fun (nonrec,prem,concl) (more_p, more_c) ->
+         nonrec, more_p.cnj_num @ prem, more_c.cnj_num @ concl)
+      brs_num more_in_brs in
   (*[* Format.printf "abd: solve for numbers@\n%!"; *]*)
   let nvs, ans_num =
     try
@@ -837,6 +838,45 @@ let abd q ~bvs ?(iter_no=2) ~discard brs =
       *]*)
       raise (NoAnswer (Num_sort, "numerical abduction failed",
                        None, lc)) in
+  (* Filter out negated constraints that already are contradicted. Of
+     the result, use only sorts other than [Type_sort] as negated
+     constraints. *)
+  let neg_cns =
+    if iter_no<2 then []
+    else map_some
+        (fun (cnj, loc) ->
+           try
+             (*[* Format.printf
+               "abd-neg: trying neg=%a...@\n%!" pr_formula cnj;
+             *]*)
+             let cnj =
+               combine_sbs ~use_quants:false q ~more_phi:cnj [ans_typ] in
+             (*[* Format.printf "abd-neg: passed@\n%!"; *]*)
+             Some (cnj, loc)
+           with Contradiction _ -> None)
+        neg_brs in
+  let neg_num =
+    if neg_cns = [] then []
+    else
+      (* Branches to verify disjuncts from negative constraints. *)
+      let verif_cns_num =
+        map_some
+          (fun (_,prem,concl) ->
+             (*[* Format.printf
+               "abd-neg: verif_br=@ %a@\n%!" NumDefs.pr_formula
+               (ans_num @ prem @ concl); *]*)
+             try Some (NumS.satisfiable_exn (ans_num @ prem @ concl))
+             with Contradiction _ -> None)
+          brs_num in
+      let num_neg_cns = List.map
+          (fun (c,lc)->
+             let cnj = c.cnj_num in
+             let elimvs =
+               VarSet.diff (NumDefs.fvs_formula cnj) bvs in
+             snd (NumS.simplify q elimvs cnj), lc)
+          neg_cns in
+      NumS.negation_elim q ~verif_cns:verif_cns_num
+        num_neg_cns in
   let ans_typ = to_formula ans_typ in
   cand_bvs, alien_eqs,
-  (nvs @ tvs, ans_typ @ NumS.formula_of_sort ans_num)
+  (nvs @ tvs, ans_typ @ NumS.formula_of_sort (neg_num @ ans_num))

@@ -933,7 +933,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
     (*[* Format.printf "solve-loop: iter_no=%d -- ex. brs substituted@\n%!"
       iter_no; *]*)
     (*[* Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs5 brs1; *]*)
-    (* 7a *)
+    (* 8a *)
     let neg_cns1 = List.map
         (fun (prem,loc) -> sb_formula_pred q false g_rol sol1 prem, loc)
         neg_cns in
@@ -943,7 +943,26 @@ let solve q_ops new_ex_types exty_res_chi brs =
       else VarSet.diff (bparams 1) bvs in
     let answer =
       try
-        (* 7b *)
+        (* 7 *)
+        let brs1 = List.map
+            (fun (nonrec,_,_,prem,concl) ->
+               let concl =
+                 if iter_no>0 || !early_postcond_abd then concl
+                 else
+                   List.filter
+                     (fun a->VarSet.is_empty
+                         (VarSet.inter (fvs_atom a) early_chiKbs))
+                     concl in
+               nonrec,prem,concl) brs1 in
+        let brs1 =
+          if abdsjelim=[] then brs1
+          else (true,[],abdsjelim)::brs1 in
+        let cand_bvs, alien_eqs, (vs, ans) =
+          Abduction.abd q.op ~bvs ~iter_no ~discard brs1 neg_cns1 in
+        (*[* Format.printf
+          "solve: iter_no=%d abd answer=@ %a@\n%!"
+          iter_no pr_formula ans; *]*)
+        (* 8b *)
         (* Check negative constraints ("assert false" clauses) once
            all positive constraints have been involved in answering. *)
         if !neg_constrns && iter_no > 1 then List.iter
@@ -953,7 +972,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                  (*[* Format.printf "neg_cl_check: cnj=@ %a@\n%!" pr_formula
                    cnj; *]*)
                  let {cnj_typ=ty_cn; cnj_num=num_cn; cnj_so=_} =
-                   unify ~use_quants:false q.op cnj in
+                   unify ~use_quants:false q.op (ans @ cnj) in
                  if num_cn = [] then (
                    (*[* Format.printf
                      "neg_cl_check: fallback typ@ ty_cn=@ %a@\n%!"
@@ -976,25 +995,6 @@ let solve q_ops new_ex_types exty_res_chi brs =
                    pr_exception e; *]*)
                  ())
             neg_cns1;
-        (* 8 *)
-        let brs1 = List.map
-            (fun (nonrec,_,_,prem,concl) ->
-               let concl =
-                 if iter_no>0 || !early_postcond_abd then concl
-                 else
-                   List.filter
-                     (fun a->VarSet.is_empty
-                         (VarSet.inter (fvs_atom a) early_chiKbs))
-                     concl in
-               nonrec,prem,concl) brs1 in
-        let brs1 =
-          if abdsjelim=[] then brs1
-          else (true,[],abdsjelim)::brs1 in
-        let cand_bvs, alien_eqs, (vs, ans) =
-          Abduction.abd q.op ~bvs ~iter_no ~discard brs1 in
-        (*[* Format.printf
-          "solve: iter_no=%d abd answer=@ %a@\n%!"
-          iter_no pr_formula ans; *]*)
         let ans_res, more_discard, ans_sol =
           split (iter_no>0 || !early_postcond_abd)
             vs ans negchi_locs bvs cand_bvs q in
