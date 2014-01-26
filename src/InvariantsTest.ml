@@ -1327,7 +1327,7 @@ let rec ub = efunction
           POne r)"
         [2,"∃n, k.
   δ =
-    (Binary k → Binary n → ∃4:i[i ≤ n + k ∧ k ≤ i ∧ n ≤ i ∧
+    (Binary k → Binary n → ∃4:i[i ≤ n + k ∧ n ≤ i ∧ k ≤ i ∧
        0 ≤ k ∧ 0 ≤ n].Binary i)"]
     );
 
@@ -1735,9 +1735,23 @@ let create = fun l x r ->
         [2,"∃n, k, a.
   δ =
     (Avl (a, k) → a → Avl (a, n) → ∃1:i[i=max (k + 1, n + 1) ∧
-       i ≤ n + k + 1 ∧ i ≤ k + 3 ∧ i ≤ n + 3 ∧ k ≤ n + 2 ∧
+       i ≤ n + k + 1 ∧ i ≤ n + 3 ∧ i ≤ k + 3 ∧ k ≤ n + 2 ∧
        n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].Avl (a, i)) ∧
   k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n"];
+    );
+
+  "avl_tree--singleton" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "avl_tree--height"
+"newtype Avl : type * num
+newcons Empty : ∀a. Avl (a, 0)
+newcons Node :
+  ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
+     Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
+
+let singleton = fun x -> Node (Empty, x, Empty, 1)"
+        [1,"∃a. δ = (a → Avl (a, 1))"];
     );
 
   "avl_tree--min_binding" >::
@@ -1755,6 +1769,60 @@ let rec min_binding = function
   | Node (Empty, x, r, _) -> x
   | Node ((Node (_,_,_,_) as l), x, r, _) -> min_binding l"
         [1,"∃n, a. δ = (Avl (a, n) → a) ∧ 1 ≤ n"];
+    );
+
+  "avl_tree--bal" >::
+    (fun () ->
+       todo "hard for numerical solve";
+       (* skip_if !debug "debug"; *)
+       test_case "avl_tree--height"
+"newtype Avl : type * num
+newcons Empty : ∀a. Avl (a, 0)
+newcons Node :
+  ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
+     Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
+
+external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external create :
+  ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
+      Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
+       i ≤ n + k + 1 ∧ i ≤ k + 3 ∧ i ≤ n + 3].Avl (a, i) = \"create\"
+external singleton : ∀a. a → Avl (a, 1) = \"singleton\"
+external min_binding : ∀a,n[1 ≤ n]. Avl (a, n) → a = \"min_binding\"
+
+let bal = fun l x r ->
+  ematch height l, height r with
+  | i, j when j+3 <= i ->
+    (ematch l with
+    | Empty -> assert false
+    | Node (ll, lx, lr, _) ->
+      (ematch height ll, height lr with
+      | m, n when n <= m ->
+        let r' = create lr x r in
+        create ll lx r'
+      | m, n when m+1 <= n ->
+        (ematch lr with
+        | Empty -> assert false
+        | Node (lrl, lrx, lrr, _) ->
+          let l' = create ll lx lrl in
+          let r' = create lrr x r in
+          create l' lrx r')))
+  | i, j when i+3 <= j ->
+    (ematch r with
+    | Empty -> assert false
+    | Node (rl, rx, rr, _) ->
+      (ematch height rr, height rl with
+      | m, n when n <= m ->
+        let l' = create l x rl in
+        create l' rx rr
+      | m, n when m+1 <= n ->
+        (ematch rl with
+        | Empty -> assert false
+        | Node (rll, rlx, rlr, _) ->
+          let l' = create l x rll in
+          let r' = create rlr rx rr in
+          create l' rlx r')))"
+        [1,""];
     );
 
 ]

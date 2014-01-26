@@ -51,7 +51,39 @@ let (!/) i = num_of_int i
 type w = (var_name * num) list * num * loc
 type w_subst = (var_name * w) list
 type cw_subst = ((var_name, bool) choice * w) list
-type ineqs = (var_name * (w list * w list)) list
+
+(* Assumes [vars1] and [vars2] are in the same order. *)
+let compare_w (vars1, cst1, _) (vars2, cst2, _) =
+  let rec loop = function
+    | [], [] -> 0
+    | [], _ -> -1
+    | _, [] -> 1
+    | (v1, k1)::vars1, (v2, k2)::vars2 ->
+      let c = compare v1 v2 in
+      if c <> 0 then c
+      else
+        let c = compare_num k1 k2 in
+        if c <> 0 then c
+        else loop (vars1, vars2) in
+  let c = compare_num cst1 cst2 in
+  if c <> 0 then c
+  else loop (vars1, vars2)
+
+module WSet = Set.Make (struct type t = w let compare = compare_w end)
+let add_to_wset l ws = List.fold_right WSet.add l ws
+let wset_of_list l = List.fold_right WSet.add l WSet.empty
+let wset_map f ws =
+  WSet.fold (fun w ws -> WSet.add (f w) ws) ws WSet.empty
+let wset_map_to_list f ws =
+  WSet.fold (fun w ws -> f w :: ws) ws []
+let wset_partition_map f ws =
+  WSet.fold (fun w (wl, wr) ->
+      match f w with
+      | Left l -> l::wl, wr
+      | Right r -> wl, r::wr)
+    ws ([], [])
+
+type ineqs = (var_name * (WSet.t * WSet.t)) list
 type optis = (w * w) list
 
 let mult c (vars, cst, loc) =
@@ -120,7 +152,8 @@ let pr_cw_subst ppf sb =
 
 let pr_ineq ppf (v, (wl, wr)) =
   Format.fprintf ppf "@[<2>[%a]@ ≤@ %s@ ≤@ [%a]@]"
-    (pr_sep_list ";" pr_w) wl (var_str v) (pr_sep_list ";" pr_w) wr
+    (pr_sep_list ";" pr_w) (WSet.elements wl) (var_str v)
+    (pr_sep_list ";" pr_w) (WSet.elements wr)
 
 let pr_ineqs ppf (ineqs : ineqs) =
   pr_sep_list "," pr_ineq ppf ineqs
@@ -160,12 +193,12 @@ let unsubst sb =
 
 let unsolve (ineqs : ineqs) : w list = concat_map
   (fun (v, (left, right)) ->
-    List.map (fun (vars, cst, loc) -> (v, !/(-1))::vars, cst, loc)
+    wset_map_to_list (fun (vars, cst, loc) -> (v, !/(-1))::vars, cst, loc)
       left @
-      List.map (fun rhs ->
-        let vars, cst, loc = mult !/(-1) rhs in
-        (v, !/1)::vars, cst, loc)
-      right)
+      wset_map_to_list (fun rhs ->
+          let vars, cst, loc = mult !/(-1) rhs in
+          (v, !/1)::vars, cst, loc)
+        right)
   ineqs
 
 let flatten cmp a : (w, w) choice option * (w*w) list =
@@ -221,7 +254,7 @@ let subst_2w cmp (eqs : w_subst) (w1, w2) =
 
 let subst_ineqs cmp eqs ineqs = List.map
   (fun (v, (left, right)) ->
-    v, (List.map (subst_w cmp eqs) left, List.map (subst_w cmp eqs) right))
+    v, (wset_map (subst_w cmp eqs) left, wset_map (subst_w cmp eqs) right))
   ineqs
 
 let subst_one cmp (v, w) (vars, cst, loc as arg) =
@@ -390,8 +423,8 @@ let solve_aux ?use_quants ?(strict=false)
       (fun (v,eq) -> v, subst_w cmp eqs' eq) eqs @ eqs' in
   let ineqs = if eqs' = [] then ineqs else List.map
       (fun (v,(wl,wr)) -> v,
-        (List.map (subst_w cmp eqs') wl,
-         List.map (subst_w cmp eqs') wr)) ineqs in
+        (wset_map (subst_w cmp eqs') wl,
+         wset_map (subst_w cmp eqs') wr)) ineqs in
   let more_eqn, more_ineqn, more_optis = split_flatten cmp cnj in
   let eqn = eqn @ more_eqn in
   let optis = optis @ more_optis in
@@ -436,15 +469,15 @@ let solve_aux ?use_quants ?(strict=false)
   let ineqs = if eqn=[] then ineqs else
       List.map (fun (v, (left, right)) ->
         v,
-        (List.map (subst_w cmp eqn) left,
-         List.map (subst_w cmp eqn) right)) ineqs in
+        (wset_map (subst_w cmp eqn) left,
+         wset_map (subst_w cmp eqn) right)) ineqs in
   let more_ineqn =
     concat_map
       (fun (v, w) ->
         try
           let left, right = List.assoc v ineqs in
-          List.map (fun lhs -> diff cmp lhs w) left @
-            List.map (fun rhs -> diff cmp w rhs) right
+          wset_map_to_list (fun lhs -> diff cmp lhs w) left @
+            wset_map_to_list (fun rhs -> diff cmp w rhs) right
         with Not_found -> [])
       eqn in
   let ineqn = List.sort cmp_w (more_ineqn @ ineqn) in
@@ -453,6 +486,7 @@ let solve_aux ?use_quants ?(strict=false)
   let project v (vars, cst, loc as lhs) rhs =
     if equal_w cmp lhs rhs
     then
+      (* FIXME: no need to normalize? *)
       let w = (v, !/(-1))::vars, cst, loc in
       if strict then
         let a = expand_atom false w in
@@ -463,7 +497,7 @@ let solve_aux ?use_quants ?(strict=false)
                   Some (Terms.num t1, Terms.num t2), loc))
       else Right w
     else Left (diff cmp lhs rhs) in
-  let rec proj ineqs implicits ineqn =
+  let rec proj (ineqs : ineqs) implicits ineqn =
     match ineqn with
     | [] -> ineqs, implicits
     | ([], cst, _)::ineqn
@@ -487,16 +521,17 @@ let solve_aux ?use_quants ?(strict=false)
                 Some (Terms.num t1, Terms.num t2), loc))
     | ((v,k)::vars, cst, loc)::ineqn ->
       let (left, right), ineqs =
-        try pop_assoc v ineqs with Not_found -> ([], []), ineqs in
+        try pop_assoc v ineqs
+        with Not_found -> (WSet.empty, WSet.empty), ineqs in
       let ineq_l, ineq_r, (more_ineqn, more_implicits) = 
         let ohs = mult (!/(-1) // k) (vars, cst, loc) in
         if k >/ !/0
         then
           [], [ohs],
-          partition_map (fun lhs -> project v lhs ohs) left
+          wset_partition_map (fun lhs -> project v lhs ohs) left
         else
           [ohs], [],
-          partition_map (fun rhs -> project v ohs rhs) right in
+          wset_partition_map (fun rhs -> project v ohs rhs) right in
       let more_ineqn = List.filter
         (function
         | [], cst, _
@@ -516,7 +551,8 @@ let solve_aux ?use_quants ?(strict=false)
         (var_str v) pr_ineqn more_ineqn pr_eqn more_implicits; *]*)  
       let ineqn =
         merge cmp_w (List.sort cmp_w more_ineqn) ineqn in
-      let ineqs = (v, (ineq_l @ left, ineq_r @ right))::ineqs in
+      let ineqs =
+        (v, (add_to_wset ineq_l left, add_to_wset ineq_r right))::ineqs in
       proj ineqs (more_implicits @ implicits) ineqn in
   let propagate (m, n) =
     let (m_vars, m_cst, _ as m) = subst_w cmp eqn m

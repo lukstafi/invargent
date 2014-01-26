@@ -28,7 +28,7 @@ let singleton = fun x -> Node (Empty, x, Empty, 1)
 
 let bal = fun l x r ->
   ematch height l, height r with
-  | i, j when i > j+2 ->
+  | i, j when j+3 <= i (*i.e. i > j+2*) ->
     (ematch l with
     | Empty -> assert false
     | Node (ll, lx, lr, _) ->
@@ -43,7 +43,7 @@ let bal = fun l x r ->
           let l' = create ll lx lrl in
           let r' = create lrr x r in
           create l' lrx r')))
-  | i, j when j > i+2 ->
+  | i, j when i+3 <= j (*i.e. j > i+2*) ->
     (ematch r with
     | Empty -> assert false
     | Node (rl, rx, rr, _) ->
