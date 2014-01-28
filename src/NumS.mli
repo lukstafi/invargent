@@ -52,20 +52,20 @@ val disjelim :
     equal to something else. *)
 val simplify :
   Defs.quant_ops ->
-  Defs.VarSet.t -> NumDefs.formula -> 
+  ?localvs:Defs.VarSet.t -> Defs.VarSet.t -> NumDefs.formula -> 
   Defs.var_name list * NumDefs.formula
 
 (** Prune atoms implied by other atoms -- for efficiency, only single
     other atoms, i.e. "atom-on-atom", are considered. Prefer other
     atoms over opti atoms. *)
 val prune_redundant :
-  Defs.quant_ops -> NumDefs.formula -> NumDefs.formula
+  Defs.quant_ops -> Defs.VarSet.t -> NumDefs.formula -> NumDefs.formula
 
 (** Intersect atoms of the formulas, but only after generating
     consequences via Fourier elimination and turning equations into
     pairs of inequalities. *)
 val converge :
-  Defs.quant_ops ->
+  Defs.quant_ops -> Defs.VarSet.t ->
   NumDefs.formula -> NumDefs.formula -> NumDefs.formula
 
 type state

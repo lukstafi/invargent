@@ -430,14 +430,12 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
 
 (** Eliminate provided variables if they do not contribute to
     constraints and generally simplify the formula. *)
-let simplify q_ops (vs, cnj) =
+let simplify q_ops ?localvs (vs, cnj) =
   let vs = vars_of_list vs in
   (*[* Format.printf "simplify: vs=%a@ cnj=%a@\n%!"
     pr_vars vs pr_formula cnj; *]*)
   let cmp_v v1 v2 =
     let c1 = VarSet.mem v1 vs and c2 = VarSet.mem v2 vs in
-    (*[* Format.printf "cmp_v: %s(%b), %s(%b)@\n%!"
-       (var_str v1) c1 (var_str v2) c2; *]*)
     if c1 && c2 then Same_quant
     else if c1 then Right_of
     else if c2 then Left_of
@@ -463,7 +461,7 @@ let simplify q_ops (vs, cnj) =
   let num_sb, more_num_ans = List.partition
       (fun (v,_) -> VarSet.mem v vs && v <> delta && v <> delta') num_sb in
   let num_ans = NumS.sort_of_subst more_num_ans @ num_ans in
-  let _, num_ans' = NumS.simplify q_ops VarSet.empty num_ans in
+  let _, num_ans' = NumS.simplify q_ops ?localvs VarSet.empty num_ans in
   (*[* Format.printf "simplify:@\nnum_ans=%a@\nnum_ans'=%a@\n%!"
     NumDefs.pr_formula num_ans NumDefs.pr_formula num_ans'; *]*)
   let ty_ans = subst_sb ~sb:num_sb ty_ans in
@@ -592,9 +590,10 @@ let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
            | TVar v2, _ -> v2 | _ -> assert false
          with Not_found -> v)
       vs2 in
+  let localvs = VarSet.diff (vars_of_list vs2) pms_new in
   let c_num =
-    if check_only then NumS.prune_redundant q_ops c2_num
-    else NumS.converge q_ops c1_num c2_num in
+    if check_only then NumS.prune_redundant q_ops localvs c2_num
+    else NumS.converge q_ops localvs c1_num c2_num in
   (*[* Format.printf
     "converge: check_only=%b vs2=%a@\nc2_ty=%a@\nc2_num=%a@\nc_num=%a\n%!"
     check_only pr_vars (vars_of_list vs2)
@@ -839,7 +838,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
         *]*)
         (* 5a *)
         let lift_ex_types cmp_v i (g_vs, g_ans) =
-          let g_vs, g_ans = simplify q_ops (g_vs, g_ans) in
+          let localvs = vars_of_list g_vs in
+          (* FIXME *)
+          let g_vs, g_ans = simplify q_ops ~localvs (g_vs, g_ans) in
           let fvs = VarSet.elements
               (VarSet.diff (fvs_formula g_ans)
                  (vars_of_list [delta;delta'])) in
@@ -1107,10 +1108,10 @@ let solve q_ops new_ex_types exty_res_chi brs =
                    ds in
                let dvs = gvs @ concat_map (fun (_,(dvs,_))->dvs) ds in
                let pvs = fvs_typ tpar in
-               let svs =
-                 VarSet.elements (VarSet.diff (vars_of_list dvs) pvs) in
+               let localvs = VarSet.diff (vars_of_list dvs) pvs in
+               let svs = VarSet.elements localvs in
                let vs, ans =
-                 simplify q.op
+                 simplify q.op ~localvs
                    (connected [delta; delta']
                       (svs, dans @ g_ans)) in
                let pvs = VarSet.elements pvs in

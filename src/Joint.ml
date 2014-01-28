@@ -60,7 +60,10 @@ module JointAbduction (P : ABD_PARAMS) = struct
               "Joint.abd-loop: TIMEOUT %d failed [%d] at@ ans=%a@\n%!"
               fails ddepth
               P.pr_ans (P.extract_ans acc); *]*)
-            let concl = P.concl_of_br (unsome !culprit) in
+            let concl =
+              match !culprit with
+              | None -> []
+              | Some br -> P.concl_of_br br in
             let lc = List.fold_left loc_union dummy_loc
                 (List.map atom_loc concl) in
             P.abd_fail_flag := true;
@@ -85,7 +88,10 @@ module JointAbduction (P : ABD_PARAMS) = struct
             (*[* Format.printf
               "abd-check_aside: quit failed [%d] at@ ans=%a@\n%!" ddepth
               P.pr_ans (P.extract_ans acc); *]*)
-            let concl = P.concl_of_br (unsome !culprit) in
+            let concl =
+              match !culprit with
+              | None -> []
+              | Some br -> P.concl_of_br br in
             let lc = List.fold_left loc_union dummy_loc
                 (List.map atom_loc concl) in
             if fails > P.abd_fail_timeout then P.abd_fail_flag := true;

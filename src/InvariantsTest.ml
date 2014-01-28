@@ -1120,7 +1120,7 @@ let rec map =
     | LCons (x, xs) ->
       let ys = map xs in
       LCons (f x, ys)"
-        [2,"∃n. δ = (List n → ∃1:[0 ≤ n].List n)"];
+        [2,"∃n. δ = (List n → ∃1:.List n)"];
     );
 
   "map not existential poly" >::
@@ -1136,13 +1136,13 @@ let rec map = fun f ->
     | LCons (x, xs) ->
       let ys = map f xs in
       LCons (f x, ys)"
-        [2,"∃n, a, b. δ = ((a → b) → List (a, n) → ∃1:[0 ≤ n].List (b, n))"];
+        [2,"∃n, a, b. δ = ((a → b) → List (a, n) → ∃1:.List (b, n))"];
     );
 
   "map not existential instance" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case "list map not existential mono"
+       test_case "list map not existential instance"
 "newtype List : type * num
 newcons LNil : ∀a. List(a, 0)
 newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
@@ -1156,7 +1156,7 @@ let rec map =
     | LCons (x, xs) ->
       let ys = map xs in
       LCons (f x, ys)"
-        [2,"∃n. δ = (List (Foo, n) → ∃1:[0 ≤ n].List (Bar, n))"];
+        [2,"∃n. δ = (List (Foo, n) → ∃1:.List (Bar, n))"];
     );
 
   "filter mono" >::
@@ -1178,7 +1178,7 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
-        [2,"∃n. δ = (List n → ∃2:k[k ≤ n ∧ 0 ≤ k ∧ 0 ≤ n].List k)"];
+        [2,"∃n. δ = (List n → ∃2:k[k ≤ n ∧ 0 ≤ k].List k)"];
 
     );
 
@@ -1202,9 +1202,7 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
-        [2,"∃n.
-  δ =
-    (List (Bar, n) → ∃2:k[k ≤ n ∧ 0 ≤ k ∧ 0 ≤ n].List (Bar, k))"];
+        [2,"∃n. δ = (List (Bar, n) → ∃2:k[k ≤ n ∧ 0 ≤ k].List (Bar, k))"];
 
     );
 
@@ -1227,8 +1225,7 @@ let rec filter = fun f ->
           filter f xs"
         [2,"∃n, a.
   δ =
-    ((a → Bool) → List (a, n) → ∃2:k[k ≤ n ∧ 0 ≤ k ∧
-       0 ≤ n].List (a, k))"];
+    ((a → Bool) → List (a, n) → ∃2:k[k ≤ n ∧ 0 ≤ k].List (a, k))"];
 
     );
 
@@ -1252,7 +1249,7 @@ let rec filter = fun f g ->
         [2,"∃n, a, b.
   δ =
     ((a → Bool) → (a → b) → List (a, n) → ∃2:k[k ≤ n ∧
-       0 ≤ k ∧ 0 ≤ n].List (b, k))"];
+       0 ≤ k].List (b, k))"];
 
     );
 
@@ -1287,9 +1284,7 @@ let rec ub = efunction
           let r = ub a1 b1 in
           POne r)"
         [2,"∃n, k.
-  δ =
-    (Binary k → Binary n → ∃4:i[i ≤ n + k ∧ n ≤ i ∧
-       0 ≤ k].Binary i)"]
+  δ = (Binary k → Binary n → ∃4:i[i ≤ n + k ∧ n ≤ i].Binary i)"]
     );
 
   "binary upper bound expanded" >::
@@ -1327,8 +1322,8 @@ let rec ub = efunction
           POne r)"
         [2,"∃n, k.
   δ =
-    (Binary k → Binary n → ∃4:i[i ≤ n + k ∧ n ≤ i ∧ k ≤ i ∧
-       0 ≤ k ∧ 0 ≤ n].Binary i)"]
+    (Binary k → Binary n → ∃4:i[i ≤ n + k ∧ n ≤ i ∧
+       k ≤ i].Binary i)"]
     );
 
   "binary upper bound" >::
@@ -1626,10 +1621,7 @@ let rec zip =
     | UCons xs, UCons ys ->
       let zs = zip (xs, ys) in
       UCons zs"
-        [2,"∃n, k.
-  δ =
-    ((Unary n, Unary k) → ∃1:i[i=min (n, k) ∧ 0 ≤ i ∧ 0 ≤ k ∧
-       0 ≤ n].Unary i)"]
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃1:i[i=min (n, k)].Unary i)"]
     );
 
   "list zip prefix expanded" >::
@@ -1649,9 +1641,7 @@ let rec zip =
       let zs = zip (xs, ys) in
       LCons ((x, y), zs)"
         [2,"∃n, k, a, b.
-  δ =
-    ((List (a, n), List (b, k)) → ∃1:i[i=min (n, k) ∧ 0 ≤ i ∧
-       0 ≤ k ∧ 0 ≤ n].List ((a, b), i))"]
+  δ = ((List (a, n), List (b, k)) → ∃1:i[i=min (n, k)].List ((a, b), i))"]
     );
 
   "unary maximum" >::
@@ -1672,14 +1662,13 @@ let rec map2 =
       UCons zs"
         [2,"∃n, k.
   δ =
-    ((Unary n, Unary k) → ∃1:i[i=max (n, k) ∧ i ≤ n + k ∧
-       0 ≤ k ∧ 0 ≤ n].Unary i)"]
+    ((Unary n, Unary k) → ∃1:i[i=max (n, k)].Unary i)"]
     );
 
-  "list map2 with postfix too existential" >::
+  "list map2 with postfix" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case "list map2 with postfix too existential"
+       test_case "list map2 with postfix"
 "newtype List : type * num
 newcons LNil : ∀a. List(a, 0)
 newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
@@ -1695,8 +1684,7 @@ let rec map2 = fun f ->
         [2,"∃n, k, a.
   δ =
     ((a → a → a) → (List (a, n), List (a, k)) →
-       ∃1:i[i=max (n, k) ∧ i ≤ n + k ∧ 0 ≤ k ∧
-       0 ≤ n].List (a, i))"]
+       ∃1:i[i=max (n, k)].List (a, i))"]
     );
 
   "avl_tree--height" >::
@@ -1717,7 +1705,7 @@ let height = function
 
   "avl_tree--create" >::
     (fun () ->
-       skip_if !debug "debug";
+       (* skip_if !debug "debug"; *)
        test_case "avl_tree--height"
 "newtype Avl : type * num
 newcons Empty : ∀a. Avl (a, 0)
@@ -1731,12 +1719,10 @@ let create = fun l x r ->
   ematch height l, height r with
   | i, j when j <= i -> Node (l, x, r, i+1)
   | i, j when i <= j -> Node (l, x, r, j+1)"
-        (* A bit ugly (too much info), but correct. *)
         [2,"∃n, k, a.
   δ =
-    (Avl (a, k) → a → Avl (a, n) → ∃1:i[i=max (k + 1, n + 1) ∧
-       i ≤ n + k + 1 ∧ i ≤ n + 3 ∧ i ≤ k + 3 ∧ k ≤ n + 2 ∧
-       n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].Avl (a, i)) ∧
+    (Avl (a, k) → a → Avl (a, n) →
+       ∃1:i[i=max (k + 1, n + 1)].Avl (a, i)) ∧
   k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n"];
     );
 
@@ -1773,8 +1759,8 @@ let rec min_binding = function
 
   "avl_tree--bal" >::
     (fun () ->
-       todo "hard for numerical solve";
-       (* skip_if !debug "debug"; *)
+       todo "harder test, work in progress";
+       skip_if !debug "debug";
        test_case "avl_tree--height"
 "newtype Avl : type * num
 newcons Empty : ∀a. Avl (a, 0)
@@ -1786,7 +1772,7 @@ external height : ∀a,n. Avl (a, n) → Num n = \"height\"
 external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
-       i ≤ n + k + 1 ∧ i ≤ k + 3 ∧ i ≤ n + 3].Avl (a, i) = \"create\"
+       0 ≤ i].Avl (a, i) = \"create\"
 external singleton : ∀a. a → Avl (a, 1) = \"singleton\"
 external min_binding : ∀a,n[1 ≤ n]. Avl (a, n) → a = \"min_binding\"
 
@@ -1826,7 +1812,6 @@ let bal = fun l x r ->
     );
 
 ]
-
 
 let () =
   let executable = Filename.basename Sys.executable_name in

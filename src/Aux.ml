@@ -276,12 +276,25 @@ let inter_merge (type a) (type b) (type c)
       else aux acc (l1, tl2) in
   aux [] (l1, l2)
 
-let union_merge (type a) (type b) (type c)
+let union_merge (type a)
+    (cmp : a -> a -> int) (f : a -> a -> a)
+    (l1 : a list) (l2 : a list) : a list =
+  let rec aux acc = function
+    | [], l -> List.rev_append acc l
+    | l, [] -> List.rev_append acc l
+    | e1::tl1 as l1, (e2::tl2 as l2) ->
+      let c = cmp e1 e2 in
+      if c = 0 then aux (f e1 e2::acc) (tl1, tl2)
+      else if c < 0 then aux (e1::acc) (tl1, l2)
+      else aux (e2::acc) (l1, tl2) in
+  aux [] (l1, l2)
+
+let union_merge_f (type a) (type b) (type c)
     (cmp : a -> b -> int) (f : a -> b -> c) (g : a  -> c) (h : b -> c)
     (l1 : a list) (l2 : b list) : c list =
   let rec aux acc = function
-    | [], l -> List.rev acc
-    | l, [] -> List.rev acc
+    | [], l -> List.rev_append (List.map h l) acc
+    | l, [] -> List.rev_append (List.map g l) acc
     | e1::tl1 as l1, (e2::tl2 as l2) ->
       let c = cmp e1 e2 in
       if c = 0 then aux (f e1 e2::acc) (tl1, tl2)
