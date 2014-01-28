@@ -1106,7 +1106,7 @@ let rec map =
 
   "map not existential mono" >::
     (fun () ->
-       skip_if !debug "debug";
+       (* skip_if !debug "debug"; *)
        test_case "list map not existential mono"
 "newtype Elem
 newtype List : num
@@ -1225,7 +1225,7 @@ let rec filter = fun f ->
           filter f xs"
         [2,"∃n, a.
   δ =
-    ((a → Bool) → List (a, n) → ∃2:k[k ≤ n ∧ 0 ≤ k].List (a, k))"];
+    ((a → Bool) → List (a, n) → ∃2:k[0 ≤ k ∧ k ≤ n].List (a, k))"];
 
     );
 
@@ -1284,7 +1284,7 @@ let rec ub = efunction
           let r = ub a1 b1 in
           POne r)"
         [2,"∃n, k.
-  δ = (Binary k → Binary n → ∃4:i[i ≤ n + k ∧ n ≤ i].Binary i)"]
+  δ = (Binary k → Binary n → ∃4:i[n ≤ i ∧ i ≤ n + k].Binary i)"]
     );
 
   "binary upper bound expanded" >::
@@ -1322,8 +1322,8 @@ let rec ub = efunction
           POne r)"
         [2,"∃n, k.
   δ =
-    (Binary k → Binary n → ∃4:i[i ≤ n + k ∧ n ≤ i ∧
-       k ≤ i].Binary i)"]
+    (Binary k → Binary n → ∃4:i[n ≤ i ∧ k ≤ i ∧
+       i ≤ n + k].Binary i)"]
     );
 
   "binary upper bound" >::
@@ -1359,7 +1359,7 @@ let rec ub = efunction
           POne r)"
         [2,"∃n, k.
   δ =
-    (Binary k → Binary n → ∃4:i[0 ≤ k ∧ n ≤ i ∧
+    (Binary k → Binary n → ∃4:i[n ≤ i ∧ k ≤ i ∧
        i ≤ n + k].Binary i)"]
     );
 
@@ -1660,9 +1660,7 @@ let rec map2 =
     | UCons xs, UCons ys ->
       let zs = map2 (xs, ys) in
       UCons zs"
-        [2,"∃n, k.
-  δ =
-    ((Unary n, Unary k) → ∃1:i[i=max (n, k)].Unary i)"]
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃1:i[i=max (k, n)].Unary i)"]
     );
 
   "list map2 with postfix" >::
@@ -1705,7 +1703,7 @@ let height = function
 
   "avl_tree--create" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "avl_tree--height"
 "newtype Avl : type * num
 newcons Empty : ∀a. Avl (a, 0)
@@ -1820,3 +1818,23 @@ let () =
   let executable = chop (chop executable) in
   if executable = "InvariantsTest"
   then ignore (OUnit.run_test_tt ~verbose:true tests)
+
+let f () =
+  Printexc.record_backtrace true;
+  try
+       test_case "list map not existential mono"
+"newtype Elem
+newtype List : num
+newcons LNil : List 0
+newcons LCons : ∀n [0≤n]. Elem * List n ⟶ List(n+1)
+
+external f : Elem → Elem = \"f\"
+
+let rec map =
+  efunction LNil -> LNil
+    | LCons (x, xs) ->
+      let ys = map xs in
+      LCons (f x, ys)"
+        [2,"∃n. δ = (List n → ∃1:.List n)"]
+  with e ->
+    Printexc.print_backtrace stdout

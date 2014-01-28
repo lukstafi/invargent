@@ -48,6 +48,9 @@ val iter_terms : (term -> unit) -> atom -> unit
 val scale_term : int -> int -> term -> term
 val iter_term_vars : (Defs.var_name -> unit) -> term -> unit
 val denom : term -> int
+val direct_opti :
+  term -> term -> (Defs.var_name * bool * term * term) option
+val taut_atom_or_undir_opti : atom -> bool
 
 val pr_term : Format.formatter -> term -> unit
 val pr_atom : Format.formatter -> atom -> unit

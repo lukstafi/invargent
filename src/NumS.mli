@@ -59,7 +59,8 @@ val simplify :
     other atoms, i.e. "atom-on-atom", are considered. Prefer other
     atoms over opti atoms. *)
 val prune_redundant :
-  Defs.quant_ops -> Defs.VarSet.t -> NumDefs.formula -> NumDefs.formula
+  Defs.quant_ops -> ?localvs:Defs.VarSet.t ->
+  NumDefs.formula -> NumDefs.formula
 
 (** Intersect atoms of the formulas, but only after generating
     consequences via Fourier elimination and turning equations into

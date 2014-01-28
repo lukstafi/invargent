@@ -8,10 +8,10 @@ newcons POne : ∀n[0 ≤ n].Binary n ⟶ Binary (2 n + 1)
 
 newtype Ex4 : num * num
 
-newcons Ex4 : ∀i, k, n[i ≤ n + k ∧ n ≤ i ∧ k ≤ i].Binary i ⟶
-   Ex4 (n, k)
+newcons Ex4 : ∀i, k, n[k ≤ n ∧ i ≤ n ∧ n ≤ k + i].Binary n ⟶
+   Ex4 (k, i)
 
 val ub :
    ∀k, n.
-   Binary k → Binary n → ∃4:i[i ≤ n + k ∧ n ≤ i ∧
-     k ≤ i].Binary i
+   Binary k → Binary n → ∃4:i[n ≤ i ∧ k ≤ i ∧
+     i ≤ n + k].Binary i

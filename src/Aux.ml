@@ -328,9 +328,10 @@ let map_opt t f =
 let default v0 f v =
   match v with None -> v0 | Some v -> f v
 
-let map_reduce ?(cmp_k=fun x y -> compare x y) ?cmp ?mapf redf red0 l =
-  let cmp = match cmp with Some f -> f
-                         | None -> fun (x,_) (y,_) -> cmp_k x y in
+let map_reduce ~cmp_k ?cmp ?mapf redf red0 l =
+  let cmp = match cmp with
+    | Some cmp -> cmp
+    | None -> fun (x,_) (y,_) -> cmp_k x y in
   let l = match mapf with None -> l | Some f -> List.map f l in
   match List.sort cmp l with
       | [] -> []
@@ -342,6 +343,10 @@ let map_reduce ?(cmp_k=fun x y -> compare x y) ?cmp ?mapf redf red0 l =
 	    (k0, [v0], []) tl in
         List.rev_map (fun (k,vs) -> k, List.fold_left redf red0 vs)
           ((k0,vs)::l)
+
+let map_reduce_def ?mapf redf red0 l =
+  map_reduce ~cmp_k:compare
+    ?mapf redf red0 l
 
 let collect ?(cmp_k=fun x y -> compare x y) ?cmp l =
   let cmp = match cmp with Some f -> f

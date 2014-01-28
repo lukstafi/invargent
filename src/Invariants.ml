@@ -473,6 +473,44 @@ let simplify q_ops ?localvs (vs, cnj) =
     pr_vars vs pr_subst ty_sb pr_subst num_sb pr_formula ans; *]*)
   VarSet.elements vs, ans
 
+(** Generally simplify the formula. Do not normalize non-type sort atoms. *)
+let prune_redund q_ops ?localvs (vs, cnj) =
+  let vs = vars_of_list vs in
+  (*[* Format.printf "simplify: vs=%a@ cnj=%a@\n%!"
+    pr_vars vs pr_formula cnj; *]*)
+  let cmp_v v1 v2 =
+    let c1 = VarSet.mem v1 vs and c2 = VarSet.mem v2 vs in
+    if c1 && c2 then Same_quant
+    else if c1 then Right_of
+    else if c2 then Left_of
+    else q_ops.Defs.cmp_v v1 v2 in
+  let q_ops = {q_ops with cmp_v} in
+  let {cnj_typ=ty_ans; cnj_num=num_ans; cnj_so=_} =
+    unify ~use_quants:false q_ops cnj in
+  (* We "cheat": eliminate variables introduced earlier, so that
+     convergence check has easier job (i.e. just syntactic). *)
+  let ty_sb, ty_ans = List.partition
+      (function
+        | v, (TVar v2, _)
+          when VarSet.mem v vs && VarSet.mem v2 vs && v < v2 -> true
+        | _ -> false) ty_ans in
+  let ty_sb = List.map
+      (function
+        | v, (TVar v2, lc) -> v2, (TVar v, lc)
+        | _ -> assert false)
+      ty_sb in
+  let ty_ans = update_sb ~more_sb:ty_sb ty_ans in
+  let num_ans = NumS.prune_redundant q_ops ?localvs num_ans in
+  (*[* Format.printf "prune-simplified:@\nnum_ans=%a@\n%!"
+    NumDefs.pr_formula num_ans; *]*)
+  let ty_sb, ty_ans = List.partition
+      (fun (v,_) -> VarSet.mem v vs && v <> delta && v <> delta') ty_ans in
+  let ans = to_formula ty_ans @ NumS.formula_of_sort num_ans in
+  let vs = VarSet.inter vs (fvs_formula ans) in
+  (*[* Format.printf "simplify: vs=%a@ ty_sb=%a@ ans=%a@\n%!"
+    pr_vars vs pr_subst ty_sb pr_formula ans; *]*)
+  VarSet.elements vs, ans
+
 (* Rename the new solution to match variables of the old solution. *)
 (* TODO: ugly, rewrite or provide a medium-level description. *)
 let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
@@ -592,7 +630,7 @@ let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
       vs2 in
   let localvs = VarSet.diff (vars_of_list vs2) pms_new in
   let c_num =
-    if check_only then NumS.prune_redundant q_ops localvs c2_num
+    if check_only then NumS.prune_redundant q_ops ~localvs c2_num
     else NumS.converge q_ops localvs c1_num c2_num in
   (*[* Format.printf
     "converge: check_only=%b vs2=%a@\nc2_ty=%a@\nc2_num=%a@\nc_num=%a\n%!"
@@ -840,7 +878,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
         let lift_ex_types cmp_v i (g_vs, g_ans) =
           let localvs = vars_of_list g_vs in
           (* FIXME *)
-          let g_vs, g_ans = simplify q_ops ~localvs (g_vs, g_ans) in
+          let g_vs, g_ans = prune_redund q_ops ~localvs (g_vs, g_ans) in
           let fvs = VarSet.elements
               (VarSet.diff (fvs_formula g_ans)
                  (vars_of_list [delta;delta'])) in
@@ -1111,7 +1149,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                let localvs = VarSet.diff (vars_of_list dvs) pvs in
                let svs = VarSet.elements localvs in
                let vs, ans =
-                 simplify q.op ~localvs
+                 prune_redund q.op ~localvs
                    (connected [delta; delta']
                       (svs, dans @ g_ans)) in
                let pvs = VarSet.elements pvs in
