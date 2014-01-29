@@ -1,0 +1,9 @@
+newtype List : type * num
+newcons LNil : ∀a. List (a, 0)
+newcons LCons : ∀a, n [0≤n]. a * List (a, n) ⟶ List (a, n+1)
+
+let rec map = fun f ->
+  function LNil -> LNil
+    | LCons (x, xs) -> LCons (f x, map f xs)
+
+      

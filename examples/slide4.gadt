@@ -1,0 +1,6 @@
+newtype Tau
+newtype Tau'
+newcons E2 : Tau'
+external e1 : Tau' → Tau = "e1"
+
+let app_rule = e1 E2

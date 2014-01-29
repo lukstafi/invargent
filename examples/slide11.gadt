@@ -1,0 +1,10 @@
+newtype Avl : type * num
+newcons Empty : ∀a. Avl (a, 0)
+newcons Node :
+  ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
+     Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
+
+let rec min_binding = function
+  | Empty -> assert false
+  | Node (Empty, x, r, _) -> x
+  | Node ((Node (_,_,_,_) as l), x, r, _) -> min_binding l

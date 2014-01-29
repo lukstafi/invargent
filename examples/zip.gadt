@@ -1,0 +1,12 @@
+newtype List : type * num
+newcons LNil : ∀a. List(a, 0)
+newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+
+let rec zip =
+  efunction
+    | LNil, LNil -> LNil
+    | LNil, LCons (_, _) -> LNil
+    | LCons (_, _), LNil -> LNil
+    | LCons (x, xs), LCons (y, ys) ->
+      let zs = zip (xs, ys) in
+      LCons ((x, y), zs)

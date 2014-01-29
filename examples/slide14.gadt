@@ -1,0 +1,9 @@
+newtype List : type * num
+newcons LNil : ∀a. List(a, 0)
+newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+let rec filter = fun f ->
+  efunction LNil -> LNil
+    | LCons (x, xs) ->
+      ematch f x with
+        | True -> LCons (x, filter f xs)
+	| False -> filter f xs
