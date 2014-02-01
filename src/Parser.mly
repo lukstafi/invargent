@@ -198,10 +198,16 @@ num_atom:
     { NumDefs.Leq ($1, $3, get_loc ()) }
   | MIN BAR MAX LPAREN num_term COMMA num_term RPAREN
     { NumDefs.Opti ($5, $7, get_loc ()) }
+  | MIN BAR BAR MAX LPAREN num_term COMMA num_term RPAREN
+    { NumDefs.Subopti ($6, $8, get_loc ()) }
   | num_term EQUAL MIN LPAREN num_term COMMA num_term RPAREN
     { NumDefs.Opti (NumDefs.diff $1 $5, NumDefs.diff $1 $7, get_loc ()) }
   | num_term EQUAL MAX LPAREN num_term COMMA num_term RPAREN
     { NumDefs.Opti (NumDefs.diff $5 $1, NumDefs.diff $7 $1, get_loc ()) }
+  | num_term LESSEQUAL MAX LPAREN num_term COMMA num_term RPAREN
+    { NumDefs.Subopti (NumDefs.diff $1 $5, NumDefs.diff $1 $7, get_loc ()) }
+  | MIN LPAREN num_term COMMA num_term RPAREN LESSEQUAL num_term
+    { NumDefs.Subopti (NumDefs.diff $3 $8, NumDefs.diff $5 $8, get_loc ()) }
   | num_term EQUAL num_term
     { NumDefs.Eq ($1, $3, get_loc ()) }
 

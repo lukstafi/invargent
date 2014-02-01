@@ -1048,7 +1048,7 @@
 
 <\references>
   <\collection>
-    <associate|InfComplExpr|<tuple|2|23>>
-    <associate|InfCorrExpr|<tuple|1|23>>
+    <associate|InfComplExpr|<tuple|2|23|../../../Dropbox/Dokumenty/GADT/invargent-slides-Jan.tm>>
+    <associate|InfCorrExpr|<tuple|1|23|../../../Dropbox/Dokumenty/GADT/invargent-slides-Jan.tm>>
   </collection>
 </references>

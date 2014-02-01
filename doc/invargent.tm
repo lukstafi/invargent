@@ -1,4 +1,4 @@
-<TeXmacs|1.0.7.21>
+<TeXmacs|1.99.1>
 
 <style|article>
 
@@ -1263,33 +1263,38 @@
   where <math|i<rsub|0>> is the first such index found, and
   <math|B<rsub|i>=A\<wedge\>D<rsub|i>\<wedge\>C<rsub|i>>.
 
-  <section|<em|opti>: <em|minimum> and <em|maximum> relations in
-  <verbatim|num>><label|OptiAtoms>
+  <section|<em|opti> and <em|subopti>: <em|minimum> and <em|maximum>
+  relations in <verbatim|num>><label|OptiAtoms>
 
-  We extend the numerical domain with a relation <em|opti> defined below.
-  Operations <em|min> and <em|max> can then be defined using it. Let
-  <math|k,v,w> be any linear combinations.
+  We extend the numerical domain with relations <em|opti> and <em|subopti>
+  defined below. Operations <em|min> and <em|max> can then be defined using
+  it. Let <math|k,v,w> be any linear combinations. Note that the relations
+  are introduced to smuggle in a limited form of disjunction into the solved
+  forms.
 
   <\eqnarray*>
-    <tformat|<table|<row|<cell|opti<around*|(|v,w|)>>|<cell|=>|<cell|v\<leqslant\>0\<wedge\>w\<leqslant\>0\<wedge\><around*|(|v<wide|=|\<dot\>>0\<vee\>w<wide|=|\<dot\>>0|)>>>|<row|<cell|k<wide|=|\<dot\>>min<around*|(|v,w|)>>|<cell|\<equiv\>>|<cell|opti<around*|(|k-v,k-w|)>>>|<row|<cell|k<wide|=|\<dot\>>max<around*|(|v,w|)>>|<cell|\<equiv\>>|<cell|opti<around*|(|v-k,w-k|)>>>>>
+    <tformat|<table|<row|<cell|opti<around*|(|v,w|)>>|<cell|=>|<cell|v\<leqslant\>0\<wedge\>w\<leqslant\>0\<wedge\><around*|(|v<wide|=|\<dot\>>0\<vee\>w<wide|=|\<dot\>>0|)>>>|<row|<cell|k<wide|=|\<dot\>>min<around*|(|v,w|)>>|<cell|\<equiv\>>|<cell|opti<around*|(|k-v,k-w|)>>>|<row|<cell|k<wide|=|\<dot\>>max<around*|(|v,w|)>>|<cell|\<equiv\>>|<cell|opti<around*|(|v-k,w-k|)>>>|<row|<cell|subopti<around*|(|v,w|)>>|<cell|=>|<cell|v\<leqslant\>0\<vee\>w\<leqslant\>0>>|<row|<cell|k\<leqslant\>max<around*|(|v,w|)>>|<cell|\<equiv\>>|<cell|subopti<around*|(|k-v,k-w|)>>>|<row|<cell|min<around*|(|v,w|)>\<leqslant\>k>|<cell|\<equiv\>>|<cell|subopti<around*|(|v-k,w-k|)>>>>>
   </eqnarray*>
 
-  In particular, <math|opti<around*|(|v,w|)>\<equiv\>max<around*|(|v,w|)><wide|=|\<dot\>>0>.
-  We call an <em|opti> atom <em|directed> when there is a variable <math|n>
-  that appears in <math|v> and <math|w> with the same sign. We do not
-  prohibit undirected <em|opti> atoms, but we do not introduce them, to avoid
-  bloat.
+  In particular, <math|opti<around*|(|v,w|)>\<equiv\>max<around*|(|v,w|)><wide|=|\<dot\>>0>
+  and <math|subopti<around*|(|v,w|)>\<equiv\>min<around*|(|v,w|)>\<leqslant\>0>.
+  We call an <em|opti> or <em|subopti> atom <em|directed> when there is a
+  variable <math|n> that appears in <math|v> and <math|w> with the same sign.
+  We do not prohibit undirected <em|opti> or <em|subopti> atoms, but we do
+  not introduce them, to avoid bloat.
 
   For simplicity, we do not support <em|min> and <em|max> as subterms in
   concrete syntax. Instead, we parse atoms of the form
   <verbatim|k=min(<math|\<ldots\>>,<math|\<ldots\>>)>, resp.
   <verbatim|k=max(<math|\<ldots\>>,<math|\<ldots\>>)> into the corresponding
-  <em|opti> atoms, where <verbatim|k> is any numerical term. We also print
-  directed <em|opti> atoms using the <math|k<wide|=|\<dot\>>min<around*|(|v,w|)>>,
-  resp. <math|k<wide|=|\<dot\>>max<around*|(|v,w|)>> syntax, where <math|k>
-  is a variable. Not to pollute the syntax with a new keyword, we use
-  concrete syntax <verbatim|min\|max(<math|\<ldots\>>,<math|\<ldots\>>)> for
-  parsing arbitrary, and printing non-directed, <em|opti> atoms.
+  <em|opti> atoms, where <verbatim|k> is any numerical term. Similarly for
+  <em|subopti>. We also print directed <em|opti> and <em|subopti> atoms using
+  the syntax with <math|min> and <math|max>expressions. Not to pollute the
+  syntax with a new keyword, we use concrete syntax
+  <verbatim|min\|max(<math|\<ldots\>>,<math|\<ldots\>>)> for parsing
+  arbitrary, and printing non-directed, <em|opti> atoms, and
+  <verbatim|min\|\|max(<math|\<ldots\>>,<math|\<ldots\>>)> for <em|subopti>
+  respectively.
 
   If need arises, in a future version, we can extend <em|opti> to a larger
   arity <math|N>.
@@ -1300,67 +1305,76 @@
   <em|opti> clauses in an efficient but incomplete manner, doing a single
   step of constraint solving. We include the <em|opti> terms in processed
   inequalities. After equations have been solved, we apply the substitution
-  to the <em|opti> disjunctions. When one of the <em|opti> disjunct terms
-  becomes contradictory or the disjunct terms become equal, we include the
-  other in implicit equalities. When one of the <em|opti> terms becomes
-  tautological, we drop the disjunction. Recall that we iterate calls of
-  <verbatim|solve_aux> to propagate implicit equalities. We do not perform
-  case splitting on <em|opti> disjunctions, therefore some contradictions may
-  be undetected. However, abduction and disjunction elimination currently
-  perform upfront case splitting on <em|opti> disjunctions, sometimes leading
-  to splits that a smarter solver would avoid.
+  to the <em|opti> and <em|subopti> disjunctions. When one of the <em|opti>
+  resp. <em|subopti> disjunct terms becomes contradictory or the disjunct
+  terms become equal, we include the other in implicit equalities, resp. in
+  inequalities to solve. When one of the <em|opti> or <em|subopti> terms
+  becomes tautological, we drop the disjunction. Recall that we iterate calls
+  of <verbatim|solve_aux> to propagate implicit equalities.
+
+  We do not perform case splitting on <em|opti> and <em|subopti>
+  disjunctions, therefore some contradictions may be undetected. However,
+  abduction and disjunction elimination currently perform upfront case
+  splitting on <em|opti> and <em|subopti> disjunctions, sometimes leading to
+  splits that a smarter solver would avoid.
 
   <subsection|Abduction>
 
-  We eliminate <em|opti> in premises by expanding the definition and
-  converting the branch into two branches, i.e.
+  We eliminate <em|opti> and <em|subopti> in premises by expanding the
+  definition and converting the branch into two branches, e.g.
   <math|D\<wedge\><around*|(|v<wide|=|\<dot\>>0\<vee\>w<wide|=|\<dot\>>0|)>\<Rightarrow\>C>
   into <math|<around*|(|D\<wedge\>v<wide|=|\<dot\>>0\<Rightarrow\>C|)>\<wedge\><around*|(|D\<wedge\>w<wide|=|\<dot\>>0\<Rightarrow\>C|)>>.
   Recall that an <em|opti> atom also implies inequalities
   <math|v\<leqslant\>\<wedge\>w\<leqslant\>0> assumed to be in <math|D>
   above. This is one form of <em|case splitting>: we consider cases
-  <math|v<wide|=|\<dot\>>0> and <math|w<wide|=|\<dot\>>0> separately. We do
-  not eliminate <em|opti> in conclusions. Rather, we consider whether to keep
-  or drop it in the answer, like with other candidate atoms. The
-  transformations apply to an <em|opti> atom by applying to both its
+  <math|v<wide|=|\<dot\>>0> and <math|w<wide|=|\<dot\>>0>, resp.
+  <math|v\<leqslant\>0> and <math|w\<leqslant\>0>, separately. We do not
+  eliminate <em|opti> and <em|subopti> in conclusions. Rather, we consider
+  whether to keep or drop it in the answer, like with other candidate atoms.
+  The transformations apply to an <em|opti> atom by applying to both its
   arguments.
 
   Generating a new <em|opti> atom for inclusion in an answer means finding a
-  pair of equations (resp. a set of <math|N> equations) such that following
-  conditions hold. Each equation, together with remaining atoms of an answer
-  but without the remaining equation(s) selected, is a correct answer to a
-  simple abduction problem. The equations selected share a variable and are
-  oriented so that the variable appears with the same sign in them. The
-  resulting <em|opti> atom passes the validation test for joint constraint
-  abduction. We may implement generating new <em|opti> atoms for abduction
-  answers in a future version, when need arises. Currently, we only generate
-  new <em|opti> atoms for postconditions, i.e. during disjunction
-  elimination.
+  pair of equations such that the following conditions hold. Each equation,
+  together with remaining atoms of an answer but without the remaining
+  equation selected, is a correct answer to a simple abduction problem. The
+  equations selected share a variable and are oriented so that the variable
+  appears with the same sign in them. The resulting <em|opti> atom passes the
+  validation test for joint constraint abduction. We may implement generating
+  new <em|opti> atoms for abduction answers in a future version, when need
+  arises. Currently, we only generate new <em|opti> and <em|subopti> atoms
+  for postconditions, i.e. during disjunction elimination.
 
   <subsection|Disjunction elimination>
 
-  We eliminate <em|opti> atoms prior to finding the extended convex hull of
-  <math|<wide|D<rsub|i>|\<bar\>>> by expanding the definition and converting
-  the disjunction <math|\<vee\><rsub|i>D<rsub|i>> to disjunctive normal form.
-  This is another form of case splitting. In addition to finding the extended
-  convex hull, we need to discover <em|opti> relations that are implied by
-  <math|\<vee\><rsub|i>D<rsub|i>>. We select these faces of the convex hull
-  which also appear as an equation in some disjuncts. Out of these faces, we
-  find all minimal covers of size 2 (or <math|N>), i.e. subsets of faces
-  (pairs, resp. subsets of size <math|N>) such that in each disjunct, either
-  one or the other linear combination appears as an equation. We only keep
-  subsets whose faces share a same-sign variable. For the purposes of
-  detecting <em|opti> relations, we need to perform transitive closure of the
-  extended convex hull equations and inequalities, because the redundant
-  inequalities might be required to find a cover.
+  We eliminate <em|opti> and <em|subopti> atoms prior to finding the extended
+  convex hull of <math|<wide|D<rsub|i>|\<bar\>>> by expanding the definition
+  and converting the disjunction <math|\<vee\><rsub|i>D<rsub|i>> to
+  disjunctive normal form. This is another form of case splitting.
+
+  In addition to finding the extended convex hull, we need to discover
+  <em|opti> relations that are implied by <math|\<vee\><rsub|i>D<rsub|i>>. We
+  select these faces of the convex hull which also appear as an equation in
+  some disjuncts. Out of these faces, we find all minimal covers of size 2,
+  i.e. pairs of faces such that in each disjunct, either one or the other
+  linear combination appears as an equation. We only keep pairs of faces that
+  share a same-sign variable. For the purposes of detecting <em|opti>
+  relations, we need to perform transitive closure of the extended convex
+  hull equations and inequalities, because the redundant inequalities might
+  be required to find a cover.
+
+  Finding <em|subopti> atoms is similar. We find all minimal covers of size
+  2, i.e. pairs of inequalities such that one or the other appears in each
+  disjunct. We only keep pairs of inequalities that share a same-sign
+  variable.
 
   We provide an <verbatim|initstep_heur> function for the numerical domain to
   remove <em|opti> atoms of the form <math|k<wide|=|\<dot\>>min<around*|(|c,v|)>>,
   <math|k<wide|=|\<dot\>>min<around*|(|v,c|)>>,
   <math|k<wide|=|\<dot\>>max<around*|(|c,v|)>> or
-  <math|k<wide|=|\<dot\>>min<around*|(|v,c|)>> for a constant <math|c>, while
-  in initial iterations where disjunction elimination is only performed for
-  non-recursive branches.
+  <math|k<wide|=|\<dot\>>min<around*|(|v,c|)>> for a constant <math|c>,
+  similarly for <em|subopti> atoms, while in initial iterations where
+  disjunction elimination is only performed for non-recursive branches.
 
   <section|Solving for Predicate Variables><label|MainAlgo>
 

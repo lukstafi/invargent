@@ -24,23 +24,27 @@ type atom =
   | Eq of term * term * Defs.loc
   | Leq of term * term * Defs.loc
   | Opti of term * term * Defs.loc
+  | Subopti of term * term * Defs.loc
 type formula = atom list
 
 let fvs_atom = function
   | Eq (t1, t2, _)
   | Leq (t1, t2, _)
-  | Opti (t1, t2, _) -> VarSet.union (fvs_term t1) (fvs_term t2)
+  | Opti (t1, t2, _)
+  | Subopti (t1, t2, _) -> VarSet.union (fvs_term t1) (fvs_term t2)
 
 let fvs_formula phi =
   List.fold_left VarSet.union VarSet.empty (List.map fvs_atom phi)
 
 let atom_loc = function
-  | Eq (_, _, lc) | Leq (_, _, lc) | Opti (_, _, lc) -> lc
+  | Eq (_, _, lc) | Leq (_, _, lc) | Opti (_, _, lc)
+  | Subopti (_, _, lc) -> lc
 
 let replace_loc_atom loc = function
   | Eq (t1, t2, _) -> Eq (t1, t2, loc)
   | Leq (t1, t2, _) -> Leq (t1, t2, loc)
   | Opti (t1, t2, _) -> Opti (t1, t2, loc)
+  | Subopti (t1, t2, _) -> Subopti (t1, t2, loc)
 
 let replace_loc loc = List.map (replace_loc_atom loc)
 
@@ -49,6 +53,8 @@ let eq_atom a1 a2 =
   | Leq (t1, t2, _), Leq (t3, t4, _) -> t1=t3 && t2=t4
   | Eq (t1, t2, _), Eq (t3, t4, _)
   | Opti (t1, t2, _), Opti (t3, t4, _) -> t1=t3 && t2=t4 || t1=t4 && t2=t3
+  | Subopti (t1, t2, _), Subopti (t3, t4, _) ->
+    t1=t3 && t2=t4 || t1=t4 && t2=t3
   | _ -> false
 
 let formula_inter cnj1 cnj2 =
@@ -108,6 +114,8 @@ let subst_atom unbox sb = function
     Leq (subst_term unbox sb t1, subst_term unbox sb t2, loc)
   | Opti (t1, t2, loc) ->
     Opti (subst_term unbox sb t1, subst_term unbox sb t2, loc)
+  | Subopti (t1, t2, loc) ->
+    Subopti (subst_term unbox sb t1, subst_term unbox sb t2, loc)
 
 let hvsubst_atom sb = function
   | Eq (t1, t2, loc) ->
@@ -116,17 +124,21 @@ let hvsubst_atom sb = function
     Leq (hvsubst_term sb t1, hvsubst_term sb t2, loc)
   | Opti (t1, t2, loc) ->
     Opti (hvsubst_term sb t1, hvsubst_term sb t2, loc)
+  | Subopti (t1, t2, loc) ->
+    Subopti (hvsubst_term sb t1, hvsubst_term sb t2, loc)
 
 let atom_size = function
   | Eq (t1, t2, loc)
   | Leq (t1, t2, loc)
-  | Opti (t1, t2, loc) ->
+  | Opti (t1, t2, loc)
+  | Subopti (t1, t2, loc) ->
     term_size t1 + term_size t2 + 1  
 
 let iter_terms f = function
   | Eq (t1, t2, loc)
   | Leq (t1, t2, loc)
-  | Opti (t1, t2, loc) -> f t1; f t2
+  | Opti (t1, t2, loc)
+  | Subopti (t1, t2, loc) -> f t1; f t2
 
 let rec denom = function
   | Cst (_, d) -> d
@@ -173,6 +185,7 @@ let direct_opti t1 t2 =
 let taut_atom_or_undir_opti = function
   | Eq (t1, t2, _) -> t1 = t2
   | Leq (t1, t2, _) -> t1 = t2
+  | Subopti (t1, t2, _)
   | Opti (t1, t2, _) ->
     match direct_opti t1 t2 with
     | None -> true
@@ -188,7 +201,7 @@ let pr_atom ppf = function
   | Leq (t1, t2, _) ->
     fprintf ppf "@[<2>%a@ ≤@ %a@]" pr_term t1 pr_term t2
   | Opti (t1, t2, _) ->
-    match direct_opti t1 t2 with
+    (match direct_opti t1 t2 with
     | None ->
       fprintf ppf "@[<2>min|max@ (%a,@ %a)@]" pr_term t1 pr_term t2
     | Some (v, true, t1, t2) ->
@@ -196,7 +209,17 @@ let pr_atom ppf = function
         pr_term t1 pr_term t2
     | Some (v, false, t1, t2) ->
       fprintf ppf "@[<2>%s=max@ (%a,@ %a)@]"(var_str v)
+        pr_term t1 pr_term t2)
+  | Subopti (t1, t2, _) ->
+    match direct_opti t1 t2 with
+    | None ->
+      fprintf ppf "@[<2>min||max@ (%a,@ %a)@]" pr_term t1 pr_term t2
+    | Some (v, true, t1, t2) ->
+      fprintf ppf "@[<2>%s≤max@ (%a,@ %a)@]"(var_str v)
         pr_term t1 pr_term t2
+    | Some (v, false, t1, t2) ->
+      fprintf ppf "@[<2>min@ (%a,@ %a)≤%s@]"
+        pr_term t1 pr_term t2 (var_str v)
 
 let pr_formula ppf atoms =
   pr_sep_list " ∧" pr_atom ppf atoms

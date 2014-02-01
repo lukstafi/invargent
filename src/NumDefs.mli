@@ -20,6 +20,7 @@ type atom =
   | Eq of term * term * Defs.loc
   | Leq of term * term * Defs.loc
   | Opti of term * term * Defs.loc
+  | Subopti of term * term * Defs.loc
 type formula = atom list
 
 val fvs_term : term -> Defs.VarSet.t

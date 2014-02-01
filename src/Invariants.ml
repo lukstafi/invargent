@@ -839,8 +839,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
         let g_rol = List.map
             (fun (i,_) ->
                (*[* Format.printf
-                 "solve: iter_no=%d approaching disjelim for %d@\n%!"
-                 iter_no i; *]*)
+                 "solve: iter_no=%d approaching disjelim for %d, #brs=%d@\n%!"
+                 iter_no i (try List.length (List.assoc i g_rol)
+                            with Not_found -> 0); *]*)
                try
                  let cnjs = List.assoc i g_rol in
                  let preserve = VarSet.add delta (dsj_preserve i) in

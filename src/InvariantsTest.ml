@@ -1106,7 +1106,7 @@ let rec map =
 
   "map not existential mono" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "list map not existential mono"
 "newtype Elem
 newtype List : num
@@ -1225,7 +1225,7 @@ let rec filter = fun f ->
           filter f xs"
         [2,"∃n, a.
   δ =
-    ((a → Bool) → List (a, n) → ∃2:k[0 ≤ k ∧ k ≤ n].List (a, k))"];
+    ((a → Bool) → List (a, n) → ∃2:k[k ≤ n ∧ 0 ≤ k].List (a, k))"];
 
     );
 
@@ -1621,7 +1621,7 @@ let rec zip =
     | UCons xs, UCons ys ->
       let zs = zip (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃1:i[i=min (n, k)].Unary i)"]
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃1:i[i=min (k, n)].Unary i)"]
     );
 
   "list zip prefix expanded" >::
@@ -1641,7 +1641,7 @@ let rec zip =
       let zs = zip (xs, ys) in
       LCons ((x, y), zs)"
         [2,"∃n, k, a, b.
-  δ = ((List (a, n), List (b, k)) → ∃1:i[i=min (n, k)].List ((a, b), i))"]
+  δ = ((List (a, n), List (b, k)) → ∃1:i[i=min (k, n)].List ((a, b), i))"]
     );
 
   "unary maximum" >::
@@ -1660,7 +1660,7 @@ let rec map2 =
     | UCons xs, UCons ys ->
       let zs = map2 (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃1:i[i=max (k, n)].Unary i)"]
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃1:i[i=max (n, k)].Unary i)"]
     );
 
   "list map2 with postfix" >::
@@ -1682,8 +1682,124 @@ let rec map2 = fun f ->
         [2,"∃n, k, a.
   δ =
     ((a → a → a) → (List (a, n), List (a, k)) →
-       ∃1:i[i=max (n, k)].List (a, i))"]
+       ∃1:i[i=max (k, n)].List (a, i))"]
     );
+
+
+  "list filter-zip prefix" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "list filter-zip prefix"
+"newtype List : type * num
+newcons LNil : ∀a. List(a, 0)
+newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+
+let rec filter_zip = fun f ->
+  efunction
+    | LNil, LNil -> LNil
+    | LNil, LCons (_, _) -> LNil
+    | LCons (_, _), LNil -> LNil
+    | LCons (x, xs), LCons (y, ys) ->
+      let zs = filter_zip f (xs, ys) in
+      ematch f x y with
+      | True -> LCons ((x, y), zs)
+      | False -> zs"
+        [2,"∃n, k, a, b.
+  δ =
+    ((a → b → Bool) → (List (a, n), List (b, k)) → ∃2:i[0 ≤ i ∧
+       i ≤ n ∧ i ≤ k].List ((a, b), i))"]
+    );
+
+  "list filter-map2 with postfix" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "list filter-map2 with postfix"
+"newtype List : type * num
+newcons LNil : ∀a. List(a, 0)
+newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+
+let rec filter_map2 = fun p f ->
+  efunction
+    | LNil, LNil -> LNil
+    | LNil, (LCons (_, _) as l) -> l
+    | (LCons (_, _) as l), LNil -> l
+    | LCons (x, xs), LCons (y, ys) ->
+      let zs = filter_map2 p f (xs, ys) in
+      ematch p x y with
+      | True -> LCons (f x y, zs)
+      | False -> zs"
+        [2,"∃n, k, a.
+  δ =
+    ((a → a → Bool) → (a → a → a) →
+       (List (a, n), List (a, k)) → ∃2:i[i ≤ n + k ∧ n ≤ k + i ∧
+       k ≤ n + i].List (a, i))"]
+    );
+
+  "list filter-map2 with filter postfix mono" >::
+    (fun () ->
+       todo "work in progress";
+       skip_if !debug "debug";
+       test_case "list filter-map2 with filter postfix mono"
+"newtype Bar
+newtype List : num
+newcons LNil : ∀a. List 0
+newcons LCons : ∀n [0≤n]. Bar * List n ⟶ List(n+1)
+external p : Bar → Bar → Bool = \"p\"
+external q : Bar → Bool = \"p\"
+external f : Bar → Bar → Bar = \"f\"
+
+let rec filter_map2 =
+  efunction
+    | LNil, LNil -> LNil
+    | LNil, LCons (y, ys) ->
+      let zs = filter_map2 (LNil, ys) in
+      (ematch q y with
+      | True -> LCons (y, zs)
+      | False -> zs)
+    | LCons (x, xs), LNil ->
+      let zs = filter_map2 (xs, LNil) in
+      (ematch q x with
+      | True -> LCons (x, zs)
+      | False -> zs)
+    | LCons (x, xs), LCons (y, ys) ->
+      let zs = filter_map2 (xs, ys) in
+      ematch p x y with
+      | True -> LCons (f x y, zs)
+      | False -> zs"
+        [2,"∃n, k. δ = ((List n, List k) → ∃4:i[0 ≤ i ∧ i≤max (n, k)].List i)"]
+    );
+
+  "list filter-map2 with filter postfix" >::
+    (fun () ->
+       todo "work in progress";
+       skip_if !debug "debug";
+       test_case "list filter-map2 with filter postfix"
+"newtype List : type * num
+newcons LNil : ∀a. List(a, 0)
+newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+
+let rec filter_map2 = fun p q r f g h ->
+  efunction
+    | LNil, LNil -> LNil
+    | LNil, LCons (y, ys) ->
+      let zs = filter_map2 p q r f g h (LNil, ys) in
+      (ematch r y with
+      | True -> LCons (h y, zs)
+      | False -> zs)
+    | LCons (x, xs), LNil ->
+      let zs = filter_map2 p q r f g h (xs, LNil) in
+      (ematch q x with
+      | True -> LCons (g x, zs)
+      | False -> zs)
+    | LCons (x, xs), LCons (y, ys) ->
+      let zs = filter_map2 p q r f g (xs, ys) in
+      ematch p x y with
+      | True -> LCons (f x y, zs)
+      | False -> zs"
+        [2,""]
+    );
+
+
 
   "avl_tree--height" >::
     (fun () ->
@@ -1806,7 +1922,11 @@ let bal = fun l x r ->
           let l' = create l x rll in
           let r' = create rlr rx rr in
           create l' rlx r')))"
-        [1,""];
+        [1,"∃n, k, a.
+  δ =
+    (Avl (a, k) → a → Avl (a, n) →
+       ∃1:i[n ≤ i ∧ k ≤ i ∧ i≤max (k+1, n+1)].Avl (a, i)) ∧
+  k ≤ n + 3 ∧ n ≤ k + 3 ∧ 0 ≤ k ∧ 0 ≤ n"];
     );
 
 ]
@@ -1818,23 +1938,3 @@ let () =
   let executable = chop (chop executable) in
   if executable = "InvariantsTest"
   then ignore (OUnit.run_test_tt ~verbose:true tests)
-
-let f () =
-  Printexc.record_backtrace true;
-  try
-       test_case "list map not existential mono"
-"newtype Elem
-newtype List : num
-newcons LNil : List 0
-newcons LCons : ∀n [0≤n]. Elem * List n ⟶ List(n+1)
-
-external f : Elem → Elem = \"f\"
-
-let rec map =
-  efunction LNil -> LNil
-    | LCons (x, xs) ->
-      let ys = map xs in
-      LCons (f x, ys)"
-        [2,"∃n. δ = (List n → ∃1:.List n)"]
-  with e ->
-    Printexc.print_backtrace stdout

@@ -145,7 +145,9 @@ let disjelim_typ q ~bvs ~preserve brs =
   let empty_eqs = {at_typ=empty_brs; at_num=empty_brs; at_so=()} in
   match brs with
   | [] -> assert false
-  | [br] -> [], [], br, empty_eqs
+  | [br] ->
+    let br = List.filter (fun (v,_) -> VarSet.mem v preserve) br in
+    [], [], br, empty_eqs
   | br::more_brs ->
     (* (a) V *)
     let gs = List.map (fun (v,(t,lc)) -> v,([t],[lc])) br in
@@ -248,6 +250,8 @@ let simplify_dsjelim q ~keep ~preserve vs ans =
     (fun (v,_) -> not (VarSet.mem v preserve) || List.mem v vs)
     ans.at_typ in
   let ty_ans = to_formula ty_ans in
+  (* Opti atoms are privileged because, like equations, they are
+     functional relations. *)
   let minmax_vs = map_some
     (function
       | NumDefs.Opti (t1, t2, _) ->
@@ -277,7 +281,7 @@ let simplify_dsjelim q ~keep ~preserve vs ans =
       (subst_formula sb ty_ans) in
   (*[* Format.printf
     "disjelim-simplify: parts@ ty_sb=%a@ ty_ans=%a@ num_ans=%a@\n%!"
-    pr_subst ty_sb pr_formula ty_ans NumDefs.pr_formula num_ans;  *]*)
+    pr_subst ty_sb pr_formula ty_ans pr_formula num_ans;  *]*)
   let vs = List.filter (fun v -> not (List.mem_assoc v ty_sb)) vs in
   vs, ty_ans @ num_ans
 

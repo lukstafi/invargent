@@ -9,6 +9,7 @@
 let annotating_fun = ref true
 let annotating_letin = ref false
 let inform_toplevel = ref false
+let merge_rec_nonrec = ref true
 
 open Defs
 open Terms
@@ -1368,7 +1369,8 @@ let simplify preserve q brs =
          List.filter nonred_pr_atom prem,
          List.filter nonred_atom concl)
       brs in
-  (* Merge branches with the same premise. Do not merge branches when
+  (* Merge branches with the same premise. Optionally,
+     do not merge branches when
      one is non-recursive and the other is recursive. *)
   (* Roughly like [map_reduce (@) [] brs] *)
   let equiv cnj1 cnj2 =
@@ -1377,6 +1379,7 @@ let simplify preserve q brs =
         unify ~use_quants:false q cnj1 in
       let {cnj_typ=c2_ty; cnj_num=c2_num; cnj_so=c2_so} =
         unify ~use_quants:false q cnj2 in
+      (* TODO: use [Terms.subformula], [NumS.equivalent] etc. instead? *)
       let c1_ty = List.map (fun (v,(t,_)) -> v,t) c1_ty
       and c2_ty = List.map (fun (v,(t,_)) -> v,t) c2_ty
       and c1_num = NumDefs.replace_loc dummy_loc c1_num
@@ -1401,7 +1404,7 @@ let simplify preserve q brs =
     | [] -> raise Not_found
     | (prem2, concl2 as br) :: brs ->
       let nonrec2 = is_nonrec prem2 concl2 in
-      if nonrec=nonrec2 && equiv prem prem2
+      if (nonrec=nonrec2 || !merge_rec_nonrec) && equiv prem prem2
       then (prem, concl @ concl2) :: brs
       else br :: meet nonrec prem concl brs in
   let rec merge acc = function
