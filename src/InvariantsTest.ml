@@ -1737,8 +1737,7 @@ let rec filter_map2 = fun p f ->
 
   "list filter-map2 with filter postfix mono" >::
     (fun () ->
-       todo "work in progress";
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "list filter-map2 with filter postfix mono"
 "newtype Bar
 newtype List : num
@@ -1766,7 +1765,8 @@ let rec filter_map2 =
       ematch p x y with
       | True -> LCons (f x y, zs)
       | False -> zs"
-        [2,"∃n, k. δ = ((List n, List k) → ∃4:i[0 ≤ i ∧ i≤max (n, k)].List i)"]
+        [2,"∃n, k.
+  δ = ((List n, List k) → ∃4:i[0 ≤ i ∧ i≤max (n, k)].List i)"]
     );
 
   "list filter-map2 with filter postfix" >::
