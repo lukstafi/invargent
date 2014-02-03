@@ -8,6 +8,7 @@
 let early_postcond_abd = ref false
 let timeout_count = ref 6
 let timeout_flag = ref false
+let unfinished_postcond_flag = ref false
 
 open Defs
 open Terms
@@ -1115,6 +1116,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
       let ans_sb, _ = Infer.separate_subst ~avoid:bvs q.op ans_res in
       (* Do not substitute in postconditions -- they do not have free
                  variables! *)
+      unfinished_postcond_flag := false;
+      let unfinished_postcond = ref [] in
       let rol2 =
         if disj_step.(0) > iter_no then rol1
         else
@@ -1153,6 +1156,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
                         pr_subst sb pr_formula (subst_formula sb dans); *]*)
                       subst_formula sb dans)
                    ds in
+               if dans <> [] then (
+                 unfinished_postcond_flag := true;
+                 unfinished_postcond := dans @ !unfinished_postcond);
                let dvs = gvs @ concat_map (fun (_,(dvs,_))->dvs) ds in
                let pvs = fvs_typ tpar in
                let localvs = VarSet.diff (vars_of_list dvs) pvs in
@@ -1225,7 +1231,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
               i pr_formula ans2 pr_formula ans1 (subformula ans1 ans2); *]*)
             subformula ans1 ans2)
           rol1 rol2 in
-      let finished = finished1 && finished2 && finished3 in
+      let finished = not !unfinished_postcond_flag &&
+                     finished1 && finished2 && finished3 in
       (*[* Format.printf "solve-loop: finished 1=%b, 2=%b, 3=%b, r=%b@\n%!"
         finished1 finished2 finished3 finished; *]*)
       if iter_no > 1 && finished
@@ -1256,7 +1263,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
           pr_formula unfinished1 pr_formula unfinished2
           pr_formula unfinished3; *]*)
         let loc = formula_loc
-            (unfinished1 @ unfinished2 @ unfinished3) in
+            (!unfinished_postcond @
+               unfinished1 @ unfinished2 @ unfinished3) in
         timeout_flag := true;
         raise (NoAnswer (Type_sort, "Answers do not converge", None, loc))
       else finish rol2 sol2 in

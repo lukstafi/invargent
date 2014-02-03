@@ -144,6 +144,9 @@ let main () =
     if !Invariants.timeout_flag then Format.printf
         "Perhaps increase the -iterations_timeout parameter or try the \
          -more_existential option.@\n%!";
+    if !Invariants.unfinished_postcond_flag then Format.printf
+        "Perhaps some definition is used with requirements on@ its \
+         inferred postcondition not warranted by the definition.@\n%!";
     exit 2
   
 
