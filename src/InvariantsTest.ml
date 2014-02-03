@@ -1202,7 +1202,7 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
-        [2,"∃n. δ = (List (Bar, n) → ∃2:k[k ≤ n ∧ 0 ≤ k].List (Bar, k))"];
+        [2,"∃n. δ = (List (Bar, n) → ∃2:k[0 ≤ k ∧ k ≤ n].List (Bar, k))"];
 
     );
 
@@ -1248,8 +1248,8 @@ let rec filter = fun f g ->
           filter f g xs"
         [2,"∃n, a, b.
   δ =
-    ((a → Bool) → (a → b) → List (a, n) → ∃2:k[k ≤ n ∧
-       0 ≤ k].List (b, k))"];
+    ((a → Bool) → (a → b) → List (a, n) → ∃2:k[0 ≤ k ∧
+       k ≤ n].List (b, k))"];
 
     );
 
@@ -1284,7 +1284,7 @@ let rec ub = efunction
           let r = ub a1 b1 in
           POne r)"
         [2,"∃n, k.
-  δ = (Binary k → Binary n → ∃4:i[n ≤ i ∧ i ≤ n + k].Binary i)"]
+  δ = (Binary k → Binary n → ∃4:i[i ≤ n + k ∧ n ≤ i].Binary i)"]
     );
 
   "binary upper bound expanded" >::
@@ -1322,8 +1322,8 @@ let rec ub = efunction
           POne r)"
         [2,"∃n, k.
   δ =
-    (Binary k → Binary n → ∃4:i[n ≤ i ∧ k ≤ i ∧
-       i ≤ n + k].Binary i)"]
+    (Binary k → Binary n → ∃4:i[i ≤ n + k ∧ n ≤ i ∧
+       k ≤ i].Binary i)"]
     );
 
   "binary upper bound" >::
@@ -1682,7 +1682,7 @@ let rec map2 = fun f ->
         [2,"∃n, k, a.
   δ =
     ((a → a → a) → (List (a, n), List (a, k)) →
-       ∃1:i[i=max (k, n)].List (a, i))"]
+       ∃1:i[i=max (n, k)].List (a, i))"]
     );
 
 
@@ -1706,8 +1706,8 @@ let rec filter_zip = fun f ->
       | False -> zs"
         [2,"∃n, k, a, b.
   δ =
-    ((a → b → Bool) → (List (a, n), List (b, k)) → ∃2:i[0 ≤ i ∧
-       i ≤ n ∧ i ≤ k].List ((a, b), i))"]
+    ((a → b → Bool) → (List (a, n), List (b, k)) → ∃2:i[i ≤ n ∧
+       i ≤ k ∧ 0 ≤ i].List ((a, b), i))"]
     );
 
   "list filter-map2 with postfix" >::
@@ -1738,7 +1738,7 @@ let rec filter_map2 = fun p f ->
   "list filter-map2 with filter postfix mono" >::
     (fun () ->
        todo "work in progress";
-       skip_if !debug "debug";
+       (* skip_if !debug "debug"; *)
        test_case "list filter-map2 with filter postfix mono"
 "newtype Bar
 newtype List : num
@@ -1836,8 +1836,8 @@ let create = fun l x r ->
         [2,"∃n, k, a.
   δ =
     (Avl (a, k) → a → Avl (a, n) →
-       ∃1:i[i=max (k + 1, n + 1)].Avl (a, i)) ∧
-  k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n"];
+       ∃1:i[i=max (n + 1, k + 1)].Avl (a, i)) ∧
+  0 ≤ n ∧ 0 ≤ k ∧ n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
   "avl_tree--singleton" >::

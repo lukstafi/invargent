@@ -12,3 +12,4 @@ Place for TODOs/FIXMEs, especially if not expressed in other places. See README.
 * FIXME: filtering / checking connected / simplification / initstep heuristic, for disjunction elimination, need rethinking and cleanup.
 * TODO: remove postcondition atoms implied by the invariant.
 * FIXME: check consistency of the order of `w` variables throughout `NumS`.
+* FIXME: clean up the use of `localvs` for pruning and simplification.

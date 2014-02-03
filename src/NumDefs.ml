@@ -157,19 +157,22 @@ let rec pr_term ppf = function
   | Lin (m, n, v) -> fprintf ppf "(%d/%d) %s" m n (var_str v)
   | Add cmb -> fprintf ppf "%a" (pr_sep_list " +" pr_term) cmb
 
-(* Simplified, i.e. non-normalizing, detection of directed opti atoms. *)
-let direct_opti t1 t2 =
+let flatten t =
   let rec flat (vars, (j,k as cst) as acc) = function
     | Add sum -> List.fold_left flat acc sum
     | Cst (j2,k2) -> vars, (j2*k+j*k2, k*k2)
     | Lin (j,k,v) -> (j,k,v)::vars, cst in
+  flat ([], (0,1)) t
+
+(* Simplified, i.e. non-normalizing, detection of directed opti atoms. *)
+let direct_opti t1 t2 =
   let unpack (j,k,v) = Lin (j,k,v) in
   let uncst (j,k) = if j=0 then [] else [Cst (j,k)] in
   let negate = List.map (fun (j,k,v) -> ~-j,k,v) in
   let negcst (j,k) = ~-j,k in
   try
-    let ts1, cst1 = flat ([], (0,1)) t1
-    and ts2, cst2 = flat ([], (0,1)) t2 in
+    let ts1, cst1 = flatten t1
+    and ts2, cst2 = flatten t2 in
     let (j,k,v as i) = List.find (fun e -> List.mem e ts2) ts1 in
     let vs1, ts1 = List.partition ((=) i) ts1
     and vs2, ts2 = List.partition ((=) i) ts2 in

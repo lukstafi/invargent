@@ -474,7 +474,7 @@ let simplify q_ops ?localvs (vs, cnj) =
   VarSet.elements vs, ans
 
 (** Generally simplify the formula. Do not normalize non-type sort atoms. *)
-let prune_redund q_ops ?localvs (vs, cnj) =
+let prune_redund q_ops ?localvs ~initstep (vs, cnj) =
   let vs = vars_of_list vs in
   (*[* Format.printf "simplify: vs=%a@ cnj=%a@\n%!"
     pr_vars vs pr_formula cnj; *]*)
@@ -500,20 +500,21 @@ let prune_redund q_ops ?localvs (vs, cnj) =
         | _ -> assert false)
       ty_sb in
   let ty_ans = update_sb ~more_sb:ty_sb ty_ans in
-  let num_ans = NumS.prune_redundant q_ops ?localvs num_ans in
+  let num_ans =
+    NumS.prune_redundant q_ops ?localvs ~initstep num_ans in
   (*[* Format.printf "prune-simplified:@\nnum_ans=%a@\n%!"
     NumDefs.pr_formula num_ans; *]*)
   let ty_sb, ty_ans = List.partition
       (fun (v,_) -> VarSet.mem v vs && v <> delta && v <> delta') ty_ans in
   let ans = to_formula ty_ans @ NumS.formula_of_sort num_ans in
   let vs = VarSet.inter vs (fvs_formula ans) in
-  (*[* Format.printf "simplify: vs=%a@ ty_sb=%a@ ans=%a@\n%!"
+  (*[* Format.printf "prune-simplify: vs=%a@ ty_sb=%a@ ans=%a@\n%!"
     pr_vars vs pr_subst ty_sb pr_formula ans; *]*)
   VarSet.elements vs, ans
 
 (* Rename the new solution to match variables of the old solution. *)
 (* TODO: ugly, rewrite or provide a medium-level description. *)
-let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
+let converge q_ops ~initstep ~check_only (vs1, cnj1) (vs2, cnj2) =
   (*[* Format.printf
     "converge: check_only=%b@ vs1=%a@ vs2=%a@\ncnj1=%a@\ncnj2=%a\n%!"
     check_only pr_vars (vars_of_list vs1) pr_vars (vars_of_list vs2)
@@ -629,11 +630,14 @@ let converge q_ops ~check_only (vs1, cnj1) (vs2, cnj2) =
          with Not_found -> v)
       vs2 in
   let localvs = VarSet.diff (vars_of_list vs2) pms_new in
+  (*[* Format.printf "converge: initstep=%b localvs=%a@\n%!"
+    initstep pr_vars localvs; *]*)
   let c_num =
-    if check_only then NumS.prune_redundant q_ops ~localvs c2_num
-    else NumS.converge q_ops localvs c1_num c2_num in
+    if check_only
+    then NumS.prune_redundant q_ops ~localvs ~initstep c2_num
+    else NumS.converge q_ops ~localvs ~initstep c1_num c2_num in
   (*[* Format.printf
-    "converge: check_only=%b vs2=%a@\nc2_ty=%a@\nc2_num=%a@\nc_num=%a\n%!"
+    "converge: check_only=%b vs2=%a@\nc2_ty=%a@\nc2_num=%a@\nc_num=%a@\n%!"
     check_only pr_vars (vars_of_list vs2)
     pr_subst c2_ty NumDefs.pr_formula c2_num NumDefs.pr_formula c_num; *]*)
   vs2, to_formula c2_ty @ NumS.formula_of_sort c_num
@@ -849,7 +853,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
                  let usb, (g_vs, g_ans) =
                    (* FIXME *)
                    DisjElim.disjelim q_ops ~bvs ~preserve
-                     ~do_num:(disj_step.(1) <= iter_no) cnjs in
+                     ~do_num:(disj_step.(1) <= iter_no)
+                     ~initstep:(iter_no < disj_step.(2)) cnjs in
                  (*[* Format.printf "solve-3: disjelim g_ans=%a@\n%!"
                    pr_formula g_ans; *]*)
                  (* FIXME: shouldn't we pick the connected component
@@ -879,7 +884,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
         let lift_ex_types cmp_v i (g_vs, g_ans) =
           let localvs = vars_of_list g_vs in
           (* FIXME *)
-          let g_vs, g_ans = prune_redund q_ops ~localvs (g_vs, g_ans) in
+          let g_vs, g_ans =
+            prune_redund q_ops ~localvs
+              ~initstep:(iter_no < disj_step.(2)) (g_vs, g_ans) in
           let fvs = VarSet.elements
               (VarSet.diff (fvs_formula g_ans)
                  (vars_of_list [delta;delta'])) in
@@ -907,7 +914,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                assert (i = j);
                let tpar, ans2 = lift_ex_types q.op i ans2 in
                let ans2 =
-                 converge q.op
+                 converge q.op ~initstep:(iter_no < disj_step.(2))
                    ~check_only:(iter_no < disj_step.(3)) ans1 ans2 in
 
                (*[* Format.printf "solve.loop-dK: final@ tpar=%a@ ans2=%a@\n%!"
@@ -1106,13 +1113,14 @@ let solve q_ops new_ex_types exty_res_chi brs =
              loop iter_no discard rol1 sol1 in
       (* 9 *)
       let ans_sb, _ = Infer.separate_subst ~avoid:bvs q.op ans_res in
+      (* Do not substitute in postconditions -- they do not have free
+                 variables! *)
       let rol2 =
         if disj_step.(0) > iter_no then rol1
         else
           List.map
             (fun (i, (gvs,g_ans)) ->
                (* FIXME: code duplication with [lift_ex_types]? *)
-               let g_ans = subst_formula ans_sb g_ans in
                let tpar, g_ans = List.partition
                    (function
                      | Eqty (tv, tpar, _) when tv = tdelta' -> true
@@ -1148,11 +1156,15 @@ let solve q_ops new_ex_types exty_res_chi brs =
                let dvs = gvs @ concat_map (fun (_,(dvs,_))->dvs) ds in
                let pvs = fvs_typ tpar in
                let localvs = VarSet.diff (vars_of_list dvs) pvs in
+               (*[* Format.printf
+                 "solve-loop-9: localvs=%a;@ pvs=%a; iter_no=%d@\n%!"
+                 pr_vars localvs pr_vars pvs iter_no; *]*)
                let svs = VarSet.elements localvs in
+               (* TODO: optimize, lots of repeated work *)
                let vs, ans =
                  prune_redund q.op ~localvs
-                   (connected [delta; delta']
-                      (svs, dans @ g_ans)) in
+                   ~initstep:(iter_no < disj_step.(2))
+                   (connected [delta; delta'] (svs, dans @ g_ans)) in
                let pvs = VarSet.elements pvs in
                let vs = vs @ pvs in
                (* FIXME: are generalization variables impossible in tpar'? *)
@@ -1170,6 +1182,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
       (* 10 *)
       let sol2 = List.map
           (fun (i, (vs, ans)) ->
+             (* This is supposed to substitute parent-context
+                 answers. FIXME: verify formally. *)
+             let ans = subst_formula ans_sb ans in
              let bs = List.filter (not % q.positive_b) (q.find_b i) in
              let b = match bs with [b] -> b | _ -> assert false in
              let dvs, dans = List.assoc b ans_sol in

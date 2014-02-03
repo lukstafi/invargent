@@ -1152,7 +1152,10 @@ let connected ?(validate=fun _ -> ()) target (vs, phi) =
         (fun acc (c,_,_) ->
            let acc' = c::acc in
            try validate acc'; acc'
-           with Contradiction _ -> acc)
+           with Contradiction _ ->
+             (*[* Format.printf "connected-loop: %a incomp. acc=%a@\n%!"
+               pr_atom c pr_formula acc; *]*)
+             acc)
         acc more in
     (*[* Format.printf "connected-loop: nvs=%a@\nacc=%a@\n%!"
       pr_vars (vars_of_list nvs) pr_formula acc; *]*)

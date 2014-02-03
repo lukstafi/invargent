@@ -15,6 +15,9 @@ val abd_prune_at : int ref
 val abd_timeout_count : int ref
 val abd_fail_timeout_count : int ref
 val passing_ineq_trs : bool ref
+(** Do not create subopti atoms of the form [k<=max(C,..)] etc. where
+    [C] is a constant (default true). *)
+val no_subopti_of_cst : bool ref
 
 val num_of : Terms.typ -> NumDefs.term
 val sort_formula : Terms.formula -> NumDefs.formula
@@ -43,7 +46,7 @@ val abd :
 val disjelim_rotations : int ref
 (** For uniformity, we return an empty list as introduced variables. *)
 val disjelim :
-  Defs.quant_ops -> preserve:Defs.VarSet.t ->
+  Defs.quant_ops -> preserve:Defs.VarSet.t -> initstep:bool ->
   NumDefs.formula list -> Defs.var_name list * NumDefs.formula
 
 (** Eliminate provided variables from the substitution part of solved
@@ -59,14 +62,14 @@ val simplify :
     other atoms, i.e. "atom-on-atom", are considered. Prefer other
     atoms over opti atoms. *)
 val prune_redundant :
-  Defs.quant_ops -> ?localvs:Defs.VarSet.t ->
+  Defs.quant_ops -> ?localvs:Defs.VarSet.t -> initstep:bool ->
   NumDefs.formula -> NumDefs.formula
 
 (** Intersect atoms of the formulas, but only after generating
     consequences via Fourier elimination and turning equations into
     pairs of inequalities. *)
 val converge :
-  Defs.quant_ops -> Defs.VarSet.t ->
+  Defs.quant_ops -> ?localvs:Defs.VarSet.t -> initstep:bool ->
   NumDefs.formula -> NumDefs.formula -> NumDefs.formula
 
 type state

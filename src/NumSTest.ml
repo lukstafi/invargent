@@ -34,7 +34,7 @@ let tests = "NumS" >::: [
         let preserve = List.fold_left
             (fun vs br -> VarSet.union vs (fvs_formula br))
             VarSet.empty brs in
-        let vs, ans = disjelim q ~preserve brs in
+        let vs, ans = disjelim q ~initstep:false ~preserve brs in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
@@ -64,7 +64,7 @@ let tests = "NumS" >::: [
         let preserve = List.fold_left
             (fun vs br -> VarSet.union vs (fvs_formula br))
             VarSet.empty brs in
-        let vs, ans = disjelim q ~preserve brs in
+        let vs, ans = disjelim q ~initstep:false ~preserve brs in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
@@ -94,7 +94,7 @@ let tests = "NumS" >::: [
         let preserve = List.fold_left
             (fun vs br -> VarSet.union vs (fvs_formula br))
             VarSet.empty brs in
-        let vs, ans = disjelim q ~preserve brs in
+        let vs, ans = disjelim q ~initstep:false ~preserve brs in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
@@ -124,7 +124,7 @@ let tests = "NumS" >::: [
         let preserve = List.fold_left
             (fun vs br -> VarSet.union vs (fvs_formula br))
             VarSet.empty brs in
-        let vs, ans = disjelim q ~preserve brs in
+        let vs, ans = disjelim q ~initstep:false ~preserve brs in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
