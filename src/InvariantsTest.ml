@@ -1769,9 +1769,74 @@ let rec filter_map2 =
   δ = ((List n, List k) → ∃4:i[0 ≤ i ∧ i≤max (n, k)].List i)"]
     );
 
+  "non-num no postcond list filter-map2 with filter postfix" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "non-num no postcond list filter-map2 with filter postfix"
+"newtype List : type
+newcons LNil : ∀a. List a
+newcons LCons : ∀a. a * List a ⟶ List a
+
+let rec filter_map2 = fun p q r f g h ->
+  function
+    | LNil, LNil -> LNil
+    | LNil, LCons (y, ys) ->
+      let zs = filter_map2 p q r f g h (LNil, ys) in
+      (match r y with
+      | True -> LCons (h y, zs)
+      | False -> zs)
+    | LCons (x, xs), LNil ->
+      let zs = filter_map2 p q r f g h (xs, LNil) in
+      (match q x with
+      | True -> LCons (g x, zs)
+      | False -> zs)
+    | LCons (x, xs), LCons (y, ys) ->
+      let zs = filter_map2 p q r f g h (xs, ys) in
+      match p x y with
+      | True -> LCons (f x y, zs)
+      | False -> zs"
+        [1,"∃a, b, c.
+  δ =
+    ((a → b → Bool) → (a → Bool) → (b → Bool) →
+       (a → b → c) → (a → c) → (b → c) → (List a, List b) →
+       List c)"]
+    );
+
+  "non-num list filter-map2 with filter postfix" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "non-num list filter-map2 with filter postfix"
+"newtype List : type
+newcons LNil : ∀a. List a
+newcons LCons : ∀a. a * List a ⟶ List a
+
+let rec filter_map2 = fun p q r f g h ->
+  efunction
+    | LNil, LNil -> LNil
+    | LNil, LCons (y, ys) ->
+      let zs = filter_map2 p q r f g h (LNil, ys) in
+      (ematch r y with
+      | True -> LCons (h y, zs)
+      | False -> zs)
+    | LCons (x, xs), LNil ->
+      let zs = filter_map2 p q r f g h (xs, LNil) in
+      (ematch q x with
+      | True -> LCons (g x, zs)
+      | False -> zs)
+    | LCons (x, xs), LCons (y, ys) ->
+      let zs = filter_map2 p q r f g h (xs, ys) in
+      ematch p x y with
+      | True -> LCons (f x y, zs)
+      | False -> zs"
+        [2,"∃a, b, c.
+  δ =
+    ((a → b → Bool) → (a → Bool) → (b → Bool) →
+       (a → b → c) → (a → c) → (b → c) → (List a, List b) →
+       ∃4:.List c)"]
+    );
+
   "list filter-map2 with filter postfix" >::
     (fun () ->
-       todo "work in progress";
        skip_if !debug "debug";
        test_case "list filter-map2 with filter postfix"
 "newtype List : type * num
@@ -1792,14 +1857,48 @@ let rec filter_map2 = fun p q r f g h ->
       | True -> LCons (g x, zs)
       | False -> zs)
     | LCons (x, xs), LCons (y, ys) ->
-      let zs = filter_map2 p q r f g (xs, ys) in
+      let zs = filter_map2 p q r f g h (xs, ys) in
       ematch p x y with
       | True -> LCons (f x y, zs)
       | False -> zs"
-        [2,""]
+        [2,"∃n, k, a, b, c.
+  δ =
+    ((a → b → Bool) → (a → Bool) → (b → Bool) →
+       (a → b → c) → (a → c) → (b → c) →
+       (List (a, n), List (b, k)) → ∃4:i[0 ≤ i ∧
+       i≤max (n, k)].List (c, i))"]
     );
 
+  "list map2 with filter postfix" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "list filter-map2 with filter postfix"
+"newtype List : type * num
+newcons LNil : ∀a. List(a, 0)
+newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 
+let rec map2_filter = fun q r f g h ->
+  efunction
+    | LNil, LNil -> LNil
+    | LNil, LCons (y, ys) ->
+      let zs = map2_filter q r f g h (LNil, ys) in
+      (ematch r y with
+      | True -> LCons (h y, zs)
+      | False -> zs)
+    | LCons (x, xs), LNil ->
+      let zs = map2_filter q r f g h (xs, LNil) in
+      (ematch q x with
+      | True -> LCons (g x, zs)
+      | False -> zs)
+    | LCons (x, xs), LCons (y, ys) ->
+      let zs = map2_filter q r f g h (xs, ys) in
+      LCons (f x y, zs)"
+        [2,"∃n, k, a, b, c.
+  δ =
+    ((a → Bool) → (b → Bool) → (a → b → c) → (a → c) →
+       (b → c) → (List (a, n), List (b, k)) → ∃3:i[min (n, k)≤i ∧
+       i≤max (n, k)].List (c, i))"]
+    );
 
   "avl_tree--height" >::
     (fun () ->
@@ -1874,7 +1973,7 @@ let rec min_binding = function
   "avl_tree--bal" >::
     (fun () ->
        todo "harder test, work in progress";
-       skip_if !debug "debug";
+       (* skip_if !debug "debug"; *)
        test_case "avl_tree--height"
 "newtype Avl : type * num
 newcons Empty : ∀a. Avl (a, 0)
@@ -1888,7 +1987,6 @@ external create :
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
        0 ≤ i].Avl (a, i) = \"create\"
 external singleton : ∀a. a → Avl (a, 1) = \"singleton\"
-external min_binding : ∀a,n[1 ≤ n]. Avl (a, n) → a = \"min_binding\"
 
 let bal = fun l x r ->
   ematch height l, height r with
@@ -1927,6 +2025,46 @@ let bal = fun l x r ->
     (Avl (a, k) → a → Avl (a, n) →
        ∃1:i[n ≤ i ∧ k ≤ i ∧ i≤max (k+1, n+1)].Avl (a, i)) ∧
   k ≤ n + 3 ∧ n ≤ k + 3 ∧ 0 ≤ k ∧ 0 ≤ n"];
+    );
+
+  "avl_tree--add" >::
+    (fun () ->
+       todo "harder test, work in progress";
+       (* skip_if !debug "debug"; *)
+       test_case "avl_tree--height"
+"newtype Avl : type * num
+newcons Empty : ∀a. Avl (a, 0)
+newcons Node :
+  ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
+     Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
+newtype LinOrder
+newcons LT : LinOrder
+newcons EQ : LinOrder
+newcons GT : LinOrder
+external let compare : ∀a. a → a → LinOrder =
+  \"fun x y -> let c=Pervasives.compare x y in
+              if c<0 then LT else if c=0 then EQ else GT\"
+
+external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external create :
+  ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
+      Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
+       0 ≤ i].Avl (a, i) = \"create\"
+external singleton : ∀a. a → Avl (a, 1) = \"singleton\"
+external bal :
+  ∀n, k, a[k ≤ n + 3 ∧ n ≤ k + 3 ∧ 0 ≤ k ∧ 0 ≤ n].
+       Avl (a, k) → a → Avl (a, n) →
+       ∃i[n ≤ i ∧ k ≤ i ∧ i≤max (k+1, n+1)].Avl (a, i) = \"bal\"
+
+let rec add = fun x -> efunction
+  | Empty -> Node (Empty, x, Empty, 1)
+  | Node (l, y, r, h) ->
+    ematch compare x y with
+    | EQ -> Node (l, x, r, h)
+    | LT -> let l' = add x l in bal l' y r
+    | GT -> let r' = add x r in bal l y r'
+"
+        [1,""];
     );
 
 ]
