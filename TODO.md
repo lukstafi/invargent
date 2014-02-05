@@ -13,3 +13,4 @@ Place for TODOs/FIXMEs, especially if not expressed in other places. See README.
 * TODO: remove postcondition atoms implied by the invariant.
 * FIXME: check consistency of the order of `w` variables throughout `NumS`.
 * FIXME: clean up the use of `localvs` for pruning and simplification.
+* TODO: describe the behavior of `initstep` preserving facts about parameters in the documentation.

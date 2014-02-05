@@ -1970,11 +1970,11 @@ let rec min_binding = function
         [1,"∃n, a. δ = (Avl (a, n) → a) ∧ 1 ≤ n"];
     );
 
-  "avl_tree--bal" >::
+  "avl_tree--rotr" >::
     (fun () ->
        todo "harder test, work in progress";
        (* skip_if !debug "debug"; *)
-       test_case "avl_tree--height"
+       test_case "avl_tree--rotr"
 "newtype Avl : type * num
 newcons Empty : ∀a. Avl (a, 0)
 newcons Node :
@@ -1988,9 +1988,7 @@ external create :
        0 ≤ i].Avl (a, i) = \"create\"
 external singleton : ∀a. a → Avl (a, 1) = \"singleton\"
 
-let bal = fun l x r ->
-  ematch height l, height r with
-  | i, j when j+3 <= i ->
+let rotr = fun l x r -> (* hl = hr + 3 *)
     (ematch l with
     | Empty -> assert false
     | Node (ll, lx, lr, _) ->
@@ -2005,7 +2003,29 @@ let bal = fun l x r ->
           let l' = create ll lx lrl in
           let r' = create lrr x r in
           create l' lrx r')))
-  | i, j when i+3 <= j ->
+"
+        [2,""];
+    );
+
+  "avl_tree--rotl" >::
+    (fun () ->
+       todo "harder test, work in progress";
+       (* skip_if !debug "debug"; *)
+       test_case "avl_tree--rotl"
+"newtype Avl : type * num
+newcons Empty : ∀a. Avl (a, 0)
+newcons Node :
+  ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
+     Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
+
+external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external create :
+  ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
+      Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
+       0 ≤ i].Avl (a, i) = \"create\"
+external singleton : ∀a. a → Avl (a, 1) = \"singleton\"
+
+let rotl = fun l x r -> (* hl + 3 = hr *)
     (ematch r with
     | Empty -> assert false
     | Node (rl, rx, rr, _) ->
@@ -2019,19 +2039,16 @@ let bal = fun l x r ->
         | Node (rll, rlx, rlr, _) ->
           let l' = create l x rll in
           let r' = create rlr rx rr in
-          create l' rlx r')))"
-        [1,"∃n, k, a.
-  δ =
-    (Avl (a, k) → a → Avl (a, n) →
-       ∃1:i[n ≤ i ∧ k ≤ i ∧ i≤max (k+1, n+1)].Avl (a, i)) ∧
-  k ≤ n + 3 ∧ n ≤ k + 3 ∧ 0 ≤ k ∧ 0 ≤ n"];
+          create l' rlx r')))
+"
+        [2,""];
     );
 
   "avl_tree--add" >::
     (fun () ->
        todo "harder test, work in progress";
        (* skip_if !debug "debug"; *)
-       test_case "avl_tree--height"
+       test_case "avl_tree--add"
 "newtype Avl : type * num
 newcons Empty : ∀a. Avl (a, 0)
 newcons Node :
@@ -2050,21 +2067,31 @@ external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
        0 ≤ i].Avl (a, i) = \"create\"
-external singleton : ∀a. a → Avl (a, 1) = \"singleton\"
-external bal :
-  ∀n, k, a[k ≤ n + 3 ∧ n ≤ k + 3 ∧ 0 ≤ k ∧ 0 ≤ n].
-       Avl (a, k) → a → Avl (a, n) →
-       ∃i[n ≤ i ∧ k ≤ i ∧ i≤max (k+1, n+1)].Avl (a, i) = \"bal\"
+
+external rotr :
+  ∀n, a. Avl (a, n+3) → a → Avl (a, n) →
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotr\"
+external rotl :
+  ∀n, a. Avl (a, n) → a → Avl (a, n+3) →
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotl\"
 
 let rec add = fun x -> efunction
   | Empty -> Node (Empty, x, Empty, 1)
   | Node (l, y, r, h) ->
-    ematch compare x y with
-    | EQ -> Node (l, x, r, h)
-    | LT -> let l' = add x l in bal l' y r
-    | GT -> let r' = add x r in bal l y r'
+    ematch compare x y, height l, height r with
+    | EQ, _, _ -> Node (l, x, r, h)
+    | LT, hl, hr ->
+      let l' = add x l in
+      (ematch height l' with
+       | hl' when hl' <= hr+2 -> create l' y r
+       | hl' when hr+3 <= hl' -> rotr l' y r)
+    | GT, hl, hr ->
+      let r' = add x r in
+      (ematch height r' with
+       | hr' when hr' <= hl+2 -> create l y r'
+       | hr' when hl+3 <= hr' -> rotl l y r')
 "
-        [1,""];
+        [2,""];
     );
 
 ]

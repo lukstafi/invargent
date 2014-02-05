@@ -292,6 +292,13 @@ let subst_one ~cmp_v (v, w) (vars, cst, loc as arg) =
 let subst_one_sb ~cmp_v w_sb sb =
   List.map (fun (v, w) -> v, subst_one ~cmp_v w_sb w) sb
 
+let subst_w_formula ~cmp_v eqs = List.map
+    (function
+      | Eq_w w -> Eq_w (subst_w ~cmp_v eqs w)
+      | Leq_w w -> Leq_w (subst_w ~cmp_v eqs w)
+      | Opti_w w12 -> Opti_w (subst_2w ~cmp_v eqs w12)
+      | Subopti_w w12 -> Subopti_w (subst_2w ~cmp_v eqs w12))
+
 let frac_of_num k =
   let k = ratio_of_num k in
   Big_int.int_of_big_int (Ratio.numerator_ratio k),
@@ -409,8 +416,16 @@ let un_ans (eqs, ineqs) = unsubst eqs, unsolve ineqs
 (* TODO: make wider use of [clean] pruning. *)
 let clean_ws preserve iseq eqs = List.filter
     (fun (vars,_,_ as w) ->
-       List.for_all (fun (v,_) -> VarSet.mem v preserve) vars &&
-       not (taut_w iseq w))
+       let res =
+         List.for_all (fun (v,_) -> VarSet.mem v preserve) vars &&
+         not (taut_w iseq w) in
+       (*[* if not (taut_w iseq w) && not res then
+         Format.printf "clean_ws: dropping w=%a@\n%!"
+           pr_w w; *]*)
+       res)
+    eqs
+let clean_ws' iseq eqs = List.filter
+    (fun (vars,_,_ as w) -> not (taut_w iseq w))
     eqs
 
 let taut_ineq (vars, cst, _) = vars = [] && cst <=/ !/0
@@ -1245,324 +1260,7 @@ let expand_eqineqs eqs ineqs =
   let ans = List.map (expand_atom true) (unsubst eqs) in
   ans @ List.map (expand_atom false) (unsolve ineqs)
 
-(* Currently, [initstep] is only used to generate more -- redundant --
-   [subopti] atoms. *)
-let disjelim_aux q ~preserve ~initstep brs =
-  let vars = List.map fvs_formula brs in
-  let common = List.fold_left VarSet.inter preserve vars in
-  let cmp_v = make_cmp q in
-  let cmp_v v1 v2 =
-    let v1c = VarSet.mem v1 common and v2c = VarSet.mem v2 common in
-    if v1c && not v2c then 1
-    else if v2c && not v1c then -1
-    else cmp_v v1 v2 in
-  let cmp_w (vars1,cst1,_) (vars2,cst2,_) =
-    match vars1, vars2 with
-    | [], [] -> 0
-    | _, [] -> -1
-    | [], _ -> 1
-    | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
-  let polytopes_n_elim_eqs = List.map
-      (fun cnj ->
-         (*[* Format.printf
-           "NumS.disjelim:@ solving cnj==%a@\n%!"
-           pr_formula cnj; *]*)
-         try
-           let eqs, ineqs, optis, suboptis =
-             solve ~cnj ~cmp_v ~cmp_w q.uni_v in
-           let eqs, elim_eqs = List.partition
-               (fun (v, _) -> VarSet.mem v common) eqs in
-           Some ((eqs, ineqs, optis, suboptis), elim_eqs)
-         with Terms.Contradiction _ -> None)
-      brs in
-  (*[* Format.printf
-    "NumS.disjelim:@ preserve=%a@ common=%a@ elim_eqs=@\n%a@\n%!"
-    pr_vars preserve pr_vars common
-    (pr_line_list "| " pr_w_subst)
-    (List.map snd (map_some (fun x->x) polytopes_n_elim_eqs)); *]*)
-  (* let unpack_optis esb optis =
-     concat_map (fun (w1,w2) ->
-        [subst_w ~cmp_v esb w1; subst_w ~cmp_v esb w2]) optis in *)
-  (* Case-split on [optis]. *)
-  (* [polytopes] is only used for checking if a face intersects with
-     all polytopes. Faces themselves are taken from [faces]. Discard
-     empty disjuncts. *)
-  let polytopes_n_faces = concat_map2
-      (function
-        | Some ((eqs, ineqs, optis, suboptis), esb) -> fun br ->
-          let opti_ineqs = flat2 optis in
-          map_some
-            (fun opti_subopti ->
-               try
-                 let o_eqn, o_ineqn, _, _ = split_formula opti_subopti in
-                 let eqs, ineqs, _, _ =
-                   solve ~eqs ~ineqs ~eqn:o_eqn
-                     ~ineqn:(o_ineqn @ opti_ineqs)
-                     ~cmp_v ~cmp_w q.uni_v in
-                 let br = List.map (flatten ~cmp_v) br in
-                 (*[* Format.printf
-                   "NumS.disjelim: opti_eqn=@ %a@ opti_ineqn=@ %a@\n%!"
-                   pr_eqn o_eqn pr_ineqn o_ineqn; *]*)
-                 Some
-                   ((List.map (fun (v,w) -> v, subst_w ~cmp_v esb w) eqs,
-                     subst_ineqs ~cmp_v esb ineqs),
-                    (esb, opti_subopti @ br))
-               with Terms.Contradiction _ ->
-                 (*[* Format.printf
-                   "NumS.disjelim: failed opti_choice=@\n%a@\nopti_ineqs=%a@\nbr=%a@\nesb=%a@\n%!"
-                   pr_w_formula opti_subopti pr_ineqn opti_ineqs
-                   pr_formula br pr_w_subst esb; *]*)
-                 None)
-            (choices optis suboptis)
-        | None -> fun _ -> [])
-      polytopes_n_elim_eqs brs in
-  let polytopes, faces = List.split polytopes_n_faces in
-  (* Aggressive pruning: drop faces with "unwanted" variables. *)
-  let faces = List.map
-      (fun (esb, br) ->
-         concat_map
-           (function
-             | Leq_w w ->
-               clean_ws common false [subst_w ~cmp_v esb w]
-             | Eq_w w ->
-               let w = subst_w ~cmp_v esb w in
-               clean_ws common false [w; mult !/(-1) w]
-             | _ -> [])
-           br)
-      faces in
-  (*[* Format.printf "NumS.disjelim: faces=@\n%a@\n%!"
-    (pr_line_list "| " pr_ineqn) faces; *]*)
-  (* Check if a polytope face is also a face of resulting convex hull
-     -- its outside does not contain any piece of any polytope. *)
-  let check face =
-    let ineqn = [mult !/(-1) face] in
-    List.for_all
-      (fun (eqs, ineqs) ->
-         try ignore
-               (solve ~strict:true ~eqs ~ineqs ~ineqn ~cmp_v ~cmp_w q.uni_v);
-           false
-         with Terms.Contradiction _ -> true)
-      polytopes in
-  let selected : (w list * w list) list =
-    List.map (List.partition check) faces in
-  let ridges : (w * w) list = concat_map
-      (fun (sel, ptope) ->
-         concat_map (fun p -> List.map (fun s->s, p) sel) ptope)
-      selected in
-  let angle i j = i2f (i+1) /. i2f (j+1) in
-  let cands = List.map
-      (fun (s, p) ->
-         let l = Array.init
-             !disjelim_rotations (fun i ->
-                 if i <= 1 then [||]
-                 else Array.init (i-1) (fun j ->
-                     angle j i, sum_w ~cmp_v (mult !/(j+1) s) (mult !/(i+1) p))) in
-         let r = Array.init
-             !disjelim_rotations (fun i ->
-                 if i <= 1 then [||]
-                 else Array.init (i-1) (fun j ->
-                     angle i j, sum_w ~cmp_v (mult !/(i+1) s) (mult !/(j+1) p))) in
-         (1., sum_w ~cmp_v s p) ::
-           Array.to_list (Array.concat (Array.to_list l)) @
-           Array.to_list (Array.concat (Array.to_list r)))
-      ridges in
-  let cands = List.map (fun angles ->
-      List.map snd
-        (List.sort (fun (a,_) (b,_) -> compare a b) angles)) cands in
-  let result = concat_map fst selected in
-  let result = map_some
-      (fun cands -> try Some (List.find check cands)
-        with Not_found -> None) cands
-               @ result in
-  let sort_w (vars, cst, loc) =
-    let vars = map_reduce ~cmp_k:cmp_v (+/) (!/0) vars in
-    let vars =
-      List.filter (fun (_,k) -> k <>/ !/0) vars in
-    vars, cst, loc in
-  let result = List.map sort_w result in
-  (*[* Format.printf "NumS.disjelim: result=%a@\n%!"
-    pr_ineqn result; *]*)
-  let rec idemp eqn ineqn = function
-    | e1::(e2::_ as tl) when (* nonq_cmp_w e1 e2 = 0 *)
-        equal_w ~cmp_v e1 e2 -> idemp eqn ineqn tl
-    | e::tl when List.exists (fun w -> zero_p (sum_w ~cmp_v e w)) tl ->
-      (* Two inequalities forming an equation. *)
-      idemp (e::eqn) ineqn
-        (List.filter (fun w -> not (zero_p (sum_w ~cmp_v e w))) tl)
-    | e::tl -> idemp eqn (e::ineqn) tl
-    | [] -> eqn, ineqn in
-  let eqn, ineqn =
-    idemp [] [] (List.sort nonq_cmp_w result) in
-  (*[* Format.printf "NumS.disjelim: solution@\neqn=%a@\nineqn=%a@\n%!"
-    pr_eqn eqn pr_ineqn ineqn; *]*)
-  let redundant_eqn =
-    collect ~cmp_k:Num.compare_num
-      (List.map (fun (vars,cst,lc) -> cst,(vars,lc)) eqn) in
-  let redundant_eqn =
-    Aux.concat_map
-      (fun (_,ws) -> List.map
-          (fun ((w1,lc1),(w2,lc2)) ->
-             diff ~cmp_v (w1, !/0, lc1) (w2, !/0, lc2))
-          (Aux.triangle ws))
-      redundant_eqn in
-  (*[* Format.printf "NumS.disjelim:@\neqn=%a@\nredundant=%a@\n%!"
-    pr_eqn eqn pr_eqn redundant_eqn; *]*)
-  let check_redund face ptope =
-    let eqs, ineqs, _, _ =
-      solve ~eqn ~ineqn:ptope ~cmp_v ~cmp_w q.uni_v in
-    let ineqn = [mult !/(-1) face] in
-    try ignore
-          (solve ~strict:true ~eqs ~ineqs ~ineqn ~cmp_v ~cmp_w q.uni_v);
-      false
-    with Terms.Contradiction _ -> true in
-  let rec nonredundant p1 = function
-    | face::p2 ->
-      if check_redund face (p1 @ p2) then nonredundant p1 p2
-      else nonredundant (face::p1) p2
-    | [] -> p1 in
-  let ineqn = nonredundant [] ineqn in
-  (* Generating opti atoms. *)
-  let brs_eqs = List.map
-      (fun (eqs, _) ->
-         let eqn = eqn_of_eqs eqs in
-         let eqn = eqn @ List.map (mult !/(-1)) eqn in
-         let eqn = List.map
-             (fun (_,_,lc as w) ->
-                let lhs, rhs = expand_sides w in lhs, rhs, lc) eqn in
-         Joint.transitive_cl eqn)
-      polytopes in
-  (*[* let pr_hasheqs ppf h =
-    let eqs = Hashtbl.fold
-        (fun (lhs,rhs) lc eqs -> Eq (lhs,rhs,lc)::eqs) h [] in
-    pr_formula ppf eqs in
-    Format.printf "NumS.disjelim: brs_eqs=@\n%a@\n%!"
-    (pr_line_list "| " pr_hasheqs) brs_eqs; *]*)  
-  (* Transitive closure of resulting equations and inequalities. *)
-  let result = List.map
-      (fun (_,_,lc as w) ->
-         let (lhs, rhs as w_key) = expand_sides w in
-         lhs, rhs, lc)
-      result in
-  let result = ineq_transitive_cl ~cmp_v result in
-  let result = Hashtbl.fold
-      (fun w_key loc cnj -> (w_key, loc)::cnj) result [] in
-  let opt_cands = map_some
-      (fun ((w_lhs, w_rhs as w_key), w_lc as w) ->
-         let inds = mapi_some
-             (fun i eqs ->
-                if Hashtbl.mem eqs w_key then Some i else None)
-             brs_eqs in
-         if inds=[] then None
-         else Some (w, ints_of_list inds))
-      result in
-  (*[* let pr_opt_cand ppf (((w_lhs, w_rhs), w_lc), inds) =
-    Format.fprintf ppf "%a:@ %s" pr_atom (Eq (w_lhs, w_rhs, w_lc))
-      (String.concat "," (List.map string_of_int
-                            (Ints.elements inds))) in
-    Format.printf "NumS.disjelim: opt_cands=@\n%a@\n%!"
-    (pr_line_list "| " pr_opt_cand) opt_cands; *]*)  
-  let allbrs =
-    ints_of_list (List.mapi (fun i _ -> i) brs_eqs) in
-  let optis = map_some
-      (fun ((w1,inds1),(w2,inds2)) ->
-         if Ints.is_empty (Ints.diff allbrs (Ints.union inds1 inds2))
-         then Some (w1, w2) else None)
-      (triangle opt_cands) in
-  (* TODO: redundant conversion, remove [unexpand_sides] and
-     [expand_opti] and implement [is_directed]. *)
-  let optis = List.map
-      (fun (w1, w2) -> unexpand_sides ~cmp_v w1, unexpand_sides ~cmp_v w2)
-      optis in
-  let optis =
-    List.map (fun (_,_,w1, w2) -> w1, w2)
-      (map_some direct_opti optis) in
-  (*[* Format.printf "NumS.disjelim: optis=@\n%a@\n%!"
-    pr_optis optis; *]*)  
-  (* Generating subopti atoms. *)
-  let ptopes_ineqs = List.map
-      (fun ptope ->
-         let p_ineqs = List.map
-             (fun (_,_,lc as w) ->
-                let lhs, rhs = expand_sides w in
-                lhs, rhs, lc) ptope in
-         ineq_transitive_cl ~cmp_v p_ineqs)
-      faces in
-  let suboptis =
-    Hashtbl.fold
-      (fun (lhs, rhs as w_key) lc suboptis ->
-         let w = NumDefs.diff lhs rhs in
-         let vars, _ = NumDefs.flatten w in
-         match vars with
-         | [] -> suboptis
-         | [_] when !no_subopti_of_cst || initstep -> suboptis
-         | _ -> Left (w, w_key, lc) :: suboptis)
-      (List.hd ptopes_ineqs) [] in
-  let suboptis = List.fold_left
-      (fun suboptis ptope ->
-         (*[* let left, right = partition_choice suboptis in
-           let left = List.map
-             (fun (_, w, lc) -> unexpand_sides ~cmp_v (w, lc)) left in
-           let right = List.map
-             (fun (_, _, w1, w2, lc) ->
-                unexpand_sides ~cmp_v (w1, lc),
-                unexpand_sides ~cmp_v (w2, lc)) right in
-           Format.printf "NumS.disjelim: subopti step@\nleft=%a;@ right=%a@\n%!"
-           pr_ineqn left pr_suboptis right; *]*)
-         (* TODO: allow weakening of candidate inequalities (by a constant) *)
-         concat_map
-           (function
-             | Left (w, w_key, lc) as cand ->
-               if Hashtbl.mem ptope w_key then [cand]
-               else Hashtbl.fold
-                   (fun (lhs, rhs as w_key2) lc2 more_subopt ->
-                      let w2 = NumDefs.diff lhs rhs in
-                      match NumDefs.direct_opti w w2 with
-                      | Some (_,_,Add ([] | [Cst _]), _)
-                        when !no_subopti_of_cst || initstep ->
-                        more_subopt
-                      | Some (_,_,_,Add ([] | [Cst _]))
-                        when !no_subopti_of_cst || initstep ->
-                        more_subopt
-                      | Some _ when w_key < w_key2 ->
-                        (*[* Format.printf
-                                "subopti: w1=%a;@ w2=%a@\n%!"
-                                pr_term w pr_term w2; *]*)
-                        (* Aribtrary breaking of symmetry. *)
-                        Right (w, w2, w_key, w_key2, loc_union lc lc2)
-                        ::more_subopt
-                      | _ -> more_subopt) ptope []
-             | Right (w1, w2, w1_key, w2_key, lc) as cand ->
-               if Hashtbl.mem ptope w1_key || Hashtbl.mem ptope w2_key
-               then [cand] else [])
-           suboptis)
-      suboptis (List.tl ptopes_ineqs) in
-  let suboptis = map_some
-      (function
-        | Left _ -> None
-        | Right (w1_t, w2_t, w1_key, w2_key, lc) ->
-          let w1 = unexpand_sides ~cmp_v (w1_key, lc) in
-          let w2 = unexpand_sides ~cmp_v (w2_key, lc) in
-          (*[* Format.printf
-            "subopti-exp: w1_t=%a;@ w1=%a;@ w2_t=%a;@ w2=%a@\n%!"
-            pr_term w1_t pr_w w1 pr_term w2_t pr_w w2; *]*)  
-          Some (w1, w2))
-      suboptis in
-  (*[* Format.printf "NumS.disjelim: suboptis=@\n%a@\n%!"
-    pr_suboptis suboptis; *]*)  
-  [],
-  List.map expand_opti optis @
-    List.map expand_subopti suboptis @
-    List.map (expand_atom true) (eqn @ redundant_eqn)
-  @ List.map (expand_atom false) ineqn
 
-let disjelim q ~preserve ~initstep brs =
-  (*[* Format.printf "NumS.disjelim: preserve=%a #brs=%d@\ninit brs=@\n%a@\n%!"
-    pr_vars preserve (List.length brs)
-    (pr_line_list "| " pr_formula) brs; *]*)
-  match brs with
-  | [] -> assert false
-  | [br] -> disjelim_aux q ~preserve ~initstep [br; br]
-  | _ -> disjelim_aux q ~preserve ~initstep brs
 
 (* [atomic_impl a b] means [a] is stronger than [b], or equal in
    strength unless [a] is [Opti_w] -- prune opti atoms as side effect. *)
@@ -1671,14 +1369,19 @@ let project ~cmp_v ~cmp_w ineqs ineqn =
 
 exception Not_satisfiable
 
-let strict_sat ~cmp_v ~cmp_w ineqs ineqn =
+let strict_sat ~cmp_v ~cmp_w ineqs ~strict:ineq ineqn =
   (*[* Format.printf
-    "NumS.strict-sat: test ineqn=@ %a@\n%!" pr_ineqn ineqn; *]*)  
-  let rec proj ineqs ineqn =
+    "NumS.strict-sat: test strict=%a@\nineqs=@ %a@\nineqn=@ %a@\n%!"
+     pr_ineq ineq pr_ineqs ineqs pr_ineqn ineqn; *]*)  
+  let rec proj strict ineqs ineqn =
     match ineqn with
-    | [] -> ()
-    | ([], cst, _)::ineqn when cst </ !/0 -> proj ineqs ineqn
-    | ([], cst, loc)::_ -> raise Not_satisfiable
+    | [] -> ineqs
+    | ([], cst, _)::ineqn when strict && cst </ !/0 ->
+      proj true ineqs ineqn
+    | ([], cst, _)::ineqn when not strict && cst <=/ !/0 ->
+      proj false ineqs ineqn
+    | ([], cst, loc)::_ ->
+      raise Not_satisfiable
     | ((v,k)::vars, cst, loc)::ineqn ->
       let (left, right), ineqs =
         try pop_assoc v ineqs
@@ -1694,9 +1397,12 @@ let strict_sat ~cmp_v ~cmp_w ineqs ineqn =
           wset_map_to_list (fun rhs -> diff ~cmp_v ohs rhs) right in
       let more_ineqn = List.filter
         (function
-        | [], cst, _ when cst </ !/0 -> false
-        | [], cst, loc -> raise Not_satisfiable
-        | _ -> true)
+          | ([], cst, _) when strict && cst </ !/0 ->
+            false
+          | ([], cst, _) when not strict && cst <=/ !/0 ->
+            false
+          | [], cst, loc -> raise Not_satisfiable
+          | _ -> true)
         more_ineqn in
       (*[* Format.printf
         "NumS.strict-sat: v=%s@\nmore_ineqn=@ %a@\n%!"
@@ -1705,20 +1411,23 @@ let strict_sat ~cmp_v ~cmp_w ineqs ineqn =
         merge cmp_w (List.sort cmp_w more_ineqn) ineqn in
       let ineqs =
         (v, (add_to_wset ineq_l left, add_to_wset ineq_r right))::ineqs in
-      proj ineqs ineqn in
+      proj strict ineqs ineqn in
   let res =
-    try proj ineqs ineqn; true
+    try ignore (proj true (proj false ineqs ineqn) [ineq]); true
     with Not_satisfiable -> false in
   (*[* Format.printf
     "NumS.strict-sat: result %b@\n%!" res; *]*)
   res
 
-(* Checks redundancy with respect to all remaining inequalities. *)
+(* Checks redundancy with respect to all past and remaining inequalities. *)
 let keep_nonredund ~cmp_v ~cmp_w ineqs l =
+  (*[* Format.printf
+    "NumS.keep_nonredund: ineqs=@ %a@\nl=@ %a@\n%!"
+     pr_ineqs ineqs pr_ineqn l; *]*)    
   let rec loop ineqs acc drop = function
     | [] -> ineqs, acc, drop
     | a::l ->
-      if strict_sat ~cmp_v ~cmp_w ineqs [mult !/(-1) a]
+      if strict_sat ~cmp_v ~cmp_w ineqs ~strict:(mult !/(-1) a) l
       then loop (project ~cmp_v ~cmp_w ineqs [a]) (a::acc) drop l
       else loop ineqs acc (a::drop) l in
   loop ineqs [] [] l
@@ -1798,6 +1507,302 @@ let prune_redundant q ?localvs ~initstep cnj =
     "NumS.prune_redundant: guard=%a@ res=%a@\n%!"
     pr_formula guard pr_formula cnj; *]*)
   prune_redund ~cmp_v ~cmp_w guard cnj
+
+
+
+(* Currently, [initstep] is only used to generate more -- redundant --
+   [subopti] atoms. *)
+let disjelim_aux q ~preserve ~initstep brs =
+  let cmp_v = make_cmp q in
+  let cmp_v v1 v2 =
+    let v1c = VarSet.mem v1 preserve and v2c = VarSet.mem v2 preserve in
+    if v1c && not v2c then 1
+    else if v2c && not v1c then -1
+    else cmp_v v1 v2 in
+  let cmp_w (vars1,cst1,_) (vars2,cst2,_) =
+    match vars1, vars2 with
+    | [], [] -> 0
+    | _, [] -> -1
+    | [], _ -> 1
+    | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
+  (*[* Format.printf
+    "NumS.disjelim:@ preserve=%a@ initstep=%b@\n%!"
+    pr_vars preserve initstep; *]*)
+  (* Case-split on [optis]. *)
+  (* Discard empty disjuncts. *)
+  let polytopes = concat_map
+      (fun br ->
+         try
+           let eqs, ineqs, optis, suboptis =
+             solve ~cnj:br ~cmp_v ~cmp_w q.uni_v in
+           let opti_ineqs = flat2 optis in
+           map_some
+             (fun opti_subopti ->
+                try
+                  let o_eqn, o_ineqn, _, _ = split_formula opti_subopti in
+                  let eqs, ineqs, _, _ =
+                    solve ~eqs ~ineqs ~eqn:o_eqn
+                      ~ineqn:(o_ineqn @ opti_ineqs)
+                      ~cmp_v ~cmp_w q.uni_v in
+                  (*[* Format.printf
+                    "NumS.disjelim: opti_eqn=@ %a@ opti_ineqn=@ %a@\n%!"
+                    pr_eqn o_eqn pr_ineqn o_ineqn; *]*)
+                  (* Simplify downto preserved variables. *)
+                  let eqs = List.filter
+                      (fun (v,_) -> VarSet.mem v preserve) eqs in
+                  let ineqs = List.filter
+                      (fun (v,_) -> VarSet.mem v preserve) ineqs in
+                  Some (eqs, ineqs)
+                with Terms.Contradiction _ ->
+                  (*[* Format.printf
+                    "NumS.disjelim: failed opti_choice=@\n%a@\nopti_ineqs=%a@\nbr=%a@\n%!"
+                    pr_w_formula opti_subopti pr_ineqn opti_ineqs
+                    pr_formula br; *]*)
+                  None)
+             (choices optis suboptis)
+         with Terms.Contradiction _ -> [])
+      brs in
+  (* Now restore non-redundancy needed for convex hull algo. *)
+  let faces = List.map
+      (fun (eqs, ineqs) ->
+         let eqs = unsubst eqs and ineqs = unsolve ineqs in
+         let faces =
+           ineqs @ concat_map (fun w -> [w; mult !/(-1) w]) eqs in
+         snd3 (keep_nonredund ~cmp_v ~cmp_w [] faces))
+      polytopes in
+  (*[* Format.printf "NumS.disjelim: faces=@\n%a@\n%!"
+    (pr_line_list "| " pr_ineqn) faces; *]*)
+  (* Check if a polytope face is also a face of resulting convex hull
+     -- its outside does not contain any piece of any polytope. *)
+  let check face =
+    let ineqn = [mult !/(-1) face] in
+    List.for_all
+      (fun (eqs, ineqs) ->
+         try ignore
+               (solve ~strict:true ~eqs ~ineqs ~ineqn ~cmp_v ~cmp_w q.uni_v);
+           false
+         with Terms.Contradiction _ -> true)
+      polytopes in
+  let selected : (w list * w list) list =
+    List.map (List.partition check) faces in
+  let ridges : (w * w) list = concat_map
+      (fun (sel, ptope) ->
+         concat_map (fun p -> List.map (fun s->s, p) sel) ptope)
+      selected in
+  let angle i j = i2f (i+1) /. i2f (j+1) in
+  let cands = List.map
+      (fun (s, p) ->
+         let l = Array.init
+             !disjelim_rotations (fun i ->
+                 if i <= 1 then [||]
+                 else Array.init (i-1) (fun j ->
+                     angle j i, sum_w ~cmp_v (mult !/(j+1) s) (mult !/(i+1) p))) in
+         let r = Array.init
+             !disjelim_rotations (fun i ->
+                 if i <= 1 then [||]
+                 else Array.init (i-1) (fun j ->
+                     angle i j, sum_w ~cmp_v (mult !/(i+1) s) (mult !/(j+1) p))) in
+         (1., sum_w ~cmp_v s p) ::
+           Array.to_list (Array.concat (Array.to_list l)) @
+           Array.to_list (Array.concat (Array.to_list r)))
+      ridges in
+  let cands = List.map (fun angles ->
+      List.map snd
+        (List.sort (fun (a,_) (b,_) -> compare a b) angles)) cands in
+  let result = concat_map fst selected in
+  let result = map_some
+      (fun cands -> try Some (List.find check cands)
+        with Not_found -> None) cands
+               @ result in
+  let sort_w (vars, cst, loc) =
+    let vars = map_reduce ~cmp_k:cmp_v (+/) (!/0) vars in
+    let vars =
+      List.filter (fun (_,k) -> k <>/ !/0) vars in
+    vars, cst, loc in
+  let result = List.map sort_w result in
+  (*[* Format.printf "NumS.disjelim: result=%a@\n%!"
+    pr_ineqn result; *]*)
+  let rec idemp eqn ineqn = function
+    | e1::(e2::_ as tl) when (* nonq_cmp_w e1 e2 = 0 *)
+        equal_w ~cmp_v e1 e2 -> idemp eqn ineqn tl
+    | e::tl when List.exists (fun w -> zero_p (sum_w ~cmp_v e w)) tl ->
+      (* Two inequalities forming an equation. *)
+      idemp (e::eqn) ineqn
+        (List.filter (fun w -> not (zero_p (sum_w ~cmp_v e w))) tl)
+    | e::tl -> idemp eqn (e::ineqn) tl
+    | [] -> eqn, ineqn in
+  let eqn, ineqn =
+    idemp [] [] (List.sort nonq_cmp_w result) in
+  (*[* Format.printf "NumS.disjelim: solution@\neqn=%a@\nineqn=%a@\n%!"
+    pr_eqn eqn pr_ineqn ineqn; *]*)
+  let redundant_eqn =
+    collect ~cmp_k:Num.compare_num
+      (List.map (fun (vars,cst,lc) -> cst,(vars,lc)) eqn) in
+  let redundant_eqn =
+    Aux.concat_map
+      (fun (_,ws) -> List.map
+          (fun ((w1,lc1),(w2,lc2)) ->
+             diff ~cmp_v (w1, !/0, lc1) (w2, !/0, lc2))
+          (Aux.triangle ws))
+      redundant_eqn in
+  (*[* Format.printf "NumS.disjelim:@\neqn=%a@\nredundant=%a@\n%!"
+    pr_eqn eqn pr_eqn redundant_eqn; *]*)
+  let check_redund face ptope =
+    let eqs, ineqs, _, _ =
+      solve ~eqn ~ineqn:ptope ~cmp_v ~cmp_w q.uni_v in
+    let ineqn = [mult !/(-1) face] in
+    try ignore
+          (solve ~strict:true ~eqs ~ineqs ~ineqn ~cmp_v ~cmp_w q.uni_v);
+      false
+    with Terms.Contradiction _ -> true in
+  let rec nonredundant p1 = function
+    | face::p2 ->
+      if check_redund face (p1 @ p2) then nonredundant p1 p2
+      else nonredundant (face::p1) p2
+    | [] -> p1 in
+  let ineqn = nonredundant [] ineqn in
+  (* Generating opti atoms. *)
+  let brs_eqs = List.map
+      (fun (eqs, _) ->
+         let eqn = eqn_of_eqs eqs in
+         let eqn = eqn @ List.map (mult !/(-1)) eqn in
+         let eqn = List.map
+             (fun (_,_,lc as w) ->
+                let lhs, rhs = expand_sides w in lhs, rhs, lc) eqn in
+         Joint.transitive_cl eqn)
+      polytopes in
+  (*[* let pr_hasheqs ppf h =
+    let eqs = Hashtbl.fold
+        (fun (lhs,rhs) lc eqs -> Eq (lhs,rhs,lc)::eqs) h [] in
+    pr_formula ppf eqs in
+  Format.printf "NumS.disjelim: brs_eqs=@\n%a@\n%!"
+    (pr_line_list "| " pr_hasheqs) brs_eqs; *]*)  
+  (* Transitive closure of resulting equations and inequalities. *)
+  let result = List.map
+      (fun (_,_,lc as w) ->
+         let (lhs, rhs as w_key) = expand_sides w in
+         lhs, rhs, lc)
+      result in
+  let result = ineq_transitive_cl ~cmp_v result in
+  let result = Hashtbl.fold
+      (fun w_key loc cnj -> (w_key, loc)::cnj) result [] in
+  let opt_cands = map_some
+      (fun ((w_lhs, w_rhs as w_key), w_lc as w) ->
+         let inds = mapi_some
+             (fun i eqs ->
+                if Hashtbl.mem eqs w_key then Some i else None)
+             brs_eqs in
+         if inds=[] then None
+         else Some (w, ints_of_list inds))
+      result in
+  (*[* let pr_opt_cand ppf (((w_lhs, w_rhs), w_lc), inds) =
+    Format.fprintf ppf "%a:@ %s" pr_atom (Eq (w_lhs, w_rhs, w_lc))
+      (String.concat "," (List.map string_of_int
+                            (Ints.elements inds))) in
+  Format.printf "NumS.disjelim: opt_cands=@\n%a@\n%!"
+    (pr_line_list "| " pr_opt_cand) opt_cands; *]*)  
+  let allbrs =
+    ints_of_list (List.mapi (fun i _ -> i) brs_eqs) in
+  let optis = map_some
+      (fun ((w1,inds1),(w2,inds2)) ->
+         if Ints.is_empty (Ints.diff allbrs (Ints.union inds1 inds2))
+         then Some (w1, w2) else None)
+      (triangle opt_cands) in
+  (* TODO: redundant conversion, remove [unexpand_sides] and
+     [expand_opti] and implement [is_directed]. *)
+  let optis = List.map
+      (fun (w1, w2) -> unexpand_sides ~cmp_v w1, unexpand_sides ~cmp_v w2)
+      optis in
+  let optis =
+    List.map (fun (_,_,w1, w2) -> w1, w2)
+      (map_some direct_opti optis) in
+  (*[* Format.printf "NumS.disjelim: optis=@\n%a@\n%!"
+    pr_optis optis; *]*)  
+  (* Generating subopti atoms. *)
+  let ptopes_ineqs = List.map
+      (fun ptope ->
+         let p_ineqs = List.map
+             (fun (_,_,lc as w) ->
+                let lhs, rhs = expand_sides w in
+                lhs, rhs, lc) ptope in
+         ineq_transitive_cl ~cmp_v p_ineqs)
+      faces in
+  let suboptis =
+    Hashtbl.fold
+      (fun (lhs, rhs as w_key) lc suboptis ->
+         let w = NumDefs.diff lhs rhs in
+         let vars, _ = NumDefs.flatten w in
+         match vars with
+         | [] -> suboptis
+         | [_] when !no_subopti_of_cst || initstep -> suboptis
+         | _ -> Left (w, w_key, lc) :: suboptis)
+      (List.hd ptopes_ineqs) [] in
+  let suboptis = List.fold_left
+      (fun suboptis ptope ->
+         (*[* let left, right = partition_choice suboptis in
+         let left = List.map
+             (fun (_, w, lc) -> unexpand_sides ~cmp_v (w, lc)) left in
+         let right = List.map
+             (fun (_, _, w1, w2, lc) ->
+                unexpand_sides ~cmp_v (w1, lc),
+                unexpand_sides ~cmp_v (w2, lc)) right in
+         Format.printf "NumS.disjelim: subopti step@\nleft=%a;@ right=%a@\n%!"
+           pr_ineqn left pr_suboptis right; *]*)
+         (* TODO: allow weakening of candidate inequalities (by a constant) *)
+         concat_map
+           (function
+             | Left (w, w_key, lc) as cand ->
+               if Hashtbl.mem ptope w_key then [cand]
+               else Hashtbl.fold
+                   (fun (lhs, rhs as w_key2) lc2 more_subopt ->
+                      let w2 = NumDefs.diff lhs rhs in
+                      match NumDefs.direct_opti w w2 with
+                      | Some (_,_,Add ([] | [Cst _]), _)
+                        when !no_subopti_of_cst || initstep ->
+                        more_subopt
+                      | Some (_,_,_,Add ([] | [Cst _]))
+                        when !no_subopti_of_cst || initstep ->
+                        more_subopt
+                      | Some _ when w_key < w_key2 ->
+                        (*[* Format.printf
+                          "subopti: w1=%a;@ w2=%a@\n%!"
+                          pr_term w pr_term w2; *]*)
+                        (* Aribtrary breaking of symmetry. *)
+                        Right (w, w2, w_key, w_key2, loc_union lc lc2)
+                        ::more_subopt
+                      | _ -> more_subopt) ptope []
+             | Right (w1, w2, w1_key, w2_key, lc) as cand ->
+               if Hashtbl.mem ptope w1_key || Hashtbl.mem ptope w2_key
+               then [cand] else [])
+           suboptis)
+      suboptis (List.tl ptopes_ineqs) in
+  let suboptis = map_some
+      (function
+        | Left _ -> None
+        | Right (w1_t, w2_t, w1_key, w2_key, lc) ->
+          let w1 = unexpand_sides ~cmp_v (w1_key, lc) in
+          let w2 = unexpand_sides ~cmp_v (w2_key, lc) in
+          (*[* Format.printf
+            "subopti-exp: w1_t=%a;@ w1=%a;@ w2_t=%a;@ w2=%a@\n%!"
+            pr_term w1_t pr_w w1 pr_term w2_t pr_w w2; *]*)  
+          Some (w1, w2))
+      suboptis in
+  (*[* Format.printf "NumS.disjelim: suboptis=@\n%a@\n%!"
+    pr_suboptis suboptis; *]*)  
+  [],
+  List.map expand_opti optis @
+    List.map expand_subopti suboptis @
+    List.map (expand_atom true) (eqn @ redundant_eqn)
+  @ List.map (expand_atom false) ineqn
+
+let disjelim q ~preserve ~initstep brs =
+  (*[* Format.printf "NumS.disjelim: preserve=%a #brs=%d@\ninit brs=@\n%a@\n%!"
+    pr_vars preserve (List.length brs)
+    (pr_line_list "| " pr_formula) brs; *]*)
+  match brs with
+  | [] -> assert false
+  | [br] -> disjelim_aux q ~preserve ~initstep [br; br]
+  | _ -> disjelim_aux q ~preserve ~initstep brs
 
 let simplify q ?localvs elimvs cnj =
   (*[* Format.printf "NumS.simplify: elimvs=%s;@\ncnj=@ %a@\n%!"

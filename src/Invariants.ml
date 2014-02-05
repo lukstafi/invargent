@@ -862,10 +862,13 @@ let solve q_ops new_ex_types exty_res_chi brs =
                     _before_ passing branches to disjunction elimination? *) 
                  let g_ans =
                    if iter_no < disj_step.(2)
-                   then
+                   then                 (* FIXME... *)
                      DisjElim.initstep_heur q.op ~preserve g_ans
                    else g_ans in
-                 let g_ans = connected ~validate [delta; delta']
+                 let g_ans =
+                   if (iter_no < disj_step.(2)) then g_vs, g_ans
+                   (* FIXME: is needed at all? *)
+                   else connected ~validate [delta; delta']
                      (g_vs, g_ans) in
                  (*[* Format.printf "solve-3: connected g_ans@ =%a@\n%!"
                    pr_ans g_ans; *]*)
