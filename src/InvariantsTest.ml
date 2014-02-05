@@ -1178,7 +1178,7 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
-        [2,"∃n. δ = (List n → ∃2:k[k ≤ n ∧ 0 ≤ k].List k)"];
+        [2,"∃n. δ = (List n → ∃2:k[0 ≤ k ∧ k ≤ n].List k)"];
 
     );
 
@@ -1225,7 +1225,7 @@ let rec filter = fun f ->
           filter f xs"
         [2,"∃n, a.
   δ =
-    ((a → Bool) → List (a, n) → ∃2:k[k ≤ n ∧ 0 ≤ k].List (a, k))"];
+    ((a → Bool) → List (a, n) → ∃2:k[0 ≤ k ∧ k ≤ n].List (a, k))"];
 
     );
 
@@ -1682,7 +1682,7 @@ let rec map2 = fun f ->
         [2,"∃n, k, a.
   δ =
     ((a → a → a) → (List (a, n), List (a, k)) →
-       ∃1:i[i=max (n, k)].List (a, i))"]
+       ∃1:i[i=max (k, n)].List (a, i))"]
     );
 
 

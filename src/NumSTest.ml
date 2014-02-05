@@ -39,7 +39,7 @@ let tests = "NumS" >::: [
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
         assert_equal ~printer:(fun x -> x)
-          "∃. n1 = n2 ∧ n3 ≤ n2 + 2"
+          "∃. n1 = n2 ∧ n3 ≤ n1 + 2"
           (Format.flush_str_formatter ())
       with (Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
@@ -69,7 +69,8 @@ let tests = "NumS" >::: [
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
         assert_equal ~printer:(fun x -> x)
-          "∃. n1 = n2"
+          "∃. min (n3, n4)≤n1 ∧ n1≤max (n3, n4) ∧ min (n3, n4)≤n2 ∧
+  n2≤max (n3, n4) ∧ n1 = n2"
           (Format.flush_str_formatter ())
       with (Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());

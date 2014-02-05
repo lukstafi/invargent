@@ -646,11 +646,13 @@ let solve_aux ?use_quants ?(strict=false)
         let ohs = mult (!/(-1) // k) (vars, cst, loc) in
         if k >/ !/0
         then
-          [], [ohs],
-          wset_partition_map (fun lhs -> project v lhs ohs) left
+          (if not strict && WSet.mem ohs right then [], [], ([], [])
+           else [], [ohs],
+                wset_partition_map (fun lhs -> project v lhs ohs) left)
         else
-          [ohs], [],
-          wset_partition_map (fun rhs -> project v ohs rhs) right in
+          (if not strict && WSet.mem ohs left then [], [], ([], [])
+           else [ohs], [],
+                wset_partition_map (fun rhs -> project v ohs rhs) right) in
       let more_ineqn = List.filter
         (function
         | [], cst, _
@@ -1323,12 +1325,13 @@ let atomic_impl ~cmp_v a b =
 
 (* Prune atoms implied by other atoms -- only single
    other atoms are considered. *)
-let prune_single_redund ~cmp_v cnj =
+let prune_single_redund ~cmp_v guard_cnj cnj =
   let rec aux pareto = function
     | [] -> pareto
     | a::cnj ->
       let cnj = List.filter (not % atomic_impl ~cmp_v a) cnj in
       if List.exists (fun b -> atomic_impl ~cmp_v b a) cnj
+          || List.exists (fun b -> atomic_impl ~cmp_v b a) guard_cnj
       then aux pareto cnj
       else aux (a::pareto) cnj in
   aux [] cnj
@@ -1390,11 +1393,16 @@ let strict_sat ~cmp_v ~cmp_w ineqs ~strict:ineq ineqn =
         let ohs = mult (!/(-1) // k) (vars, cst, loc) in
         if k >/ !/0
         then
-          [], [ohs],
-          wset_map_to_list (fun lhs -> diff ~cmp_v lhs ohs) left
+          (if not strict && WSet.mem ohs right then [], [], []
+           else [], [ohs],
+                wset_map_to_list (fun lhs -> diff ~cmp_v lhs ohs) left)
         else
-          [ohs], [],
-          wset_map_to_list (fun rhs -> diff ~cmp_v ohs rhs) right in
+          (if not strict && WSet.mem ohs left then [], [], []
+           else [ohs], [],
+                wset_map_to_list (fun rhs -> diff ~cmp_v ohs rhs) right) in
+      (*[* Format.printf
+        "NumS.strict-sat-proj: v=%s@\nmore_ineqn=@ %a@\n%!"
+        (var_str v) pr_ineqn more_ineqn; *]*)  
       let more_ineqn = List.filter
         (function
           | ([], cst, _) when strict && cst </ !/0 ->
@@ -1402,11 +1410,8 @@ let strict_sat ~cmp_v ~cmp_w ineqs ~strict:ineq ineqn =
           | ([], cst, _) when not strict && cst <=/ !/0 ->
             false
           | [], cst, loc -> raise Not_satisfiable
-          | _ -> true)
+          | w -> true)
         more_ineqn in
-      (*[* Format.printf
-        "NumS.strict-sat: v=%s@\nmore_ineqn=@ %a@\n%!"
-        (var_str v) pr_ineqn more_ineqn; *]*)  
       let ineqn =
         merge cmp_w (List.sort cmp_w more_ineqn) ineqn in
       let ineqs =
@@ -1445,10 +1450,11 @@ let prune_redund ~cmp_v ~cmp_w guard_cnj cnj =
   (* First prune opti and subopti atoms, to avoid convoluted result
      instead of straightforward inequalities. *)
   let cnj = split_flatten ~cmp_v cnj in
-  let cnj = prune_single_redund ~cmp_v (cnj_to_w_formula cnj) in
-  let eqn, ineqn, optis, suboptis = split_formula cnj in
-  let g_eqn, g_ineqn, g_optis, g_suboptis =
+  let g_eqn, g_ineqn, g_optis, g_suboptis as guard_cnj =
     split_flatten ~cmp_v guard_cnj in
+  let cnj = prune_single_redund ~cmp_v
+      (cnj_to_w_formula guard_cnj) (cnj_to_w_formula cnj) in
+  let eqn, ineqn, optis, suboptis = split_formula cnj in
   (* The initial state against which to check redundancy -- mild pruning *)
   (*let init_ineqn = List.concat
       (map_append
@@ -1469,15 +1475,15 @@ let prune_redund ~cmp_v ~cmp_w guard_cnj cnj =
     pr_ineqs init_ineqs; *]*)
   let opti_subopti = choices
       (g_optis @ optis) (g_suboptis @ suboptis) in
-  (* Keep the union of atoms kept for each disjunct *)
-  let acc_ineqs, ineqn, _ = List.fold_left
-      (fun (acc_ineqs, ineqn, cands) cho ->
+  (* Keep the union of atoms kept for each disjunct. *)
+  let ineqn, _ = List.fold_left
+      (fun (ineqn, cands) cho ->
          let o_ineqn = ineqn_of_eqineq_w cho in
-         let acc_ineqs = project ~cmp_v ~cmp_w acc_ineqs o_ineqn in
-         let acc_ineqs, more_ineqn, dropped =
-           keep_nonredund ~cmp_v ~cmp_w acc_ineqs cands in
-         acc_ineqs, more_ineqn @ ineqn, dropped)
-      (init_ineqs, [], ineqn) opti_subopti in
+         let ineqs = project ~cmp_v ~cmp_w init_ineqs o_ineqn in
+         let _, more_ineqn, dropped =
+           keep_nonredund ~cmp_v ~cmp_w ineqs cands in
+         more_ineqn @ ineqn, dropped)
+      ([], ineqn) opti_subopti in
   (* For now, optis and suboptis are filtered only in
      [prune_single_redund] at the beginning. *)
   (*[* Format.printf "NumS.prune_redund: result@\nineqn=@ %a@\n%!"
@@ -1596,12 +1602,14 @@ let disjelim_aux q ~preserve ~initstep brs =
              !disjelim_rotations (fun i ->
                  if i <= 1 then [||]
                  else Array.init (i-1) (fun j ->
-                     angle j i, sum_w ~cmp_v (mult !/(j+1) s) (mult !/(i+1) p))) in
+                     angle j i,
+                     sum_w ~cmp_v (mult !/(j+1) s) (mult !/(i+1) p))) in
          let r = Array.init
              !disjelim_rotations (fun i ->
                  if i <= 1 then [||]
                  else Array.init (i-1) (fun j ->
-                     angle i j, sum_w ~cmp_v (mult !/(i+1) s) (mult !/(j+1) p))) in
+                     angle i j,
+                     sum_w ~cmp_v (mult !/(i+1) s) (mult !/(j+1) p))) in
          (1., sum_w ~cmp_v s p) ::
            Array.to_list (Array.concat (Array.to_list l)) @
            Array.to_list (Array.concat (Array.to_list r)))
@@ -1780,12 +1788,17 @@ let disjelim_aux q ~preserve ~initstep brs =
       (function
         | Left _ -> None
         | Right (w1_t, w2_t, w1_key, w2_key, lc) ->
-          let w1 = unexpand_sides ~cmp_v (w1_key, lc) in
-          let w2 = unexpand_sides ~cmp_v (w2_key, lc) in
+          let vars1, _, _ as w1 = unexpand_sides ~cmp_v (w1_key, lc) in
+          let vars2, _, _ as w2 = unexpand_sides ~cmp_v (w2_key, lc) in
           (*[* Format.printf
             "subopti-exp: w1_t=%a;@ w1=%a;@ w2_t=%a;@ w2=%a@\n%!"
             pr_term w1_t pr_w w1 pr_term w2_t pr_w w2; *]*)  
-          Some (w1, w2))
+          let d_vars, _, _ = diff ~cmp_v w1 w2 in
+          (* Even if is directed, [d_vars=[]] means the subopti is
+             equivalent to an inequality. *)
+          (* TODO: [vars1 = [] || vars2 = []] shouldn't have happened. *)
+          if d_vars = [] || vars1 = [] || vars2 = [] then None
+          else Some (w1, w2))
       suboptis in
   (*[* Format.printf "NumS.disjelim: suboptis=@\n%a@\n%!"
     pr_suboptis suboptis; *]*)  
