@@ -5,16 +5,17 @@
     @author Lukasz Stafiniak lukstafi (AT) gmail.com
     @since Mar 2013
 *)
-open Defs
-open Terms
-open Aux
-open Joint
-
 let timeout_count = ref 700(* 5000 *)(* 50000 *)
 let fail_timeout_count = ref 4
 let no_alien_prem = ref (* true *)false
 let more_general = ref false
 let richer_answers = ref false
+let no_num_abduction = ref false
+
+open Defs
+open Terms
+open Aux
+open Joint
 
 
 let abd_fail_flag = ref false
@@ -286,6 +287,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
           aux (sx::acc) (c6sx::c6acc) (cand, c6cand)
         | [], [] ->
           let cand, c6cand = init_cand in
+          (* FIXME: how do we know that [cand] is not empty? *)
           false, List.hd cand, List.hd c6cand,
           (List.tl cand, List.tl c6cand)
         | _ -> assert false in
@@ -795,7 +797,7 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
          let vs, ans = cleanup q vs ans in
          let {cnj_typ=sb_ty; cnj_num=ans_num; cnj_so=_} =
            combine_sbs ~use_quants:false q [prem.cnj_typ; concl_ty; ans] in
-         if not dissociate then
+         if not dissociate && not !no_num_abduction then
            let cnj_num = ans_num @ prem.cnj_num @ concl_num in
            (*[* Format.printf "validate-typ: sb_ty=@ %a@\ncnj_num=@ %a@\n%!"
              pr_subst sb_ty NumDefs.pr_formula cnj_num; *]*)
@@ -826,18 +828,20 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
       brs_num more_in_brs in
   (*[* Format.printf "abd: solve for numbers@\n%!"; *]*)
   let nvs, ans_num =
-    try
-      if dissociate then [], []
-      (* [tvs] includes alien variables! *)
-      else NumS.abd q ~bvs ~discard:discard.at_num ~iter_no brs_num
-    with
-    | Suspect (cnj, lc) ->
-      (*[* Format.printf
-        "abd: fallback NumS.abd loc=%a@\nsuspect=%a@\n%!"
-        pr_loc lc pr_formula cnj;
-      *]*)
-      raise (NoAnswer (Num_sort, "numerical abduction failed",
-                       None, lc)) in
+    if !no_num_abduction then [], []
+    else
+      try
+        if dissociate then [], []
+        (* [tvs] includes alien variables! *)
+        else NumS.abd q ~bvs ~discard:discard.at_num ~iter_no brs_num
+      with
+      | Suspect (cnj, lc) ->
+        (*[* Format.printf
+          "abd: fallback NumS.abd loc=%a@\nsuspect=%a@\n%!"
+          pr_loc lc pr_formula cnj;
+        *]*)
+        raise (NoAnswer (Num_sort, "numerical abduction failed",
+                         None, lc)) in
   (* Filter out negated constraints that already are contradicted. Of
      the result, use only sorts other than [Type_sort] as negated
      constraints. *)
@@ -858,14 +862,19 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
   let neg_num =
     if neg_cns = [] then []
     else
-      (* Branches to verify disjuncts from negative constraints. *)
+      (* Branches to verify disjuncts from negative
+         constraints. Coalesce facts from subsumed branches. *)
       let verif_cns_num =
         map_some
-          (fun (_,prem,concl) ->
+          (fun (_,prem,_) ->
              (*[* Format.printf
-               "abd-neg: verif_br=@ %a@\n%!" NumDefs.pr_formula
-               (ans_num @ prem @ concl); *]*)
-             try Some (NumS.satisfiable_exn (ans_num @ prem @ concl))
+               "abd-neg: verif_br prem=@ %a@\n%!" NumDefs.pr_formula
+               prem; *]*)
+             let allconcl = concat_map
+               (fun (_,prem2,concl2) ->
+                 if NumDefs.subformula prem2 prem then concl2 else [])
+               brs_num in
+             try Some (NumS.satisfiable_exn (ans_num @ prem @ allconcl))
              with Contradiction _ -> None)
           brs_num in
       (* Filter out already solved negative constraints. *)

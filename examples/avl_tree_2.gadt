@@ -1,0 +1,112 @@
+(** We follow the AVL tree algorithm from OCaml Standard Library, where 
+    the branches of a node are allowed to differ in height by at most 2. *)
+
+newtype Avl : type * num
+newcons Empty : ∀a. Avl (a, 0)
+newcons Node :
+  ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
+     Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
+
+newtype LinOrder
+newcons LT : LinOrder
+newcons EQ : LinOrder
+newcons GT : LinOrder
+external let compare : ∀a. a → a → LinOrder =
+  "fun x y -> let c=Pervasives.compare x y in
+              if c<0 then LT else if c=0 then EQ else GT"
+
+let height = function
+  | Empty -> 0
+  | Node (_, _, _, k) -> k
+
+let create = fun l x r ->
+  ematch height l, height r with
+  | i, j when j <= i -> Node (l, x, r, i+1)
+  | i, j when i <= j -> Node (l, x, r, j+1)
+
+let singleton = fun x -> Node (Empty, x, Empty, 1)
+
+let rotr = efunction l x r -> (* hl = hr + 3 *)
+    (ematch l with
+    | Empty -> assert false
+    | Node (ll, lx, lr, _) ->
+      (ematch height ll, height lr with
+      | m, n when n <= m ->
+        let r' = create lr x r in
+        create ll lx r'
+      | m, n when m+1 <= n ->
+        (ematch lr with
+        | Empty -> assert false
+        | Node (lrl, lrx, lrr, _) ->
+          let l' = create ll lx lrl in
+          let r' = create lrr x r in
+          create l' lrx r')))
+
+let rotl = fun l x r -> (* hl + 3 = hr *)
+    (ematch r with
+    | Empty -> assert false
+    | Node (rl, rx, rr, _) ->
+      (ematch height rr, height rl with
+      | m, n when n <= m ->
+        let l' = create l x rl in
+        create l' rx rr
+      | m, n when m+1 <= n ->
+        (ematch rl with
+        | Empty -> assert false
+        | Node (rll, rlx, rlr, _) ->
+          let l' = create l x rll in
+          let r' = create rlr rx rr in
+          create l' rlx r')))
+
+let rec add = fun x -> efunction
+  | Empty -> Node (Empty, x, Empty, 1)
+  | Node (l, y, r, h) ->
+    ematch compare x y, height l, height r with
+    | EQ, _, _ -> Node (l, x, r, h)
+    | LT, hl, hr ->
+      let l' = add x l in
+      (ematch height l' with
+       | hl' when hl' <= hr+2 -> create l' y r
+       | hl' when hr+3 <= hl' -> rotr l' y r)
+    | GT, hl, hr ->
+      let r' = add x r in
+      (ematch height r' with
+       | hr' when hr' <= hl+2 -> create l y r'
+       | hr' when hl+3 <= hr' -> rotl l y r')
+
+let rec mem = fun x -> function
+  | Empty -> False
+  | Node (_, _, l, y, r) ->
+    match compare x y with
+    | LT -> mem x l
+    | EQ -> True
+    | GT -> mem x r
+
+let rec min_binding = function
+  | Empty -> assert false
+  | Node (Empty, x, r, _) -> x
+  | Node ((Node (_,_,_,_) as l), x, r, _) -> min_binding l
+
+let rec remove_min_binding = efunction
+  | Empty -> assert false
+  | Node (Empty, x, r, _) -> r
+  | Node (Node (_,_,_,_) as l, x, r, _) ->
+    let l' = remove_min_binding l in
+    bal l' x r
+
+let merge = efunction
+  | Empty, Empty -> Empty
+  | Empty, (Node (_,_,_,_) as t) -> t
+  | (Node (_,_,_,_) as t), Empty -> t
+  | (Node (_,_,_,_) as t1), (Node (_,_,_,_) as t2) ->
+    let x = min_binding t2 in
+    let t2' = remove_min_binding t2 in
+    bal t1 x t2'
+
+let rec remove = fun x -> efunction
+  | Empty -> Empty
+  | Node (l, y, r, h) ->
+    ematch compare x y with
+    | EQ -> merge l r
+    | LT -> let l' = remove x l in bal l' y r
+    | GT -> let r' = remove x r in bal l y r'

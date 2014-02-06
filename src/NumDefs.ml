@@ -60,6 +60,9 @@ let eq_atom a1 a2 =
 let formula_inter cnj1 cnj2 =
     List.filter (fun a -> List.exists (eq_atom a) cnj2) cnj1
 
+let subformula phi1 phi2 =
+  List.for_all (fun a1 -> List.exists (eq_atom a1) phi2) phi1
+
 let scale_term j k t =
   let rec aux = function
     | Cst (m, n) -> Cst (m*j, n*k)

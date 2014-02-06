@@ -18,6 +18,9 @@ val richer_answers : bool ref
 val timeout_count : int ref
 val fail_timeout_count : int ref
 val no_alien_prem : bool ref
+(** [no_num_abduction=true] does not perform numerical
+    abduction. Default [false]. *)
+val no_num_abduction : bool ref
 
 val abd_fail_flag : bool ref
 val abd_timeout_flag : bool ref

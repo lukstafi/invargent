@@ -27,6 +27,7 @@ val fvs_term : term -> Defs.VarSet.t
 val fvs_atom : atom -> Defs.VarSet.t
 val fvs_formula : formula -> Defs.VarSet.t
 val formula_inter : formula -> formula -> formula
+val subformula : formula -> formula -> bool
 val atom_loc : atom -> Defs.loc
 val replace_loc_atom : Defs.loc -> atom -> atom
 val replace_loc : Defs.loc -> formula -> formula

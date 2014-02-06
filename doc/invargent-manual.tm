@@ -1,4 +1,4 @@
-<TeXmacs|1.0.7.21>
+<TeXmacs|1.99.1>
 
 <style|article>
 
@@ -772,6 +772,23 @@
 
     <item*|<verbatim|-num_abduction_fail>>Limit on backtracking steps in
     numerical joint abduction (default 10).
+
+    <item*|<verbatim|-no_num_abduction>>Turn off numerical abduction; will
+    not ensure correctness. Numerical abduction uses a brute-force algorithm
+    and will fail to work in reasonable time for complex constraints.
+    However, including the effects of <verbatim|assert false> clauses, and
+    inference of postconditions, do not rely on numerical abduction. If the
+    numerical invariant of a typeable (i.e. correct) function follows from
+    <verbatim|assert false> facts alone, a call with
+    <verbatim|-no_num_abduction> may still find the correct invariant and
+    postcondition.
+
+    <item*|<verbatim|-weaker_pruning>>Do not assume integers as the numerical
+    domain when pruning redundant atoms.
+
+    <item*|<verbatim|-stronger_pruning>>Prune atoms that force a numerical
+    variable to a single value under certain conditions; exclusive with
+    <verbatim|-weaker_pruning>.
 
     <item*|<verbatim|-disjelim_rotations>>Disjunction elimination: check
     coefficients from <math|1/N> (default 3). Numerical disjunction
