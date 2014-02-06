@@ -398,9 +398,9 @@ let constr_gen_expr gamma e t =
       Lam ([a1, a2], cls, loc)
     | AssertFalse loc as e -> A [CFalse loc], e
     | AssertLeq (e1, e2, e3, loc) ->
-      let a1 = fresh_typ_var () in
+      let a1 = fresh_var Num_sort in
       let t1 = TVar a1 in
-      let a2 = fresh_typ_var () in
+      let a2 = fresh_var Num_sort in
       let t2 = TVar a2 in
       let a3 = fresh_typ_var () in
       let t3 = TVar a3 in

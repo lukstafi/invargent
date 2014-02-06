@@ -105,10 +105,18 @@ let main () =
     "Limit on numerical simple abduction steps (default 1000)";
     "-num_abduction_fail", Arg.Set_int NumS.abd_fail_timeout_count,
     "Limit on backtracking steps in numerical joint abduction (default 10)";
+    "-no_num_abduction", Arg.Set Abduction.no_num_abduction,
+    "Turn off numerical abduction; will not ensure correctness.";
     "-disjelim_rotations", Arg.Set_int NumS.disjelim_rotations,
     "Disjunction elimination: check coefficients from 1/N (default 3)";
     "-iterations_timeout", Arg.Set_int Invariants.timeout_count,
     "Limit on main algorithm iterations (default 6)";
+    "-weaker_pruning", Arg.Reset NumS.int_pruning,
+    "Do not assume integers as the numerical domain when pruning \
+     redundant atoms.";
+    "-stronger_pruning", Arg.Set NumS.strong_int_pruning,
+    "Prune atoms that force a numerical variable to a single value \
+     under certain conditions; exclusive with -weaker_pruning.";
     "-richer_answers", Arg.Set Abduction.richer_answers,
     "Keep some equations in term abduction answers even if redundant.";
     "-more_existential", Arg.Set DisjElim.more_existential,

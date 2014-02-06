@@ -13,6 +13,8 @@ let abd_timeout_count = ref (* 500 *)1000(* 5000 *)(* 50000 *)
 let abd_fail_timeout_count = ref 10
 let disjelim_rotations = ref 3
 let abd_int_negation = ref true
+let int_pruning = ref true
+let strong_int_pruning = ref false
 let passing_ineq_trs = ref false
 let no_subopti_of_cst = ref true
 
@@ -562,6 +564,8 @@ let solve_aux ?use_quants ?(strict=false)
     | [] -> List.rev acc
     | ((v, k)::vars, cst, loc)::eqn
         when use_quants && quant_viol uni_v bvs v vars ->
+      (*[* Format.printf "NumS.solve: fail--quant viol eq=@ %a@\n%!"
+        pr_w ((v, k)::vars, cst, loc); *]*)
       let t1, t2 =
         match expand_atom true ((v, k)::vars, cst, loc) with
         | Eq (t1, t2, _) -> t1, t2
@@ -577,6 +581,8 @@ let solve_aux ?use_quants ?(strict=false)
       elim (w_sb::acc) eqn
     | ([], cst, loc)::eqn when cst =/ !/0 -> elim acc eqn
     | ([], cst, loc)::eqn ->
+      (*[* Format.printf "NumS.solve: fail-- eq=@ %a@\n%!"
+        pr_w ([], cst, loc); *]*)
       let msg =
         "Failed numeric equation ("^Num.string_of_num cst^"=0)" in
       raise (Terms.Contradiction (Num_sort, msg, None, loc)) in
@@ -609,6 +615,8 @@ let solve_aux ?use_quants ?(strict=false)
       let w = (v, !/(-1))::vars, cst, loc in
       if strict then
         let a = expand_atom false w in
+        (*[* Format.printf "NumS.solve: fail-- strict ineq=@ %a@\n%!"
+          pr_w w; *]*)
         let t1, t2 = match a with
           | Leq (t1, t2, _) -> t1, t2 | _ -> assert false in
         raise (Terms.Contradiction
@@ -623,6 +631,8 @@ let solve_aux ?use_quants ?(strict=false)
         when (strict && cst </ !/0) || (not strict && cst <=/ !/0) ->
       proj ineqs implicits ineqn
     | ([], cst, loc)::_ ->
+        (*[* Format.printf "NumS.solve: fail-- ineq=@ %a@\n%!"
+          pr_w ([], cst, loc); *]*)
       raise (Terms.Contradiction
                (Num_sort,
                 "Failed numeric inequality (cst="^
@@ -630,6 +640,8 @@ let solve_aux ?use_quants ?(strict=false)
                 None, loc))
     | ((v, k)::vars, cst, loc)::ineqn
         when use_quants && quant_viol uni_v bvs v vars ->
+        (*[* Format.printf "NumS.solve: fail--quant viol ineq=@ %a@\n%!"
+          pr_w ((v, k)::vars, cst, loc); *]*)
       let t1, t2 =
         match expand_atom false ((v, k)::vars, cst, loc) with
         | Leq (t1, t2, _) -> t1, t2
@@ -660,6 +672,8 @@ let solve_aux ?use_quants ?(strict=false)
           false
         | [], cst, loc ->
           let a = expand_atom false ([v, !/(-1)], cst, loc) in
+          (*[* Format.printf "NumS.solve: fail-- ineq.2=@ %a@\n%!"
+            pr_w ([], cst, loc); *]*)
           let t1, t2 = match a with
             | Leq (t1, t2, _) -> t1, t2 | _ -> assert false in
           raise (Terms.Contradiction
@@ -867,6 +881,19 @@ let trans_w_atom ~cmp_v tr = function
   | Opti_w (w1, w2) -> Opti_w (sum_w ~cmp_v tr w1, sum_w ~cmp_v tr w2)
   | Subopti_w (w1, w2) -> Subopti_w (sum_w ~cmp_v tr w1, sum_w ~cmp_v tr w2)
 
+let revert_uni ~cmp_v ~cmp_w ~uni_v ~bvs eqn =
+  let cmp_v v1 v2 =
+    let c1 = uni_v v1 && not (VarSet.mem v1 bvs)
+    and c2 = uni_v v2 && not (VarSet.mem v2 bvs) in
+    if c1 && c2 then cmp_v v1 v2
+    else if c1 then -1
+    else if c2 then 1
+    else cmp_v v1 v2 in
+  let eqn = List.map (norm_w ~cmp_v) eqn in
+  let rev_sb, _, _, _ =
+    (* Do not use quantifiers. *)
+    solve ~eqn ~cmp_v ~cmp_w uni_v in
+  List.filter (fun (v,_) -> uni_v v && not (VarSet.mem v bvs)) rev_sb
 
 let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
     skip (eqs_i, ineqs_i, optis_i, suboptis_i)
@@ -888,6 +915,17 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
     let d_eqn' = d_implicits @ d_eqn' in
     (* 2 *)
     let zero = [], !/0, dummy_loc in
+    (* TODO: attempt at optimizing abduction, doesn't help by itself. *)
+    (*let rev_sb = revert_uni ~cmp_v ~cmp_w ~uni_v ~bvs d_eqn' in
+    let c_eqn0 = List.map (subst_w ~cmp_v rev_sb) c_eqn'
+    and c_ineqn0 = List.map (subst_w ~cmp_v rev_sb) c_ineqn'
+    and c_optis0 = List.map (subst_2w ~cmp_v rev_sb) c_optis'
+    and c_suboptis0 = List.map (subst_2w ~cmp_v rev_sb) c_suboptis' in*)
+    let c_eqn0 = c_eqn'
+    and c_ineqn0 = c_ineqn'
+    and c_optis0 = c_optis'
+    and c_suboptis0 = c_suboptis' in
+    
     let prune (vars, _, _ as w) =
       if List.length vars < !abd_prune_at then Some w else None in
     let add_tr ks_eq eq_trs (vars,_,_ as a) =
@@ -908,10 +946,14 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
         add_tr ks_eq (add_tr ks_eq eq_trs a1) a2
       | Leq_w _ | Opti_w _ | Subopti_w _ -> eq_trs in
     (*[* Format.printf
-      "NumS.abd_simple: 2.@\neqs_i=@ %a@\nineqs_i=@ %a@\nd_eqn=@ %a@ d_ineqn=@ %a@\nc_eqn=@ %a@\nc_ineqn=@ %a@\nd_ineqn'=@ %a@\nc_ineqn'=@ %a@\nd_eqn'=@ %a@\n%!"
-      pr_w_subst eqs_i pr_ineqs ineqs_i pr_eqn d_eqn pr_ineqn d_ineqn
+      "NumS.abd_simple: 2.@\neqs_i=@ %a@\nineqs_i=@ %a@\noptis_i=@ \
+       %a@\nsuboptis_i=@ %a@\nd_eqn=@ %a@ d_ineqn=@ %a@\nc_eqn=@ \
+       %a@\nc_ineqn=@ %a@\nd_ineqn'=@ %a@\nc_ineqn'=@ %a@\nd_eqn'=@ \
+       %a@\nrev_sb=@ %a@\n%!"
+      pr_w_subst eqs_i pr_ineqs ineqs_i pr_optis optis_i pr_suboptis
+      suboptis_i pr_eqn d_eqn pr_ineqn d_ineqn
       pr_eqn c_eqn pr_ineqn c_ineqn pr_ineqn d_ineqn'
-      pr_ineqn c_ineqn' pr_eqn d_eqn';
+      pr_ineqn c_ineqn' pr_eqn d_eqn' pr_w_subst rev_sb;
     *]*)
     (* 3 *)
     (* 4 *)
@@ -949,8 +991,8 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
          [eqs_i], and all transformations are through equations
          absent from [eqs_acc]. *)
       (*[* Format.printf
-        "NumS.abd_simple: [%d] 5. @\nd_eqn=@ %a@\nineqn=@ %a@\n%!"
-        ddepth pr_eqn d_eqn pr_ineqn (c0ineqn @ d_ineqn);
+        "NumS.abd_simple: [%d] 5.@ a=%a @\nd_eqn=@ %a@\nineqn=@ %a@\n%!"
+        ddepth pr_w_atom a pr_eqn d_eqn pr_ineqn (c0ineqn @ d_ineqn);
       *]*)
       let b_eqs, b_ineqs, b_optis, b_suboptis =
         solve ~eqs:eqs_acc ~ineqs:ineqs_acc
@@ -959,8 +1001,8 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
           ~suboptis:(suboptis_acc @ c0suboptis)
           ~cmp_v ~cmp_w uni_v in
       (*[* Format.printf
-        "NumS.abd_simple: [%d] 5. a=@ %a@\nb_eqs=@ %a@\nb_ineqs=@ %a@\n%!"
-        ddepth pr_w_atom a pr_w_subst b_eqs pr_ineqs b_ineqs;
+        "NumS.abd_simple: [%d] 5.@\nb_eqs=@ %a@\nb_ineqs=@ %a@\n%!"
+        ddepth pr_w_subst b_eqs pr_ineqs b_ineqs;
       *]*)
 
       if taut a
@@ -1059,7 +1101,7 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
         let ineq_trs = List.fold_left add_ineq_tr eq_trs d_ineqn' in
         loop add_Eq_tr add_Ineq_tr eq_trs ineq_trs
           eqs_i ineqs_i optis_i suboptis_i
-          c_eqn' c_ineqn' c_optis' c_suboptis'
+          c_eqn0 c_ineqn0 c_optis0 c_suboptis0
       done; None
     with Result (ans_eqs, ans_ineqs, ans_optis, ans_suboptis) ->
       Some (ans_eqs, ans_ineqs, ans_optis, ans_suboptis)
@@ -1068,8 +1110,10 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
   | Timeout ->
     abd_timeout_flag := true;
     (*[* Format.printf
-      "NumS.abd_simple: TIMEOUT@\neqs_i=@ %a@\nineqs_i=@ %a@\nd_eqn=@ %a@ d_ineqn=@ %a@\nc_eqn=@ %a@\nc_ineqn=@ %a@\n%!"
-      pr_w_subst eqs_i pr_ineqs ineqs_i pr_eqn d_eqn pr_ineqn d_ineqn
+      "NumS.abd_simple: TIMEOUT@\neqs_i=@ %a@\nineqs_i=@ \
+       %a@\noptis_i=@ %a@\nsuboptis_i=@ %a@\nd_eqn=@ %a@ d_ineqn=@ %a@\nc_eqn=@ %a@\nc_ineqn=@ %a@\n%!"
+      pr_w_subst eqs_i pr_ineqs ineqs_i pr_optis optis_i
+      pr_suboptis suboptis_i pr_eqn d_eqn pr_ineqn d_ineqn
       pr_eqn c_eqn pr_ineqn c_ineqn;
     *]*)
     None
@@ -1372,7 +1416,7 @@ let project ~cmp_v ~cmp_w ineqs ineqn =
 
 exception Not_satisfiable
 
-let strict_sat ~cmp_v ~cmp_w ineqs ~strict:ineq ineqn =
+let strict_sat ~cmp_v ~cmp_w ineqs ~strict:(vars,cst,lc as ineq) ineqn =
   (*[* Format.printf
     "NumS.strict-sat: test strict=%a@\nineqs=@ %a@\nineqn=@ %a@\n%!"
      pr_ineq ineq pr_ineqs ineqs pr_ineqn ineqn; *]*)  
@@ -1418,7 +1462,12 @@ let strict_sat ~cmp_v ~cmp_w ineqs ~strict:ineq ineqn =
         (v, (add_to_wset ineq_l left, add_to_wset ineq_r right))::ineqs in
       proj strict ineqs ineqn in
   let res =
-    try ignore (proj true (proj false ineqs ineqn) [ineq]); true
+    try
+      if not (!int_pruning || !strong_int_pruning)
+      then ignore (proj true (proj false ineqs ineqn) [ineq])
+      else ignore (proj !strong_int_pruning (proj false ineqs ineqn)
+                     [vars, cst +/ !/1, lc]);
+      true
     with Not_satisfiable -> false in
   (*[* Format.printf
     "NumS.strict-sat: result %b@\n%!" res; *]*)
@@ -1490,7 +1539,7 @@ let prune_redund ~cmp_v ~cmp_w guard_cnj cnj =
     pr_ineqn ineqn; *]*)
   cnj_to_num_formula (eqn, ineqn, optis, suboptis)
 
-let prune_redundant q ?localvs ~initstep cnj =
+let prune_redundant q ?localvs ?(guard=[]) ~initstep cnj =
   (*[* Format.printf
     "NumS.prune_redundant: initstep=%b localvs=%a@\ncnj=@ %a@\n%!"
     initstep pr_vars (match localvs with Some vs->vs|None->VarSet.empty)
@@ -1502,7 +1551,7 @@ let prune_redundant q ?localvs ~initstep cnj =
     | _, [] -> -1
     | [], _ -> 1
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
-  let guard, cnj =
+  let more_guard, cnj =
     match localvs with
       | Some localvs when not initstep ->
         List.partition
@@ -1510,9 +1559,9 @@ let prune_redundant q ?localvs ~initstep cnj =
           cnj
       | _ -> [], cnj in
   (*[* Format.printf
-    "NumS.prune_redundant: guard=%a@ res=%a@\n%!"
-    pr_formula guard pr_formula cnj; *]*)
-  prune_redund ~cmp_v ~cmp_w guard cnj
+    "NumS.prune_redundant: guard=%a@ more_guard=%a@ res=%a@\n%!"
+    pr_formula guard pr_formula more_guard pr_formula cnj; *]*)
+  prune_redund ~cmp_v ~cmp_w (more_guard @ guard) cnj
 
 
 
@@ -1539,6 +1588,9 @@ let disjelim_aux q ~preserve ~initstep brs =
   let polytopes = concat_map
       (fun br ->
          try
+           (*[* Format.printf
+             "NumS.disjelim: try polytope br=@ %a@\n%!"
+             pr_formula br; *]*)
            let eqs, ineqs, optis, suboptis =
              solve ~cnj:br ~cmp_v ~cmp_w q.uni_v in
            let opti_ineqs = flat2 optis in
@@ -1546,24 +1598,26 @@ let disjelim_aux q ~preserve ~initstep brs =
              (fun opti_subopti ->
                 try
                   let o_eqn, o_ineqn, _, _ = split_formula opti_subopti in
+                  (*[* Format.printf
+                    "NumS.disjelim: opti_eqn=@ %a@ opti_ineqn=@ %a@\n%!"
+                    pr_eqn o_eqn pr_ineqn o_ineqn; *]*)
                   let eqs, ineqs, _, _ =
                     solve ~eqs ~ineqs ~eqn:o_eqn
                       ~ineqn:(o_ineqn @ opti_ineqs)
                       ~cmp_v ~cmp_w q.uni_v in
-                  (*[* Format.printf
-                    "NumS.disjelim: opti_eqn=@ %a@ opti_ineqn=@ %a@\n%!"
-                    pr_eqn o_eqn pr_ineqn o_ineqn; *]*)
                   (* Simplify downto preserved variables. *)
                   let eqs = List.filter
                       (fun (v,_) -> VarSet.mem v preserve) eqs in
                   let ineqs = List.filter
                       (fun (v,_) -> VarSet.mem v preserve) ineqs in
+                  (*[* Format.printf
+                    "NumS.disjelim: success opti_choice=@\n%a@\n%!"
+                    pr_w_formula opti_subopti; *]*)
                   Some (eqs, ineqs)
                 with Terms.Contradiction _ ->
                   (*[* Format.printf
-                    "NumS.disjelim: failed opti_choice=@\n%a@\nopti_ineqs=%a@\nbr=%a@\n%!"
-                    pr_w_formula opti_subopti pr_ineqn opti_ineqs
-                    pr_formula br; *]*)
+                    "NumS.disjelim: failed opti_choice=@\n%a@\nopti_ineqs=%a@\n%!"
+                    pr_w_formula opti_subopti pr_ineqn opti_ineqs; *]*)
                   None)
              (choices optis suboptis)
          with Terms.Contradiction _ -> [])
@@ -1736,54 +1790,59 @@ let disjelim_aux q ~preserve ~initstep brs =
          ineq_transitive_cl ~cmp_v p_ineqs)
       faces in
   let suboptis =
-    Hashtbl.fold
-      (fun (lhs, rhs as w_key) lc suboptis ->
-         let w = NumDefs.diff lhs rhs in
-         let vars, _ = NumDefs.flatten w in
-         match vars with
-         | [] -> suboptis
-         | [_] when !no_subopti_of_cst || initstep -> suboptis
-         | _ -> Left (w, w_key, lc) :: suboptis)
-      (List.hd ptopes_ineqs) [] in
-  let suboptis = List.fold_left
-      (fun suboptis ptope ->
-         (*[* let left, right = partition_choice suboptis in
-         let left = List.map
-             (fun (_, w, lc) -> unexpand_sides ~cmp_v (w, lc)) left in
-         let right = List.map
-             (fun (_, _, w1, w2, lc) ->
-                unexpand_sides ~cmp_v (w1, lc),
-                unexpand_sides ~cmp_v (w2, lc)) right in
-         Format.printf "NumS.disjelim: subopti step@\nleft=%a;@ right=%a@\n%!"
-           pr_ineqn left pr_suboptis right; *]*)
-         (* TODO: allow weakening of candidate inequalities (by a constant) *)
-         concat_map
-           (function
-             | Left (w, w_key, lc) as cand ->
-               if Hashtbl.mem ptope w_key then [cand]
-               else Hashtbl.fold
-                   (fun (lhs, rhs as w_key2) lc2 more_subopt ->
-                      let w2 = NumDefs.diff lhs rhs in
-                      match NumDefs.direct_opti w w2 with
-                      | Some (_,_,Add ([] | [Cst _]), _)
-                        when !no_subopti_of_cst || initstep ->
-                        more_subopt
-                      | Some (_,_,_,Add ([] | [Cst _]))
-                        when !no_subopti_of_cst || initstep ->
-                        more_subopt
-                      | Some _ when w_key < w_key2 ->
-                        (*[* Format.printf
-                          "subopti: w1=%a;@ w2=%a@\n%!"
-                          pr_term w pr_term w2; *]*)
-                        (* Aribtrary breaking of symmetry. *)
-                        Right (w, w2, w_key, w_key2, loc_union lc lc2)
-                        ::more_subopt
-                      | _ -> more_subopt) ptope []
-             | Right (w1, w2, w1_key, w2_key, lc) as cand ->
-               if Hashtbl.mem ptope w1_key || Hashtbl.mem ptope w2_key
-               then [cand] else [])
-           suboptis)
-      suboptis (List.tl ptopes_ineqs) in
+    if ptopes_ineqs = [] then []
+    else Hashtbl.fold
+        (fun (lhs, rhs as w_key) lc suboptis ->
+           let w = NumDefs.diff lhs rhs in
+           let vars, _ = NumDefs.flatten w in
+           match vars with
+           | [] -> suboptis
+           | [_] when !no_subopti_of_cst || initstep -> suboptis
+           | _ -> Left (w, w_key, lc) :: suboptis)
+        (List.hd ptopes_ineqs) [] in
+  let suboptis =
+    if ptopes_ineqs = [] then []
+    else
+      List.fold_left
+        (fun suboptis ptope ->
+           (*[* let left, right = partition_choice suboptis in
+           let left = List.map
+               (fun (_, w, lc) -> unexpand_sides ~cmp_v (w, lc)) left in
+           let right = List.map
+               (fun (_, _, w1, w2, lc) ->
+                  unexpand_sides ~cmp_v (w1, lc),
+                  unexpand_sides ~cmp_v (w2, lc)) right in
+           Format.printf
+             "NumS.disjelim: subopti step@\nleft=%a;@ right=%a@\n%!"
+             pr_ineqn left pr_suboptis right; *]*)
+           (* TODO: allow weakening of candidate inequalities (by a constant) *)
+           concat_map
+             (function
+               | Left (w, w_key, lc) as cand ->
+                 if Hashtbl.mem ptope w_key then [cand]
+                 else Hashtbl.fold
+                     (fun (lhs, rhs as w_key2) lc2 more_subopt ->
+                        let w2 = NumDefs.diff lhs rhs in
+                        match NumDefs.direct_opti w w2 with
+                        | Some (_,_,Add ([] | [Cst _]), _)
+                          when !no_subopti_of_cst || initstep ->
+                          more_subopt
+                        | Some (_,_,_,Add ([] | [Cst _]))
+                          when !no_subopti_of_cst || initstep ->
+                          more_subopt
+                        | Some _ when w_key < w_key2 ->
+                          (*[* Format.printf
+                            "subopti: w1=%a;@ w2=%a@\n%!"
+                            pr_term w pr_term w2; *]*)
+                          (* Aribtrary breaking of symmetry. *)
+                          Right (w, w2, w_key, w_key2, loc_union lc lc2)
+                          ::more_subopt
+                        | _ -> more_subopt) ptope []
+               | Right (w1, w2, w1_key, w2_key, lc) as cand ->
+                 if Hashtbl.mem ptope w1_key || Hashtbl.mem ptope w2_key
+                 then [cand] else [])
+             suboptis)
+        suboptis (List.tl ptopes_ineqs) in
   let suboptis = map_some
       (function
         | Left _ -> None
@@ -1817,7 +1876,7 @@ let disjelim q ~preserve ~initstep brs =
   | [br] -> disjelim_aux q ~preserve ~initstep [br; br]
   | _ -> disjelim_aux q ~preserve ~initstep brs
 
-let simplify q ?localvs elimvs cnj =
+let simplify q ?localvs ?(guard=[]) elimvs cnj =
   (*[* Format.printf "NumS.simplify: elimvs=%s;@\ncnj=@ %a@\n%!"
     (String.concat "," (List.map var_str (VarSet.elements elimvs)))
     pr_formula cnj; *]*)
@@ -1838,17 +1897,17 @@ let simplify q ?localvs elimvs cnj =
   let ans = ans_to_num_formula (eqs, ineqs, optis, suboptis) in
   let ans =
     match localvs with
-    | None -> prune_redund ~cmp_v ~cmp_w [] ans
+    | None -> prune_redund ~cmp_v ~cmp_w guard ans
     | Some localvs ->                   (* FIXME: when not initstep *)
-      let guard, res = List.partition
+      let more_guard, res = List.partition
           (fun c -> VarSet.is_empty (VarSet.inter localvs (fvs_atom c)))
           ans in
-      prune_redund ~cmp_v ~cmp_w guard res in
+      prune_redund ~cmp_v ~cmp_w (more_guard @ guard) res in
   let vs = VarSet.inter elimvs (fvs_formula ans) in
   (*[* Format.printf "NumS.simplify:@\nres=%a@\n%!" pr_formula ans; *]*)
   VarSet.elements vs, ans
 
-let converge q ?localvs ~initstep cnj1 cnj2 =
+let converge q ?localvs ?(guard=[]) ~initstep cnj1 cnj2 =
   (*[* Format.printf
     "NumS.converge: initstep=%b localvs=%a@\ncnj1=@ %a@\ncnj2=@ %a@\n%!"
     initstep pr_vars (match localvs with Some vs->vs|None->VarSet.empty)
@@ -1877,7 +1936,7 @@ let converge q ?localvs ~initstep cnj1 cnj2 =
   (* FIXME: Actually, include transitivity! *)
   (* FIXME: where are equations recovered? *)
   let res = formula_inter (cnj1 @ ans1) (cnj2 @ ans2) in
-  let guard, res =
+  let more_guard, res =
     match localvs with
       | Some localvs when not initstep ->
         List.partition
@@ -1886,7 +1945,7 @@ let converge q ?localvs ~initstep cnj1 cnj2 =
       | _ -> [], res in
   (*[* Format.printf "NumS.converge:@\nans1=@ %a@\nans2=@ %a@\nres=@ %a%!"
     pr_formula ans1 pr_formula ans2 pr_formula res; *]*)
-  prune_redund ~cmp_v ~cmp_w guard res
+  prune_redund ~cmp_v ~cmp_w (more_guard @ guard) res
 
 
 let initstep_heur q ~preserve cnj =

@@ -475,7 +475,7 @@ let simplify q_ops ?localvs (vs, cnj) =
   VarSet.elements vs, ans
 
 (** Generally simplify the formula. Do not normalize non-type sort atoms. *)
-let prune_redund q_ops ?localvs ~initstep (vs, cnj) =
+let prune_redund q_ops ?localvs ?guard ~initstep (vs, cnj) =
   let vs = vars_of_list vs in
   (*[* Format.printf "simplify: vs=%a@ cnj=%a@\n%!"
     pr_vars vs pr_formula cnj; *]*)
@@ -501,8 +501,10 @@ let prune_redund q_ops ?localvs ~initstep (vs, cnj) =
         | _ -> assert false)
       ty_sb in
   let ty_ans = update_sb ~more_sb:ty_sb ty_ans in
+  let guard = map_opt guard
+    (fun cnj -> (sep_formulas cnj).cnj_num) in
   let num_ans =
-    NumS.prune_redundant q_ops ?localvs ~initstep num_ans in
+    NumS.prune_redundant q_ops ?localvs ?guard ~initstep num_ans in
   (*[* Format.printf "prune-simplified:@\nnum_ans=%a@\n%!"
     NumDefs.pr_formula num_ans; *]*)
   let ty_sb, ty_ans = List.partition
@@ -515,7 +517,7 @@ let prune_redund q_ops ?localvs ~initstep (vs, cnj) =
 
 (* Rename the new solution to match variables of the old solution. *)
 (* TODO: ugly, rewrite or provide a medium-level description. *)
-let converge q_ops ~initstep ~check_only (vs1, cnj1) (vs2, cnj2) =
+let converge q_ops ~initstep ?guard ~check_only (vs1, cnj1) (vs2, cnj2) =
   (*[* Format.printf
     "converge: check_only=%b@ vs1=%a@ vs2=%a@\ncnj1=%a@\ncnj2=%a\n%!"
     check_only pr_vars (vars_of_list vs1) pr_vars (vars_of_list vs2)
@@ -633,10 +635,12 @@ let converge q_ops ~initstep ~check_only (vs1, cnj1) (vs2, cnj2) =
   let localvs = VarSet.diff (vars_of_list vs2) pms_new in
   (*[* Format.printf "converge: initstep=%b localvs=%a@\n%!"
     initstep pr_vars localvs; *]*)
+  let guard = map_opt guard
+    (fun cnj -> (sep_formulas cnj).cnj_num) in
   let c_num =
     if check_only
-    then NumS.prune_redundant q_ops ~localvs ~initstep c2_num
-    else NumS.converge q_ops ~localvs ~initstep c1_num c2_num in
+    then NumS.prune_redundant q_ops ~localvs ?guard ~initstep c2_num
+    else NumS.converge q_ops ~localvs ?guard ~initstep c1_num c2_num in
   (*[* Format.printf
     "converge: check_only=%b vs2=%a@\nc2_ty=%a@\nc2_num=%a@\nc_num=%a@\n%!"
     check_only pr_vars (vars_of_list vs2)
@@ -808,6 +812,11 @@ let solve q_ops new_ex_types exty_res_chi brs =
                NumDefs.pr_formula (NumS.formula_of_state num_state); *]*)
              ()))
         verif_brs in
+    (* Guard to prune postconditions. *)
+    (* FIXME: is here the right place to collect it, or after
+       variable lifting? *)
+    let guard = concat_map
+        (fun (_,(_,cnj)) -> cnj) sol1 in
     let sol1, brs1, abdsjelim, g_rol =
       if iter_no < disj_step.(0) then sol1, brs1, [], rol1
       else
@@ -885,11 +894,12 @@ let solve q_ops new_ex_types exty_res_chi brs =
           iter_no pr_formula abdsjelim pr_chi_subst g_rol;
         *]*)
         (* 5a *)
+        (* Collected invariants, for filtering postconditions. *)
         let lift_ex_types cmp_v i (g_vs, g_ans) =
           let localvs = vars_of_list g_vs in
           (* FIXME *)
           let g_vs, g_ans =
-            prune_redund q_ops ~localvs
+            prune_redund q_ops ~localvs ~guard
               ~initstep:(iter_no < disj_step.(2)) (g_vs, g_ans) in
           let fvs = VarSet.elements
               (VarSet.diff (fvs_formula g_ans)
@@ -918,7 +928,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
                assert (i = j);
                let tpar, ans2 = lift_ex_types q.op i ans2 in
                let ans2 =
-                 converge q.op ~initstep:(iter_no < disj_step.(2))
+                 converge q.op ~guard
+                   ~initstep:(iter_no < disj_step.(2))
                    ~check_only:(iter_no < disj_step.(3)) ans1 ans2 in
 
                (*[* Format.printf "solve.loop-dK: final@ tpar=%a@ ans2=%a@\n%!"
@@ -1152,7 +1163,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                       let sb =
                         List.map (fun (v,w) -> w,v)
                           (Hashtbl.find q.b_renaming b) in
-                      (* FIXME: on what grounds the renaming? *)
+                      (* FIXME: the renaming doesn't do anything *)
                       let sb = renaming_sb ((b, delta)::sb) in
                       (*[* Format.printf
                         "solve-loop-9: renaming=@ %a@\ndans'=%a@\n%!"
@@ -1169,9 +1180,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
                  "solve-loop-9: localvs=%a;@ pvs=%a; iter_no=%d@\n%!"
                  pr_vars localvs pr_vars pvs iter_no; *]*)
                let svs = VarSet.elements localvs in
-               (* TODO: optimize, lots of repeated work *)
+               (* TODO: optimize, lots of repeated work! *)
                let vs, ans =
-                 prune_redund q.op ~localvs
+                 prune_redund q.op ~localvs ~guard
                    ~initstep:(iter_no < disj_step.(2))
                    (connected [delta; delta'] (svs, dans @ g_ans)) in
                let pvs = VarSet.elements pvs in
