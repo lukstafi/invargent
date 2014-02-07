@@ -87,6 +87,16 @@ let subst_term unbox sb t =
     | Add cmb -> Add (List.map aux cmb) in
   aux t
 
+let nsubst_term sb t =
+  let rec aux = function
+    | Cst _ as i -> i
+    | Lin (j, k, v) as t ->
+      (try
+         scale_term j k (List.assoc v sb)
+       with Not_found -> t)
+    | Add cmb -> Add (List.map aux cmb) in
+  aux t
+
 let hvsubst_term sb t =
   let rec aux = function
     | Cst _ as i -> i
@@ -119,6 +129,16 @@ let subst_atom unbox sb = function
     Opti (subst_term unbox sb t1, subst_term unbox sb t2, loc)
   | Subopti (t1, t2, loc) ->
     Subopti (subst_term unbox sb t1, subst_term unbox sb t2, loc)
+
+let nsubst_atom sb = function
+  | Eq (t1, t2, loc) ->
+    Eq (nsubst_term sb t1, nsubst_term sb t2, loc)
+  | Leq (t1, t2, loc) ->
+    Leq (nsubst_term sb t1, nsubst_term sb t2, loc)
+  | Opti (t1, t2, loc) ->
+    Opti (nsubst_term sb t1, nsubst_term sb t2, loc)
+  | Subopti (t1, t2, loc) ->
+    Subopti (nsubst_term sb t1, nsubst_term sb t2, loc)
 
 let hvsubst_atom sb = function
   | Eq (t1, t2, loc) ->
@@ -232,6 +252,10 @@ let pr_formula ppf atoms =
   
 let pr_num_subst ppf sb =
   pr_sep_list ";" (fun ppf (v,(t,_)) ->
+    fprintf ppf "%s:=%a" (var_str v) pr_term t) ppf sb
+  
+let pr_nsubst ppf sb =
+  pr_sep_list ";" (fun ppf (v,t) ->
     fprintf ppf "%s:=%a" (var_str v) pr_term t) ppf sb
 
 let term_no_parens = function

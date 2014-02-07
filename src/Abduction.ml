@@ -8,6 +8,7 @@
 let timeout_count = ref 700(* 5000 *)(* 50000 *)
 let fail_timeout_count = ref 4
 let no_alien_prem = ref (* true *)false
+let neg_before_abd = ref true
 let more_general = ref false
 let richer_answers = ref false
 let no_num_abduction = ref false
@@ -826,22 +827,6 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
       (fun (nonrec,prem,concl) (more_p, more_c) ->
          nonrec, more_p.cnj_num @ prem, more_c.cnj_num @ concl)
       brs_num more_in_brs in
-  (*[* Format.printf "abd: solve for numbers@\n%!"; *]*)
-  let nvs, ans_num =
-    if !no_num_abduction then [], []
-    else
-      try
-        if dissociate then [], []
-        (* [tvs] includes alien variables! *)
-        else NumS.abd q ~bvs ~discard:discard.at_num ~iter_no brs_num
-      with
-      | Suspect (cnj, lc) ->
-        (*[* Format.printf
-          "abd: fallback NumS.abd loc=%a@\nsuspect=%a@\n%!"
-          pr_loc lc pr_formula cnj;
-        *]*)
-        raise (NoAnswer (Num_sort, "numerical abduction failed",
-                         None, lc)) in
   (* Filter out negated constraints that already are contradicted. Of
      the result, use only sorts other than [Type_sort] as negated
      constraints. *)
@@ -859,7 +844,7 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
              Some (cnj, loc)
            with Contradiction _ -> None)
         neg_brs in
-  let neg_num =
+  let neg_num ans_num =
     if neg_cns = [] then []
     else
       (* Branches to verify disjuncts from negative
@@ -886,8 +871,31 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
              try Some (snd (NumS.simplify q elimvs cnj), lc)
              with Contradiction _ -> None)
           neg_cns in
-      NumS.negation_elim q ~verif_cns:verif_cns_num
+      NumS.negation_elim q ~bvs ~verif_cns:verif_cns_num
         num_neg_cns in
+  let neg_num_res =
+    if !neg_before_abd then neg_num []
+    else [] in
+  (*[* Format.printf "abd: solve for numbers@\n%!"; *]*)
+  let nvs, ans_num =
+    if !no_num_abduction then [], []
+    else
+      try
+        if dissociate then [], []
+        (* [tvs] includes alien variables! *)
+        else NumS.abd q ~bvs ~discard:discard.at_num ~iter_no
+            ((false, [], neg_num_res)::brs_num)
+      with
+      | Suspect (cnj, lc) ->
+        (*[* Format.printf
+          "abd: fallback NumS.abd loc=%a@\nsuspect=%a@\n%!"
+          pr_loc lc pr_formula cnj;
+        *]*)
+        raise (NoAnswer (Num_sort, "numerical abduction failed",
+                         None, lc)) in
   let ans_typ = to_formula ans_typ in
+  let neg_num_res =
+    if not !neg_before_abd then neg_num ans_num
+    else neg_num_res in
   cand_bvs, alien_eqs,
-  (nvs @ tvs, ans_typ @ NumS.formula_of_sort (neg_num @ ans_num))
+  (nvs @ tvs, ans_typ @ NumS.formula_of_sort (neg_num_res @ ans_num))

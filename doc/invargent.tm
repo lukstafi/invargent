@@ -1194,7 +1194,8 @@
   <math|\<neg\><around*|(|w\<geqslant\>0|)>\<Leftrightarrow\>w\<less\>0\<Leftrightarrow\>k*w\<less\>0\<Leftarrow\>k*w+1\<leqslant\>0>.
   In both cases the implications <math|\<Leftarrow\>> would be equivalences
   if the numerical domain was integers rather than rational numbers. At
-  present, we ignore <em|opti> atoms.
+  present, we ignore <em|opti> atoms. The disjunct <math|d<rsub|i>> is a
+  conjunction of inequalities if <math|c<rsub|i>> is a <em|subopti> atom.
 
   Assuming that each negative constraint points to a single atomic fact, we
   try to find one disjunct <math|d<rsub|i>>, resp. <math|d<rsub|i<rsub|1>>>
@@ -1205,8 +1206,8 @@
   be an abduction answer for <math|\<cal-Q\>.\<wedge\><rsub|i:C<rsub|i>\<neq\>\<b-F\>><around*|(|D<rsub|i>\<Rightarrow\>C<rsub|i>|)>>.
   We search for <math|i> such that for all <math|k> with
   <math|C<rsub|k>\<neq\>\<b-F\>> and <math|D<rsub|k>> satisfiable,
-  <math|d<rsub|i>\<wedge\><rsub|j\<neq\>i>c<rsub|j>\<wedge\>A\<wedge\>D<rsub|k>\<wedge\>C<rsub|k>>
-  is satisfiable. We provide a function <math|NegElim<around*|(|\<neg\>D,<wide|B<rsub|i>|\<bar\>>|)>=d<rsub|i<rsub|0>>\<wedge\><rsub|j\<neq\>i<rsub|0>>c<rsub|j>>,
+  <math|d<rsub|i>\<wedge\>A\<wedge\>D<rsub|k>\<wedge\>C<rsub|k>> is
+  satisfiable. We provide a function <math|NegElim<around*|(|\<neg\>D,<wide|B<rsub|i>|\<bar\>>|)>=d<rsub|i<rsub|0>>>,
   where <math|i<rsub|0>> is the first such index found, and
   <math|B<rsub|i>=A\<wedge\>D<rsub|i>\<wedge\>C<rsub|i>>.
 
@@ -1928,35 +1929,19 @@
 <\auxiliary>
   <\collection>
     <\associate|bib>
-      ESOP2014
-
-      ESOP2014
-
-      jcaqpUNIF
-
       AbductionSolvMaher
 
       AbductionSolvMaher
 
-      jcaqpTechRep2
-
       ArithQuantElim
 
       ArithQuantElim
-
-      disjelimTechRep
 
       AntiUnifAlg
 
       ConvexHull
 
       ConvexHull
-
-      invariantsTechRep2
-
-      invariantsTechRep2
-
-      invariantsTechRep2
     </associate>
     <\associate|toc>
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|1<space|2spc>Data

@@ -96,7 +96,7 @@ val holds :
   Defs.quant_ops -> Defs.VarSet.t ->
   state -> NumDefs.formula -> state
 val negation_elim :
-  Defs.quant_ops ->
+  Defs.quant_ops -> bvs:Defs.VarSet.t ->
   verif_cns:state list ->
   (NumDefs.formula * Defs.loc) list ->
   NumDefs.formula

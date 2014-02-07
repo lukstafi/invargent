@@ -551,9 +551,13 @@ let solve_aux ?use_quants ?(strict=false)
   let optis = optis @ more_optis in
   let suboptis = suboptis @ more_suboptis in
   let ineqn = ineqn @ more_ineqn @ flat2 optis in
+  (*[* Format.printf "NumS.solve: start ineqn=@ %a@\n%!"
+    pr_ineqn ineqn; *]*)
   assert (not strict || eqn = []);
   let eqn = if eqs=[] then eqn else List.map (subst_w ~cmp_v eqs) eqn in
   let ineqn = if eqs=[] then ineqn else List.map (subst_w ~cmp_v eqs) ineqn in
+  (*[* Format.printf "NumS.solve: subst1 ineqn=@ %a@\n%!"
+    pr_ineqn ineqn; *]*)
   let eqn = List.map
     (fun (vars, cst, loc) ->
       List.filter (fun (v,k)->k <>/ !/0) vars, cst, loc) eqn in
@@ -589,6 +593,8 @@ let solve_aux ?use_quants ?(strict=false)
   (*[* Format.printf "NumS.solve: solving eqs...@\n%!"; *]*)
   let eqn = List.rev (elim [] eqn) in
   let ineqn = if eqn=[] then ineqn else List.map (subst_w ~cmp_v eqn) ineqn in
+  (*[* Format.printf "NumS.solve: subst2 ineqn=@ %a@\n%!"
+    pr_ineqn ineqn; *]*)
   let eqs = if eqn=[] then eqs else List.map
       (fun (v,eq) -> v, subst_w ~cmp_v eqn eq) eqs in
   (* inequalities [left <= v] and [v <= right] *)
@@ -916,15 +922,16 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
     (* 2 *)
     let zero = [], !/0, dummy_loc in
     (* TODO: attempt at optimizing abduction, doesn't help by itself. *)
-    (*let rev_sb = revert_uni ~cmp_v ~cmp_w ~uni_v ~bvs d_eqn' in
+    (* *)let rev_sb = revert_uni ~cmp_v ~cmp_w ~uni_v ~bvs d_eqn' in
     let c_eqn0 = List.map (subst_w ~cmp_v rev_sb) c_eqn'
     and c_ineqn0 = List.map (subst_w ~cmp_v rev_sb) c_ineqn'
     and c_optis0 = List.map (subst_2w ~cmp_v rev_sb) c_optis'
-    and c_suboptis0 = List.map (subst_2w ~cmp_v rev_sb) c_suboptis' in*)
-    let c_eqn0 = c_eqn'
+    and c_suboptis0 = List.map (subst_2w ~cmp_v rev_sb) c_suboptis' in
+    (* *)
+    (*let c_eqn0 = c_eqn'
     and c_ineqn0 = c_ineqn'
     and c_optis0 = c_optis'
-    and c_suboptis0 = c_suboptis' in
+    and c_suboptis0 = c_suboptis' in*)
     
     let prune (vars, _, _ as w) =
       if List.length vars < !abd_prune_at then Some w else None in
@@ -949,11 +956,11 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
       "NumS.abd_simple: 2.@\neqs_i=@ %a@\nineqs_i=@ %a@\noptis_i=@ \
        %a@\nsuboptis_i=@ %a@\nd_eqn=@ %a@ d_ineqn=@ %a@\nc_eqn=@ \
        %a@\nc_ineqn=@ %a@\nd_ineqn'=@ %a@\nc_ineqn'=@ %a@\nd_eqn'=@ \
-       %a@\nrev_sb=@ %a@\n%!"
+       %a@\n%!"
       pr_w_subst eqs_i pr_ineqs ineqs_i pr_optis optis_i pr_suboptis
       suboptis_i pr_eqn d_eqn pr_ineqn d_ineqn
       pr_eqn c_eqn pr_ineqn c_ineqn pr_ineqn d_ineqn'
-      pr_ineqn c_ineqn' pr_eqn d_eqn' pr_w_subst rev_sb;
+      pr_ineqn c_ineqn' pr_eqn d_eqn';
     *]*)
     (* 3 *)
     (* 4 *)
@@ -2029,41 +2036,71 @@ let holds q avs (eqs, ineqs, optis, suboptis : state) cnj : state =
       ~eqs ~ineqs ~optis ~suboptis ~cnj ~cmp_v ~cmp_w q.uni_v in
   eqs, ineqs, optis, suboptis
 
-let negation_elim q ~verif_cns neg_cns =
+let negation_elim q ~bvs ~verif_cns neg_cns =
   (*[* Format.printf "NumS.negation_elim:@\nneg_cns=@ %a@\n%!"
     (pr_line_list "| " pr_formula) (List.map fst neg_cns); *]*)
   (*[* Format.printf "verif_cns=@ %a@\n%!"
     (pr_line_list "| " pr_state) verif_cns; *]*)
-  let validated_num d_n_cs =
+  let validated_num d =
     try
       List.iter
-        (fun state -> ignore (satisfiable_exn ~state d_n_cs))
+        (fun state -> ignore (satisfiable_exn ~state d))
         verif_cns; true
     with Terms.Contradiction _ -> false in
+  let cmp_v = make_cmp q in
+  let cmp_w (vars1,_,_) (vars2,_,_) =
+    match vars1, vars2 with
+    | [], [] -> 0
+    | _, [] -> -1
+    | [], _ -> 1
+    | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
+  let cmp_v v1 v2 =
+    let c1 = q.uni_v v1 && not (VarSet.mem v1 bvs)
+    and c2 = q.uni_v v2 && not (VarSet.mem v2 bvs) in
+    if c1 && c2 then cmp_v v1 v2
+    else if c1 then -1
+    else if c2 then 1
+    else cmp_v v1 v2 in
+  let uni_v v = q.uni_v v && not (VarSet.mem v bvs) in
+  let revert cnj =
+    let rev_sb, _, _, _ =
+      (* Do not use quantifiers. *)
+      solve ~cnj ~cmp_v ~cmp_w q.uni_v in
+    let rev_sb =
+      List.filter (fun (v,_) -> uni_v v) rev_sb in
+    List.map (fun (v, w) -> v, expand_w w) rev_sb in
   (* The formula will be conjoined to the branches. Note that the
           branch will be non-recursive.  *)
   let res = concat_map
       (fun (cnj, loc) ->
-         let d_n_cs = find_map
-             (fun (c, cs) ->
+         let rev_sb = revert cnj in
+         let cnj = List.map (nsubst_atom rev_sb) cnj in
+         (*[* Format.printf
+           "NumS.negation_elim: rev_sb=%a@\nneg-cnj=%a@\n%!"
+           pr_nsubst rev_sb pr_formula cnj; *]*)
+         let guard_cnj, cnj = List.partition
+             (fun a -> VarSet.exists uni_v (fvs_atom a)) cnj in
+         let cnj = prune_redund ~cmp_v ~cmp_w guard_cnj cnj in
+         let d = find_map
+             (fun c ->
                 match c with
                 | Leq (lhs, rhs, lc) ->
                   let w = NumDefs.diff lhs rhs in
                   let k = denom w in
                   let lhs = NumDefs.scale_term ~-k 1 w in
-                  let d_n_cs = Leq (lhs, Cst (-1, 1), loc)::cs in
-                  if validated_num d_n_cs
-                  then Some d_n_cs else None
+                  let d = [Leq (lhs, Cst (-1, 1), loc)] in
+                  if validated_num d
+                  then Some d else None
                 | Eq (lhs, rhs, lc) ->
                   let w = NumDefs.diff lhs rhs in
                   let k = denom w in
                   let lhs1 = NumDefs.scale_term ~-k 1 w in
-                  let d1_n_cs = Leq (lhs1, Cst (-1, 1), loc)::cs in
-                  if validated_num d1_n_cs then Some d1_n_cs
+                  let d1 = [Leq (lhs1, Cst (-1, 1), loc)] in
+                  if validated_num d1 then Some d1
                   else
                     let lhs2 = NumDefs.scale_term k 1 w in
-                    let d2_n_cs = Leq (lhs2, Cst (-1, 1), loc)::cs in
-                    if validated_num d2_n_cs then Some d2_n_cs
+                    let d2 = [Leq (lhs2, Cst (-1, 1), loc)] in
+                    if validated_num d2 then Some d2
                     else None
                 | Opti _ -> None
                 | Subopti (t1, t2, lc) ->
@@ -2071,15 +2108,15 @@ let negation_elim q ~verif_cns neg_cns =
                   let lhs1 = NumDefs.scale_term ~-k1 1 t1 in
                   let k2 = denom t2 in
                   let lhs2 = NumDefs.scale_term ~-k2 1 t2 in
-                  let d_n_cs =
-                    Leq (lhs1, Cst (-1, 1), loc)::
-                      Leq (lhs2, Cst (-1, 1), loc)::cs in
-                  if validated_num d_n_cs then Some d_n_cs
+                  let d =
+                    [Leq (lhs1, Cst (-1, 1), loc);
+                      Leq (lhs2, Cst (-1, 1), loc)] in
+                  if validated_num d then Some d
                   else None)
-             (one_out cnj) in
+             cnj in
          (*[* Format.printf "NumS.negation_elim: selected d=@ %a@\n%!"
-           (pr_some pr_formula) d_n_cs; *]*)
-         list_some_list d_n_cs)
+           (pr_some pr_formula) d; *]*)
+         list_some_list d)
       neg_cns in
   (*[* Format.printf "NumS.negation_elim:@\nres=@ %a@\n%!"
     pr_formula res; *]*)

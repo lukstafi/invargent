@@ -47,7 +47,7 @@
       <localize|pages >421--435. Springer Berlin / Heidelberg,
       2008.<newblock> 10.1007/978-3-540-89439-1<rsub|3>0.<newblock>
 
-      <bibitem*|4><label|bib-AntiUnifAlg>B<nbsp>Ostvold.<newblock> A
+      <bibitem*|4><label|bib-AntiUnifAlg>B<nbsp>Østvold.<newblock> A
       functional reconstruction of anti-unification.<newblock>
       <localize|Technical Report>, Norwegian Computing Center, Oslo, Norway,
       2004.<newblock>

@@ -379,6 +379,26 @@ let rec append =
         [1,"∃n, k. δ = (List k → List n → List (n + k))"];
     );
 
+  "append asserted" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "list append simple numeric"
+"newtype Elem
+newtype List : num
+newcons LNil : List 0
+newcons LCons : ∀n [0≤n]. Elem * List n ⟶ List (n+1)
+external length : ∀n. List n → Num n = \"length\"
+
+let rec append =
+  function
+    | LNil ->
+      (function l when (length l + 1) <= 0 -> assert false | l -> l)
+    | LCons (x, xs) ->
+      (function LNil -> LCons (x, append xs LNil)
+        | LCons (_,_) as l -> LCons (x, append xs l))"
+        [1,"∃n, k. δ = (List k → List n → List (n + k)) ∧ 0 ≤ n"];
+    );
+
   "interleave" >::
     (fun () ->
        skip_if !debug "debug";
@@ -476,6 +496,51 @@ let rec plus =
         (function Zero -> Zero
           | PZero _ as b -> b
           | POne _ as b -> b)
+      | PZero a1 as a ->
+        (function Zero -> a
+	  | PZero b1 -> PZero (plus CZero a1 b1)
+	  | POne b1 -> POne (plus CZero a1 b1))
+      | POne a1 as a ->
+        (function Zero -> a
+	  | PZero b1 -> POne (plus CZero a1 b1)
+	  | POne b1 -> PZero (plus COne a1 b1)))
+    | COne ->
+    (function Zero ->
+        (function Zero -> POne(Zero)
+	  | PZero b1 -> POne b1
+	  | POne b1 -> PZero (plus COne Zero b1))
+      | PZero a1 as a ->
+        (function Zero -> POne a1
+	  | PZero b1 -> POne (plus CZero a1 b1)
+	  | POne b1 -> PZero (plus COne a1 b1))
+      | POne a1 as a ->
+        (function Zero -> PZero (plus COne a1 Zero)
+	  | PZero b1 -> PZero (plus COne a1 b1)
+	  | POne b1 -> POne (plus COne a1 b1)))"
+        [1,"∃n, k, i. δ = (Carry i → Binary k → Binary n → Binary (n + k + i))"]
+    );
+
+  "binary plus asserted" >::
+    (fun () ->
+       todo "work in progress";
+       (* skip_if !debug "debug"; *)
+       test_case "binary plus"
+"newtype Binary : num
+newtype Carry : num
+
+newcons Zero : Binary 0
+newcons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
+newcons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
+newcons CZero : Carry 0
+newcons COne : Carry 1
+
+external num_of_binary : ∀n. Binary n → Num n = \"num_of_binary\"
+
+let rec plus =
+  function CZero ->
+    (function Zero ->
+        (function b when num_of_binary b+1 <= 0 -> assert false
+           | b (* when 0 <= num_of_binary b *) -> b)
       | PZero a1 as a ->
         (function Zero -> a
 	  | PZero b1 -> PZero (plus CZero a1 b1)
@@ -1629,6 +1694,27 @@ let rec zip =
         [2,"∃n, k. δ = ((Unary n, Unary k) → ∃1:i[i=min (k, n)].Unary i)"]
     );
 
+  "unary minimum asserted" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "unary minimum asserted"
+"newtype Unary : num
+newcons UNil : Unary 0
+newcons UCons : ∀n [0≤n]. Unary n ⟶ Unary (n+1)
+external num_of_unary : ∀n. Unary n → Num n = \"num_of_unary\"
+
+let rec zip =
+  efunction
+    | UNil, u when num_of_unary u + 1 <= 0 -> assert false
+    | UNil, u when 0 <= num_of_unary u -> UNil
+    | UCons _, UNil -> UNil
+    | UCons xs, UCons ys ->
+      let zs = zip (xs, ys) in
+      UCons zs"
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃1:i[i=min (k, n)].Unary i) ∧
+  0 ≤ k"]
+    );
+
   "list zip prefix expanded" >::
     (fun () ->
        skip_if !debug "debug";
@@ -1649,10 +1735,10 @@ let rec zip =
   δ = ((List (a, n), List (b, k)) → ∃1:i[i=min (k, n)].List ((a, b), i))"]
     );
 
-  "unary maximum" >::
+  "unary maximum expanded" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case "unary minimum expanded"
+       test_case "unary maximum"
 "newtype Unary : num
 newcons UNil : Unary 0
 newcons UCons : ∀n [0≤n]. Unary n ⟶ Unary (n+1)
@@ -1668,7 +1754,7 @@ let rec map2 =
         [2,"∃n, k. δ = ((Unary n, Unary k) → ∃1:i[i=max (n, k)].Unary i)"]
     );
 
-  "list map2 with postfix" >::
+  "list map2 with postfix expanded" >::
     (fun () ->
        skip_if !debug "debug";
        test_case "list map2 with postfix"
@@ -1977,7 +2063,7 @@ let rec min_binding = function
 
   "avl_tree_2--rotr-simple" >::
     (fun () ->
-       todo "work in progress";
+       todo "harder test, work in progress";
        (* skip_if !debug "debug"; *)
        test_case ~no_num_abduction:true "avl_tree_2--rotr-simple"
 "newtype Avl : type * num
@@ -1995,14 +2081,15 @@ external singleton : ∀a. a → Avl (a, 1) = \"singleton\"
 
 let rotr = efunction (* hl = hr + 3 *)
     | Empty, x, r -> assert false
-    | (Node (ll, lx, lr, _) as l), x, r ->
-      (ematch height ll, height lr, height l, height r with
-      | _, _, hl, hr when hl <= hr+2 -> assert false
-      | _, _, hl, hr when hr+4 <= hl -> assert false
-      | m, n, _, _ when n <= m ->
+    | Node (ll, lx, lr, hl), x, r ->
+      (ematch height ll, height lr, height r with
+      | _, _, hr when hr+1 <= 0 -> assert false
+      | _, _, hr when hl <= hr+2 -> assert false
+      | _, _, hr when hr+4 <= hl -> assert false
+      | m, n, _ when n <= m ->
         let r' = create lr x r in
         create ll lx r'
-      | m, n, _, _ when m+1 <= n ->
+      | m, n, _ when m+1 <= n ->
         (ematch lr with
         | Empty -> assert false
         | Node (lrl, lrx, lrr, _) ->

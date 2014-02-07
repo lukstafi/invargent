@@ -40,6 +40,8 @@ val subst_atom :
   (Defs.var_name -> Defs.loc -> 'a -> term) ->
   (Defs.var_name * ('a * Defs.loc)) list ->
   atom -> atom
+val nsubst_atom :
+  (Defs.var_name * term) list -> atom -> atom
 val hvsubst_term :
   (Defs.var_name * Defs.var_name) list -> term -> term
 val hvsubst_atom :
@@ -61,5 +63,7 @@ val pr_atom : Format.formatter -> atom -> unit
 val pr_formula : Format.formatter -> formula -> unit
 val pr_num_subst :
   Format.formatter -> (Defs.var_name * (term * Defs.loc)) list -> unit
+val pr_nsubst :
+  Format.formatter -> (Defs.var_name * term) list -> unit
 
 val term_no_parens : term -> bool

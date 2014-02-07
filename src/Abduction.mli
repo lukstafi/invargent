@@ -21,6 +21,11 @@ val no_alien_prem : bool ref
 (** [no_num_abduction=true] does not perform numerical
     abduction. Default [false]. *)
 val no_num_abduction : bool ref
+(** [neg_before_abd=false] moves numerical negation elimination till
+    after numerical abduction, with possibly better determination of
+    negative facts, but worse availability of the negative
+    facts. Default [true]. *)
+val neg_before_abd : bool ref
 
 val abd_fail_flag : bool ref
 val abd_timeout_flag : bool ref

@@ -111,7 +111,7 @@ let main () =
     "Disjunction elimination: check coefficients from 1/N (default 3)";
     "-iterations_timeout", Arg.Set_int Invariants.timeout_count,
     "Limit on main algorithm iterations (default 6)";
-    "-weaker_pruning", Arg.Reset NumS.int_pruning,
+    "-weaker_pruning", Arg.Clear NumS.int_pruning,
     "Do not assume integers as the numerical domain when pruning \
      redundant atoms.";
     "-stronger_pruning", Arg.Set NumS.strong_int_pruning,
