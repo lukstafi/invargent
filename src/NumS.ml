@@ -1639,6 +1639,18 @@ let disjelim_aux q ~preserve ~initstep brs =
       polytopes in
   (*[* Format.printf "NumS.disjelim: faces=@\n%a@\n%!"
     (pr_line_list "| " pr_ineqn) faces; *]*)
+  (* Transitive cl. of faces. *)
+  (*let trans_cl result =
+    let result = List.map
+        (fun (_,_,lc as w) ->
+           let (lhs, rhs as w_key) = expand_sides w in
+           lhs, rhs, lc)
+        result in
+    let result = ineq_transitive_cl ~cmp_v result in
+    let result = Hashtbl.fold
+        (fun w_key loc cnj -> (w_key, loc)::cnj) result [] in
+    List.map (unexpand_sides ~cmp_v) result in
+  let faces_tr_cl = List.map trans_cl faces in*)
   (* Check if a polytope face is also a face of resulting convex hull
      -- its outside does not contain any piece of any polytope. *)
   let check face =
@@ -1650,8 +1662,14 @@ let disjelim_aux q ~preserve ~initstep brs =
            false
          with Terms.Contradiction _ -> true)
       polytopes in
-  let selected : (w list * w list) list =
+  let selected =
     List.map (List.partition check) faces in
+  (*let selected =
+    List.combine
+      (List.map (List.filter check) faces)
+      (List.map (List.filter (fun f -> not (check f))) faces_tr_cl) in*)
+  (*[* Format.printf "NumS.disjelim: selected=%a@\n%!"
+    (pr_line_list "| " pr_ineqn) (List.map fst selected); *]*)
   let ridges : (w * w) list = concat_map
       (fun (sel, ptope) ->
          concat_map (fun p -> List.map (fun s->s, p) sel) ptope)
@@ -1950,7 +1968,7 @@ let converge q ?localvs ?(guard=[]) ~initstep cnj1 cnj2 =
           (fun c -> VarSet.is_empty (VarSet.inter localvs (fvs_atom c)))
           res
       | _ -> [], res in
-  (*[* Format.printf "NumS.converge:@\nans1=@ %a@\nans2=@ %a@\nres=@ %a%!"
+  (*[* Format.printf "NumS.converge:@\nans1=@ %a@\nans2=@ %a@\nres=@ %a@\n%!"
     pr_formula ans1 pr_formula ans2 pr_formula res; *]*)
   prune_redund ~cmp_v ~cmp_w (more_guard @ guard) res
 

@@ -110,7 +110,7 @@ let main () =
     "-disjelim_rotations", Arg.Set_int NumS.disjelim_rotations,
     "Disjunction elimination: check coefficients from 1/N (default 3)";
     "-iterations_timeout", Arg.Set_int Invariants.timeout_count,
-    "Limit on main algorithm iterations (default 6)";
+    "Limit on main algorithm iterations (default 7)";
     "-weaker_pruning", Arg.Clear NumS.int_pruning,
     "Do not assume integers as the numerical domain when pruning \
      redundant atoms.";

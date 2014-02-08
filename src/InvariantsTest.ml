@@ -1248,7 +1248,7 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
-        [2,"∃n. δ = (List n → ∃2:k[0 ≤ k ∧ k ≤ n].List k)"];
+        [2,"∃n. δ = (List n → ∃2:k[k ≤ n ∧ 0 ≤ k].List k)"];
 
     );
 
@@ -1272,7 +1272,7 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
-        [2,"∃n. δ = (List (Bar, n) → ∃2:k[0 ≤ k ∧ k ≤ n].List (Bar, k))"];
+        [2,"∃n. δ = (List (Bar, n) → ∃2:k[k ≤ n ∧ 0 ≤ k].List (Bar, k))"];
 
     );
 
@@ -1295,7 +1295,7 @@ let rec filter = fun f ->
           filter f xs"
         [2,"∃n, a.
   δ =
-    ((a → Bool) → List (a, n) → ∃2:k[0 ≤ k ∧ k ≤ n].List (a, k))"];
+    ((a → Bool) → List (a, n) → ∃2:k[k ≤ n ∧ 0 ≤ k].List (a, k))"];
 
     );
 
@@ -1318,8 +1318,8 @@ let rec filter = fun f g ->
           filter f g xs"
         [2,"∃n, a, b.
   δ =
-    ((a → Bool) → (a → b) → List (a, n) → ∃2:k[0 ≤ k ∧
-       k ≤ n].List (b, k))"];
+    ((a → Bool) → (a → b) → List (a, n) → ∃2:k[k ≤ n ∧
+       0 ≤ k].List (b, k))"];
 
     );
 
@@ -1392,8 +1392,8 @@ let rec ub = efunction
           POne r)"
         [2,"∃n, k.
   δ =
-    (Binary k → Binary n → ∃4:i[i ≤ n + k ∧ n ≤ i ∧
-       k ≤ i].Binary i)"]
+    (Binary k → Binary n → ∃4:i[i ≤ n + k ∧ k ≤ i ∧
+       n ≤ i].Binary i)"]
     );
 
   "binary upper bound" >::
@@ -1751,7 +1751,7 @@ let rec map2 =
     | UCons xs, UCons ys ->
       let zs = map2 (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃1:i[i=max (n, k)].Unary i)"]
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃1:i[i=max (k, n)].Unary i)"]
     );
 
   "list map2 with postfix expanded" >::
@@ -1797,8 +1797,8 @@ let rec filter_zip = fun f ->
       | False -> zs"
         [2,"∃n, k, a, b.
   δ =
-    ((a → b → Bool) → (List (a, n), List (b, k)) → ∃2:i[i ≤ n ∧
-       i ≤ k ∧ 0 ≤ i].List ((a, b), i))"]
+    ((a → b → Bool) → (List (a, n), List (b, k)) → ∃2:i[0 ≤ i ∧
+       i ≤ k ∧ i ≤ n].List ((a, b), i))"]
     );
 
   "list filter-map2 with postfix" >::
@@ -1822,13 +1822,13 @@ let rec filter_map2 = fun p f ->
         [2,"∃n, k, a.
   δ =
     ((a → a → Bool) → (a → a → a) →
-       (List (a, n), List (a, k)) → ∃2:i[i ≤ n + k ∧ n ≤ k + i ∧
-       k ≤ n + i].List (a, i))"]
+       (List (a, n), List (a, k)) → ∃2:i[k ≤ n + i ∧ i ≤ n + k ∧
+       n ≤ k + i].List (a, i))"]
     );
 
   "list filter-map2 with filter postfix mono" >::
     (fun () ->
-       skip_if !debug "debug";
+       (* skip_if !debug "debug"; *)
        test_case "list filter-map2 with filter postfix mono"
 "newtype Bar
 newtype List : num
@@ -1987,8 +1987,8 @@ let rec map2_filter = fun q r f g h ->
         [2,"∃n, k, a, b, c.
   δ =
     ((a → Bool) → (b → Bool) → (a → b → c) → (a → c) →
-       (b → c) → (List (a, n), List (b, k)) → ∃3:i[min (n, k)≤i ∧
-       i≤max (n, k)].List (c, i))"]
+       (b → c) → (List (a, n), List (b, k)) → ∃3:i[i≤max (n, k) ∧
+       min (n, k)≤i].List (c, i))"]
     );
 
   "avl_tree_2--height" >::
@@ -2063,8 +2063,7 @@ let rec min_binding = function
 
   "avl_tree_2--rotr-simple" >::
     (fun () ->
-       todo "harder test, work in progress";
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case ~no_num_abduction:true "avl_tree_2--rotr-simple"
 "newtype Avl : type * num
 newcons Empty : ∀a. Avl (a, 0)
@@ -2097,7 +2096,11 @@ let rotr = efunction (* hl = hr + 3 *)
           let r' = create lrr x r in
           create l' lrx r'))
 "
-        [2,""];
+        [2,"∃n, a.
+  δ =
+    ((Avl (a, n + 3), a, Avl (a, n)) → ∃4:k[n + 3 ≤ k ∧
+       k ≤ n + 4].Avl (a, k)) ∧
+  0 ≤ n"];
     );
 
   "avl_tree_2--rotr" >::
@@ -2135,6 +2138,51 @@ let rotr = fun l x r -> (* hl = hr + 3 *)
           create l' lrx r')))
 "
         [2,""];
+    );
+
+  (* The [rotl] functions are symmetrical to [rotr]. *)
+  "avl_tree_2--rotl-simple" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case ~no_num_abduction:true "avl_tree--rotl"
+"newtype Avl : type * num
+newcons Empty : ∀a. Avl (a, 0)
+newcons Node :
+  ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
+     Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
+
+external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external create :
+  ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
+      Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
+       0 ≤ i].Avl (a, i) = \"create\"
+external singleton : ∀a. a → Avl (a, 1) = \"singleton\"
+
+let rotl = efunction (* hl + 3 = hr *)
+    | l, x, Empty -> assert false
+    | l, x, Node (rl, rx, rr, hr) ->
+      (ematch height rl, height rr, height l with
+      | _, _, hl when hl+1 <= 0 -> assert false
+      | _, _, hl when hr <= hl+2 -> assert false
+      | _, _, hl when hl+4 <= hr -> assert false
+      | m, n, _ when n <= m ->
+      (ematch height rr, height rl with
+      | m, n when n <= m ->
+        let l' = create l x rl in
+        create l' rx rr
+      | m, n when m+1 <= n ->
+        (ematch rl with
+        | Empty -> assert false
+        | Node (rll, rlx, rlr, _) ->
+          let l' = create l x rll in
+          let r' = create rlr rx rr in
+          create l' rlx r')))
+"
+        [2,"∃n, a.
+  δ =
+    ((Avl (a, n), a, Avl (a, n + 3)) → ∃5:k[n + 3 ≤ k ∧
+       k ≤ n + 4].Avl (a, k)) ∧
+  0 ≤ n"];
     );
 
   "avl_tree_2--rotl" >::
@@ -2196,7 +2244,6 @@ external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
        0 ≤ i].Avl (a, i) = \"create\"
-
 external rotr :
   ∀n, a. Avl (a, n+3) → a → Avl (a, n) →
        ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotr\"
@@ -2222,8 +2269,8 @@ let rec add = fun x -> efunction
 "
         [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃7:k[k ≤ n + 1 ∧ n ≤ k ∧
-       1 ≤ k].Avl (a, k))"];
+    (a → Avl (a, n) → ∃7:k[k ≤ n + 1 ∧ 1 ≤ k ∧
+       n ≤ k].Avl (a, k))"];
     );
 
   "avl_tree_2--add" >::
@@ -2249,7 +2296,6 @@ external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
        0 ≤ i].Avl (a, i) = \"create\"
-
 external rotr :
   ∀n, a. Avl (a, n+3) → a → Avl (a, n) →
        ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotr\"
@@ -2302,7 +2348,6 @@ external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
        0 ≤ i].Avl (a, i) = \"create\"
-
 external rotr :
   ∀n, a. Avl (a, n+3) → a → Avl (a, n) →
        ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotr\"
@@ -2322,7 +2367,7 @@ let rec remove_min_binding = efunction
 (* The inequality [k + 2 ≤ 2 n] corresponds to the fact [n=1 ==> k=0]. *)
         [2,"∃n, a.
   δ =
-    (Avl (a, n) → ∃5:k[k + 2 ≤ 2 n ∧ n ≤ k + 1 ∧
+    (Avl (a, n) → ∃5:k[n ≤ k + 1 ∧ k + 2 ≤ 2 n ∧
        k ≤ n].Avl (a, k)) ∧
   1 ≤ n"];
     );
@@ -2350,7 +2395,6 @@ external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
        0 ≤ i].Avl (a, i) = \"create\"
-
 external rotr :
   ∀n, a. Avl (a, n+3) → a → Avl (a, n) →
        ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotr\"
@@ -2374,6 +2418,112 @@ let rec remove_min_binding = efunction
        k ≤ n].Avl (a, k)) ∧
   1 ≤ n"];
     );
+
+  "avl_tree_2--merge-simple" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case ~no_num_abduction:true "avl_tree--merge-simple"
+"newtype Avl : type * num
+newcons Empty : ∀a. Avl (a, 0)
+newcons Node :
+  ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
+     Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
+newtype LinOrder
+newcons LT : LinOrder
+newcons EQ : LinOrder
+newcons GT : LinOrder
+external let compare : ∀a. a → a → LinOrder =
+  \"fun x y -> let c=Pervasives.compare x y in
+              if c<0 then LT else if c=0 then EQ else GT\"
+
+external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external create :
+  ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
+      Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
+       0 ≤ i].Avl (a, i) = \"create\"
+external rotr :
+  ∀n, a. Avl (a, n+3) → a → Avl (a, n) →
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotr\"
+external rotl :
+  ∀n, a. Avl (a, n) → a → Avl (a, n+3) →
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotl\"
+external min_binding : ∀n, a [1 ≤ n]. Avl (a, n) → a = \"min_binding\"
+external remove_min_binding :
+  ∀n, a [1 ≤ n]. Avl (a, n) →
+    ∃k[k + 2 ≤ 2 n ∧ n ≤ k + 1 ∧ k ≤ n].Avl (a, k)
+  = \"remove_min_binding\"
+  
+
+let merge = efunction
+  | Empty, Empty -> Empty
+  | Empty, (Node (_,_,_,_) as t) -> t
+  | (Node (_,_,_,_) as t), Empty -> t
+  | (Node (_,_,_,_) as t1), (Node (_,_,_,_) as t2) ->
+    let x = min_binding t2 in
+    let t2' = remove_min_binding t2 in
+    (ematch height t1, height t2' with
+     | ht1, ht2' when ht1 <= ht2'+2 && ht2' <= ht1+2 -> create t1 x t2'
+     | ht1, ht2' when ht1+3 <= ht2' -> rotl t1 x t2'
+     | ht1, ht2' when ht2'+3 <= ht1 -> rotr t1 x t2')
+"
+(* FIXME: find by hand what the postcondition should be. *)
+        [2,"∃n, k, a.
+  δ =
+    ((Avl (a, n), Avl (a, k)) → ∃6:i[i ≤ n + k ∧ k ≤ i ∧
+       n ≤ i].Avl (a, i))"];
+    );
+
+  "avl_tree_2--merge" >::
+    (fun () ->
+       todo "harder test, work in progress";
+       (* skip_if !debug "debug"; *)
+       test_case "avl_tree--remove_min_binding"
+"newtype Avl : type * num
+newcons Empty : ∀a. Avl (a, 0)
+newcons Node :
+  ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
+     Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
+newtype LinOrder
+newcons LT : LinOrder
+newcons EQ : LinOrder
+newcons GT : LinOrder
+external let compare : ∀a. a → a → LinOrder =
+  \"fun x y -> let c=Pervasives.compare x y in
+              if c<0 then LT else if c=0 then EQ else GT\"
+
+external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external create :
+  ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
+      Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
+       0 ≤ i].Avl (a, i) = \"create\"
+external rotr :
+  ∀n, a. Avl (a, n+3) → a → Avl (a, n) →
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotr\"
+external rotl :
+  ∀n, a. Avl (a, n) → a → Avl (a, n+3) →
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotl\"
+external min_binding : ∀n, a [1 ≤ n]. Avl (a, n) → a = \"min_binding\"
+external remove_min_binding :
+  ∀n, a [1 ≤ n]. Avl (a, n) →
+    ∃k[k + 2 ≤ 2 n ∧ n ≤ k + 1 ∧ k ≤ n].Avl (a, k)
+  = \"remove_min_binding\"
+  
+
+let merge = efunction
+  | Empty, Empty -> Empty
+  | Empty, (Node (_,_,_,_) as t) -> t
+  | (Node (_,_,_,_) as t), Empty -> t
+  | (Node (_,_,_,_) as t1), (Node (_,_,_,_) as t2) ->
+    let x = min_binding t2 in
+    let t2' = remove_min_binding t2 in
+    (ematch height t1, height t2' with
+     | ht1, ht2' when ht1 <= ht2'+2 && ht2' <= ht1+2 -> create t1 x t2'
+     | ht1, ht2' when ht1+3 <= ht2' -> rotl t1 x t2'
+     | ht1, ht2' when ht2'+3 <= ht1 -> rotr t1 x t2')
+"
+        [2,""];
+    );
+
 
 ]
 

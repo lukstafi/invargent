@@ -985,16 +985,44 @@ let infer_prog solver prog =
 
 type branch = Terms.formula * Terms.formula
 
+let rec remove_qns = function
+  | All (_, cn) | Ex (_, cn) -> remove_qns cn
+  | A _ as cn -> cn
+  | And cns -> And (List.map remove_qns cns)
+  | Or cns -> Or (List.map (fun (cn,tr) -> remove_qns cn, tr) cns)
+  | Impl (prem, concl) -> Impl (prem, remove_qns concl)
+
 let prenexize cn =
-  let quants = Hashtbl.create 2048 in
+  let quant = Hashtbl.create 64 in
   let univars = Hashtbl.create 32 in
   let allvars = Hashtbl.create 64 in
-  let same_tbl = Hashtbl.create 32 in
-  let same_as v1 v2 = Hashtbl.replace same_tbl v1 v2 in
+  let same_as v1 v2 =
+    if Hashtbl.mem quant v1
+    then (
+      let q_id = Hashtbl.find quant v1 in
+      Hashtbl.replace quant v2 q_id;
+      if Hashtbl.mem univars v1
+      then Hashtbl.replace univars v2 (Hashtbl.find univars v1)
+      else Hashtbl.remove univars v2)
+    else if Hashtbl.mem quant v2
+    then (
+      let q_id = Hashtbl.find quant v2 in
+      Hashtbl.replace quant v1 q_id;
+      if Hashtbl.mem univars v2
+      then Hashtbl.replace univars v1 (Hashtbl.find univars v2)
+      else Hashtbl.remove univars v1)
+    else (
+        (*[* Format.printf "same_as: unknown vars %s, %s@\n%!"
+          (var_str v1) (var_str v2); *]*)
+      assert false) in
   let cmp_v v1 v2 =
-    let v1 = try Hashtbl.find same_tbl v1 with Not_found -> v1
-    and v2 = try Hashtbl.find same_tbl v2 with Not_found -> v2 in
-    try Hashtbl.find quants (v1, v2) with Not_found ->
+    try
+      let id1 = Hashtbl.find quant v1
+      and id2 = Hashtbl.find quant v2 in
+      if id1 < id2 then Left_of
+      else if id1 = id2 then Same_quant
+      else Right_of
+    with Not_found ->
       let c1 = not (Hashtbl.mem allvars v1)
       and c2 = not (Hashtbl.mem allvars v2) in
       if c1 && c2 then Same_quant
@@ -1005,45 +1033,45 @@ let prenexize cn =
           (var_str v1) (var_str v2); *]*)
         assert false) in
   let uni_v v =
-    let v = try Hashtbl.find same_tbl v with Not_found -> v in
     try Hashtbl.find univars v with Not_found -> false in
-  let up_vars = ref VarSet.empty and same_vars = ref VarSet.empty
+  let current_id = ref 0
+  (*[* and current_vars = ref VarSet.empty *]*)
   and change = ref true and at_uni = ref true in
-  let add_var_rels vs =
-    VarSet.iter (fun v -> Hashtbl.add allvars v ()) vs;
-    VarSet.iter (fun uv ->
-        VarSet.iter (fun dv ->
-            Hashtbl.add quants (uv,dv) Left_of;
-            Hashtbl.add quants (dv,uv) Right_of
-          ) vs) !up_vars;
-    VarSet.iter (fun av ->
-        VarSet.iter (fun bv ->
-            Hashtbl.add quants (av,bv) Same_quant;
-            Hashtbl.add quants (bv,av) Same_quant) vs) !same_vars;
-    VarSet.iter (fun av ->
-        VarSet.iter (fun bv ->
-            Hashtbl.add quants (av,bv) Same_quant) vs) vs;
-    change := true; same_vars := VarSet.union vs !same_vars in
+  let q_add_vars vs =
+    VarSet.iter (fun v ->
+        Hashtbl.add quant v !current_id;
+        Hashtbl.add allvars v ())
+      vs;
+    (*[* current_vars := VarSet.union !current_vars vs; *]*)
+    change := true in
   let alternate () =
     (*[* Format.printf "alternate: %s.%a@\n%!" (if !at_uni then "∀" else "∃")
-      pr_vars !same_vars; *]*)
-    up_vars := VarSet.union !same_vars !up_vars;
-    same_vars := VarSet.empty;
+      pr_vars !current_vars;
+    current_vars := VarSet.empty;
+     *]*)
+    incr current_id;
     change := false; at_uni := not !at_uni in
   let rec aux = function
+    | (All (vs, cn) | Ex (vs, cn))
+      when VarSet.is_empty vs ->
+      aux cn    
+    | (All (vs, cn) | Ex (vs, cn))
+      when Hashtbl.mem allvars (VarSet.choose vs) ->
+      aux cn
     | All (vs, cn) when !at_uni ->
       VarSet.iter (fun v -> Hashtbl.add univars v true) vs;
-      add_var_rels vs; aux cn
-    | Ex (vs, cn) when not !at_uni -> add_var_rels vs; aux cn
-    | (All _ | Ex _ | A _) as cn -> cn
-    | And cns -> And (List.map aux cns)
-    | Or cns -> Or (List.map (fun (cn,tr) -> aux cn, tr) cns)
-    | Impl (prem, concl) -> Impl (prem, aux concl) in
-  let rec loop cn =
-    if !change then (alternate (); loop (aux cn))
-    else cn in
+      q_add_vars vs; aux cn
+    | Ex (vs, cn) when not !at_uni -> q_add_vars vs; aux cn
+    | (All _ | Ex _ | A _) -> ()
+    | And cns -> List.iter aux cns
+    | Or cns -> List.iter (fun (cn,tr) -> aux cn) cns
+    | Impl (prem, concl) -> aux concl in
+  let rec loop () =
+    alternate (); aux cn; if !change then loop () in
   (* Start the prefix from existential quantifiers. *)
-  {cmp_v; uni_v; same_as}, loop cn
+  loop ();
+  (*[* Format.printf "prenexize: done@\n%!"; *]*)
+  {cmp_v; uni_v; same_as}, remove_qns cn
 
 type 'a guarded_br = {
   guard_cnj : formula;
