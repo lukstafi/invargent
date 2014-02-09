@@ -1797,8 +1797,8 @@ let rec filter_zip = fun f ->
       | False -> zs"
         [2,"∃n, k, a, b.
   δ =
-    ((a → b → Bool) → (List (a, n), List (b, k)) → ∃2:i[0 ≤ i ∧
-       i ≤ k ∧ i ≤ n].List ((a, b), i))"]
+    ((a → b → Bool) → (List (a, n), List (b, k)) → ∃2:i[i ≤ k ∧
+       i ≤ n ∧ 0 ≤ i].List ((a, b), i))"]
     );
 
   "list filter-map2 with postfix" >::
@@ -1822,13 +1822,13 @@ let rec filter_map2 = fun p f ->
         [2,"∃n, k, a.
   δ =
     ((a → a → Bool) → (a → a → a) →
-       (List (a, n), List (a, k)) → ∃2:i[k ≤ n + i ∧ i ≤ n + k ∧
-       n ≤ k + i].List (a, i))"]
+       (List (a, n), List (a, k)) → ∃2:i[0 ≤ i ∧ k ≤ n + i ∧
+       n ≤ k + i ∧ i≤max (n, k)].List (a, i))"]
     );
 
   "list filter-map2 with filter postfix mono" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "list filter-map2 with filter postfix mono"
 "newtype Bar
 newtype List : num
@@ -1857,7 +1857,7 @@ let rec filter_map2 =
       | True -> LCons (f x y, zs)
       | False -> zs"
         [2,"∃n, k.
-  δ = ((List n, List k) → ∃4:i[0 ≤ i ∧ i≤max (n, k)].List i)"]
+  δ = ((List n, List k) → ∃4:i[0 ≤ i ∧ i≤max (k, n)].List i)"]
     );
 
   "non-num no postcond list filter-map2 with filter postfix" >::
@@ -1963,7 +1963,7 @@ let rec filter_map2 = fun p q r f g h ->
   "list map2 with filter postfix" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case "list filter-map2 with filter postfix"
+       test_case "list map2 with filter postfix"
 "newtype List : type * num
 newcons LNil : ∀a. List(a, 0)
 newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
@@ -1988,7 +1988,7 @@ let rec map2_filter = fun q r f g h ->
   δ =
     ((a → Bool) → (b → Bool) → (a → b → c) → (a → c) →
        (b → c) → (List (a, n), List (b, k)) → ∃3:i[i≤max (n, k) ∧
-       min (n, k)≤i].List (c, i))"]
+       min (k, n)≤i].List (c, i))"]
     );
 
   "avl_tree_2--height" >::
@@ -2466,11 +2466,14 @@ let merge = efunction
      | ht1, ht2' when ht1+3 <= ht2' -> rotl t1 x t2'
      | ht1, ht2' when ht2'+3 <= ht1 -> rotr t1 x t2')
 "
-(* FIXME: find by hand what the postcondition should be. *)
+(* Although a postcondition like [i≤max (n + 1, k + 1) ∧ i ≤ n + k ∧
+   k - 1 ≤ i ∧ n ≤ i] would be nicer, the answer below is technically
+   correct. Note that in fact [n] and [k] differ by at most 3. *)
         [2,"∃n, k, a.
   δ =
-    ((Avl (a, n), Avl (a, k)) → ∃6:i[i ≤ n + k ∧ k ≤ i ∧
-       n ≤ i].Avl (a, i))"];
+    ((Avl (a, n), Avl (a, k)) → ∃6:i[k ≤ n + i ∧ i ≤ n + k ∧
+       n ≤ i ∧ i≤max (n + 4, k) ∧ min (k, n + 3)≤i ∧
+       k≤max (n + 4, i)].Avl (a, i))"];
     );
 
   "avl_tree_2--merge" >::

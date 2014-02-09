@@ -1639,18 +1639,6 @@ let disjelim_aux q ~preserve ~initstep brs =
       polytopes in
   (*[* Format.printf "NumS.disjelim: faces=@\n%a@\n%!"
     (pr_line_list "| " pr_ineqn) faces; *]*)
-  (* Transitive cl. of faces. *)
-  (*let trans_cl result =
-    let result = List.map
-        (fun (_,_,lc as w) ->
-           let (lhs, rhs as w_key) = expand_sides w in
-           lhs, rhs, lc)
-        result in
-    let result = ineq_transitive_cl ~cmp_v result in
-    let result = Hashtbl.fold
-        (fun w_key loc cnj -> (w_key, loc)::cnj) result [] in
-    List.map (unexpand_sides ~cmp_v) result in
-  let faces_tr_cl = List.map trans_cl faces in*)
   (* Check if a polytope face is also a face of resulting convex hull
      -- its outside does not contain any piece of any polytope. *)
   let check face =
@@ -1664,10 +1652,6 @@ let disjelim_aux q ~preserve ~initstep brs =
       polytopes in
   let selected =
     List.map (List.partition check) faces in
-  (*let selected =
-    List.combine
-      (List.map (List.filter check) faces)
-      (List.map (List.filter (fun f -> not (check f))) faces_tr_cl) in*)
   (*[* Format.printf "NumS.disjelim: selected=%a@\n%!"
     (pr_line_list "| " pr_ineqn) (List.map fst selected); *]*)
   let ridges : (w * w) list = concat_map
@@ -1814,75 +1798,126 @@ let disjelim_aux q ~preserve ~initstep brs =
                 lhs, rhs, lc) ptope in
          ineq_transitive_cl ~cmp_v p_ineqs)
       faces in
+  let add_subopti_cand c suboptis =
+    (*[*
+    let wf_of_choice = function
+      | Left (w,_,_)->Leq_w w
+      | Right (w1,w2,_,_,_) -> Subopti_w (w1,w2) in
+    Format.printf "add_subopti: c=%a@\nsuboptis=%a@\n%!"
+      pr_w_atom (wf_of_choice c)
+      pr_w_formula (List.map wf_of_choice suboptis); *]*)      
+    match c with
+    | Left (([], _, _), _, _) -> suboptis
+    | Left (([_], _, _), _, _) when !no_subopti_of_cst -> suboptis
+    | Left (w, _, _) ->
+      if List.exists
+          (function
+            | Left (w2, _, _) ->
+              atomic_impl ~cmp_v (Leq_w w2) (Leq_w w)
+            | _ -> false) suboptis
+      then suboptis
+      else
+        c::List.filter
+            (function
+              | Left (w2, _, _) ->
+                not (atomic_impl ~cmp_v (Leq_w w) (Leq_w w2))
+              | Right (w2, w3, _, _, _) ->
+                not (atomic_impl ~cmp_v (Leq_w w) (Subopti_w (w2, w3))))
+            suboptis
+    | Right (([_], _, _), _, _, _, _) when !no_subopti_of_cst -> suboptis
+    | Right (_, ([_], _, _), _, _, _) when !no_subopti_of_cst -> suboptis
+    | Right (w1, w2, _, _, _) ->
+      if List.exists
+          (function
+            | Left (w3, _, _) ->
+              atomic_impl ~cmp_v (Leq_w w3) (Subopti_w (w1, w2))
+            | Right (w3, w4, _, _, _) ->
+              atomic_impl ~cmp_v (Subopti_w (w3, w4)) (Subopti_w (w1, w2)))
+          suboptis
+      then suboptis
+      else
+        c::List.filter
+            (function
+              | Left _ -> true
+              | Right (w3, w4, _, _, _) ->
+                not (atomic_impl ~cmp_v (Subopti_w (w1, w2))
+                       (Subopti_w (w3, w4))))
+            suboptis in               
   let suboptis =
     if ptopes_ineqs = [] then []
     else Hashtbl.fold
-        (fun (lhs, rhs as w_key) lc suboptis ->
-           let w = NumDefs.diff lhs rhs in
-           let vars, _ = NumDefs.flatten w in
-           match vars with
-           | [] -> suboptis
-           | [_] when !no_subopti_of_cst || initstep -> suboptis
-           | _ -> Left (w, w_key, lc) :: suboptis)
+        (fun w_key lc suboptis ->
+           add_subopti_cand
+             (Left (unexpand_sides ~cmp_v (w_key, lc), w_key, lc))
+             suboptis)
         (List.hd ptopes_ineqs) [] in
   let suboptis =
     if ptopes_ineqs = [] then []
     else
       List.fold_left
+        (* TODO: optimize by keeping [suboptis] unique *)
         (fun suboptis ptope ->
            (*[* let left, right = partition_choice suboptis in
-           let left = List.map
-               (fun (_, w, lc) -> unexpand_sides ~cmp_v (w, lc)) left in
+           let left = List.map fst3 left in
            let right = List.map
-               (fun (_, _, w1, w2, lc) ->
-                  unexpand_sides ~cmp_v (w1, lc),
-                  unexpand_sides ~cmp_v (w2, lc)) right in
+               (fun (w1, w2, _, _, lc) -> w1, w2) right in
            Format.printf
              "NumS.disjelim: subopti step@\nleft=%a;@ right=%a@\n%!"
              pr_ineqn left pr_suboptis right; *]*)
-           (* TODO: allow weakening of candidate inequalities (by a constant) *)
-           concat_map
-             (function
+           List.fold_left (fun suboptis ->
+               function
                | Left (w, w_key, lc) as cand ->
-                 if Hashtbl.mem ptope w_key then [cand]
+                 if Hashtbl.mem ptope w_key then cand::suboptis
                  else Hashtbl.fold
-                     (fun (lhs, rhs as w_key2) lc2 more_subopt ->
-                        let w2 = NumDefs.diff lhs rhs in
-                        match NumDefs.direct_opti w w2 with
-                        | Some (_,_,Add ([] | [Cst _]), _)
-                          when !no_subopti_of_cst || initstep ->
-                          more_subopt
-                        | Some (_,_,_,Add ([] | [Cst _]))
-                          when !no_subopti_of_cst || initstep ->
-                          more_subopt
-                        | Some _ when w_key < w_key2 ->
+                     (fun w2_key lc2 suboptis ->
+                        let w2 = unexpand_sides ~cmp_v (w2_key, lc2) in
+                        match direct_opti (w, w2) with
+                        | Some _ ->
                           (*[* Format.printf
                             "subopti: w1=%a;@ w2=%a@\n%!"
-                            pr_term w pr_term w2; *]*)
-                          (* Aribtrary breaking of symmetry. *)
-                          Right (w, w2, w_key, w_key2, loc_union lc lc2)
-                          ::more_subopt
-                        | _ -> more_subopt) ptope []
+                            pr_w w pr_w w2; *]*)
+                          (* Pick the weaker inequality. *)
+                          (match diff ~cmp_v w w2 with
+                           | [], cst, _ when cst <=/ !/0 ->
+                             add_subopti_cand (Left (w, w_key, lc2)) suboptis
+                           | [], cst, _ ->
+                             add_subopti_cand (Left (w2, w2_key, lc)) suboptis
+                           | _ ->
+                             add_subopti_cand
+                               (Right (w, w2, w_key, w2_key,
+                                       loc_union lc lc2))
+                               suboptis)
+                        | _ -> suboptis) ptope suboptis
                | Right (w1, w2, w1_key, w2_key, lc) as cand ->
+                 let aux w w_key w' w'_key
+                     w3_key lc3 suboptis =
+                   let w3 = unexpand_sides ~cmp_v (w3_key, lc3) in
+                   match direct_opti (w, w3) with
+                   | Some _ ->
+                     (*[* Format.printf
+                       "subopti-aux: w=%a;@ w'=%a@\n%!"
+                       pr_w w pr_w w'; *]*)
+                     (* Pick the weaker inequality. *)
+                     (match diff ~cmp_v w w3 with
+                      | [], cst, _ when cst <=/ !/0 ->
+                        add_subopti_cand
+                          (Right (w, w', w_key, w'_key, lc3)) suboptis
+                      | [], cst, _ ->
+                        add_subopti_cand
+                          (Right (w3, w', w3_key, w'_key, lc)) suboptis
+                      | _ -> suboptis)
+                   | _ -> suboptis in
                  if Hashtbl.mem ptope w1_key || Hashtbl.mem ptope w2_key
-                 then [cand] else [])
-             suboptis)
+                 then cand::suboptis
+                 else Hashtbl.fold (aux w1 w1_key w2 w2_key) ptope
+                     (Hashtbl.fold (aux w2 w2_key w1 w1_key) ptope
+                        suboptis))
+             [] suboptis)
         suboptis (List.tl ptopes_ineqs) in
   let suboptis = map_some
       (function
         | Left _ -> None
-        | Right (w1_t, w2_t, w1_key, w2_key, lc) ->
-          let vars1, _, _ as w1 = unexpand_sides ~cmp_v (w1_key, lc) in
-          let vars2, _, _ as w2 = unexpand_sides ~cmp_v (w2_key, lc) in
-          (*[* Format.printf
-            "subopti-exp: w1_t=%a;@ w1=%a;@ w2_t=%a;@ w2=%a@\n%!"
-            pr_term w1_t pr_w w1 pr_term w2_t pr_w w2; *]*)  
-          let d_vars, _, _ = diff ~cmp_v w1 w2 in
-          (* Even if is directed, [d_vars=[]] means the subopti is
-             equivalent to an inequality. *)
-          (* TODO: [vars1 = [] || vars2 = []] shouldn't have happened. *)
-          if d_vars = [] || vars1 = [] || vars2 = [] then None
-          else Some (w1, w2))
+        | Right (w1, w2, w1_key, w2_key, lc) -> Some (w1, w2))
       suboptis in
   (*[* Format.printf "NumS.disjelim: suboptis=@\n%a@\n%!"
     pr_suboptis suboptis; *]*)  
