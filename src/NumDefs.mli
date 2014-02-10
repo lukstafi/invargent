@@ -48,6 +48,7 @@ val hvsubst_atom :
   (Defs.var_name * Defs.var_name) list -> atom -> atom
 val term_size : term -> int
 val atom_size : atom -> int
+val formula_size : formula -> int
 val iter_terms : (term -> unit) -> atom -> unit
 val scale_term : int -> int -> term -> term
 val iter_term_vars : (Defs.var_name -> unit) -> term -> unit

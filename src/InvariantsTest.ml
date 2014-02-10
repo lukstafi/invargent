@@ -2458,22 +2458,20 @@ let merge = efunction
   | Empty, Empty -> Empty
   | Empty, (Node (_,_,_,_) as t) -> t
   | (Node (_,_,_,_) as t), Empty -> t
+  | Node (_,_,_,ht1), Node (_,_,_,ht2) when ht1+3 <= ht2 -> assert false
+  | Node (_,_,_,ht1), Node (_,_,_,ht2) when ht2+3 <= ht1 -> assert false
   | (Node (_,_,_,_) as t1), (Node (_,_,_,_) as t2) ->
     let x = min_binding t2 in
     let t2' = remove_min_binding t2 in
     (ematch height t1, height t2' with
      | ht1, ht2' when ht1 <= ht2'+2 && ht2' <= ht1+2 -> create t1 x t2'
-     | ht1, ht2' when ht1+3 <= ht2' -> rotl t1 x t2'
      | ht1, ht2' when ht2'+3 <= ht1 -> rotr t1 x t2')
 "
-(* Although a postcondition like [i≤max (n + 1, k + 1) ∧ i ≤ n + k ∧
-   k - 1 ≤ i ∧ n ≤ i] would be nicer, the answer below is technically
-   correct. Note that in fact [n] and [k] differ by at most 3. *)
         [2,"∃n, k, a.
   δ =
-    ((Avl (a, n), Avl (a, k)) → ∃6:i[k ≤ n + i ∧ i ≤ n + k ∧
-       n ≤ i ∧ i≤max (n + 4, k) ∧ min (k, n + 3)≤i ∧
-       k≤max (n + 4, i)].Avl (a, i))"];
+    ((Avl (a, n), Avl (a, k)) → ∃6:i[i ≤ n + k ∧ k ≤ i ∧
+       n ≤ i ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
+  n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
   "avl_tree_2--merge" >::
@@ -2524,7 +2522,134 @@ let merge = efunction
      | ht1, ht2' when ht1+3 <= ht2' -> rotl t1 x t2'
      | ht1, ht2' when ht2'+3 <= ht1 -> rotr t1 x t2')
 "
-        [2,""];
+        [2,"∃n, k, a.
+  δ =
+    ((Avl (a, n), Avl (a, k)) → ∃6:i[i ≤ n + k ∧ k ≤ i ∧
+       n ≤ i ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
+  n ≤ k + 2 ∧ k ≤ n + 2"];
+    );
+
+  "avl_tree_2--remove-simple" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case ~no_num_abduction:true "avl_tree--remove"
+"newtype Avl : type * num
+newcons Empty : ∀a. Avl (a, 0)
+newcons Node :
+  ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
+     Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
+newtype LinOrder
+newcons LT : LinOrder
+newcons EQ : LinOrder
+newcons GT : LinOrder
+external let compare : ∀a. a → a → LinOrder =
+  \"fun x y -> let c=Pervasives.compare x y in
+              if c<0 then LT else if c=0 then EQ else GT\"
+
+external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external create :
+  ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
+      Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
+       0 ≤ i].Avl (a, i) = \"create\"
+external rotr :
+  ∀n, a. Avl (a, n+3) → a → Avl (a, n) →
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotr\"
+external rotl :
+  ∀n, a. Avl (a, n) → a → Avl (a, n+3) →
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotl\"
+external min_binding : ∀n, a [1 ≤ n]. Avl (a, n) → a = \"min_binding\"
+external remove_min_binding :
+  ∀n, a [1 ≤ n]. Avl (a, n) →
+    ∃k[k + 2 ≤ 2 n ∧ n ≤ k + 1 ∧ k ≤ n].Avl (a, k)
+  = \"remove_min_binding\"
+external merge :
+  ∀n, k, a [n ≤ k + 2 ∧ k ≤ n + 2].
+    (Avl (a, n), Avl (a, k)) → ∃i[i ≤ n + k ∧ k ≤ i ∧
+       n ≤ i ∧ i≤max (k + 1, n + 1)].Avl (a, i) = \"merge\"
+  
+  
+let rec remove = fun x -> efunction
+  | Empty -> Empty
+  | Node (l, y, r, h) ->
+    ematch compare x y with
+    | EQ -> merge (l, r)
+    | LT ->
+      let l' = remove x l in
+      (ematch height l', height r with
+       | hl', hr when hl' <= hr+2 && hr <= hl'+2 -> create l' y r
+       | hl', hr when hl'+3 <= hr -> rotl l' y r)
+    | GT ->
+      let r' = remove x r in
+      (ematch height l, height r' with
+       | hl, hr' when hl <= hr'+2 && hr' <= hl+2 -> create l y r'
+       | hl, hr' when hr'+3 <= hl -> rotr l y r')
+"
+        [2,"∃n, a.
+  δ =
+    (a → Avl (a, n) → ∃9:k[n ≤ k + 1 ∧ 0 ≤ k ∧
+       k ≤ n].Avl (a, k))"];
+    );
+
+  "avl_tree_2--remove" >::
+    (fun () ->
+       todo "harder test, work in progress";
+       (* skip_if !debug "debug"; *)
+       test_case "avl_tree--remove_min_binding"
+"newtype Avl : type * num
+newcons Empty : ∀a. Avl (a, 0)
+newcons Node :
+  ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
+     Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
+newtype LinOrder
+newcons LT : LinOrder
+newcons EQ : LinOrder
+newcons GT : LinOrder
+external let compare : ∀a. a → a → LinOrder =
+  \"fun x y -> let c=Pervasives.compare x y in
+              if c<0 then LT else if c=0 then EQ else GT\"
+
+external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external create :
+  ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
+      Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
+       0 ≤ i].Avl (a, i) = \"create\"
+external rotr :
+  ∀n, a. Avl (a, n+3) → a → Avl (a, n) →
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotr\"
+external rotl :
+  ∀n, a. Avl (a, n) → a → Avl (a, n+3) →
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotl\"
+external min_binding : ∀n, a [1 ≤ n]. Avl (a, n) → a = \"min_binding\"
+external remove_min_binding :
+  ∀n, a [1 ≤ n]. Avl (a, n) →
+    ∃k[k + 2 ≤ 2 n ∧ n ≤ k + 1 ∧ k ≤ n].Avl (a, k)
+  = \"remove_min_binding\"
+external merge :
+  ∀n, k, a [n ≤ k + 2 ∧ k ≤ n + 2].
+    (Avl (a, n), Avl (a, k)) → ∃i[i ≤ n + k ∧ k ≤ i ∧
+       n ≤ i ∧ i≤max (k + 1, n + 1)].Avl (a, i) = \"merge\"
+  
+  
+let rec remove = fun x -> efunction
+  | Empty -> Empty
+  | Node (l, y, r, h) ->
+    ematch compare x y with
+    | EQ -> merge (l, r)
+    | LT ->
+      let l' = remove x l in
+      (ematch height l', height r with
+       | hl', hr when hl' <= hr+2 && hr <= hl'+2 -> create l' y r
+       | hl', hr when hl'+3 <= hr -> rotl l' y r)
+    | GT ->
+      let r' = remove x r in
+      (ematch height l, height r' with
+       | hl, hr' when hl <= hr'+2 && hr' <= hl+2 -> create l y r'
+       | hl, hr' when hr'+3 <= hl -> rotr l y r')
+"
+        [2,"∃n, a.
+  δ =
+    (a → Avl (a, n) → ∃9:k[n ≤ k + 1 ∧ 0 ≤ k ∧
+       k ≤ n].Avl (a, k))"];
     );
 
 

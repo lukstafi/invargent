@@ -671,6 +671,9 @@ let solve_aux ?use_quants ?(strict=false)
           (if not strict && WSet.mem ohs left then [], [], ([], [])
            else [ohs], [],
                 wset_partition_map (fun rhs -> project v ohs rhs) right) in
+      (*[* Format.printf
+        "NumS.solve-project: try v=%s@\nmore_ineqn=@ %a@\nmore_impl=@ %a@\n%!"
+        (var_str v) pr_ineqn more_ineqn pr_eqn more_implicits; *]*)  
       let more_ineqn = List.filter
         (function
         | [], cst, _
@@ -688,8 +691,8 @@ let solve_aux ?use_quants ?(strict=false)
         | _ -> true)
         more_ineqn in
       (*[* Format.printf
-        "NumS.solve-project: v=%s@\nmore_ineqn=@ %a@\nmore_impl=@ %a@\n%!"
-        (var_str v) pr_ineqn more_ineqn pr_eqn more_implicits; *]*)  
+        "NumS.solve-project: res v=%s@\nmore_ineqn=@ %a@\n%!"
+        (var_str v) pr_ineqn more_ineqn; *]*)  
       let ineqn =
         merge_one_nonredund ~cmp_v ~cmp_w (List.sort cmp_w more_ineqn) ineqn in
       let ineqs =
@@ -1246,10 +1249,11 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
           ignore (solve ~eqn:d_eqn ~ineqn:d_ineqn ~cmp_v ~cmp_w q.uni_v);
           Some br
         with Terms.Contradiction _ -> None in
-      ignore (solve
+      if br = None then br
+      else (ignore (solve
                 ~eqn:(d_eqn @ c_eqn) ~ineqn:(d_ineqn @ c_ineqn)
                 ~cmp_v ~cmp_w q.uni_v);
-      br)
+            br))
     brs in
   (* FIXME *)
   let validate (eqs, ineqs, optis, suboptis) = List.iter
@@ -1855,7 +1859,6 @@ let disjelim_aux q ~preserve ~initstep brs =
     if ptopes_ineqs = [] then []
     else
       List.fold_left
-        (* TODO: optimize by keeping [suboptis] unique *)
         (fun suboptis ptope ->
            (*[* let left, right = partition_choice suboptis in
            let left = List.map fst3 left in
@@ -2095,11 +2098,11 @@ let negation_elim q ~bvs ~verif_cns neg_cns =
   (*[* Format.printf "verif_cns=@ %a@\n%!"
     (pr_line_list "| " pr_state) verif_cns; *]*)
   let validated_num d =
-    try
-      List.iter
-        (fun state -> ignore (satisfiable_exn ~state d))
-        verif_cns; true
-    with Terms.Contradiction _ -> false in
+    List.fold_left
+      (fun count state ->
+         try ignore (satisfiable_exn ~state d); count
+         with Terms.Contradiction _ -> count + 1)
+      0 verif_cns in
   let cmp_v = make_cmp q in
   let cmp_w (vars1,_,_) (vars2,_,_) =
     match vars1, vars2 with
@@ -2134,42 +2137,59 @@ let negation_elim q ~bvs ~verif_cns neg_cns =
          let guard_cnj, cnj = List.partition
              (fun a -> VarSet.exists uni_v (fvs_atom a)) cnj in
          let cnj = prune_redund ~cmp_v ~cmp_w guard_cnj cnj in
-         let d = find_map
-             (fun c ->
+         let d, _, _ = List.fold_left
+             (fun (sel, selN, selS as acc) c ->
+                (*[* Format.printf "NumS.negation_elim: try c=@ %a@\n%!"
+                  pr_atom c; *]*)
                 match c with
-                | Leq (lhs, rhs, lc) ->
-                  let w = NumDefs.diff lhs rhs in
-                  let k = denom w in
-                  let lhs = NumDefs.scale_term ~-k 1 w in
-                  let d = [Leq (lhs, Cst (-1, 1), loc)] in
-                  if validated_num d
-                  then Some d else None
-                | Eq (lhs, rhs, lc) ->
-                  let w = NumDefs.diff lhs rhs in
-                  let k = denom w in
-                  let lhs1 = NumDefs.scale_term ~-k 1 w in
-                  let d1 = [Leq (lhs1, Cst (-1, 1), loc)] in
-                  if validated_num d1 then Some d1
-                  else
-                    let lhs2 = NumDefs.scale_term k 1 w in
-                    let d2 = [Leq (lhs2, Cst (-1, 1), loc)] in
-                    if validated_num d2 then Some d2
-                    else None
-                | Opti _ -> None
-                | Subopti (t1, t2, lc) ->
-                  let k1 = denom t1 in
-                  let lhs1 = NumDefs.scale_term ~-k1 1 t1 in
-                  let k2 = denom t2 in
-                  let lhs2 = NumDefs.scale_term ~-k2 1 t2 in
-                  let d =
-                    [Leq (lhs1, Cst (-1, 1), loc);
-                      Leq (lhs2, Cst (-1, 1), loc)] in
-                  if validated_num d then Some d
-                  else None)
-             cnj in
+                  | Leq (lhs, rhs, lc) ->
+                    let w = NumDefs.diff lhs rhs in
+                    let k = denom w in
+                    let lhs = NumDefs.scale_term ~-k 1 w in
+                    let d = [Leq (lhs, Cst (-1, 1), loc)] in
+                    let dN = validated_num d
+                    and dS = formula_size d in
+                    if dN < selN ||
+                       dN=selN && dS > selS
+                    then (d, dN, dS) else acc
+                  | Eq (lhs, rhs, lc) ->
+                    let w = NumDefs.diff lhs rhs in
+                    let k = denom w in
+                    let lhs1 = NumDefs.scale_term ~-k 1 w in
+                    let d1 = [Leq (lhs1, Cst (-1, 1), loc)] in
+                    let d1N = validated_num d1
+                    and d1S = formula_size d1 in
+                    let _, selN, selS as acc =
+                      if d1N < selN ||
+                       d1N=selN && d1S > selS
+                      then (d1, d1N, d1S) else acc in
+                    if d1N=0 then acc
+                    else
+                      let lhs2 = NumDefs.scale_term k 1 w in
+                      let d2 = [Leq (lhs2, Cst (-1, 1), loc)] in
+                      let d2N = validated_num d2
+                      and d2S = formula_size d2 in
+                      if d2N < selN ||
+                       d2N=selN && d2S > selS
+                      then (d2, d2N, d2S) else acc
+                  | Opti _ -> acc
+                  | Subopti (t1, t2, lc) ->
+                    let k1 = denom t1 in
+                    let lhs1 = NumDefs.scale_term ~-k1 1 t1 in
+                    let k2 = denom t2 in
+                    let lhs2 = NumDefs.scale_term ~-k2 1 t2 in
+                    let d =
+                      [Leq (lhs1, Cst (-1, 1), loc);
+                       Leq (lhs2, Cst (-1, 1), loc)] in
+                    let dN = validated_num d
+                    and dS = formula_size d in
+                    if dN < selN ||
+                       dN=selN && dS > selS
+                    then (d, dN, dS) else acc)
+             ([], List.length verif_cns, 0) cnj in
          (*[* Format.printf "NumS.negation_elim: selected d=@ %a@\n%!"
-           (pr_some pr_formula) d; *]*)
-         list_some_list d)
+           pr_formula d; *]*)
+         d)
       neg_cns in
   (*[* Format.printf "NumS.negation_elim:@\nres=@ %a@\n%!"
     pr_formula res; *]*)

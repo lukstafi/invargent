@@ -233,10 +233,7 @@ let holds q avs (ty_st, num_st) cnj =
 let satisfiable q (ty_st, num_st) cnj =
   let {cnj_typ=ty_st; cnj_num; cnj_so=_} =
     unify ~use_quants:false ~sb:ty_st q.op cnj in
-  let num_st =
-    match NumS.satisfiable ~state:num_st cnj_num with
-    | Right s -> s | Left e -> raise e in
-  ty_st, num_st
+  ty_st, NumS.satisfiable_exn ~state:num_st cnj_num
 
 (* 10 *)
 let strat q b ans =
@@ -799,17 +796,29 @@ let solve q_ops new_ex_types exty_res_chi brs =
     (*[* Format.printf "solve: substituting postconds at step 1@\n%!"; *]*)
     let brs1 = sb_brs_PredB q rol1 g_par brs0 in
     (* Collect all relevant constraints together. *)
-    let verif_brs = List.map
+    let verif_brs = map_some
         (fun (nonrec, chiK, vK, prem, _) ->
-           nonrec, chiK, vK, prem,
-           concat_map
-             (fun (_,_,_,prem2,concl2) ->
-                (*[* Format.printf
-                  "solve-verif_brs: subformula? %b@\nprem2=%a@\nprem=%a@\n%!"
-                  (subformula prem2 prem)
-                  pr_formula prem2 pr_formula prem; *]*)
-                if subformula prem2 prem then concl2 else [])
-             brs1)
+           let allconcl = concat_map
+               (fun (_,_,_,prem2,concl2) ->
+                  (*[* Format.printf
+                    "solve-verif_brs: subformula? %b@\nprem2=%a@\nprem=%a@\n%!"
+                    (subformula prem2 prem)
+                    pr_formula prem2 pr_formula prem; *]*)
+                  if subformula prem2 prem then concl2 else [])
+               brs1 in
+           (* Even though a correct program should not have dead
+              cases other than dead code -- [prem] unsatisfiable --
+              it does not make sense to keep dead cases for validation. *)
+           let dead_case =
+             try
+               ignore
+                 (satisfiable q ([], NumS.empty_state)
+                    (prem @ allconcl));
+               false
+             with Contradiction _ -> true in
+           if dead_case then None
+           else Some
+               (nonrec, chiK, vK, prem, allconcl))
         brs1 in
     (*[* Format.printf "solve: loop iter_no=%d@\nsol=@ %a@\n%!"
       iter_no pr_chi_subst sol1; *]*)
@@ -818,8 +827,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
         (fun (nonrec, _, _, prem, concl) ->
            (* Do not use quantifiers, because premise is in the
               conjunction. *)
-           (* FIXME *)
-           if (* false && *) not nonrec then (
+           if not nonrec then (
              (*[* Format.printf
                "validate-postcond: ans=%a@ prem=%a@ concl=%a@\n%!"
                pr_formula ans pr_formula prem pr_formula concl; *]*)

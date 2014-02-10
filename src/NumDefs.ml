@@ -157,6 +157,9 @@ let atom_size = function
   | Subopti (t1, t2, loc) ->
     term_size t1 + term_size t2 + 1  
 
+let formula_size = List.fold_left
+    (fun s a -> s + atom_size a) 0
+
 let iter_terms f = function
   | Eq (t1, t2, loc)
   | Leq (t1, t2, loc)
