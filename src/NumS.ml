@@ -533,6 +533,27 @@ let direct_opti ((vars1,cst1,lc1 as w1), (vars2,cst2,lc2 as w2)) =
     Some (v, s>0, w1, w2)
   with Not_found -> None
 
+(* Transitive closure of one sides of inequalities. If [is_left=true],
+   then find all smaller expressions, otherwise find all larger
+   expressions. *)
+let trans_wset ~cmp_v ineqs is_left wn =
+  let rec proj acc wn =
+    match wn with
+    | [] -> acc
+    | ([], _, _ as w)::wn -> proj (WSet.add w acc) wn
+    | ((v,k)::vars, cst, loc as w)::wn ->
+      let left, right =
+        try List.assoc v ineqs
+        with Not_found -> WSet.empty, WSet.empty in
+      let is_left = if k </ !/0 then not is_left else is_left in
+      let more = if is_left then left else right in
+      let w1 = vars, cst, loc in
+      let more =
+        List.map (fun w2 -> sum_w ~cmp_v (mult k w2) w1)
+          (WSet.elements more) in
+      proj (WSet.add w acc) (more @ wn) in
+  proj WSet.empty wn
+
 let solve_aux ?use_quants ?(strict=false)
     ~eqs ~ineqs ~eqs' ~optis ~suboptis ~eqn ~ineqn ~cnj
     ~cmp_v ~cmp_w uni_v =
@@ -541,10 +562,16 @@ let solve_aux ?use_quants ?(strict=false)
     | Some bvs -> true, bvs in
   let eqs = if eqs' = [] then eqs else List.map
       (fun (v,eq) -> v, subst_w ~cmp_v eqs' eq) eqs @ eqs' in
+  let eqs_implicits = ref [] in
+  let subst_side_ineq v sb ohs w =
+    let vars, cst, lc as w' = subst_w ~cmp_v sb w in
+    if WSet.mem w' ohs
+    then eqs_implicits := ((v,!/(-1))::vars,cst,lc) :: !eqs_implicits;
+    w' in
   let ineqs = if eqs' = [] then ineqs else List.map
       (fun (v,(wl,wr)) -> v,
-        (wset_map (subst_w ~cmp_v eqs') wl,
-         wset_map (subst_w ~cmp_v eqs') wr)) ineqs in
+        (wset_map (subst_side_ineq v eqs' wr) wl,
+         wset_map (subst_side_ineq v eqs' wl) wr)) ineqs in
   let more_eqn, more_ineqn, more_optis, more_suboptis =
     split_flatten ~cmp_v cnj in
   let eqn = eqn @ more_eqn in
@@ -599,10 +626,10 @@ let solve_aux ?use_quants ?(strict=false)
       (fun (v,eq) -> v, subst_w ~cmp_v eqn eq) eqs in
   (* inequalities [left <= v] and [v <= right] *)
   let ineqs = if eqn=[] then ineqs else
-      List.map (fun (v, (left, right)) ->
+      List.map (fun (v, (wl, wr)) ->
         v,
-        (wset_map (subst_w ~cmp_v eqn) left,
-         wset_map (subst_w ~cmp_v eqn) right)) ineqs in
+        (wset_map (subst_side_ineq v eqn wr) wl,
+         wset_map (subst_side_ineq v eqn wl) wr)) ineqs in
   let more_ineqn =
     concat_map
       (fun (v, w) ->
@@ -657,6 +684,7 @@ let solve_aux ?use_quants ?(strict=false)
                 "Quantifier violation (numeric inequality)",
                 Some (Terms.num t1, Terms.num t2), loc))
     | ((v,k)::vars, cst, loc)::ineqn ->
+      let trans_wset = trans_wset ~cmp_v ineqs in
       let (left, right), ineqs =
         try pop_assoc v ineqs
         with Not_found -> (WSet.empty, WSet.empty), ineqs in
@@ -690,13 +718,15 @@ let solve_aux ?use_quants ?(strict=false)
                     Some (Terms.num t1, Terms.num t2), loc))
         | _ -> true)
         more_ineqn in
-      (*[* Format.printf
-        "NumS.solve-project: res v=%s@\nmore_ineqn=@ %a@\n%!"
-        (var_str v) pr_ineqn more_ineqn; *]*)  
       let ineqn =
         merge_one_nonredund ~cmp_v ~cmp_w (List.sort cmp_w more_ineqn) ineqn in
-      let ineqs =
-        (v, (add_to_wset ineq_l left, add_to_wset ineq_r right))::ineqs in
+      let more_ineqs =
+        v, (WSet.union (trans_wset true ineq_l) left,
+            WSet.union (trans_wset false ineq_r) right) in
+      (*[* Format.printf
+        "NumS.solve-project: res v=%s@\nmore_ineqn=@ %a@\nineqs_v=@ %a@\n%!"
+        (var_str v) pr_ineqn more_ineqn pr_ineqs [more_ineqs]; *]*)  
+      let ineqs = more_ineqs::ineqs in
       proj ineqs (more_implicits @ implicits) ineqn in
   let propagate (m, n) =
     let (m_vars, m_cst, _ as m) = subst_w ~cmp_v eqn m
@@ -710,7 +740,7 @@ let solve_aux ?use_quants ?(strict=false)
     else if equal_w ~cmp_v m n then Some (Right m)
     else Some (Left (m, n)) in
   (*[* Format.printf "NumS.solve: solving optis...@\n%!"; *]*)
-  let optis =
+  let optis, more_implicits =
     if eqn = [] then optis, []
     else partition_choice (map_some propagate optis) in
   (*[* Format.printf "NumS.solve: solving suboptis...@\n%!"; *]*)
@@ -719,15 +749,16 @@ let solve_aux ?use_quants ?(strict=false)
     else partition_choice (map_some propagate suboptis) in
   (*[* Format.printf "NumS.solve: solving ineqs...@\nineqn=%a@\n%!"
     pr_ineqn ineqn; *]*)
-  let ineqs = proj ineqs []
+  let ineqs, implicits = proj ineqs (more_implicits @ !eqs_implicits)
       (keep_one_nonredund ~cmp_v ~acc:[] (more_ineqn @ ineqn)) in
   (*[* Format.printf "NumS.solve: done@\nineqs=@ %a@\n%!"
-    pr_ineqs (fst ineqs); *]*)
-  eqn @ eqs, ineqs, optis, suboptis
+    pr_ineqs ineqs; *]*)
+  eqn @ eqs, ineqs,
+  optis, suboptis, WSet.elements (wset_of_list implicits)
 
 type num_solution = w_subst * ineqs * optis * suboptis
 
-let solve ?use_quants ?strict
+let solve_get_eqn ?use_quants ?strict
     ?(eqs=[]) ?(ineqs=[]) ?(eqs'=[])
     ?(optis=[]) ?(suboptis=[]) ?(eqn=[]) ?(ineqn=[]) ?(cnj=[])
     ~cmp_v ~cmp_w uni_v =
@@ -735,26 +766,39 @@ let solve ?use_quants ?strict
     "NumS.main-solve: start@\ninit_st=@ %a@\neqn=%a@\nineqn=%a@\ncnj=%a@\n%!"
     pr_state (eqs, ineqs, optis, suboptis) pr_eqn eqn pr_ineqn ineqn
     pr_formula cnj; *]*)
-  let rec loop (eqs,(ineqs,implicits1),(optis,implicits2),suboptis) =
-    let implicits = implicits2 @ implicits1 in
+  let all_implicit = ref [] in
+  let rec loop (eqs,ineqs,optis,suboptis,implicits) =
     if implicits=[] then eqs, ineqs, optis, suboptis
     else (
       (*[* Format.printf "solve: implicits=%a@\n%!"
         pr_eqn implicits; *]*)
+      all_implicit := implicits @ !all_implicit;
       loop
         (solve_aux ?use_quants ?strict ~eqs ~ineqs ~optis ~suboptis
            ~eqn:implicits
            ~eqs':[] ~ineqn:[] ~cnj:[] ~cmp_v ~cmp_w uni_v)) in
   if eqn=[] && (eqs=[] || eqs'=[]) && ineqn=[] && optis=[] &&
      suboptis=[] && cnj=[]
-  then eqs @ eqs', ineqs, [], []
+  then (eqs @ eqs', ineqs, [], []), []
   else
     let res =
       loop (solve_aux ?use_quants ?strict ~eqs ~ineqs ~eqs' ~optis ~suboptis
               ~eqn ~ineqn ~cnj ~cmp_v ~cmp_w uni_v) in
     (*[* Format.printf "NumS.main-solve: done@\n%a@\n@\n%!"
       pr_state res; *]*)
-    res
+    res, !all_implicit
+
+let solve ?use_quants ?strict
+    ?eqs ?ineqs ?eqs' ?optis ?suboptis ?eqn ?ineqn ?cnj
+    ~cmp_v ~cmp_w uni_v =
+  let res, implicits =
+    solve_get_eqn ?use_quants ?strict
+      ?eqs ?ineqs ?eqs' ?optis ?suboptis ?eqn ?ineqn ?cnj
+      ~cmp_v ~cmp_w uni_v in
+  (*[* if implicits <> []
+  then Format.printf "NumS.main-solve: implicits=@ %a@\n%!"
+      pr_ineqn implicits; *]*)
+  res
 
 let fvs_w (vars, _, _) = vars_of_list (List.map fst vars)
 
@@ -918,9 +962,14 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
     and c_optis' = List.map (subst_2w ~cmp_v eqs_i) c_optis
     and c_suboptis' = List.map (subst_2w ~cmp_v eqs_i) c_suboptis in
     (* Extract more equations implied by premise and earlier answer. *)
-    let _, (_,d_implicits), _, _ =
-      solve_aux ~eqs:[] ~eqs':[] ~ineqs:ineqs_i ~eqn:d_eqn' ~ineqn:d_ineqn'
+    let _, d_implicits =
+      solve_get_eqn ~eqs:eqs_i ~eqs':[]
+        ~ineqs:ineqs_i ~eqn:d_eqn' ~ineqn:d_ineqn'
         ~optis:[] ~suboptis:[] ~cnj:[] ~cmp_v ~cmp_w uni_v in
+    (*[* Format.printf
+      "NumS.abd_simple: d_implicits=@ %a@\n%!"
+      pr_eqn d_implicits;
+    *]*)
     let d_eqn' = d_implicits @ d_eqn' in
     (* 2 *)
     let zero = [], !/0, dummy_loc in
@@ -935,7 +984,32 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
     and c_ineqn0 = c_ineqn'
     and c_optis0 = c_optis'
     and c_suboptis0 = c_suboptis' in*)
-    
+    (* Test if there is a fully maximal answer at all. *)
+      let b_eqs, b_ineqs, b_optis, b_suboptis =
+        solve ~eqs:eqs_i ~ineqs:ineqs_i
+          ~eqn:(c_eqn0 @ d_eqn) ~ineqn:(c_ineqn0 @ d_ineqn)
+          ~optis:(optis_i @ c_optis0)
+          ~suboptis:(suboptis_i @ c_suboptis0)
+          ~cmp_v ~cmp_w uni_v in
+      (*[* Format.printf
+        "NumS.abd_simple: initial test@\nb_eqs=@ %a@\nb_ineqs=@ %a@\n%!"
+        pr_w_subst b_eqs pr_ineqs b_ineqs;
+      *]*)
+
+      if not
+          (implies ~cmp_v ~cmp_w uni_v b_eqs b_ineqs b_optis b_suboptis
+           c_eqn c_ineqn c_optis c_suboptis)
+      then (
+        (*[* Format.printf
+          "NumS.abd_simple: no fully maximal answer for@\nc_eqn0=%a@\n\
+           c_ineqn0=%a@\nc_optis0=%a@\nc_suboptis0=%a@\n%!"
+          pr_eqn c_eqn0 pr_ineqn c_ineqn0 pr_optis c_optis0
+          pr_suboptis c_suboptis0;
+        *]*)
+        raise
+          (Terms.Contradiction (Num_sort,
+                                "No fully maximal abduction answer",
+                                None, dummy_loc)));
     let prune (vars, _, _ as w) =
       if List.length vars < !abd_prune_at then Some w else None in
     let add_tr ks_eq eq_trs (vars,_,_ as a) =
@@ -1021,8 +1095,9 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
       then (
         (* 6 *)
         (* [ineq_trs] include [eq_trs]. *)
-        (*[* Format.printf "NumS.abd_simple: [%d] STEP 6.@\nc0remain=%a@\n%!"
-          ddepth pr_eqn c0eqn;
+        (*[* Format.printf
+          "NumS.abd_simple: [%d] STEP 6. a=@ %a@\nc0remain=%a@\n%!"
+          ddepth pr_w_atom a pr_eqn c0eqn;
         *]*)
         loop add_eq_tr add_ineq_tr eq_trs ineq_trs eqs_acc
           ineqs_acc optis_acc suboptis_acc c0eqn c0ineqn
@@ -1031,7 +1106,7 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
         (* 7 *)
         let trs = if iseq_w_atom a then eq_trs else ineq_trs in
         (*[* Format.printf
-          "NumS.abd_simple: [%d] 7. STEP a=@ %a@\nc0remain=%a@\n%!"
+          "NumS.abd_simple: [%d] STEP 7. a=@ %a@\nc0remain=%a@\n%!"
           ddepth pr_w_atom a pr_eqn c0eqn;
         *]*)
         let passes = ref false in
@@ -1210,7 +1285,7 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
             disjunctions. Also recovers implicit equalities
             due to optis. *)
          try
-           let _,_,(d_optis,d_opti_eqn),d_suboptis =
+           let _,_,d_optis,d_suboptis,d_opti_eqn =
              solve_aux ~cmp_v ~cmp_w q.uni_v
                ~eqs:[] ~ineqs:[] ~eqs':[] ~cnj:[]
                ~eqn:d_eqn ~ineqn:d_ineqn

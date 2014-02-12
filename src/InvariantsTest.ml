@@ -396,7 +396,7 @@ let rec append =
     | LCons (x, xs) ->
       (function LNil -> LCons (x, append xs LNil)
         | LCons (_,_) as l -> LCons (x, append xs l))"
-        [1,"∃n, k. δ = (List k → List n → List (n + k)) ∧ 0 ≤ n"];
+        [1,"∃n, k. δ = (List k → List n → List (n + k)) ∧ 0 ≤ n + k"];
     );
 
   "interleave" >::
@@ -1711,7 +1711,7 @@ let rec zip =
     | UCons xs, UCons ys ->
       let zs = zip (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃1:i[i=min (k, n)].Unary i) ∧
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃1:i[i=min (n, k)].Unary i) ∧
   0 ≤ k"]
     );
 
@@ -2105,7 +2105,7 @@ let rotr = efunction (* hl = hr + 3 *)
 
   "avl_tree_2--rotr" >::
     (fun () ->
-       todo "harder test, work in progress";
+       todo "work in progress";
        (* skip_if !debug "debug"; *)
        test_case "avl_tree--rotr"
 "newtype Avl : type * num
@@ -2187,7 +2187,7 @@ let rotl = efunction (* hl + 3 = hr *)
 
   "avl_tree_2--rotl" >::
     (fun () ->
-       todo "harder test, work in progress";
+       todo "work in progress";
        (* skip_if !debug "debug"; *)
        test_case "avl_tree--rotl"
 "newtype Avl : type * num
@@ -2275,7 +2275,7 @@ let rec add = fun x -> efunction
 
   "avl_tree_2--add" >::
     (fun () ->
-       todo "harder test, work in progress";
+       todo "work in progress";
        (* skip_if !debug "debug"; *)
        test_case "avl_tree--add"
 "newtype Avl : type * num
@@ -2374,7 +2374,7 @@ let rec remove_min_binding = efunction
 
   "avl_tree_2--remove_min_binding" >::
     (fun () ->
-       todo "harder test, work in progress";
+       todo "work in progress";
        (* skip_if !debug "debug"; *)
        test_case "avl_tree--remove_min_binding"
 "newtype Avl : type * num
@@ -2476,8 +2476,7 @@ let merge = efunction
 
   "avl_tree_2--merge" >::
     (fun () ->
-       todo "harder test, work in progress";
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "avl_tree--remove_min_binding"
 "newtype Avl : type * num
 newcons Empty : ∀a. Avl (a, 0)
@@ -2514,12 +2513,13 @@ let merge = efunction
   | Empty, Empty -> Empty
   | Empty, (Node (_,_,_,_) as t) -> t
   | (Node (_,_,_,_) as t), Empty -> t
+  | Node (_,_,_,ht1), Node (_,_,_,ht2) when ht1+3 <= ht2 -> assert false
+  | Node (_,_,_,ht1), Node (_,_,_,ht2) when ht2+3 <= ht1 -> assert false
   | (Node (_,_,_,_) as t1), (Node (_,_,_,_) as t2) ->
     let x = min_binding t2 in
     let t2' = remove_min_binding t2 in
     (ematch height t1, height t2' with
      | ht1, ht2' when ht1 <= ht2'+2 && ht2' <= ht1+2 -> create t1 x t2'
-     | ht1, ht2' when ht1+3 <= ht2' -> rotl t1 x t2'
      | ht1, ht2' when ht2'+3 <= ht1 -> rotr t1 x t2')
 "
         [2,"∃n, k, a.
@@ -2592,7 +2592,7 @@ let rec remove = fun x -> efunction
 
   "avl_tree_2--remove" >::
     (fun () ->
-       todo "harder test, work in progress";
+       todo "work in progress";
        (* skip_if !debug "debug"; *)
        test_case "avl_tree--remove_min_binding"
 "newtype Avl : type * num

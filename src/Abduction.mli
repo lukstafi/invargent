@@ -26,6 +26,9 @@ val no_num_abduction : bool ref
     negative facts, but worse availability of the negative
     facts. Default [true]. *)
 val neg_before_abd : bool ref
+(** When to start running negation elimination. Default [1] --
+    coinciding with the start of numerical abduction. *)
+val num_neg_since : int ref
 
 val abd_fail_flag : bool ref
 val abd_timeout_flag : bool ref

@@ -510,8 +510,8 @@ let constr_gen_expr gamma e t =
     let cn = impl prem
         (cn_and g_concl (impl (neg_prem @ g_cond) concl)) in
     let cn = if VarSet.is_empty bs then cn else All (bs, cn) in
-    (*[* Format.printf "constr_gen-aux_cl: [%d]@ cn=%a@\n%!"
-      count pr_cnstrnt cn; *]*)
+    (*[* Format.printf "constr_gen-aux_cl: [%d]@ g_cond=%a@\ncn=%a@\n%!"
+      count pr_formula g_cond pr_cnstrnt cn; *]*)
     let exvs = 
         VarSet.union (if is_neg then fvs_typ t3 else VarSet.empty)
           (fvs_formula g_cond) in

@@ -9,6 +9,7 @@ let timeout_count = ref 700(* 5000 *)(* 50000 *)
 let fail_timeout_count = ref 4
 let no_alien_prem = ref (* true *)false
 let neg_before_abd = ref true
+let num_neg_since = ref 1
 let more_general = ref false
 let richer_answers = ref false
 let no_num_abduction = ref false
@@ -831,7 +832,7 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
      the result, use only sorts other than [Type_sort] as negated
      constraints. *)
   let neg_cns =
-    if iter_no<2 then []
+    if iter_no < !num_neg_since then []
     else map_some
         (fun (cnj, loc) ->
            try
@@ -884,7 +885,8 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
         if dissociate then [], []
         (* [tvs] includes alien variables! *)
         else NumS.abd q ~bvs ~discard:discard.at_num ~iter_no
-            ((false, [], neg_num_res)::brs_num)
+            (* [true] means non-recursive *)
+            ((true, [], neg_num_res)::brs_num)
       with
       | Suspect (cnj, lc) ->
         (*[* Format.printf
