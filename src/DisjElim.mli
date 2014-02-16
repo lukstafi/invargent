@@ -15,8 +15,10 @@ val disjelim :
   do_num:bool -> initstep:bool -> Terms.formula list ->
   Terms.subst * (Defs.var_name list * Terms.atom list)
 
-(** Filter the initial postcondition, found from non-recursive
-    branches only, so that it does not constrain variables to
-    constants if other constraints on the variables are available. *)
+(** Filter out "suspicious" and invalid atoms of a formula. [validate]
+    should raise [Contradiction] when a result is
+    incorrect. Currently: first removes min/max atoms comparing a
+    variable to a constant, then performs a greedy search for valid atoms. *)
 val initstep_heur :
-  Defs.quant_ops -> preserve:Defs.VarSet.t -> Terms.formula -> Terms.formula
+  Defs.quant_ops -> validate:(Terms.formula -> unit) ->
+  Terms.answer -> Terms.answer

@@ -342,38 +342,24 @@ let transitive_cl cnj =
   let cnj_num = NumS.transitive_cl cnj_num in
   cnj_typ @ NumS.formula_of_sort cnj_num
 
-let initstep_heur q ~preserve cnj =
+
+let initstep_heur q ~validate (vs, cnj) =
   (*[* let init_cnj = cnj in *]*)
-  (* FIXME *)
-  (* let cnj = NumS.cleanup_formula cnj in *)
-  let preserve = add_vars [delta; delta'] preserve in
-  let preserve = List.fold_left
-      (fun preserve a ->
-         let vs = fvs_atom a in
-         if VarSet.mem delta vs then VarSet.union vs preserve else preserve)
-      preserve cnj in
-  let cnj = transitive_cl cnj in
-  let cst_eqs, cnj =
-    partition_choice
-      (map_some
-         (fun c ->
-            let vs = fvs_atom c in
-            (*[* Format.printf "testing c=%a@ vs=%a@ diff=%a..." pr_atom c
-              pr_vars vs pr_vars (VarSet.diff vs preserve); *]*)
-            if VarSet.is_empty (VarSet.diff vs preserve)
-            then match VarSet.elements vs with
-              | [v] -> (*[* Format.printf "cst@\n%!"; *]*) Some (Left (v, c))
-              | _ -> (*[* Format.printf "cnj@\n%!"; *]*) Some (Right c)
-            else ((*[* Format.printf "none@\n%!"; *]*) None))
-         cnj) in
-  let cvs = fvs_formula cnj in
-  let cst_eqs = map_some
-      (fun (v,c) -> if VarSet.mem v cvs then None else Some c) cst_eqs in
   let {cnj_typ; cnj_num; cnj_so} = sep_formulas cnj in
   let cnj = unsep_formulas
       {cnj_typ; cnj_so;
-       cnj_num = NumS.initstep_heur q ~preserve cnj_num} in
+       cnj_num = NumS.initstep_heur q cnj_num} in
+  (*let cnj = List.fold_left
+      (fun acc c ->
+         let acc' = c::acc in
+         try validate acc'; acc'
+         with Contradiction _ ->
+           (*[* Format.printf "initstep-valid-loop: %a incomp. acc=%a@\n%!"
+             pr_atom c pr_formula acc; *]*)
+           acc)
+      [] cnj in*)
   (*[* Format.printf
-    "DisjElim.initstep_heur: preserve=%a@\ninit_cnj=%a@\ncst_eqs=%a@ cnj=%a@\n%!"
-    pr_vars preserve pr_formula init_cnj pr_formula cst_eqs pr_formula cnj; *]*)
-  cst_eqs @ cnj
+    "DisjElim.initstep_heur:@\ninit_cnj=%a@\ncnj=%a@\n%!"
+    pr_formula init_cnj pr_formula cnj; *]*)
+  VarSet.elements (VarSet.inter (fvs_formula cnj) (vars_of_list vs)),
+  cnj

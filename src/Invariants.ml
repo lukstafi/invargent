@@ -273,6 +273,7 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
   let negbs =
     if do_postcond then q.negbs
     else List.filter (fun b->not (q.is_chiK (q.find_chi b))) q.negbs in
+  let renaming = ref [] in
   let rec loop avs ans discard sol =
     (* 2 *)
     (*[* Format.printf "split-loop: starting@ avs=%a@\nans=@ %a@\nsol=@ %a@\n%!"
@@ -399,6 +400,7 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
       avss in
     (* 13 *)
     let ans_p = List.concat ans_rs in
+    renaming := update_sb ~more_sb:ans_p !renaming;
     (*[* Format.printf "split: ans_p=@ %a@ --@ ans_res=@ %a@\n%!"
       pr_subst ans_p pr_formula ans_res; *]*)
     let ans_res = to_formula ans_p @ subst_formula ans_p ans_res in
@@ -424,7 +426,9 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
       ans_res, more_discard @ discard,
       List.map2 (fun avs (b, ans) -> b, (avs, ans)) avsl sol' in
   let solT = List.map (fun b->b, []) negbs in
-  loop (vars_of_list avs) ans [] solT  
+  let ans_res, discard, sol =
+    loop (vars_of_list avs) ans [] solT in
+  !renaming, ans_res, discard, sol
 
 (** Eliminate provided variables if they do not contribute to
     constraints and generally simplify the formula. *)
@@ -783,7 +787,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
       (fun i -> i, ([], []))
       (Ints.elements q.allchi) in
   let rolT, solT = List.partition (q.is_chiK % fst) solT in
-  let rec loop iter_no discard rol1 sol1 =
+  let rec loop iter_no discard renaming1 rol1 sol1 =
     (* 1 *)
     let sol1 = List.map
         (fun (i,(vs,ans)) -> i,(vs,remove_alphaK ans)) sol1 in
@@ -820,8 +824,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
            else Some
                (nonrec, chiK, vK, prem, allconcl))
         brs1 in
-    (*[* Format.printf "solve: loop iter_no=%d@\nsol=@ %a@\n%!"
-      iter_no pr_chi_subst sol1; *]*)
+    (*[* Format.printf "solve: loop iter_no=%d@\nrenaming=%a@\nsol=@ %a@\n%!"
+      iter_no pr_subst renaming1 pr_chi_subst sol1; *]*)
     (*[* Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs5 brs1; *]*)
     let validate ans = List.iter
         (fun (nonrec, _, _, prem, concl) ->
@@ -860,7 +864,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
                   then
                     List.map
                       (fun (i,t1,t2,lc) ->
-                         let phi = Eqty (tdelta, t1, lc) :: prem @ concl in
+                         let phi =
+                           Eqty (tdelta, t1, lc) :: prem @ concl in
                          (*[* Format.printf
                            "chiK: i=%d@ t1=%a@ t2=%a@ prem=%a@\nphi=%a@\n%!"
                            i pr_ty t1 pr_ty t2
@@ -892,25 +897,18 @@ let solve q_ops new_ex_types exty_res_chi brs =
                  let preserve = VarSet.add delta (dsj_preserve i) in
                  (* [usb] is additional abductive the answer. *)
                  let usb, (g_vs, g_ans) =
-                   (* FIXME *)
                    DisjElim.disjelim q_ops ~bvs ~preserve
                      ~do_num:(disj_step.(1) <= iter_no)
                      ~initstep cnjs in
                  (*[* Format.printf "solve-3: disjelim g_ans=%a@\n%!"
                    pr_formula g_ans; *]*)
-                 (* FIXME: shouldn't we pick the connected component
-                    _before_ passing branches to disjunction elimination? *) 
                  let g_ans =
-                   if initstep
-                   then                 (* FIXME... *)
-                     DisjElim.initstep_heur q.op ~preserve g_ans
-                   else g_ans in
-                 let g_ans =
-                   if (iter_no < disj_step.(2)) then g_vs, g_ans
-                   (* FIXME: is needed at all? *)
+                   if (iter_no < disj_step.(2))
+                   then DisjElim.initstep_heur q.op ~validate (g_vs, g_ans)
+                   (* FIXME: is [connected] needed? *)
                    else connected ~validate [delta; delta']
                        (g_vs, g_ans) in
-                 (*[* Format.printf "solve-3: connected g_ans@ =%a@\n%!"
+                 (*[* Format.printf "solve-3: connected? g_ans@ =%a@\n%!"
                    pr_ans g_ans; *]*)
                  abdsjelim := to_formula usb @ !abdsjelim;
                  i, g_ans
@@ -939,8 +937,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
             else [delta; delta'] in
           let g_vs, g_ans =
             connected target
-              (simplify q_ops ~keepvs
-                 ~initstep (g_vs, g_ans)) in
+              (if initstep then g_vs, g_ans
+               else simplify q_ops ~keepvs ~initstep (g_vs, g_ans)) in
           let fvs = VarSet.elements
               (VarSet.diff (fvs_formula g_ans)
                  (vars_of_list [delta;delta'])) in
@@ -1097,13 +1095,13 @@ let solve q_ops new_ex_types exty_res_chi brs =
                    pr_exception e; *]*)
                  ())
             neg_cns1;
-        let ans_res, more_discard, ans_sol =
+        let renaming, ans_res, more_discard, ans_sol =
           split (iter_no>0 || !early_postcond_abd)
             vs ans negchi_locs bvs cand_bvs q in
         (*[* Format.printf
           "solve: loop -- answer split@ more_discard=@ %a@\nans_res=@ %a@\n%!"
           pr_formula more_discard pr_formula ans_res; *]*)
-        Aux.Right (alien_eqs, ans_res, more_discard, ans_sol)
+        Aux.Right (renaming, alien_eqs, ans_res, more_discard, ans_sol)
       with
       (* it does not seem to make a difference *)
       | (NoAnswer (sort, msg, tys, lc)
@@ -1115,14 +1113,15 @@ let solve q_ops new_ex_types exty_res_chi brs =
         Aux.Left (sort, e) in
     match answer with
     | Aux.Left _ as e -> e
-    | Aux.Right (alien_eqs, ans_res, more_discard, ans_sol) ->
+    | Aux.Right (renaming, alien_eqs, ans_res, more_discard, ans_sol) ->
       let more_discard =
         if alien_eqs = [] then more_discard
+        (* FIXME: not substituting [renaming]? *)
         else subst_formula alien_eqs more_discard in
       (* 12 *)
-      let finish rol2 sol2 =
+      let finish renaming2 rol2 sol2 =
         (* start fresh at (iter_no+1) *)
-        match loop (iter_no+1) empty_dl rol2 sol2
+        match loop (iter_no+1) empty_dl renaming2 rol2 sol2
         with Aux.Right _ as res -> res
            | Aux.Left (sort, e) ->
              (*[* Format.printf
@@ -1165,7 +1164,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                  {discard with at_typ=s_discard.at_typ::discard.at_typ}
                | Num_sort ->
                  {discard with at_num=s_discard.at_num::discard.at_num} in
-             loop iter_no discard rol1 sol1 in
+             loop iter_no discard renaming1 rol1 sol1 in
       (* 9 *)
       (* Avoid substituting [bvs] -- treat them like leftmost. *)
       let cmp_v v1 v2 =
@@ -1297,12 +1296,24 @@ let solve q_ops new_ex_types exty_res_chi brs =
                      finished1 && finished2 && finished3 in
       (*[* Format.printf "solve-loop: finished 1=%b, 2=%b, 3=%b, r=%b@\n%!"
         finished1 finished2 finished3 finished; *]*)
+      let param_sb = map_some
+        (fun (v, sv) ->
+          try match List.assoc v alien_eqs with
+            | TVar v3, _ -> Some (v3, sv)
+            | _ -> None
+          with Not_found -> None)
+        renaming in
+      let alien_eqs2 = subst_sb param_sb alien_eqs in
+      let renaming2 =
+        update_sb ~more_sb:renaming
+          (update_sb ~more_sb:alien_eqs2
+             (update_sb param_sb renaming1)) in
       if iter_no > 1 && finished
       then                              (* final solution *)
         Aux.Right (ans_res, rol2, sol2)
         (* Do at least three iterations: 0, 1, 2. *)
       else if iter_no <= 1 && finished
-      then loop (iter_no+1) empty_dl rol2 sol1
+      then loop (iter_no+1) empty_dl renaming2 rol2 sol1
       else if iter_no >= !timeout_count
       then
         let unfinished1 =
@@ -1329,8 +1340,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
                unfinished1 @ unfinished2 @ unfinished3) in
         timeout_flag := true;
         raise (NoAnswer (Type_sort, "Answers do not converge", None, loc))
-      else finish rol2 sol2 in
-  match loop 0 empty_dl rolT solT with
+      else finish renaming2 rol2 sol2 in
+  match loop 0 empty_dl [] rolT solT with
   | Aux.Left (_, e) -> raise e
   | Aux.Right (ans_res, rol, sol) ->
     (*[* Format.printf "solve: checking assert false@\n%!"; *]*)

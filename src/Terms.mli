@@ -257,6 +257,7 @@ val connected :
   ?validate:(formula -> unit) ->
   Defs.var_name list -> answer -> answer
 
+
 (** {2 Substitutions and unification} *)
 
 exception Contradiction of Defs.sort * string * (typ * typ) option * lc
@@ -271,6 +272,8 @@ val hvsubst_typ : hvsubst -> typ -> typ
 val subst_sb : sb:subst -> subst -> subst
 val hvsubst_sb : hvsubst -> subst -> subst
 val update_sb : more_sb:subst -> subst -> subst
+(** [subst] must be a renaming of variables. *)
+val revert_renaming : subst -> subst
 (** Union/conjunction of sort-separated formulas, additionally
     perform an update of the term substitution. *)
 val update_sep :

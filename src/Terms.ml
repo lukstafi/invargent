@@ -346,6 +346,14 @@ let update_sb ~more_sb sb =
   map_append (fun (w,(t,loc)) -> w, (subst_typ more_sb t, loc)) sb
     more_sb
 
+let revert_renaming =
+  List.map
+    (function
+      | v1, (TVar v2, lc) -> v2, (TVar v1, lc)
+      | v1, (Alien (Num_term (NumDefs.Lin (j,k,v2))), lc) ->
+        v2, (Alien (Num_term (NumDefs.Lin (k,j,v1))), lc)
+      | _ -> assert false)
+
 let c_subst_typ sb t =
   let rec aux t =
     try fst (List.assoc t sb)

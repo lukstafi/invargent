@@ -670,7 +670,7 @@ let abd_typ q ~bvs ?(dissociate=false) ~validate ~discard
     | t when typ_sort t <> Type_sort ->
       let n = fresh_var (typ_sort t) in
       (* Alien vars become abduction answer vars. *)
-      alien_eqs := (n, (t, dummy_loc)):: !alien_eqs;
+      alien_eqs := (n, (subst_typ !alien_eqs t, dummy_loc)):: !alien_eqs;
       alien_vs := n :: !alien_vs;
       TVar n
     | TCons (n, tys) -> TCons (n, List.map purge tys)
@@ -806,7 +806,7 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
            (* TODO: optimize by mapping numerical branches into states
               upfront. *)
            let (*[* num_state *]*) _ =
-             (* FIXME: It's like [satisfiable] because of [empty_q]. *)
+             (* It's like [satisfiable] because of [empty_q]. *)
              NumS.holds empty_q VarSet.empty NumS.empty_state cnj_num in
            (*[* Format.printf "validate-typ: num_state=@ %a@\n%!"
              NumDefs.pr_formula (NumS.formula_of_state num_state); *]*)
@@ -828,6 +828,8 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
       (fun (nonrec,prem,concl) (more_p, more_c) ->
          nonrec, more_p.cnj_num @ prem, more_c.cnj_num @ concl)
       brs_num more_in_brs in
+  (* OK, we can change [brs_num] now. *)
+  let brs_num = List.filter (fun (_, _, concl) -> concl<>[]) brs_num in
   (* Filter out negated constraints that already are contradicted. Of
      the result, use only sorts other than [Type_sort] as negated
      constraints. *)
@@ -879,12 +881,11 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
     else [] in
   (*[* Format.printf "abd: solve for numbers@\n%!"; *]*)
   let nvs, ans_num =
-    if !no_num_abduction then [], []
+    if dissociate || !no_num_abduction then [], []
     else
       try
-        if dissociate then [], []
         (* [tvs] includes alien variables! *)
-        else NumS.abd q ~bvs ~discard:discard.at_num ~iter_no
+        NumS.abd q ~bvs ~discard:discard.at_num ~iter_no
             (* [true] means non-recursive *)
             ((true, [], neg_num_res)::brs_num)
       with
