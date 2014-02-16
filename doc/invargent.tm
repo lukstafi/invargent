@@ -1208,8 +1208,8 @@
   <math|C<rsub|k>\<neq\>\<b-F\>> and <math|D<rsub|k>> satisfiable,
   <math|d<rsub|i>\<wedge\>A\<wedge\>D<rsub|k>\<wedge\>C<rsub|k>> is
   satisfiable. We provide a function <math|NegElim<around*|(|\<neg\>D,<wide|B<rsub|i>|\<bar\>>|)>=d<rsub|i<rsub|0>>>,
-  where <math|i<rsub|0>> is the first such index found, and
-  <math|B<rsub|i>=A\<wedge\>D<rsub|i>\<wedge\>C<rsub|i>>.
+  where <math|d<rsub|i<rsub|0>>> is the biggest, syntactically, such atom,
+  and <math|B<rsub|i>=A\<wedge\>D<rsub|i>\<wedge\>C<rsub|i>>.
 
   <section|<em|opti> and <em|subopti>: <em|minimum> and <em|maximum>
   relations in <verbatim|num>><label|OptiAtoms>
