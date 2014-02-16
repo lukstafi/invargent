@@ -490,31 +490,32 @@ let constr_gen_expr gamma e t =
     (*[* Format.printf "constr_gen-aux_cl: [%d] t1=%a@ t2=%a@ t3=%a@ bs=%a@ prem=%a@\n%!"
       count pr_ty t1 pr_ty t2 pr_ty t3 pr_vars bs pr_formula prem; *]*)
     let gamma' = List.map typ_to_sch env @ gamma in
-    let (g_concl, g_cond), guards = fold_map
-        (fun (g_concl, g_cond) (e1,e2) ->
-           let a1 = fresh_var Num_sort and a2 = fresh_var Num_sort in
-           let cn1,e1 = aux gamma' (TCons (numtype, [TVar a1])) e1
-           and cn2,e2 = aux gamma' (TCons (numtype, [TVar a2])) e2 in
-           (cn_and (cn_and cn1 cn2) g_concl,
-            Terms.A (Num_atom (NumDefs.Leq
-                                 (NumDefs.Lin (1,1,a1),
-                                  NumDefs.Lin (1,1,a2),
-                                  dummy_loc))) :: g_cond),
-           (e1,e2))
-        (And [], []) guards in
     let concl, e = aux gamma' t2 e in
     let neg_prem =
       if is_neg
       then [Eqty (t1, t3, dummy_loc)]
       else [] in
+    let (g_as, g_concl, g_cond), guards = fold_map
+        (fun (g_as, g_concl, g_cond) (e1,e2) ->
+           let a1 = fresh_var Num_sort and a2 = fresh_var Num_sort in
+           let cn1,e1 = aux gamma' (TCons (numtype, [TVar a1])) e1
+           and cn2,e2 = aux gamma' (TCons (numtype, [TVar a2])) e2 in
+           (add_vars [a1; a2] g_as,
+            cn_and (cn_and cn1 cn2) g_concl,
+            Terms.A (Num_atom (NumDefs.Leq
+                                 (NumDefs.Lin (1,1,a1),
+                                  NumDefs.Lin (1,1,a2),
+                                  dummy_loc))) :: g_cond),
+           (e1,e2))
+        (VarSet.empty, And [], []) guards in
     let cn = impl prem
         (cn_and g_concl (impl (neg_prem @ g_cond) concl)) in
+    let cn = if VarSet.is_empty g_as then cn else Ex (g_as, cn) in
     let cn = if VarSet.is_empty bs then cn else All (bs, cn) in
-    (*[* Format.printf "constr_gen-aux_cl: [%d]@ g_cond=%a@\ncn=%a@\n%!"
-      count pr_formula g_cond pr_cnstrnt cn; *]*)
+    (*[* Format.printf "constr_gen-aux_cl: [%d]@\ncn=%a@\n%!"
+      count pr_cnstrnt cn; *]*)
     let exvs = 
-        VarSet.union (if is_neg then fvs_typ t3 else VarSet.empty)
-          (fvs_formula g_cond) in
+      if is_neg then fvs_typ t3 else VarSet.empty in
     let cn = cn_and pcns cn in
     (if VarSet.is_empty exvs then cn else Ex (exvs, cn)),
     (p, guards, e) in
