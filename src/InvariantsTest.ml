@@ -461,7 +461,7 @@ let rec append =
 
   "binary increment" >::
     (fun () ->
-       skip_if !debug "debug";
+       (* skip_if !debug "debug"; *)
        test_case "binary increment"
 "newtype Binary : num
 
@@ -1248,7 +1248,7 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
-        [2,"∃n. δ = (List n → ∃2:k[k ≤ n ∧ 0 ≤ k].List k)"];
+        [2,"∃n. δ = (List n → ∃2:k[0 ≤ k ∧ k ≤ n].List k)"];
 
     );
 
@@ -1272,8 +1272,7 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
-        [2,"∃n. δ = (List (Bar, n) → ∃2:k[k ≤ n ∧ 0 ≤ k].List (Bar, k))"];
-
+        [2,"∃n. δ = (List (Bar, n) → ∃2:k[0 ≤ k ∧ k ≤ n].List (Bar, k))"];
     );
 
   "filter poly" >::
@@ -1295,8 +1294,7 @@ let rec filter = fun f ->
           filter f xs"
         [2,"∃n, a.
   δ =
-    ((a → Bool) → List (a, n) → ∃2:k[k ≤ n ∧ 0 ≤ k].List (a, k))"];
-
+    ((a → Bool) → List (a, n) → ∃2:k[0 ≤ k ∧ k ≤ n].List (a, k))"];
     );
 
   "poly filter map" >::
@@ -1318,8 +1316,8 @@ let rec filter = fun f g ->
           filter f g xs"
         [2,"∃n, a, b.
   δ =
-    ((a → Bool) → (a → b) → List (a, n) → ∃2:k[k ≤ n ∧
-       0 ≤ k].List (b, k))"];
+    ((a → Bool) → (a → b) → List (a, n) → ∃2:k[0 ≤ k ∧
+       k ≤ n].List (b, k))"];
 
     );
 
@@ -1857,7 +1855,7 @@ let rec filter_map2 =
       | True -> LCons (f x y, zs)
       | False -> zs"
         [2,"∃n, k.
-  δ = ((List n, List k) → ∃4:i[0 ≤ i ∧ i≤max (k, n)].List i)"]
+  δ = ((List n, List k) → ∃4:i[0 ≤ i ∧ i≤max (n, k)].List i)"]
     );
 
   "non-num no postcond list filter-map2 with filter postfix" >::
@@ -1987,8 +1985,8 @@ let rec map2_filter = fun q r f g h ->
         [2,"∃n, k, a, b, c.
   δ =
     ((a → Bool) → (b → Bool) → (a → b → c) → (a → c) →
-       (b → c) → (List (a, n), List (b, k)) → ∃3:i[i≤max (n, k) ∧
-       min (k, n)≤i].List (c, i))"]
+       (b → c) → (List (a, n), List (b, k)) → ∃3:i[min (n, k)≤i ∧
+       i≤max (n, k)].List (c, i))"]
     );
 
   "avl_tree_2--height" >::
@@ -2273,10 +2271,64 @@ let rec add = fun x -> efunction
        n ≤ k].Avl (a, k))"];
     );
 
+  "avl_tree_2--add-simple2" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case ~no_num_abduction:true "avl_tree--add"
+"newtype Avl : type * num
+newcons Empty : ∀a. Avl (a, 0)
+newcons Node :
+  ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
+     Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
+newtype LinOrder
+newcons LT : LinOrder
+newcons EQ : LinOrder
+newcons GT : LinOrder
+external let compare : ∀a. a → a → LinOrder =
+  \"fun x y -> let c=Pervasives.compare x y in
+              if c<0 then LT else if c=0 then EQ else GT\"
+
+external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external create :
+  ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
+      Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
+       0 ≤ i].Avl (a, i) = \"create\"
+external rotr :
+  ∀n, a. Avl (a, n+3) → a → Avl (a, n) →
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotr\"
+external rotl :
+  ∀n, a. Avl (a, n) → a → Avl (a, n+3) →
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotl\"
+
+let rec add = fun x -> efunction
+  | Empty -> Node (Empty, x, Empty, 1)
+  | Node (l, y, r, h) ->
+    ematch compare x y with
+    | EQ -> Node (l, x, r, h)
+    | LT ->
+      let l' = add x l in
+      (ematch height l', height r with
+       | hl', hr when hl' <= hr+2 -> create l' y r
+       | hl', hr when hr+3 <= hl' -> rotr l' y r)
+    | GT ->
+      let r' = add x r in
+      (ematch height r', height l with
+       | hr', hl when hr' <= hl+2 -> create l y r'
+       | hr', hl when hl+3 <= hr' -> rotl l y r')
+"
+(* Tricky! The weaker result is due to lack of sharing of information
+   about [l] due to facts about [l' = add x l], resp. about [r] due
+   to facts about [r' = add x r], with the other branch. *)
+(* TODO: explain in the manual. *)
+        [2,"∃n, a.
+  δ =
+    (a → Avl (a, n) → ∃7:k[n ≤ k + 2 ∧ k ≤ n + 1 ∧
+       1 ≤ k].Avl (a, k))"];
+    );
+
   "avl_tree_2--add" >::
     (fun () ->
-       todo "work in progress";
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "avl_tree--add"
 "newtype Avl : type * num
 newcons Empty : ∀a. Avl (a, 0)
@@ -2321,8 +2373,8 @@ let rec add = fun x -> efunction
 "
         [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃7:k[k ≤ n + 1 ∧ n ≤ k ∧
-       1 ≤ k].Avl (a, k))"];
+    (a → Avl (a, n) → ∃7:k[k ≤ n + 1 ∧ 1 ≤ k ∧
+       n ≤ k].Avl (a, k))"];
     );
 
   "avl_tree_2--remove_min_binding-simple" >::
@@ -2374,8 +2426,7 @@ let rec remove_min_binding = efunction
 
   "avl_tree_2--remove_min_binding" >::
     (fun () ->
-       todo "work in progress";
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "avl_tree--remove_min_binding"
 "newtype Avl : type * num
 newcons Empty : ∀a. Avl (a, 0)
@@ -2414,7 +2465,7 @@ let rec remove_min_binding = efunction
 (* The inequality [k + 2 ≤ 2 n] corresponds to the fact [n=1 ==> k=0]. *)
         [2,"∃n, a.
   δ =
-    (Avl (a, n) → ∃5:k[k + 2 ≤ 2 n ∧ n ≤ k + 1 ∧
+    (Avl (a, n) → ∃5:k[n ≤ k + 1 ∧ k + 2 ≤ 2 n ∧
        k ≤ n].Avl (a, k)) ∧
   1 ≤ n"];
     );
@@ -2592,8 +2643,7 @@ let rec remove = fun x -> efunction
 
   "avl_tree_2--remove" >::
     (fun () ->
-       todo "work in progress";
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "avl_tree--remove_min_binding"
 "newtype Avl : type * num
 newcons Empty : ∀a. Avl (a, 0)

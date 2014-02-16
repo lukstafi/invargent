@@ -103,8 +103,10 @@ val negation_elim :
 val separate_subst :
   Defs.quant_ops -> ?no_csts:bool -> ?keep:Defs.VarSet.t -> NumDefs.formula ->
   Terms.subst * NumDefs.formula
-val initstep_heur :
-  Defs.quant_ops -> preserve:Defs.VarSet.t ->
-  NumDefs.formula -> NumDefs.formula
 
 val transitive_cl : NumDefs.formula -> NumDefs.formula
+
+(** Currently, only removes opti atoms k=min(a,b) | k=max(a,b) where
+    a or b is a constant, assuming the atom is directed. *)
+val initstep_heur :
+  Defs.quant_ops -> NumDefs.formula -> NumDefs.formula
