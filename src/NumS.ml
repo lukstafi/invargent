@@ -990,30 +990,27 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
   and c_ineqn' = List.map (subst_w ~cmp_v eqs_i) c_ineqn
   and c_optis' = List.map (subst_2w ~cmp_v eqs_i) c_optis
   and c_suboptis' = List.map (subst_2w ~cmp_v eqs_i) c_suboptis in
-  (* Extract more equations implied by premise and earlier answer. *)
-  let _, d_implicits =
-    solve_get_eqn ~eqs:eqs_i ~eqs':[]
-      ~ineqs:ineqs_i ~eqn:d_eqn' ~ineqn:d_ineqn'
-      ~optis:[] ~suboptis:[] ~cnj:[] ~cmp_v ~cmp_w uni_v in
-  (*[* Format.printf
-    "NumS.abd_simple: d_implicits=@ %a@\n%!"
-    pr_eqn d_implicits;
-   *]*)
-  let d_eqn' = d_implicits @ d_eqn' in
-  (* 2 *)
-  let zero = [], !/0, dummy_loc in
-  (* *)let rev_sb = revert_uni ~cmp_v ~cmp_w ~uni_v ~bvs d_eqn' in
-  let c_eqn0 = List.map (subst_if_qv ~cmp_v rev_sb) c_eqn'
-  and c_ineqn0 = List.map (subst_if_qv ~cmp_v rev_sb) c_ineqn'
-  and c_optis0 = List.map (subst_if_qv_2w ~cmp_v rev_sb) c_optis'
-  and c_suboptis0 = List.map (subst_if_qv_2w ~cmp_v rev_sb) c_suboptis' in
-  (* *)
-  (*let c_eqn0 = c_eqn'
-    and c_ineqn0 = c_ineqn'
-    and c_optis0 = c_optis'
-    and c_suboptis0 = c_suboptis' in*)
-  (* Test if there is a fully maximal answer at all. *)
   try
+    (* Extract more equations implied by premise and earlier answer. *)
+    (* A contradiction in premise here means the answer so far
+       conflicts with a live-code branch, should be discarded. *)
+    let _, d_implicits =
+      solve_get_eqn ~eqs:eqs_i ~eqs':[]
+        ~ineqs:ineqs_i ~eqn:d_eqn' ~ineqn:d_ineqn'
+        ~optis:[] ~suboptis:[] ~cnj:[] ~cmp_v ~cmp_w uni_v in
+    (*[* Format.printf
+      "NumS.abd_simple: d_implicits=@ %a@\n%!"
+      pr_eqn d_implicits;
+    *]*)
+    let d_eqn' = d_implicits @ d_eqn' in
+    (* 2 *)
+    let zero = [], !/0, dummy_loc in
+    (* *)let rev_sb = revert_uni ~cmp_v ~cmp_w ~uni_v ~bvs d_eqn' in
+    let c_eqn0 = List.map (subst_if_qv ~cmp_v rev_sb) c_eqn'
+    and c_ineqn0 = List.map (subst_if_qv ~cmp_v rev_sb) c_ineqn'
+    and c_optis0 = List.map (subst_if_qv_2w ~cmp_v rev_sb) c_optis'
+    and c_suboptis0 = List.map (subst_if_qv_2w ~cmp_v rev_sb) c_suboptis' in
+    (* Test if there is a fully maximal answer at all. *)
     let b_eqs, b_ineqs, b_optis, b_suboptis =
       solve ~eqs:eqs_i ~ineqs:ineqs_i
         ~eqn:(c_eqn0 @ d_eqn) ~ineqn:(c_ineqn0 @ d_ineqn)
@@ -1023,7 +1020,7 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
     (*[* Format.printf
       "NumS.abd_simple: initial test@\nb_eqs=@ %a@\nb_ineqs=@ %a@\n%!"
       pr_w_subst b_eqs pr_ineqs b_ineqs;
-     *]*)
+    *]*)
 
     if not
         (implies ~cmp_v ~cmp_w uni_v b_eqs b_ineqs b_optis b_suboptis
@@ -1034,7 +1031,7 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
          c_ineqn0=%a@\nc_optis0=%a@\nc_suboptis0=%a@\n%!"
         pr_eqn c_eqn0 pr_ineqn c_ineqn0 pr_optis c_optis0
         pr_suboptis c_suboptis0;
-       *]*)
+      *]*)
       raise
         (Terms.Contradiction (Num_sort,
                               "No fully maximal abduction answer",
@@ -1067,7 +1064,7 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
       suboptis_i pr_eqn d_eqn pr_ineqn d_ineqn
       pr_eqn c_eqn pr_ineqn c_ineqn pr_ineqn d_ineqn'
       pr_ineqn c_ineqn' pr_eqn d_eqn';
-     *]*)
+    *]*)
     (* 3 *)
     (* 4 *)
     let rec loop add_eq_tr add_ineq_tr eq_trs ineq_trs
@@ -1106,7 +1103,7 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
       (*[* Format.printf
         "NumS.abd_simple: [%d] 5.@ a=%a @\nd_eqn=@ %a@\nineqn=@ %a@\n%!"
         ddepth pr_w_atom a pr_eqn d_eqn pr_ineqn (c0ineqn @ d_ineqn);
-       *]*)
+      *]*)
       let b_eqs, b_ineqs, b_optis, b_suboptis =
         solve ~eqs:eqs_acc ~ineqs:ineqs_acc
           ~eqn:(c0eqn @ d_eqn) ~ineqn:(c0ineqn @ d_ineqn)
@@ -1116,7 +1113,7 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
       (*[* Format.printf
         "NumS.abd_simple: [%d] 5.@\nb_eqs=@ %a@\nb_ineqs=@ %a@\n%!"
         ddepth pr_w_subst b_eqs pr_ineqs b_ineqs;
-       *]*)
+      *]*)
 
       if taut a
       || implies ~cmp_v ~cmp_w uni_v b_eqs b_ineqs b_optis b_suboptis
@@ -1127,7 +1124,7 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
         (*[* Format.printf
           "NumS.abd_simple: [%d] STEP 6. a=@ %a@\nc0remain=%a@\n%!"
           ddepth pr_w_atom a pr_eqn c0eqn;
-         *]*)
+        *]*)
         loop add_eq_tr add_ineq_tr eq_trs ineq_trs eqs_acc
           ineqs_acc optis_acc suboptis_acc c0eqn c0ineqn
           c0optis c0suboptis)
@@ -1137,7 +1134,7 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
         (*[* Format.printf
           "NumS.abd_simple: [%d] STEP 7. a=@ %a@\nc0remain=%a@\n%!"
           ddepth pr_w_atom a pr_eqn c0eqn;
-         *]*)
+        *]*)
         let passes = ref false in
         let try_trans a' =
           try
@@ -1145,7 +1142,7 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
             (*[* Format.printf
               "NumS.abd_simple: [%d] 7a. trying a'=@ %a@ ...@\n%!"
               ddepth pr_w_atom a';
-             *]*)
+            *]*)
             let eqn, ineqn, optin, suboptin = split_w_atom a' in
             let eqs_acc, ineqs_acc, optis_acc, suboptis_acc =
               solve ~use_quants:bvs
@@ -1177,7 +1174,7 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
             (*[* Format.printf
               "NumS.abd_simple: [%d] 7. invalid, error=@\n%a@\n%!"
               ddepth Terms.pr_exception e;
-             *]*)
+            *]*)
             () in
         try_trans a;
         laziter (fun tr -> try_trans (trans_w_atom ~cmp_v tr a)) trs;
@@ -1186,7 +1183,7 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
           (*[* Format.printf
             "NumS.abd_simple: [%d] 7b. failed a=@ %a@ ...@\n%!"
             ddepth pr_w_atom a;
-           *]*)
+          *]*)
           raise (Terms.Contradiction
                    (Num_sort, no_pass_msg, None, dummy_loc))) in
 
@@ -1229,7 +1226,7 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
       pr_w_subst eqs_i pr_ineqs ineqs_i pr_optis optis_i
       pr_suboptis suboptis_i pr_eqn d_eqn pr_ineqn d_ineqn
       pr_eqn c_eqn pr_ineqn c_ineqn;
-     *]*)
+    *]*)
     None
 
 let make_cmp q v1 v2 =

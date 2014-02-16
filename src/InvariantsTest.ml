@@ -381,7 +381,8 @@ let rec append =
 
   "append asserted" >::
     (fun () ->
-       skip_if !debug "debug";
+       todo "work in progress";
+       (* skip_if !debug "debug"; *)
        test_case "list append simple numeric"
 "newtype Elem
 newtype List : num
@@ -461,7 +462,7 @@ let rec append =
 
   "binary increment" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "binary increment"
 "newtype Binary : num
 
