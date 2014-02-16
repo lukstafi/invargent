@@ -35,10 +35,16 @@ Disjunction elimination for InvarGenT.
 </div>
 <hr width="100%">
 
-<pre><span id="VALdisjelim"><span class="keyword">val</span> disjelim</span> : <code class="type">Defs.quant_ops -><br>       bvs:Defs.VarSet.t -><br>       preserve:Defs.VarSet.t -><br>       do_num:bool -> <a href="Terms.html#TYPEformula">Terms.formula</a> list -> Defs.var_name list * <a href="Terms.html#TYPEatom">Terms.atom</a> list</code></pre>
-<pre><span id="VALinitstep_heur"><span class="keyword">val</span> initstep_heur</span> : <code class="type">Defs.quant_ops -> preserve:Defs.VarSet.t -> <a href="Terms.html#TYPEformula">Terms.formula</a> -> <a href="Terms.html#TYPEformula">Terms.formula</a></code></pre><div class="info ">
-Filter the initial postcondition, found from non-recursive
-    branches only, so that it does not constrain variables to
-    constants if other constraints on the variables are available.<br>
+<pre><span id="VALmore_existential"><span class="keyword">val</span> more_existential</span> : <code class="type">bool Pervasives.ref</code></pre><div class="info ">
+Allow more general argument types by inferring more existential
+    result type. Default value <code class="code">false</code>.<br>
+</div>
+
+<pre><span id="VALdisjelim"><span class="keyword">val</span> disjelim</span> : <code class="type">Defs.quant_ops -><br>       bvs:Defs.VarSet.t -><br>       preserve:Defs.VarSet.t -><br>       do_num:bool -><br>       initstep:bool -><br>       <a href="Terms.html#TYPEformula">Terms.formula</a> list -> <a href="Terms.html#TYPEsubst">Terms.subst</a> * (Defs.var_name list * <a href="Terms.html#TYPEatom">Terms.atom</a> list)</code></pre>
+<pre><span id="VALinitstep_heur"><span class="keyword">val</span> initstep_heur</span> : <code class="type">Defs.quant_ops -><br>       validate:(<a href="Terms.html#TYPEformula">Terms.formula</a> -> unit) -> <a href="Terms.html#TYPEanswer">Terms.answer</a> -> <a href="Terms.html#TYPEanswer">Terms.answer</a></code></pre><div class="info ">
+Filter out "suspicious" and invalid atoms of a formula. <code class="code">validate</code>
+    should raise <code class="code">Contradiction</code> when a result is
+    incorrect. Currently: first removes min/max atoms comparing a
+    variable to a constant, then performs a greedy search for valid atoms.<br>
 </div>
 </body></html>

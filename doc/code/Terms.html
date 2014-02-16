@@ -130,6 +130,13 @@ Data structures and printing for InvarGenT.
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
+<code><span id="TYPEELTexpr.NumAdd"><span class="constructor">NumAdd</span></span> <span class="keyword">of</span> <code class="type">('a, 'b) <a href="Terms.html#TYPEexpr">expr</a> * ('a, 'b) <a href="Terms.html#TYPEexpr">expr</a> * <a href="Terms.html#TYPElc">lc</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
 <code><span id="TYPEELTexpr.String"><span class="constructor">String</span></span> <span class="keyword">of</span> <code class="type">string * <a href="Terms.html#TYPElc">lc</a></code></code></td>
 
 </tr>
@@ -204,7 +211,7 @@ Data structures and printing for InvarGenT.
 </div>
 
 
-<pre><span id="TYPEclause"><span class="keyword">type</span> <code class="type">('a, 'b)</code> clause</span> = <code class="type"><a href="Terms.html#TYPEpat">pat</a> * ('a, 'b) <a href="Terms.html#TYPEexpr">expr</a></code> </pre>
+<pre><span id="TYPEclause"><span class="keyword">type</span> <code class="type">('a, 'b)</code> clause</span> = <code class="type"><a href="Terms.html#TYPEpat">pat</a> * (('a, 'b) <a href="Terms.html#TYPEexpr">expr</a> * ('a, 'b) <a href="Terms.html#TYPEexpr">expr</a>) list *<br>       ('a, 'b) <a href="Terms.html#TYPEexpr">expr</a></code> </pre>
 
 
 <pre><span id="VALexpr_loc"><span class="keyword">val</span> expr_loc</span> : <code class="type">('a, 'b) <a href="Terms.html#TYPEexpr">expr</a> -> <a href="Terms.html#TYPElc">lc</a></code></pre>
@@ -716,6 +723,10 @@ Change <code class="code">Contradiction</code> to <code class="code">NoAnswer</c
 <pre><span id="VALsubst_sb"><span class="keyword">val</span> subst_sb</span> : <code class="type">sb:<a href="Terms.html#TYPEsubst">subst</a> -> <a href="Terms.html#TYPEsubst">subst</a> -> <a href="Terms.html#TYPEsubst">subst</a></code></pre>
 <pre><span id="VALhvsubst_sb"><span class="keyword">val</span> hvsubst_sb</span> : <code class="type"><a href="Terms.html#TYPEhvsubst">hvsubst</a> -> <a href="Terms.html#TYPEsubst">subst</a> -> <a href="Terms.html#TYPEsubst">subst</a></code></pre>
 <pre><span id="VALupdate_sb"><span class="keyword">val</span> update_sb</span> : <code class="type">more_sb:<a href="Terms.html#TYPEsubst">subst</a> -> <a href="Terms.html#TYPEsubst">subst</a> -> <a href="Terms.html#TYPEsubst">subst</a></code></pre><div class="info ">
+<code class="code">subst</code> must be a renaming of variables.<br>
+</div>
+
+<pre><span id="VALrevert_renaming"><span class="keyword">val</span> revert_renaming</span> : <code class="type"><a href="Terms.html#TYPEsubst">subst</a> -> <a href="Terms.html#TYPEsubst">subst</a></code></pre><div class="info ">
 Union/conjunction of sort-separated formulas, additionally
     perform an update of the term substitution.<br>
 </div>
@@ -726,6 +737,7 @@ Separate atoms into their sorts. Warning: ignores type sort atoms
 </div>
 
 <pre><span id="VALsep_formulas"><span class="keyword">val</span> sep_formulas</span> : <code class="type"><a href="Terms.html#TYPEformula">formula</a> -> <a href="Terms.html#TYPEsep_formula">sep_formula</a></code></pre>
+<pre><span id="VALunsep_formulas"><span class="keyword">val</span> unsep_formulas</span> : <code class="type"><a href="Terms.html#TYPEsep_formula">sep_formula</a> -> <a href="Terms.html#TYPEformula">formula</a></code></pre>
 <pre><span id="VALmap_in_subst"><span class="keyword">val</span> map_in_subst</span> : <code class="type">(<a href="Terms.html#TYPEtyp">typ</a> -> <a href="Terms.html#TYPEtyp">typ</a>) -> <a href="Terms.html#TYPEsubst">subst</a> -> <a href="Terms.html#TYPEsubst">subst</a></code></pre><div class="info ">
 Substitute constants, and generally subterms identical to a term,
     with another term. <code class="code">loc</code> is not used.<br>
@@ -839,7 +851,7 @@ Find the atoms in the formula which are valid substitutions.<br>
 
 
 
-<pre><span id="VALpr_expr"><span class="keyword">val</span> pr_expr</span> : <code class="type">?export_num:string -><br>       ?export_if:string * string * string -><br>       ?export_bool:(bool * string) list -><br>       (Format.formatter -> ('a, 'b) <a href="Terms.html#TYPEpr_expr_annot">pr_expr_annot</a> -> unit) -><br>       Format.formatter -> ('a, 'b) <a href="Terms.html#TYPEexpr">expr</a> -> unit</code></pre>
+<pre><span id="VALpr_expr"><span class="keyword">val</span> pr_expr</span> : <code class="type">?export_num:string * string * string * string -><br>       ?export_if:string * string * string -><br>       ?export_bool:(bool * string) list -><br>       (Format.formatter -> ('a, 'b) <a href="Terms.html#TYPEpr_expr_annot">pr_expr_annot</a> -> unit) -><br>       Format.formatter -> ('a, 'b) <a href="Terms.html#TYPEexpr">expr</a> -> unit</code></pre>
 <pre><span id="VALpr_uexpr"><span class="keyword">val</span> pr_uexpr</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEuexpr">uexpr</a> -> unit</code></pre>
 <pre><span id="VALpr_iexpr"><span class="keyword">val</span> pr_iexpr</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEiexpr">iexpr</a> -> unit</code></pre>
 <pre><span id="VALpr_atom"><span class="keyword">val</span> pr_atom</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEatom">atom</a> -> unit</code></pre>

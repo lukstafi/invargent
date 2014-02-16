@@ -159,9 +159,7 @@ Connected component(s) of the hypergraph spanned on variables,
 <td></td></tr>
 <tr><td><a href="DisjElim.html#VALinitstep_heur">initstep_heur</a> [<a href="DisjElim.html">DisjElim</a>]</td>
 <td><div class="info">
-Filter the initial postcondition, found from non-recursive
-    branches only, so that it does not constrain variables to
-    constants if other constraints on the variables are available.
+Filter out "suspicious" and invalid atoms of a formula.
 </div>
 </td></tr>
 <tr><td align="left"><br>M</td></tr>
@@ -169,6 +167,12 @@ Filter the initial postcondition, found from non-recursive
 <td><div class="info">
 Substitute constants, and generally subterms identical to a term,
     with another term.
+</div>
+</td></tr>
+<tr><td><a href="DisjElim.html#VALmore_existential">more_existential</a> [<a href="DisjElim.html">DisjElim</a>]</td>
+<td><div class="info">
+Allow more general argument types by inferring more existential
+    result type.
 </div>
 </td></tr>
 <tr><td><a href="Abduction.html#VALmore_general">more_general</a> [<a href="Abduction.html">Abduction</a>]</td>
@@ -180,6 +184,11 @@ Substitute constants, and generally subterms identical to a term,
 <tr><td align="left"><br>N</td></tr>
 <tr><td><a href="Terms.html#VALn_subst_typ">n_subst_typ</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
+<tr><td><a href="Abduction.html#VALneg_before_abd">neg_before_abd</a> [<a href="Abduction.html">Abduction</a>]</td>
+<td><div class="info">
+When to start running negation elimination.
+</div>
+</td></tr>
 <tr><td><a href="Invariants.html#VALneg_constrns">neg_constrns</a> [<a href="Invariants.html">Invariants</a>]</td>
 <td></td></tr>
 <tr><td><a href="Terms.html#VALnext_var">next_var</a> [<a href="Terms.html">Terms</a>]</td>
@@ -191,7 +200,19 @@ The <code class="code">fvs</code> argument only lists additional variable names 
 <tr><td><a href="Terms.html#VALnice_ans">nice_ans</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
 <tr><td><a href="Abduction.html#VALno_alien_prem">no_alien_prem</a> [<a href="Abduction.html">Abduction</a>]</td>
-<td></td></tr>
+<td><div class="info">
+<code class="code">no_num_abduction=true</code> does not perform numerical
+    abduction.
+</div>
+</td></tr>
+<tr><td><a href="Abduction.html#VALno_num_abduction">no_num_abduction</a> [<a href="Abduction.html">Abduction</a>]</td>
+<td><div class="info">
+<code class="code">neg_before_abd=false</code> moves numerical negation elimination till
+    after numerical abduction, with possibly better determination of
+    negative facts, but worse availability of the negative
+    facts.
+</div>
+</td></tr>
 <tr><td><a href="Infer.html#VALnormalize">normalize</a> [<a href="Infer.html">Infer</a>]</td>
 <td></td></tr>
 <tr><td><a href="Infer.html#VALnormalize_expr">normalize_expr</a> [<a href="Infer.html">Infer</a>]</td>
@@ -202,6 +223,8 @@ Normalization
 <tr><td><a href="Infer.html#VALnormalize_program">normalize_program</a> [<a href="Infer.html">Infer</a>]</td>
 <td></td></tr>
 <tr><td><a href="Terms.html#VALnum">num</a> [<a href="Terms.html">Terms</a>]</td>
+<td></td></tr>
+<tr><td><a href="Abduction.html#VALnum_neg_since">num_neg_since</a> [<a href="Abduction.html">Abduction</a>]</td>
 <td></td></tr>
 <tr><td><a href="Terms.html#VALnum_unbox">num_unbox</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
@@ -303,6 +326,12 @@ Set <code class="code">extype_id</code> and <code class="code">predvar_id</code>
 </td></tr>
 <tr><td><a href="Terms.html#VALreturn_type">return_type</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
+<tr><td><a href="Terms.html#VALrevert_renaming">revert_renaming</a> [<a href="Terms.html">Terms</a>]</td>
+<td><div class="info">
+Union/conjunction of sort-separated formulas, additionally
+    perform an update of the term substitution.
+</div>
+</td></tr>
 <tr><td><a href="Abduction.html#VALricher_answers">richer_answers</a> [<a href="Abduction.html">Abduction</a>]</td>
 <td></td></tr>
 <tr><td align="left"><br>S</td></tr>
@@ -403,12 +432,15 @@ Return a store cell where triggers will put which existentials are
 <tr><td><a href="Terms.html#VALtyp_up">typ_up</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
 <tr><td align="left"><br>U</td></tr>
+<tr><td><a href="Invariants.html#VALunfinished_postcond_flag">unfinished_postcond_flag</a> [<a href="Invariants.html">Invariants</a>]</td>
+<td></td></tr>
 <tr><td><a href="Terms.html#VALunify">unify</a> [<a href="Terms.html">Terms</a>]</td>
+<td></td></tr>
+<tr><td><a href="Terms.html#VALunsep_formulas">unsep_formulas</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
 <tr><td><a href="Terms.html#VALupdate_sb">update_sb</a> [<a href="Terms.html">Terms</a>]</td>
 <td><div class="info">
-Union/conjunction of sort-separated formulas, additionally
-    perform an update of the term substitution.
+<code class="code">subst</code> must be a renaming of variables.
 </div>
 </td></tr>
 <tr><td><a href="Terms.html#VALupdate_sep">update_sep</a> [<a href="Terms.html">Terms</a>]</td>

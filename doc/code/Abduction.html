@@ -66,7 +66,24 @@ Abduction for InvarGenT.
 <pre><span id="VALricher_answers"><span class="keyword">val</span> richer_answers</span> : <code class="type">bool Pervasives.ref</code></pre>
 <pre><span id="VALtimeout_count"><span class="keyword">val</span> timeout_count</span> : <code class="type">int Pervasives.ref</code></pre>
 <pre><span id="VALfail_timeout_count"><span class="keyword">val</span> fail_timeout_count</span> : <code class="type">int Pervasives.ref</code></pre>
-<pre><span id="VALno_alien_prem"><span class="keyword">val</span> no_alien_prem</span> : <code class="type">bool Pervasives.ref</code></pre>
+<pre><span id="VALno_alien_prem"><span class="keyword">val</span> no_alien_prem</span> : <code class="type">bool Pervasives.ref</code></pre><div class="info ">
+<code class="code">no_num_abduction=true</code> does not perform numerical
+    abduction. Default <code class="code">false</code>.<br>
+</div>
+
+<pre><span id="VALno_num_abduction"><span class="keyword">val</span> no_num_abduction</span> : <code class="type">bool Pervasives.ref</code></pre><div class="info ">
+<code class="code">neg_before_abd=false</code> moves numerical negation elimination till
+    after numerical abduction, with possibly better determination of
+    negative facts, but worse availability of the negative
+    facts. Default <code class="code">true</code>.<br>
+</div>
+
+<pre><span id="VALneg_before_abd"><span class="keyword">val</span> neg_before_abd</span> : <code class="type">bool Pervasives.ref</code></pre><div class="info ">
+When to start running negation elimination. Default <code class="code">1</code> --
+    coinciding with the start of numerical abduction.<br>
+</div>
+
+<pre><span id="VALnum_neg_since"><span class="keyword">val</span> num_neg_since</span> : <code class="type">int Pervasives.ref</code></pre>
 <pre><span id="VALabd_fail_flag"><span class="keyword">val</span> abd_fail_flag</span> : <code class="type">bool Pervasives.ref</code></pre>
 <pre><span id="VALabd_timeout_flag"><span class="keyword">val</span> abd_timeout_flag</span> : <code class="type">bool Pervasives.ref</code></pre>
 <pre><span id="VALabd_simple"><span class="keyword">val</span> abd_simple</span> : <code class="type">Defs.quant_ops -><br>       ?without_quant:unit -><br>       bvs:Defs.VarSet.t -><br>       pms:Defs.VarSet.t -><br>       dissociate:bool -><br>       validate:(Defs.var_name list * <a href="Terms.html#TYPEsubst">Terms.subst</a> -> unit) -><br>       discard:(Defs.var_name list * <a href="Terms.html#TYPEsubst">Terms.subst</a>) list -><br>       int -><br>       Defs.var_name list * <a href="Terms.html#TYPEsubst">Terms.subst</a> -><br>       <a href="Terms.html#TYPEsep_formula">Terms.sep_formula</a> * <a href="Terms.html#TYPEsubst">Terms.subst</a> -><br>       (Defs.VarSet.t * (Defs.var_name list * <a href="Terms.html#TYPEsubst">Terms.subst</a>)) option</code></pre>
@@ -80,5 +97,5 @@ Raises <code class="code">Contradiction</code> if constraints are contradictory 
 </div>
 
 
-<pre><span id="VALabd"><span class="keyword">val</span> abd</span> : <code class="type">Defs.quant_ops -><br>       bvs:Defs.VarSet.t -><br>       ?iter_no:int -><br>       discard:<a href="Abduction.html#TYPEdiscarded">discarded</a> -><br>       (bool * <a href="Terms.html#TYPEformula">Terms.formula</a> * <a href="Terms.html#TYPEformula">Terms.formula</a>) list -><br>       Defs.VarSet.t * <a href="Terms.html#TYPEsubst">Terms.subst</a> * (Defs.var_name list * <a href="Terms.html#TYPEformula">Terms.formula</a>)</code></pre>
+<pre><span id="VALabd"><span class="keyword">val</span> abd</span> : <code class="type">Defs.quant_ops -><br>       bvs:Defs.VarSet.t -><br>       ?iter_no:int -><br>       discard:<a href="Abduction.html#TYPEdiscarded">discarded</a> -><br>       (bool * <a href="Terms.html#TYPEformula">Terms.formula</a> * <a href="Terms.html#TYPEformula">Terms.formula</a>) list -><br>       (<a href="Terms.html#TYPEformula">Terms.formula</a> * Defs.loc) list -><br>       Defs.VarSet.t * <a href="Terms.html#TYPEsubst">Terms.subst</a> * (Defs.var_name list * <a href="Terms.html#TYPEformula">Terms.formula</a>)</code></pre>
 <pre><span id="VALabd_mockup_num"><span class="keyword">val</span> abd_mockup_num</span> : <code class="type">Defs.quant_ops -><br>       bvs:Defs.VarSet.t -><br>       (<a href="Terms.html#TYPEformula">Terms.formula</a> * <a href="Terms.html#TYPEformula">Terms.formula</a>) list -><br>       (NumDefs.formula * NumDefs.formula) list option</code></pre></body></html>
