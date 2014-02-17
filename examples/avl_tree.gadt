@@ -26,12 +26,11 @@ let create = fun l x r ->
 
 let singleton = fun x -> Node (Empty, x, Empty, 1)
 
-let bal = fun l x r ->
-  ematch height l, height r with
-  | i, j when j+3 <= i (*i.e. i > j+2*) ->
-    (ematch l with
-    | Empty -> assert false
-    | Node (ll, lx, lr, _) ->
+let rotr = efunction
+    | Empty, x, r -> assert false
+    | Node (ll, lx, lr, hl), x, r ->
+      assert num 0 <= height r;
+      assert type hl = height r + 3;
       (ematch height ll, height lr with
       | m, n when n <= m ->
         let r' = create lr x r in
@@ -42,11 +41,13 @@ let bal = fun l x r ->
         | Node (lrl, lrx, lrr, _) ->
           let l' = create ll lx lrl in
           let r' = create lrr x r in
-          create l' lrx r')))
-  | i, j when i+3 <= j (*i.e. j > i+2*) ->
-    (ematch r with
-    | Empty -> assert false
-    | Node (rl, rx, rr, _) ->
+          create l' lrx r'))
+
+let rotl = efunction
+    | l, x, Empty -> assert false
+    | l, x, Node (rl, rx, rr, hr) ->
+      assert num 0 <= height l;
+      assert type hr = height l + 3;
       (ematch height rr, height rl with
       | m, n when n <= m ->
         let l' = create l x rl in
@@ -57,19 +58,27 @@ let bal = fun l x r ->
         | Node (rll, rlx, rlr, _) ->
           let l' = create l x rll in
           let r' = create rlr rx rr in
-          create l' rlx r')))
+          create l' rlx r'))
 
 let rec add = fun x -> efunction
   | Empty -> Node (Empty, x, Empty, 1)
   | Node (l, y, r, h) ->
-    ematch compare x y with
-    | EQ -> Node (l, x, r, h)
-    | LT -> let l' = add x l in bal l' y r
-    | GT -> let r' = add x r in bal l y r'
+    ematch compare x y, height l, height r with
+    | EQ, _, _ -> Node (l, x, r, h)
+    | LT, hl, hr ->
+      let l' = add x l in
+      (ematch height l' with
+       | hl' when hl' <= hr+2 -> create l' y r
+       | hl' when hr+3 <= hl' -> rotr (l', y, r))
+    | GT, hl, hr ->
+      let r' = add x r in
+      (ematch height r' with
+       | hr' when hr' <= hl+2 -> create l y r'
+       | hr' when hl+3 <= hr' -> rotl (l, y, r'))
 
 let rec mem = fun x -> function
   | Empty -> False
-  | Node (_, _, l, y, r) ->
+  | Node (l, y, r, _) ->
     match compare x y with
     | LT -> mem x l
     | EQ -> True
@@ -83,23 +92,37 @@ let rec min_binding = function
 let rec remove_min_binding = efunction
   | Empty -> assert false
   | Node (Empty, x, r, _) -> r
-  | Node (Node (_,_,_,_) as l, x, r, _) ->
+  | Node ((Node (_,_,_,_) as l), x, r, _) ->
     let l' = remove_min_binding l in
-    bal l' x r
+    (ematch height l', height r with
+     | hl', hr when hl' <= hr+2 && hr <= hl'+2 -> create l' x r
+     | hl', hr when hl'+3 <= hr -> rotl (l', x, r))
 
 let merge = efunction
   | Empty, Empty -> Empty
   | Empty, (Node (_,_,_,_) as t) -> t
   | (Node (_,_,_,_) as t), Empty -> t
+  | Node (_,_,_,ht1), Node (_,_,_,ht2) when ht1+3 <= ht2 -> assert false
+  | Node (_,_,_,ht1), Node (_,_,_,ht2) when ht2+3 <= ht1 -> assert false
   | (Node (_,_,_,_) as t1), (Node (_,_,_,_) as t2) ->
     let x = min_binding t2 in
     let t2' = remove_min_binding t2 in
-    bal t1 x t2'
+    (ematch height t1, height t2' with
+     | ht1, ht2' when ht1 <= ht2'+2 && ht2' <= ht1+2 -> create t1 x t2'
+     | ht1, ht2' when ht2'+3 <= ht1 -> rotr (t1, x, t2'))
 
 let rec remove = fun x -> efunction
   | Empty -> Empty
   | Node (l, y, r, h) ->
     ematch compare x y with
-    | EQ -> merge l r
-    | LT -> let l' = remove x l in bal l' y r
-    | GT -> let r' = remove x r in bal l y r'
+    | EQ -> merge (l, r)
+    | LT ->
+      let l' = remove x l in
+      (ematch height l', height r with
+       | hl', hr when hl' <= hr+2 && hr <= hl'+2 -> create l' y r
+       | hl', hr when hl'+3 <= hr -> rotl (l', y, r))
+    | GT ->
+      let r' = remove x r in
+      (ematch height l, height r' with
+       | hl, hr' when hl <= hr'+2 && hr' <= hl+2 -> create l y r'
+       | hl, hr' when hr'+3 <= hl -> rotr (l, y, r'))

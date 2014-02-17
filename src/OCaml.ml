@@ -136,7 +136,8 @@ let postprocess elim_extypes e =
                 aux e)
              cls, loc)
     | AssertFalse _ as e -> e
-    | (AssertLeq _ | AssertEqty _) as e -> e
+    (* Assertions are statically guaranteed to hold. *)
+    | AssertLeq (_, _, e, _) | AssertEqty (_, _, e, _) -> aux e
     | Letrec (docu, ann, x, e1, e2, loc) ->
       Letrec (docu, ann, x, aux e1, aux e2, loc)
     | Letin (docu, p, e1, e2, loc) ->

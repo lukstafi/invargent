@@ -381,8 +381,12 @@ let rec append =
 
   "append asserted" >::
     (fun () ->
-       todo "work in progress";
-       (* skip_if !debug "debug"; *)
+       todo "too hard for current numerical abduction";
+       skip_if !debug "debug";
+       (* Too hard for the current abduction algo: whe it discovers
+          that the result is [n + k], rather than [n], it is already
+          committed to requiring that the result is no less than [1],
+          which on following iterations blows up. *)
        test_case "list append simple numeric"
 "newtype Elem
 newtype List : num
@@ -395,9 +399,10 @@ let rec append =
     | LNil ->
       (function l when (length l + 1) <= 0 -> assert false | l -> l)
     | LCons (x, xs) ->
-      (function LNil -> LCons (x, append xs LNil)
-        | LCons (_,_) as l -> LCons (x, append xs l))"
-        [1,"∃n, k. δ = (List k → List n → List (n + k)) ∧ 0 ≤ n + k"];
+      (function l when (length l + 1) <= 0 -> assert false
+      | l -> LCons (x, append xs l))"
+        [1,"∃n, k. δ = (List k → List n → List (n + k)) ∧ 0 ≤ n ∧
+  0 ≤ n + k"];
     );
 
   "interleave" >::
@@ -523,8 +528,8 @@ let rec plus =
 
   "binary plus asserted" >::
     (fun () ->
-       todo "work in progress";
-       (* skip_if !debug "debug"; *)
+       todo "too hard for current numerical abduction";
+       skip_if !debug "debug";
        test_case "binary plus"
 "newtype Binary : num
 newtype Carry : num
@@ -2063,7 +2068,7 @@ let rec min_binding = function
   "avl_tree_2--rotr-simple" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case ~no_num_abduction:true "avl_tree_2--rotr-simple"
+       test_case "avl_tree_2--rotr-simple"
 "newtype Avl : type * num
 newcons Empty : ∀a. Avl (a, 0)
 newcons Node :
@@ -2102,10 +2107,93 @@ let rotr = efunction (* hl = hr + 3 *)
   0 ≤ n"];
     );
 
+  "avl_tree_2--rotr-simple2" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "avl_tree_2--rotr-simple2"
+"newtype Avl : type * num
+newcons Empty : ∀a. Avl (a, 0)
+newcons Node :
+  ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
+     Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
+
+external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external create :
+  ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
+      Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
+       0 ≤ i].Avl (a, i) = \"create\"
+external singleton : ∀a. a → Avl (a, 1) = \"singleton\"
+
+let rotr = efunction
+    | Empty, x, r -> assert false
+    | Node (ll, lx, lr, hl), x, r ->
+      assert num 0 <= height r;
+      assert type hl = height r + 3;
+      (ematch height ll, height lr with
+      | m, n when n <= m ->
+        let r' = create lr x r in
+        create ll lx r'
+      | m, n when m+1 <= n ->
+        (ematch lr with
+        | Empty -> assert false
+        | Node (lrl, lrx, lrr, _) ->
+          let l' = create ll lx lrl in
+          let r' = create lrr x r in
+          create l' lrx r'))
+"
+        [2,"∃n, a.
+  δ =
+    ((Avl (a, n + 3), a, Avl (a, n)) → ∃4:k[n + 3 ≤ k ∧
+       k ≤ n + 4].Avl (a, k)) ∧
+  0 ≤ n"];
+    );
+
+  "avl_tree_2--rotr-simple3" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "avl_tree_2--rotr-simple2"
+"newtype Avl : type * num
+newcons Empty : ∀a. Avl (a, 0)
+newcons Node :
+  ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
+     Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
+
+external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external create :
+  ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
+      Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
+       0 ≤ i].Avl (a, i) = \"create\"
+external singleton : ∀a. a → Avl (a, 1) = \"singleton\"
+
+let rotr = efunction
+    | Empty, x, r -> assert false
+    | Node (ll, lx, lr, hl), x, r ->
+      let hr = height r in
+      assert num 0 <= hr;
+      assert type hl = hr + 3;
+      (ematch height ll, height lr with
+      | m, n when n <= m ->
+        let r' = create lr x r in
+        create ll lx r'
+      | m, n when m+1 <= n ->
+        (ematch lr with
+        | Empty -> assert false
+        | Node (lrl, lrx, lrr, _) ->
+          let l' = create ll lx lrl in
+          let r' = create lrr x r in
+          create l' lrx r'))
+"
+        [2,"∃n, a.
+  δ =
+    ((Avl (a, n + 3), a, Avl (a, n)) → ∃4:k[n + 3 ≤ k ∧
+       k ≤ n + 4].Avl (a, k)) ∧
+  0 ≤ n"];
+    );
+
   "avl_tree_2--rotr" >::
     (fun () ->
-       todo "work in progress";
-       (* skip_if !debug "debug"; *)
+       todo "too hard for current numerical abduction";
+       skip_if !debug "debug";
        test_case "avl_tree--rotr"
 "newtype Avl : type * num
 newcons Empty : ∀a. Avl (a, 0)
@@ -2143,7 +2231,7 @@ let rotr = fun l x r -> (* hl = hr + 3 *)
   "avl_tree_2--rotl-simple" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case ~no_num_abduction:true "avl_tree--rotl"
+       test_case "avl_tree--rotl"
 "newtype Avl : type * num
 newcons Empty : ∀a. Avl (a, 0)
 newcons Node :
@@ -2160,11 +2248,50 @@ external singleton : ∀a. a → Avl (a, 1) = \"singleton\"
 let rotl = efunction (* hl + 3 = hr *)
     | l, x, Empty -> assert false
     | l, x, Node (rl, rx, rr, hr) ->
-      (ematch height rl, height rr, height l with
+      (ematch height rr, height rl, height l with
       | _, _, hl when hl+1 <= 0 -> assert false
       | _, _, hl when hr <= hl+2 -> assert false
       | _, _, hl when hl+4 <= hr -> assert false
       | m, n, _ when n <= m ->
+        let l' = create l x rl in
+        create l' rx rr
+      | m, n, _ when m+1 <= n ->
+        (ematch rl with
+        | Empty -> assert false
+        | Node (rll, rlx, rlr, _) ->
+          let l' = create l x rll in
+          let r' = create rlr rx rr in
+          create l' rlx r'))
+"
+        [2,"∃n, a.
+  δ =
+    ((Avl (a, n), a, Avl (a, n + 3)) → ∃4:k[n + 3 ≤ k ∧
+       k ≤ n + 4].Avl (a, k)) ∧
+  0 ≤ n"];
+    );
+
+  "avl_tree_2--rotl-simple2" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "avl_tree--rotl"
+"newtype Avl : type * num
+newcons Empty : ∀a. Avl (a, 0)
+newcons Node :
+  ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
+     Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
+
+external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external create :
+  ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
+      Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
+       0 ≤ i].Avl (a, i) = \"create\"
+external singleton : ∀a. a → Avl (a, 1) = \"singleton\"
+
+let rotl = efunction
+    | l, x, Empty -> assert false
+    | l, x, Node (rl, rx, rr, hr) ->
+      assert num 0 <= height l;
+      assert type hr = height l + 3;
       (ematch height rr, height rl with
       | m, n when n <= m ->
         let l' = create l x rl in
@@ -2175,19 +2302,19 @@ let rotl = efunction (* hl + 3 = hr *)
         | Node (rll, rlx, rlr, _) ->
           let l' = create l x rll in
           let r' = create rlr rx rr in
-          create l' rlx r')))
+          create l' rlx r'))
 "
         [2,"∃n, a.
   δ =
-    ((Avl (a, n), a, Avl (a, n + 3)) → ∃5:k[n + 3 ≤ k ∧
+    ((Avl (a, n), a, Avl (a, n + 3)) → ∃4:k[n + 3 ≤ k ∧
        k ≤ n + 4].Avl (a, k)) ∧
   0 ≤ n"];
     );
 
   "avl_tree_2--rotl" >::
     (fun () ->
-       todo "work in progress";
-       (* skip_if !debug "debug"; *)
+       todo "too hard for current numerical abduction";
+       skip_if !debug "debug";
        test_case "avl_tree--rotl"
 "newtype Avl : type * num
 newcons Empty : ∀a. Avl (a, 0)
@@ -2372,6 +2499,62 @@ let rec add = fun x -> efunction
        | hr' when hr' <= hl+2 -> create l y r'
        | hr' when hl+3 <= hr' -> rotl l y r')
 "
+        [2,"∃n, a.
+  δ =
+    (a → Avl (a, n) → ∃7:k[k ≤ n + 1 ∧ 1 ≤ k ∧
+       n ≤ k].Avl (a, k))"];
+    );
+
+  "avl_tree_2--add2" >::
+    (fun () ->
+       todo "too hard for current numerical abduction";
+       skip_if !debug "debug";
+       test_case "avl_tree--add"
+"newtype Avl : type * num
+newcons Empty : ∀a. Avl (a, 0)
+newcons Node :
+  ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
+     Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
+newtype LinOrder
+newcons LT : LinOrder
+newcons EQ : LinOrder
+newcons GT : LinOrder
+external let compare : ∀a. a → a → LinOrder =
+  \"fun x y -> let c=Pervasives.compare x y in
+              if c<0 then LT else if c=0 then EQ else GT\"
+
+external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external create :
+  ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
+      Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
+       0 ≤ i].Avl (a, i) = \"create\"
+external rotr :
+  ∀n, a. Avl (a, n+3) → a → Avl (a, n) →
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotr\"
+external rotl :
+  ∀n, a. Avl (a, n) → a → Avl (a, n+3) →
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotl\"
+
+let rec add = fun x -> efunction
+  | Empty -> Node (Empty, x, Empty, 1)
+  | Node (l, y, r, h) ->
+    ematch compare x y with
+    | EQ -> Node (l, x, r, h)
+    | LT ->
+      let l' = add x l in
+      (ematch height l', height r with
+       | hl', hr when hl' <= hr+2 -> create l' y r
+       | hl', hr when hr+3 <= hl' -> rotr l' y r)
+    | GT ->
+      let r' = add x r in
+      (ematch height r', height l with
+       | hr', hl when hr' <= hl+2 -> create l y r'
+       | hr', hl when hl+3 <= hr' -> rotl l y r')
+"
+(* Tricky because of lack of sharing of information
+   about [l] due to facts about [l' = add x l], resp. about [r] due
+   to facts about [r' = add x r], with the other branch. *)
+(* TODO: explain in the manual. *)
         [2,"∃n, a.
   δ =
     (a → Avl (a, n) → ∃7:k[k ≤ n + 1 ∧ 1 ≤ k ∧

@@ -46,7 +46,7 @@ let process_file ?(do_sig=false) ?(do_ml=false)
       (OCaml.pr_ml ~funtys:full_annot ~lettys:full_annot) annot;
     Format.printf "InvarGenT: Generated file %s@\n%!" (base^".ml"));
   if do_ml && verif_ml then
-    let cmd = "ocamlc -c "^base^".ml" in
+    let cmd = "ocamlc -w -25 -c "^base^".ml" in
     let res = Sys.command cmd in
     Format.printf "InvarGenT: Command \"%s\" exited with code %d@\n%!"
       cmd res;

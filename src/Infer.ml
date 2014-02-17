@@ -119,9 +119,9 @@ let ex_intro_elim e =
     | ExLam _ -> true
     | Letrec (_, _, _, _, e2, _) -> aux e2
     | Letin (_, _, _, e2, _) -> true
-    | AssertFalse _
-    | AssertLeq _
-    | AssertEqty _ -> false in
+    | AssertFalse _ -> false
+    | AssertLeq (_, _, e, _)
+    | AssertEqty (_, _, e, _) -> aux e in
   aux e
 
 (* Global state for fresh variable guarantees: not re-entrant. *)
@@ -402,33 +402,31 @@ let constr_gen_expr gamma e t =
       let t1 = TVar a1 in
       let a2 = fresh_var Num_sort in
       let t2 = TVar a2 in
-      let a3 = fresh_typ_var () in
-      let t3 = TVar a3 in
       let nt1 = TCons (numtype, [t1]) in
       let nt2 = TCons (numtype, [t2]) in
       let cn1, e1 = aux gamma nt1 e1 in
       let cn2, e2 = aux gamma nt2 e2 in
-      let cn3, e3 = aux gamma t3 e3 in
+      let cn3, e3 = aux gamma t e3 in
       let cn =
         cn_and (A [Terms.A NumDefs.(Num_atom (
             Leq (Lin (1,1,a1), Lin (1,1,a2), loc)))])
           (cn_and cn1 (cn_and cn2 cn3)) in
-      Ex (vars_of_list [a1; a2; a3], cn),
+      Ex (vars_of_list [a1; a2], cn),
       AssertLeq (e1, e2, e3, loc)
     | AssertEqty (e1, e2, e3, loc) ->
       let a1 = fresh_typ_var () in
       let t1 = TVar a1 in
       let a2 = fresh_typ_var () in
       let t2 = TVar a2 in
-      let a3 = fresh_typ_var () in
-      let t3 = TVar a3 in
       let cn1, e1 = aux gamma t1 e1 in
       let cn2, e2 = aux gamma t2 e2 in
-      let cn3, e3 = aux gamma t3 e3 in
+      let cn3, e3 = aux gamma t e3 in
+      (*[* Format.printf
+        "constr_gen-AssertEqty:@ %a == %a@\n%!" pr_ty t1 pr_ty t2; *]*)
       let cn =
         cn_and (A [Eqty (t1, t2, loc)])
           (cn_and cn1 (cn_and cn2 cn3)) in
-      Ex (vars_of_list [a1; a2; a3], cn),
+      Ex (vars_of_list [a1; a2], cn),
       AssertEqty (e1, e2, e3, loc)
     | Letrec (docu, (), x, e1, e2, loc) ->
       let a = fresh_typ_var () in

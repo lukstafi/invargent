@@ -118,10 +118,6 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "mutual_recursion_eval" ());
-      "avl_tree" >::
-        (fun () ->
-           todo "requires `min` and `max`";
-           test_case "avl_tree" ());
       "simple eval-annot" >::
         (fun () ->
            skip_if !debug "debug";
@@ -162,6 +158,10 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            todo "should not pass, turn into a test for error reporting";
            test_case "non_pointwise_vary" ());
+      "avl_tree" >::
+        (fun () ->
+           (* skip_if !debug "debug"; *)
+           test_case "avl_tree" ());
     ]
 
 let () =

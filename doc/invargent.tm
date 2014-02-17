@@ -76,6 +76,14 @@
     p=e<rsub|1> <with|math-font-series|bold|in> e<rsub|2>:> Elimination of
     existentially quantified type. \ Concrete syntax: e.g. <verbatim|let v =
     f e >...<verbatim| in >... Constructor: <verbatim|Letin>.
+
+    <item*|<verbatim|AssertLeq>><math|<with|math-font-series|bold|assert num
+    >m\<leqslant\>n;e>: add the inequality to the constraints. Concrete
+    syntax: <verbatim|assert num m \<less\>= n; <math|\<ldots\>>>
+    Constructor: <verbatim|AssertLeq>. There is a similar construct for
+    adding an equation over types of expressions -- concrete syntax:
+    <verbatim|assert type m = n; <math|\<ldots\>>> Constructor:
+    <verbatim|AssertEqty>.
   </description>
 
   We also have one sort-specific type of expression, numerals.
@@ -154,11 +162,11 @@
   p1,p2 = e1 in e2>>|<cell|<verbatim|Letin>>>|<row|<cell|asserting dead
   br.>|<cell|<math|\<b-F\>>>|<cell|<verbatim|assert
   false>>|<cell|<verbatim|AssertFalse>>>|<row|<cell|assert equal
-  types>|<cell|<math|<with|math-font-series|bold|assert
-  >\<tau\><rsub|e<rsub|1>><wide|=|\<dot\>>\<tau\><rsub|e<rsub|2>>;e<rsub|3>>>|<cell|<verbatim|assert
-  = type e1 e2; e3>>|<cell|<verbatim|AssertEqty>>>|<row|<cell|assert
-  inequality>|<cell|<math|<with|math-font-series|bold|assert
-  >e<rsub|1>\<leqslant\>e<rsub|2>;e<rsub|3>>>|<cell|<verbatim|assert e1
+  types>|<cell|<math|<with|math-font-series|bold|assert type
+  >e<rsub|1><wide|=|\<dot\>>e<rsub|2>;e<rsub|3>>>|<cell|<verbatim|assert type
+  e1 = e2; e3>>|<cell|<verbatim|AssertEqty>>>|<row|<cell|assert
+  inequality>|<cell|<math|<with|math-font-series|bold|assert num
+  >e<rsub|1>\<leqslant\>e<rsub|2>;e<rsub|3>>>|<cell|<verbatim|assert num e1
   \<less\>= e2; e3>>|<cell|<verbatim|AssertLeq>>>>>>
 
   Parts of the logic hidden from the user:
@@ -336,9 +344,9 @@
   reported when a clause returns <verbatim|false>. The constraints from test
   clauses are included in the constraint for the toplevel definition, thus
   propagate more efficiently than backtracking would. The <verbatim|assert>
-  clauses are: <verbatim|assert = type e1 e2> which translates as equality of
+  clauses are: <verbatim|assert type e1 = e2> which translates as equality of
   types of <verbatim|e1> and <verbatim|e2>, <verbatim|assert false> which
-  translates as <verbatim|CFalse>, and <verbatim|assert e1 \<less\>= e2>,
+  translates as <verbatim|CFalse>, and <verbatim|assert num e1 \<less\>= e2>,
   which translates as inequality <math|n<rsub|1>\<leqslant\>n<rsub|2>>
   assuming that <verbatim|e1> has type <verbatim|Num n1> and <verbatim|e2>
   has type <verbatim|Num n2>.
