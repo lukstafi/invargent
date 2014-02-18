@@ -121,6 +121,9 @@ let main () =
     "Keep some equations in term abduction answers even if redundant.";
     "-more_existential", Arg.Set DisjElim.more_existential,
     "More general invariant at expense of more existential postcondition.";
+    "-show_extypes", Arg.Set Terms.show_extypes,
+    "Show datatypes encoding existential types, and their identifiers \
+     with uses of existential types.";
     "-passing_ineq_trs", Arg.Set NumS.passing_ineq_trs,
     "Include inequalities in conclusion when solving numerical abduction";
     "-not_annotating_fun", Arg.Clear Infer.annotating_fun,

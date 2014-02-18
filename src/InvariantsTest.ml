@@ -805,7 +805,7 @@ let rec find_castle = efunction
   | Village _ as x ->
     let y = wander x in
     find_castle y"
-        [2,"∃a. δ = (Placement a → ∃2:a.Castle a)"];
+        [2,"∃a. δ = (Placement a → ∃a.Castle a)"];
     );
 
   "find castle big" >::
@@ -837,7 +837,7 @@ let rec find = efunction
   | Village _ as x ->
     let y = wander x in
     find y"
-        [2,"∃a. δ = (Placement a → ∃2:a.Castle a)"];
+        [2,"∃a. δ = (Placement a → ∃a.Castle a)"];
     );
 
   "search castle shortcut" >::
@@ -869,7 +869,7 @@ let rec search = efunction
     ematch check y with
     | Ordinary -> search y
     | Shortcut z -> Yard z"
-        [2,"∃a. δ = (Placement a → ∃3:a.Castle a)"];
+        [2,"∃a. δ = (Placement a → ∃a.Castle a)"];
     );
 
   "search castle distance" >::
@@ -899,7 +899,7 @@ let rec search = efunction
     ematch closer y with
     | True -> search y
     | False -> search x"
-        [2,"∃a. δ = (Placement a → ∃3:a.Castle a)"];
+        [2,"∃a. δ = (Placement a → ∃a.Castle a)"];
     );
 
   "search castle distance A/B" >::
@@ -935,7 +935,7 @@ let rec search = efunction
     ematch b with
     | True -> search y
     | False -> search x"
-        [2,"∃a. δ = (Placement a → ∃4:a.Castle a)"];
+        [2,"∃a. δ = (Placement a → ∃a.Castle a)"];
     );
 
   "castle not existential" >::
@@ -958,7 +958,7 @@ let rec search = efunction
   | Village x ->
     let y = wander x in
     search y"
-        [2,"∃a. δ = (Placement a → ∃2:.Castle Yard)"];
+        [2,"∃a. δ = (Placement a → ∃.Castle Yard)"];
     );
 
   "castle nested not existential" >::
@@ -989,7 +989,7 @@ let rec search = efunction
     | No ->
       let y = wander x in
       search y"
-        [2,"∃a. δ = (Placement a → ∃3:.Castle Yard)"];
+        [2,"∃a. δ = (Placement a → ∃.Castle Yard)"];
     );
 
   "castle nested existential factored" >::
@@ -1022,7 +1022,7 @@ let rec search = efunction
       enter y
     | No ->
       search y"
-        [2,"∃a. δ = (Placement a → ∃3:a.Castle a)"];
+        [2,"∃a. δ = (Placement a → ∃a.Castle a)"];
     );
 
   "castle nested existential" >::
@@ -1055,7 +1055,7 @@ let rec search = efunction
     | No ->
       let y = wander x in
       search y"
-        [2,"∃a. δ = (Placement a → ∃3:a.Castle a)"];
+        [2,"∃a. δ = (Placement a → ∃a.Castle a)"];
     );
 
   "existential by hand" >::
@@ -1098,7 +1098,7 @@ let rec walk = fun x ->
     let y, to_y = wander x in
     let to_z = walk y in
     Transitive (to_y, to_z)"
-        [2,"∃a. δ = (Place a → ∃2:b.Nearby (a, b))"];
+        [2,"∃a. δ = (Place a → ∃b.Nearby (a, b))"];
     );
 
   "universal option" >::
@@ -1126,7 +1126,7 @@ newcons Some : ∀a. a ⟶ Option a
 let rec one_of =
   efunction (Some _ as a) -> (efunction _ -> a)
   | None -> (efunction None -> None | (Some _ as b) -> b)"
-        [2,"∃a, b. δ = (Option a → Option b → ∃3:a.Option a)"];
+        [2,"∃a, b. δ = (Option a → Option b → ∃a.Option a)"];
     );
 
   "not existential option" >::
@@ -1141,7 +1141,7 @@ external f : ∀a. a → a → a = \"f\"
 let rec one_of =
   efunction (Some a) -> (efunction None -> a | (Some b) -> f a b)
   | None -> (efunction (Some b) -> b)"
-        [2,"∃a. δ = (Option a → Option a → ∃3:.a)"];
+        [2,"∃a. δ = (Option a → Option a → ∃.a)"];
     );
 
   "non-num map not existential poly" >::
@@ -1157,7 +1157,7 @@ let rec map = fun f ->
     | LCons (x, xs) ->
       let ys = map f xs in
       LCons (f x, ys)"
-        [2,"∃a, b. δ = ((a → b) → List a → ∃1:.List b)"];
+        [2,"∃a, b. δ = ((a → b) → List a → ∃.List b)"];
     );
 
   "non-num map not existential mono" >::
@@ -1177,7 +1177,7 @@ let rec map =
     | LCons (x, xs) ->
       let ys = map xs in
       LCons (f x, ys)"
-        [2,"∃. δ = (List Foo → ∃1:.List Bar)"];
+        [2,"∃. δ = (List Foo → ∃.List Bar)"];
     );
 
   "map not existential mono" >::
@@ -1196,7 +1196,7 @@ let rec map =
     | LCons (x, xs) ->
       let ys = map xs in
       LCons (f x, ys)"
-        [2,"∃n. δ = (List n → ∃1:.List n)"];
+        [2,"∃n. δ = (List n → ∃.List n)"];
     );
 
   "map not existential poly" >::
@@ -1212,7 +1212,7 @@ let rec map = fun f ->
     | LCons (x, xs) ->
       let ys = map f xs in
       LCons (f x, ys)"
-        [2,"∃n, a, b. δ = ((a → b) → List (a, n) → ∃1:.List (b, n))"];
+        [2,"∃n, a, b. δ = ((a → b) → List (a, n) → ∃.List (b, n))"];
     );
 
   "map not existential instance" >::
@@ -1232,7 +1232,7 @@ let rec map =
     | LCons (x, xs) ->
       let ys = map xs in
       LCons (f x, ys)"
-        [2,"∃n. δ = (List (Foo, n) → ∃1:.List (Bar, n))"];
+        [2,"∃n. δ = (List (Foo, n) → ∃.List (Bar, n))"];
     );
 
   "filter mono" >::
@@ -1254,7 +1254,7 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
-        [2,"∃n. δ = (List n → ∃2:k[0 ≤ k ∧ k ≤ n].List k)"];
+        [2,"∃n. δ = (List n → ∃k[0 ≤ k ∧ k ≤ n].List k)"];
 
     );
 
@@ -1278,7 +1278,7 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
-        [2,"∃n. δ = (List (Bar, n) → ∃2:k[0 ≤ k ∧ k ≤ n].List (Bar, k))"];
+        [2,"∃n. δ = (List (Bar, n) → ∃k[0 ≤ k ∧ k ≤ n].List (Bar, k))"];
     );
 
   "filter poly" >::
@@ -1300,7 +1300,7 @@ let rec filter = fun f ->
           filter f xs"
         [2,"∃n, a.
   δ =
-    ((a → Bool) → List (a, n) → ∃2:k[0 ≤ k ∧ k ≤ n].List (a, k))"];
+    ((a → Bool) → List (a, n) → ∃k[0 ≤ k ∧ k ≤ n].List (a, k))"];
     );
 
   "poly filter map" >::
@@ -1322,7 +1322,7 @@ let rec filter = fun f g ->
           filter f g xs"
         [2,"∃n, a, b.
   δ =
-    ((a → Bool) → (a → b) → List (a, n) → ∃2:k[0 ≤ k ∧
+    ((a → Bool) → (a → b) → List (a, n) → ∃k[0 ≤ k ∧
        k ≤ n].List (b, k))"];
 
     );
@@ -1358,7 +1358,7 @@ let rec ub = efunction
           let r = ub a1 b1 in
           POne r)"
         [2,"∃n, k.
-  δ = (Binary k → Binary n → ∃4:i[i ≤ n + k ∧ n ≤ i].Binary i)"]
+  δ = (Binary k → Binary n → ∃i[i ≤ n + k ∧ n ≤ i].Binary i)"]
     );
 
   "binary upper bound expanded" >::
@@ -1396,7 +1396,7 @@ let rec ub = efunction
           POne r)"
         [2,"∃n, k.
   δ =
-    (Binary k → Binary n → ∃4:i[i ≤ n + k ∧ k ≤ i ∧
+    (Binary k → Binary n → ∃i[i ≤ n + k ∧ k ≤ i ∧
        n ≤ i].Binary i)"]
     );
 
@@ -1433,7 +1433,7 @@ let rec ub = efunction
           POne r)"
         [2,"∃n, k.
   δ =
-    (Binary k → Binary n → ∃4:i[n ≤ i ∧ k ≤ i ∧
+    (Binary k → Binary n → ∃i[n ≤ i ∧ k ≤ i ∧
        i ≤ n + k].Binary i)"]
     );
 
@@ -1529,7 +1529,7 @@ let rec eval =
   | If (b, t, e) -> match eval b with True -> eval t | False -> eval e"
 
         [2, "∃a. δ = (Term a → a)";
-        3, "∃. δ = (Calc → ∃2:n.Num n)"]
+        3, "∃. δ = (Calc → ∃n.Num n)"]
     );
 
   "mutual recursion medium calc" >::
@@ -1564,7 +1564,7 @@ let rec eval =
   | Pair (x, y) -> eval x, eval y"
 
         [2, "∃a. δ = (Term a → a)";
-        3, "∃. δ = (Calc → ∃2:n.Num n)"]
+        3, "∃. δ = (Calc → ∃n.Num n)"]
     );
 
   "mutual recursion calc" >::
@@ -1614,7 +1614,7 @@ let rec eval =
   | Snd p -> (match eval p with x, y -> y)"
 
         [2, "∃a. δ = (Term a → a)";
-        3, "∃. δ = (Calc → ∃3:n.Num n)"]
+        3, "∃. δ = (Calc → ∃n.Num n)"]
     );
 
   (* TODO: mutual recursion where the nested function has nontrivial
@@ -1695,7 +1695,7 @@ let rec zip =
     | UCons xs, UCons ys ->
       let zs = zip (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃1:i[i=min (k, n)].Unary i)"]
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (k, n)].Unary i)"]
     );
 
   "unary minimum asserted" >::
@@ -1715,8 +1715,7 @@ let rec zip =
     | UCons xs, UCons ys ->
       let zs = zip (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃1:i[i=min (n, k)].Unary i) ∧
-  0 ≤ k"]
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (n, k)].Unary i) ∧ 0 ≤ k"]
     );
 
   "list zip prefix expanded" >::
@@ -1736,7 +1735,7 @@ let rec zip =
       let zs = zip (xs, ys) in
       LCons ((x, y), zs)"
         [2,"∃n, k, a, b.
-  δ = ((List (a, n), List (b, k)) → ∃1:i[i=min (k, n)].List ((a, b), i))"]
+  δ = ((List (a, n), List (b, k)) → ∃i[i=min (k, n)].List ((a, b), i))"]
     );
 
   "unary maximum expanded" >::
@@ -1755,7 +1754,7 @@ let rec map2 =
     | UCons xs, UCons ys ->
       let zs = map2 (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃1:i[i=max (k, n)].Unary i)"]
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=max (k, n)].Unary i)"]
     );
 
   "list map2 with postfix expanded" >::
@@ -1777,7 +1776,7 @@ let rec map2 = fun f ->
         [2,"∃n, k, a.
   δ =
     ((a → a → a) → (List (a, n), List (a, k)) →
-       ∃1:i[i=max (k, n)].List (a, i))"]
+       ∃i[i=max (k, n)].List (a, i))"]
     );
 
 
@@ -1801,7 +1800,7 @@ let rec filter_zip = fun f ->
       | False -> zs"
         [2,"∃n, k, a, b.
   δ =
-    ((a → b → Bool) → (List (a, n), List (b, k)) → ∃2:i[i ≤ k ∧
+    ((a → b → Bool) → (List (a, n), List (b, k)) → ∃i[i ≤ k ∧
        i ≤ n ∧ 0 ≤ i].List ((a, b), i))"]
     );
 
@@ -1826,7 +1825,7 @@ let rec filter_map2 = fun p f ->
         [2,"∃n, k, a.
   δ =
     ((a → a → Bool) → (a → a → a) →
-       (List (a, n), List (a, k)) → ∃2:i[0 ≤ i ∧ k ≤ n + i ∧
+       (List (a, n), List (a, k)) → ∃i[0 ≤ i ∧ k ≤ n + i ∧
        n ≤ k + i ∧ i≤max (n, k)].List (a, i))"]
     );
 
@@ -1860,8 +1859,7 @@ let rec filter_map2 =
       ematch p x y with
       | True -> LCons (f x y, zs)
       | False -> zs"
-        [2,"∃n, k.
-  δ = ((List n, List k) → ∃4:i[0 ≤ i ∧ i≤max (n, k)].List i)"]
+        [2,"∃n, k. δ = ((List n, List k) → ∃i[0 ≤ i ∧ i≤max (n, k)].List i)"]
     );
 
   "non-num no postcond list filter-map2 with filter postfix" >::
@@ -1927,7 +1925,7 @@ let rec filter_map2 = fun p q r f g h ->
   δ =
     ((a → b → Bool) → (a → Bool) → (b → Bool) →
        (a → b → c) → (a → c) → (b → c) → (List a, List b) →
-       ∃4:.List c)"]
+       ∃.List c)"]
     );
 
   "list filter-map2 with filter postfix" >::
@@ -1960,7 +1958,7 @@ let rec filter_map2 = fun p q r f g h ->
   δ =
     ((a → b → Bool) → (a → Bool) → (b → Bool) →
        (a → b → c) → (a → c) → (b → c) →
-       (List (a, n), List (b, k)) → ∃4:i[0 ≤ i ∧
+       (List (a, n), List (b, k)) → ∃i[0 ≤ i ∧
        i≤max (n, k)].List (c, i))"]
     );
 
@@ -1991,11 +1989,11 @@ let rec map2_filter = fun q r f g h ->
         [2,"∃n, k, a, b, c.
   δ =
     ((a → Bool) → (b → Bool) → (a → b → c) → (a → c) →
-       (b → c) → (List (a, n), List (b, k)) → ∃3:i[min (n, k)≤i ∧
+       (b → c) → (List (a, n), List (b, k)) → ∃i[min (n, k)≤i ∧
        i≤max (n, k)].List (c, i))"]
     );
 
-  "avl_tree_2--height" >::
+  "avl_tree--height" >::
     (fun () ->
        skip_if !debug "debug";
        test_case "avl_tree--height"
@@ -2011,7 +2009,7 @@ let height = function
         [1,"∃n, a. δ = (Avl (a, n) → Num n)"];
     );
 
-  "avl_tree_2--create" >::
+  "avl_tree--create" >::
     (fun () ->
        skip_if !debug "debug";
        test_case "avl_tree--height"
@@ -2030,11 +2028,11 @@ let create = fun l x r ->
         [2,"∃n, k, a.
   δ =
     (Avl (a, k) → a → Avl (a, n) →
-       ∃1:i[i=max (n + 1, k + 1)].Avl (a, i)) ∧
+       ∃i[i=max (n + 1, k + 1)].Avl (a, i)) ∧
   0 ≤ n ∧ 0 ≤ k ∧ n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
-  "avl_tree_2--singleton" >::
+  "avl_tree--singleton" >::
     (fun () ->
        skip_if !debug "debug";
        test_case "avl_tree--height"
@@ -2048,7 +2046,7 @@ let singleton = fun x -> Node (Empty, x, Empty, 1)"
         [1,"∃a. δ = (a → Avl (a, 1))"];
     );
 
-  "avl_tree_2--min_binding" >::
+  "avl_tree--min_binding" >::
     (fun () ->
        skip_if !debug "debug";
        test_case "avl_tree--height"
@@ -2065,10 +2063,10 @@ let rec min_binding = function
         [1,"∃n, a. δ = (Avl (a, n) → a) ∧ 1 ≤ n"];
     );
 
-  "avl_tree_2--rotr-simple" >::
+  "avl_tree--rotr-simple" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case "avl_tree_2--rotr-simple"
+       test_case "avl_tree--rotr-simple"
 "newtype Avl : type * num
 newcons Empty : ∀a. Avl (a, 0)
 newcons Node :
@@ -2102,15 +2100,15 @@ let rotr = efunction (* hl = hr + 3 *)
 "
         [2,"∃n, a.
   δ =
-    ((Avl (a, n + 3), a, Avl (a, n)) → ∃4:k[n + 3 ≤ k ∧
+    ((Avl (a, n + 3), a, Avl (a, n)) → ∃k[n + 3 ≤ k ∧
        k ≤ n + 4].Avl (a, k)) ∧
   0 ≤ n"];
     );
 
-  "avl_tree_2--rotr-simple2" >::
+  "avl_tree--rotr-simple2" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case "avl_tree_2--rotr-simple2"
+       test_case "avl_tree--rotr-simple2"
 "newtype Avl : type * num
 newcons Empty : ∀a. Avl (a, 0)
 newcons Node :
@@ -2143,15 +2141,15 @@ let rotr = efunction
 "
         [2,"∃n, a.
   δ =
-    ((Avl (a, n + 3), a, Avl (a, n)) → ∃4:k[n + 3 ≤ k ∧
+    ((Avl (a, n + 3), a, Avl (a, n)) → ∃k[n + 3 ≤ k ∧
        k ≤ n + 4].Avl (a, k)) ∧
   0 ≤ n"];
     );
 
-  "avl_tree_2--rotr-simple3" >::
+  "avl_tree--rotr-simple3" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case "avl_tree_2--rotr-simple2"
+       test_case "avl_tree--rotr-simple2"
 "newtype Avl : type * num
 newcons Empty : ∀a. Avl (a, 0)
 newcons Node :
@@ -2185,12 +2183,12 @@ let rotr = efunction
 "
         [2,"∃n, a.
   δ =
-    ((Avl (a, n + 3), a, Avl (a, n)) → ∃4:k[n + 3 ≤ k ∧
+    ((Avl (a, n + 3), a, Avl (a, n)) → ∃k[n + 3 ≤ k ∧
        k ≤ n + 4].Avl (a, k)) ∧
   0 ≤ n"];
     );
 
-  "avl_tree_2--rotr" >::
+  "avl_tree--rotr" >::
     (fun () ->
        todo "too hard for current numerical abduction";
        skip_if !debug "debug";
@@ -2228,7 +2226,7 @@ let rotr = fun l x r -> (* hl = hr + 3 *)
     );
 
   (* The [rotl] functions are symmetrical to [rotr]. *)
-  "avl_tree_2--rotl-simple" >::
+  "avl_tree--rotl-simple" >::
     (fun () ->
        skip_if !debug "debug";
        test_case "avl_tree--rotl"
@@ -2265,12 +2263,12 @@ let rotl = efunction (* hl + 3 = hr *)
 "
         [2,"∃n, a.
   δ =
-    ((Avl (a, n), a, Avl (a, n + 3)) → ∃4:k[n + 3 ≤ k ∧
+    ((Avl (a, n), a, Avl (a, n + 3)) → ∃k[n + 3 ≤ k ∧
        k ≤ n + 4].Avl (a, k)) ∧
   0 ≤ n"];
     );
 
-  "avl_tree_2--rotl-simple2" >::
+  "avl_tree--rotl-simple2" >::
     (fun () ->
        skip_if !debug "debug";
        test_case "avl_tree--rotl"
@@ -2306,12 +2304,12 @@ let rotl = efunction
 "
         [2,"∃n, a.
   δ =
-    ((Avl (a, n), a, Avl (a, n + 3)) → ∃4:k[n + 3 ≤ k ∧
+    ((Avl (a, n), a, Avl (a, n + 3)) → ∃k[n + 3 ≤ k ∧
        k ≤ n + 4].Avl (a, k)) ∧
   0 ≤ n"];
     );
 
-  "avl_tree_2--rotl" >::
+  "avl_tree--rotl" >::
     (fun () ->
        todo "too hard for current numerical abduction";
        skip_if !debug "debug";
@@ -2348,7 +2346,7 @@ let rotl = fun l x r -> (* hl + 3 = hr *)
         [2,""];
     );
 
-  "avl_tree_2--add-simple" >::
+  "avl_tree--add-simple" >::
     (fun () ->
        skip_if !debug "debug";
        test_case ~no_num_abduction:true "avl_tree--add"
@@ -2395,11 +2393,11 @@ let rec add = fun x -> efunction
 "
         [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃7:k[k ≤ n + 1 ∧ 1 ≤ k ∧
+    (a → Avl (a, n) → ∃k[k ≤ n + 1 ∧ 1 ≤ k ∧
        n ≤ k].Avl (a, k))"];
     );
 
-  "avl_tree_2--add-simple2" >::
+  "avl_tree--add-simple2" >::
     (fun () ->
        skip_if !debug "debug";
        test_case ~no_num_abduction:true "avl_tree--add"
@@ -2450,11 +2448,11 @@ let rec add = fun x -> efunction
 (* TODO: explain in the manual. *)
         [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃7:k[n ≤ k + 2 ∧ k ≤ n + 1 ∧
+    (a → Avl (a, n) → ∃k[n ≤ k + 2 ∧ k ≤ n + 1 ∧
        1 ≤ k].Avl (a, k))"];
     );
 
-  "avl_tree_2--add" >::
+  "avl_tree--add" >::
     (fun () ->
        skip_if !debug "debug";
        test_case "avl_tree--add"
@@ -2501,11 +2499,11 @@ let rec add = fun x -> efunction
 "
         [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃7:k[k ≤ n + 1 ∧ 1 ≤ k ∧
+    (a → Avl (a, n) → ∃k[k ≤ n + 1 ∧ 1 ≤ k ∧
        n ≤ k].Avl (a, k))"];
     );
 
-  "avl_tree_2--add2" >::
+  "avl_tree--add2" >::
     (fun () ->
        todo "too hard for current numerical abduction";
        skip_if !debug "debug";
@@ -2557,11 +2555,11 @@ let rec add = fun x -> efunction
 (* TODO: explain in the manual. *)
         [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃7:k[k ≤ n + 1 ∧ 1 ≤ k ∧
+    (a → Avl (a, n) → ∃k[k ≤ n + 1 ∧ 1 ≤ k ∧
        n ≤ k].Avl (a, k))"];
     );
 
-  "avl_tree_2--remove_min_binding-simple" >::
+  "avl_tree--remove_min_binding-simple" >::
     (fun () ->
        skip_if !debug "debug";
        test_case ~no_num_abduction:true
@@ -2603,12 +2601,12 @@ let rec remove_min_binding = efunction
 (* The inequality [k + 2 ≤ 2 n] corresponds to the fact [n=1 ==> k=0]. *)
         [2,"∃n, a.
   δ =
-    (Avl (a, n) → ∃5:k[n ≤ k + 1 ∧ k + 2 ≤ 2 n ∧
+    (Avl (a, n) → ∃k[n ≤ k + 1 ∧ k + 2 ≤ 2 n ∧
        k ≤ n].Avl (a, k)) ∧
   1 ≤ n"];
     );
 
-  "avl_tree_2--remove_min_binding" >::
+  "avl_tree--remove_min_binding" >::
     (fun () ->
        skip_if !debug "debug";
        test_case "avl_tree--remove_min_binding"
@@ -2649,12 +2647,12 @@ let rec remove_min_binding = efunction
 (* The inequality [k + 2 ≤ 2 n] corresponds to the fact [n=1 ==> k=0]. *)
         [2,"∃n, a.
   δ =
-    (Avl (a, n) → ∃5:k[n ≤ k + 1 ∧ k + 2 ≤ 2 n ∧
+    (Avl (a, n) → ∃k[n ≤ k + 1 ∧ k + 2 ≤ 2 n ∧
        k ≤ n].Avl (a, k)) ∧
   1 ≤ n"];
     );
 
-  "avl_tree_2--merge-simple" >::
+  "avl_tree--merge-simple" >::
     (fun () ->
        skip_if !debug "debug";
        test_case ~no_num_abduction:true "avl_tree--merge-simple"
@@ -2704,12 +2702,12 @@ let merge = efunction
 "
         [2,"∃n, k, a.
   δ =
-    ((Avl (a, n), Avl (a, k)) → ∃6:i[i ≤ n + k ∧ k ≤ i ∧
+    ((Avl (a, n), Avl (a, k)) → ∃i[i ≤ n + k ∧ k ≤ i ∧
        n ≤ i ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
   n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
-  "avl_tree_2--merge" >::
+  "avl_tree--merge" >::
     (fun () ->
        skip_if !debug "debug";
        test_case "avl_tree--remove_min_binding"
@@ -2759,12 +2757,12 @@ let merge = efunction
 "
         [2,"∃n, k, a.
   δ =
-    ((Avl (a, n), Avl (a, k)) → ∃6:i[i ≤ n + k ∧ k ≤ i ∧
+    ((Avl (a, n), Avl (a, k)) → ∃i[i ≤ n + k ∧ k ≤ i ∧
        n ≤ i ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
   n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
-  "avl_tree_2--remove-simple" >::
+  "avl_tree--remove-simple" >::
     (fun () ->
        skip_if !debug "debug";
        test_case ~no_num_abduction:true "avl_tree--remove"
@@ -2821,11 +2819,11 @@ let rec remove = fun x -> efunction
 "
         [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃9:k[n ≤ k + 1 ∧ 0 ≤ k ∧
+    (a → Avl (a, n) → ∃k[n ≤ k + 1 ∧ 0 ≤ k ∧
        k ≤ n].Avl (a, k))"];
     );
 
-  "avl_tree_2--remove" >::
+  "avl_tree--remove" >::
     (fun () ->
        skip_if !debug "debug";
        test_case "avl_tree--remove_min_binding"
@@ -2882,7 +2880,7 @@ let rec remove = fun x -> efunction
 "
         [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃9:k[n ≤ k + 1 ∧ 0 ≤ k ∧
+    (a → Avl (a, n) → ∃k[n ≤ k + 1 ∧ 0 ≤ k ∧
        k ≤ n].Avl (a, k))"];
     );
 

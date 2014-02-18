@@ -5,6 +5,8 @@
     @author Lukasz Stafiniak lukstafi (AT) gmail.com
     @since Mar 2013
 *)
+val show_extypes : bool ref
+
 (** {2 Definitions} *)
 
 val debug : bool ref

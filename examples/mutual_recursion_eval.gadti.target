@@ -2,19 +2,11 @@ newtype Term : type
 
 newtype Calc
 
-newtype Ex1
-
-newcons Ex1 : ∀k.Num k ⟶ ∃1:k.Num k
-
-external val mult : ∀i, j. Num i → Num j → ∃1:k.Num k
+external val mult : ∀i, j. Num i → Num j → ∃k.Num k
 
 external val is_zero : ∀i. Num i → Bool
 
-newtype Ex2
-
-newcons Ex2 : ∀k.Num k ⟶ ∃2:k.Num k
-
-external val cond : ∀i, j. Bool → Num i → Num j → ∃2:k.Num k
+external val cond : ∀i, j. Bool → Num i → Num j → ∃k.Num k
 
 newcons Lit : ∀k.Num k ⟶ Calc
 
@@ -36,10 +28,6 @@ newcons Snd : ∀a, b.Term ((a, b)) ⟶ Term b
 
 val snd : ∀a, b. (a, b) → b
 
-newtype Ex3
-
-newcons Ex3 : ∀n.Num n ⟶ Ex3
-
-val calc : Calc → ∃3:n.Num n
+val calc : Calc → ∃n.Num n
 
 val eval : ∀a. Term a → a

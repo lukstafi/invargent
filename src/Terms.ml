@@ -5,6 +5,8 @@
     @author Lukasz Stafiniak lukstafi (AT) gmail.com
     @since Mar 2013
 *)
+let show_extypes = ref false
+
 (** {2 Definitions} *)
 
 let debug = ref false
@@ -973,6 +975,7 @@ let pr_opt_tests pr_ann ppf = function
 let pr_opt_utests = pr_opt_tests (fun ppf _ -> fprintf ppf "")
 
 let pr_sig_item ppf = function
+  | ITypConstr (_, Extype _, _, _) when not !show_extypes -> ()
   | ITypConstr (docu, name, [], _) ->
     (match docu with
      | None -> ()
@@ -984,15 +987,8 @@ let pr_sig_item ppf = function
      | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     fprintf ppf "@[<2>newtype@ %s@ :@ %a@]" (cns_str name)
       (pr_sep_list " *" pr_sort) sorts
-  | IValConstr (docu, (Extype _ as name), vs, phi, [arg],
-               Extype j, [c_arg], _) ->
-    (match docu with
-     | None -> ()
-     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
-    fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a[%a].%a@ ⟶@ Ex%d %a@]"
-      (cns_str name)
-      (pr_sep_list "," pr_tyvar) vs
-      pr_formula phi pr_ty arg j pr_ty c_arg
+  | IValConstr (_, Extype _, _, _, _, Extype _, _, _)
+    when not !show_extypes -> ()
   | IValConstr (docu, name, [], [], [], c_n, c_args, _) ->
     (match docu with
      | None -> ()
@@ -1065,6 +1061,12 @@ let pr_sig_item ppf = function
       ppf tyschs
 
 let pr_signature ppf p =
+  let p =
+    if !show_extypes then p
+    else List.filter (function
+        | ITypConstr (_, Extype _, _, _)
+        | IValConstr (_, Extype _, _, _, _, Extype _, _, _) -> false
+        | _ -> true) p in
   pr_line_list "\n" pr_sig_item ppf p
 
 let pr_struct_item ppf = function
@@ -1099,6 +1101,12 @@ let pr_struct_item ppf = function
       pr_opt_sig_tysch tysch pr_uexpr expr pr_opt_utests tests
 
 let pr_program ppf p =
+  let p =
+    if !show_extypes then p
+    else List.filter (function
+        | TypConstr (_, Extype _, _, _)
+        | ValConstr (_, Extype _, _, _, _, Extype _, _, _) -> false
+        | _ -> true) p in
   pr_line_list "\n" pr_struct_item ppf p
 
 let pr_exception ppf = function
@@ -1434,11 +1442,12 @@ let () = pr_exty :=
       | Eqty (ty, tv, _)::phi -> ty, phi
       | _ -> assert false in
     (* TODO: "@[<2>∃%d:%a[%a].%a@]" better? *)
+    if !show_extypes then fprintf ppf "∃%d:" i else fprintf ppf "∃";
     if phi = [] then
-      fprintf ppf "∃%d:%a.%a" i
+      fprintf ppf "%a.%a"
         (pr_sep_list "," pr_tyvar) evs pr_ty ty
     else
-      fprintf ppf "∃%d:%a[%a].%a" i
+      fprintf ppf "%a[%a].%a"
         (pr_sep_list "," pr_tyvar) evs pr_formula phi pr_ty ty
 
 (** {2 Globals} *)

@@ -4,21 +4,13 @@ newtype Term : type
 (** Expressions representing computations on tuples. *)
 newtype Calc
 
-newtype Ex1
-
-newcons Ex1 : ∀k.Num k ⟶ ∃1:k.Num k
-
 (** Multiplication packs the result into existential type. *)
-external val mult : ∀i, j. Num i → Num j → ∃1:k.Num k
+external val mult : ∀i, j. Num i → Num j → ∃k.Num k
 
 external val is_zero : ∀i. Num i → Bool
 
-newtype Ex2
-
-newcons Ex2 : ∀k.Num k ⟶ ∃2:k.Num k
-
 (** Conditional is eager -- computes all its arguments. *)
-external val cond : ∀i, j. Bool → Num i → Num j → ∃2:k.Num k
+external val cond : ∀i, j. Bool → Num i → Num j → ∃k.Num k
 
 (** Numerical constants. *)
 newcons Lit : ∀k.Num k ⟶ Calc
@@ -47,12 +39,8 @@ newcons Snd : ∀a, b.Term ((a, b)) ⟶ Term b
 (** Small definition. *)
 val snd : ∀a, b. (a, b) → b
 
-newtype Ex3
-
-newcons Ex3 : ∀n.Num n ⟶ Ex3
-
 (** Exposing multiple mutually recursive definitions is tricky, it would
     be easier to only expose the external one. *)
-val calc : Calc → ∃3:n.Num n
+val calc : Calc → ∃n.Num n
 
 val eval : ∀a. Term a → a

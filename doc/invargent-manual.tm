@@ -824,6 +824,17 @@
     parameters. In rare cases a weaker postcondition but a more general
     invariant can be beneficial.
 
+    <item*|<verbatim|-show_extypes>>Show datatypes encoding existential
+    types, and their identifiers with uses of existential types. The type
+    system in InvarGenT encodes existential types as GADT types, but this
+    representation is hidden from the user. Using <verbatim|-show_extypes>
+    exposes the representation as follows. The encodings are exported in
+    <verbatim|.gadti> files as regular datatypes named <verbatim|exN>, and
+    existential types are printed using syntax
+    <verbatim|<math|\<exists\>>N:<math|\<ldots\>>> instead of
+    <math|\<exists\>\<ldots\>>, where <verbatim|N> is the identifier of an
+    existential type.
+
     <item*|<verbatim|-passing_ineq_trs>>Include inequalities in conclusion
     when solving numerical abduction. This setting leads to more inequalities
     being tried for addition in numeric abduction answer.

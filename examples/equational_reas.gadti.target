@@ -17,11 +17,7 @@ newcons Here : ∀b.Place b * Place b ⟶ Nearby (b, b)
 newcons Transitive : ∀a, b, c.Nearby (a, b) * Nearby (b, c) ⟶
    Nearby (a, c)
 
-newtype Ex1 : type
-
-newcons Ex1 : ∀a, b[].(Place b, Nearby (a, b)) ⟶ Ex1 a
-
-external wander : ∀a. Place a → ∃1:b.(Place b, Nearby (a, b))
+external wander : ∀a. Place a → ∃b.(Place b, Nearby (a, b))
 
 newtype Meet : type * type
 

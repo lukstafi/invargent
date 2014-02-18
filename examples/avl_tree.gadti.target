@@ -20,78 +20,39 @@ external val compare : ∀a. a → a → LinOrder
 
 val height : ∀n, a. Avl (a, n) → Num n
 
-newtype Ex1 : num * num * type
-
-newcons Ex1 : ∀i, k, n, a[n=max (i + 1, k + 1)].Avl (a, n) ⟶
-   Ex1 (k, i, a)
-
 val create :
    ∀k, n, a[0 ≤ n ∧ 0 ≤ k ∧ n ≤ k + 2 ∧ k ≤ n + 2].
-   Avl (a, k) → a → Avl (a, n) →
-     ∃1:i[i=max (k + 1, n + 1)].Avl (a, i)
+   Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1)].Avl (a, i)
 
 val singleton : ∀a. a → Avl (a, 1)
 
-newtype Ex4 : num * type
-
-newcons Ex4 : ∀k, n, a[k + 3 ≤ n ∧ n ≤ k + 4].Avl (a, n) ⟶
-   Ex4 (k, a)
-
 val rotr :
    ∀n, a[0 ≤ n].
-   (Avl (a, n + 3), a, Avl (a, n)) → ∃4:k[n + 3 ≤ k ∧
+   (Avl (a, n + 3), a, Avl (a, n)) → ∃k[n + 3 ≤ k ∧
      k ≤ n + 4].Avl (a, k)
-
-newtype Ex7 : num * type
-
-newcons Ex7 : ∀k, n, a[k + 3 ≤ n ∧ n ≤ k + 4].Avl (a, n) ⟶
-   Ex7 (k, a)
 
 val rotl :
    ∀n, a[0 ≤ n].
-   (Avl (a, n), a, Avl (a, n + 3)) → ∃7:k[n + 3 ≤ k ∧
+   (Avl (a, n), a, Avl (a, n + 3)) → ∃k[n + 3 ≤ k ∧
      k ≤ n + 4].Avl (a, k)
-
-newtype Ex11 : num * type
-
-newcons Ex11 : ∀k, n, a[n ≤ k + 1 ∧ 1 ≤ n ∧ k ≤ n].Avl (a, n)
-   ⟶ Ex11 (k, a)
 
 val add :
    ∀n, a.
-   a → Avl (a, n) → ∃11:k[k ≤ n + 1 ∧ 1 ≤ k ∧
-     n ≤ k].Avl (a, k)
+   a → Avl (a, n) → ∃k[k ≤ n + 1 ∧ 1 ≤ k ∧ n ≤ k].Avl (a, k)
 
 val mem : ∀n, a. a → Avl (a, n) → Bool
 
 val min_binding : ∀n, a[1 ≤ n]. Avl (a, n) → a
 
-newtype Ex13 : num * type
-
-newcons Ex13 : ∀k, n, a[n ≤ k + 1 ∧ k + 2 ≤ 2 n ∧
-   k ≤ n].Avl (a, k) ⟶ Ex13 (n, a)
-
 val remove_min_binding :
    ∀n, a[1 ≤ n].
-   Avl (a, n) → ∃13:k[n ≤ k + 1 ∧ k + 2 ≤ 2 n ∧
-     k ≤ n].Avl (a, k)
-
-newtype Ex15 : num * num * type
-
-newcons Ex15 : ∀i, k, n, a[n ≤ k + i ∧ i ≤ n ∧ k ≤ n ∧
-   n≤max (i + 1, k + 1)].Avl (a, n) ⟶ Ex15 (k, i, a)
+   Avl (a, n) → ∃k[n ≤ k + 1 ∧ k + 2 ≤ 2 n ∧ k ≤ n].Avl (a, k)
 
 val merge :
    ∀k, n, a[n ≤ k + 2 ∧ k ≤ n + 2].
-   (Avl (a, n), Avl (a, k)) → ∃15:i[i ≤ n + k ∧ k ≤ i ∧
-     n ≤ i ∧ i≤max (k + 1, n + 1)].Avl (a, i)
-
-newtype Ex19 : num * type
-
-newcons Ex19 : ∀k, n, a[k ≤ n + 1 ∧ 0 ≤ n ∧ n ≤ k].Avl (a, n)
-   ⟶ Ex19 (k, a)
+   (Avl (a, n), Avl (a, k)) → ∃i[i ≤ n + k ∧ k ≤ i ∧ n ≤ i ∧
+     i≤max (k + 1, n + 1)].Avl (a, i)
 
 val remove :
    ∀n, a.
-   a → Avl (a, n) → ∃19:k[n ≤ k + 1 ∧ 0 ≤ k ∧
-     k ≤ n].Avl (a, k)
+   a → Avl (a, n) → ∃k[n ≤ k + 1 ∧ 0 ≤ k ∧ k ≤ n].Avl (a, k)

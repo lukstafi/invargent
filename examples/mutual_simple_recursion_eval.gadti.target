@@ -4,11 +4,7 @@ newtype Calc
 
 external val is_zero : ∀i. Num i → Bool
 
-newtype Ex1
-
-newcons Ex1 : ∀k.Num k ⟶ ∃1:k.Num k
-
-external val cond : ∀i, j. Bool → Num i → Num j → ∃1:k.Num k
+external val cond : ∀i, j. Bool → Num i → Num j → ∃k.Num k
 
 newcons Lit : ∀k.Num k ⟶ Calc
 
@@ -20,10 +16,6 @@ newcons If : ∀a.Term Bool * Term a * Term a ⟶ Term a
 
 val snd : ∀a, b. (a, b) → b
 
-newtype Ex2
-
-newcons Ex2 : ∀n.Num n ⟶ Ex2
-
-val calc : Calc → ∃2:n.Num n
+val calc : Calc → ∃n.Num n
 
 val eval : ∀a. Term a → a

@@ -747,7 +747,7 @@ let infer_prog solver prog =
   let gamma = ref [] in
   let update_new_ex_types q new_ex_types sb sb_chi =
     let more_items = ref [] in
-    (* FIXME: duplicate with code at the end of [solve].  Clean up
+    (* FIXME: possibly duplicate with code at the end of [solve].  Clean up
        handling of ex. type parameters. *)
     List.iter
       (fun (ety_id, loc) ->
@@ -759,12 +759,11 @@ let infer_prog solver prog =
              (fun v -> try List.assoc v nice_sb with Not_found -> v)
              pvs in
          let ty = List.map (hvsubst_typ nice_sb) ty in
-         let n = CNam (cns_str ety_n) in
          (*[* Format.printf "infer-update-ex_types: from id=%d@ phi=%a@ ty=%a@\n%!"
            ety_id pr_formula phi pr_ty (List.hd ty);
          *]*)
          let extydec =
-           ITypConstr (None, n, List.map var_sort pvs, loc) in
+           ITypConstr (None, ety_n, List.map var_sort pvs, loc) in
          let sb, phi = separate_subst q phi in
          let ty = List.map (subst_typ sb) ty in
          let pvs = List.map
@@ -774,7 +773,7 @@ let infer_prog solver prog =
              (VarSet.union (fvs_formula phi) (fvs_typ (TCons (tuple, ty))))
              (vars_of_list vs) in
          let extydef = IValConstr
-             (None, n, VarSet.elements vs, phi, ty, n, pvs, loc) in
+             (None, ety_n, VarSet.elements vs, phi, ty, ety_n, pvs, loc) in
          more_items := extydec :: extydef :: !more_items)
       new_ex_types;
     !more_items in
