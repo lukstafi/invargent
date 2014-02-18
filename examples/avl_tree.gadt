@@ -1,16 +1,16 @@
 (** We follow the AVL tree algorithm from OCaml Standard Library, where 
     the branches of a node are allowed to differ in height by at most 2. *)
 
-newtype Avl : type * num
-newcons Empty : ∀a. Avl (a, 0)
-newcons Node :
+datatype Avl : type * num
+datacons Empty : ∀a. Avl (a, 0)
+datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
 
-newtype LinOrder
-newcons LT : LinOrder
-newcons EQ : LinOrder
-newcons GT : LinOrder
+datatype LinOrder
+datacons LT : LinOrder
+datacons EQ : LinOrder
+datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
   "fun x y -> let c=Pervasives.compare x y in
               if c<0 then LT else if c=0 then EQ else GT"

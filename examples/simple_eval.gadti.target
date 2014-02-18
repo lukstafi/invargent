@@ -1,15 +1,15 @@
-newtype Term : type
+datatype Term : type
 
 external val plus : Int → Int → Int
 
 external val is_zero : Int → Bool
 
-newcons Lit : Int ⟶ Term Int
+datacons Lit : Int ⟶ Term Int
 
-newcons Plus : Term Int * Term Int ⟶ Term Int
+datacons Plus : Term Int * Term Int ⟶ Term Int
 
-newcons IsZero : Term Int ⟶ Term Bool
+datacons IsZero : Term Int ⟶ Term Bool
 
-newcons If : ∀a.Term Bool * Term a * Term a ⟶ Term a
+datacons If : ∀a.Term Bool * Term a * Term a ⟶ Term a
 
 val eval : ∀a. Term a → a

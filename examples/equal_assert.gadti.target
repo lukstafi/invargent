@@ -1,16 +1,16 @@
-newtype Ty : type
+datatype Ty : type
 
-newtype List : type
+datatype List : type
 
-newcons Zero : Int
+datacons Zero : Int
 
-newcons Nil : ∀a. List a
+datacons Nil : ∀a. List a
 
-newcons TInt : Ty Int
+datacons TInt : Ty Int
 
-newcons TPair : ∀a, b.Ty a * Ty b ⟶ Ty ((a, b))
+datacons TPair : ∀a, b.Ty a * Ty b ⟶ Ty ((a, b))
 
-newcons TList : ∀a.Ty a ⟶ Ty (List a)
+datacons TList : ∀a.Ty a ⟶ Ty (List a)
 
 external val eq_int : Int → Int → Bool
 

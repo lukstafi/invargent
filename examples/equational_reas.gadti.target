@@ -1,29 +1,29 @@
-newtype Place : type
+datatype Place : type
 
-newtype Nearby : type * type
+datatype Nearby : type * type
 
-newtype A
+datatype A
 
-newtype B
+datatype B
 
-newcons LocA : Place A
+datacons LocA : Place A
 
-newcons LocB : Place B
+datacons LocB : Place B
 
 external is_nearby : ∀a, b. Nearby (a, b) → Bool
 
-newcons Here : ∀b.Place b * Place b ⟶ Nearby (b, b)
+datacons Here : ∀b.Place b * Place b ⟶ Nearby (b, b)
 
-newcons Transitive : ∀a, b, c.Nearby (a, b) * Nearby (b, c) ⟶
+datacons Transitive : ∀a, b, c.Nearby (a, b) * Nearby (b, c) ⟶
    Nearby (a, c)
 
 external wander : ∀a. Place a → ∃b.(Place b, Nearby (a, b))
 
-newtype Meet : type * type
+datatype Meet : type * type
 
-newcons Same : ∀b. Meet (b, b)
+datacons Same : ∀b. Meet (b, b)
 
-newcons NotSame : ∀a, b. Meet (a, b)
+datacons NotSame : ∀a, b. Meet (a, b)
 
 external compare : ∀a, b. Place a → Place b → Meet (a, b)
 

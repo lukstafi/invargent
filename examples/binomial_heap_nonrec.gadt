@@ -1,10 +1,10 @@
-newtype Tree : type * num
-newtype Forest : type * num
+datatype Tree : type * num
+datatype Forest : type * num
 
-newcons Node : ∀a, k [0≤k]. Num k * a * Forest (a, k) ⟶ Tree (a, k)
-newcons TCons :
+datacons Node : ∀a, k [0≤k]. Num k * a * Forest (a, k) ⟶ Tree (a, k)
+datacons TCons :
   ∀a, n [0≤n]. Tree (a, n) * Forest (a, n) ⟶ Forest (a, n+1)
-newcons TNil : ∀a. Forest (a, 0)
+datacons TNil : ∀a. Forest (a, 0)
 
 external let leq : ∀a. a → a → Bool = "(<=)"
 

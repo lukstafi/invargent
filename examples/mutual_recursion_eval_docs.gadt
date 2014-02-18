@@ -1,7 +1,7 @@
 (** Expressions representing computations on numbers and tuples. *)
-newtype Term : type
+datatype Term : type
 (** Expressions representing computations on tuples. *)
-newtype (* this part ignored*) Calc
+datatype (* this part ignored*) Calc
 
 (** Multiplication packs the result into existential type. *)
 external let mult : ∀i,j. Num i → Num j → ∃k. Num k = "( * )"
@@ -10,21 +10,21 @@ external let is_zero : ∀i. Num i → Bool = "(=) 0"
 external let cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k = "fun c a b -> if c then a else b"
 
 (** Numerical constants. *)
-newcons Lit : ∀k. Num k ⟶ Calc
+datacons Lit : ∀k. Num k ⟶ Calc
 (** Addition. Note that we do not convey any information about the result:
     [Calc] does not have a parameter. *)
-newcons Plus : Calc * Calc ⟶ Calc
-newcons Mult : Calc * Calc ⟶ Calc
+datacons Plus : Calc * Calc ⟶ Calc
+datacons Mult : Calc * Calc ⟶ Calc
 (** Conditional. *)
-newcons Cond : Term Bool * Calc * Calc ⟶ Calc
+datacons Cond : Term Bool * Calc * Calc ⟶ Calc
 
-newcons IsZero : Calc ⟶ Term Bool
+datacons IsZero : Calc ⟶ Term Bool
 (** Conditional on terms is lazy -- uses pattern matching on [Bool] type
     which is exported to OCaml source using [if] expression. *)
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
-newcons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
-newcons Fst : ∀a, b. Term (a, b) ⟶ Term a
-newcons Snd : ∀a, b. Term (a, b) ⟶ Term b
+datacons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+datacons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
+datacons Fst : ∀a, b. Term (a, b) ⟶ Term a
+datacons Snd : ∀a, b. Term (a, b) ⟶ Term b
 
 (** Small definition. *)
 let snd = function _, x -> x

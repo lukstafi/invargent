@@ -1,20 +1,20 @@
 (** We follow the AVL tree algorithm from OCaml Standard Library, where 
     the branches of a node are allowed to differ in height by at most 2. *)
-newtype Avl : type * num
+datatype Avl : type * num
 
-newcons Empty : ∀a. Avl (a, 0)
+datacons Empty : ∀a. Avl (a, 0)
 
-newcons Node : ∀k, m, n, a[k=max (m, n) ∧ 0 ≤ m ∧ 0 ≤ n ∧
+datacons Node : ∀k, m, n, a[k=max (m, n) ∧ 0 ≤ m ∧ 0 ≤ n ∧
    n ≤ m + 2 ∧ m ≤ n + 2].Avl (a, m) * a * Avl (a, n) * Num (k + 1) ⟶
    Avl (a, k + 1)
 
-newtype LinOrder
+datatype LinOrder
 
-newcons LT : LinOrder
+datacons LT : LinOrder
 
-newcons EQ : LinOrder
+datacons EQ : LinOrder
 
-newcons GT : LinOrder
+datacons GT : LinOrder
 
 external val compare : ∀a. a → a → LinOrder
 

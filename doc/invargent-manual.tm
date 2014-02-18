@@ -67,20 +67,20 @@
   <verbatim|type value = Int of int \| Bool of bool>.
 
   <\code>
-    newtype Term : type
+    datatype Term : type
 
     external let plus : Int <math|\<rightarrow\>> Int <math|\<rightarrow\>>
     Int = "(+)"
 
     external let is_zero : Int <math|\<rightarrow\>> Bool = "(=) 0"
 
-    newcons Lit : Int <math|\<longrightarrow\>> Term Int
+    datacons Lit : Int <math|\<longrightarrow\>> Term Int
 
-    newcons Plus : Term Int * Term Int <math|\<longrightarrow\>> Term Int
+    datacons Plus : Term Int * Term Int <math|\<longrightarrow\>> Term Int
 
-    newcons IsZero : Term Int <math|\<longrightarrow\>> Term Bool
+    datacons IsZero : Term Int <math|\<longrightarrow\>> Term Bool
 
-    newcons If : <math|\<forall\>>a. Term Bool * Term a * Term a
+    datacons If : <math|\<forall\>>a. Term Bool * Term a * Term a
     <math|\<longrightarrow\>> Term a
 
     \;
@@ -162,29 +162,29 @@
   their types:
 
   <\code>
-    newtype Ty : type
+    datatype Ty : type
 
-    newtype Int
+    datatype Int
 
-    newtype List : type
+    datatype List : type
 
-    newcons Zero : Int
+    datacons Zero : Int
 
-    newcons Nil : <math|\<forall\>>a. List a
+    datacons Nil : <math|\<forall\>>a. List a
 
-    newcons TInt : Ty Int
+    datacons TInt : Ty Int
 
-    newcons TPair : <math|\<forall\>>a, b. Ty a * Ty b
+    datacons TPair : <math|\<forall\>>a, b. Ty a * Ty b
     <math|\<longrightarrow\>> Ty (a, b)
 
-    newcons TList : <math|\<forall\>>a. Ty a <math|\<longrightarrow\>> Ty
+    datacons TList : <math|\<forall\>>a. Ty a <math|\<longrightarrow\>> Ty
     (List a)
 
-    newtype Boolean
+    datatype Boolean
 
-    newcons True : Boolean
+    datacons True : Boolean
 
-    newcons False : Boolean
+    datacons False : Boolean
 
     external eq_int : Int <math|\<rightarrow\>> Int <math|\<rightarrow\>>
     Bool
@@ -253,21 +253,21 @@
   Now we demonstrate numerical invariants:
 
   <\code>
-    newtype Binary : num
+    datatype Binary : num
 
-    newtype Carry : num
+    datatype Carry : num
 
-    newcons Zero : Binary 0
+    datacons Zero : Binary 0
 
-    newcons PZero : <math|\<forall\>>n[0<math|\<leq\>>n]. Binary n
+    datacons PZero : <math|\<forall\>>n[0<math|\<leq\>>n]. Binary n
     <math|\<longrightarrow\>> Binary(2 n)
 
-    newcons POne : <math|\<forall\>>n[0<math|\<leq\>>n]. Binary n
+    datacons POne : <math|\<forall\>>n[0<math|\<leq\>>n]. Binary n
     <math|\<longrightarrow\>> Binary(2 n + 1)
 
-    newcons CZero : Carry 0
+    datacons CZero : Carry 0
 
-    newcons COne : Carry 1
+    datacons COne : Carry 1
 
     \;
 
@@ -334,25 +334,25 @@
   before being ``repackaged'' as another existential type.
 
   <\code>
-    newtype Room
+    datatype Room
 
-    newtype Yard
+    datatype Yard
 
-    newtype Village
+    datatype Village
 
-    newtype Castle : type
+    datatype Castle : type
 
-    newtype Place : type
+    datatype Place : type
 
-    newcons Room : Room <math|\<longrightarrow\>> Castle Room
+    datacons Room : Room <math|\<longrightarrow\>> Castle Room
 
-    newcons Yard : Yard <math|\<longrightarrow\>> Castle Yard
+    datacons Yard : Yard <math|\<longrightarrow\>> Castle Yard
 
-    newcons CastleRoom : Room <math|\<longrightarrow\>> Place Room
+    datacons CastleRoom : Room <math|\<longrightarrow\>> Place Room
 
-    newcons CastleYard : Yard <math|\<longrightarrow\>> Place Yard
+    datacons CastleYard : Yard <math|\<longrightarrow\>> Place Yard
 
-    newcons Village : Village <math|\<longrightarrow\>> Place Village
+    datacons Village : Village <math|\<longrightarrow\>> Place Village
 
     \;
 
@@ -380,17 +380,17 @@
   A more practical existential type example:
 
   <\code>
-    newtype Bool
+    datatype Bool
 
-    newcons True : Bool
+    datacons True : Bool
 
-    newcons False : Bool
+    datacons False : Bool
 
-    newtype List : type * num
+    datatype List : type * num
 
-    newcons LNil : <math|\<forall\>>a. List(a, 0)
+    datacons LNil : <math|\<forall\>>a. List(a, 0)
 
-    newcons LCons : <math|\<forall\>>n,a[0<math|\<leq\>>n]. a * List(a, n)
+    datacons LCons : <math|\<forall\>>n,a[0<math|\<leq\>>n]. a * List(a, n)
     <math|\<longrightarrow\>> List(a, n+1)
 
     \;
@@ -430,14 +430,14 @@
   stands for ``upper bound'':
 
   <\code>
-    newtype Binary : num
+    datatype Binary : num
 
-    newcons Zero : Binary 0
+    datacons Zero : Binary 0
 
-    newcons PZero : <math|\<forall\>>n [0<math|\<leq\>>n]. Binary n
+    datacons PZero : <math|\<forall\>>n [0<math|\<leq\>>n]. Binary n
     <math|\<longrightarrow\>> Binary(2 n)
 
-    newcons POne : <math|\<forall\>>n [0<math|\<leq\>>n]. Binary n
+    datacons POne : <math|\<forall\>>n [0<math|\<leq\>>n]. Binary n
     <math|\<longrightarrow\>> Binary(2 n + 1)
 
     \;
@@ -569,9 +569,9 @@
   \ (external names) or inferred type (definitions).
 
   <block|<tformat|<cwith|1|1|2|2|cell-halign|l>|<cwith|1|1|1|1|cell-halign|l>|<table|<row|<cell|type
-  constructor>|<cell|<verbatim|newtype List : type * num>>>|<row|<cell|value
-  constructor>|<cell|<verbatim|newcons Cons : all n a. a * List(a,n)
-  --\<gtr\> List(a,n+1)>>>|<row|<cell|>|<cell|<verbatim|newcons Cons :
+  constructor>|<cell|<verbatim|datatype List : type * num>>>|<row|<cell|value
+  constructor>|<cell|<verbatim|datacons Cons : all n a. a * List(a,n)
+  --\<gtr\> List(a,n+1)>>>|<row|<cell|>|<cell|<verbatim|datacons Cons :
   <math|\<forall\>>n,a. a * List(a,n) <math|\<longrightarrow\>>
   List(a,n+1)>>>|<row|<cell|declaration>|<cell|<verbatim|external filter :
   <math|\<forall\>>n,a. List(a,n)<math|\<rightarrow\>
@@ -599,13 +599,13 @@
   At any place between lexemes, regular comments encapsulated in
   <verbatim|(*<math|\<ldots\>>*)> can occur. They are ignored during lexing.
   In front of all toplevel definitions and declarations, e.g. before a
-  <verbatim|newtype>, <verbatim|newcons>, <verbatim|external>, <verbatim|let
-  rec> or <verbatim|let>, and in front of <verbatim|let rec> .. <verbatim|in>
-  and <verbatim|let> .. <verbatim|in> nodes in expressions, documentation
-  comments <verbatim|(**<math|\<ldots\>>*)> can be put. Documentation
-  comments at other places are syntax errors. Documentation comments are
-  preserved both in generated interface files and in exported source code
-  files.
+  <verbatim|datatype>, <verbatim|datacons>, <verbatim|external>,
+  <verbatim|let rec> or <verbatim|let>, and in front of <verbatim|let rec> ..
+  <verbatim|in> and <verbatim|let> .. <verbatim|in> nodes in expressions,
+  documentation comments <verbatim|(**<math|\<ldots\>>*)> can be put.
+  Documentation comments at other places are syntax errors. Documentation
+  comments are preserved both in generated interface files and in exported
+  source code files.
 
   <section|Solver Parameters and CLI>
 

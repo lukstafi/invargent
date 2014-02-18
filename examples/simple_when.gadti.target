@@ -1,7 +1,7 @@
-newtype Signed : num
+datatype Signed : num
 
-newcons Pos : ∀n[0 ≤ n].Num n ⟶ Signed n
+datacons Pos : ∀n[0 ≤ n].Num n ⟶ Signed n
 
-newcons Neg : ∀n[n ≤ 0].Num n ⟶ Signed n
+datacons Neg : ∀n[n ≤ 0].Num n ⟶ Signed n
 
 val foo : ∀n. Num (n + 7) → Signed n

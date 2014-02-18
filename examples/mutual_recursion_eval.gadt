@@ -1,20 +1,20 @@
-newtype Term : type
-newtype Calc
+datatype Term : type
+datatype Calc
 
 external let mult : ∀i,j. Num i → Num j → ∃k. Num k = "( * )"
 external let is_zero : ∀i. Num i → Bool = "(=) 0"
 external let cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k = "fun c a b -> if c then a else b"
 
-newcons Lit : ∀k. Num k ⟶ Calc
-newcons Plus : Calc * Calc ⟶ Calc
-newcons Mult : Calc * Calc ⟶ Calc
-newcons Cond : Term Bool * Calc * Calc ⟶ Calc
+datacons Lit : ∀k. Num k ⟶ Calc
+datacons Plus : Calc * Calc ⟶ Calc
+datacons Mult : Calc * Calc ⟶ Calc
+datacons Cond : Term Bool * Calc * Calc ⟶ Calc
 
-newcons IsZero : Calc ⟶ Term Bool
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
-newcons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
-newcons Fst : ∀a, b. Term (a, b) ⟶ Term a
-newcons Snd : ∀a, b. Term (a, b) ⟶ Term b
+datacons IsZero : Calc ⟶ Term Bool
+datacons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+datacons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
+datacons Fst : ∀a, b. Term (a, b) ⟶ Term a
+datacons Snd : ∀a, b. Term (a, b) ⟶ Term b
 
 let snd = function _, x -> x
 

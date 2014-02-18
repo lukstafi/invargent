@@ -1,10 +1,10 @@
-newtype Ty : type
-newtype List : type
-newcons Zero : Int
-newcons Nil : ∀a. List a
-newcons TInt : Ty Int
-newcons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
-newcons TList : ∀a. Ty a ⟶ Ty (List a)
+datatype Ty : type
+datatype List : type
+datacons Zero : Int
+datacons Nil : ∀a. List a
+datacons TInt : Ty Int
+datacons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
+datacons TList : ∀a. Ty a ⟶ Ty (List a)
 external let eq_int : Int → Int → Bool = "(=)"
 external let b_and : Bool → Bool → Bool = "(&&)"
 external let b_not : Bool → Bool = "not"

@@ -1,10 +1,10 @@
-newtype Term : type
+datatype Term : type
 external let plus : Int → Int → Int = "(+)"
 external let is_zero : Int → Bool = "(=) 0"
-newcons Lit : Int ⟶ Term Int
-newcons Plus : Term Int * Term Int ⟶ Term Int
-newcons IsZero : Term Int ⟶ Term Bool
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+datacons Lit : Int ⟶ Term Int
+datacons Plus : Term Int * Term Int ⟶ Term Int
+datacons IsZero : Term Int ⟶ Term Bool
+datacons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
 
 let rec eval = function
   | Lit i -> i

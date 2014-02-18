@@ -1,14 +1,14 @@
-newtype Term : type
-newtype Calc
+datatype Term : type
+datatype Calc
 
 external let is_zero : ∀i. Num i → Bool = "(=) 0"
 external let cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k = "fun c a b -> if c then a else b"
 
-newcons Lit : ∀k. Num k ⟶ Calc
-newcons Cond : Term Bool * Calc * Calc ⟶ Calc
+datacons Lit : ∀k. Num k ⟶ Calc
+datacons Cond : Term Bool * Calc * Calc ⟶ Calc
 
-newcons IsZero : Calc ⟶ Term Bool
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+datacons IsZero : Calc ⟶ Term Bool
+datacons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
 
 let snd = function _, x -> x
 

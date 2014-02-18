@@ -1,7 +1,7 @@
-newtype List : type * num
+datatype List : type * num
 
-newcons LNil : ∀a. List (a, 0)
+datacons LNil : ∀a. List (a, 0)
 
-newcons LCons : ∀n, a[0 ≤ n].a * List (a, n) ⟶ List (a, n + 1)
+datacons LCons : ∀n, a[0 ≤ n].a * List (a, n) ⟶ List (a, n + 1)
 
 val flatten_pairs : ∀n, a. List ((a, a), n) → List (a, 2 n)

@@ -2,18 +2,18 @@
     Data Structures". The only difference is that instead of a generic
     list type, we need two specific data types, [Forest] and [Heap]. *)
 
-newtype Tree : type * num
-newtype Forest : type * num
-newtype Heap : type * num * num
+datatype Tree : type * num
+datatype Forest : type * num
+datatype Heap : type * num * num
 
-newcons Node : ∀a, k [0≤k]. Num k * a * Forest (a, k) ⟶ Tree (a, k)
-newcons TCons :
+datacons Node : ∀a, k [0≤k]. Num k * a * Forest (a, k) ⟶ Tree (a, k)
+datacons TCons :
   ∀a, n [0≤n]. Tree (a, n) * Forest (a, n) ⟶ Forest (a, n+1)
-newcons TNil : ∀a. Forest (a, 0)
-newcons HCons :
+datacons TNil : ∀a. Forest (a, 0)
+datacons HCons :
   ∀a, k, m, n [0≤k ∧ k+1≤m ∧ m≤n].
     Tree (a, k) * Heap (a, m, n) ⟶ Heap (a, k, n)
-newcons HNil : ∀a, n. Heap (a, n, n)
+datacons HNil : ∀a, n. Heap (a, n, n)
 
 external let leq : ∀a. a → a → Bool = "(<=)"
 

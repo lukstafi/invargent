@@ -114,7 +114,7 @@
     <em|slide3.gadt>:
 
     <\code>
-      newtype Tau
+      datatype Tau
 
       external x : <math|\<forall\>>b[b = Tau <math|\<rightarrow\>> Tau].b =
       "x"
@@ -147,11 +147,11 @@
     <em|slide4.gadt>:
 
     <\code>
-      newtype Tau
+      datatype Tau
 
-      newtype Tau'
+      datatype Tau'
 
-      newcons E2 : Tau'
+      datacons E2 : Tau'
 
       external e1 : Tau' <math|\<rightarrow\>> Tau = "e1"
 
@@ -183,9 +183,10 @@
       <frac|<tabular|<tformat|<cwith|1|1|3|3|cell-valign|c>|<table|<row|<cell|C\<vdash\>p:\<tau\><rsub|1>\<longrightarrow\>\<exists\><wide|\<beta\>|\<bar\>><around|[|D|]>\<Gamma\><rprime|'>>|<cell|C\<wedge\>D,\<Gamma\>\<Gamma\><rprime|'>\<vdash\>e:\<tau\><rsub|2>>|<cell|<wide|\<beta\>|\<bar\>>#FV<around|(|C,\<Gamma\>,\<tau\><rsub|2>|)>>>>>>|C,\<Gamma\>\<vdash\>p.e:\<tau\><rsub|1>\<rightarrow\>\<tau\><rsub|2>>
     </equation*>
 
-    \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ <draw-over|<tabular|<tformat|<cwith|3|3|1|1|cell-halign|c>|<cwith|1|1|1|1|cell-halign|c>|<table|<row|<cell|<math|<around*|\<llbracket\>|\<Gamma\>\<vdash\>p.e:\<tau\><rsub|1>\<rightarrow\>\<tau\><rsub|2>|\<rrbracket\>>=<around*|\<llbracket\>|\<vdash\>p\<downarrow\>\<tau\><rsub|1>|\<rrbracket\>>\<wedge\>\<forall\><wide|\<beta\>|\<bar\>>.D\<Rightarrow\><around*|\<llbracket\>|\<Gamma\>\<Gamma\><rprime|'>\<vdash\>e:\<tau\><rsub|2>|\<rrbracket\>>>>>|<row|<cell|>>|<row|<cell|<math|C\<vdash\>x:\<tau\>\<longrightarrow\>\<exists\>\<varnothing\><around|[|\<b-T\>|]><around|{|x\<mapsto\>\<tau\>|}>>>>>>>|<with|gr-color|red|gr-arrow-end|\<gtr\>|<graphics|<with|color|red|arrow-end|\<gtr\>|<line|<point|0.968084|-0.407792>|<point|2.11109273713454|0.438880804339198>>>|<with|color|red|arrow-end|\<gtr\>|<line|<point|2.32276|-0.428959>|<point|4.07960709088504|0.460047625347268>>>>>>
+    \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ <draw-over|<tabular|<tformat|<cwith|3|3|1|1|cell-halign|c>|<cwith|1|1|1|1|cell-halign|c>|<table|<row|<cell|<math|<around*|\<llbracket\>|\<Gamma\>\<vdash\>p.e:\<tau\><rsub|1>\<rightarrow\>\<tau\><rsub|2>|\<rrbracket\>>=<around*|\<llbracket\>|\<vdash\>p\<downarrow\>\<tau\><rsub|1>|\<rrbracket\>>\<wedge\>\<forall\><wide|\<beta\>|\<bar\>>.D\<Rightarrow\><around*|\<llbracket\>|\<Gamma\>\<Gamma\><rprime|'>\<vdash\>e:\<tau\><rsub|2>|\<rrbracket\>>>>>|<row|<cell|>>|<row|<cell|<math|C\<vdash\>x:\<tau\>\<longrightarrow\>\<exists\>\<varnothing\><around|[|\<b-T\>|]><around|{|x\<mapsto\>\<tau\>|}>>>>>>>|<with|gr-color|red|gr-arrow-end|\<gtr\>|gr-frame|<tuple|scale|1cm|<tuple|0.500001gw|0.499999gh>>|<graphics|<with|color|red|arrow-end|\<gtr\>|<line|<point|0.968084|-0.407792>|<point|2.11109273713454|0.438880804339198>>>|<with|color|red|arrow-end|\<gtr\>|<line|<point|2.32276|-0.428959>|<point|4.07960709088504|0.460047625347268>>>>>>
 
-    <em|slide5.gadt>:<math|C\<vdash\>K x:\<tau\>\<longrightarrow\>\<exists\><wide|\<alpha\>|\<bar\>><wide|\<beta\>|\<bar\>><around|[|D|]><around*|{|x\<mapsto\>\<tau\><rsub|1>|}>>
+    <em|slide5.gadt>: \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ or
+    \ <math|C\<vdash\>K x:\<tau\>\<longrightarrow\>\<exists\><wide|\<alpha\>|\<bar\>><wide|\<beta\>|\<bar\>><around|[|D|]><around*|{|x\<mapsto\>\<tau\><rsub|1>|}>>
 
     <\code>
       let abs_gen_rules = fun x -\> x
@@ -221,15 +222,15 @@
       e<rsub|1>\<ldots\>e<rsub|n>:\<tau\>|\<rrbracket\>>=\<exists\><wide|\<alpha\>|\<bar\>><rprime|'><wide|\<beta\>|\<bar\>><rprime|'>.(\<wedge\><rsub|i><around*|\<llbracket\>|\<Gamma\>\<vdash\>e<rsub|i>:\<tau\><rsub|i><around|[|<wide|\<alpha\>|\<bar\>><wide|\<beta\>|\<bar\>>\<assign\><wide|\<alpha\>|\<bar\>><rprime|'><wide|\<beta\>|\<bar\>><rprime|'>|]>|\<rrbracket\>>\<wedge\>D<around|[|<wide|\<alpha\>|\<bar\>><wide|\<beta\>|\<bar\>>\<assign\><wide|\<alpha\>|\<bar\>><rprime|'><wide|\<beta\>|\<bar\>><rprime|'>|]>\<wedge\>\<varepsilon\><around|(|<wide|\<alpha\>|\<bar\>><rprime|'>|)><wide|=|\<dot\>>\<tau\>)
     </equation*>
 
-    Type <verbatim|Num> could be defined as:<next-line><verbatim|newtype Num
-    : num \ \ newcons 1 : Num 1 \ \ newcons 2 : Num 2 \ \ <math|\<ldots\>>>
+    Type <verbatim|Num> could be defined as:<next-line><verbatim|datatype Num
+    : num \ \ datacons 1 : Num 1 \ \ datacons 2 : Num 2 \ \ <math|\<ldots\>>>
 
     <em|slide6.gadt>:
 
     <\code>
-      newtype Box : num
+      datatype Box : num
 
-      newcons Small : <math|\<forall\>>n,k [n <math|\<leqslant\>>
+      datacons Small : <math|\<forall\>>n,k [n <math|\<leqslant\>>
       7<math|\<wedge\>> k = n+6]. Num n <math|\<longrightarrow\>> Box k
 
       \;
@@ -261,11 +262,11 @@
     <em|slide7.gadt>:
 
     <\code>
-      newtype Avl : type * num
+      datatype Avl : type * num
 
-      newcons Empty : <math|\<forall\>>a. Avl (a, 0)
+      datacons Empty : <math|\<forall\>>a. Avl (a, 0)
 
-      newcons Node :
+      datacons Node :
 
       \ \ <math|\<forall\>>a,k,m,n [k=max(m,n) <math|\<wedge\>>
       0<math|\<leqslant\>>m <math|\<wedge\>> 0<math|\<leqslant\>>n
@@ -312,12 +313,12 @@
     <em|slide8.gadt>:
 
     <\code>
-      newtype Signed : num
+      datatype Signed : num
 
-      newcons Pos : <math|\<forall\>>n [0 <math|\<leqslant\>> n]. Num n
+      datacons Pos : <math|\<forall\>>n [0 <math|\<leqslant\>> n]. Num n
       <math|\<longrightarrow\>> Signed n
 
-      newcons Neg : <math|\<forall\>>n [n <math|\<leqslant\>> 0]. Num n
+      datacons Neg : <math|\<forall\>>n [n <math|\<leqslant\>> 0]. Num n
       <math|\<longrightarrow\>> Signed n
 
       let foo = function
@@ -335,11 +336,11 @@
     <em|slide9.gadt>:
 
     <\code>
-      newtype Avl : type * num
+      datatype Avl : type * num
 
-      newcons Empty : <math|\<forall\>>a. Avl (a, 0)
+      datacons Empty : <math|\<forall\>>a. Avl (a, 0)
 
-      newcons Node :
+      datacons Node :
 
       \ \ <math|\<forall\>>a,k,m,n [k=max(m,n) <math|\<wedge\>>
       0<math|\<leqslant\>>m <math|\<wedge\>> 0<math|\<leqslant\>>n
@@ -419,11 +420,11 @@
     <em|slide11.gadt>:
 
     <\code>
-      newtype Avl : type * num
+      datatype Avl : type * num
 
-      newcons Empty : <math|\<forall\>>a. Avl (a, 0)
+      datacons Empty : <math|\<forall\>>a. Avl (a, 0)
 
-      newcons Node :
+      datacons Node :
 
       \ \ <math|\<forall\>>a,k,m,n [k=max(m,n) <math|\<wedge\>>
       0<math|\<leqslant\>>m <math|\<wedge\>> 0<math|\<leqslant\>>n
@@ -472,12 +473,12 @@
     <em|slide12.gadt>:
 
     <\code>
-      newtype List : type * num
+      datatype List : type * num
 
-      newcons LNil : <math|\<forall\>>a. List (a, 0)
+      datacons LNil : <math|\<forall\>>a. List (a, 0)
 
-      newcons LCons : <math|\<forall\>>a, n [0<math|\<leqslant\>>n]. a * List
-      (a, n) <math|\<longrightarrow\>> List (a, n+1)
+      datacons LCons : <math|\<forall\>>a, n [0<math|\<leqslant\>>n]. a *
+      List (a, n) <math|\<longrightarrow\>> List (a, n+1)
 
       \;
 
@@ -497,21 +498,21 @@
     <em|binary_plus.gadt>:
 
     <\code>
-      newtype Binary : num
+      datatype Binary : num
 
-      newtype Carry : num
+      datatype Carry : num
 
-      newcons Zero : Binary 0
+      datacons Zero : Binary 0
 
-      newcons PZero : <math|\<forall\>>n [0<math|\<leqslant\>>n]. Binary n
+      datacons PZero : <math|\<forall\>>n [0<math|\<leqslant\>>n]. Binary n
       <math|\<longrightarrow\>> Binary(2 n)
 
-      newcons POne : <math|\<forall\>>n [0<math|\<leqslant\>>n]. Binary n
+      datacons POne : <math|\<forall\>>n [0<math|\<leqslant\>>n]. Binary n
       <math|\<longrightarrow\>> Binary(2 n + 1)
 
-      newcons CZero : Carry 0
+      datacons CZero : Carry 0
 
-      newcons COne : Carry 1
+      datacons COne : Carry 1
 
       \;
 
@@ -558,11 +559,11 @@
     <em|slide14.gadt> fails:
 
     <\code>
-      newtype List : type * num
+      datatype List : type * num
 
-      newcons LNil : <math|\<forall\>>a. List(a, 0)
+      datacons LNil : <math|\<forall\>>a. List(a, 0)
 
-      newcons LCons : <math|\<forall\>>n, a [0<math|\<leqslant\>>n]. a *
+      datacons LCons : <math|\<forall\>>n, a [0<math|\<leqslant\>>n]. a *
       List(a, n) <math|\<longrightarrow\>> List(a, n+1)
 
       let rec filter = fun f -\>
@@ -594,11 +595,11 @@
     <em|filter.gadt>:
 
     <\code>
-      newtype List : type * num
+      datatype List : type * num
 
-      newcons LNil : <math|\<forall\>>a. List(a, 0)
+      datacons LNil : <math|\<forall\>>a. List(a, 0)
 
-      newcons LCons : <math|\<forall\>>n, a [0<math|\<leqslant\>>n]. a *
+      datacons LCons : <math|\<forall\>>n, a [0<math|\<leqslant\>>n]. a *
       List(a, n) <math|\<longrightarrow\>> List(a, n+1)
 
       \;
@@ -702,21 +703,21 @@
 
     <\small>
       <\code>
-        newtype Ty : type
+        datatype Ty : type
 
-        newtype List : type
+        datatype List : type
 
-        newcons Zero : Int
+        datacons Zero : Int
 
-        newcons Nil : <math|\<forall\>>a. List a
+        datacons Nil : <math|\<forall\>>a. List a
 
-        newcons TInt : Ty Int
+        datacons TInt : Ty Int
 
-        newcons TPair : <math|\<forall\>>a, b. Ty a * Ty b
+        datacons TPair : <math|\<forall\>>a, b. Ty a * Ty b
         <math|\<longrightarrow\>> Ty (a, b)
 
-        newcons TList : <math|\<forall\>>a. Ty a <math|\<longrightarrow\>> Ty
-        (List a)
+        datacons TList : <math|\<forall\>>a. Ty a <math|\<longrightarrow\>>
+        Ty (List a)
 
         external let eq_int : Int <math|\<rightarrow\>> Int
         <math|\<rightarrow\>> Bool = "(=)"
@@ -852,11 +853,11 @@
     Toy example -- <em|non_pointwise_split.gadt>:
 
     <\code>
-      newtype Split : type * type
+      datatype Split : type * type
 
-      newcons Whole : Split (Int, Int)
+      datacons Whole : Split (Int, Int)
 
-      newcons Parts : <math|\<Alpha\>>a, b. Split ((Int, a), (b, Bool))
+      datacons Parts : <math|\<Alpha\>>a, b. Split ((Int, a), (b, Bool))
 
       external let seven : Int = "7"
 
@@ -893,35 +894,35 @@
         (** Normally we would use [num], but this is a stress test for
         [type]. *)
 
-        newtype Z
+        datatype Z
 
-        newtype S : type
+        datatype S : type
 
-        newtype Balance : type * type * type
+        datatype Balance : type * type * type
 
-        newcons Less : <math|\<forall\>>a. Balance (a, S a, S a)
+        datacons Less : <math|\<forall\>>a. Balance (a, S a, S a)
 
-        newcons Same : <math|\<forall\>>a. Balance (a, a, a)
+        datacons Same : <math|\<forall\>>a. Balance (a, a, a)
 
-        newcons More : <math|\<forall\>>a. Balance (S a, a, S a)
+        datacons More : <math|\<forall\>>a. Balance (S a, a, S a)
 
-        newtype AVL : type
+        datatype AVL : type
 
-        newcons Leaf : AVL Z
+        datacons Leaf : AVL Z
 
-        newcons Node :
+        datacons Node :
 
         \ \ <math|\<forall\>>a, b, c. Balance (a, b, c) * AVL a * Int * AVL b
         <math|\<longrightarrow\>> AVL (S c)
 
         \;
 
-        newtype Choice : type * type
+        datatype Choice : type * type
 
-        newcons Left : <math|\<forall\>>a, b. a <math|\<longrightarrow\>>
+        datacons Left : <math|\<forall\>>a, b. a <math|\<longrightarrow\>>
         Choice (a, b)
 
-        newcons Right : <math|\<forall\>>a, b. b <math|\<longrightarrow\>>
+        datacons Right : <math|\<forall\>>a, b. b <math|\<longrightarrow\>>
         Choice (a, b)
 
         \;
@@ -955,15 +956,15 @@
     <em|non_pointwise_vary.gadt>:
 
     <\code>
-      newtype EquLR : type * type * type
+      datatype EquLR : type * type * type
 
-      newcons EquL : <math|\<forall\>>a, b. EquLR (a, a, b)
+      datacons EquL : <math|\<forall\>>a, b. EquLR (a, a, b)
 
-      newcons EquR : <math|\<forall\>>a, b. EquLR (a, b, b)
+      datacons EquR : <math|\<forall\>>a, b. EquLR (a, b, b)
 
-      newtype Box : type
+      datatype Box : type
 
-      newcons Cons : <math|\<forall\>>a. a <math|\<longrightarrow\>> Box a
+      datacons Cons : <math|\<forall\>>a. a <math|\<longrightarrow\>> Box a
 
       external let eq : <math|\<forall\>>a. a <math|\<rightarrow\>> a
       <math|\<rightarrow\>> Bool = "(=)"
@@ -1048,7 +1049,7 @@
 
 <\references>
   <\collection>
-    <associate|InfComplExpr|<tuple|2|23|../../../Dropbox/Dokumenty/GADT/invargent-slides-Jan.tm>>
-    <associate|InfCorrExpr|<tuple|1|23|../../../Dropbox/Dokumenty/GADT/invargent-slides-Jan.tm>>
+    <associate|InfComplExpr|<tuple|2|23>>
+    <associate|InfCorrExpr|<tuple|1|23>>
   </collection>
 </references>

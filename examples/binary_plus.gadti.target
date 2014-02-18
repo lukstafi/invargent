@@ -1,16 +1,16 @@
-newtype Binary : num
+datatype Binary : num
 
-newtype Carry : num
+datatype Carry : num
 
-newcons Zero : Binary 0
+datacons Zero : Binary 0
 
-newcons PZero : ∀n[0 ≤ n].Binary n ⟶ Binary (2 n)
+datacons PZero : ∀n[0 ≤ n].Binary n ⟶ Binary (2 n)
 
-newcons POne : ∀n[0 ≤ n].Binary n ⟶ Binary (2 n + 1)
+datacons POne : ∀n[0 ≤ n].Binary n ⟶ Binary (2 n + 1)
 
-newcons CZero : Carry 0
+datacons CZero : Carry 0
 
-newcons COne : Carry 1
+datacons COne : Carry 1
 
 val plus :
    ∀i, k, n. Carry i → Binary k → Binary n → Binary (n + k + i)

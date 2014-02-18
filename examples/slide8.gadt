@@ -1,6 +1,6 @@
-newtype Signed : num
-newcons Pos : ∀n [0 ≤ n]. Num n ⟶ Signed n
-newcons Neg : ∀n [n ≤ 0]. Num n ⟶ Signed n
+datatype Signed : num
+datacons Pos : ∀n [0 ≤ n]. Num n ⟶ Signed n
+datacons Neg : ∀n [n ≤ 0]. Num n ⟶ Signed n
 
 let foo = function
   | i when 7 <= i -> Pos (i + -7)

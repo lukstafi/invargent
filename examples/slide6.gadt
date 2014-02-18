@@ -1,5 +1,5 @@
-newtype Box : num
-newcons Small : ∀n [n ≤ 7]. Num n ⟶ Box (n+6)
+datatype Box : num
+datacons Small : ∀n [n ≤ 7]. Num n ⟶ Box (n+6)
 
 let gift = Small 4
 let package = fun x -> Small (x + -3)

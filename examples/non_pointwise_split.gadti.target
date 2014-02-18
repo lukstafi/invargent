@@ -1,8 +1,8 @@
-newtype Split : type * type
+datatype Split : type * type
 
-newcons Whole : Split (Int, Int)
+datacons Whole : Split (Int, Int)
 
-newcons Parts : ∀a, b. Split ((Int, a), (b, Bool))
+datacons Parts : ∀a, b. Split ((Int, a), (b, Bool))
 
 external val seven : Int
 

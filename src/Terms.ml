@@ -980,12 +980,12 @@ let pr_sig_item ppf = function
     (match docu with
      | None -> ()
      | Some doc -> fprintf ppf "(**%s*)@\n" doc);
-    fprintf ppf "@[<2>newtype@ %s@]" (cns_str name)
+    fprintf ppf "@[<2>datatype@ %s@]" (cns_str name)
   | ITypConstr (docu, name, sorts, _) ->
     (match docu with
      | None -> ()
      | Some doc -> fprintf ppf "(**%s*)@\n" doc);
-    fprintf ppf "@[<2>newtype@ %s@ :@ %a@]" (cns_str name)
+    fprintf ppf "@[<2>datatype@ %s@ :@ %a@]" (cns_str name)
       (pr_sep_list " *" pr_sort) sorts
   | IValConstr (_, Extype _, _, _, _, Extype _, _, _)
     when not !show_extypes -> ()
@@ -994,21 +994,21 @@ let pr_sig_item ppf = function
      | None -> ()
      | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     let res = TCons (c_n, c_args) in
-    fprintf ppf "@[<2>newcons@ %s@ :@ %a@]" (cns_str name)
+    fprintf ppf "@[<2>datacons@ %s@ :@ %a@]" (cns_str name)
       pr_ty res
   | IValConstr (docu, name, [], [], args, c_n, c_args, _) ->
     (match docu with
      | None -> ()
      | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     let res = TCons (c_n, c_args) in
-    fprintf ppf "@[<2>newcons@ %s@ :@ %a@ ⟶@ %a@]" (cns_str name)
+    fprintf ppf "@[<2>datacons@ %s@ :@ %a@ ⟶@ %a@]" (cns_str name)
       (pr_sep_list " *" pr_ty) args pr_ty res
   | IValConstr (docu, name, vs, [], [], c_n, c_args, _) ->
     (match docu with
      | None -> ()
      | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     let res = TCons (c_n, c_args) in
-    fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a.@ %a@]" (cns_str name)
+    fprintf ppf "@[<2>datacons@ %s@ :@ ∀%a.@ %a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
       pr_ty res
   | IValConstr (docu, name, vs, phi, [], c_n, c_args, _) ->
@@ -1016,7 +1016,7 @@ let pr_sig_item ppf = function
      | None -> ()
      | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     let res = TCons (c_n, c_args) in
-    fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a[%a].@ %a@]" (cns_str name)
+    fprintf ppf "@[<2>datacons@ %s@ :@ ∀%a[%a].@ %a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
       pr_formula phi pr_ty res
   | IValConstr (docu, name, vs, [], args, c_n, c_args, _) ->
@@ -1024,7 +1024,7 @@ let pr_sig_item ppf = function
      | None -> ()
      | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     let res = TCons (c_n, c_args) in
-    fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a.%a@ ⟶@ %a@]" (cns_str name)
+    fprintf ppf "@[<2>datacons@ %s@ :@ ∀%a.%a@ ⟶@ %a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
       (pr_sep_list " *" pr_ty) args pr_ty res
   | IValConstr (docu, name, vs, phi, args, c_n, c_args, _) ->
@@ -1032,7 +1032,7 @@ let pr_sig_item ppf = function
      | None -> ()
      | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     let res = TCons (c_n, c_args) in
-    fprintf ppf "@[<2>newcons@ %s@ :@ ∀%a[%a].%a@ ⟶@ %a@]" (cns_str name)
+    fprintf ppf "@[<2>datacons@ %s@ :@ ∀%a[%a].%a@ ⟶@ %a@]" (cns_str name)
       (pr_sep_list "," pr_tyvar) vs
       pr_formula phi
       (pr_sep_list " *" pr_ty) args pr_ty res

@@ -112,13 +112,13 @@ let tests = "Invariants" >::: [
     (fun () ->
       skip_if !debug "debug";
       test_case "eval term"
-"newtype Term : type
+"datatype Term : type
 external let plus : Int → Int → Int = \"(+)\"
 external let is_zero : Int → Bool = \"(=) 0\"
-newcons Lit : Int ⟶ Term Int
-newcons Plus : Term Int * Term Int ⟶ Term Int
-newcons IsZero : Term Int ⟶ Term Bool
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+datacons Lit : Int ⟶ Term Int
+datacons Plus : Term Int * Term Int ⟶ Term Int
+datacons IsZero : Term Int ⟶ Term Bool
+datacons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
 
 let rec eval = function
   | Lit i -> i
@@ -133,9 +133,9 @@ let rec eval = function
     (fun () ->
       skip_if !debug "debug";
       test_case "eval term"
-"newtype Term : type
-newcons Lit : Int ⟶ Term Int
-newcons IsZero : Term Int ⟶ Term Bool
+"datatype Term : type
+datacons Lit : Int ⟶ Term Int
+datacons IsZero : Term Int ⟶ Term Bool
 external let is_zero : Int → Bool = \"(=) 0\"
 
 let rec eval = function
@@ -151,8 +151,8 @@ let rec eval = function
     (fun () ->
       skip_if !debug "debug";
       test_case "foo without when, positive"
-"newtype Positive : num
-newcons Pos : ∀n [0 ≤ n]. Num n ⟶ Positive n
+"datatype Positive : num
+datacons Pos : ∀n [0 ≤ n]. Num n ⟶ Positive n
 
 let rec foo = function i -> Pos (i + -7)"
 
@@ -163,9 +163,9 @@ let rec foo = function i -> Pos (i + -7)"
     (fun () ->
       skip_if !debug "debug";
       test_case "foo without when, non-negative and non-positive"
-"newtype Signed : num
-newcons Pos : ∀n [0 ≤ n]. Num n ⟶ Signed n
-newcons Neg : ∀n [n ≤ 0]. Num n ⟶ Signed n
+"datatype Signed : num
+datacons Pos : ∀n [0 ≤ n]. Num n ⟶ Signed n
+datacons Neg : ∀n [n ≤ 0]. Num n ⟶ Signed n
 
 let rec foo = function
   | i -> Pos (i + -7)
@@ -178,9 +178,9 @@ let rec foo = function
     (fun () ->
       skip_if !debug "debug";
       test_case "foo with when"
-"newtype Signed : num
-newcons Pos : ∀n [0 ≤ n]. Num n ⟶ Signed n
-newcons Neg : ∀n [n ≤ 0]. Num n ⟶ Signed n
+"datatype Signed : num
+datacons Pos : ∀n [0 ≤ n]. Num n ⟶ Signed n
+datacons Neg : ∀n [n ≤ 0]. Num n ⟶ Signed n
 
 let rec foo = function
   | i when 7 <= i -> Pos (i + -7)
@@ -193,8 +193,8 @@ let rec foo = function
     (fun () ->
       skip_if !debug "debug";
       test_case "foo with when, unsafe positive"
-"newtype Positive : num
-newcons Pos : ∀n [0 ≤ n]. Num n ⟶ Positive n
+"datatype Positive : num
+datacons Pos : ∀n [0 ≤ n]. Num n ⟶ Positive n
 
 let rec foo = function
   | i when 7 <= i -> Pos (i + -7)"
@@ -206,18 +206,18 @@ let rec foo = function
     (fun () ->
        skip_if !debug "debug";
        test_case "eval term"
-"newtype Term : type
+"datatype Term : type
 
 external let plus : Int → Int → Int = \"(+)\"
 external let is_zero : Int → Bool = \"(=) 0\"
 
-newcons Lit : Int ⟶ Term Int
-newcons Plus : Term Int * Term Int ⟶ Term Int
-newcons IsZero : Term Int ⟶ Term Bool
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
-newcons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
-newcons Fst : ∀a, b. Term (a, b) ⟶ Term a
-newcons Snd : ∀a, b. Term (a, b) ⟶ Term b
+datacons Lit : Int ⟶ Term Int
+datacons Plus : Term Int * Term Int ⟶ Term Int
+datacons IsZero : Term Int ⟶ Term Bool
+datacons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+datacons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
+datacons Fst : ∀a, b. Term (a, b) ⟶ Term a
+datacons Snd : ∀a, b. Term (a, b) ⟶ Term b
 
 let rec eval = function
   | Lit i -> i
@@ -235,13 +235,13 @@ let rec eval = function
     (fun () ->
        skip_if !debug "debug";
        test_case "equal1 wrong type"
-"newtype Ty : type
-newtype List : type
-newcons Zero : Int
-newcons Nil : ∀a. List a
-newcons TInt : Ty Int
-newcons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
-newcons TList : ∀a. Ty a ⟶ Ty (List a)
+"datatype Ty : type
+datatype List : type
+datacons Zero : Int
+datacons Nil : ∀a. List a
+datacons TInt : Ty Int
+datacons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
+datacons TList : ∀a. Ty a ⟶ Ty (List a)
 external let eq_int : Int → Int → Bool = \"(=)\"
 external let b_and : Bool → Bool → Bool = \"(&&)\"
 external let b_not : Bool → Bool = \"not\"
@@ -262,13 +262,13 @@ let rec equal1 = function
     (fun () ->
        skip_if !debug "debug";
        test_case "equal terms"
-"newtype Ty : type
-newtype List : type
-newcons Zero : Int
-newcons Nil : ∀a. List a
-newcons TInt : Ty Int
-newcons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
-newcons TList : ∀a. Ty a ⟶ Ty (List a)
+"datatype Ty : type
+datatype List : type
+datacons Zero : Int
+datacons Nil : ∀a. List a
+datacons TInt : Ty Int
+datacons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
+datacons TList : ∀a. Ty a ⟶ Ty (List a)
 external let eq_int : Int → Int → Bool = \"(=)\"
 external let b_and : Bool → Bool → Bool = \"(&&)\"
 external let b_not : Bool → Bool = \"not\"
@@ -290,13 +290,13 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
     (fun () ->
        skip_if !debug "debug";
        test_case "equal terms"
-"newtype Ty : type
-newtype List : type
-newcons Zero : Int
-newcons Nil : ∀a. List a
-newcons TInt : Ty Int
-newcons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
-newcons TList : ∀a. Ty a ⟶ Ty (List a)
+"datatype Ty : type
+datatype List : type
+datacons Zero : Int
+datacons Nil : ∀a. List a
+datacons TInt : Ty Int
+datacons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
+datacons TList : ∀a. Ty a ⟶ Ty (List a)
 external let eq_int : Int → Int → Bool = \"(=)\"
 external let b_and : Bool → Bool → Bool = \"(&&)\"
 external let b_not : Bool → Bool = \"not\"
@@ -319,13 +319,13 @@ let rec equal = function
     (fun () ->
        skip_if !debug "debug";
        test_case "equal terms"
-"newtype Ty : type
-newtype List : type
-newcons Zero : Int
-newcons Nil : ∀a. List a
-newcons TInt : Ty Int
-newcons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
-newcons TList : ∀a. Ty a ⟶ Ty (List a)
+"datatype Ty : type
+datatype List : type
+datacons Zero : Int
+datacons Nil : ∀a. List a
+datacons TInt : Ty Int
+datacons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
+datacons TList : ∀a. Ty a ⟶ Ty (List a)
 external let eq_int : Int → Int → Bool = \"(=)\"
 external let b_and : Bool → Bool → Bool = \"(=)\"
 external let b_not : Bool → Bool = \"not\"
@@ -349,10 +349,10 @@ test b_not (equal (TInt, TList TInt) Zero Nil)"
     (fun () ->
        skip_if !debug "debug";
        test_case "list map simplest numeric"
-"newtype Elem
-newtype List : num
-newcons LNil : List 0
-newcons LCons : ∀n [0≤n]. Elem * List n ⟶ List (n+1)
+"datatype Elem
+datatype List : num
+datacons LNil : List 0
+datacons LCons : ∀n [0≤n]. Elem * List n ⟶ List (n+1)
 
 let rec map = fun f ->
   function LNil -> LNil
@@ -366,10 +366,10 @@ let rec map = fun f ->
     (fun () ->
        skip_if !debug "debug";
        test_case "list append simple numeric"
-"newtype Elem
-newtype List : num
-newcons LNil : List 0
-newcons LCons : ∀n [0≤n]. Elem * List n ⟶ List (n+1)
+"datatype Elem
+datatype List : num
+datacons LNil : List 0
+datacons LCons : ∀n [0≤n]. Elem * List n ⟶ List (n+1)
 
 let rec append =
   function LNil -> (function LNil -> LNil | LCons (_,_) as l -> l)
@@ -388,10 +388,10 @@ let rec append =
           committed to requiring that the result is no less than [1],
           which on following iterations blows up. *)
        test_case "list append simple numeric"
-"newtype Elem
-newtype List : num
-newcons LNil : List 0
-newcons LCons : ∀n [0≤n]. Elem * List n ⟶ List (n+1)
+"datatype Elem
+datatype List : num
+datacons LNil : List 0
+datacons LCons : ∀n [0≤n]. Elem * List n ⟶ List (n+1)
 external length : ∀n. List n → Num n = \"length\"
 
 let rec append =
@@ -409,10 +409,10 @@ let rec append =
     (fun () ->
        skip_if !debug "debug";
        test_case "list interleave simple numeric"
-"newtype Elem
-newtype List : num
-newcons LNil : List 0
-newcons LCons : ∀n [0≤n]. Elem * List n ⟶ List (n+1)
+"datatype Elem
+datatype List : num
+datacons LNil : List 0
+datacons LCons : ∀n [0≤n]. Elem * List n ⟶ List (n+1)
 
 let rec interleave =
   function LNil -> (function LNil -> LNil | LCons (_,_) as l -> l)
@@ -426,10 +426,10 @@ let rec interleave =
     (fun () ->
        skip_if !debug "debug";
        test_case "list interleave 3 args simple numeric"
-"newtype Elem
-newtype List : num
-newcons LNil : List 0
-newcons LCons : ∀n [0≤n]. Elem * List n ⟶ List (n+1)
+"datatype Elem
+datatype List : num
+datacons LNil : List 0
+datacons LCons : ∀n [0≤n]. Elem * List n ⟶ List (n+1)
 
 let rec interleave3 =
   function LNil -> 
@@ -454,10 +454,10 @@ let rec interleave3 =
        todo "disjunctive patterns";
        skip_if !debug "debug";
        test_case "list append numeric"
-"newtype Elem
-newtype List : num
-newcons LNil : List 0
-newcons LCons : ∀n [0≤n]. Elem * List n ⟶ List (n+1)
+"datatype Elem
+datatype List : num
+datacons LNil : List 0
+datacons LCons : ∀n [0≤n]. Elem * List n ⟶ List (n+1)
 
 let rec append =
   function LNil -> (function (LNil | LCons (_,_)) as l -> l)
@@ -469,11 +469,11 @@ let rec append =
     (fun () ->
        skip_if !debug "debug";
        test_case "binary increment"
-"newtype Binary : num
+"datatype Binary : num
 
-newcons Zero : Binary 0
-newcons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
-newcons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
+datacons Zero : Binary 0
+datacons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
+datacons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
 
 let rec increment =
   function Zero -> POne Zero
@@ -486,15 +486,15 @@ let rec increment =
     (fun () ->
        skip_if !debug "debug";
        test_case "binary plus"
-"newtype Binary : num
-newtype Carry : num
+"datatype Binary : num
+datatype Carry : num
 
-newcons Zero : Binary 0
-newcons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
-newcons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
+datacons Zero : Binary 0
+datacons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
+datacons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
 
-newcons CZero : Carry 0
-newcons COne : Carry 1
+datacons CZero : Carry 0
+datacons COne : Carry 1
 
 let rec plus =
   function CZero ->
@@ -531,14 +531,14 @@ let rec plus =
        todo "too hard for current numerical abduction";
        skip_if !debug "debug";
        test_case "binary plus"
-"newtype Binary : num
-newtype Carry : num
+"datatype Binary : num
+datatype Carry : num
 
-newcons Zero : Binary 0
-newcons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
-newcons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
-newcons CZero : Carry 0
-newcons COne : Carry 1
+datacons Zero : Binary 0
+datacons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
+datacons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
+datacons CZero : Carry 0
+datacons COne : Carry 1
 
 external num_of_binary : ∀n. Binary n → Num n = \"num_of_binary\"
 
@@ -576,15 +576,15 @@ let rec plus =
        todo "disjunctive patterns";
        skip_if !debug "debug";
        test_case "binary plus"
-"newtype Binary : num
-newtype Carry : num
+"datatype Binary : num
+datatype Carry : num
 
-newcons Zero : Binary 0
-newcons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
-newcons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
+datacons Zero : Binary 0
+datacons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
+datacons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
 
-newcons CZero : Carry 0
-newcons COne : Carry 1
+datacons CZero : Carry 0
+datacons COne : Carry 1
 
 let rec plus =
   function CZero ->
@@ -617,14 +617,14 @@ let rec plus =
     (fun () ->
        skip_if !debug "debug";
        test_case "binary plus test"
-"newtype Binary : num
-newtype Carry : num
+"datatype Binary : num
+datatype Carry : num
 
-newcons Zero : Binary 0
-newcons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
-newcons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
-newcons CZero : Carry 0
-newcons COne : Carry 1
+datacons Zero : Binary 0
+datacons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
+datacons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
+datacons CZero : Carry 0
+datacons COne : Carry 1
 
 external let eq_Binary :  ∀n [0≤n]. Binary n → Binary n → Bool = \"(=)\"
 
@@ -665,9 +665,9 @@ test (eq_Binary (plus CZero (POne Zero) (PZero (POne Zero)))
     (fun () ->
        skip_if !debug "debug";
        test_case "list flatten_pairs"
-"newtype List : type * num
-newcons LNil : ∀a. List(a, 0)
-newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+"datatype List : type * num
+datacons LNil : ∀a. List(a, 0)
+datacons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 
 let rec flatten_pairs =
   function LNil -> LNil
@@ -680,14 +680,14 @@ let rec flatten_pairs =
     (fun () ->
        skip_if !debug "debug";
        test_case "escape castle"
-"newtype Room
-newtype Yard
-newtype Outside
+"datatype Room
+datatype Yard
+datatype Outside
 
-newtype Placement : type
-newcons Room : Room ⟶ Placement Room
-newcons Yard : Yard ⟶ Placement Yard
-newcons Outside : Outside ⟶ Placement Outside
+datatype Placement : type
+datacons Room : Room ⟶ Placement Room
+datacons Yard : Yard ⟶ Placement Yard
+datacons Outside : Outside ⟶ Placement Outside
 
 external leave : Room → ∃t. Placement t = \"leave\"
 external enter : Yard → Room = \"enter\"
@@ -707,13 +707,13 @@ let rec escape = function Outside x -> x
     (fun () ->
        skip_if !debug "debug";
        test_case "less nested universal"
-"newtype Place : type
-newtype Nearby : type * type
-newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
+"datatype Place : type
+datatype Nearby : type * type
+datacons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
 external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b)) = \"wander\"
-newtype Meet : type * type
-newcons Close : ∀a,b. Nearby (a, b) ⟶ Meet (a, b)
-newcons NotClose : ∀a, b. Meet (a, b)
+datatype Meet : type * type
+datacons Close : ∀a,b. Nearby (a, b) ⟶ Meet (a, b)
+datacons NotClose : ∀a, b. Meet (a, b)
 external compare : ∀a,b. Place a → Place b → Meet (a, b) = \"compare\"
 let rec walk = fun x goal ->
   match compare x goal with
@@ -728,19 +728,19 @@ let rec walk = fun x goal ->
     (fun () ->
        skip_if !debug "debug";
        test_case "equational nested universal"
-"newtype Place : type
-newtype Nearby : type * type
-newtype A
-newtype B
-newcons LocA : Place A
-newcons LocB : Place B
+"datatype Place : type
+datatype Nearby : type * type
+datatype A
+datatype B
+datacons LocA : Place A
+datacons LocB : Place B
 external is_nearby : ∀a,b. Nearby (a, b) → Bool = \"is_nearby\"
-newcons Here : ∀a. Place a * Place a ⟶ Nearby (a, a)
-newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
+datacons Here : ∀a. Place a * Place a ⟶ Nearby (a, a)
+datacons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
 external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b)) = \"wander\"
-newtype Meet : type * type
-newcons Same : ∀a,b [a=b]. Meet (a, b)
-newcons NotSame : ∀a, b. Meet (a, b)
+datatype Meet : type * type
+datacons Same : ∀a,b [a=b]. Meet (a, b)
+datacons NotSame : ∀a, b. Meet (a, b)
 external compare : ∀a,b. Place a → Place b → Meet (a, b) = \"compare\"
 let rec walk = fun x goal ->
   match compare x goal with
@@ -757,18 +757,18 @@ test (is_nearby (walk LocA LocB))"
     (fun () ->
        skip_if !debug "debug";
        test_case "double nested universal"
-"newtype Place : type
-newtype Nearby : type * type
-newtype A
-newtype B
-newcons LocA : Place A
-newcons LocB : Place B
+"datatype Place : type
+datatype Nearby : type * type
+datatype A
+datatype B
+datacons LocA : Place A
+datacons LocB : Place B
 external is_nearby : ∀a,b. Nearby (a, b) → Bool = \"is_nearby\"
-newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
+datacons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
 external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b)) = \"wander\"
-newtype Meet : type * type
-newcons Close : ∀a,b. Nearby (a, b) ⟶ Meet (a, b)
-newcons NotClose : ∀a, b. Meet (a, b)
+datatype Meet : type * type
+datacons Close : ∀a,b. Nearby (a, b) ⟶ Meet (a, b)
+datacons NotClose : ∀a, b. Meet (a, b)
 external compare : ∀a,b. Place a → Place b → Meet (a, b) = \"compare\"
 let rec walk = fun x goal ->
   match compare x goal with
@@ -785,17 +785,17 @@ test (is_nearby (walk LocA LocB))"
     (fun () ->
        skip_if !debug "debug";
        test_case "find castle small"
-"newtype Room
-newtype Yard
-newtype Village
+"datatype Room
+datatype Yard
+datatype Village
 
-newtype Castle : type
-newtype Placement : type
-newcons Room : Room ⟶ Castle Room
-newcons Yard : Yard ⟶ Castle Yard
-newcons CastleRoom : Room ⟶ Placement Room
-newcons CastleYard : Yard ⟶ Placement Yard
-newcons Village : Village ⟶ Placement Village
+datatype Castle : type
+datatype Placement : type
+datacons Room : Room ⟶ Castle Room
+datacons Yard : Yard ⟶ Castle Yard
+datacons CastleRoom : Room ⟶ Placement Room
+datacons CastleYard : Yard ⟶ Placement Yard
+datacons Village : Village ⟶ Placement Village
 
 external wander : ∀a. Placement a → ∃b. Placement b = \"wander\"
 
@@ -812,19 +812,19 @@ let rec find_castle = efunction
     (fun () ->
        skip_if !debug "debug";
        test_case "find castle big"
-"newtype Room
-newtype Yard
-newtype Garden
-newtype Village
+"datatype Room
+datatype Yard
+datatype Garden
+datatype Village
 
-newtype Castle : type
-newtype Placement : type
-newcons Room : Room ⟶ Castle Room
-newcons Yard : Yard ⟶ Castle Yard
-newcons CastleRoom : Room ⟶ Placement Room
-newcons CastleYard : Yard ⟶ Placement Yard
-newcons Garden : Garden ⟶ Placement Garden
-newcons Village : Village ⟶ Placement Village
+datatype Castle : type
+datatype Placement : type
+datacons Room : Room ⟶ Castle Room
+datacons Yard : Yard ⟶ Castle Yard
+datacons CastleRoom : Room ⟶ Placement Room
+datacons CastleYard : Yard ⟶ Placement Yard
+datacons Garden : Garden ⟶ Placement Garden
+datacons Village : Village ⟶ Placement Village
 
 external wander : ∀a. Placement a → ∃b. Placement b = \"wander\"
 
@@ -844,20 +844,20 @@ let rec find = efunction
     (fun () ->
        skip_if !debug "debug";
        test_case "search castle shortcut"
-"newtype Room
-newtype Yard
-newtype Village
+"datatype Room
+datatype Yard
+datatype Village
 
-newtype Castle : type
-newtype Placement : type
-newcons Room : Room ⟶ Castle Room
-newcons Yard : Yard ⟶ Castle Yard
-newcons CastleRoom : Room ⟶ Placement Room
-newcons Village : Village ⟶ Placement Village
+datatype Castle : type
+datatype Placement : type
+datacons Room : Room ⟶ Castle Room
+datacons Yard : Yard ⟶ Castle Yard
+datacons CastleRoom : Room ⟶ Placement Room
+datacons Village : Village ⟶ Placement Village
 
-newtype Explore
-newcons Ordinary : Explore
-newcons Shortcut : Yard ⟶ Explore
+datatype Explore
+datacons Ordinary : Explore
+datacons Shortcut : Yard ⟶ Explore
 
 external wander : ∀a. Placement a → ∃b. Placement b = \"wander\"
 external check : ∀a. Placement a → Explore = \"check\"
@@ -876,17 +876,17 @@ let rec search = efunction
     (fun () ->
        skip_if !debug "debug";
        test_case "find castle distance"
-"newtype Room
-newtype Yard
-newtype Village
+"datatype Room
+datatype Yard
+datatype Village
 
-newtype Castle : type
-newtype Placement : type
-newcons Room : Room ⟶ Castle Room
-newcons Yard : Yard ⟶ Castle Yard
-newcons CastleRoom : Room ⟶ Placement Room
-newcons CastleYard : Yard ⟶ Placement Yard
-newcons Village : Village ⟶ Placement Village
+datatype Castle : type
+datatype Placement : type
+datacons Room : Room ⟶ Castle Room
+datacons Yard : Yard ⟶ Castle Yard
+datacons CastleRoom : Room ⟶ Placement Room
+datacons CastleYard : Yard ⟶ Placement Yard
+datacons Village : Village ⟶ Placement Village
 
 external wander : ∀a. Placement a → ∃b. Placement b = \"wander\"
 external closer : ∀a. Placement a → Bool = \"closer\"
@@ -906,22 +906,22 @@ let rec search = efunction
     (fun () ->
        skip_if !debug "debug";
        test_case "find castle distance A/B"
-"newtype Boolean : type
-newtype A
-newtype B
-newcons True : Boolean A
-newcons False : Boolean B
-newtype Room
-newtype Yard
-newtype Village
+"datatype Boolean : type
+datatype A
+datatype B
+datacons True : Boolean A
+datacons False : Boolean B
+datatype Room
+datatype Yard
+datatype Village
 
-newtype Castle : type
-newtype Placement : type
-newcons Room : Room ⟶ Castle Room
-newcons Yard : Yard ⟶ Castle Yard
-newcons CastleRoom : Room ⟶ Placement Room
-newcons CastleYard : Yard ⟶ Placement Yard
-newcons Village : Village ⟶ Placement Village
+datatype Castle : type
+datatype Placement : type
+datacons Room : Room ⟶ Castle Room
+datacons Yard : Yard ⟶ Castle Yard
+datacons CastleRoom : Room ⟶ Placement Room
+datacons CastleYard : Yard ⟶ Placement Yard
+datacons Village : Village ⟶ Placement Village
 
 external wander : ∀a. Placement a → ∃b. Placement b = \"wander\"
 external closer : ∀a. Placement a → ∃b. Boolean b = \"closer\"
@@ -942,14 +942,14 @@ let rec search = efunction
     (fun () ->
        skip_if !debug "debug";
        test_case "castle not existential"
-"newtype Yard
-newtype Village
+"datatype Yard
+datatype Village
 
-newtype Castle : type
-newtype Placement : type
-newcons Yard : Yard ⟶ Castle Yard
-newcons CastleYard : Yard ⟶ Placement Yard
-newcons Village : Village ⟶ Placement Village
+datatype Castle : type
+datatype Placement : type
+datacons Yard : Yard ⟶ Castle Yard
+datacons CastleYard : Yard ⟶ Placement Yard
+datacons Village : Village ⟶ Placement Village
 
 external wander : Village → ∃b. Placement b = \"wander\"
 
@@ -965,18 +965,18 @@ let rec search = efunction
     (fun () ->
        skip_if !debug "debug";
        test_case "castle nested not existential"
-"newtype Answer
-newcons No : Answer
-newcons Nearby : Answer
-newtype Yard
-newtype Village
+"datatype Answer
+datacons No : Answer
+datacons Nearby : Answer
+datatype Yard
+datatype Village
 
-newtype Castle : type
-newtype Placement : type
-newcons Closeby : Castle Yard
-newcons Yard : Yard ⟶ Castle Yard
-newcons CastleYard : Yard ⟶ Placement Yard
-newcons Village : Village ⟶ Placement Village
+datatype Castle : type
+datatype Placement : type
+datacons Closeby : Castle Yard
+datacons Yard : Yard ⟶ Castle Yard
+datacons CastleYard : Yard ⟶ Placement Yard
+datacons Village : Village ⟶ Placement Village
 
 external wander : Village → ∃b. Placement b = \"wander\"
 external entrance : Village → Answer = \"entrance\"
@@ -996,18 +996,18 @@ let rec search = efunction
     (fun () ->
        skip_if !debug "debug";
        test_case "castle nested existential factored"
-"newtype Answer
-newcons Yes : Answer
-newcons No : Answer
-newtype Room
-newtype Yard
-newtype Village
+"datatype Answer
+datacons Yes : Answer
+datacons No : Answer
+datatype Room
+datatype Yard
+datatype Village
 
-newtype Castle : type
-newtype Placement : type
-newcons Yard : Yard ⟶ Castle Yard
-newcons CastleYard : Yard ⟶ Placement Yard
-newcons Village : Village ⟶ Placement Village
+datatype Castle : type
+datatype Placement : type
+datacons Yard : Yard ⟶ Castle Yard
+datacons CastleYard : Yard ⟶ Placement Yard
+datacons Village : Village ⟶ Placement Village
 
 external wander : Village → ∃b. Placement b = \"wander\"
 external entrance : Village → Answer = \"entrance\"
@@ -1029,17 +1029,17 @@ let rec search = efunction
     (fun () ->
        skip_if !debug "debug";
        test_case "castle nested existential"
-"newtype Answer
-newcons Yes : Answer
-newcons No : Answer
-newtype Yard
-newtype Village
-newtype Room
-newtype Castle : type
-newtype Placement : type
-newcons Yard : Yard ⟶ Castle Yard
-newcons CastleYard : Yard ⟶ Placement Yard
-newcons Village : Village ⟶ Placement Village
+"datatype Answer
+datacons Yes : Answer
+datacons No : Answer
+datatype Yard
+datatype Village
+datatype Room
+datatype Castle : type
+datatype Placement : type
+datacons Yard : Yard ⟶ Castle Yard
+datacons CastleYard : Yard ⟶ Placement Yard
+datacons Village : Village ⟶ Placement Village
 
 external wander : Village → ∃b. Placement b = \"wander\"
 external entrance : Village → Answer = \"entrance\"
@@ -1062,12 +1062,12 @@ let rec search = efunction
     (fun () ->
        skip_if !debug "debug";
        test_case "existential by hand"
-"newtype Place : type
-newtype Nearby : type * type
-newtype Near : type
-newcons Here : ∀a. Place a ⟶ Nearby (a, a)
-newcons Near : ∀a,b. Nearby (a, b) ⟶ Near a
-newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
+"datatype Place : type
+datatype Nearby : type * type
+datatype Near : type
+datacons Here : ∀a. Place a ⟶ Nearby (a, a)
+datacons Near : ∀a,b. Nearby (a, b) ⟶ Near a
+datacons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
 external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b)) = \"wander\"
 external finish : ∀a. Place a → Bool = \"finish\"
 let rec walk = fun x ->
@@ -1085,10 +1085,10 @@ let rec walk = fun x ->
     (fun () ->
        skip_if !debug "debug";
        test_case ~more_existential:true "existential with param"
-"newtype Place : type
-newtype Nearby : type * type
-newcons Here : ∀a. Place a ⟶ Nearby (a, a)
-newcons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
+"datatype Place : type
+datatype Nearby : type * type
+datacons Here : ∀a. Place a ⟶ Nearby (a, a)
+datacons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
 external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b)) = \"wander\"
 external finish : ∀a. Place a → Bool = \"finish\"
 let rec walk = fun x ->
@@ -1105,9 +1105,9 @@ let rec walk = fun x ->
     (fun () ->
        skip_if !debug "debug";
        test_case "universal option"
-"newtype Option : type
-newcons None : ∀a. Option a
-newcons Some : ∀a. a ⟶ Option a
+"datatype Option : type
+datacons None : ∀a. Option a
+datacons Some : ∀a. a ⟶ Option a
 
 let rec one_of =
   function (Some _ as a) -> (function _ -> a)
@@ -1119,9 +1119,9 @@ let rec one_of =
     (fun () ->
        skip_if !debug "debug";
        test_case ~more_existential:true "existential option"
-"newtype Option : type
-newcons None : ∀a. Option a
-newcons Some : ∀a. a ⟶ Option a
+"datatype Option : type
+datacons None : ∀a. Option a
+datacons Some : ∀a. a ⟶ Option a
 
 let rec one_of =
   efunction (Some _ as a) -> (efunction _ -> a)
@@ -1133,9 +1133,9 @@ let rec one_of =
     (fun () ->
        skip_if !debug "debug";
        test_case "not existential option"
-"newtype Option : type
-newcons None : ∀a. Option a
-newcons Some : ∀a. a ⟶ Option a
+"datatype Option : type
+datacons None : ∀a. Option a
+datacons Some : ∀a. a ⟶ Option a
 external f : ∀a. a → a → a = \"f\"
 
 let rec one_of =
@@ -1148,9 +1148,9 @@ let rec one_of =
     (fun () ->
        skip_if !debug "debug";
        test_case "list without length map not existential poly"
-"newtype List : type
-newcons LNil : ∀a. List a
-newcons LCons : ∀a. a * List a ⟶ List a
+"datatype List : type
+datacons LNil : ∀a. List a
+datacons LCons : ∀a. a * List a ⟶ List a
 
 let rec map = fun f ->
   efunction LNil -> LNil
@@ -1164,11 +1164,11 @@ let rec map = fun f ->
     (fun () ->
        skip_if !debug "debug";
        test_case "list without length map not existential mono"
-"newtype List : type
-newcons LNil : ∀a. List a
-newcons LCons : ∀a. a * List a ⟶ List a
-newtype Foo
-newtype Bar
+"datatype List : type
+datacons LNil : ∀a. List a
+datacons LCons : ∀a. a * List a ⟶ List a
+datatype Foo
+datatype Bar
 
 external f : Foo → Bar = \"f\"
 
@@ -1184,10 +1184,10 @@ let rec map =
     (fun () ->
        skip_if !debug "debug";
        test_case "list map not existential mono"
-"newtype Elem
-newtype List : num
-newcons LNil : List 0
-newcons LCons : ∀n [0≤n]. Elem * List n ⟶ List(n+1)
+"datatype Elem
+datatype List : num
+datacons LNil : List 0
+datacons LCons : ∀n [0≤n]. Elem * List n ⟶ List(n+1)
 
 external f : Elem → Elem = \"f\"
 
@@ -1203,9 +1203,9 @@ let rec map =
     (fun () ->
        skip_if !debug "debug";
        test_case "list map not existential poly"
-"newtype List : type * num
-newcons LNil : ∀a. List(a, 0)
-newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+"datatype List : type * num
+datacons LNil : ∀a. List(a, 0)
+datacons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 
 let rec map = fun f ->
   efunction LNil -> LNil
@@ -1219,11 +1219,11 @@ let rec map = fun f ->
     (fun () ->
        skip_if !debug "debug";
        test_case "list map not existential instance"
-"newtype List : type * num
-newcons LNil : ∀a. List(a, 0)
-newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
-newtype Foo
-newtype Bar
+"datatype List : type * num
+datacons LNil : ∀a. List(a, 0)
+datacons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+datatype Foo
+datatype Bar
 
 external f : Foo → Bar = \"f\"
 
@@ -1239,10 +1239,10 @@ let rec map =
     (fun () ->
        skip_if !debug "debug";
        test_case "monomorphic list filter"
-"newtype Bar
-newtype List : num
-newcons LNil : List 0
-newcons LCons : ∀n [0≤n]. Bar * List n ⟶ List(n+1)
+"datatype Bar
+datatype List : num
+datacons LNil : List 0
+datacons LCons : ∀n [0≤n]. Bar * List n ⟶ List(n+1)
 external f : Bar → Bool = \"f\"
 
 let rec filter =
@@ -1262,11 +1262,11 @@ let rec filter =
     (fun () ->
        skip_if !debug "debug";
        test_case "list filter: Bar"
-"newtype List : type * num
-newcons LNil : ∀a. List(a, 0)
-newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+"datatype List : type * num
+datacons LNil : ∀a. List(a, 0)
+datacons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 
-newtype Bar
+datatype Bar
 external f : Bar → Bool = \"f\"
 
 let rec filter =
@@ -1285,9 +1285,9 @@ let rec filter =
     (fun () ->
        skip_if !debug "debug";
        test_case "polymorphic list filter"
-"newtype List : type * num
-newcons LNil : ∀a. List(a, 0)
-newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+"datatype List : type * num
+datacons LNil : ∀a. List(a, 0)
+datacons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 
 let rec filter = fun f ->
   efunction LNil -> LNil
@@ -1307,9 +1307,9 @@ let rec filter = fun f ->
     (fun () ->
        skip_if !debug "debug";
        test_case "list filter map"
-"newtype List : type * num
-newcons LNil : ∀a. List(a, 0)
-newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+"datatype List : type * num
+datacons LNil : ∀a. List(a, 0)
+datacons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 
 let rec filter = fun f g ->
   efunction LNil -> LNil
@@ -1334,10 +1334,10 @@ let rec filter = fun f g ->
           [Zero] from [efunction b -> b] to the cases as below, to
           convey the fact that the numerical parameter is non-negative. *)
        test_case "binary upper bound -- bitwise or"
-"newtype Binary : num
-newcons Zero : Binary 0
-newcons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
-newcons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
+"datatype Binary : num
+datacons Zero : Binary 0
+datacons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
+datacons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
 
 let rec ub = efunction
   | Zero -> (efunction b -> b)
@@ -1368,10 +1368,10 @@ let rec ub = efunction
           [Zero] from [efunction b -> b] to the cases as below, to
           convey the fact that the numerical parameter is non-negative. *)
        test_case "binary upper bound -- bitwise or"
-"newtype Binary : num
-newcons Zero : Binary 0
-newcons PZero : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n)
-newcons POne : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n+1)
+"datatype Binary : num
+datacons Zero : Binary 0
+datacons PZero : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n)
+datacons POne : ∀n [0≤n]. Binary(n) ⟶ Binary(n+n+1)
 
 let rec ub = efunction
   | Zero ->
@@ -1408,10 +1408,10 @@ let rec ub = efunction
           [Zero] from [efunction b -> b] to the cases as below, to
           convey the fact that the numerical parameter is non-negative. *)
        test_case "binary upper bound -- bitwise or"
-"newtype Binary : num
-newcons Zero : Binary 0
-newcons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
-newcons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
+"datatype Binary : num
+datacons Zero : Binary 0
+datacons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
+datacons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
 
 let rec ub = efunction
   | Zero -> (efunction (Zero | PZero _ | POne _) as b -> b)
@@ -1441,16 +1441,16 @@ let rec ub = efunction
     (fun () ->
        skip_if !debug "debug";
        test_case "nested recursion eval with literal numbers only"
-"newtype Term : type
-newtype Num : num
-newtype Calc : num
+"datatype Term : type
+datatype Num : num
+datatype Calc : num
 
 external let is_zero : ∀i. Num i → Bool = \"(=) 0\"
 
-newcons Lit : ∀k. Num k ⟶ Calc k
+datacons Lit : ∀k. Num k ⟶ Calc k
 
-newcons IsZero : ∀k. Calc k ⟶ Term Bool
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+datacons IsZero : ∀k. Calc k ⟶ Term Bool
+datacons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
 
 let rec eval =
   let rec calc =
@@ -1468,20 +1468,20 @@ let rec eval =
     (fun () ->
        skip_if !debug "debug";
        test_case "nested recursion eval with plus only"
-"newtype Term : type
-newtype Num : num
-newtype Calc : num
+"datatype Term : type
+datatype Num : num
+datatype Calc : num
 
 external let is_zero : ∀i. Num i → Bool = \"(=) 0\"
 
-newcons Lit : ∀k. Num k ⟶ Calc k
-newcons Plus : ∀i,j. Calc i * Calc j ⟶ Calc (i+j)
+datacons Lit : ∀k. Num k ⟶ Calc k
+datacons Plus : ∀i,j. Calc i * Calc j ⟶ Calc (i+j)
 
-newcons IsZero : ∀k. Calc k ⟶ Term Bool
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
-newcons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
-newcons Fst : ∀a, b. Term (a, b) ⟶ Term a
-newcons Snd : ∀a, b. Term (a, b) ⟶ Term b
+datacons IsZero : ∀k. Calc k ⟶ Term Bool
+datacons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+datacons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
+datacons Fst : ∀a, b. Term (a, b) ⟶ Term a
+datacons Snd : ∀a, b. Term (a, b) ⟶ Term b
 
 let rec eval =
   let rec calc =
@@ -1503,18 +1503,18 @@ let rec eval =
     (fun () ->
        skip_if !debug "debug";
        test_case "mutual recursion simple universal eval and existential calc"
-"newtype Term : type
-newtype Num : num
-newtype Calc
+"datatype Term : type
+datatype Num : num
+datatype Calc
 
 external let is_zero : ∀i. Num i → Bool = \"(=) 0\"
 external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k = \"fun c a b -> if c then a else b\"
 
-newcons Lit : ∀k. Num k ⟶ Calc
-newcons Cond : Term Bool * Calc * Calc ⟶ Calc
+datacons Lit : ∀k. Num k ⟶ Calc
+datacons Cond : Term Bool * Calc * Calc ⟶ Calc
 
-newcons IsZero : Calc ⟶ Term Bool
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+datacons IsZero : Calc ⟶ Term Bool
+datacons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
 
 let rec eval =
   let rec calc =
@@ -1536,19 +1536,19 @@ let rec eval =
     (fun () ->
        skip_if !debug "debug";
        test_case "mutual recursion universal eval and existential calc"
-"newtype Term : type
-newtype Num : num
-newtype Calc
+"datatype Term : type
+datatype Num : num
+datatype Calc
 
 external is_zero : ∀i. Num i → Bool = \"(=) 0\"
 external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k = \"fun c a b -> if c then a else b\"
 
-newcons Lit : ∀k. Num k ⟶ Calc
-newcons Cond : Term Bool * Calc * Calc ⟶ Calc
+datacons Lit : ∀k. Num k ⟶ Calc
+datacons Cond : Term Bool * Calc * Calc ⟶ Calc
 
-newcons IsZero : Calc ⟶ Term Bool
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
-newcons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
+datacons IsZero : Calc ⟶ Term Bool
+datacons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+datacons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
 
 let rec eval =
   let rec calc =
@@ -1571,24 +1571,24 @@ let rec eval =
     (fun () ->
        skip_if !debug "debug";
        test_case "mutual recursion universal eval and existential calc"
-"newtype Term : type
-newtype Num : num
-newtype Calc
+"datatype Term : type
+datatype Num : num
+datatype Calc
 
 external let mult : ∀i,j. Num i → Num j → ∃k. Num k = \"(*)\"
 external let is_zero : ∀i. Num i → Bool = \"(=) 0\"
 external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k = \"fun c a b -> if c then a else b\"
 
-newcons Lit : ∀k. Num k ⟶ Calc
-newcons Plus : Calc * Calc ⟶ Calc
-newcons Mult : Calc * Calc ⟶ Calc
-newcons Cond : Term Bool * Calc * Calc ⟶ Calc
+datacons Lit : ∀k. Num k ⟶ Calc
+datacons Plus : Calc * Calc ⟶ Calc
+datacons Mult : Calc * Calc ⟶ Calc
+datacons Cond : Term Bool * Calc * Calc ⟶ Calc
 
-newcons IsZero : Calc ⟶ Term Bool
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
-newcons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
-newcons Fst : ∀a, b. Term (a, b) ⟶ Term a
-newcons Snd : ∀a, b. Term (a, b) ⟶ Term b
+datacons IsZero : Calc ⟶ Term Bool
+datacons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+datacons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
+datacons Fst : ∀a, b. Term (a, b) ⟶ Term a
+datacons Snd : ∀a, b. Term (a, b) ⟶ Term b
 
 let rec eval =
   let rec calc =
@@ -1625,7 +1625,7 @@ let rec eval =
     (fun () ->
        skip_if !debug "debug";
        test_nonrec_case "nonrec simple"
-"newtype Order : num * num
+"datatype Order : num * num
 external compare : ∀i, j. Num i → Num j → (Order (i, j), Int) = \"compare\"
 let cmp7and8, res = compare 7 8
 "
@@ -1641,13 +1641,13 @@ let cmp7and8, res = compare 7 8
        (* Here [rank] is defined using [let rec], the correct [let]
           forms are tested from {!InvarGenTTest}. *)
        test_case "binomial heap--rank"
-"newtype Tree : type * num
-newtype Forest : type * num
+"datatype Tree : type * num
+datatype Forest : type * num
 
-newcons Node : ∀a, k [0≤k]. Num k * a * Forest (a, k) ⟶ Tree (a, k)
-newcons TCons :
+datacons Node : ∀a, k [0≤k]. Num k * a * Forest (a, k) ⟶ Tree (a, k)
+datacons TCons :
   ∀a, n [0≤n]. Tree (a, n) * Forest (a, n) ⟶ Forest (a, n+1)
-newcons TNil : ∀a. Forest (a, 0)
+datacons TNil : ∀a. Forest (a, 0)
 
 let rec rank = function Node (r, _, _) -> r
 "
@@ -1660,13 +1660,13 @@ let rec rank = function Node (r, _, _) -> r
        (* Here [link] is defined using [let rec], the correct [let]
           forms are tested from {!InvarGenTTest}. *)
        test_case "binomial heap--link"
-"newtype Tree : type * num
-newtype Forest : type * num
+"datatype Tree : type * num
+datatype Forest : type * num
 
-newcons Node : ∀a, k [0≤k]. Num k * a * Forest (a, k) ⟶ Tree (a, k)
-newcons TCons :
+datacons Node : ∀a, k [0≤k]. Num k * a * Forest (a, k) ⟶ Tree (a, k)
+datacons TCons :
   ∀a, n [0≤n]. Tree (a, n) * Forest (a, n) ⟶ Forest (a, n+1)
-newcons TNil : ∀a. Forest (a, 0)
+datacons TNil : ∀a. Forest (a, 0)
 
 external let leq : ∀a. a → a → Bool = \"(<=)\"
 
@@ -1683,9 +1683,9 @@ let rec link = function
     (fun () ->
        skip_if !debug "debug";
        test_case "unary minimum expanded"
-"newtype Unary : num
-newcons UNil : Unary 0
-newcons UCons : ∀n [0≤n]. Unary n ⟶ Unary (n+1)
+"datatype Unary : num
+datacons UNil : Unary 0
+datacons UCons : ∀n [0≤n]. Unary n ⟶ Unary (n+1)
 
 let rec zip =
   efunction
@@ -1702,9 +1702,9 @@ let rec zip =
     (fun () ->
        skip_if !debug "debug";
        test_case "unary minimum asserted"
-"newtype Unary : num
-newcons UNil : Unary 0
-newcons UCons : ∀n [0≤n]. Unary n ⟶ Unary (n+1)
+"datatype Unary : num
+datacons UNil : Unary 0
+datacons UCons : ∀n [0≤n]. Unary n ⟶ Unary (n+1)
 external num_of_unary : ∀n. Unary n → Num n = \"num_of_unary\"
 
 let rec zip =
@@ -1722,9 +1722,9 @@ let rec zip =
     (fun () ->
        skip_if !debug "debug";
        test_case "list zip prefix expanded"
-"newtype List : type * num
-newcons LNil : ∀a. List(a, 0)
-newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+"datatype List : type * num
+datacons LNil : ∀a. List(a, 0)
+datacons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 
 let rec zip =
   efunction
@@ -1742,9 +1742,9 @@ let rec zip =
     (fun () ->
        skip_if !debug "debug";
        test_case "unary maximum"
-"newtype Unary : num
-newcons UNil : Unary 0
-newcons UCons : ∀n [0≤n]. Unary n ⟶ Unary (n+1)
+"datatype Unary : num
+datacons UNil : Unary 0
+datacons UCons : ∀n [0≤n]. Unary n ⟶ Unary (n+1)
 
 let rec map2 =
   efunction
@@ -1761,9 +1761,9 @@ let rec map2 =
     (fun () ->
        skip_if !debug "debug";
        test_case "list map2 with postfix"
-"newtype List : type * num
-newcons LNil : ∀a. List(a, 0)
-newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+"datatype List : type * num
+datacons LNil : ∀a. List(a, 0)
+datacons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 
 let rec map2 = fun f ->
   efunction
@@ -1784,9 +1784,9 @@ let rec map2 = fun f ->
     (fun () ->
        skip_if !debug "debug";
        test_case "list filter-zip prefix"
-"newtype List : type * num
-newcons LNil : ∀a. List(a, 0)
-newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+"datatype List : type * num
+datacons LNil : ∀a. List(a, 0)
+datacons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 
 let rec filter_zip = fun f ->
   efunction
@@ -1808,9 +1808,9 @@ let rec filter_zip = fun f ->
     (fun () ->
        skip_if !debug "debug";
        test_case "list filter-map2 with postfix"
-"newtype List : type * num
-newcons LNil : ∀a. List(a, 0)
-newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+"datatype List : type * num
+datacons LNil : ∀a. List(a, 0)
+datacons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 
 let rec filter_map2 = fun p f ->
   efunction
@@ -1833,10 +1833,10 @@ let rec filter_map2 = fun p f ->
     (fun () ->
        skip_if !debug "debug";
        test_case "list filter-map2 with filter postfix mono"
-"newtype Bar
-newtype List : num
-newcons LNil : ∀a. List 0
-newcons LCons : ∀n [0≤n]. Bar * List n ⟶ List(n+1)
+"datatype Bar
+datatype List : num
+datacons LNil : ∀a. List 0
+datacons LCons : ∀n [0≤n]. Bar * List n ⟶ List(n+1)
 external p : Bar → Bar → Bool = \"p\"
 external q : Bar → Bool = \"p\"
 external f : Bar → Bar → Bar = \"f\"
@@ -1866,9 +1866,9 @@ let rec filter_map2 =
     (fun () ->
        skip_if !debug "debug";
        test_case "non-num no postcond list filter-map2 with filter postfix"
-"newtype List : type
-newcons LNil : ∀a. List a
-newcons LCons : ∀a. a * List a ⟶ List a
+"datatype List : type
+datacons LNil : ∀a. List a
+datacons LCons : ∀a. a * List a ⟶ List a
 
 let rec filter_map2 = fun p q r f g h ->
   function
@@ -1899,9 +1899,9 @@ let rec filter_map2 = fun p q r f g h ->
     (fun () ->
        skip_if !debug "debug";
        test_case "non-num list filter-map2 with filter postfix"
-"newtype List : type
-newcons LNil : ∀a. List a
-newcons LCons : ∀a. a * List a ⟶ List a
+"datatype List : type
+datacons LNil : ∀a. List a
+datacons LCons : ∀a. a * List a ⟶ List a
 
 let rec filter_map2 = fun p q r f g h ->
   efunction
@@ -1932,9 +1932,9 @@ let rec filter_map2 = fun p q r f g h ->
     (fun () ->
        skip_if !debug "debug";
        test_case "list filter-map2 with filter postfix"
-"newtype List : type * num
-newcons LNil : ∀a. List(a, 0)
-newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+"datatype List : type * num
+datacons LNil : ∀a. List(a, 0)
+datacons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 
 let rec filter_map2 = fun p q r f g h ->
   efunction
@@ -1966,9 +1966,9 @@ let rec filter_map2 = fun p q r f g h ->
     (fun () ->
        skip_if !debug "debug";
        test_case "list map2 with filter postfix"
-"newtype List : type * num
-newcons LNil : ∀a. List(a, 0)
-newcons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+"datatype List : type * num
+datacons LNil : ∀a. List(a, 0)
+datacons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 
 let rec map2_filter = fun q r f g h ->
   efunction
@@ -1997,9 +1997,9 @@ let rec map2_filter = fun q r f g h ->
     (fun () ->
        skip_if !debug "debug";
        test_case "avl_tree--height"
-"newtype Avl : type * num
-newcons Empty : ∀a. Avl (a, 0)
-newcons Node :
+"datatype Avl : type * num
+datacons Empty : ∀a. Avl (a, 0)
+datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
 
@@ -2013,9 +2013,9 @@ let height = function
     (fun () ->
        skip_if !debug "debug";
        test_case "avl_tree--height"
-"newtype Avl : type * num
-newcons Empty : ∀a. Avl (a, 0)
-newcons Node :
+"datatype Avl : type * num
+datacons Empty : ∀a. Avl (a, 0)
+datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
 
@@ -2036,9 +2036,9 @@ let create = fun l x r ->
     (fun () ->
        skip_if !debug "debug";
        test_case "avl_tree--height"
-"newtype Avl : type * num
-newcons Empty : ∀a. Avl (a, 0)
-newcons Node :
+"datatype Avl : type * num
+datacons Empty : ∀a. Avl (a, 0)
+datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
 
@@ -2050,9 +2050,9 @@ let singleton = fun x -> Node (Empty, x, Empty, 1)"
     (fun () ->
        skip_if !debug "debug";
        test_case "avl_tree--height"
-"newtype Avl : type * num
-newcons Empty : ∀a. Avl (a, 0)
-newcons Node :
+"datatype Avl : type * num
+datacons Empty : ∀a. Avl (a, 0)
+datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
 
@@ -2067,9 +2067,9 @@ let rec min_binding = function
     (fun () ->
        skip_if !debug "debug";
        test_case "avl_tree--rotr-simple"
-"newtype Avl : type * num
-newcons Empty : ∀a. Avl (a, 0)
-newcons Node :
+"datatype Avl : type * num
+datacons Empty : ∀a. Avl (a, 0)
+datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
 
@@ -2109,9 +2109,9 @@ let rotr = efunction (* hl = hr + 3 *)
     (fun () ->
        skip_if !debug "debug";
        test_case "avl_tree--rotr-simple2"
-"newtype Avl : type * num
-newcons Empty : ∀a. Avl (a, 0)
-newcons Node :
+"datatype Avl : type * num
+datacons Empty : ∀a. Avl (a, 0)
+datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
 
@@ -2150,9 +2150,9 @@ let rotr = efunction
     (fun () ->
        skip_if !debug "debug";
        test_case "avl_tree--rotr-simple2"
-"newtype Avl : type * num
-newcons Empty : ∀a. Avl (a, 0)
-newcons Node :
+"datatype Avl : type * num
+datacons Empty : ∀a. Avl (a, 0)
+datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
 
@@ -2193,9 +2193,9 @@ let rotr = efunction
        todo "too hard for current numerical abduction";
        skip_if !debug "debug";
        test_case "avl_tree--rotr"
-"newtype Avl : type * num
-newcons Empty : ∀a. Avl (a, 0)
-newcons Node :
+"datatype Avl : type * num
+datacons Empty : ∀a. Avl (a, 0)
+datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
 
@@ -2230,9 +2230,9 @@ let rotr = fun l x r -> (* hl = hr + 3 *)
     (fun () ->
        skip_if !debug "debug";
        test_case "avl_tree--rotl"
-"newtype Avl : type * num
-newcons Empty : ∀a. Avl (a, 0)
-newcons Node :
+"datatype Avl : type * num
+datacons Empty : ∀a. Avl (a, 0)
+datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
 
@@ -2272,9 +2272,9 @@ let rotl = efunction (* hl + 3 = hr *)
     (fun () ->
        skip_if !debug "debug";
        test_case "avl_tree--rotl"
-"newtype Avl : type * num
-newcons Empty : ∀a. Avl (a, 0)
-newcons Node :
+"datatype Avl : type * num
+datacons Empty : ∀a. Avl (a, 0)
+datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
 
@@ -2314,9 +2314,9 @@ let rotl = efunction
        todo "too hard for current numerical abduction";
        skip_if !debug "debug";
        test_case "avl_tree--rotl"
-"newtype Avl : type * num
-newcons Empty : ∀a. Avl (a, 0)
-newcons Node :
+"datatype Avl : type * num
+datacons Empty : ∀a. Avl (a, 0)
+datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
 
@@ -2350,15 +2350,15 @@ let rotl = fun l x r -> (* hl + 3 = hr *)
     (fun () ->
        skip_if !debug "debug";
        test_case ~no_num_abduction:true "avl_tree--add"
-"newtype Avl : type * num
-newcons Empty : ∀a. Avl (a, 0)
-newcons Node :
+"datatype Avl : type * num
+datacons Empty : ∀a. Avl (a, 0)
+datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
-newtype LinOrder
-newcons LT : LinOrder
-newcons EQ : LinOrder
-newcons GT : LinOrder
+datatype LinOrder
+datacons LT : LinOrder
+datacons EQ : LinOrder
+datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
   \"fun x y -> let c=Pervasives.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
@@ -2401,15 +2401,15 @@ let rec add = fun x -> efunction
     (fun () ->
        skip_if !debug "debug";
        test_case ~no_num_abduction:true "avl_tree--add"
-"newtype Avl : type * num
-newcons Empty : ∀a. Avl (a, 0)
-newcons Node :
+"datatype Avl : type * num
+datacons Empty : ∀a. Avl (a, 0)
+datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
-newtype LinOrder
-newcons LT : LinOrder
-newcons EQ : LinOrder
-newcons GT : LinOrder
+datatype LinOrder
+datacons LT : LinOrder
+datacons EQ : LinOrder
+datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
   \"fun x y -> let c=Pervasives.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
@@ -2456,15 +2456,15 @@ let rec add = fun x -> efunction
     (fun () ->
        skip_if !debug "debug";
        test_case "avl_tree--add"
-"newtype Avl : type * num
-newcons Empty : ∀a. Avl (a, 0)
-newcons Node :
+"datatype Avl : type * num
+datacons Empty : ∀a. Avl (a, 0)
+datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
-newtype LinOrder
-newcons LT : LinOrder
-newcons EQ : LinOrder
-newcons GT : LinOrder
+datatype LinOrder
+datacons LT : LinOrder
+datacons EQ : LinOrder
+datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
   \"fun x y -> let c=Pervasives.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
@@ -2508,15 +2508,15 @@ let rec add = fun x -> efunction
        todo "too hard for current numerical abduction";
        skip_if !debug "debug";
        test_case "avl_tree--add"
-"newtype Avl : type * num
-newcons Empty : ∀a. Avl (a, 0)
-newcons Node :
+"datatype Avl : type * num
+datacons Empty : ∀a. Avl (a, 0)
+datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
-newtype LinOrder
-newcons LT : LinOrder
-newcons EQ : LinOrder
-newcons GT : LinOrder
+datatype LinOrder
+datacons LT : LinOrder
+datacons EQ : LinOrder
+datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
   \"fun x y -> let c=Pervasives.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
@@ -2564,15 +2564,15 @@ let rec add = fun x -> efunction
        skip_if !debug "debug";
        test_case ~no_num_abduction:true
          "avl_tree--remove_min_binding-simple"
-"newtype Avl : type * num
-newcons Empty : ∀a. Avl (a, 0)
-newcons Node :
+"datatype Avl : type * num
+datacons Empty : ∀a. Avl (a, 0)
+datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
-newtype LinOrder
-newcons LT : LinOrder
-newcons EQ : LinOrder
-newcons GT : LinOrder
+datatype LinOrder
+datacons LT : LinOrder
+datacons EQ : LinOrder
+datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
   \"fun x y -> let c=Pervasives.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
@@ -2610,15 +2610,15 @@ let rec remove_min_binding = efunction
     (fun () ->
        skip_if !debug "debug";
        test_case "avl_tree--remove_min_binding"
-"newtype Avl : type * num
-newcons Empty : ∀a. Avl (a, 0)
-newcons Node :
+"datatype Avl : type * num
+datacons Empty : ∀a. Avl (a, 0)
+datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
-newtype LinOrder
-newcons LT : LinOrder
-newcons EQ : LinOrder
-newcons GT : LinOrder
+datatype LinOrder
+datacons LT : LinOrder
+datacons EQ : LinOrder
+datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
   \"fun x y -> let c=Pervasives.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
@@ -2656,15 +2656,15 @@ let rec remove_min_binding = efunction
     (fun () ->
        skip_if !debug "debug";
        test_case ~no_num_abduction:true "avl_tree--merge-simple"
-"newtype Avl : type * num
-newcons Empty : ∀a. Avl (a, 0)
-newcons Node :
+"datatype Avl : type * num
+datacons Empty : ∀a. Avl (a, 0)
+datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
-newtype LinOrder
-newcons LT : LinOrder
-newcons EQ : LinOrder
-newcons GT : LinOrder
+datatype LinOrder
+datacons LT : LinOrder
+datacons EQ : LinOrder
+datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
   \"fun x y -> let c=Pervasives.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
@@ -2711,15 +2711,15 @@ let merge = efunction
     (fun () ->
        skip_if !debug "debug";
        test_case "avl_tree--remove_min_binding"
-"newtype Avl : type * num
-newcons Empty : ∀a. Avl (a, 0)
-newcons Node :
+"datatype Avl : type * num
+datacons Empty : ∀a. Avl (a, 0)
+datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
-newtype LinOrder
-newcons LT : LinOrder
-newcons EQ : LinOrder
-newcons GT : LinOrder
+datatype LinOrder
+datacons LT : LinOrder
+datacons EQ : LinOrder
+datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
   \"fun x y -> let c=Pervasives.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
@@ -2766,15 +2766,15 @@ let merge = efunction
     (fun () ->
        skip_if !debug "debug";
        test_case ~no_num_abduction:true "avl_tree--remove"
-"newtype Avl : type * num
-newcons Empty : ∀a. Avl (a, 0)
-newcons Node :
+"datatype Avl : type * num
+datacons Empty : ∀a. Avl (a, 0)
+datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
-newtype LinOrder
-newcons LT : LinOrder
-newcons EQ : LinOrder
-newcons GT : LinOrder
+datatype LinOrder
+datacons LT : LinOrder
+datacons EQ : LinOrder
+datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
   \"fun x y -> let c=Pervasives.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
@@ -2827,15 +2827,15 @@ let rec remove = fun x -> efunction
     (fun () ->
        skip_if !debug "debug";
        test_case "avl_tree--remove_min_binding"
-"newtype Avl : type * num
-newcons Empty : ∀a. Avl (a, 0)
-newcons Node :
+"datatype Avl : type * num
+datacons Empty : ∀a. Avl (a, 0)
+datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
-newtype LinOrder
-newcons LT : LinOrder
-newcons EQ : LinOrder
-newcons GT : LinOrder
+datatype LinOrder
+datacons LT : LinOrder
+datacons EQ : LinOrder
+datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
   \"fun x y -> let c=Pervasives.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"

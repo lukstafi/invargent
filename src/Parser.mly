@@ -128,7 +128,7 @@ let extract_datatyp allvs loc = function
 %token NUM TYPE
 %token LESSEQUAL
 %token ASSERT FALSE TEST
-%token NEWCONS NEWTYPE EXTERNAL LONGARROW DOUBLEARROW
+%token DATACONS DATATYPE EXTERNAL LONGARROW DOUBLEARROW
 %token EOF
 
 %nonassoc IN
@@ -481,7 +481,7 @@ lident_list:
 
 structure_item_raw:
   | opt_docucomment
-    NEWCONS UIDENT COLON opt_constr_intro typ_star_list LONGARROW typ
+    DATACONS UIDENT COLON opt_constr_intro typ_star_list LONGARROW typ
       { let n = CNam $3 in
         if List.length $6 = 1 then Hashtbl.add unary_vals n ();
         let vs, phi = $5 in
@@ -498,13 +498,13 @@ structure_item_raw:
         Hashtbl.add sigma n (vs, phi, args, c_n, c_args);
         ValConstr ($1, n, vs, phi, args, c_n, c_args, get_loc ()) }
   | opt_docucomment
-    NEWCONS UIDENT COLON opt_constr_intro typ_star_list error
-      { unclosed "newcons" 2 "-->" 7 }
+    DATACONS UIDENT COLON opt_constr_intro typ_star_list error
+      { unclosed "datacons" 2 "-->" 7 }
   | opt_docucomment
-    NEWCONS UIDENT COLON opt_constr_intro LONGARROW
+    DATACONS UIDENT COLON opt_constr_intro LONGARROW
       { syntax_error
 	  "do not use --> for constructors without arguments" 6 }
-  | opt_docucomment NEWCONS UIDENT COLON opt_constr_intro typ
+  | opt_docucomment DATACONS UIDENT COLON opt_constr_intro typ
       { let n = CNam $3 in
         let vs, phi = $5 in
         let res = $6 in
@@ -517,26 +517,26 @@ structure_item_raw:
         Hashtbl.add sigma n (vs, phi, [], c_n, c_args);
         ValConstr ($1, n, vs, phi, [], c_n, c_args, get_loc ()) }
   | opt_docucomment
-    NEWCONS UIDENT COLON opt_constr_intro typ_star_list LONGARROW error
+    DATACONS UIDENT COLON opt_constr_intro typ_star_list LONGARROW error
       { syntax_error ("inside the constructor value type") 5 }
-  | opt_docucomment NEWCONS UIDENT COLON opt_constr_intro error
+  | opt_docucomment DATACONS UIDENT COLON opt_constr_intro error
       { syntax_error ("inside the constructor type") 5 }
-  | opt_docucomment NEWCONS UIDENT COLON error
+  | opt_docucomment DATACONS UIDENT COLON error
       { syntax_error ("<all>, <with>,"^
 	  " a star-separated list of types, or a type expected") 5 }
-  | opt_docucomment NEWCONS COLON
+  | opt_docucomment DATACONS COLON
       { syntax_error
 	  "lacking constructor identifier" 3 }
-  | opt_docucomment NEWCONS UIDENT error
-      { unclosed "newcons" 2 ":" 4 }
-  | opt_docucomment NEWTYPE UIDENT COLON sort_star_list
+  | opt_docucomment DATACONS UIDENT error
+      { unclosed "datacons" 2 ":" 4 }
+  | opt_docucomment DATATYPE UIDENT COLON sort_star_list
       {
         if List.length ($5) = 1 then Hashtbl.add unary_typs ($3) ();
         TypConstr ($1, CNam ($3), List.rev ($5), get_loc ()) }
-  | opt_docucomment NEWTYPE COLON
+  | opt_docucomment DATATYPE COLON
       { syntax_error
 	  "lacking type identifier" 3 }
-  | opt_docucomment NEWTYPE UIDENT
+  | opt_docucomment DATATYPE UIDENT
       { TypConstr ($1, CNam $3, [], get_loc ()) }
   | opt_docucomment
     EXTERNAL lident COLON opt_constr_intro typ EQUAL STRING

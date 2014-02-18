@@ -1,6 +1,6 @@
-newtype Term : type
+datatype Term : type
 
-newtype Calc
+datatype Calc
 
 external val mult : ∀i, j. Num i → Num j → ∃k.Num k
 
@@ -8,23 +8,23 @@ external val is_zero : ∀i. Num i → Bool
 
 external val cond : ∀i, j. Bool → Num i → Num j → ∃k.Num k
 
-newcons Lit : ∀k.Num k ⟶ Calc
+datacons Lit : ∀k.Num k ⟶ Calc
 
-newcons Plus : Calc * Calc ⟶ Calc
+datacons Plus : Calc * Calc ⟶ Calc
 
-newcons Mult : Calc * Calc ⟶ Calc
+datacons Mult : Calc * Calc ⟶ Calc
 
-newcons Cond : Term Bool * Calc * Calc ⟶ Calc
+datacons Cond : Term Bool * Calc * Calc ⟶ Calc
 
-newcons IsZero : Calc ⟶ Term Bool
+datacons IsZero : Calc ⟶ Term Bool
 
-newcons If : ∀a.Term Bool * Term a * Term a ⟶ Term a
+datacons If : ∀a.Term Bool * Term a * Term a ⟶ Term a
 
-newcons Pair : ∀a, b.Term a * Term b ⟶ Term ((a, b))
+datacons Pair : ∀a, b.Term a * Term b ⟶ Term ((a, b))
 
-newcons Fst : ∀a, b.Term ((a, b)) ⟶ Term a
+datacons Fst : ∀a, b.Term ((a, b)) ⟶ Term a
 
-newcons Snd : ∀a, b.Term ((a, b)) ⟶ Term b
+datacons Snd : ∀a, b.Term ((a, b)) ⟶ Term b
 
 val snd : ∀a, b. (a, b) → b
 

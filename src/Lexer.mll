@@ -100,8 +100,8 @@ rule token = parse
   | "all"       { ALL }
   | "\\A"       { ALL }
   | "∀"         { ALL }
-  | "newcons"   { NEWCONS }
-  | "newtype"   { NEWTYPE }
+  | "datacons"   { DATACONS }
+  | "datatype"   { DATATYPE }
   | "external"  { EXTERNAL }
   | "-->"       { LONGARROW }
   | "⟶"        { LONGARROW }

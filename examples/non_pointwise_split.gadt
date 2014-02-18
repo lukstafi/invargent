@@ -1,6 +1,6 @@
-newtype Split : type * type
-newcons Whole : Split (Int, Int)
-newcons Parts : ∀a, b. Split ((Int, a), (b, Bool))
+datatype Split : type * type
+datacons Whole : Split (Int, Int)
+datacons Parts : ∀a, b. Split ((Int, a), (b, Bool))
 external let seven : Int = "7"
 external let three : Int = "3"
 

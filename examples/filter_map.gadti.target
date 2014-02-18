@@ -1,8 +1,8 @@
-newtype List : type * num
+datatype List : type * num
 
-newcons LNil : ∀a. List (a, 0)
+datacons LNil : ∀a. List (a, 0)
 
-newcons LCons : ∀n, a[0 ≤ n].a * List (a, n) ⟶ List (a, n + 1)
+datacons LCons : ∀n, a[0 ≤ n].a * List (a, n) ⟶ List (a, n + 1)
 
 val filter :
    ∀n, a, b.

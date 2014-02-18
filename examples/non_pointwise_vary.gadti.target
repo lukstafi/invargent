@@ -1,8 +1,8 @@
-newtype EquLR : type * type * type
-newcons EquL : ∀a, b. EquLR (a, a, b)
-newcons EquR : ∀a, b. EquLR (a, b, b)
-newtype Box : type
-newcons Cons : ∀a. a ⟶ Box a
+datatype EquLR : type * type * type
+datacons EquL : ∀a, b. EquLR (a, a, b)
+datacons EquR : ∀a, b. EquLR (a, b, b)
+datatype Box : type
+datacons Cons : ∀a. a ⟶ Box a
 external val eq : ∀a. a → a → Bool
 
 val vary :

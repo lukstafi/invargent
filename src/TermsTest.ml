@@ -16,18 +16,18 @@ let tests = "Terms" >::: [
       extype_id := 0;
       let prog = Parser.program Lexer.token
 	(Lexing.from_string
-"newtype Term : type
+"datatype Term : type
 
 external let plus : Int → Int → Int = \"(+)\"
 external let is_zero : Int → Bool = \"(=) 0\"
 
-newcons Lit : Int ⟶ Term Int
-newcons Plus : Term Int * Term Int ⟶ Term Int
-newcons IsZero : Term Int ⟶ Term Bool
-newcons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
-newcons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
-newcons Fst : ∀a, b. Term (a, b) ⟶ Term a
-newcons Snd : ∀a, b. Term (a, b) ⟶ Term b
+datacons Lit : Int ⟶ Term Int
+datacons Plus : Term Int * Term Int ⟶ Term Int
+datacons IsZero : Term Int ⟶ Term Bool
+datacons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+datacons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
+datacons Fst : ∀a, b. Term (a, b) ⟶ Term a
+datacons Snd : ∀a, b. Term (a, b) ⟶ Term b
 
 let rec eval = function
   | Lit i -> i
@@ -41,25 +41,25 @@ let rec eval = function
       pr_program Format.str_formatter prog;
 
       assert_equal ~printer:(fun x -> x)
-"newtype Term : type
+"datatype Term : type
 
 external let plus : Int → Int → Int = \"(+)\"
 
 external let is_zero : Int → Bool = \"(=) 0\"
 
-newcons Lit : ∀a[Int = a].Int ⟶ Term a
+datacons Lit : ∀a[Int = a].Int ⟶ Term a
 
-newcons Plus : ∀a[Int = a].Term Int * Term Int ⟶ Term a
+datacons Plus : ∀a[Int = a].Term Int * Term Int ⟶ Term a
 
-newcons IsZero : ∀a[Bool = a].Term Int ⟶ Term a
+datacons IsZero : ∀a[Bool = a].Term Int ⟶ Term a
 
-newcons If : ∀a.Term Bool * Term a * Term a ⟶ Term a
+datacons If : ∀a.Term Bool * Term a * Term a ⟶ Term a
 
-newcons Pair : ∀a, b, c[((a, b)) = c].Term a * Term b ⟶ Term c
+datacons Pair : ∀a, b, c[((a, b)) = c].Term a * Term b ⟶ Term c
 
-newcons Fst : ∀a, b.Term ((a, b)) ⟶ Term a
+datacons Fst : ∀a, b.Term ((a, b)) ⟶ Term a
 
-newcons Snd : ∀a, b.Term ((a, b)) ⟶ Term b
+datacons Snd : ∀a, b.Term ((a, b)) ⟶ Term b
 
 let rec eval =
    (function Lit i -> i | IsZero x -> is_zero (eval x)
@@ -75,19 +75,19 @@ let rec eval =
       extype_id := 0;
       let prog = Parser.program Lexer.token
 	(Lexing.from_string
-"newtype List : type * num
-newcons LNil : all a. List(a, 0)
-newcons LCons : ∀n, a. a * List(a, n) ⟶ List(a, n+1)
+"datatype List : type * num
+datacons LNil : all a. List(a, 0)
+datacons LCons : ∀n, a. a * List(a, n) ⟶ List(a, n+1)
 external filter : ∀n, a. List (a, n) → ∃k [k≤n]. List (a, k) = \"filter\"") in
       ignore (Format.flush_str_formatter ());
       pr_program Format.str_formatter prog;
 
       assert_equal ~printer:(fun x -> x)
-"newtype List : type * num
+"datatype List : type * num
 
-newcons LNil : ∀n, a[0 = n]. List (a, n)
+datacons LNil : ∀n, a[0 = n]. List (a, n)
 
-newcons LCons : ∀k, n, a[n + 1 = k].a * List (a, n) ⟶ List (a, k)
+datacons LCons : ∀k, n, a[n + 1 = k].a * List (a, n) ⟶ List (a, k)
 
 external filter : ∀n, a. List (a, n) → ∃k[k ≤ n].List (a, k) =
    \"filter\""
