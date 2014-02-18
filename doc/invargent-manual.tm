@@ -697,6 +697,9 @@
     <item*|<verbatim|-inform>>Print type schemes of toplevel definitions as
     they are inferred.
 
+    <item*|<verbatim|-time>>Print the time it took to infer type schemes of
+    toplevel definitions.
+
     <item*|<verbatim|-no_sig>>Do not generate the <verbatim|.gadti> file.
 
     <item*|<verbatim|-no_ml>>Do not generate the <verbatim|.ml> file.

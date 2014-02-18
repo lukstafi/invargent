@@ -9,6 +9,7 @@
 let annotating_fun = ref true
 let annotating_letin = ref false
 let inform_toplevel = ref false
+let time_toplevel = ref false
 let merge_rec_nonrec = ref true
 
 open Defs
@@ -744,6 +745,8 @@ let prepare_scheme phi res =
   VarSet.union vs rvs, phi
 
 let infer_prog solver prog =
+  let ntime = ref (Sys.time ()) in
+  let start_time = !ntime in
   let gamma = ref [] in
   let update_new_ex_types q new_ex_types sb sb_chi =
     let more_items = ref [] in
@@ -851,6 +854,11 @@ let infer_prog solver prog =
           if !inform_toplevel
           then Format.printf
               "@[<2>val@ %s :@ %a@]@\n%!" x pr_typscheme typ_sch;
+          if !inform_toplevel && !time_toplevel
+          then (
+            let time = Sys.time () in
+            Format.printf "(t=%.3fs)@\n" (time -. !ntime);
+            ntime := time);
           (match pat_loc with
            | Some lc ->
              ex_items @
@@ -931,6 +939,11 @@ let infer_prog solver prog =
               if !inform_toplevel
               then Format.printf
                   "@[<2>val@ %s :@ %a@]@\n%!" x pr_typscheme typ_sch;
+              if !inform_toplevel && !time_toplevel
+              then (
+                let time = Sys.time () in
+                Format.printf "(t=%.3fs)@\n" (time -. !ntime);
+                ntime := time);
               x, typ_sch
             else fun (x, res) ->
               let res = subst_typ exsb res in
@@ -970,12 +983,19 @@ let infer_prog solver prog =
               if !inform_toplevel
               then Format.printf
                   "@[<2>val@ %s :@ %a@]@\n%!" x pr_typscheme typ_sch;  
+              if !inform_toplevel && !time_toplevel
+              then (
+                let time = Sys.time () in
+                Format.printf "(t=%.3fs)@\n" (time -. !ntime);
+                ntime := time);
               x, typ_sch in
           let typ_schs = List.map typ_sch_ex env in
           gamma := typ_schs @ !gamma;
           ex_items @ List.rev !more_items
           @ [ILetVal (docu, p, e, top_sch, typ_schs, tests, elim_extypes, loc)]
       ) prog in
+  if !time_toplevel
+  then Format.printf "@\nTotal time %.3fs@\n" (Sys.time () -. start_time);
   List.rev !gamma, items
 
 

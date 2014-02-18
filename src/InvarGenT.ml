@@ -73,6 +73,8 @@ let main () =
   let cli = [
     "-inform", Arg.Set Infer.inform_toplevel,
     "Print type schemes of toplevel definitions as they are inferred";
+    "-time", Arg.Set Infer.time_toplevel,
+    "Print the time it took to infer type schemes of toplevel definitions";
     "-no_sig", Arg.Clear do_sig,
     "Do not generate the `.gadti` file";
     "-no_ml", Arg.Clear do_ml,

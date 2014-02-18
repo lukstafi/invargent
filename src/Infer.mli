@@ -9,6 +9,7 @@
 val annotating_fun : bool ref
 val annotating_letin : bool ref
 val inform_toplevel : bool ref
+val time_toplevel : bool ref
 
 (** Each disjunct stores a trigger to be called when other disjuncts
     are eliminated during normalization-simplification. *)
