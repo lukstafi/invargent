@@ -160,7 +160,7 @@ let tests = "InvarGenT" >::: [
            test_case "non_pointwise_vary" ());
       "avl_tree" >::
         (fun () ->
-           (* skip_if !debug "debug"; *)
+           skip_if !debug "debug";
            test_case "avl_tree" ());
     ]
 

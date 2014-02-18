@@ -34,9 +34,10 @@
   does not currently cover records, the module system, objects, and
   polymorphic variant types. It supports higher-order functions, algebraic
   data-types including built-in tuple types, and linear pattern matching. It
-  supports conjunctive patterns using the <verbatim|as> keyword, but it does
-  not support disjunctive patterns. It does not currently support guarded
-  patterns, i.e. no support for the <verbatim|when> keyword of OCaml.
+  supports conjunctive patterns using the <verbatim|as> keyword, but it
+  currently does not support disjunctive patterns. It currently has limited
+  support for guarded patterns: after <verbatim|when>, only inequality
+  <verbatim|\<less\>=> between values of the <verbatim|Num> type are allowed.
 
   The sort of a type variable is identified by the first letter of the
   variable. <verbatim|a>,<verbatim|b>,<verbatim|c>,<verbatim|r>,<verbatim|s>,<verbatim|t>,<verbatim|a1>,...
@@ -46,15 +47,21 @@
   <verbatim|num>. Remaining letters are reserved for sorts that may be added
   in the future. Value constructors (like in OCaml) and type constructors
   (unlike in OCaml) have the same syntax: capitalized name followed by a
-  tuple of arguments. They are introduced by <verbatim|newtype> and
-  <verbatim|newcons> respectively. The <verbatim|newtype> declaration might
+  tuple of arguments. They are introduced by <verbatim|datatype> and
+  <verbatim|datacons> respectively. The <verbatim|datatype> declaration might
   be misleading in that it only lists the sorts of the arguments of the type,
   the resulting sort is always <verbatim|type>. Values assumed into the
   environment are introduced by <verbatim|external>. There is a built-in type
-  corresponding to declaration <verbatim|newtype Num : num> and definitions
+  corresponding to declaration <verbatim|datatype Num : num> and definitions
   of numeric constants <verbatim|newcons 0 : Num 0 newcons 1 : Num 1>... The
   programmer can use <verbatim|external> declarations to give the semantics
   of choice to the <verbatim|Num> data-type.
+
+  When solving negative constraints, arising from <verbatim|assert false>
+  clauses, we assume that the intended domain of the sort <verbatim|num> is
+  integers. This is a workaround to the lack of strict inequality in the sort
+  <verbatim|num>. We do not make the whole sort <verbatim|num> an integer
+  domain because it would complicate the algorithms.
 
   In examples here we use Unicode characters. For ASCII equivalents, take a
   quick look at the tables in the following section.
@@ -230,11 +237,14 @@
 
   InvarGenT commits to a type of a toplevel definition before proceeding to
   the next one, so sometimes we need to provide more information in the
-  program. Besides type annotations, there are two means to enrich the
+  program. Besides type annotations, there are three means to enrich the
   generated constraints: <verbatim|assert false> syntax for providing
-  negative constraints, and <verbatim|test> syntax for including constraints
-  of use cases with constraint of a toplevel definition. To ensure only one
-  maximally general type for <verbatim|equal>, we use both. We add the lines:
+  negative constraints, <verbatim|assert type e1 = e2; <math|\<ldots\>>> and
+  <verbatim|assert num e1 \<less\>= e2; <math|\<ldots\>>> for positive
+  constraints, and <verbatim|test> syntax for including constraints of use
+  cases with constraint of a toplevel definition. To ensure only one
+  maximally general type for <verbatim|equal>, we use <verbatim|assert false>
+  and <verbatim|test>. We add the lines:
 
   <\code>
     \ \ \| TInt, TList l -\> (function Nil -\> assert false)
@@ -496,7 +506,7 @@
   Knowing <verbatim|n<math|=>i> and not knowing <verbatim|0<math|\<leq\>>n>,
   for the case <verbatim|k<math|=>0>, we get:
   <verbatim|ub:<math|\<forall\>>k,n.Binary k<math|\<rightarrow\>>Binary
-  n<math|\<rightarrow\>><math|\<exists\>>:i[0<math|\<leq\>>k<math|\<wedge\>>n<math|\<leq\>>i<math|\<wedge\>>i<math|\<leq\>>n+k].Binary
+  n<math|\<rightarrow\>><math|\<exists\>>i[0<math|\<leq\>>k<math|\<wedge\>>n<math|\<leq\>>i<math|\<wedge\>>i<math|\<leq\>>n+k].Binary
   i>. <verbatim|n<math|\<leq\><no-break>>i> follows from
   <verbatim|n<math|=>i>, <verbatim|i<math|\<leq\>>n+k> follows from
   <verbatim|n<math|=>i> and <verbatim|0<math|\<leq\>>k>, but
@@ -559,10 +569,10 @@
   p1,p2 = e1 in e2>>>|<row|<cell|asserting dead
   br.>|<cell|<math|\<b-F\>>>|<cell|<verbatim|assert
   false>>>|<row|<cell|assert equal types>|<cell|<math|<with|math-font-series|bold|assert
-  >\<tau\><rsub|e<rsub|1>><wide|=|\<dot\>>\<tau\><rsub|e<rsub|2>>;e<rsub|3>>>|<cell|<verbatim|assert
-  = type e1 e2; e3>>>|<row|<cell|assert inequality>|<cell|<math|<with|math-font-series|bold|assert
-  >e<rsub|1>\<leqslant\>e<rsub|2>;e<rsub|3>>>|<cell|<verbatim|assert e1
-  \<less\>= e2; e3>>>>>>
+  type >\<tau\><rsub|e<rsub|1>><wide|=|\<dot\>>\<tau\><rsub|e<rsub|2>>;e<rsub|3>>>|<cell|<verbatim|assert
+  type e1 = e2; e3>>>|<row|<cell|assert inequality>|<cell|<math|<with|math-font-series|bold|assert
+  num >e<rsub|1>\<leqslant\>e<rsub|2>;e<rsub|3>>>|<cell|<verbatim|assert num
+  e1 \<less\>= e2; e3>>>>>>
 
   Toplevel expressions (corresponding to structure items in OCaml) introduce
   types, type and value constructors, global variables with given type
@@ -584,7 +594,7 @@
   en>>>|<row|<cell|>|<cell|<verbatim|let p1,p2 =>...<verbatim| test e1;
   >...<verbatim|; en>>>>>>
 
-  Tests list expressions of type <verbatim|Boolean> that at runtime have to
+  Tests list expressions of type <verbatim|Bool> that at runtime have to
   evaluate to <verbatim|True>. Type inference is affected by the constraints
   generated to typecheck the expressions.
 
@@ -880,6 +890,172 @@
 
   Based on user feedback, we will likely increase the default values of
   parameters in a future version.
+
+  <section|Limitations of Current InvarGenT Inference>
+
+  Type inference for the type system underlying InvarGenT is undecidable. In
+  some cases, the failure to infer a type is not at all problematic. Consider
+  this example due to Chuan-kai Lin:
+
+  <\code>
+    datatype EquLR : type * type * type
+
+    datacons EquL : <math|\<forall\>>a, b. EquLR (a, a, b)
+
+    datacons EquR : <math|\<forall\>>a, b. EquLR (a, b, b)
+
+    datatype Box : type
+
+    datacons Cons : <math|\<forall\>>a. a <math|\<longrightarrow\>> Box a
+
+    external let eq : <math|\<forall\>>a. a <math|\<rightarrow\>> a
+    <math|\<rightarrow\>> Bool = "(=)"
+
+    \;
+
+    let vary = fun e y -\<gtr\>
+
+    \ \ match e with
+
+    \ \ \| EquL, EquL -\<gtr\> eq y "c"
+
+    \ \ \| EquR, EquR -\<gtr\> Cons (match y with True -\<gtr\> 5 \| False
+    -\<gtr\> 7)
+  </code>
+
+  Although <verbatim|vary> has multiple types, it is a contrived example
+  unlikely to have an intended type. However, not all cases of failure to
+  infer a type for a correct program are due to contrived examples. The
+  problems are not insurmountable theoretically. The algorithms used in the
+  inference can incorporate heuristics for special cases, and can be modified
+  to do a more exhaustive search.
+
+  The following example illustrates a limitation of our numerical abduction
+  algorithm that is not intrinsic to the numerical abduction problem. I.e. it
+  might be fixed by a smarter algorithm.
+
+  <\code>
+    datatype Elem
+
+    datatype List : num
+
+    datacons LNil : List 0
+
+    datacons LCons : \<forall\>n [0\<leq\>n]. Elem * List n
+    \<longrightarrow\> List (n+1)
+
+    external length : \<forall\>n. List n \<rightarrow\> Num n = "length"
+
+    \;
+
+    let rec append =
+
+    \ \ function
+
+    \ \ \ \ \| LNil -\<gtr\>
+
+    \ \ \ \ \ \ (function l when (length l + 1) \<less\>= 0 -\<gtr\> assert
+    false \| l -\<gtr\> l)
+
+    \ \ \ \ \| LCons (x, xs) -\<gtr\>
+
+    \ \ \ \ \ \ (function l when (length l + 1) \<less\>= 0 -\<gtr\> assert
+    false
+
+    \ \ \ \ \ \ \| l -\<gtr\> LCons (x, append xs l))
+  </code>
+
+  The expected type is <verbatim|append : <math|\<forall\>>a, n,
+  k[0<math|\<leq\>>n<math|\<wedge\>>0<math|\<leq\>>k]. List
+  n<math|\<rightarrow\>>List k<math|\<rightarrow\>>List (n+k)>. When our
+  algorithm discovers that the result is <math|n+k>, rather than <math|n>, it
+  is already committed to requiring that the result is no less than <math|1>.
+  The answers on successive iterations of the main algorithm do not converge:
+  if the length of the tail has to be at least one, then the length of the
+  input list has to be at least two, etc.
+
+  The following example is a natural variant of a function from the
+  <verbatim|avl_tree.gadt> example.
+
+  <\code>
+    let rec add = fun x -\<gtr\> efunction
+
+    \ \ \| Empty -\<gtr\> Node (Empty, x, Empty, 1)
+
+    \ \ \| Node (l, y, r, h) -\<gtr\>
+
+    \ \ \ \ ematch compare x y with
+
+    \ \ \ \ \| EQ -\<gtr\> Node (l, x, r, h)
+
+    \ \ \ \ \| LT -\<gtr\>
+
+    \ \ \ \ \ \ let l' = add x l in
+
+    \ \ \ \ \ \ (ematch height l', height r with
+
+    \ \ \ \ \ \ \ \| hl', hr when hl' \<less\>= hr+2 -\<gtr\> create l' y r
+
+    \ \ \ \ \ \ \ \| hl', hr when hr+3 \<less\>= hl' -\<gtr\> rotr l' y r)
+
+    \ \ \ \ \| GT -\<gtr\>
+
+    \ \ \ \ \ \ let r' = add x r in
+
+    \ \ \ \ \ \ (ematch height r', height l with
+
+    \ \ \ \ \ \ \ \| hr', hl when hr' \<less\>= hl+2 -\<gtr\> create l y r'
+
+    \ \ \ \ \ \ \ \| hr', hl when hl+3 \<less\>= hr' -\<gtr\> rotl l y r')
+  </code>
+
+  The difference with the function in the <verbatim|avl_tree.gadt> file
+  amounts to computing <verbatim|height r>, resp. <verbatim|height l> near
+  the places where they are used. The inference fails because of lack of
+  sharing of information about <verbatim|l> due to facts about <verbatim|l' =
+  add x l>, resp. about <verbatim|r> due to facts about <verbatim|r' = add x
+  r>, with the other branch. More sophisticated algorithms might mitigate
+  that.
+
+  We end with an example where there is little hope of improvement. The
+  <verbatim|rotr> and <verbatim|rotl> functions in <verbatim|avl_tree.gadt>
+  use assertions to convey the preconditions. Ideally, we would like to be
+  able to simply write an implementation similar to the following one:
+
+  <\code>
+    let rotr = fun l x r -\<gtr\>
+
+    \ \ \ \ ematch l with
+
+    \ \ \ \ \| Empty -\<gtr\> assert false
+
+    \ \ \ \ \| Node (ll, lx, lr, _) -\<gtr\>
+
+    \ \ \ \ \ \ (ematch height ll, height lr with
+
+    \ \ \ \ \ \ \| m, n when n \<less\>= m -\<gtr\>
+
+    \ \ \ \ \ \ \ \ let r' = create lr x r in
+
+    \ \ \ \ \ \ \ \ create ll lx r'
+
+    \ \ \ \ \ \ \| m, n when m+1 \<less\>= n -\<gtr\>
+
+    \ \ \ \ \ \ \ \ (ematch lr with
+
+    \ \ \ \ \ \ \ \ \| Empty -\<gtr\> assert false
+
+    \ \ \ \ \ \ \ \ \| Node (lrl, lrx, lrr, _) -\<gtr\>
+
+    \ \ \ \ \ \ \ \ \ \ let l' = create ll lx lrl in
+
+    \ \ \ \ \ \ \ \ \ \ let r' = create lrr x r in
+
+    \ \ \ \ \ \ \ \ \ \ create l' lrx r'))
+  </code>
+
+  Unfortunately, it seems it would require too much ``guesswork'' from the
+  inference algorithms.
 </body>
 
 <\initial>
@@ -927,7 +1103,7 @@
     <associate|auto-24|<tuple|5.5|17>>
     <associate|auto-3|<tuple|3|5>>
     <associate|auto-4|<tuple|4|7>>
-    <associate|auto-5|<tuple|2.2|4|invargent.tm>>
+    <associate|auto-5|<tuple|5|4>>
     <associate|auto-6|<tuple|3|5|invargent.tm>>
     <associate|auto-7|<tuple|3.1|5|invargent.tm>>
     <associate|auto-8|<tuple|3.1.1|7|invargent.tm>>

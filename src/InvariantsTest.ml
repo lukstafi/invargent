@@ -383,7 +383,7 @@ let rec append =
     (fun () ->
        todo "too hard for current numerical abduction";
        skip_if !debug "debug";
-       (* Too hard for the current abduction algo: whe it discovers
+       (* Too hard for the current abduction algo: when it discovers
           that the result is [n + k], rather than [n], it is already
           committed to requiring that the result is no less than [1],
           which on following iterations blows up. *)
@@ -2552,7 +2552,6 @@ let rec add = fun x -> efunction
 (* Tricky because of lack of sharing of information
    about [l] due to facts about [l' = add x l], resp. about [r] due
    to facts about [r' = add x r], with the other branch. *)
-(* TODO: explain in the manual. *)
         [2,"∃n, a.
   δ =
     (a → Avl (a, n) → ∃k[k ≤ n + 1 ∧ 1 ≤ k ∧
