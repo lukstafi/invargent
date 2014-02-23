@@ -878,7 +878,7 @@
     val flatten_quadrs :
 
     \ \ <math|\<forall\>>n, a. List ((a, a, a, a), n) <math|\<rightarrow\>>
-    List (a, n + n + n + n)
+    List (a, 4 n)
 
     InvarGenT: Generated file examples/flatten_quadrs.gadti
 
@@ -966,13 +966,13 @@
   </code>
 
   The expected type is <verbatim|append : <math|\<forall\>>a, n,
-  k[0<math|\<leq\>>n<math|\<wedge\>>0<math|\<leq\>>k]. List
-  n<math|\<rightarrow\>>List k<math|\<rightarrow\>>List (n+k)>. When our
-  algorithm discovers that the result is <math|n+k>, rather than <math|n>, it
-  is already committed to requiring that the result is no less than <math|1>.
-  The answers on successive iterations of the main algorithm do not converge:
-  if the length of the tail has to be at least one, then the length of the
-  input list has to be at least two, etc.
+  k[0<math|\<leq\>>k]. List n<math|\<rightarrow\>>List
+  k<math|\<rightarrow\>>List (n+k)>. When our algorithm discovers that the
+  result is <math|n+k>, rather than <math|n>, it is already committed to
+  requiring that the result is no less than <math|1>. The answers on
+  successive iterations of the main algorithm do not converge: if the length
+  of the tail has to be at least one, then the length of the input list has
+  to be at least two, etc.
 
   The following example is a natural variant of a function from the
   <verbatim|avl_tree.gadt> example.
@@ -1102,8 +1102,8 @@
     <associate|auto-23|<tuple|6|18|invargent.tm>>
     <associate|auto-24|<tuple|5.5|17>>
     <associate|auto-3|<tuple|3|5>>
-    <associate|auto-4|<tuple|4|7>>
-    <associate|auto-5|<tuple|5|4>>
+    <associate|auto-4|<tuple|4|6>>
+    <associate|auto-5|<tuple|5|9>>
     <associate|auto-6|<tuple|3|5|invargent.tm>>
     <associate|auto-7|<tuple|3.1|5|invargent.tm>>
     <associate|auto-8|<tuple|3.1.1|7|invargent.tm>>
@@ -1146,6 +1146,10 @@
       <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|4<space|2spc>Solver
       Parameters and CLI> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-4><vspace|0.5fn>
+
+      <vspace*|1fn><with|font-series|<quote|bold>|math-font-series|<quote|bold>|5<space|2spc>Limitations
+      of Current InvarGenT Inference> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
+      <no-break><pageref|auto-5><vspace|0.5fn>
     </associate>
   </collection>
 </auxiliary>

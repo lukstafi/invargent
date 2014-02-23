@@ -150,9 +150,6 @@ let sb_brs_PredU q sol brs = List.map
       (function PredVarB (i,t1,t2,lc) -> Some (i,t1,t2,lc) | _ -> None) prem,
     Aux.map_some                        (* chiK_pos *)
       (function PredVarB (i,t1,t2,lc) -> Some (i,t1,t2,lc) | _ -> None) concl,
-    Aux.map_some                        (* vK *)
-      (function PredVarU (i,_,_) as a when q.is_chiK i -> Some a
-              | _ -> None) concl,
     sb_formula_PredU q false sol prem,
     sb_formula_PredU q true sol concl)
   brs
@@ -171,18 +168,11 @@ let sb_PredB q psb (i, t1, t2, lc) =
   | _ -> []
 
 let sb_brs_PredB q rol par brs = List.map
-  (fun (nonrec,chiK_neg,chiK_pos,vK,prem,concl) ->
+  (fun (nonrec,chiK_neg,chiK_pos,prem,concl) ->
     nonrec,
-    chiK_pos, vK,
+    chiK_pos,
     concat_map (sb_PredB q rol) chiK_neg @ prem,
     concat_map (sb_PredB q par) chiK_pos @ concl)
-  brs
-
-let sb_brs_vK q par brs = List.map
-  (fun (nonrec,chiK_pos,vK,prem,concl) ->
-    nonrec,
-    chiK_pos, vK, prem,
-    sb_formula_PredU q true par vK @ concl)
   brs
 
 let sb_atom_pred q posi rol sol = function
@@ -799,9 +789,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
     let brs1 = sb_brs_PredB q rol1 g_par brs0 in
     (* Collect all relevant constraints together. *)
     let verif_brs = map_some
-        (fun (nonrec, chiK, vK, prem, _) ->
+        (fun (nonrec, chiK, prem, _) ->
            let allconcl = concat_map
-               (fun (_,_,_,prem2,concl2) ->
+               (fun (_,_,prem2,concl2) ->
                   (*[* Format.printf
                     "solve-verif_brs: subformula? %b@\nprem2=%a@\nprem=%a@\n%!"
                     (subformula prem2 prem)
@@ -820,13 +810,13 @@ let solve q_ops new_ex_types exty_res_chi brs =
              with Contradiction _ -> true in
            if dead_case then None
            else Some
-               (nonrec, chiK, vK, prem, allconcl))
+               (nonrec, chiK, prem, allconcl))
         brs1 in
     (*[* Format.printf "solve: loop iter_no=%d@\nsol=@ %a@\n%!"
       iter_no pr_chi_subst sol1; *]*)
     (*[* Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs5 brs1; *]*)
     let validate ans = List.iter
-        (fun (nonrec, _, _, prem, concl) ->
+        (fun (nonrec, _, prem, concl) ->
            (* Do not use quantifiers, because premise is in the
               conjunction. *)
            if not nonrec then (
@@ -857,7 +847,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
         (* The [t2] arguments should in the solution become equal! *)
         let g_rol = collect
             (concat_map
-               (fun (nonrec,chiK_pos,vK,prem,concl) ->
+               (fun (nonrec,chiK_pos,prem,concl) ->
                   if nonrec || disj_step.(2) <= iter_no
                   then
                     List.map
@@ -977,11 +967,6 @@ let solve q_ops new_ex_types exty_res_chi brs =
         let tpars, g_rol = List.split g_rol in
         let g_par = List.map
             (fun (i,(_,phi)) -> i, ([],[List.hd phi])) g_rol in
-        let v_par = List.map
-            (fun (i,tpar) ->
-               let vs = fvs_typ tpar in
-               i, (VarSet.elements vs,
-                   [Eqty (tdelta, tpar, dummy_loc)])) tpars in
         (*[* Format.printf "solve: loop iter_no=%d@ g_par=%a@\ng_rol.B=@ %a@\n%!"
           iter_no pr_chi_subst g_par pr_chi_subst g_rol; *]*)
         (* 6 *)
@@ -1025,8 +1010,6 @@ let solve q_ops new_ex_types exty_res_chi brs =
         let brs0 = sb_brs_PredU q sol1 brs in
         (*[* Format.printf "solve: substituting postconds at step 5@\n%!"; *]*)
         let brs1 = sb_brs_PredB q g_rol g_par brs0 in
-        (*[* Format.printf "solve: substituting params at step 5@\n%!"; *]*)
-        let brs1 = sb_brs_vK q v_par brs1 in
         sol1, brs1, abdsjelim, g_rol in
     (*[* Format.printf "solve-loop: iter_no=%d -- ex. brs substituted@\n%!"
       iter_no; *]*)
@@ -1043,7 +1026,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
       try
         (* 7 *)
         let brs1 = List.map
-            (fun (nonrec,_,_,prem,concl) ->
+            (fun (nonrec,_,prem,concl) ->
                let concl =
                  if iter_no>0 || !early_postcond_abd then concl
                  else
