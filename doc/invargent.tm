@@ -455,10 +455,10 @@
   <cite|AbductionSolvMaher> p. 13. The mentioned algorithm only gives
   <em|fully maximal answers> which is loss of generality w.r.t. our
   requirements. To solve <math|D\<Rightarrow\>C> the algorithm starts with
-  with <math|\<b-U\><around*|(|D\<wedge\>C|)>> and iteratively replaces
-  subterms by fresh variables <math|\<alpha\>\<in\><wide|\<alpha\>|\<bar\>>>
-  for a final solution <math|\<exists\><wide|\<alpha\>|\<bar\>>.A>. To
-  mitigate some of the limitations of fully maximal answers, we start from
+  <math|\<b-U\><around*|(|D\<wedge\>C|)>> and iteratively replaces subterms
+  by fresh variables <math|\<alpha\>\<in\><wide|\<alpha\>|\<bar\>>> for a
+  final solution <math|\<exists\><wide|\<alpha\>|\<bar\>>.A>. To mitigate
+  some of the limitations of fully maximal answers, we start from
   <math|\<b-U\><rsub|><around*|(|<wide|A|~><around*|(|D\<wedge\>C|)>|)>>,
   where <math|\<exists\><wide|\<alpha\>|\<bar\>>.A> is the solution to
   previous problems solved by the joint abduction algorithm, and
@@ -476,9 +476,10 @@
   <math|\<b-U\><rsub|<wide|\<alpha\>|\<bar\>><wide|\<beta\>|\<bar\>>><around*|(|\<cal-Q\>.A|)>>
   requires. We also ensure that the use of parameters will not cause problems
   in the <verbatim|split> phase of the main algorithm. To this effect, we
-  forbid substitution of a variable from <math|<wide|\<beta\>|\<bar\>>> with
-  a term containing a universally quantified variable that is not in
-  <math|<wide|\<beta\>|\<bar\>>>.
+  forbid substitution of a variable <math|\<beta\><rsub|1>> from
+  <math|<wide|\<beta\>|\<bar\>>> with a term containing a universally
+  quantified variable that is not in <math|<wide|\<beta\>|\<bar\>>> and to
+  the right of <math|\<beta\><rsub|1>> in <math|\<cal-Q\>>.
 
   In implementing <cite|AbductionSolvMaher> p. 13, we follow top-down
   approach where bigger subterms are abstracted first -- replaced by a fresh

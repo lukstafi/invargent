@@ -156,7 +156,7 @@ let tests = "InvarGenT" >::: [
            test_case "non_pointwise_avl" ());
       "non_pointwise_vary" >::
         (fun () ->
-           todo "should not pass, turn into a test for error reporting";
+           todo "should not pass unless in a non-default setting";
            test_case "non_pointwise_vary" ());
       "avl_tree" >::
         (fun () ->

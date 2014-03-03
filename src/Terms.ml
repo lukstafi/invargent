@@ -1192,8 +1192,9 @@ let var_not_left_of q v t =
    that is not in [pms].
 
    If [v] is a [bvs] parameter, the RHS must not contain a universal
-   non-[bvs] variable. Existential variables are not constrained: do not
-   need to be same as or to the left of [v]. *)
+   non-[bvs] variable to the right of all [bvs] variables. Existential
+   variables are not constrained: do not need to be same as or to the
+   left of [v]. *)
 let quant_viol q bvs pms v t =
   let uv = q.uni_v v and bv = VarSet.mem v bvs in
   let npvs = List.filter (fun v-> not (VarSet.mem v bvs))
@@ -1206,7 +1207,9 @@ let quant_viol q bvs pms v t =
     List.exists
     (fun v2 ->
       not (VarSet.mem v2 pms) && q.cmp_v v v2 = Left_of) npvs
-  else uni_vs <> [] in
+  else
+    List.exists
+      (fun v2 -> q.cmp_v v v2 = Left_of) uni_vs in
   res  
 
 let registered_notex_vars = Hashtbl.create 32

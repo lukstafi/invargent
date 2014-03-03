@@ -7,7 +7,7 @@
 *)
 let timeout_count = ref 700(* 5000 *)(* 50000 *)
 let fail_timeout_count = ref 4
-let no_alien_prem = ref (* true *)false
+let no_alien_prem = ref true(* false *)
 let neg_before_abd = ref true
 let num_neg_since = ref 1
 let more_general = ref false

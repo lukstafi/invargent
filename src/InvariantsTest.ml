@@ -231,6 +231,27 @@ let rec eval = function
         [1, "∃a. δ = (Term a → a)"]
     );
 
+  "eval hard" >::
+    (fun () ->
+       todo "too hard, requires non-fully maximal abduction";
+       skip_if !debug "debug";
+       test_case "eval term"
+"datatype Term : type
+
+datacons If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+datacons Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
+datacons Fst : ∀a, b. Term (a, b) ⟶ Term a
+datacons Snd : ∀a, b. Term (a, b) ⟶ Term b
+
+let rec eval = function
+  | If (b, t, e) -> (match eval b with True -> eval t | False -> eval e)
+  | Pair (x, y) -> eval x, eval y
+  | Fst p -> (match eval p with x, y -> x)
+  | Snd p -> (match eval p with x, y -> y)"
+
+        [1, "∃a. δ = (Term a → a)"]
+    );
+
   "equal1 wrong type" >::
     (fun () ->
        skip_if !debug "debug";
@@ -375,6 +396,63 @@ test f False c"
 (* FIXME: use [let f = ...] and make [f] visible to [test] *)
         [1, "∃a. δ = (Bool → T a → Bool)"]
     );
+
+
+  "TS infinitely non-principal" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "TS non-principal"
+"datatype Char
+datatype List : type
+datacons LCons : ∀a. a * List a ⟶ List a
+datatype Erk : type * type * type
+datacons K : ∀a, b. a * b ⟶ Erk (a, b, Char)
+
+let f = function K (x, y) -> LCons (x, y)
+"
+        [1, "∃a, b. δ = (Erk (a, List a, b) → List a)"]
+    );
+
+  "TS non-principal subexpr" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "TS non-principal"
+"datatype List : type
+datacons LNil : ∀a. List a
+datacons LCons : ∀a. a * List a ⟶ List a
+datatype Erk : type * type * type
+datacons K : ∀a, b. a * b ⟶ Erk (a, b, String)
+datacons L : ∀a, b. a * b ⟶ Erk (a, b, Bool)
+
+let rec g = function
+  | K (x, y) -> LCons (x, y)
+  | L (x, y) -> y
+"
+(* FIXME: [let rec] into [let] *)
+        [1, "∃a, b. δ = (Erk (a, List a, b) → List a)"]
+    );
+
+  "TS non-principal subexpr 2" >::
+    (fun () ->
+       todo "should not pass unless in a non-default setting";
+       skip_if !debug "debug";
+       test_case "TS non-principal"
+"datatype List : type
+datacons LNil : ∀a. List a
+datacons LCons : ∀a. a * List a ⟶ List a
+datatype Erk : type * type * type
+datacons K : ∀a, b. a * b ⟶ Erk (a, b, String)
+datacons L : ∀a, b. a * b ⟶ Erk (a, b, Bool)
+
+let rec g = function
+  | K (x, y) -> LCons (x, y)
+  | L (x, y) -> y
+test g (L (LCons (True, LNil), LCons (\"a\", LNil)))
+"
+(* FIXME: [let rec] into [let] *)
+      [1, "∃a. δ = (Erk (List a, List (List String), a) → List (List String))"]
+    );
+
 
   "map mono" >::
     (fun () ->
@@ -1314,7 +1392,7 @@ let rec filter =
 
   "filter poly" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "polymorphic list filter"
 "datatype List : type * num
 datacons LNil : ∀a. List(a, 0)

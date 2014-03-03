@@ -7,6 +7,29 @@
   PS = {http://www.cs.mu.oz.au/~sulzmann/manuscript/gadt-short.ps}
 }
 
+@UNPUBLISHED{AbdEADTs,
+  AUTHOR = {M. Sulzmann and T. Schrijvers and P. J. Stuckey},
+  TITLE = {Type Inference via Constraint Abduction for {EADTs}},
+  NOTE = {Manuscript},
+  YEAR = {2006},
+  MONTH = {April},
+  PS = {http://www.cs.mu.oz.au/~sulzmann/manuscript/inference-abduction.ps}
+}
+
+@inproceedings{ADTReconstruct,
+  author    = {Tom Schrijvers and
+               Maurice Bruynooghe},
+  title     = {Polymorphic algebraic data type reconstruction},
+  booktitle = {Proceedings of the 8th International ACM SIGPLAN Conference
+               on Principles and Practice of Declarative Programming, July
+               10-12, 2006, Venice, Italy},
+  booktitle = {PPDP},
+  year      = {2006},
+  pages     = {85-96},
+  ee        = {http://doi.acm.org/10.1145/1140335.1140347},
+  bibsource = {DBLP, http://dblp.uni-trier.de}
+}
+
 @inproceedings{CousotCousot77-4,
    author =    {Cousot, P{.} and Cousot, R{.}},
    title =     {Automatic synthesis of optimal invariant assertions: mathematical
@@ -97,6 +120,24 @@ year = 1999,
 month = "January",
 address = "San Antonio",
 pages = "214--227"
+}
+
+@inproceedings{InductLoopInv,
+ author = {Dillig, Isil and Dillig, Thomas and Li, Boyang and McMillan, Ken},
+ title = {Inductive Invariant Generation via Abductive Inference},
+ booktitle = {Proceedings of the 2013 ACM SIGPLAN International Conference on Object Oriented Programming Systems Languages and Applications},
+ series = {OOPSLA '13},
+ year = {2013},
+ isbn = {978-1-4503-2374-1},
+ location = {Indianapolis, Indiana, USA},
+ pages = {443--456},
+ numpages = {14},
+ url = {http://doi.acm.org/10.1145/2509136.2509511},
+ doi = {10.1145/2509136.2509511},
+ acmid = {2509511},
+ publisher = {ACM},
+ address = {New York, NY, USA},
+ keywords = {abductive inference, invariant generation, static analysis},
 }
 
 @Misc{alti:ydtm,
@@ -470,42 +511,6 @@ pages = "214--227"
  year = {2013},
 }
 
-@UNPUBLISHED{systemTechRep,
- author = {{\L}ukasz Stafiniak},
- title = {A GADT System for Invariant Inference},
- institution = {Institute of Computer Science, University of Wroc{\l}aw},
- NOTE = {Manuscript},
- url = {http://www.ii.uni.wroc.pl/~lukstafi/pubs/system.pdf},
- year = {2012},
-}
-
-@UNPUBLISHED{invariantsTechRep,
- author = {{\L}ukasz Stafiniak},
- title = {Finding GADT Invariants via Abduction},
- institution = {Institute of Computer Science, University of Wroc{\l}aw},
- NOTE = {Manuscript},
- url = {http://www.ii.uni.wroc.pl/~lukstafi/pubs/invariants.pdf},
- year = {2012},
-}
-
-@UNPUBLISHED{invariantsTechRep2,
- author = {{\L}ukasz Stafiniak},
- title = {Finding GADT Invariants via Abduction},
- institution = {Institute of Computer Science, University of Wroc{\l}aw},
- NOTE = {Manuscript},
- url = {http://www.ii.uni.wroc.pl/~lukstafi/pubs/invariants-revised.pdf},
- year = {2013},
-}
-
-@UNPUBLISHED{disjelimTechRep,
- author = {{\L}ukasz Stafiniak},
- title = {Constraint Disjunction Elimination Problems},
- institution = {Institute of Computer Science, University of Wroc{\l}aw},
- NOTE = {Manuscript},
- url = {http://www.ii.uni.wroc.pl/~lukstafi/pubs/disjelim.pdf},
- year = {2013},
-}
-
 @incollection{useBasedInfer,
     abstract = {{Dependent types are useful for statically checking detailed specifications of programs and detecting pattern match or array bounds errors. We propose a novel approach to applications of dependent types to practical programming languages: Instead of requiring programmers' declaration of dependent function types (as in Dependent ML) or trying to infer them from function definitions only (as in size inference), we mine the output specification of a dependent function from the function's call sites, and then propagate that specification backward to infer the input specification. We have implemented a prototype type inference system which supports higher-order functions, parametric polymorphism, and algebraic data types based on our approach, and obtained promising experimental results.}},
     author = {Unno, Hiroshi and Kobayashi, Naoki},
@@ -590,7 +595,7 @@ pages = "214--227"
   year = {2014},
 }
 
-@techreport{InvarGenTMan,
+@unpublished{InvarGenTMan,
   title={InvarGenT: Manual},
   author = {{\L}ukasz Stafiniak},
   institution = {Institute of Computer Science, University of Wroc{\l}aw},
@@ -598,6 +603,7 @@ pages = "214--227"
   url = {https://github.com/lukstafi/invargent/blob/master/doc/invargent-manual.pdf},
   year = {2014},
 }
+
 
 @inproceedings{ESOP2014,
  author = {{\L}ukasz Stafiniak},
