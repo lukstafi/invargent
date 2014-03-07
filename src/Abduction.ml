@@ -239,7 +239,7 @@ let implies_ans mod_aliens ans (_,c_ans) =
 
 exception Timeout
 
-let abd_simple q ?without_quant ~bvs ~pms ~dissociate
+let old_abd_simple q ?without_quant ~bvs ~pms ~dissociate
     ~validate ~discard skip (vs, ans) (prem, concl) =
   let counter = ref 0 in
   let pms = add_vars vs pms in
@@ -627,6 +627,376 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
     abd_timeout_flag := true;
     None
 
+let new_revert_uni q ~bvs ~pms ~dissociate ans prem cand =
+  let univar v = not (VarSet.mem v bvs) && q.uni_v v in
+  let u_sb = map_some
+      (function
+        | v2, (TVar v1, loc) as sv when univar v2 && not (univar v1) ->
+          Some sv
+        | v1, (TVar v2, loc) when univar v2 && not (univar v1) ->
+          Some (v2, (TVar v1, loc))
+        | _ -> None)
+      prem in
+  let cand = List.map
+      (fun (v,(t,lc) as sv) ->
+         let vs = fvs_typ t in
+         if not (VarSet.exists univar vs) then sv
+         else
+           let t_sb = List.filter
+               (fun (uv,_) -> q.cmp_v v uv = Right_of) u_sb in
+           v, (subst_typ t_sb t, lc))
+      cand in
+  let cand =
+    if !rich_return_type
+    then rich_return_type_heur bvs ans cand
+    else cand in
+  cand
+
+let abd_simple q ?without_quant ~bvs ~pms ~dissociate
+    ~validate ~discard skip (vs, ans) (prem, concl) =
+  let counter = ref 0 in
+  let pms = add_vars vs pms in
+  let skip = ref skip in
+  let skipped = ref [] in
+  let allvs = ref VarSet.empty in
+  try
+    let more_prem =
+      subst_solved ~use_quants:false q ans ~cnj:prem.cnj_typ in
+    let prem = update_sep ~typ_updated:true ~more:more_prem prem in
+    (*[* Format.printf
+      "abd_simple:@ prem.num=%a@\ndiscard=%a@\n%!"
+      NumDefs.pr_formula prem.cnj_num
+      (pr_line_list "| " pr_subst) (List.map snd discard);
+    *]*)
+    let {cnj_typ=concl; _} =
+      subst_solved ~use_quants:false q ans ~cnj:concl in
+    (*[* Format.printf
+      "abd_simple: skip=%d,@ bvs=@ %a;@ vs=@ %s;@ ans=@ %a@ --@\n@[<2>%a@ ⟹@ %a@]@\n%!"
+      !skip pr_vars bvs (String.concat "," (List.map var_str vs))
+      pr_subst ans pr_subst prem.cnj_typ pr_subst concl; *]*)
+    let prem_and ans =
+      (* TODO: optimize, don't redo work *)
+      combine_sbs ~use_quants:false q [ans; prem.cnj_typ] in
+    let implies_concl vs ans =
+      let more_prem = prem_and ans in
+      (* Add [impl_X] for new sort [X] below. *)
+      let {cnj_typ=_; cnj_num=_; cnj_so=_} as res =
+        residuum q more_prem.cnj_typ concl in
+      let cnj = update_sep ~typ_updated:true ~more:res more_prem in
+      let impl_ty = res.cnj_typ = [] in
+      let impl_num = is_right (NumS.satisfiable cnj.cnj_num) in
+      (*[* Format.printf "abd_simple: implies? %b impl_num=%b@ #res_ty=%d@\nans=@ %a@\nres_ty=@ %a@\n%!"
+        (impl_ty && impl_num) impl_num
+        (List.length res.cnj_typ) pr_subst ans pr_subst res.cnj_typ; *]*)
+      impl_ty && impl_num in
+    let reorder bvs init_cand =
+      let rec aux acc cand =
+        match cand with
+        | (_,(TVar y,_) as sx)::cand when VarSet.mem y bvs ->
+          true, sx, cand @ List.rev acc
+        | (x,(t,_) as sx)::cand when VarSet.mem x bvs ->
+          true, sx, cand @ List.rev acc
+        | sx::cand -> aux (sx::acc) cand
+        | [] ->
+          (* FIXME: how do we know that [cand] is not empty? *)
+          false, List.hd init_cand, List.tl init_cand in
+      aux [] init_cand in
+    let rec abstract deep repls bvs pms vs ans = function
+      | [] ->
+        (*[* let ddepth = incr Joint.debug_dep; !Joint.debug_dep in *]*)
+        (*[* Format.printf
+          "abd_simple-abstract: [%d] @ repls=%a@ @ bvs=%a@ vs=%s@ ans=%a@\n%!"
+          ddepth pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls)
+          pr_vars bvs
+          (String.concat ","(List.map var_str vs))
+          pr_subst ans; *]*)
+        if implies_concl vs ans then
+          let _, clean_ans = cleanup q vs ans in
+          (*[* Format.printf "abd_simple-abstract:@\nclean_ans=%a@\n%!"
+            pr_subst clean_ans          (* skipped=%a@\n *)
+          (* (pr_line_list "|" pr_subst) !skipped *); *]*)
+          allvs := add_vars vs !allvs;
+          let repeated =
+            try
+              let (*[*old_ans*]*) _ =
+                match !skip_kind with
+                | Superset_old_mod ->
+                  List.find
+                    (fun xs ->
+                       List.for_all (fun sx -> List.mem sx clean_ans) xs)
+                    !skipped
+                | Equ_old_mod ->
+                  List.find
+                    (fun xs ->
+                       List.for_all (fun sx -> List.mem sx clean_ans) xs
+                       && List.for_all (fun sx -> List.mem sx xs) clean_ans)
+                    !skipped in
+              (*[* Format.printf "skipping: [%d] ans=@ %a --@ old_ans=@ %a...@\n%!"
+                ddepth pr_subst ans pr_subst old_ans; *]*)
+              true
+            with Not_found -> false in
+          if repeated
+          then (
+            (*[* Format.printf "repeated: [%d] skip=%d --@ @[<2>%a@]@\n%!"
+              ddepth !skip pr_subst ans; *]*)
+            ())
+          else if !skip > 0 then (
+            skipped := clean_ans :: !skipped;
+            (*[* Format.printf "skipped: [%d]@ @[<2>%a@]@\n%!" ddepth pr_subst ans; *]*)
+            decr skip)
+          (* TODO: optimize by passing clean_ans along with ans *)
+          else if List.exists (implies_ans dissociate clean_ans) discard
+          then (
+            (*[* Format.printf "discarding: [%d] skip=%d --@ @[<2>%a@]@\n%!"
+              ddepth !skip pr_subst ans; *]*)
+            ())
+          else (
+            (*[* Format.printf
+              "returning: [%d] skip=%d counter=%d --@\nvs=%s@ ans=@\n@[<2>%a@]@\n%!"
+              ddepth !skip !counter
+              (String.concat ","(List.map var_str vs))
+              pr_subst ans; *]*)
+            raise (Result (bvs, pms, vs, ans)))
+      | cand ->
+        let is_p, (x, (t, lc) as sx), cand =
+          reorder bvs cand in
+        incr counter; if !counter > !timeout_count then raise Timeout;
+        (*[* let ddepth = incr Joint.debug_dep; !Joint.debug_dep in *]*)
+        (*[* Format.printf
+          "abd_simple-abstract: [%d] @ repls=%a@ bvs=%a@ vs=%s@ ans=%a@\nx=%s@ t=%a@ #cand=%d@\ncand=%a@\n%!"
+          ddepth pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls)
+          pr_vars bvs
+          (String.concat ","(List.map var_str vs))
+          pr_subst ans (var_str x) pr_ty t
+          (List.length cand) pr_subst cand; *]*)
+        let choice1 () =
+          (* Choice 1: drop premise/conclusion atom from answer *)
+          if implies_concl vs (ans @ cand)
+          then (
+            (*[* Format.printf
+              "abd_simple: [%d] choice 1@ drop %s = %a@\n%!"
+              ddepth (var_str x) pr_ty t; *]*)
+            (*[* try *]*)
+              abstract deep repls bvs pms vs ans cand
+              (*[*; Format.printf "abd_simple: [%d] choice 1 failed@\n%!"
+                ddepth; *]*)               
+              (*[* with Result (bvs, pms, vs, ans) as e ->
+              Format.printf "abd_simple: [%d] preserve choice 1@ %s =@ %a@ -- returned@ ans=%a@\n%!"
+                ddepth (var_str x) pr_ty t pr_subst ans;
+              raise e *]*) );
+          (*[* Format.printf
+            "abd_simple: [%d]@ recover after choice 1@ %s =@ %a@\ncand=%a@\n%!"
+            ddepth (var_str x) pr_ty t pr_subst cand; *]*)
+          () in
+        choice1 ();
+        step deep x lc {typ_sub=t; typ_ctx=[]} repls
+          is_p bvs pms vs ans cand
+    and step deep x lc loc repls is_p bvs pms vs ans cand =
+      incr counter; if !counter > !timeout_count then raise Timeout;
+      (*[* let ddepth = incr Joint.debug_dep; !Joint.debug_dep in *]*)
+      (*[* Format.printf
+        "abd_simple-step: [%d] @ loc=%a@ repls=%a@ vs=%s@ ans=%a@ x=%s@ cand=%a@\n%!"
+        ddepth pr_ty (typ_out loc) pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls)
+        (String.concat ","(List.map var_str vs))
+        pr_subst ans (var_str x) pr_subst cand; *]*)
+      (* Choice 2: remove subterm from answer *)
+      let choice2 () =
+        let a = fresh_var (typ_sort loc.typ_sub) in
+        let repls' = (loc.typ_sub, a)::repls in
+        (*[* Format.printf "abd_simple: [%d]@ choice 2@ repls'=@ %a@\n%!"
+          ddepth pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls'); *]*)
+        let vs' = a::vs and pms' = VarSet.add a pms in
+        let loc' = {loc with typ_sub = TVar a} in
+        let t' = typ_out loc' in
+        (*[* Format.printf "abd_simple: [%d]@ choice 2@ remove subterm %s =@ %a@\n%!"
+          ddepth (var_str x) pr_ty t'; *]*)
+        (* FIXME: add [a] to [cparams]? *)
+        match typ_next loc' with (* x bound when leaving step *)
+        | None ->
+          (try
+             let bvs' =
+               if is_p then VarSet.union
+                   (VarSet.filter (not % q.uni_v)
+                      (VarSet.add x (fvs_typ t'))) bvs
+               else bvs in
+             let {cnj_typ=ans'; _} =
+               unify ~bvs:bvs' ~pms:pms' ~sb:ans
+                 q [Eqty (TVar x, t', lc)] in
+             (*[* Format.printf
+               "abd_simple: [%d] validate 2 ans=@ %a@\n%!" ddepth pr_subst ans; *]*)
+             validate (vs', ans');
+             (*[* Format.printf "abd_simple: [%d] choice 2 OK@\n%!" ddepth; *]*)
+             abstract deep repls' bvs' pms' vs' ans' cand
+           with Contradiction _ ->
+             ())
+        | Some loc' ->
+          step deep x lc loc' repls' is_p bvs pms' vs' ans cand in
+      (* Choice 3: try subterms of the subterm *)
+      let choice3 () =
+        (*[* Format.printf
+          "abd_simple: [%d] approaching choice 3@ for@ %a@ @@ %s =@ %a@\n%!"
+          ddepth pr_ty loc.typ_sub (var_str x) pr_ty
+          (typ_out loc); *]*)
+        if typ_sort loc.typ_sub = Type_sort
+        then match typ_up loc with
+          | None -> ()        
+          | Some loc ->
+            (*[* Format.printf
+              "abd_simple: [%d]@ choice 3@ try subterms@\n%!" ddepth; *]*)
+            step deep x lc loc repls is_p bvs pms vs ans cand in
+      (* Choice 4: preserve current premise/conclusion subterm for answer *)
+      let choice4 () =
+        match typ_next loc with
+        | None ->
+          (try
+             let t = typ_out loc in
+             (*[* Format.printf
+               "abd_simple: [%d] trying choice 4 a=%a@ sb=@ %a@\n%!"
+               ddepth pr_formula [Eqty (TVar x, t, lc)] pr_subst ans; *]*)
+             let bvs' =
+               if is_p then VarSet.union
+                   (VarSet.filter (not % q.uni_v)
+                      (VarSet.add x (fvs_typ t))) bvs
+               else bvs in
+             let {cnj_typ=ans; _} =
+               unify ~bvs:bvs' ~pms ~sb:ans
+                 q [Eqty (TVar x, t, lc)] in
+             (*[* Format.printf
+               "abd_simple: [%d] validate 4 ans=@ %a@\n%!" ddepth pr_subst ans; *]*)
+             validate (vs, ans);
+             (*[* Format.printf "abd_simple: [%d] choice 4 OK@\n%!" ddepth; *]*)
+             abstract deep repls bvs' pms vs ans cand
+           with Contradiction
+                      (*[* (_, msg, Some (ty1, ty2), *]*) _ (*[* ) *]*) ->
+             (*[*Format.printf
+               "abd_simple: [%d] @ c.4 failed:@ %s@ %a@ %a@\n%!" ddepth
+               msg pr_ty ty1 pr_ty ty2;
+             (match ty1 with
+                TVar v1 ->
+                VarSet.iter (fun v2 ->
+                    Format.printf
+                      "q.uni_v %s=%b; q.uni_v %s=%b; q.cmp_v =%s@\n%!"
+                      (var_str v1) (q.uni_v v1)
+                      (var_str v2) (q.uni_v v2)
+                      (var_scope_str (q.cmp_v v1 v2)))
+                  (fvs_typ ty2)
+              | _ -> ()); 
+             Format.printf "abd_simple: [%d] choice 4 failed@\n%!"
+               ddepth;
+             *]*)
+             incr counter;
+             if !counter > !timeout_count then raise Timeout;
+             ())
+        | Some loc ->
+          (*[* Format.printf "abd_simple: [%d] neighbor loc@\n%!" ddepth; *]*)
+          step deep x lc loc repls is_p bvs pms vs ans cand in
+      (* Choice 5: match subterm with an earlier occurrence *)
+      let choice5 () =
+        let repl = assoc_all loc.typ_sub repls in
+        (*[* Format.printf "abd_simple: [%d]@ choice 5 x=%s@ repls=@ %a@\n%!"
+          ddepth (var_str x)
+          pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls); *]*)
+        (*[* Format.printf "abd_simple: [%d]@ choice 5@ sub=@ %a@ repl=@ %s@\n%!"
+          ddepth pr_ty loc.typ_sub
+          (String.concat ", " (List.map var_str repl)); *]*)
+        List.iter
+          (fun b ->
+             let loc' = {loc with typ_sub = TVar b} in
+             let t' = typ_out loc' in
+             match typ_next loc' with
+             | None ->
+               (try
+                  (*[* Format.printf
+                    "abd_simple: [%d]@ c.5 unify x=%s@ t'=%a@ sb=@ %a@\n%!"
+                    ddepth (var_str x) pr_ty t' pr_subst ans; *]*)
+                  let bvs' =
+                    if is_p then VarSet.union
+                        (VarSet.filter (not % q.uni_v)
+                           (VarSet.add x (fvs_typ t'))) bvs
+                    else bvs in
+                  let {cnj_typ=ans'; _} =
+                    (*[* try *]*)
+                      unify ~bvs:bvs' ~pms ~sb:ans
+                        q [Eqty (TVar x, t', lc)]
+                  (*[* with Terms.Contradiction _ as e ->
+                    Format.printf
+                      "abd_simple: [%d] @ c.5 above failed:@\n%a@\n%!" ddepth
+                      pr_exception e;
+                    raise e *]*) in
+                  (*[* Format.printf
+                    "abd_simple: [%d] validate 5 ans'=@ %a@\n%!"
+                    ddepth pr_subst ans'; *]*)
+                  (*[*(try*]*)
+                          validate (vs, ans');
+                          (*[*with Terms.Contradiction _ as e ->
+                         Format.printf
+                           "abd_simple: [%d] @ c.5 validate failed:@\n%a@\n%!" ddepth
+                           pr_exception e;
+                         raise e); *]*)
+                  (*[* Format.printf "abd_simple: choice 5 OK@\n%!"; *]*)
+                  (*[* Format.printf
+                    "abd_simple: [%d]@ choice 5@ match earlier %s =@ %a@\n%!"
+                    ddepth (var_str x) pr_ty t'; *]*)
+                  abstract deep repls bvs' pms vs ans' cand
+                with Contradiction _ ->
+                  incr counter;
+                  if !counter > !timeout_count then raise Timeout;
+                  ())
+             | Some loc' ->
+               step deep x lc loc' repls is_p bvs pms vs ans cand)
+          repl in
+      if not deep then ()
+      else if !more_general
+      then (choice2 (); choice3 (); choice4 (); choice5 ())
+      else (choice4 (); choice2 (); choice3 (); choice5 ())
+    in
+    if implies_concl vs ans then Some (bvs, (vs, ans))
+    else
+      let {cnj_typ; _} as prem_n_concl = prem_and ((* ans @ *) concl) in
+      (* FIXME: hmm... *)
+      (* let cnj_typ = list_diff cnj_typ discard in *)
+      let init_cand =
+        new_revert_uni q ~bvs ~pms ~dissociate ans
+          prem.cnj_typ prem_n_concl.cnj_typ in
+      (* From longest to shortest. *)
+      (* FIXME: revert to shortest-to-longest, have better idea how
+         to deal with badly dropped short atoms. *)
+      let init_cand = List.sort
+          (fun (_,(t1,_)) (_,(t2,_)) -> typ_size t2 - typ_size t1)
+          init_cand in
+      (*[* Format.printf "abd_simple:@\ninit=@ %a@\n%!"
+        pr_subst init_cand; *]*)
+      try
+        if not !more_general
+        then abstract false [] bvs pms vs ans init_cand;
+        (*[* Format.printf
+          "abd_simple: starting full depth (choices 1-6)@\n%!"; *]*)
+        abstract true [] bvs pms vs ans init_cand; None
+      with Result (bvs, pms, vs, ans) ->
+        (*[* Format.printf "abd_simple: Final validation@\n%!"; *]*)
+        let {cnj_typ=ans; cnj_num; cnj_so=_} =
+          unify ~bvs ~pms q (to_formula ans) in
+        assert (cnj_num = []);
+        validate (vs, ans);
+        (*[* Format.printf
+          "abd_simple: Final validation passed@\nans=%a@\n%!"
+          pr_subst ans; *]*)
+        Some (bvs, cleanup q vs ans)
+  with
+  | Contradiction _ ->
+    (*[* Format.printf
+      "abd_simple: conflicts with premises skip=%d,@ vs=@ %s;@ ans=@ %a@ --@\n@[<2>%a@ ⟹@ %a@]@\n%!"
+      !skip (String.concat "," (List.map var_str vs))
+      pr_subst ans pr_subst prem.cnj_typ pr_subst concl; *]*)
+    None          (* subst_solved or implies_concl *)
+  | Timeout ->
+    (*[* Format.printf
+      "abd_simple: TIMEOUT conflicts with premises skip=%d,@ vs=@ %s;@ ans=@ %a@ --@\n@[<2>%a@ ⟹@ %a@]@\n%!"
+      !skip (String.concat "," (List.map var_str vs))
+      pr_subst ans pr_subst prem.cnj_typ pr_subst concl; *]*)
+    abd_timeout_flag := true;
+    None
+
 (* let max_skip = ref 20 *)
 
 module TermAbd = struct
@@ -715,7 +1085,10 @@ let abd_typ q ~bvs ?(dissociate=false) ~validate ~discard
           pr_subst more_res.cnj_typ NumDefs.pr_formula more_res.cnj_num
           NumDefs.pr_formula more_prem.cnj_num; *]*)
         assert (more_res.cnj_typ = []);
-        more_prem, more_res
+        (*let more_concl =
+          combine_sbs ~use_quants:false q
+            [prem.cnj_typ; concl; ans] in*)
+        more_prem, more_res(* more_concl *)
       with Contradiction _ -> assert false)
     brs in
   cand_bvs, !alien_eqs, vs, ans, more_in_brs
@@ -822,7 +1195,7 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
       (*[* Format.printf
         "abd: fallback abd_typ loc=%a@\nsuspect=%a@\n%!"
         pr_loc lc pr_formula cnj;
-      *]*)
+       *]*)
       raise (NoAnswer (Type_sort, "term abduction failed", None, lc)) in
   let brs_num = List.map2
       (fun (nonrec,prem,concl) (more_p, more_c) ->
@@ -840,7 +1213,7 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
            try
              (*[* Format.printf
                "abd-neg: trying neg=%a...@\n%!" pr_formula cnj;
-             *]*)
+              *]*)
              let cnj =
                combine_sbs ~use_quants:false q ~more_phi:cnj [ans_typ] in
              (*[* Format.printf "abd-neg: passed@\n%!"; *]*)
@@ -859,9 +1232,9 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
                "abd-neg: verif_br prem=@ %a@\n%!" NumDefs.pr_formula
                prem; *]*)
              let allconcl = concat_map
-               (fun (_,prem2,concl2) ->
-                 if NumDefs.subformula prem2 prem then concl2 else [])
-               brs_num in
+                 (fun (_,prem2,concl2) ->
+                    if NumDefs.subformula prem2 prem then concl2 else [])
+                 brs_num in
              try Some (NumS.satisfiable_exn (ans_num @ prem @ allconcl))
              with Contradiction _ -> None)
           brs_num in
@@ -886,14 +1259,14 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
       try
         (* [tvs] includes alien variables! *)
         NumS.abd q ~bvs ~discard:discard.at_num ~iter_no
-            (* [true] means non-recursive *)
-            ((true, [], neg_num_res)::brs_num)
+          (* [true] means non-recursive *)
+          ((true, [], neg_num_res)::brs_num)
       with
       | Suspect (cnj, lc) ->
         (*[* Format.printf
           "abd: fallback NumS.abd loc=%a@\nsuspect=%a@\n%!"
           pr_loc lc pr_formula cnj;
-        *]*)
+         *]*)
         raise (NoAnswer (Num_sort, "numerical abduction failed",
                          None, lc)) in
   let ans_typ = to_formula ans_typ in

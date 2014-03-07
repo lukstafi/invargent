@@ -814,7 +814,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
         brs1 in
     (*[* Format.printf "solve: loop iter_no=%d@\nsol=@ %a@\n%!"
       iter_no pr_chi_subst sol1; *]*)
-    (*[* Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs5 brs1; *]*)
+    (*[* Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs4 brs1; *]*)
     let validate ans = List.iter
         (fun (nonrec, _, prem, concl) ->
            (* Do not use quantifiers, because premise is in the
@@ -1013,7 +1013,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
         sol1, brs1, abdsjelim, g_rol in
     (*[* Format.printf "solve-loop: iter_no=%d -- ex. brs substituted@\n%!"
       iter_no; *]*)
-    (*[* Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs5 brs1; *]*)
+    (*[* Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs4 brs1; *]*)
     (* 8a *)
     let neg_cns1 = List.map
         (fun (prem,loc) -> sb_formula_pred q false g_rol sol1 prem, loc)

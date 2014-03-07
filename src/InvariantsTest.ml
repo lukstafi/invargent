@@ -2039,6 +2039,7 @@ let rec filter_map2 = fun p q r f g h ->
 
   "list filter-map2 with filter postfix" >::
     (fun () ->
+       todo "debug";
        skip_if !debug "debug";
        test_case "list filter-map2 with filter postfix"
 "datatype List : type * num
@@ -2073,6 +2074,7 @@ let rec filter_map2 = fun p q r f g h ->
 
   "list map2 with filter postfix" >::
     (fun () ->
+       todo "debug";
        skip_if !debug "debug";
        test_case "list map2 with filter postfix"
 "datatype List : type * num
