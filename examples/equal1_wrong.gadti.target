@@ -21,4 +21,4 @@ external val b_not : Bool → Bool
 external forall2 :
    ∀a, b. (a → b → Bool) → List a → List b → Bool
 
-val equal1 : ∀a, b. (Ty a, Ty b) → a → a → Bool
+val equal1 : ∀a, b. (Ty a, Ty b) → b → b → Bool

@@ -276,7 +276,7 @@ let rec equal1 = function
               (equal1 (t2, u2) x2 y2))
   | TList t, TList u -> forall2 (equal1 (t, u))
   | _ -> fun _ _ -> False"
-        [1, "∃a, b. δ = ((Ty a, Ty b) → a → a → Bool)"]
+        [1, "∃a, b. δ = ((Ty a, Ty b) → b → b → Bool)"]
     );
 
   "equal with test" >::
@@ -2039,7 +2039,6 @@ let rec filter_map2 = fun p q r f g h ->
 
   "list filter-map2 with filter postfix" >::
     (fun () ->
-       todo "debug";
        skip_if !debug "debug";
        test_case "list filter-map2 with filter postfix"
 "datatype List : type * num
@@ -2074,7 +2073,6 @@ let rec filter_map2 = fun p q r f g h ->
 
   "list map2 with filter postfix" >::
     (fun () ->
-       todo "debug";
        skip_if !debug "debug";
        test_case "list map2 with filter postfix"
 "datatype List : type * num

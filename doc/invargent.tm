@@ -539,6 +539,18 @@
   <math|x<wide|=|\<dot\>>t> can stand for either <math|x\<assign\>t>, or
   <math|y\<assign\>x> for <math|t=y>.
 
+  To simplify the search in presence of a quantifier, we preprocess the
+  initial candidate by eliminating universally quantified variables:
+
+  <\eqnarray*>
+    <tformat|<table|<row|<cell|Rev<rsub|\<forall\>><around*|(|\<cal-Q\>,<wide|\<beta\>|\<bar\>>,D,C|)>>|<cell|=>|<cell|<around*|{|S<around*|(|c|)><mid|\|>c\<in\>C,S=<around*|[|<wide|\<beta\><rsub|u>|\<bar\>>\<assign\><wide|t<rsub|u>|\<bar\>>|]><with|mode|text|
+    for ><wide|\<forall\>\<beta\><rsub|u>|\<bar\>>\<subset\>\<cal-Q\>,\<cal-M\>\<vDash\>D\<Rightarrow\><wide|S|\<dot\>>,<next-line><with|mode|text|
+    \ \ \ \ \ \ \ >\<cal-M\>\<vDash\>\<cal-Q\>.S<around*|(|c|)><around*|[|<wide|\<beta\>|\<bar\>>\<assign\><wide|t|\<bar\>>|]><with|mode|text|
+    for some ><wide|t|\<bar\>>|}>>>>>
+  </eqnarray*>
+
+  \;
+
   To recapitulate, the implementation is:
 
   <\itemize>
@@ -574,8 +586,9 @@
       of the atom, check connected and validate before proceeding to
       remaining candidates.
 
-      <item>Keep a variant of the original atom, but with universal variables
-      and constants substituted-out. Redundant, and optional: only when
+      <item>Keep a variant of the original atom, but with constants
+      substituted-out by variable-constant equations from the premise.
+      Redundant, and optional: only when <verbatim|revert_cst> is true and
       <verbatim|more_general> is false.
     </enumerate>
 
@@ -596,15 +609,14 @@
       leads to answers that are not most general.
     </itemize>
 
-    <item>Form initial candidates <math|\<b-U\><rsub|><around*|(|<wide|A|~><around*|(|D\<wedge\>C|)>|)>>.
+    <item>Form initial candidates <math|Rev<rsub|\<forall\>><around*|(|\<cal-Q\>,<wide|\<beta\>|\<bar\>>,\<b-U\><around*|(|D\<wedge\>A<rsub|p>|)>,\<b-U\><around*|(|A<rsub|p>\<wedge\>D\<wedge\>C|)>|)>>.
 
-    <item>Form the choice-6 counterparts of initial candidate atoms. Replace
-    <math|\<alpha\><rsub|1>\<assign\>\<tau\>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<tau\>>
-    with <math|\<alpha\><rsub|1>\<assign\>\<alpha\><rsub|i>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<alpha\><rsub|i>,\<tau\>\<assign\>\<alpha\><rsub|i>>
+    <item>Form the substitution of subterms for choice-6 counterparts of
+    initial candidate atoms. For <math|\<alpha\><rsub|1><wide|=|\<dot\>>\<tau\>,\<ldots\>,\<alpha\><rsub|n><wide|=|\<dot\>>\<tau\>\<in\>\<b-U\><around*|(|D\<wedge\>A<rsub|p>|)>>,
+    form the substitution of subterms <math|\<alpha\><rsub|1>\<assign\>\<alpha\><rsub|i>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<alpha\><rsub|i>,\<tau\>\<assign\>\<alpha\><rsub|i>>
     (excluding <math|\<alpha\><rsub|i>\<assign\>\<alpha\><rsub|i>>) where
     <math|\<alpha\><rsub|i>> is the most upstream existential variable (or
-    parameter) and <math|\<tau\>> is a universal variable (but not a
-    parameter) or constant, and propagate the substitution.
+    parameter) and <math|\<tau\>> is a constant.
 
     <\itemize>
       <item>Since for efficiency reasons we do not always remove alien

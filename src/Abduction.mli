@@ -15,6 +15,10 @@ val more_general : bool ref
     answers with redundant atoms first, but can produce answers that
     are not most general. Default [false]. *)
 val richer_answers : bool ref
+(** [revert_cst=true] tries replacing constants by variables in the
+    initial candidates for abduction answer, given corresponding
+    equations in the premise. Default [true]. *)
+val revert_cst : bool ref
 val timeout_count : int ref
 val fail_timeout_count : int ref
 val no_alien_prem : bool ref
