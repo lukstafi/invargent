@@ -443,6 +443,10 @@ let simplify q_ops ?keepvs ?guard ?initstep (vs, cnj) =
   let vs = VarSet.inter vs (fvs_formula ans) in
   (*[* Format.printf "simplify: vs=%a@ ty_sb=%a@ num_sb=%a@ ans=%a@\n%!"
     pr_vars vs pr_subst ty_sb pr_subst num_sb pr_formula ans; *]*)
+  vs, ans
+
+let vsimplify q_ops ?keepvs ?guard ?initstep ans =
+  let vs, ans = simplify q_ops ?keepvs ?guard ?initstep ans in
   VarSet.elements vs, ans
 
 (** Generally simplify the formula. Do not normalize non-type sort atoms. *)
@@ -886,7 +890,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
           let g_vs, g_ans =
             connected target
               (if initstep then g_vs, g_ans
-               else simplify q_ops ~keepvs ~initstep (g_vs, g_ans)) in
+               else vsimplify q_ops ~keepvs ~initstep (g_vs, g_ans)) in
           let fvs = VarSet.elements
               (VarSet.diff (fvs_formula g_ans)
                  (vars_of_list [delta;delta'])) in
@@ -1201,11 +1205,13 @@ let solve q_ops new_ex_types exty_res_chi brs =
              (* No need to substitute, because variables will be
                 freshened when predicate variable is instantiated. *)
              let dans = subst_formula [b, (tdelta, dummy_loc)] dans in
-             let i_res = simplify q.op (dvs @ vs, dans @ ans) in
+             let vs' = dvs @ vs in
+             let _, ans' = simplify q.op (vs', dans @ ans) in
              (*[* Format.printf
                "solve-loop-10: vs=%a@ ans=%a@ chi%d(.)=@ %a@\n%!"
-               pr_vars (vars_of_list vs) pr_formula ans i pr_ans i_res; *]*)
-             i, i_res)
+               pr_vars (vars_of_list vs) pr_formula ans i
+               pr_ans (vs', ans'); *]*)
+             i, (vs', ans'))
           sol1 in    
       (* 11 *)
       let finished1 =

@@ -1730,6 +1730,24 @@ let rec eval =
      postcondition, which needs to be bootstrapped from its
      non-recursive part. *)
 
+  "local defs simple" >::
+    (fun () ->
+       (* skip_if !debug "debug"; *)
+       test_case "local defs simple"
+"datatype Box : type
+datacons Int : Int ⟶ Box Int
+datacons String : String ⟶ Box String
+external let fI : Int → Int → Int = \"(*)\"
+external let fS : String → String → String = \"(@)\"
+
+let rec foo =
+  function
+  | Int x -> let rec bar = fun y -> fI x y in bar x
+  | String x -> let rec baz = fun y -> fS x y in baz x"
+
+        [1, "∃a. δ = (Box a → a)"]
+    );
+
   "nonrec simple" >::
     (fun () ->
        skip_if !debug "debug";
@@ -1844,7 +1862,7 @@ let rec zip =
       let zs = zip (xs, ys) in
       LCons ((x, y), zs)"
         [2,"∃n, k, a, b.
-  δ = ((List (a, n), List (b, k)) → ∃i[i=min (n, k)].List ((a, b), i))"]
+  δ = ((List (a, n), List (b, k)) → ∃i[i=min (k, n)].List ((a, b), i))"]
     );
 
   "unary maximum expanded" >::
@@ -1885,7 +1903,7 @@ let rec map2 = fun f ->
         [2,"∃n, k, a.
   δ =
     ((a → a → a) → (List (a, n), List (a, k)) →
-       ∃i[i=max (k, n)].List (a, i))"]
+       ∃i[i=max (n, k)].List (a, i))"]
     );
 
 
@@ -1935,7 +1953,7 @@ let rec filter_map2 = fun p f ->
   δ =
     ((a → a → Bool) → (a → a → a) →
        (List (a, n), List (a, k)) → ∃i[0 ≤ i ∧ k ≤ n + i ∧
-       n ≤ k + i ∧ i≤max (n, k)].List (a, i))"]
+       n ≤ k + i ∧ i≤max (k, n)].List (a, i))"]
     );
 
   "list filter-map2 with filter postfix mono" >::
@@ -1999,9 +2017,9 @@ let rec filter_map2 = fun p q r f g h ->
       | False -> zs"
         [1,"∃a, b, c.
   δ =
-    ((a → b → Bool) → (a → Bool) → (b → Bool) →
-       (a → b → c) → (a → c) → (b → c) → (List a, List b) →
-       List c)"]
+    ((a → c → Bool) → (a → Bool) → (c → Bool) →
+       (a → c → b) → (a → b) → (c → b) → (List a, List c) →
+       List b)"]
     );
 
   "non-num list filter-map2 with filter postfix" >::
@@ -2032,9 +2050,9 @@ let rec filter_map2 = fun p q r f g h ->
       | False -> zs"
         [2,"∃a, b, c.
   δ =
-    ((a → b → Bool) → (a → Bool) → (b → Bool) →
-       (a → b → c) → (a → c) → (b → c) → (List a, List b) →
-       ∃.List c)"]
+    ((a → c → Bool) → (a → Bool) → (c → Bool) →
+       (a → c → b) → (a → b) → (c → b) → (List a, List c) →
+       ∃.List b)"]
     );
 
   "list filter-map2 with filter postfix" >::
@@ -2065,10 +2083,10 @@ let rec filter_map2 = fun p q r f g h ->
       | False -> zs"
         [2,"∃n, k, a, b, c.
   δ =
-    ((a → b → Bool) → (a → Bool) → (b → Bool) →
-       (a → b → c) → (a → c) → (b → c) →
-       (List (a, n), List (b, k)) → ∃i[0 ≤ i ∧
-       i≤max (n, k)].List (c, i))"]
+    ((a → c → Bool) → (a → Bool) → (c → Bool) →
+       (a → c → b) → (a → b) → (c → b) →
+       (List (a, n), List (c, k)) → ∃i[0 ≤ i ∧
+       i≤max (n, k)].List (b, i))"]
     );
 
   "list map2 with filter postfix" >::
@@ -2097,9 +2115,9 @@ let rec map2_filter = fun q r f g h ->
       LCons (f x y, zs)"
         [2,"∃n, k, a, b, c.
   δ =
-    ((a → Bool) → (b → Bool) → (a → b → c) → (a → c) →
-       (b → c) → (List (a, n), List (b, k)) → ∃i[i≤max (n, k) ∧
-       min (n, k)≤i].List (c, i))"]
+    ((a → Bool) → (c → Bool) → (a → c → b) → (a → b) →
+       (c → b) → (List (a, n), List (c, k)) → ∃i[i≤max (n, k) ∧
+       min (k, n)≤i].List (b, i))"]
     );
 
   "avl_tree--height" >::

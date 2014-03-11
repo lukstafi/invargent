@@ -1408,18 +1408,18 @@ let nice_ans ?sb ?(fvs=VarSet.empty) (vs, phi) =
   let named_vs, vs =
     List.partition (function VNam _ -> true | _ -> false) vs in
   let fvs = VarSet.union fvs (fvs_formula phi) in
-  let fvs =
+  let fvs, sb =
     match sb with
-    | None -> fvs
-    | Some sb -> add_vars (List.map snd sb) fvs in
+    | None -> fvs, []
+    | Some sb -> add_vars (List.map snd sb) fvs, sb in
+  let vs = List.filter
+      (fun v -> VarSet.mem v fvs || List.mem_assoc v sb) vs in
   let allvs, rn = fold_map
       (fun fvs v ->
          let w = next_var fvs (var_sort v) in
          VarSet.add w fvs, (v, w))
       fvs vs in
   let rvs = List.map snd rn in
-  let sb = match sb with
-    | Some sb -> sb | None -> [] in
   let sb = rn @ sb in
   sb, (named_vs @ rvs, hvsubst_formula sb phi)
 
