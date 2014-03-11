@@ -230,7 +230,6 @@ let strat q b ans =
   let (_, ans_r), ans = fold_map
       (fun (pvs, ans_r) c ->
          let vs = VarSet.elements (VarSet.diff (fvs_atom c) pvs) in
-         (* FIXME: after prenexization, this does not do much! *)
          let vs = List.filter
              (fun v -> q.cmp_v b v = Left_of) vs in
          let loc = atom_loc c in
@@ -283,44 +282,15 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
       (fun b ->
         (*[* Format.printf "split-loop-3: b=%s@ target=%a@\n%!"
           (var_str b) pr_vars (Hashtbl.find q.b_vs b); *]*)
-        b,
-        snd (connected
-               (b::VarSet.elements (Hashtbl.find q.b_vs b)) ([],ans0)))
-      negbs in
-    (*[* Format.printf "split-loop-3: ans1=@\n%a@\n%!"
-      pr_bchi_subst (List.map (fun (b,a)->b,(VarSet.elements (Hashtbl.find q.b_vs b),a))
-                       ans_cand); *]*)
-    (* 4 *)
-    let ans_cand = List.map
-      (fun (b,ans) -> b,
-       List.filter
-         (fun c ->
-           List.for_all (fun (b',ans') ->
-             cmp_v b b' <> Left_of
-             || not (List.memq c ans')) ans_cand)
-         ans)
-      ans_cand in
-    (*[* Format.printf "split-loop-4: ans3=@\n%a@\ncand_bvs=%a@\n%!"
-      pr_bchi_subst (List.map (fun (b,a)->b,([],a))
-                       ans_cand)
-      pr_vars cand_bvs; *]*)
-    (* 5 *)
-    let ans_cand = List.map
-      (fun (b, ans) ->
-        (*[* Format.printf "split-loop-5: b=%s@ target=%a@\n%!"
-          (var_str b) pr_vars (VarSet.inter (fvs_formula ans) cand_bvs); *]*)
-        let avs = fvs_formula ans in
+        let xbvs = VarSet.add b (Hashtbl.find q.b_vs b) in
         let ans = List.filter
-            (fun c ->
-               let dvs =
-                 VarSet.diff (fvs_atom c) avs in
-               let dsvs = VarSet.inter dvs cand_bvs in
-               VarSet.cardinal dsvs <= 1 &&
-               VarSet.for_all (not % q.uni_v) dvs)
+            (fun c -> VarSet.for_all
+                (fun cv -> not (q.uni_v cv) || VarSet.mem cv xbvs)
+                (fvs_atom c))
             ans0 in
         b, ans)
-      ans_cand in
-    (*[* Format.printf "split-loop-6: ans4=@\n%a@\n%!"
+      negbs in
+    (*[* Format.printf "split-loop-3: ans1=@\n%a@\n%!"
       pr_bchi_subst (List.map (fun (b,a)->b,(VarSet.elements (Hashtbl.find q.b_vs b),a))
                        ans_cand); *]*)
     (* 6 *)
@@ -352,17 +322,7 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
     (* 8 *)
     let ans_strat = List.map
       (fun (b, ans_p) ->
-        let bvs = Hashtbl.find q.b_vs b in
-        let ans_p' =
-          snd (connected
-                 (b::VarSet.elements bvs)
-                 ([],ans_p)) in
-        (*[* Format.printf
-          "select-9: bvs=%a@\nb=%s@\nans_p=%a@\nans_p'=%a@\n%!"
-          pr_vars bvs
-          (var_str b) pr_formula ans_p pr_formula ans_p'; *]*)
-        (* 9 *)
-        let (avs_p, ans_l, ans_r) = strat q b ans_p' in
+        let (avs_p, ans_l, ans_r) = strat q b ans_p in
         (*[* Format.printf "select: ans_l(%s)=@ %a@\n%!"
           (var_str b) pr_formula ans_l; *]*)
         (* Negatively occurring [b] "owns" these formal parameters *)
