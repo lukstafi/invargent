@@ -8,5 +8,5 @@ datacons POne : ∀n[0 ≤ n].Binary n ⟶ Binary (2 n + 1)
 
 val ub :
    ∀k, n.
-   Binary k → Binary n → ∃i[i ≤ n + k ∧ k ≤ i ∧
-     n ≤ i].Binary i
+   Binary k → Binary n → ∃i[n ≤ i ∧ i ≤ n + k ∧
+     k ≤ i].Binary i

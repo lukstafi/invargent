@@ -1467,7 +1467,7 @@ let rec ub = efunction
           let r = ub a1 b1 in
           POne r)"
         [2,"∃n, k.
-  δ = (Binary k → Binary n → ∃i[i ≤ n + k ∧ n ≤ i].Binary i)"]
+  δ = (Binary k → Binary n → ∃i[n ≤ i ∧ i ≤ n + k].Binary i)"]
     );
 
   "binary upper bound expanded" >::
@@ -1505,8 +1505,8 @@ let rec ub = efunction
           POne r)"
         [2,"∃n, k.
   δ =
-    (Binary k → Binary n → ∃i[i ≤ n + k ∧ k ≤ i ∧
-       n ≤ i].Binary i)"]
+    (Binary k → Binary n → ∃i[n ≤ i ∧ i ≤ n + k ∧
+       k ≤ i].Binary i)"]
     );
 
   "binary upper bound" >::
@@ -1732,7 +1732,7 @@ let rec eval =
 
   "local defs simple" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "local defs simple"
 "datatype Box : type
 datacons Int : Int ⟶ Box Int
@@ -1744,6 +1744,40 @@ let rec foo =
   function
   | Int x -> let rec bar = fun y -> fI x y in bar x
   | String x -> let rec baz = fun y -> fS x y in baz x"
+
+        [1, "∃a. δ = (Box a → a)"]
+    );
+
+  "local recursion simple" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "local defs simple"
+"datatype Box : type
+datacons Int : Int ⟶ Box Int
+datacons String : String ⟶ Box String
+external let fI : Int → Int → Int = \"(*)\"
+external let decrI : Int → Int = \"fun i -> i - 1\"
+external let zero_p : Int → Bool = \"(=) 0\"
+external let one : Int = \"1\"
+external let fS : String → String → String = \"(@)\"
+external let decrS : String → String =
+  \"fun s -> String.sub s 1 (String.length s - 1)\"
+external let empty_p : String → Bool = \"fun s -> String.length s = 0\"
+
+let rec foo =
+  function
+  | Int x ->
+    let rec bar = fun y ->
+      match zero_p y with
+      | True -> one
+      | False -> fI y (bar (decrI y)) in
+    bar x
+  | String x ->
+    let rec baz = fun y ->
+      match empty_p y with
+      | True -> \"\"
+      | False -> fS y (baz (decrS y)) in
+    baz x"
 
         [1, "∃a. δ = (Box a → a)"]
     );
@@ -1842,7 +1876,7 @@ let rec zip =
     | UCons xs, UCons ys ->
       let zs = zip (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (k, n)].Unary i) ∧ 0 ≤ k"]
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (n, k)].Unary i) ∧ 0 ≤ k"]
     );
 
   "list zip prefix expanded" >::
@@ -1862,7 +1896,7 @@ let rec zip =
       let zs = zip (xs, ys) in
       LCons ((x, y), zs)"
         [2,"∃n, k, a, b.
-  δ = ((List (a, n), List (b, k)) → ∃i[i=min (k, n)].List ((a, b), i))"]
+  δ = ((List (a, n), List (b, k)) → ∃i[i=min (n, k)].List ((a, b), i))"]
     );
 
   "unary maximum expanded" >::
@@ -1881,7 +1915,7 @@ let rec map2 =
     | UCons xs, UCons ys ->
       let zs = map2 (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=max (k, n)].Unary i)"]
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=max (n, k)].Unary i)"]
     );
 
   "list map2 with postfix expanded" >::
@@ -1927,8 +1961,8 @@ let rec filter_zip = fun f ->
       | False -> zs"
         [2,"∃n, k, a, b.
   δ =
-    ((a → b → Bool) → (List (a, n), List (b, k)) → ∃i[i ≤ k ∧
-       i ≤ n ∧ 0 ≤ i].List ((a, b), i))"]
+    ((a → b → Bool) → (List (a, n), List (b, k)) → ∃i[0 ≤ i ∧
+       i ≤ n ∧ i ≤ k].List ((a, b), i))"]
     );
 
   "list filter-map2 with postfix" >::
@@ -1952,8 +1986,8 @@ let rec filter_map2 = fun p f ->
         [2,"∃n, k, a.
   δ =
     ((a → a → Bool) → (a → a → a) →
-       (List (a, n), List (a, k)) → ∃i[0 ≤ i ∧ k ≤ n + i ∧
-       n ≤ k + i ∧ i≤max (k, n)].List (a, i))"]
+       (List (a, n), List (a, k)) → ∃i[0 ≤ i ∧ n ≤ i + k ∧
+       k ≤ i + n ∧ i≤max (n, k)].List (a, i))"]
     );
 
   "list filter-map2 with filter postfix mono" >::
@@ -2520,8 +2554,8 @@ let rec add = fun x -> efunction
 "
         [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃k[k ≤ n + 1 ∧ 1 ≤ k ∧
-       n ≤ k].Avl (a, k))"];
+    (a → Avl (a, n) → ∃k[1 ≤ k ∧ n ≤ k ∧
+       k ≤ n + 1].Avl (a, k))"];
     );
 
   "avl_tree--add-simple2" >::
@@ -2575,8 +2609,8 @@ let rec add = fun x -> efunction
 (* TODO: explain in the manual. *)
         [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃k[n ≤ k + 2 ∧ k ≤ n + 1 ∧
-       1 ≤ k].Avl (a, k))"];
+    (a → Avl (a, n) → ∃k[1 ≤ k ∧ n ≤ k ∧
+       k ≤ n + 1].Avl (a, k))"];
     );
 
   "avl_tree--add" >::
@@ -2626,8 +2660,8 @@ let rec add = fun x -> efunction
 "
         [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃k[k ≤ n + 1 ∧ 1 ≤ k ∧
-       n ≤ k].Avl (a, k))"];
+    (a → Avl (a, n) → ∃k[1 ≤ k ∧ n ≤ k ∧
+       k ≤ n + 1].Avl (a, k))"];
     );
 
   "avl_tree--add2" >::
@@ -2727,8 +2761,8 @@ let rec remove_min_binding = efunction
 (* The inequality [k + 2 ≤ 2 n] corresponds to the fact [n=1 ==> k=0]. *)
         [2,"∃n, a.
   δ =
-    (Avl (a, n) → ∃k[n ≤ k + 1 ∧ k + 2 ≤ 2 n ∧
-       k ≤ n].Avl (a, k)) ∧
+    (Avl (a, n) → ∃k[n ≤ k + 1 ∧ k ≤ n ∧
+       k + 2 ≤ 2 n].Avl (a, k)) ∧
   1 ≤ n"];
     );
 
@@ -2773,8 +2807,8 @@ let rec remove_min_binding = efunction
 (* The inequality [k + 2 ≤ 2 n] corresponds to the fact [n=1 ==> k=0]. *)
         [2,"∃n, a.
   δ =
-    (Avl (a, n) → ∃k[n ≤ k + 1 ∧ k + 2 ≤ 2 n ∧
-       k ≤ n].Avl (a, k)) ∧
+    (Avl (a, n) → ∃k[n ≤ k + 1 ∧ k ≤ n ∧
+       k + 2 ≤ 2 n].Avl (a, k)) ∧
   1 ≤ n"];
     );
 
@@ -2828,8 +2862,8 @@ let merge = efunction
 "
         [2,"∃n, k, a.
   δ =
-    ((Avl (a, n), Avl (a, k)) → ∃i[i ≤ n + k ∧ k ≤ i ∧
-       n ≤ i ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
+    ((Avl (a, n), Avl (a, k)) → ∃i[k ≤ i ∧ n ≤ i ∧
+       i ≤ n + k ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
   n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
@@ -2883,8 +2917,8 @@ let merge = efunction
 "
         [2,"∃n, k, a.
   δ =
-    ((Avl (a, n), Avl (a, k)) → ∃i[i ≤ n + k ∧ k ≤ i ∧
-       n ≤ i ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
+    ((Avl (a, n), Avl (a, k)) → ∃i[k ≤ i ∧ n ≤ i ∧
+       i ≤ n + k ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
   n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
@@ -2938,8 +2972,8 @@ let merge = efunction
 "
         [2,"∃n, k, a.
   δ =
-    ((Avl (a, n), Avl (a, k)) → ∃i[i ≤ n + k ∧ k ≤ i ∧
-       n ≤ i ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
+    ((Avl (a, n), Avl (a, k)) → ∃i[k ≤ i ∧ n ≤ i ∧
+       i ≤ n + k ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
   n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
@@ -3055,7 +3089,7 @@ let rec remove = fun x -> efunction
 "
         [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃k[n ≤ k + 1 ∧ 0 ≤ k ∧
+    (a → Avl (a, n) → ∃k[0 ≤ k ∧ n ≤ k + 1 ∧
        k ≤ n].Avl (a, k))"];
     );
 
@@ -3116,7 +3150,7 @@ let rec remove = fun x -> efunction
 "
         [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃k[n ≤ k + 1 ∧ 0 ≤ k ∧
+    (a → Avl (a, n) → ∃k[0 ≤ k ∧ n ≤ k + 1 ∧
        k ≤ n].Avl (a, k))"];
     );
 

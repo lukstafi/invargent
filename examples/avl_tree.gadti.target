@@ -38,7 +38,7 @@ val rotl :
 
 val add :
    ∀n, a.
-   a → Avl (a, n) → ∃k[k ≤ n + 1 ∧ 1 ≤ k ∧ n ≤ k].Avl (a, k)
+   a → Avl (a, n) → ∃k[1 ≤ k ∧ n ≤ k ∧ k ≤ n + 1].Avl (a, k)
 
 val mem : ∀n, a. a → Avl (a, n) → Bool
 
@@ -46,13 +46,13 @@ val min_binding : ∀n, a[1 ≤ n]. Avl (a, n) → a
 
 val remove_min_binding :
    ∀n, a[1 ≤ n].
-   Avl (a, n) → ∃k[n ≤ k + 1 ∧ k + 2 ≤ 2 n ∧ k ≤ n].Avl (a, k)
+   Avl (a, n) → ∃k[n ≤ k + 1 ∧ k ≤ n ∧ k + 2 ≤ 2 n].Avl (a, k)
 
 val merge :
    ∀k, n, a[n ≤ k + 2 ∧ k ≤ n + 2].
-   (Avl (a, n), Avl (a, k)) → ∃i[i ≤ n + k ∧ k ≤ i ∧ n ≤ i ∧
+   (Avl (a, n), Avl (a, k)) → ∃i[k ≤ i ∧ n ≤ i ∧ i ≤ n + k ∧
      i≤max (k + 1, n + 1)].Avl (a, i)
 
 val remove :
    ∀n, a.
-   a → Avl (a, n) → ∃k[n ≤ k + 1 ∧ 0 ≤ k ∧ k ≤ n].Avl (a, k)
+   a → Avl (a, n) → ∃k[0 ≤ k ∧ n ≤ k + 1 ∧ k ≤ n].Avl (a, k)

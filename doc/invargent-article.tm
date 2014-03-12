@@ -74,12 +74,12 @@
     <associate|NegElim|<tuple|4.4|13|invargent.tm>>
     <associate|NumConv|<tuple|4.2|12|invargent.tm>>
     <associate|OptiAtoms|<tuple|5|14|invargent.tm>>
-    <associate|Rg|<tuple|5|18|invargent.tm>>
+    <associate|Rg|<tuple|4|18|invargent.tm>>
     <associate|SCAlinear|<tuple|3.4|9|invargent.tm>>
     <associate|SepProp|<tuple|5|3>>
     <associate|SepProp2|<tuple|6|?>>
     <associate|Skp|<tuple|1|18|invargent.tm>>
-    <associate|Skp1|<tuple|10|18|invargent.tm>>
+    <associate|Skp1|<tuple|9|18|invargent.tm>>
     <associate|SolSimpl|<tuple|9|12>>
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
