@@ -337,6 +337,8 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
         (b, avs), (b, ans), (avs_p, ans_r))
       ans_ps in
     let avss, sol', more = split3 ans_strat in
+    let nvs = List.fold_left
+        (fun avs (_,bvs) -> VarSet.union avs bvs) VarSet.empty avss in
     let avs_ps, ans_rs = List.split more in
     (* 12.b *)
     let avss = List.map
@@ -354,11 +356,10 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
     let ans_res = to_formula ans_p @ subst_formula ans_p ans_res in
     (*[* Format.printf "split: ans_res'=@ %a@\n%!"
       pr_formula ans_res; *]*)
-    let avs_p = List.concat avs_ps in
     let avsl = List.map VarSet.elements avss in
     let ans_res = ab_eqs @ ans_res in
     (* 14 *)
-    if avs_p <> []
+    if not (VarSet.is_empty nvs)
     then
       (* 15 *)
       let avs' = VarSet.diff avs
