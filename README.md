@@ -14,6 +14,8 @@ sudo cp ./invargent /usr/local/bin/invargent # optionally, install executable
 make clean  # remove the executable and intermediate files
 ```
 
+Version 1.2.1 will be released by the end of March 2014 and is the last version I plan to work on this year, unless new incentives appear.
+
 Milestones: [x] - completed, [#] - finishing (75%-95%), [+] - in the middle (25%-75%), [-] - just started (5%-25%), [_] - not started.
 
 Version 2.0 goals -- version targets may be reassigned:
@@ -26,6 +28,7 @@ Version 2.0 goals -- version targets may be reassigned:
 - [x] Include negative numerical constraints (from `assert false`) as positive facts in numerical abduction, using disjunction elimination. (v1.2)
 - [x] Add inequalities with a variable as one side and `min` as LHS or `max` as RHS to the numerical sort. (v1.2)
 - [x] Flagship example: AVL tree from OCaml standard library (height imbalance limited by 2). (v1.2)
+- [_] Option `-nodeadcode` to reject programs with dead code. (v1.2.1)
 - [_] Solver directives in .gadt source code -- exposing the options available from the command-line interface. (v1.3)
 - [_] Or-patterns `p1 | p2` introducing disjunctions in premises, either eliminated by disjunction elimination or expanded by implication clause duplication -- depending on user-level option; preserved in exported code. (v1.3)
 - [_] Export Haskell code. (v1.3)
