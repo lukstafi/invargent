@@ -740,6 +740,16 @@
     to typecheck too. This option keeps pattern matching branches with
     <verbatim|assert false> in their bodies in exported code nevertheless.
 
+    <item*|<verbatim|-no_dead_code>>Reject all programs with dead code (may
+    misclassify programs using <em|min> or <em|max> atoms). Unreachable
+    pattern matching branches lead to unsatisfiable premises of the type
+    inference constraint, which we detect. However, sometimes multiple
+    implications in the simplified form of the constraint can correspond to
+    the same path through the program, in particular when solving constraints
+    with <em|min> and <em|max> clauses. Dead code due to datatype mismatch,
+    i.e. patterns unreachable without resort to numerical constraints, is
+    detected even without using this option.
+
     <item*|<verbatim|-term_abduction_timeout>>Limit on term simple abduction
     steps (default 700). Simple abduction works with a single implication
     branch, which roughly corresponds to a single branch -- an execution path

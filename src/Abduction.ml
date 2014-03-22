@@ -845,6 +845,9 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
           (* [true] means non-recursive *)
           ((true, [], neg_num_res)::brs_num)
       with
+      | Contradiction _ as e ->
+        (*[* Format.printf "abd: num dead code@\n%!"; *]*)
+        raise e
       | Suspect (cnj, lc) ->
         (*[* Format.printf
           "abd: fallback NumS.abd loc=%a@\nsuspect=%a@\n%!"

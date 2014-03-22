@@ -13,10 +13,11 @@ open Aux
 let debug = ref false(* true *)
 
 let test_common more_general more_existential no_num_abduction
-    deadcode msg test =
+    nodeadcode msg test =
   let ntime = Sys.time () in
   Terms.reset_state ();
   Infer.reset_state ();
+  Defs.nodeadcode := nodeadcode;
   let prog = (Infer.normalize_program % Parser.program Lexer.token)
       (Lexing.from_string test) in
   let new_ex_types, preserve, orig_cn = Infer.infer_prog_mockup prog in
@@ -38,13 +39,12 @@ let test_common more_general more_existential no_num_abduction
          pr_ty ty pr_formula phi)
     !all_ex_types;
   *]*)
-  Defs.nodeadcode := not deadcode;
   Abduction.more_general := more_general;
   Abduction.no_num_abduction := no_num_abduction;
   DisjElim.more_existential := more_existential;
   let _, res, sol =
     Invariants.solve q_ops new_ex_types exty_res_of_chi brs in
-  Defs.nodeadcode := true;
+  Defs.nodeadcode := false;
   Abduction.more_general := false;
   Abduction.no_num_abduction := false;
   DisjElim.more_existential := false;
@@ -65,12 +65,12 @@ let test_common more_general more_existential no_num_abduction
 
 let test_case ?(more_general=false) ?(more_existential=false)
     ?(no_num_abduction=false)
-    ?(deadcode=false) msg test answers =
+    ?(nodeadcode=false) msg test answers =
   if !debug then Printexc.record_backtrace true;
   try
     let q, res, sol =
       test_common more_general more_existential no_num_abduction
-        deadcode msg test in
+        nodeadcode msg test in
     let test_sol (chi, result) =
       let _, (vs, ans) = nice_ans (List.assoc chi sol) in
       ignore (Format.flush_str_formatter ());
@@ -90,12 +90,12 @@ let test_case ?(more_general=false) ?(more_existential=false)
     assert_failure (Format.flush_str_formatter ())
 
 let test_nonrec_case ?(more_general=false) ?(more_existential=false)
-    ?(no_num_abduction=false) ?(deadcode=false) msg test answers =
+    ?(no_num_abduction=false) ?(nodeadcode=false) msg test answers =
   if !debug then Printexc.record_backtrace true;
   try
     let q, res, sol =
       test_common more_general more_existential no_num_abduction
-        deadcode msg test in
+        nodeadcode msg test in
     let test_sol (v, result) =
       let res_sb, _ = Infer.separate_subst q res in
       let ty = fst (List.assoc (VId (Type_sort, v)) res_sb) in
@@ -112,6 +112,28 @@ let test_nonrec_case ?(more_general=false) ?(more_existential=false)
     Abduction.no_num_abduction := false;
     DisjElim.more_existential := false;
     assert_failure (Format.flush_str_formatter ())
+
+let test_case_fail ?(more_general=false) ?(more_existential=false)
+    ?(no_num_abduction=false)
+    ?(nodeadcode=false) msg test answer =
+  if !debug then Printexc.record_backtrace true;
+  try
+    let q, res, sol =
+      test_common more_general more_existential no_num_abduction
+        nodeadcode msg test in
+    let _, (vs, ans) = nice_ans (snd (List.hd sol)) in
+    ignore (Format.flush_str_formatter ());
+    Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
+      (pr_sep_list "," pr_tyvar) vs pr_formula ans;
+    assert_failure (Format.flush_str_formatter ())
+  with (Defs.Report_toplevel _ | Terms.Contradiction _) as exn ->
+    ignore (Format.flush_str_formatter ());
+    Terms.pr_exception Format.str_formatter exn;
+    Defs.nodeadcode := false;
+    Abduction.more_general := false;
+    Abduction.no_num_abduction := false;
+    DisjElim.more_existential := false;
+    assert_equal ~printer:(fun x->x) answer (Format.flush_str_formatter ())
 
 let tests = "Invariants" >::: [
 
@@ -152,7 +174,6 @@ let rec eval = function
 
         [1, "∃a. δ = (Term a → a)"]
     );
-
 
   "foo without when 1" >::
     (fun () ->
@@ -207,6 +228,41 @@ let rec foo = function
   | i when 7 <= i -> Pos (i + -7)"
 
         [1, "∃n. δ = (Num (n + 7) → Positive n)"]
+    );
+
+  "deadcode foo" >::
+    (fun () ->
+      skip_if !debug "debug";
+      test_case "foo without when, positive"
+"datatype Positive : num
+datacons Pos : ∀n [0 ≤ n]. Num n ⟶ Positive n
+
+let rec foo =
+  function
+  | Pos i when i <= -1 -> 7
+  | Pos i -> i"
+
+        [1, "∃n. δ = (Positive n → Num n)"]
+    );
+
+  "deadcode foo fail" >::
+    (fun () ->
+      skip_if !debug "debug";
+      test_case_fail ~nodeadcode:true "foo without when, positive"
+"datatype Positive : num
+datacons Pos : ∀n [0 ≤ n]. Num n ⟶ Positive n
+
+let rec foo =
+  function
+  | Pos i when i <= -1 -> 7
+  | Pos i -> i"
+
+        "File \"\", line 2, characters 21-28:
+Contradiction in num: Failed numeric inequality
+types involved:
+1
+n23
+"
     );
 
   "eval" >::
@@ -2613,7 +2669,6 @@ let rec add = fun x -> efunction
 (* Tricky! The weaker result is due to lack of sharing of information
    about [l] due to facts about [l' = add x l], resp. about [r] due
    to facts about [r' = add x r], with the other branch. *)
-(* TODO: explain in the manual. *)
         [2,"∃n, a.
   δ =
     (a → Avl (a, n) → ∃k[1 ≤ k ∧ n ≤ k ∧

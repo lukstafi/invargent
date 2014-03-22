@@ -1302,8 +1302,8 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
     (String.concat "," (List.map var_str (VarSet.elements bvs))); *]*)
   (*[* Format.printf "NumS.abd: brs=@\n| %a@\n%!"
     (pr_line_list "| " pr_br3) brs;
-   *]*)
-  let brs = concat_map
+  *]*)
+  let brs = List.map
       (fun (nonrec, prem, concl) ->
          let d_eqn, d_ineqn, d_optis, d_suboptis =
            split_flatten ~cmp_v prem in
@@ -1331,22 +1331,22 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
            let concl = split_flatten ~cmp_v concl in
            let contr_exc = ref None in
            let res = map_some
-             (fun opti_subopti ->
-                (* eqs come from opti, ineqs from both *)
-                let o_eqn, o_ineqn, _, _ = split_formula opti_subopti in
-                try
-                  let d_eqs,d_ineqs,_,_ =
-                    solve ~cmp_v ~cmp_w q.uni_v
-                      ~eqs:d_eqs ~ineqs:d_ineqs
-                      ~eqn:o_eqn ~ineqn:o_ineqn in
-                  Some (nonrec, opti_lhs, d_eqs, d_ineqs,
-                        (d_opti_eqn @ o_eqn @ d_eqn, o_ineqn @ d_ineqn),
-                        concl)
-                with Terms.Contradiction _ as e ->
-                  if !nodeadcode && !contr_exc=None
-                  then contr_exc := Some e;
-                  None)
-             (choices ~cmp_v d_optis d_suboptis) in
+               (fun opti_subopti ->
+                  (* eqs come from opti, ineqs from both *)
+                  let o_eqn, o_ineqn, _, _ = split_formula opti_subopti in
+                  try
+                    let d_eqs,d_ineqs,_,_ =
+                      solve ~cmp_v ~cmp_w q.uni_v
+                        ~eqs:d_eqs ~ineqs:d_ineqs
+                        ~eqn:o_eqn ~ineqn:o_ineqn in
+                    Some (nonrec, opti_lhs, d_eqs, d_ineqs,
+                          (d_opti_eqn @ o_eqn @ d_eqn, o_ineqn @ d_ineqn),
+                          concl)
+                  with Terms.Contradiction _ as e ->
+                    if !nodeadcode && !contr_exc=None
+                    then contr_exc := Some e;
+                    None)
+               (choices ~cmp_v d_optis d_suboptis) in
            if !nodeadcode && res=[] && !contr_exc<>None
            then raise (unsome !contr_exc)
            else res
@@ -1357,44 +1357,56 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
   (* Raise [Contradiction] from [abd] when constraints are not
      satisfiable. *)
   (* TODO: optimize -- don't redo work. *)
-  let brs = map_some
-      (fun ((nonrec, opti_lhs, d_eqs, d_ineqs, (d_eqn, d_ineqn),
-             (c_eqn, c_ineqn, c_optis, c_suboptis)) as br) ->
-        let br =
-          try
-            (* Some equations from case splitting can lead to
-               contradictory branches. We collect the context to
-               detect all such cases. *)
-            let (g_eqn, g_ineqn, g_optis, g_suboptis) =
-              List.fold_left
-                (fun (g_eqn, g_ineqn, g_optis, g_suboptis as g_acc)
-                  ((_, _, _, _, (d2_eqn, d2_ineqn),
-                    (c2_eqn, c2_ineqn, c2_optis, c2_suboptis)) as br2) ->
-                  if br == br2 then g_acc
-                  else if implies_case ~cmp_v ~cmp_w q.uni_v d_eqs d_ineqs
-                      d2_eqn d2_ineqn [] []
-                  then (
-         (*[* Format.printf
-                      "implies-guard:@\nd_eqs=%a@\nd_ineqs=%a@\nd2_eqn=%a@\nc2_eqn=%a@\nd2_ineqn=%a@\nc2_ineqn=%a@\nc2_optis=%a@\nc2_suboptis=%a@\n%!"
-           pr_w_subst d_eqs pr_ineqs d_ineqs
-           pr_eqn d2_eqn pr_eqn c2_eqn pr_ineqn d2_ineqn pr_ineqn c2_ineqn
-           pr_optis c2_optis pr_suboptis c2_suboptis; *]*)
+  let guard_brs = List.concat brs in
+  let brs = concat_map
+      (fun obrs ->
+         let contr_exc = ref None in
+         let res = map_some
+             (fun ((nonrec, opti_lhs, d_eqs, d_ineqs, (d_eqn, d_ineqn),
+                    (c_eqn, c_ineqn, c_optis, c_suboptis)) as br) ->
+               let br =
+                 try
+                   (* Some equations from case splitting can lead to
+                      contradictory branches. We collect the context to
+                      detect all such cases. *)
+                   let (g_eqn, g_ineqn, g_optis, g_suboptis) =
+                     List.fold_left
+                       (fun (g_eqn, g_ineqn, g_optis, g_suboptis as g_acc)
+                         ((_, _, _, _, (d2_eqn, d2_ineqn),
+                           (c2_eqn, c2_ineqn, c2_optis, c2_suboptis)) as br2) ->
+                         if br == br2 then g_acc
+                         else if implies_case ~cmp_v ~cmp_w q.uni_v
+                             d_eqs d_ineqs
+                             d2_eqn d2_ineqn [] []
+                         then (
+                           (*[* Format.printf
+                             "implies-guard:@\nd_eqs=%a@\nd_ineqs=%a@\nd2_eqn=%a@\nc2_eqn=%a@\nd2_ineqn=%a@\nc2_ineqn=%a@\nc2_optis=%a@\nc2_suboptis=%a@\n%!"
+                             pr_w_subst d_eqs pr_ineqs d_ineqs
+                             pr_eqn d2_eqn pr_eqn c2_eqn pr_ineqn
+                             d2_ineqn pr_ineqn c2_ineqn
+                             pr_optis c2_optis pr_suboptis c2_suboptis; *]*)
 
-                    c2_eqn @ g_eqn, c2_ineqn @ g_ineqn,
-                        c2_optis @ g_optis, c2_suboptis @ g_suboptis)
-                  else g_acc)
-                ([], [], [], []) brs in
-            ignore (solve (* or: ~eqs:d_eqs ~ineqs:d_ineqs *)
-                      ~eqn:(g_eqn @ d_eqn) ~ineqn:(g_ineqn @ d_ineqn)
-                      ~cmp_v ~cmp_w q.uni_v);
-            Some (nonrec, opti_lhs, (d_eqn, d_ineqn),
-                  (c_eqn, c_ineqn, c_optis, c_suboptis))
-          with Terms.Contradiction _ -> None in
-        (*if br = None then br
-        else (ignore (solve
-                        ~eqn:(d_eqn @ c_eqn) ~ineqn:(d_ineqn @ c_ineqn)
-                        ~cmp_v ~cmp_w q.uni_v); )*)
-        br)
+                           c2_eqn @ g_eqn, c2_ineqn @ g_ineqn,
+                           c2_optis @ g_optis, c2_suboptis @ g_suboptis)
+                         else g_acc)
+                       ([], [], [], []) guard_brs in
+                   ignore (solve (* or: ~eqs:d_eqs ~ineqs:d_ineqs *)
+                             ~eqn:(g_eqn @ d_eqn) ~ineqn:(g_ineqn @ d_ineqn)
+                             ~cmp_v ~cmp_w q.uni_v);
+                   Some (nonrec, opti_lhs, (d_eqn, d_ineqn),
+                         (c_eqn, c_ineqn, c_optis, c_suboptis))
+                 with Terms.Contradiction _ as e ->
+                   if !nodeadcode then contr_exc := Some e;
+                   None in
+               (*if br = None then br
+                 else (ignore (solve
+                               ~eqn:(d_eqn @ c_eqn) ~ineqn:(d_ineqn @ c_ineqn)
+                               ~cmp_v ~cmp_w q.uni_v); )*)
+               br)
+             obrs in
+         if !nodeadcode && res=[] && !contr_exc<>None
+         then raise (unsome !contr_exc)
+         else res)
       brs in
   (* FIXME *)
   let validate (eqs, ineqs, optis, suboptis) = List.iter
@@ -1436,7 +1448,7 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
       brs in
   (*[* Format.printf "NumS.abd: split-brs=@\n| %a@\n%!"
     (pr_line_list "| " pr_sep_br) brs;
-   *]*)
+  *]*)
   (*[* Format.printf "NumS.abd: unproc_brs=@\n| %a@\n%!"
     (pr_line_list "| " pr_sep_br)
     (List.map

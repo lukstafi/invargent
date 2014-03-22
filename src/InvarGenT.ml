@@ -82,13 +82,18 @@ let main () =
     "-no_verif", Arg.Clear verif_ml,
     "Do not call `ocamlc -c` on the generated `.ml` file";
     "-num_is", Arg.Set_string OCaml.num_is,
-    "The exported type for which `Num` is an alias (default `int`); apply `s_of_int` to numerals.";
+    "The exported type for which `Num` is an alias (default `int`); \
+     apply `s_of_int` to numerals.";
     "-num_is_mod", Arg.String num_is_mod,
-    "The exported type for which `Num` is an alias (default `int`); apply `S.of_int` to numerals.";
+    "The exported type for which `Num` is an alias (default `int`); \
+     apply `S.of_int` to numerals.";
     "-full_annot", Arg.Set full_annot,
     "Annotate the `function` and `let..in` nodes in generated OCaml code";
     "-keep_assert_false", Arg.Clear OCaml.drop_assert_false,
     "Keep `assert false` clauses in exported code";
+    "-no_dead_code", Arg.Set Defs.nodeadcode,
+    "Reject all programs with dead code (may misclassify programs using \
+     `min` or `max` atoms as having dead code)";
     "-term_abduction_timeout", Arg.Set_int Abduction.timeout_count,
     "Limit on term simple abduction steps (default 700)";
     "-term_abduction_fail", Arg.Set_int Abduction.fail_timeout_count,

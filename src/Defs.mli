@@ -6,10 +6,9 @@
     @since Mar 2013
 *)
 (** If [nodeadcode=true], fail on implication branches with
-    contradictory premises, which are not negation branches. Default
-    [true]. Note that premises are already guaranteed to be
-    satisfiable in constraints derived for type inference, so
-    [nodeadcode=true] can be seen as just a check. *)
+    contradictory premises, which are not negation branches. "False
+    positives" are possible in complex programs using [min] or [max]
+    atoms. Default [false]. *)
 val nodeadcode : bool ref
 
 (** Source location for reporting parsing and inference problems. *)

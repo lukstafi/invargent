@@ -1114,14 +1114,15 @@ let normalize q cn =
          (*[* Format.printf
            "simplify_brs:@\nguard_cnj=%a@\nprem=%a@\nconcl=%a@\n%!"
            pr_formula guard_cnj pr_formula prem pr_formula concl; *]*)
-         (* Past this point, the branches are definitely part of the
-              constraint, try not raising contradiction. *)
          if concl=[] ||
             List.exists (function CFalse _ -> true | _ -> false) concl
          then prem, concl
          else
            (* 1 *)
-           let {cnj_typ=sb; _} = unify (guard_cnj @ prem @ concl) in
+           let sb =
+             try (unify (guard_cnj @ prem @ concl)).cnj_typ
+             with Contradiction _ as e ->
+               if !nodeadcode then raise e else [] in
            let {cnj_typ=concl_typ; cnj_num=concl_num; cnj_so=concl_so} =
              unify concl in
            (*[* Format.printf "simplify_brs: passed unify@\n%!"; *]*)
@@ -1175,15 +1176,15 @@ let normalize q cn =
              v_chi;
            (* 6 *)
            Hashtbl.iter
-               (fun b i ->
-                  if Hashtbl.mem chi_exty i &&
-                     not (Hashtbl.mem v_exty b)
-                  then (
-                    (*[* Format.printf
-                      "dsj-chi-exty: [6] b=%s i=%d->j=%d@\n%!"
-                      (var_str b) i (Hashtbl.find chi_exty i); *]*)
-                    Hashtbl.replace v_exty b (Hashtbl.find chi_exty i)))
-               v_chi;
+             (fun b i ->
+                if Hashtbl.mem chi_exty i &&
+                   not (Hashtbl.mem v_exty b)
+                then (
+                  (*[* Format.printf
+                    "dsj-chi-exty: [6] b=%s i=%d->j=%d@\n%!"
+                    (var_str b) i (Hashtbl.find chi_exty i); *]*)
+                  Hashtbl.replace v_exty b (Hashtbl.find chi_exty i)))
+             v_chi;
            prem,
            (* TODO: keep [sep_formula] *)
            to_formula concl_typ @
@@ -1251,7 +1252,10 @@ let normalize q cn =
      of the disjuncts as Left (calls trigger first), or the filtered
      disjuncts as Right. *)
   let solve_dsj step (guard_cnj, dsjs) =
-    let {cnj_typ=sb; _} = unify guard_cnj in
+    let sb =
+      try (unify guard_cnj).cnj_typ
+      with Contradiction _ as e ->
+        if !nodeadcode then raise e else [] in
     (*[* Format.printf "dsj-checking: init #dsjs=%d@ sb=%a@\n%!"
       (List.length dsjs) pr_subst sb; *]*)
     let first_exn = ref None in
@@ -1264,25 +1268,28 @@ let normalize q cn =
              || (
                (*[* Format.printf "dsj-test: br@ prem=%a@ concl=%a@\n%!"
                  pr_formula prem pr_formula concl; *]*)
-               let {cnj_typ=sb'; cnj_so=so; _} =
-                 unify ~sb (guard_cnj @ prem @ concl) in
-               (*[* Format.printf "dsj-test: br@ sb'=%a@\n%!"
-                 pr_subst sb'; *]*)
-               List.iter
-                 (function
-                   | NotEx (TCons (Extype _, _) as t, loc) ->
-                     raise (Contradiction
-                              (Type_sort, "Should not be existential",
-                               Some (t, t), loc))        
-                   | NotEx (TVar v as t, loc) when Hashtbl.mem v_exty v ->
-                     let st =
-                       TCons (Extype (Hashtbl.find v_exty v), []) in
-                     raise (Contradiction
-                              (Type_sort, "Should not be existential",
-                               Some (t, st), loc))
-                   | _ -> ())
-                 so;
-               check_chi_exty sb')
+               try
+                 let {cnj_typ=sb'; cnj_so=so; _} =
+                   unify ~sb (guard_cnj @ prem @ concl) in
+                 (*[* Format.printf "dsj-test: br@ sb'=%a@\n%!"
+                   pr_subst sb'; *]*)
+                 List.iter
+                   (function
+                     | NotEx (TCons (Extype _, _) as t, loc) ->
+                       raise (Contradiction
+                                (Type_sort, "Should not be existential",
+                                 Some (t, t), loc))        
+                     | NotEx (TVar v as t, loc) when Hashtbl.mem v_exty v ->
+                       let st =
+                         TCons (Extype (Hashtbl.find v_exty v), []) in
+                       raise (Contradiction
+                                (Type_sort, "Should not be existential",
+                                 Some (t, st), loc))
+                     | _ -> ())
+                   so;
+                 check_chi_exty sb'
+               with Contradiction _ as e ->
+                 if !nodeadcode then raise e else false)
           ) brs
       with Contradiction _ as e ->
         (*[* Format.printf "test rejected a disjunct!@\nexn=%a@\n%!"
@@ -1301,7 +1308,7 @@ let normalize q cn =
          raise
            (Report_toplevel
               ("No valid disjunct, check existential type use",
-              Some (formula_loc guard_cnj))))
+               Some (formula_loc guard_cnj))))
     | [cn, sol, trigger] ->
       (*[* Format.printf "dsj-test: selected\n%a@\n%!"
         pr_cnstrnt cn; *]*)
@@ -1339,6 +1346,7 @@ let normalize q cn =
   for i=0 to 1 do brs_dsj_brs := loop i !brs_dsj_brs done;
   let brs, dsj_brs = !brs_dsj_brs in
   assert (dsj_brs = []);
+    (*[* Format.printf "normalize: done@\n%!"; *]*)
   exty_res_chi, brs
 
 let vs_hist_alien_term increase = function
