@@ -731,7 +731,9 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
       (map_some (fun (nonrec, prem, concl) ->
            let prems_opt =
              try Some (unify ~use_quants:false q prem)
-             with Contradiction _ -> None in
+             with Contradiction _ as e ->
+               if !nodeadcode then raise e
+               else None in
            match prems_opt with
            | Some prem ->
              if List.exists

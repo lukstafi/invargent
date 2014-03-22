@@ -5,7 +5,12 @@
     @author Lukasz Stafiniak lukstafi (AT) gmail.com
     @since Mar 2013
 *)
-
+(** If [nodeadcode=true], fail on implication branches with
+    contradictory premises, which are not negation branches. Default
+    [true]. Note that premises are already guaranteed to be
+    satisfiable in constraints derived for type inference, so
+    [nodeadcode=true] can be seen as just a check. *)
+val nodeadcode : bool ref
 
 (** Source location for reporting parsing and inference problems. *)
 type loc = {beg_pos : Lexing.position; end_pos : Lexing.position}

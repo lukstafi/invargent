@@ -1329,7 +1329,8 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
                   VarSet.union cand lhs)
                VarSet.empty d_optis in
            let concl = split_flatten ~cmp_v concl in
-           map_some
+           let contr_exc = ref None in
+           let res = map_some
              (fun opti_subopti ->
                 (* eqs come from opti, ineqs from both *)
                 let o_eqn, o_ineqn, _, _ = split_formula opti_subopti in
@@ -1341,9 +1342,17 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
                   Some (nonrec, opti_lhs, d_eqs, d_ineqs,
                         (d_opti_eqn @ o_eqn @ d_eqn, o_ineqn @ d_ineqn),
                         concl)
-                with Terms.Contradiction _ -> None)
-             (choices ~cmp_v d_optis d_suboptis)
-         with Terms.Contradiction _ -> [])
+                with Terms.Contradiction _ as e ->
+                  if !nodeadcode && !contr_exc=None
+                  then contr_exc := Some e;
+                  None)
+             (choices ~cmp_v d_optis d_suboptis) in
+           if !nodeadcode && res=[] && !contr_exc<>None
+           then raise (unsome !contr_exc)
+           else res
+         with Terms.Contradiction _ as e ->
+           if !nodeadcode then raise e
+           else [])
       brs in
   (* Raise [Contradiction] from [abd] when constraints are not
      satisfiable. *)

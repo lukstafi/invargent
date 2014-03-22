@@ -28,7 +28,6 @@ Version 2.0 goals -- version targets may be reassigned:
 - [x] Include negative numerical constraints (from `assert false`) as positive facts in numerical abduction, using disjunction elimination. (v1.2)
 - [x] Add inequalities with a variable as one side and `min` as LHS or `max` as RHS to the numerical sort. (v1.2)
 - [x] Flagship example: AVL tree from OCaml standard library (height imbalance limited by 2). (v1.2)
-- [_] Option `-nodeadcode` to reject programs with dead code. (v1.2.1)
 - [_] Solver directives in .gadt source code -- exposing the options available from the command-line interface. (v1.3)
 - [_] Or-patterns `p1 | p2` introducing disjunctions in premises, either eliminated by disjunction elimination or expanded by implication clause duplication -- depending on user-level option; preserved in exported code. (v1.3)
 - [_] Export Haskell code. (v1.3)

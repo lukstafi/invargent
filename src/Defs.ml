@@ -5,6 +5,7 @@
     @author Lukasz Stafiniak lukstafi (AT) gmail.com
     @since Mar 2013
 *)
+let nodeadcode = ref true
 
 open Lexing
 open Aux

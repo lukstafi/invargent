@@ -12,7 +12,8 @@ open Aux
 
 let debug = ref false(* true *)
 
-let test_common more_general more_existential no_num_abduction msg test =
+let test_common more_general more_existential no_num_abduction
+    deadcode msg test =
   let ntime = Sys.time () in
   Terms.reset_state ();
   Infer.reset_state ();
@@ -37,11 +38,13 @@ let test_common more_general more_existential no_num_abduction msg test =
          pr_ty ty pr_formula phi)
     !all_ex_types;
   *]*)
+  Defs.nodeadcode := not deadcode;
   Abduction.more_general := more_general;
   Abduction.no_num_abduction := no_num_abduction;
   DisjElim.more_existential := more_existential;
   let _, res, sol =
     Invariants.solve q_ops new_ex_types exty_res_of_chi brs in
+  Defs.nodeadcode := true;
   Abduction.more_general := false;
   Abduction.no_num_abduction := false;
   DisjElim.more_existential := false;
@@ -61,11 +64,13 @@ let test_common more_general more_existential no_num_abduction msg test =
   q_ops, res, sol
 
 let test_case ?(more_general=false) ?(more_existential=false)
-    ?(no_num_abduction=false) msg test answers =
+    ?(no_num_abduction=false)
+    ?(deadcode=false) msg test answers =
   if !debug then Printexc.record_backtrace true;
   try
     let q, res, sol =
-      test_common more_general more_existential no_num_abduction msg test in
+      test_common more_general more_existential no_num_abduction
+        deadcode msg test in
     let test_sol (chi, result) =
       let _, (vs, ans) = nice_ans (List.assoc chi sol) in
       ignore (Format.flush_str_formatter ());
@@ -78,17 +83,19 @@ let test_case ?(more_general=false) ?(more_existential=false)
   with (Defs.Report_toplevel _ | Terms.Contradiction _) as exn ->
     ignore (Format.flush_str_formatter ());
     Terms.pr_exception Format.str_formatter exn;
+    Defs.nodeadcode := false;
     Abduction.more_general := false;
     Abduction.no_num_abduction := false;
     DisjElim.more_existential := false;
     assert_failure (Format.flush_str_formatter ())
 
 let test_nonrec_case ?(more_general=false) ?(more_existential=false)
-    ?(no_num_abduction=false) msg test answers =
+    ?(no_num_abduction=false) ?(deadcode=false) msg test answers =
   if !debug then Printexc.record_backtrace true;
   try
     let q, res, sol =
-      test_common more_general more_existential no_num_abduction msg test in
+      test_common more_general more_existential no_num_abduction
+        deadcode msg test in
     let test_sol (v, result) =
       let res_sb, _ = Infer.separate_subst q res in
       let ty = fst (List.assoc (VId (Type_sort, v)) res_sb) in
