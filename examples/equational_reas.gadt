@@ -4,14 +4,14 @@ datatype A
 datatype B
 datacons LocA : Place A
 datacons LocB : Place B
-external is_nearby : ∀a,b. Nearby (a, b) → Bool = "is_nearby"
+external is_nearby : ∀a,b. Nearby (a, b) → Bool
 datacons Here : ∀a. Place a * Place a ⟶ Nearby (a, a)
 datacons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
-external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b)) = "wander"
+external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
 datatype Meet : type * type
 datacons Same : ∀a,b [a=b]. Meet (a, b)
 datacons NotSame : ∀a, b. Meet (a, b)
-external compare : ∀a,b. Place a → Place b → Meet (a, b) = "compare"
+external compare : ∀a,b. Place a → Place b → Meet (a, b)
 
 let rec walk = fun x goal ->
   match compare x goal with

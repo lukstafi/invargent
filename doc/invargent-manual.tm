@@ -583,9 +583,11 @@
   constructor>|<cell|<verbatim|datacons Cons : all n a. a * List(a,n)
   --\<gtr\> List(a,n+1)>>>|<row|<cell|>|<cell|<verbatim|datacons Cons :
   <math|\<forall\>>n,a. a * List(a,n) <math|\<longrightarrow\>>
-  List(a,n+1)>>>|<row|<cell|declaration>|<cell|<verbatim|external filter :
+  List(a,n+1)>>>|<row|<cell|declaration>|<cell|<verbatim|external foo :
   <math|\<forall\>>n,a. List(a,n)<math|\<rightarrow\>
-  \<exists\>>k[k\<less\>=n].List(a,k)="filter">>>|<row|<cell|let-declaration>|<cell|<verbatim|external
+  \<exists\>>k[k\<less\>=n].List(a,k)="c_foo">>>|<row|<cell|>|<cell|<verbatim|external
+  filter : <math|\<forall\>>n,a. List(a,n)<math|\<rightarrow\>
+  \<exists\>>k[k\<less\>=n].List(a,k)>>>|<row|<cell|let-declaration>|<cell|<verbatim|external
   let mult : <math|\<forall\>>n,m. Num n<math|\<rightarrow\>>Num
   m<math|\<rightarrow\> \<exists\>>k.Num k = "( * )">>>|<row|<cell|rec.
   definition>|<cell|<verbatim|let rec f =>...>>|<row|<cell|non-rec.

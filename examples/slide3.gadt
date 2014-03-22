@@ -1,4 +1,4 @@
 datatype Tau
-external x : ∀b[b = Tau → Tau].b = "x"
+external x : ∀b[b = Tau → Tau].b
 
 let var_rule = x

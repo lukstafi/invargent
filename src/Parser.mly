@@ -542,6 +542,9 @@ structure_item_raw:
     EXTERNAL lident COLON opt_constr_intro typ EQUAL STRING
       { PrimVal ($1, $3, (fst $5, snd $5, $6), Aux.Left $8, get_loc ()) }
   | opt_docucomment
+    EXTERNAL lident COLON opt_constr_intro typ
+      { PrimVal ($1, $3, (fst $5, snd $5, $6), Aux.Left $3, get_loc ()) }
+  | opt_docucomment
     EXTERNAL LET lident COLON opt_constr_intro typ EQUAL STRING
       { PrimVal ($1, $4, (fst $6, snd $6, $7), Aux.Right $9, get_loc ()) }
   | opt_docucomment EXTERNAL COLON

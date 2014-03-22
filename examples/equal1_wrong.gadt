@@ -8,7 +8,7 @@ datacons TList : ∀a. Ty a ⟶ Ty (List a)
 external let eq_int : Int → Int → Bool = "(=)"
 external let b_and : Bool → Bool → Bool = "(&&)"
 external let b_not : Bool → Bool = "not"
-external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool = "forall2"
+external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool
 
 let rec equal1 = function
   | TInt, TInt -> fun x y -> eq_int x y

@@ -1,6 +1,6 @@
 datatype Tau
 datatype Tau'
 datacons E2 : Tau'
-external e1 : Tau' → Tau = "e1"
+external e1 : Tau' → Tau
 
 let app_rule = e1 E2

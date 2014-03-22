@@ -329,7 +329,7 @@ datacons TList : ∀a. Ty a ⟶ Ty (List a)
 external let eq_int : Int → Int → Bool = \"(=)\"
 external let b_and : Bool → Bool → Bool = \"(&&)\"
 external let b_not : Bool → Bool = \"not\"
-external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool = \"forall2\"
+external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool
 
 let rec equal1 = function
   | TInt, TInt -> fun x y -> eq_int x y
@@ -356,7 +356,7 @@ datacons TList : ∀a. Ty a ⟶ Ty (List a)
 external let eq_int : Int → Int → Bool = \"(=)\"
 external let b_and : Bool → Bool → Bool = \"(&&)\"
 external let b_not : Bool → Bool = \"not\"
-external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool = \"forall2\"
+external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool
 
 let rec equal = function
   | TInt, TInt -> fun x y -> eq_int x y
@@ -384,7 +384,7 @@ datacons TList : ∀a. Ty a ⟶ Ty (List a)
 external let eq_int : Int → Int → Bool = \"(=)\"
 external let b_and : Bool → Bool → Bool = \"(&&)\"
 external let b_not : Bool → Bool = \"not\"
-external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool = \"forall2\"
+external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool
 
 let rec equal = function
   | TInt, TInt -> fun x y -> eq_int x y
@@ -413,7 +413,7 @@ datacons TList : ∀a. Ty a ⟶ Ty (List a)
 external let eq_int : Int → Int → Bool = \"(=)\"
 external let b_and : Bool → Bool → Bool = \"(=)\"
 external let b_not : Bool → Bool = \"not\"
-external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool = \"forall2\"
+external forall2 : ∀a, b. (a → b → Bool) → List a → List b → Bool
 
 let rec equal = function
   | TInt, TInt -> fun x y -> eq_int x y
@@ -450,7 +450,7 @@ let f = fun y -> function
 "datatype T : type
 datacons T1 : Bool ⟶ T Bool
 datacons T2 : ∀a. T a
-external c : T Int = \"c\"
+external c : T Int
 
 let rec f = fun y -> function
   | T1 z -> True
@@ -564,7 +564,7 @@ let rec append =
 datatype List : num
 datacons LNil : List 0
 datacons LCons : ∀n [0≤n]. Elem * List n ⟶ List (n+1)
-external length : ∀n. List n → Num n = \"length\"
+external length : ∀n. List n → Num n
 
 let rec append =
   function
@@ -712,7 +712,7 @@ datacons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
 datacons CZero : Carry 0
 datacons COne : Carry 1
 
-external num_of_binary : ∀n. Binary n → Num n = \"num_of_binary\"
+external num_of_binary : ∀n. Binary n → Num n
 
 let rec plus =
   function CZero ->
@@ -861,8 +861,8 @@ datacons Room : Room ⟶ Placement Room
 datacons Yard : Yard ⟶ Placement Yard
 datacons Outside : Outside ⟶ Placement Outside
 
-external leave : Room → ∃t. Placement t = \"leave\"
-external enter : Yard → Room = \"enter\"
+external leave : Room → ∃t. Placement t
+external enter : Yard → Room
 
 let rec escape = function Outside x -> x
   | Room x ->
@@ -882,11 +882,11 @@ let rec escape = function Outside x -> x
 "datatype Place : type
 datatype Nearby : type * type
 datacons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
-external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b)) = \"wander\"
+external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
 datatype Meet : type * type
 datacons Close : ∀a,b. Nearby (a, b) ⟶ Meet (a, b)
 datacons NotClose : ∀a, b. Meet (a, b)
-external compare : ∀a,b. Place a → Place b → Meet (a, b) = \"compare\"
+external compare : ∀a,b. Place a → Place b → Meet (a, b)
 let rec walk = fun x goal ->
   match compare x goal with
   | Close g -> g
@@ -906,14 +906,14 @@ datatype A
 datatype B
 datacons LocA : Place A
 datacons LocB : Place B
-external is_nearby : ∀a,b. Nearby (a, b) → Bool = \"is_nearby\"
+external is_nearby : ∀a,b. Nearby (a, b) → Bool
 datacons Here : ∀a. Place a * Place a ⟶ Nearby (a, a)
 datacons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
-external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b)) = \"wander\"
+external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
 datatype Meet : type * type
 datacons Same : ∀a,b [a=b]. Meet (a, b)
 datacons NotSame : ∀a, b. Meet (a, b)
-external compare : ∀a,b. Place a → Place b → Meet (a, b) = \"compare\"
+external compare : ∀a,b. Place a → Place b → Meet (a, b)
 let rec walk = fun x goal ->
   match compare x goal with
   | Same -> Here (x, goal)
@@ -935,13 +935,13 @@ datatype A
 datatype B
 datacons LocA : Place A
 datacons LocB : Place B
-external is_nearby : ∀a,b. Nearby (a, b) → Bool = \"is_nearby\"
+external is_nearby : ∀a,b. Nearby (a, b) → Bool
 datacons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
-external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b)) = \"wander\"
+external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
 datatype Meet : type * type
 datacons Close : ∀a,b. Nearby (a, b) ⟶ Meet (a, b)
 datacons NotClose : ∀a, b. Meet (a, b)
-external compare : ∀a,b. Place a → Place b → Meet (a, b) = \"compare\"
+external compare : ∀a,b. Place a → Place b → Meet (a, b)
 let rec walk = fun x goal ->
   match compare x goal with
   | Close g -> g
@@ -969,7 +969,7 @@ datacons CastleRoom : Room ⟶ Placement Room
 datacons CastleYard : Yard ⟶ Placement Yard
 datacons Village : Village ⟶ Placement Village
 
-external wander : ∀a. Placement a → ∃b. Placement b = \"wander\"
+external wander : ∀a. Placement a → ∃b. Placement b
 
 let rec find_castle = efunction
   | CastleRoom x -> Room x
@@ -998,7 +998,7 @@ datacons CastleYard : Yard ⟶ Placement Yard
 datacons Garden : Garden ⟶ Placement Garden
 datacons Village : Village ⟶ Placement Village
 
-external wander : ∀a. Placement a → ∃b. Placement b = \"wander\"
+external wander : ∀a. Placement a → ∃b. Placement b
 
 let rec find = efunction
   | CastleRoom x -> Room x
@@ -1031,8 +1031,8 @@ datatype Explore
 datacons Ordinary : Explore
 datacons Shortcut : Yard ⟶ Explore
 
-external wander : ∀a. Placement a → ∃b. Placement b = \"wander\"
-external check : ∀a. Placement a → Explore = \"check\"
+external wander : ∀a. Placement a → ∃b. Placement b
+external check : ∀a. Placement a → Explore
 
 let rec search = efunction
   | CastleRoom x -> Room x
@@ -1060,8 +1060,8 @@ datacons CastleRoom : Room ⟶ Placement Room
 datacons CastleYard : Yard ⟶ Placement Yard
 datacons Village : Village ⟶ Placement Village
 
-external wander : ∀a. Placement a → ∃b. Placement b = \"wander\"
-external closer : ∀a. Placement a → Bool = \"closer\"
+external wander : ∀a. Placement a → ∃b. Placement b
+external closer : ∀a. Placement a → Bool
 
 let rec search = efunction
   | CastleRoom x -> Room x
@@ -1095,8 +1095,8 @@ datacons CastleRoom : Room ⟶ Placement Room
 datacons CastleYard : Yard ⟶ Placement Yard
 datacons Village : Village ⟶ Placement Village
 
-external wander : ∀a. Placement a → ∃b. Placement b = \"wander\"
-external closer : ∀a. Placement a → ∃b. Boolean b = \"closer\"
+external wander : ∀a. Placement a → ∃b. Placement b
+external closer : ∀a. Placement a → ∃b. Boolean b
 
 let rec search = efunction
   | CastleRoom x -> Room x
@@ -1123,7 +1123,7 @@ datacons Yard : Yard ⟶ Castle Yard
 datacons CastleYard : Yard ⟶ Placement Yard
 datacons Village : Village ⟶ Placement Village
 
-external wander : Village → ∃b. Placement b = \"wander\"
+external wander : Village → ∃b. Placement b
 
 let rec search = efunction
   | CastleYard x -> Yard x
@@ -1150,8 +1150,8 @@ datacons Yard : Yard ⟶ Castle Yard
 datacons CastleYard : Yard ⟶ Placement Yard
 datacons Village : Village ⟶ Placement Village
 
-external wander : Village → ∃b. Placement b = \"wander\"
-external entrance : Village → Answer = \"entrance\"
+external wander : Village → ∃b. Placement b
+external entrance : Village → Answer
 
 let rec search = efunction
   | CastleYard x -> Yard x
@@ -1181,9 +1181,9 @@ datacons Yard : Yard ⟶ Castle Yard
 datacons CastleYard : Yard ⟶ Placement Yard
 datacons Village : Village ⟶ Placement Village
 
-external wander : Village → ∃b. Placement b = \"wander\"
-external entrance : Village → Answer = \"entrance\"
-external enter : ∀a. Placement a → Castle a = \"enter\"
+external wander : Village → ∃b. Placement b
+external entrance : Village → Answer
+external enter : ∀a. Placement a → Castle a
 
 let rec search = efunction
   | CastleYard x -> Yard x
@@ -1213,9 +1213,9 @@ datacons Yard : Yard ⟶ Castle Yard
 datacons CastleYard : Yard ⟶ Placement Yard
 datacons Village : Village ⟶ Placement Village
 
-external wander : Village → ∃b. Placement b = \"wander\"
-external entrance : Village → Answer = \"entrance\"
-external enter : ∀a. Placement a → Castle Room = \"enter\"
+external wander : Village → ∃b. Placement b
+external entrance : Village → Answer
+external enter : ∀a. Placement a → Castle Room
 
 let rec search = efunction
   | CastleYard x -> Yard x
@@ -1240,8 +1240,8 @@ datatype Near : type
 datacons Here : ∀a. Place a ⟶ Nearby (a, a)
 datacons Near : ∀a,b. Nearby (a, b) ⟶ Near a
 datacons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
-external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b)) = \"wander\"
-external finish : ∀a. Place a → Bool = \"finish\"
+external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
+external finish : ∀a. Place a → Bool
 let rec walk = fun x ->
   match finish x with
   | True -> Near (Here x)
@@ -1261,8 +1261,8 @@ let rec walk = fun x ->
 datatype Nearby : type * type
 datacons Here : ∀a. Place a ⟶ Nearby (a, a)
 datacons Transitive : ∀a,b,c. Nearby (a, b) * Nearby (b, c) ⟶ Nearby (a, c)
-external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b)) = \"wander\"
-external finish : ∀a. Place a → Bool = \"finish\"
+external wander : ∀a. Place a → ∃b. (Place b, Nearby (a, b))
+external finish : ∀a. Place a → Bool
 let rec walk = fun x ->
   ematch finish x with
   | True -> Here x
@@ -1308,7 +1308,7 @@ let rec one_of =
 "datatype Option : type
 datacons None : ∀a. Option a
 datacons Some : ∀a. a ⟶ Option a
-external f : ∀a. a → a → a = \"f\"
+external f : ∀a. a → a → a
 
 let rec one_of =
   efunction (Some a) -> (efunction None -> a | (Some b) -> f a b)
@@ -1342,7 +1342,7 @@ datacons LCons : ∀a. a * List a ⟶ List a
 datatype Foo
 datatype Bar
 
-external f : Foo → Bar = \"f\"
+external f : Foo → Bar
 
 let rec map =
   efunction LNil -> LNil
@@ -1361,7 +1361,7 @@ datatype List : num
 datacons LNil : List 0
 datacons LCons : ∀n [0≤n]. Elem * List n ⟶ List(n+1)
 
-external f : Elem → Elem = \"f\"
+external f : Elem → Elem
 
 let rec map =
   efunction LNil -> LNil
@@ -1397,7 +1397,7 @@ datacons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 datatype Foo
 datatype Bar
 
-external f : Foo → Bar = \"f\"
+external f : Foo → Bar
 
 let rec map =
   efunction LNil -> LNil
@@ -1415,7 +1415,7 @@ let rec map =
 datatype List : num
 datacons LNil : List 0
 datacons LCons : ∀n [0≤n]. Bar * List n ⟶ List(n+1)
-external f : Bar → Bool = \"f\"
+external f : Bar → Bool
 
 let rec filter =
   efunction LNil -> LNil
@@ -1439,7 +1439,7 @@ datacons LNil : ∀a. List(a, 0)
 datacons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 
 datatype Bar
-external f : Bar → Bool = \"f\"
+external f : Bar → Bool
 
 let rec filter =
   efunction LNil -> LNil
@@ -1680,7 +1680,7 @@ datatype Num : num
 datatype Calc
 
 external let is_zero : ∀i. Num i → Bool = \"(=) 0\"
-external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k = \"fun c a b -> if c then a else b\"
+external let cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k = \"fun c a b -> if c then a else b\"
 
 datacons Lit : ∀k. Num k ⟶ Calc
 datacons Cond : Term Bool * Calc * Calc ⟶ Calc
@@ -1712,8 +1712,8 @@ let rec eval =
 datatype Num : num
 datatype Calc
 
-external is_zero : ∀i. Num i → Bool = \"(=) 0\"
-external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k = \"fun c a b -> if c then a else b\"
+external let is_zero : ∀i. Num i → Bool = \"(=) 0\"
+external let cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k = \"fun c a b -> if c then a else b\"
 
 datacons Lit : ∀k. Num k ⟶ Calc
 datacons Cond : Term Bool * Calc * Calc ⟶ Calc
@@ -1749,7 +1749,7 @@ datatype Calc
 
 external let mult : ∀i,j. Num i → Num j → ∃k. Num k = \"(*)\"
 external let is_zero : ∀i. Num i → Bool = \"(=) 0\"
-external cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k = \"fun c a b -> if c then a else b\"
+external let cond : ∀i,j. Bool → Num i → Num j → ∃k. Num k = \"fun c a b -> if c then a else b\"
 
 datacons Lit : ∀k. Num k ⟶ Calc
 datacons Plus : Calc * Calc ⟶ Calc
@@ -1850,7 +1850,7 @@ let rec foo =
        skip_if !debug "debug";
        test_nonrec_case "nonrec simple"
 "datatype Order : num * num
-external compare : ∀i, j. Num i → Num j → (Order (i, j), Int) = \"compare\"
+external compare : ∀i, j. Num i → Num j → (Order (i, j), Int)
 let cmp7and8, res = compare 7 8
 "
         [1, "(Order (7, 8), Int)"];
@@ -1929,7 +1929,7 @@ let rec zip =
 "datatype Unary : num
 datacons UNil : Unary 0
 datacons UCons : ∀n [0≤n]. Unary n ⟶ Unary (n+1)
-external num_of_unary : ∀n. Unary n → Num n = \"num_of_unary\"
+external num_of_unary : ∀n. Unary n → Num n
 
 let rec zip =
   efunction
@@ -2061,9 +2061,9 @@ let rec filter_map2 = fun p f ->
 datatype List : num
 datacons LNil : ∀a. List 0
 datacons LCons : ∀n [0≤n]. Bar * List n ⟶ List(n+1)
-external p : Bar → Bar → Bool = \"p\"
-external q : Bar → Bool = \"p\"
-external f : Bar → Bar → Bar = \"f\"
+external p : Bar → Bar → Bool
+external q : Bar → Bool
+external f : Bar → Bar → Bar
 
 let rec filter_map2 =
   efunction
@@ -2243,7 +2243,7 @@ datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
 
-external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external height : ∀a,n. Avl (a, n) → Num n
 
 let create = fun l x r ->
   ematch height l, height r with
@@ -2297,12 +2297,12 @@ datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
 
-external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external height : ∀a,n. Avl (a, n) → Num n
 external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
-       0 ≤ i].Avl (a, i) = \"create\"
-external singleton : ∀a. a → Avl (a, 1) = \"singleton\"
+       0 ≤ i].Avl (a, i)
+external singleton : ∀a. a → Avl (a, 1)
 
 let rotr = efunction (* hl = hr + 3 *)
     | Empty, x, r -> assert false
@@ -2339,12 +2339,12 @@ datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
 
-external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external height : ∀a,n. Avl (a, n) → Num n
 external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
-       0 ≤ i].Avl (a, i) = \"create\"
-external singleton : ∀a. a → Avl (a, 1) = \"singleton\"
+       0 ≤ i].Avl (a, i)
+external singleton : ∀a. a → Avl (a, 1)
 
 let rotr = efunction
     | Empty, x, r -> assert false
@@ -2380,12 +2380,12 @@ datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
 
-external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external height : ∀a,n. Avl (a, n) → Num n
 external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
-       0 ≤ i].Avl (a, i) = \"create\"
-external singleton : ∀a. a → Avl (a, 1) = \"singleton\"
+       0 ≤ i].Avl (a, i)
+external singleton : ∀a. a → Avl (a, 1)
 
 let rotr = efunction
     | Empty, x, r -> assert false
@@ -2423,12 +2423,12 @@ datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
 
-external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external height : ∀a,n. Avl (a, n) → Num n
 external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
-       0 ≤ i].Avl (a, i) = \"create\"
-external singleton : ∀a. a → Avl (a, 1) = \"singleton\"
+       0 ≤ i].Avl (a, i)
+external singleton : ∀a. a → Avl (a, 1)
 
 let rotr = fun l x r -> (* hl = hr + 3 *)
     (ematch l with
@@ -2460,12 +2460,12 @@ datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
 
-external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external height : ∀a,n. Avl (a, n) → Num n
 external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
-       0 ≤ i].Avl (a, i) = \"create\"
-external singleton : ∀a. a → Avl (a, 1) = \"singleton\"
+       0 ≤ i].Avl (a, i)
+external singleton : ∀a. a → Avl (a, 1)
 
 let rotl = efunction (* hl + 3 = hr *)
     | l, x, Empty -> assert false
@@ -2502,12 +2502,12 @@ datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
 
-external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external height : ∀a,n. Avl (a, n) → Num n
 external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
-       0 ≤ i].Avl (a, i) = \"create\"
-external singleton : ∀a. a → Avl (a, 1) = \"singleton\"
+       0 ≤ i].Avl (a, i)
+external singleton : ∀a. a → Avl (a, 1)
 
 let rotl = efunction
     | l, x, Empty -> assert false
@@ -2544,12 +2544,12 @@ datacons Node :
   ∀a,k,m,n [k=max(m,n) ∧ 0≤m ∧ 0≤n ∧ n≤m+2 ∧ m≤n+2].
      Avl (a, m) * a * Avl (a, n) * Num (k+1) ⟶ Avl (a, k+1)
 
-external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external height : ∀a,n. Avl (a, n) → Num n
 external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
-       0 ≤ i].Avl (a, i) = \"create\"
-external singleton : ∀a. a → Avl (a, 1) = \"singleton\"
+       0 ≤ i].Avl (a, i)
+external singleton : ∀a. a → Avl (a, 1)
 
 let rotl = fun l x r -> (* hl + 3 = hr *)
     (ematch r with
@@ -2587,17 +2587,17 @@ external let compare : ∀a. a → a → LinOrder =
   \"fun x y -> let c=Pervasives.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
-external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external height : ∀a,n. Avl (a, n) → Num n
 external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
-       0 ≤ i].Avl (a, i) = \"create\"
+       0 ≤ i].Avl (a, i)
 external rotr :
   ∀n, a. Avl (a, n+3) → a → Avl (a, n) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotr\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
 external rotl :
   ∀n, a. Avl (a, n) → a → Avl (a, n+3) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotl\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
 
 let rec add = fun x -> efunction
   | Empty -> Node (Empty, x, Empty, 1)
@@ -2638,17 +2638,17 @@ external let compare : ∀a. a → a → LinOrder =
   \"fun x y -> let c=Pervasives.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
-external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external height : ∀a,n. Avl (a, n) → Num n
 external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
-       0 ≤ i].Avl (a, i) = \"create\"
+       0 ≤ i].Avl (a, i)
 external rotr :
   ∀n, a. Avl (a, n+3) → a → Avl (a, n) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotr\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
 external rotl :
   ∀n, a. Avl (a, n) → a → Avl (a, n+3) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotl\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
 
 let rec add = fun x -> efunction
   | Empty -> Node (Empty, x, Empty, 1)
@@ -2692,17 +2692,17 @@ external let compare : ∀a. a → a → LinOrder =
   \"fun x y -> let c=Pervasives.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
-external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external height : ∀a,n. Avl (a, n) → Num n
 external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
-       0 ≤ i].Avl (a, i) = \"create\"
+       0 ≤ i].Avl (a, i)
 external rotr :
   ∀n, a. Avl (a, n+3) → a → Avl (a, n) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotr\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
 external rotl :
   ∀n, a. Avl (a, n) → a → Avl (a, n+3) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotl\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
 
 let rec add = fun x -> efunction
   | Empty -> Node (Empty, x, Empty, 1)
@@ -2744,17 +2744,17 @@ external let compare : ∀a. a → a → LinOrder =
   \"fun x y -> let c=Pervasives.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
-external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external height : ∀a,n. Avl (a, n) → Num n
 external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
-       0 ≤ i].Avl (a, i) = \"create\"
+       0 ≤ i].Avl (a, i)
 external rotr :
   ∀n, a. Avl (a, n+3) → a → Avl (a, n) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotr\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
 external rotl :
   ∀n, a. Avl (a, n) → a → Avl (a, n+3) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotl\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
 
 let rec add = fun x -> efunction
   | Empty -> Node (Empty, x, Empty, 1)
@@ -2799,17 +2799,17 @@ external let compare : ∀a. a → a → LinOrder =
   \"fun x y -> let c=Pervasives.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
-external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external height : ∀a,n. Avl (a, n) → Num n
 external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
-       0 ≤ i].Avl (a, i) = \"create\"
+       0 ≤ i].Avl (a, i)
 external rotr :
   ∀n, a. Avl (a, n+3) → a → Avl (a, n) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotr\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
 external rotl :
   ∀n, a. Avl (a, n) → a → Avl (a, n+3) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotl\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
 
 let rec remove_min_binding = efunction
   | Empty -> assert false
@@ -2845,17 +2845,17 @@ external let compare : ∀a. a → a → LinOrder =
   \"fun x y -> let c=Pervasives.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
-external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external height : ∀a,n. Avl (a, n) → Num n
 external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
-       0 ≤ i].Avl (a, i) = \"create\"
+       0 ≤ i].Avl (a, i)
 external rotr :
   ∀n, a. Avl (a, n+3) → a → Avl (a, n) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotr\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
 external rotl :
   ∀n, a. Avl (a, n) → a → Avl (a, n+3) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotl\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
 
 let rec remove_min_binding = efunction
   | Empty -> assert false
@@ -2891,22 +2891,21 @@ external let compare : ∀a. a → a → LinOrder =
   \"fun x y -> let c=Pervasives.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
-external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external height : ∀a,n. Avl (a, n) → Num n
 external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
-       0 ≤ i].Avl (a, i) = \"create\"
+       0 ≤ i].Avl (a, i)
 external rotr :
   ∀n, a. Avl (a, n+3) → a → Avl (a, n) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotr\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
 external rotl :
   ∀n, a. Avl (a, n) → a → Avl (a, n+3) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotl\"
-external min_binding : ∀n, a [1 ≤ n]. Avl (a, n) → a = \"min_binding\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
+external min_binding : ∀n, a [1 ≤ n]. Avl (a, n) → a
 external remove_min_binding :
   ∀n, a [1 ≤ n]. Avl (a, n) →
     ∃k[k + 2 ≤ 2 n ∧ n ≤ k + 1 ∧ k ≤ n].Avl (a, k)
-  = \"remove_min_binding\"
   
 
 let merge = efunction
@@ -2946,22 +2945,21 @@ external let compare : ∀a. a → a → LinOrder =
   \"fun x y -> let c=Pervasives.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
-external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external height : ∀a,n. Avl (a, n) → Num n
 external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
-       0 ≤ i].Avl (a, i) = \"create\"
+       0 ≤ i].Avl (a, i)
 external rotr :
   ∀n, a. Avl (a, n+3) → a → Avl (a, n) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotr\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
 external rotl :
   ∀n, a. Avl (a, n) → a → Avl (a, n+3) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotl\"
-external min_binding : ∀n, a [1 ≤ n]. Avl (a, n) → a = \"min_binding\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
+external min_binding : ∀n, a [1 ≤ n]. Avl (a, n) → a
 external remove_min_binding :
   ∀n, a [1 ≤ n]. Avl (a, n) →
     ∃k[k + 2 ≤ 2 n ∧ n ≤ k + 1 ∧ k ≤ n].Avl (a, k)
-  = \"remove_min_binding\"
   
 
 let merge = efunction
@@ -3001,22 +2999,21 @@ external let compare : ∀a. a → a → LinOrder =
   \"fun x y -> let c=Pervasives.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
-external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external height : ∀a,n. Avl (a, n) → Num n
 external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
-       0 ≤ i].Avl (a, i) = \"create\"
+       0 ≤ i].Avl (a, i)
 external rotr :
   ∀n, a. Avl (a, n+3) → a → Avl (a, n) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotr\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
 external rotl :
   ∀n, a. Avl (a, n) → a → Avl (a, n+3) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotl\"
-external min_binding : ∀n, a [1 ≤ n]. Avl (a, n) → a = \"min_binding\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
+external min_binding : ∀n, a [1 ≤ n]. Avl (a, n) → a
 external remove_min_binding :
   ∀n, a [1 ≤ n]. Avl (a, n) →
     ∃k[k + 2 ≤ 2 n ∧ n ≤ k + 1 ∧ k ≤ n].Avl (a, k)
-  = \"remove_min_binding\"
   
 
 let merge = efunction
@@ -3057,22 +3054,21 @@ external let compare : ∀a. a → a → LinOrder =
   \"fun x y -> let c=Pervasives.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
-external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external height : ∀a,n. Avl (a, n) → Num n
 external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
-       0 ≤ i].Avl (a, i) = \"create\"
+       0 ≤ i].Avl (a, i)
 external rotr :
   ∀n, a. Avl (a, n+3) → a → Avl (a, n) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotr\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
 external rotl :
   ∀n, a. Avl (a, n) → a → Avl (a, n+3) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotl\"
-external min_binding : ∀n, a [1 ≤ n]. Avl (a, n) → a = \"min_binding\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
+external min_binding : ∀n, a [1 ≤ n]. Avl (a, n) → a
 external remove_min_binding :
   ∀n, a [1 ≤ n]. Avl (a, n) →
     ∃k[k + 2 ≤ 2 n ∧ n ≤ k + 1 ∧ k ≤ n].Avl (a, k)
-  = \"remove_min_binding\"
   
 
 let merge = efunction
@@ -3111,26 +3107,25 @@ external let compare : ∀a. a → a → LinOrder =
   \"fun x y -> let c=Pervasives.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
-external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external height : ∀a,n. Avl (a, n) → Num n
 external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
-       0 ≤ i].Avl (a, i) = \"create\"
+       0 ≤ i].Avl (a, i)
 external rotr :
   ∀n, a. Avl (a, n+3) → a → Avl (a, n) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotr\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
 external rotl :
   ∀n, a. Avl (a, n) → a → Avl (a, n+3) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotl\"
-external min_binding : ∀n, a [1 ≤ n]. Avl (a, n) → a = \"min_binding\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
+external min_binding : ∀n, a [1 ≤ n]. Avl (a, n) → a
 external remove_min_binding :
   ∀n, a [1 ≤ n]. Avl (a, n) →
     ∃k[k + 2 ≤ 2 n ∧ n ≤ k + 1 ∧ k ≤ n].Avl (a, k)
-  = \"remove_min_binding\"
 external merge :
   ∀n, k, a [n ≤ k + 2 ∧ k ≤ n + 2].
     (Avl (a, n), Avl (a, k)) → ∃i[i ≤ n + k ∧ k ≤ i ∧
-       n ≤ i ∧ i≤max (k + 1, n + 1)].Avl (a, i) = \"merge\"
+       n ≤ i ∧ i≤max (k + 1, n + 1)].Avl (a, i)
   
   
 let rec remove = fun x -> efunction
@@ -3172,26 +3167,25 @@ external let compare : ∀a. a → a → LinOrder =
   \"fun x y -> let c=Pervasives.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
-external height : ∀a,n. Avl (a, n) → Num n = \"height\"
+external height : ∀a,n. Avl (a, n) → Num n
 external create :
   ∀a,n,k[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
       Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1) ∧
-       0 ≤ i].Avl (a, i) = \"create\"
+       0 ≤ i].Avl (a, i)
 external rotr :
   ∀n, a. Avl (a, n+3) → a → Avl (a, n) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotr\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
 external rotl :
   ∀n, a. Avl (a, n) → a → Avl (a, n+3) →
-       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i) = \"rotl\"
-external min_binding : ∀n, a [1 ≤ n]. Avl (a, n) → a = \"min_binding\"
+       ∃i[n+3 ≤ i ∧ i ≤ n+4].Avl (a, i)
+external min_binding : ∀n, a [1 ≤ n]. Avl (a, n) → a
 external remove_min_binding :
   ∀n, a [1 ≤ n]. Avl (a, n) →
     ∃k[k + 2 ≤ 2 n ∧ n ≤ k + 1 ∧ k ≤ n].Avl (a, k)
-  = \"remove_min_binding\"
 external merge :
   ∀n, k, a [n ≤ k + 2 ∧ k ≤ n + 2].
     (Avl (a, n), Avl (a, k)) → ∃i[i ≤ n + k ∧ k ≤ i ∧
-       n ≤ i ∧ i≤max (k + 1, n + 1)].Avl (a, i) = \"merge\"
+       n ≤ i ∧ i≤max (k + 1, n + 1)].Avl (a, i)
   
   
 let rec remove = fun x -> efunction
