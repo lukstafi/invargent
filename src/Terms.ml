@@ -614,7 +614,7 @@ type struct_item =
 | LetRecVal of
     string option * string * uexpr * typ_scheme option * uexpr list * loc
 | LetVal of
-    string option * pat * uexpr * typ_scheme option * uexpr list * loc
+    string option * pat * uexpr * typ_scheme option * loc
 
 type annot_item =
 | ITypConstr of
@@ -629,7 +629,7 @@ type annot_item =
       texpr list * (pat * int option) list * loc
 | ILetVal of
     string option * pat * texpr * typ_scheme * (string * typ_scheme) list *
-      texpr list * (pat * int option) list * loc
+      (pat * int option) list * loc
 
 let rec enc_funtype res = function
   | [] -> res
@@ -641,7 +641,7 @@ let typ_scheme_of_item ?(env=[]) = function
   vs, phi, enc_funtype (TCons (c_n, List.map (fun v->TVar v) c_args)) args
 | PrimVal (_, _, t, _, _) -> t
 | LetRecVal (_, name, _, _, _, _)
-| LetVal (_, PVar (name, _), _, _, _, _) -> List.assoc name env
+| LetVal (_, PVar (name, _), _, _, _) -> List.assoc name env
 | LetVal _ -> raise Not_found
 
 exception NoAnswer of sort * string * (typ * typ) option * loc
@@ -1051,7 +1051,7 @@ let pr_sig_item ppf = function
      | None -> ()
      | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     fprintf ppf "@[<2>val@ %s :@ %a@]" name pr_typscheme tysch
-  | ILetVal (docu, _, _, _, tyschs, _, _, _) ->
+  | ILetVal (docu, _, _, _, tyschs, _, _) ->
     (match docu with
      | None -> ()
      | Some doc -> fprintf ppf "(**%s*)@\n" doc);
@@ -1093,12 +1093,12 @@ let pr_struct_item ppf = function
      | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     fprintf ppf "@[<2>let rec@ %s%a@ =@ %a@]%a" name
       pr_opt_sig_tysch tysch pr_uexpr expr pr_opt_utests tests
-  | LetVal (docu, pat, expr, tysch, tests, _) ->
+  | LetVal (docu, pat, expr, tysch, _) ->
     (match docu with
      | None -> ()
      | Some doc -> fprintf ppf "(**%s*)@\n" doc);
-    fprintf ppf "@[<2>let@ %a@%a@ =@ %a@]%a" pr_pat pat
-      pr_opt_sig_tysch tysch pr_uexpr expr pr_opt_utests tests
+    fprintf ppf "@[<2>let@ %a@%a@ =@ %a@]" pr_pat pat
+      pr_opt_sig_tysch tysch pr_uexpr expr
 
 let pr_program ppf p =
   let p =

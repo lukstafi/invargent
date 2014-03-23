@@ -166,7 +166,7 @@ type struct_item =
 | LetRecVal of
     string option * string * uexpr * typ_scheme option * uexpr list * lc
 | LetVal of
-    string option * pat * uexpr * typ_scheme option * uexpr list * lc
+    string option * pat * uexpr * typ_scheme option * lc
 
 (** Represents both signature items and annotated structure items to
     be printed as OCaml source code. *)
@@ -183,7 +183,7 @@ type annot_item =
       texpr list * (pat * int option) list * lc
 | ILetVal of
     string option * pat * texpr * typ_scheme * (string * typ_scheme) list *
-      texpr list * (pat * int option) list * lc
+      (pat * int option) list * lc
 
 val typ_size : typ -> int
 val atom_size : atom -> int

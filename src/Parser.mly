@@ -555,8 +555,8 @@ structure_item_raw:
   | opt_docucomment LET REC EQUAL
       { syntax_error
 	  "lacking global let-rec-binding identifier" 4 }
-  | opt_docucomment LET pattern opt_sig_typ_scheme EQUAL expr opt_tests
-      { LetVal ($1, $3, $6, $4, $7, get_loc ()) }
+  | opt_docucomment LET pattern opt_sig_typ_scheme EQUAL expr
+      { LetVal ($1, $3, $6, $4, get_loc ()) }
   | opt_docucomment LET EQUAL
       { syntax_error
 	  "lacking global let-binding identifier" 3 }

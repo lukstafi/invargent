@@ -456,7 +456,6 @@ let rec f = fun y -> function
   | T1 z -> True
   | T2 -> y
 test f False c"
-(* FIXME: use [let f = ...] and make [f] visible to [test] *)
         [1, "∃a. δ = (Bool → T a → Bool)"]
     );
 
@@ -491,7 +490,6 @@ let rec g = function
   | K (x, y) -> LCons (x, y)
   | L (x, y) -> y
 "
-(* FIXME: [let rec] into [let] *)
         [1, "∃a, b. δ = (Erk (a, List a, b) → List a)"]
     );
 
@@ -512,7 +510,6 @@ let rec g = function
   | L (x, y) -> y
 test g (L (LCons (True, LNil), LCons (\"a\", LNil)))
 "
-(* FIXME: [let rec] into [let] *)
       [1, "∃a. δ = (Erk (List a, List (List String), a) → List (List String))"]
     );
 

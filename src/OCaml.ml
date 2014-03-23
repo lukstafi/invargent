@@ -341,7 +341,7 @@ let rec pr_struct_items ~funtys ~lettys constrs ppf defined defining prog =
       name pr_typscheme (tysch, false) (pr_expr funtys lettys) expr;
     assert (CNames.is_empty defining);
     pr_struct_items ~funtys ~lettys constrs ppf defined CNames.empty prog
-  | ILetVal (docu, p, e, tysch, _, [], elim_extypes, _)::prog ->
+  | ILetVal (docu, p, e, tysch, _, elim_extypes, _)::prog ->
     let vdef = match p with
       | One _ | PVar _ -> true
       | Zero | PAnd _ | PCons _ -> false in
@@ -363,22 +363,6 @@ let rec pr_struct_items ~funtys ~lettys constrs ppf defined defining prog =
      | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     fprintf ppf "@[<2>let rec@ %s :@ %a =@ %a@]@\n@[<2>let () =@ %a@ ()@]@\n"
       name pr_typscheme (tysch, false) (pr_expr funtys lettys) expr
-      (pr_line_list "" (pr_test_line funtys lettys)) tests;
-    assert (CNames.is_empty defining);
-    pr_struct_items ~funtys ~lettys constrs ppf defined CNames.empty prog
-  | ILetVal (docu, p, e, tysch, _, tests, elim_extypes, _)::prog ->
-    let vdef = match p with
-      | One _ | PVar _ -> true
-      | Zero | PAnd _ | PCons _ -> false in
-    let e = postprocess elim_extypes e in
-    let tests = List.map (postprocess elim_extypes) tests in
-    (match docu with
-     | None -> ()
-     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
-    fprintf ppf "@[<2>let@ %a@ %s: %a%s =@ %a@]@\n[<2>let () =@ %a@ ()@]@\n"
-      pr_pat p (if vdef then "" else "(*")
-      pr_typscheme (tysch, false) (if vdef then "" else "*)")
-      (pr_expr funtys lettys) e
       (pr_line_list "" (pr_test_line funtys lettys)) tests;
     assert (CNames.is_empty defining);
     pr_struct_items ~funtys ~lettys constrs ppf defined CNames.empty prog

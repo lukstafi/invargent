@@ -198,9 +198,7 @@
   definition>|<cell|<verbatim|let rec f =>...>|<cell|<verbatim|LetRecVal>>>|<row|<cell|non-rec.
   definition>|<cell|<verbatim|let p1,p2 =>...>|<cell|<verbatim|LetVal>>>|<row|<cell|definition
   with test>|<cell|<verbatim|let rec f =>...<verbatim| test e1;
-  >...<verbatim|; en>>|<cell|<verbatim|LetRecVal>>>|<row|<cell|>|<cell|<verbatim|let
-  p1,p2 =>...<verbatim| test e1; >...<verbatim|;
-  en>>|<cell|<verbatim|LetVal>>>>>>
+  >...<verbatim|; en>>|<cell|<verbatim|LetRecVal>>>>>>
 
   Tests list expressions of type <verbatim|Boolean> that at runtime have to
   evaluate to <verbatim|True>. Type inference is affected by the constraints

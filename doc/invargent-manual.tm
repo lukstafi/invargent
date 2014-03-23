@@ -244,21 +244,26 @@
   constraints, and <verbatim|test> syntax for including constraints of use
   cases with constraint of a toplevel definition. To ensure only one
   maximally general type for <verbatim|equal>, we use <verbatim|assert false>
-  and <verbatim|test>. We add the lines:
+  and <verbatim|test>. We can either add the <verbatim|assert false> clauses:
 
   <\code>
     \ \ \| TInt, TList l -\> (function Nil -\> assert false)
 
     \ \ \| TList l, TInt -\> (fun _ -\> function Nil -\> assert false)
+  </code>
 
+  The first assertion excludes independence of the first encoded type and the
+  second argument. The second assertion excludes independence of the second
+  encoded type and the third argument. Or we can add the <verbatim|test>
+  clause:
+
+  <\code>
     test b_not (equal (TInt, TList TInt) Zero Nil)
   </code>
 
-  Actually, InvarGenT returns the expected type
-  <verbatim|equal<math|:\<forall\>>a,b.(Ty a, Ty
-  b)<math|\<rightarrow\>>a<math|\<rightarrow\>>b<math|\<rightarrow\>>Bool>
-  when either the two <verbatim|assert false> clauses or the <verbatim|test>
-  clause is added.
+  The test ensures that arguments of distinct types can be <no-break>given.
+  InvarGenT returns the expected type <verbatim|equal<math|:\<forall\>>a,b.(Ty
+  a, Ty b)<math|\<rightarrow\>>a<math|\<rightarrow\>>b<math|\<rightarrow\>>Bool>.
 
   Now we demonstrate numerical invariants:
 
@@ -593,8 +598,7 @@
   definition>|<cell|<verbatim|let rec f =>...>>|<row|<cell|non-rec.
   definition>|<cell|<verbatim|let a, b =>...>>|<row|<cell|definition with
   test>|<cell|<verbatim|let rec f =>...<verbatim| test e1; >...<verbatim|;
-  en>>>|<row|<cell|>|<cell|<verbatim|let p1,p2 =>...<verbatim| test e1;
-  >...<verbatim|; en>>>>>>
+  en>>>>>>
 
   Tests list expressions of type <verbatim|Bool> that at runtime have to
   evaluate to <verbatim|True>. Type inference is affected by the constraints

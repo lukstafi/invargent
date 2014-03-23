@@ -182,14 +182,9 @@ let normalize_item = function
            more_extys @ extys, e)
         extys tes in
     extys, LetRecVal (docu, x, e, ty, tes, lc)
-  | LetVal (docu, p, e, ty, tes, lc) ->
+  | LetVal (docu, p, e, ty, lc) ->
     let extys, e = normalize_expr e in
-    let extys, tes = fold_map
-        (fun extys e ->
-           let more_extys, e = normalize_expr e in
-           more_extys @ extys, e)
-        extys tes in
-    extys, LetVal (docu, p, e, ty, tes, lc)
+    extys, LetVal (docu, p, e, ty, lc)
 
 let normalize_program = List.map normalize_item
 
@@ -571,9 +566,7 @@ let infer_prog_mockup (prog : program) =
       gamma := (x, tsch) :: !gamma;
       [], VarSet.empty, And []
     | new_ex_types,
-      (LetRecVal (docu, x, e, defsig, tests, loc) as it)
-    | new_ex_types,
-      (LetVal (docu, PVar (x, _), e, defsig, tests, loc) as it) ->
+      (LetRecVal (docu, x, e, defsig, tests, loc) as it) ->
       let bvs, sig_cn, t = match defsig with
         | None ->
           let b = fresh_typ_var () in
@@ -586,7 +579,21 @@ let infer_prog_mockup (prog : program) =
         constr_gen_letrec ~nonrec !gamma x e sig_cn t tests in
       gamma := (x, typ_sch) :: !gamma;
       new_ex_types, add_vars more_preserve preserve, cn
-    | new_ex_types, LetVal (docu, p, e, defsig, tests, loc) ->
+    | new_ex_types,
+      (LetVal (docu, PVar (x, _), e, defsig, loc) as it) ->
+      let bvs, sig_cn, t = match defsig with
+        | None ->
+          let b = fresh_typ_var () in
+          let tb = TVar b in
+          [b], [], tb
+        | Some (vs, phi, t) -> vs, phi, t in
+      let preserve = VarSet.union (fvs_typ t) (fvs_formula sig_cn) in
+      let nonrec = match it with LetVal _ -> true | _ -> false in
+      let chi_id, typ_sch, cn, e, tests, elim_cells, more_preserve =
+        constr_gen_letrec ~nonrec !gamma x e sig_cn t [] in
+      gamma := (x, typ_sch) :: !gamma;
+      new_ex_types, add_vars more_preserve preserve, cn
+    | new_ex_types, LetVal (docu, p, e, defsig, loc) ->
       let avs, sig_vs, sig_cn, t = match defsig with
         | None ->
           let a = fresh_typ_var () in
@@ -601,14 +608,6 @@ let infer_prog_mockup (prog : program) =
       let cn = impl sig_cn cn in
       let cn =
         if sig_vs <> [] then All (vars_of_list sig_vs, cn) else cn in
-      let test_cn, tests, elim_cells, more_preserve =
-        constr_gen_tests !gamma tests in
-      let preserve = add_vars more_preserve preserve in
-      let test_cn = impl exphi test_cn in
-      let test_cn =
-        if not (VarSet.is_empty bs) && test_cn <> And []
-        then All (bs, test_cn) else test_cn in
-      let cn = cn_and cn test_cn in
       (* WARNING: dropping constraints on introduced variables *)
       (* FIXME: Why is everything a postcondition? *)
       let typ_sch_ex =
@@ -797,9 +796,13 @@ let infer_prog solver prog =
           gamma := (x, tsch) :: !gamma;
           [IPrimVal (docu, x, tsch, ext_def, lc)]
         | new_ex_types,
-          (LetRecVal (docu, x, e, defsig, tests, loc) as it)
+          (LetRecVal (docu, x, e, defsig, _, loc) as it)
         | new_ex_types,
-          (LetVal (docu, PVar (x, _), e, defsig, tests, loc) as it) ->
+          (LetVal (docu, PVar (x, _), e, defsig, loc) as it) ->
+          let tests = match it with
+            | LetRecVal (_, _, _, _, tests, _) -> tests
+            | LetVal _ -> []
+            | _ -> assert false in
           let bvs, sig_cn, t = match defsig with
             | None ->
               let b = fresh_typ_var () in
@@ -807,7 +810,7 @@ let infer_prog solver prog =
               [b], [], tb
             | Some (vs, phi, t) -> vs, phi, t in
           let pat_loc = match it with
-            | LetVal (_, PVar (_, lc), _, _, _, _) -> Some lc
+            | LetVal (_, PVar (_, lc), _, _, _) -> Some lc
             | _ -> None in
           let chi_id, _, cn, e, tests, elim_cells, preserve =
             constr_gen_letrec ~nonrec:(pat_loc<>None)
@@ -858,12 +861,12 @@ let infer_prog solver prog =
            | Some lc ->
              ex_items @
                [ILetVal (docu, PVar (x, lc), e, typ_sch, [x, typ_sch],
-                         tests, elim_extypes, loc)]
+                         elim_extypes, loc)]
            | None ->
              ex_items @
                [ILetRecVal (docu, x, e, typ_sch,
                             tests, elim_extypes, loc)])
-        | new_ex_types, LetVal (docu, p, e, defsig, tests, loc) ->
+        | new_ex_types, LetVal (docu, p, e, defsig, loc) ->
           let avs, sig_vs, sig_cn, t = match defsig with
             | None ->
               let a = fresh_typ_var () in
@@ -880,20 +883,12 @@ let infer_prog solver prog =
           let cn = impl sig_cn cn in
           let cn =
             if sig_vs <> [] then All (vars_of_list sig_vs, cn) else cn in
-          let test_cn, tests, elim_cells, more_preserve =
-            constr_gen_tests !gamma tests in
-          let preserve = add_vars more_preserve preserve in
-          let test_cn = impl exphi test_cn in
-          let test_cn =
-            if not (VarSet.is_empty bs) && test_cn <> And []
-            then All (bs, test_cn) else test_cn in
-          let cn = cn_and cn test_cn in
           let cn =
             if VarSet.is_empty avs then cn else Ex (avs, cn) in
           (*[* Format.printf "LetVal: p=%a@\ncn=%a@\n%!" pr_pat p
              pr_cnstrnt cn; *]*)
           let q, phi, sb_chi = solver ~new_ex_types ~preserve cn in
-          let elim_extypes = concat_map (!) (elim_cell::elim_cells) in
+          let elim_extypes = !elim_cell in
           let sb, phi = separate_subst q phi in
           let res = subst_typ sb t in
           let gvs = VarSet.union (fvs_formula phi) (fvs_typ res) in
@@ -909,8 +904,7 @@ let infer_prog solver prog =
             pr_ty res pr_vars (vars_of_list gvs)
             pr_formula phi pr_subst sb pr_formula exphi; *]*)
           let top_sch = gvs, phi, res in
-          let e = annotate_expr q sb sb_chi nice_sb e
-          and tests = List.map (annotate_expr q sb sb_chi nice_sb) tests in
+          let e = annotate_expr q sb sb_chi nice_sb e in
           let exphi = subst_formula sb exphi in
           let exsb, exphi = separate_subst q exphi in
           let exsb = update_sb ~more_sb:exsb sb in
@@ -987,7 +981,7 @@ let infer_prog solver prog =
           let typ_schs = List.map typ_sch_ex env in
           gamma := typ_schs @ !gamma;
           ex_items @ List.rev !more_items
-          @ [ILetVal (docu, p, e, top_sch, typ_schs, tests, elim_extypes, loc)]
+          @ [ILetVal (docu, p, e, top_sch, typ_schs, elim_extypes, loc)]
       ) prog in
   if !time_toplevel
   then Format.printf "@\nTotal time %.3fs@\n" (Sys.time () -. start_time);
