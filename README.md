@@ -1,6 +1,6 @@
 Invariant Generation as Type Inference with GADTs and Existentials.
 
-Current project website: http://www.ii.uni.wroc.pl/~lukstafi/pmwiki/index.php?n=Infer.Infer
+Some additional information on the project: http://www.ii.uni.wroc.pl/~lukstafi/pmwiki/index.php?n=Infer.Infer
 
 See documentation in the `doc` directory.
 
@@ -14,7 +14,7 @@ sudo cp ./invargent /usr/local/bin/invargent # optionally, install executable
 make clean  # remove the executable and intermediate files
 ```
 
-Version 1.2.1 will be released by the end of March 2014 and is the last version I plan to work on this year, unless new incentives appear.
+Version 1.2.1 is the last one planned for 2014, unless new incentives appear.
 
 Milestones: [x] - completed, [#] - finishing (75%-95%), [+] - in the middle (25%-75%), [-] - just started (5%-25%), [_] - not started.
 
