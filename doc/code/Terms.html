@@ -38,7 +38,8 @@ Data structures and printing for InvarGenT.
 <b>Since</b> Mar 2013<br>
 </div>
 <hr width="100%">
-<br>
+
+<pre><span id="VALshow_extypes"><span class="keyword">val</span> show_extypes</span> : <code class="type">bool Pervasives.ref</code></pre><br>
 <h2 id="2_Definitions">Definitions</h2><br>
 
 <pre><span id="VALdebug"><span class="keyword">val</span> debug</span> : <code class="type">bool Pervasives.ref</code></pre>
@@ -534,7 +535,7 @@ Set <code class="code">extype_id</code> and <code class="code">predvar_id</code>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTstruct_item.LetVal"><span class="constructor">LetVal</span></span> <span class="keyword">of</span> <code class="type">string option * <a href="Terms.html#TYPEpat">pat</a> * <a href="Terms.html#TYPEuexpr">uexpr</a> * <a href="Terms.html#TYPEtyp_scheme">typ_scheme</a> option<br>        * <a href="Terms.html#TYPEuexpr">uexpr</a> list * <a href="Terms.html#TYPElc">lc</a></code></code></td>
+<code><span id="TYPEELTstruct_item.LetVal"><span class="constructor">LetVal</span></span> <span class="keyword">of</span> <code class="type">string option * <a href="Terms.html#TYPEpat">pat</a> * <a href="Terms.html#TYPEuexpr">uexpr</a> * <a href="Terms.html#TYPEtyp_scheme">typ_scheme</a> option * <a href="Terms.html#TYPElc">lc</a></code></code></td>
 
 </tr></table>
 
@@ -577,7 +578,7 @@ Set <code class="code">extype_id</code> and <code class="code">predvar_id</code>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTannot_item.ILetVal"><span class="constructor">ILetVal</span></span> <span class="keyword">of</span> <code class="type">string option * <a href="Terms.html#TYPEpat">pat</a> * <a href="Terms.html#TYPEtexpr">texpr</a> * <a href="Terms.html#TYPEtyp_scheme">typ_scheme</a><br>        * (string * <a href="Terms.html#TYPEtyp_scheme">typ_scheme</a>) list * <a href="Terms.html#TYPEtexpr">texpr</a> list<br>        * (<a href="Terms.html#TYPEpat">pat</a> * int option) list * <a href="Terms.html#TYPElc">lc</a></code></code></td>
+<code><span id="TYPEELTannot_item.ILetVal"><span class="constructor">ILetVal</span></span> <span class="keyword">of</span> <code class="type">string option * <a href="Terms.html#TYPEpat">pat</a> * <a href="Terms.html#TYPEtexpr">texpr</a> * <a href="Terms.html#TYPEtyp_scheme">typ_scheme</a><br>        * (string * <a href="Terms.html#TYPEtyp_scheme">typ_scheme</a>) list * (<a href="Terms.html#TYPEpat">pat</a> * int option) list<br>        * <a href="Terms.html#TYPElc">lc</a></code></code></td>
 
 </tr></table>
 

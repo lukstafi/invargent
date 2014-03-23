@@ -63,7 +63,13 @@ Abduction for InvarGenT.
     are not most general. Default <code class="code">false</code>.<br>
 </div>
 
-<pre><span id="VALricher_answers"><span class="keyword">val</span> richer_answers</span> : <code class="type">bool Pervasives.ref</code></pre>
+<pre><span id="VALricher_answers"><span class="keyword">val</span> richer_answers</span> : <code class="type">bool Pervasives.ref</code></pre><div class="info ">
+<code class="code">revert_cst=true</code> tries replacing constants by variables in the
+    initial candidates for abduction answer, given corresponding
+    equations in the premise. Default <code class="code">true</code>.<br>
+</div>
+
+<pre><span id="VALrevert_cst"><span class="keyword">val</span> revert_cst</span> : <code class="type">bool Pervasives.ref</code></pre>
 <pre><span id="VALtimeout_count"><span class="keyword">val</span> timeout_count</span> : <code class="type">int Pervasives.ref</code></pre>
 <pre><span id="VALfail_timeout_count"><span class="keyword">val</span> fail_timeout_count</span> : <code class="type">int Pervasives.ref</code></pre>
 <pre><span id="VALno_alien_prem"><span class="keyword">val</span> no_alien_prem</span> : <code class="type">bool Pervasives.ref</code></pre><div class="info ">

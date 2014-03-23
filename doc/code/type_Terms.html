@@ -14,6 +14,7 @@
 </head>
 <body>
 <code class="code"><span class="keyword">sig</span><br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;show_extypes&nbsp;:&nbsp;bool&nbsp;<span class="constructor">Pervasives</span>.ref<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;debug&nbsp;:&nbsp;bool&nbsp;<span class="constructor">Pervasives</span>.ref<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;cns_name&nbsp;=&nbsp;<span class="constructor">CNam</span>&nbsp;<span class="keyword">of</span>&nbsp;string&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Extype</span>&nbsp;<span class="keyword">of</span>&nbsp;int<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;tuple&nbsp;:&nbsp;<span class="constructor">Terms</span>.cns_name<br>
@@ -153,7 +154,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">LetRecVal</span>&nbsp;<span class="keyword">of</span>&nbsp;string&nbsp;option&nbsp;*&nbsp;string&nbsp;*&nbsp;<span class="constructor">Terms</span>.uexpr&nbsp;*<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Terms</span>.typ_scheme&nbsp;option&nbsp;*&nbsp;<span class="constructor">Terms</span>.uexpr&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.lc<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">LetVal</span>&nbsp;<span class="keyword">of</span>&nbsp;string&nbsp;option&nbsp;*&nbsp;<span class="constructor">Terms</span>.pat&nbsp;*&nbsp;<span class="constructor">Terms</span>.uexpr&nbsp;*<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Terms</span>.typ_scheme&nbsp;option&nbsp;*&nbsp;<span class="constructor">Terms</span>.uexpr&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.lc<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Terms</span>.typ_scheme&nbsp;option&nbsp;*&nbsp;<span class="constructor">Terms</span>.lc<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;annot_item&nbsp;=<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">ITypConstr</span>&nbsp;<span class="keyword">of</span>&nbsp;string&nbsp;option&nbsp;*&nbsp;<span class="constructor">Terms</span>.cns_name&nbsp;*&nbsp;<span class="constructor">Defs</span>.sort&nbsp;list&nbsp;*<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Terms</span>.lc<br>
@@ -165,8 +166,8 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ILetRecVal</span>&nbsp;<span class="keyword">of</span>&nbsp;string&nbsp;option&nbsp;*&nbsp;string&nbsp;*&nbsp;<span class="constructor">Terms</span>.texpr&nbsp;*&nbsp;<span class="constructor">Terms</span>.typ_scheme&nbsp;*<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Terms</span>.texpr&nbsp;list&nbsp;*&nbsp;(<span class="constructor">Terms</span>.pat&nbsp;*&nbsp;int&nbsp;option)&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.lc<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">ILetVal</span>&nbsp;<span class="keyword">of</span>&nbsp;string&nbsp;option&nbsp;*&nbsp;<span class="constructor">Terms</span>.pat&nbsp;*&nbsp;<span class="constructor">Terms</span>.texpr&nbsp;*&nbsp;<span class="constructor">Terms</span>.typ_scheme&nbsp;*<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(string&nbsp;*&nbsp;<span class="constructor">Terms</span>.typ_scheme)&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.texpr&nbsp;list&nbsp;*<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(<span class="constructor">Terms</span>.pat&nbsp;*&nbsp;int&nbsp;option)&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.lc<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(string&nbsp;*&nbsp;<span class="constructor">Terms</span>.typ_scheme)&nbsp;list&nbsp;*&nbsp;(<span class="constructor">Terms</span>.pat&nbsp;*&nbsp;int&nbsp;option)&nbsp;list&nbsp;*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Terms</span>.lc<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;typ_size&nbsp;:&nbsp;<span class="constructor">Terms</span>.typ&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;atom_size&nbsp;:&nbsp;<span class="constructor">Terms</span>.atom&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;fvs_typ&nbsp;:&nbsp;<span class="constructor">Terms</span>.typ&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t<br>
