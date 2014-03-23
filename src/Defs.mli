@@ -10,6 +10,7 @@
     positives" are possible in complex programs using [min] or [max]
     atoms. Default [false]. *)
 val nodeadcode : bool ref
+val deadcode_flag : bool ref
 
 (** Source location for reporting parsing and inference problems. *)
 type loc = {beg_pos : Lexing.position; end_pos : Lexing.position}

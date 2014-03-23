@@ -151,6 +151,8 @@ let main () =
          ~verif_ml:!verif_ml ~full_annot:!full_annot)
   with (Report_toplevel _ | Contradiction _ | NoAnswer _) as exn ->
     Format.printf "%a@\n%!" pr_exception exn;
+    if !Defs.deadcode_flag then Format.printf
+        "Perhaps do not pass the -no_dead_code flag.@\n%!";
     if !Abduction.abd_timeout_flag then Format.printf
         "Perhaps increase the -term_abduction_timeout parameter.@\n%!";
     if !Abduction.abd_fail_flag then Format.printf

@@ -732,7 +732,7 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
            let prems_opt =
              try Some (unify ~use_quants:false q prem)
              with Contradiction _ as e ->
-               if !nodeadcode then raise e
+               if !nodeadcode then (deadcode_flag := true; raise e)
                else None in
            match prems_opt with
            | Some prem ->

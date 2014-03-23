@@ -6,6 +6,7 @@
     @since Mar 2013
 *)
 let nodeadcode = ref false
+let deadcode_flag = ref false
 
 open Lexing
 open Aux

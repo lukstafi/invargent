@@ -1348,10 +1348,10 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
                     None)
                (choices ~cmp_v d_optis d_suboptis) in
            if !nodeadcode && res=[] && !contr_exc<>None
-           then raise (unsome !contr_exc)
+           then (deadcode_flag := true; raise (unsome !contr_exc))
            else res
          with Terms.Contradiction _ as e ->
-           if !nodeadcode then raise e
+           if !nodeadcode then (deadcode_flag := true; raise e)
            else [])
       brs in
   (* Raise [Contradiction] from [abd] when constraints are not
@@ -1405,7 +1405,7 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
                br)
              obrs in
          if !nodeadcode && res=[] && !contr_exc<>None
-         then raise (unsome !contr_exc)
+         then (deadcode_flag := true; raise (unsome !contr_exc))
          else res)
       brs in
   (* FIXME *)

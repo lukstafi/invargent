@@ -1122,7 +1122,8 @@ let normalize q cn =
            let sb =
              try (unify (guard_cnj @ prem @ concl)).cnj_typ
              with Contradiction _ as e ->
-               if !nodeadcode then raise e else [] in
+               if !nodeadcode then (deadcode_flag := true; raise e)
+               else [] in
            let {cnj_typ=concl_typ; cnj_num=concl_num; cnj_so=concl_so} =
              unify concl in
            (*[* Format.printf "simplify_brs: passed unify@\n%!"; *]*)
@@ -1255,7 +1256,8 @@ let normalize q cn =
     let sb =
       try (unify guard_cnj).cnj_typ
       with Contradiction _ as e ->
-        if !nodeadcode then raise e else [] in
+        if !nodeadcode then (deadcode_flag := true; raise e)
+        else [] in
     (*[* Format.printf "dsj-checking: init #dsjs=%d@ sb=%a@\n%!"
       (List.length dsjs) pr_subst sb; *]*)
     let first_exn = ref None in
@@ -1289,7 +1291,8 @@ let normalize q cn =
                    so;
                  check_chi_exty sb'
                with Contradiction _ as e ->
-                 if !nodeadcode then raise e else false)
+                 if !nodeadcode then (deadcode_flag := true; raise e)
+                 else false)
           ) brs
       with Contradiction _ as e ->
         (*[* Format.printf "test rejected a disjunct!@\nexn=%a@\n%!"
