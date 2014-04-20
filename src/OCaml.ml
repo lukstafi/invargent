@@ -262,8 +262,14 @@ let rec pr_struct_items ~funtys ~lettys constrs ppf defined defining prog =
       (String.concat "," (List.map cns_str (CNames.elements defining)));
   *]*)
   match prog with
-  | ITypConstr (docu, c_n, sorts, _)::prog ->
-    assert (CNames.is_empty defining || CNames.mem c_n defining);
+  | ITypConstr (docu, c_n, sorts, loc)::prog ->
+    if not (CNames.is_empty defining || CNames.mem c_n defining)
+    then raise (Report_toplevel ("Undefined type constructor(s) "^
+                                   String.concat ","
+                                     (List.map cns_str
+                                        (CNames.elements defining)) ^
+                                   " near type constructor "^cns_str c_n,
+                                 Some loc));
     altsyn := true;
     (match docu with
      | None -> ()
