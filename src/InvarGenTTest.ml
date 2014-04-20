@@ -7,7 +7,7 @@
 *)
 open OUnit
 
-let debug = ref (* true *)false
+let debug = ref true(* false *)
 
 let input_file file =
   let f = open_in file in
@@ -106,6 +106,10 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "binary_upper_bound" ());
+      "ex_config_pc" >::
+        (fun () ->
+           (* skip_if !debug "debug"; *)
+           test_case "ex_config_pc" ());
       "mutual_simple_recursion_eval" >::
         (fun () ->
            skip_if !debug "debug";

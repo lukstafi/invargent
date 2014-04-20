@@ -1,0 +1,59 @@
+datatype Slow
+
+datatype Fast
+
+datatype Budget
+
+datacons Small : Budget
+
+datacons Medium : Budget
+
+datacons Large : Budget
+
+(** Memory, parameterized by memory bus clock. *)
+datatype Memory : type
+
+datacons Best_mem : Memory Fast
+
+(** Motherboard, parameterized by memory bus clock. *)
+datatype Motherboard : type
+
+datacons Best_board : Motherboard Fast
+
+(** Select memory and motherboard given budget size. *)
+external config_mem_board : Budget → ∃a.(Memory a, Motherboard a)
+
+datatype CPU : type
+
+datacons FastCPU : CPU Fast
+
+datacons SlowCPU : CPU Slow
+
+datatype GPU : type
+
+datacons FastGPU : GPU Fast
+
+datacons SlowGPU : GPU Slow
+
+external config_gpu : Budget → ∃a.GPU a
+
+(** PC configuration: CPU, graphics/GPU, memory (clock), motherboard (clock) *)
+datatype PC : type * type * type * type
+
+datacons PC : ∀a, b, c, r.CPU a * GPU b * Memory c * Motherboard r ⟶
+   PC (a, b, c, r)
+
+datatype Usecase
+
+datacons Gaming : Usecase
+
+datacons Scientific : Usecase
+
+datacons Office : Usecase
+
+val budget_to_cpu : Budget → ∃a.CPU a
+
+val usecase_to_gpu : Budget → Usecase → ∃a.GPU a
+
+(** Takes a budget, usecase pair and returns PC configuration. *)
+val configure : (Budget, Usecase) → ∃a, b, c.PC (a, b, c, c)
