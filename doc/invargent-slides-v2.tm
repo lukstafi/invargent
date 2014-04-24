@@ -338,7 +338,7 @@
 
       let () = assert (b_not (equal ((TInt, TList TInt)) zero Nil)); ()
     </code>
-  </hidden>|<\shown>
+  </hidden>|<\hidden>
     <tit|InvarGenT Handles Many Non-pointwise Cases>
 
     Chuan-kai Lin developed an efficient type inference algorithm for GADTs,
@@ -377,7 +377,7 @@
     <\exercise>
       Check that this is the correct type.
     </exercise>
-  </shown>|<\hidden>
+  </hidden>|<\hidden>
     <tit|InvarGenT does not Handle Some Non-sensible Cases>
 
     A solution to at least one branch of implications, correspondingly of
@@ -710,19 +710,19 @@
         fixed model.\ 
       </itemize>
     </itemize>
-  </hidden>|<\hidden>
+  </hidden>|<\shown>
     <tit|References>
 
     <\itemize>
       <item>Vincent<nbsp>Simonet<localize| and
-      >Francois<nbsp>Pottier.<newblock> A constraint-based approach to
-      guarded algebraic data types.<newblock> <with|font-shape|italic|ACM
+      >Francois<nbsp>Pottier.<newblock> <strong|A constraint-based approach
+      to guarded algebraic data types>.<newblock> <with|font-shape|italic|ACM
       Transactions on Programming Languages and Systems>, 29(1), JAN
       2007.<newblock>
 
-      <item>Michael<nbsp>Maher<localize| and >Ge<nbsp>Huang.<newblock> On
-      computing constraint abduction answers.<newblock> <localize|In
-      >Iliano<nbsp>Cervesato, Helmut<nbsp>Veith<localize| and
+      <item>Michael<nbsp>Maher<localize| and >Ge<nbsp>Huang.<newblock>
+      <strong|On computing constraint abduction answers>.<newblock>
+      <localize|In >Iliano<nbsp>Cervesato, Helmut<nbsp>Veith<localize| and
       >Andrei<nbsp>Voronkov<localize|, editors>,
       <with|font-shape|italic|Logic for Programming, Artificial Intelligence,
       and Reasoning>, <localize|volume> 5330<localize| of
@@ -731,19 +731,19 @@
       2008.<newblock>
 
       <item>M.<nbsp>Sulzmann, T.<nbsp>Schrijvers<localize| and >P.
-      J.<nbsp>Stuckey.<newblock> Type inference for GADTs via Herbrand
-      constraint abduction.
+      J.<nbsp>Stuckey.<newblock> <strong|Type inference for GADTs via
+      Herbrand constraint abduction>.
 
       <item>Kenneth W.<nbsp>Knowles<localize| and
-      >Cormac<nbsp>Flanagan.<newblock> Type reconstruction for general
-      refinement types.<newblock> <localize|In
+      >Cormac<nbsp>Flanagan.<newblock> <strong|Type reconstruction for
+      general refinement types>.<newblock> <localize|In
       ><with|font-shape|italic|ESOP>, <localize|volume> 4421<localize| of
       ><with|font-shape|italic|Lecture Notes in Computer Science>,
       <localize|pages >505--519. Springer, 2007.<newblock>
 
       <item>Peter<nbsp>Bulychev, Egor<nbsp>Kostylev<localize| and
-      >Vladimir<nbsp>Zakharov.<newblock> Anti-unification algorithms and
-      their applications in program analysis.<newblock> <localize|In
+      >Vladimir<nbsp>Zakharov.<newblock> <strong|Anti-unification algorithms
+      and their applications in program analysis>.<newblock> <localize|In
       >Amir<nbsp>Pnueli, Irina<nbsp>Virbitskaite<localize| and
       >Andrei<nbsp>Voronkov<localize|, editors>,
       <with|font-shape|italic|Perspectives of Systems Informatics>,
@@ -752,12 +752,12 @@
       / Heidelberg, 2010.
 
       <item>Komei<nbsp>Fukuda, Thomas M.<nbsp>Liebling<localize| and
-      >Christine<nbsp>Lütolf.<newblock> Extended convex hull.<newblock>
-      <localize|In ><with|font-shape|italic|Proceedings of the 12th Canadian
-      Conference on Computational Geometry, Fredericton, New Brunswick,
-      Canada, August 16-19, 2000>.
+      >Christine<nbsp>Lütolf.<newblock> <strong|Extended convex
+      hull>.<newblock> <localize|In ><with|font-shape|italic|Proceedings of
+      the 12th Canadian Conference on Computational Geometry, Fredericton,
+      New Brunswick, Canada, August 16-19, 2000>.
     </itemize>
-  </hidden>>
+  </shown>>
 </body>
 
 <initial|<\collection>
