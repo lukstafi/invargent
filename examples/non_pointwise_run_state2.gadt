@@ -1,0 +1,15 @@
+datatype State : type * type
+datacons Bind :
+  ∀a, b, s. State (s, a) * (a → State (s, b)) ⟶ State (s, b)
+datacons Return : ∀a, s. a ⟶ State (s, a)
+datacons Get : ∀s. State (s, s)
+datacons Put : ∀s. s ⟶ State (s, ())
+
+let rec run_state = fun s -> function
+  | Return a -> (s, a)
+  | Get -> (s, s)
+  | Put u -> (u, ())
+  | Bind (Return a, k) -> run_state s (k a)
+  | Bind (Get, k) -> run_state s (k s)
+  | Bind (Put u, k) -> run_state u (k ())
+  | Bind (Bind (n, j), k) -> run_state s (Bind (n, fun x -> Bind (j x, k)))

@@ -1,0 +1,31 @@
+datatype List : type
+datacons N : ∀a. List a
+datacons C : ∀a. a * List a ⟶ List a
+
+datatype Nd
+datatype Fk : type * type
+
+datatype Tree : type * type
+datacons End : ∀a. a ⟶ Tree (Nd, a)
+datacons Fork : ∀a, b, c. Tree (a, c) * Tree (b, c) ⟶ Tree (Fk (a, b), c)
+
+datatype Path : type
+datacons Here : Path Nd
+datacons ForkL : ∀a, b. Path a ⟶ Path (Fk (a, b))
+datacons ForkR : ∀a, b. Path b ⟶ Path (Fk (a, b))
+
+external append : ∀a. List a → List a → List a
+external map : ∀a, b. (a → b) → List a → List b
+
+let rec find = fun f -> function
+  | End m ->
+    (match f m with
+      | True -> C (Here, N)
+      | False -> N)
+  | Fork (x, y) -> append (map (fun y -> ForkL y) (find f x))
+                          (map (fun y -> ForkR y) (find f y))
+
+let rec extract = function
+  | Here -> (function End m -> m)
+  | ForkL p1 -> (function Fork (x, y) -> extract p1 x)
+  | ForkR p1 -> (function Fork (x, y) -> extract p1 y)

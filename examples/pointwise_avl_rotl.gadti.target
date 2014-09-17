@@ -1,0 +1,27 @@
+(** Normally we would use [num], but this is a stress test for [type]. *)
+datatype Z
+
+datatype S : type
+
+(** This datatype definition is modified to make type inference for
+    rotr, rotl, ins functions pointwise. *)
+datatype AVL : type
+
+datacons Tip : AVL Z
+
+datacons LNode : ∀a.AVL a * Int * AVL (S a) ⟶ AVL (S (S a))
+
+datacons SNode : ∀a.AVL a * Int * AVL a ⟶ AVL (S a)
+
+datacons MNode : ∀a.AVL (S a) * Int * AVL a ⟶ AVL (S (S a))
+
+datatype Choice : type * type
+
+datacons L : ∀a, b.a ⟶ Choice (a, b)
+
+datacons R : ∀a, b.b ⟶ Choice (a, b)
+
+val rotl :
+   ∀a.
+   AVL a → Int → AVL (S (S a)) →
+     Choice (AVL (S (S a)), AVL (S (S (S a))))

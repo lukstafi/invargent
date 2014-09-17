@@ -1,0 +1,14 @@
+datatype List : type
+datacons N : ∀a. List a
+datacons C : ∀a. a * List a ⟶ List a
+
+datatype Zip1 : type * type
+datacons Zero1 : ∀a. Zip1 (List a, List a)
+datacons Succ1 :
+  ∀a, b, c. Zip1 (List a, b) ⟶ Zip1 (List (c → a), (List c → b))
+
+external zip_with : ∀a, b, c. (a → b → c) → List a → List b → List c
+
+external repeat : ∀a. a → List a
+
+val zip1 : ∀a, b. Zip1 (List a, b) → a → b

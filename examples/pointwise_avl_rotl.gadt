@@ -1,0 +1,24 @@
+(** Normally we would use [num], but this is a stress test for [type]. *)
+datatype Z
+datatype S : type
+(** This datatype definition is modified to make type inference for
+    rotr, rotl, ins functions pointwise. *)
+datatype AVL : type
+datacons Tip : AVL Z
+datacons LNode : ∀a. AVL a * Int * AVL (S a) ⟶ AVL (S (S a))
+datacons SNode : ∀a. AVL a * Int * AVL a ⟶ AVL (S a)
+datacons MNode : ∀a. AVL (S a) * Int * AVL a ⟶ AVL (S (S a))
+
+datatype Choice : type * type
+datacons L : ∀a, b. a ⟶ Choice (a, b)
+datacons R : ∀a, b. b ⟶ Choice (a, b)
+
+let rotl = fun u v -> function
+  | Tip -> assert false
+  | SNode (a, x, b) -> R (MNode (LNode (u, v, a), x, b))
+  | LNode (a, x, b) -> L (SNode (SNode (u, v, a), x, b))
+  | MNode (k, y, c) ->
+    (match k with
+      | SNode (a, x, b) -> L (SNode (SNode (u, v, a), x, SNode (b, y, c)))
+      | LNode (a, x, b) -> L (SNode (MNode (u, v, a), x, SNode (b, y, c)))
+      | MNode (a, x, b) -> L (SNode (SNode (u, v, a), x, LNode (b, y, c))))

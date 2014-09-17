@@ -1,0 +1,14 @@
+datatype FunDesc : type * type
+
+datacons FDI : ∀b. FunDesc (b, b)
+
+datacons FDC : ∀a, b.b ⟶ FunDesc (a, b)
+
+datacons FDG : ∀a, b.a → b ⟶ FunDesc (a, b)
+
+external fd_fun : ∀a, b. FunDesc (a, b) → a → b
+
+val o : ∀a, b, c. (b → a) → (c → b) → c → a
+
+val fd_comp :
+   ∀a, b, c. FunDesc (a, b) → FunDesc (b, c) → FunDesc (a, c)

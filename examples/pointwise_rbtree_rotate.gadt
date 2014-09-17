@@ -1,0 +1,22 @@
+datatype Z
+datatype S : type
+
+datatype RoB : type * type
+datatype Black
+datatype Red
+datacons Leaf : RoB (Black, Z)
+datacons RNode : ∀a. RoB (Black, a) * Int * RoB (Black, a) ⟶ RoB (Red, a)
+datacons BNode : ∀a, b, c. RoB (a, c) * Int * RoB (b, c) ⟶ RoB (Black, S c)
+
+datatype Dir
+datacons LeftD : Dir
+datacons RightD : Dir
+
+let rotate = fun dir1 p_e sib dir2 g_e uncle -> function
+  | RNode (x, e, y) ->
+    (match dir1, dir2 with
+      | RightD, RightD -> BNode (RNode (x, e, y), p_e, RNode (sib, g_e, uncle))
+      | RightD, LeftD -> BNode (RNode (uncle, g_e, x), e, RNode (y, p_e, sib))
+      | LeftD, RightD -> BNode (RNode (sib, p_e, x), e, RNode (y, g_e, uncle))
+      | LeftD, LeftD -> BNode (RNode (uncle, g_e, sib), p_e, RNode (x, e, y)))
+  | BNode (_, _, _) -> assert false

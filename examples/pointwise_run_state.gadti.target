@@ -1,0 +1,12 @@
+datatype State : type * type
+
+datacons Bind : ∀a, b, s.State (s, a) * a → State (s, b) ⟶
+   State (s, b)
+
+datacons Return : ∀a, s.a ⟶ State (s, a)
+
+datacons Get : ∀a. State (a, a)
+
+datacons Put : ∀s.s ⟶ State (s, Tuple)
+
+val run_state : ∀a, b. b → State (b, a) → (b, a)

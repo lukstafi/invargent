@@ -7,7 +7,7 @@
 *)
 open OUnit
 
-let debug = ref true(* false *)
+let debug = ref (* true *)false
 
 let input_file file =
   let f = open_in file in
@@ -108,7 +108,7 @@ let tests = "InvarGenT" >::: [
            test_case "binary_upper_bound" ());
       "ex_config_pc" >::
         (fun () ->
-           (* skip_if !debug "debug"; *)
+           skip_if !debug "debug";
            test_case "ex_config_pc" ());
       "mutual_simple_recursion_eval" >::
         (fun () ->
@@ -142,26 +142,101 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case ~test_annot:true "concat_strings" ());
-      "non_pointwise_split" >::
+      "pointwise-rbtree_rotate" >::
+        (fun () ->
+           todo "FIXME";
+           (* skip_if !debug "debug"; *)
+           test_case "pointwise_rbtree_rotate" ());
+      "pointwise-zip2" >::
+        (fun () ->
+           todo "FIXME";
+           (* skip_if !debug "debug"; *)
+           test_case "pointwise_zip2" ());
+      "pointwise-avl_rotl" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "pointwise_avl_rotl" ());
+      "pointwise-avl_ins" >::
+        (fun () ->
+           todo "FIXME";
+           (* skip_if !debug "debug"; *)
+           test_case "pointwise_avl_ins" ());
+      "pointwise-extract" >::
+        (fun () ->
+           todo "FIXME";
+           (* skip_if !debug "debug"; *)
+           test_case "pointwise_extract" ());
+      "pointwise-extract2" >::
+        (fun () ->
+           todo "FIXME";
+           (* skip_if !debug "debug"; *)
+           test_case "pointwise_extract2" ());
+      "pointwise-run_state" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case ~richer_answers:true "pointwise_run_state" ());
+      "non_outsidein-rx" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "non_outsidein-rx" ());
+      "non_pointwise-split" >::
         (fun () ->
            skip_if !debug "debug";
            test_case ~richer_answers:true "non_pointwise_split" ());
-      "non_pointwise_avl_small_rec" >::
+      "non_pointwise-avl_small_rec" >::
         (fun () ->
            skip_if !debug "debug";
            test_case "non_pointwise_avl_small_rec" ());
-      "non_pointwise_avl_small" >::
+      "non_pointwise-avl_small" >::
         (fun () ->
            skip_if !debug "debug";
            test_case "non_pointwise_avl_small" ());
-      "non_pointwise_avl" >::
-        (fun () ->
-           skip_if !debug "debug";
-           test_case "non_pointwise_avl" ());
-      "non_pointwise_vary" >::
+      "non_pointwise-vary" >::
         (fun () ->
            todo "should not pass unless in a non-default setting";
            test_case "non_pointwise_vary" ());
+      "non_pointwise-avl_rotr" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "non_pointwise_avl" ());
+      "non_pointwise-avl_delmin" >::
+        (fun () ->
+           todo "tune parameters";
+           (* skip_if !debug "debug"; *)
+           test_case "non_pointwise_avl_delmin" ());
+      "non_pointwise-fd_comp" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "non_pointwise_fd_comp" ());
+      "non_pointwise-fd_comp2" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "non_pointwise_fd_comp2" ());
+      "non_pointwise-zip1" >::
+        (fun () ->
+           todo "FIXME";
+           (* skip_if !debug "debug"; *)
+           test_case "non_pointwise_zip1" ());
+      "non_pointwise-zip1-simpler" >::
+        (fun () ->
+           todo "FIXME";
+           (* skip_if !debug "debug"; *)
+           test_case ~richer_answers:true "non_pointwise_zip2" ());
+      "non_pointwise-leq" >::
+        (fun () ->
+           todo "FIXME";
+           (* skip_if !debug "debug"; *)
+           test_case ~richer_answers:true "non_pointwise_leq" ());
+      "non_pointwise-run_state" >::
+        (fun () ->
+           todo "FIXME";
+           (* skip_if !debug "debug"; *)
+           test_case ~richer_answers:true "non_pointwise_run_state" ());
+      "non_pointwise-run_state2" >::
+        (fun () ->
+           todo "FIXME";
+           (* skip_if !debug "debug"; *)
+           test_case ~richer_answers:true "non_pointwise_run_state" ());
       "avl_tree" >::
         (fun () ->
            skip_if !debug "debug";

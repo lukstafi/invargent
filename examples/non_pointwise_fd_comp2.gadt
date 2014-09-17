@@ -1,0 +1,26 @@
+datatype FunDesc : type * type
+datacons FDI : ∀a. FunDesc (a, a)
+datacons FDC : ∀a, b. b ⟶ FunDesc (a, b)
+datacons FDG : ∀a, b. (a → b) ⟶ FunDesc (a, b)
+
+external fd_fun : ∀a, b. FunDesc (a, b) → a → b
+
+let o = fun f g x -> f (g x)
+
+let fd_comp =
+  function
+    | FDI ->
+      (function
+        | FDI -> FDI
+        | FDC c -> FDC c
+        | FDG g -> FDG g)
+    | FDC b as fd1 ->
+      (function
+        | FDI -> fd1
+        | FDC c as fd2 -> FDC (fd_fun fd2 b)
+        | FDG g as fd2 -> FDC (fd_fun fd2 b))
+    | FDG f as fd1 ->
+      (function
+        | FDI -> fd1
+        | FDC c -> FDC c
+        | FDG g as fd2 -> FDG (o (fd_fun fd2) f))

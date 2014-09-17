@@ -1,0 +1,7 @@
+datatype R : type
+
+datacons RBool : R Bool
+
+external val fortytwo : Int
+
+val rx : ∀a. R a → Int

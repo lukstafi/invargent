@@ -1,0 +1,12 @@
+datatype Z
+datatype S : type
+
+datatype Nat : type
+datacons Zn : Nat Z
+datacons Sn : ∀a. Nat a ⟶ Nat (S a)
+
+datatype NatLeq : type * type
+datacons LeZ : ∀a. NatLeq (Z, a)
+datacons LeS : ∀a, b. NatLeq (a, b) ⟶ NatLeq (S a, S b)
+
+val leq : ∀a. NatLeq (a, a)

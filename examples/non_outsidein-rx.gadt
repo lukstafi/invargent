@@ -1,0 +1,5 @@
+datatype R : type
+datacons RBool : R Bool
+external let fortytwo : Int = "42"
+
+let rx = function RBool -> fortytwo

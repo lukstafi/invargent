@@ -1,0 +1,26 @@
+datatype Z
+
+datatype S : type
+
+datatype RoB : type * type
+
+datatype Black
+
+datatype Red
+
+datacons Leaf : RoB (Black, Z)
+
+datacons RNode : ∀a.RoB (Black, a) * Int * RoB (Black, a) ⟶ RoB (Red, a)
+
+datacons BNode : ∀a, b, c.RoB (a, c) * Int * RoB (b, c) ⟶ RoB (Black, S c)
+
+datatype Dir
+
+datacons LeftD : Dir
+
+datacons RightD : Dir
+
+val rotate :
+   ∀a.
+   Dir → Int → RoB (Black, a) → Dir → Int → RoB (Black, a) →
+     RoB (Red, a) → RoB (Black, S a)
