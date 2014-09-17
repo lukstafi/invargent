@@ -33,6 +33,7 @@ let pr_tycns ppf c =
 
 let rec pr_ty ppf = function
   | TVar v -> pr_tyvar ppf v
+  | TCons (CNam "Tuple", []) -> fprintf ppf "unit"
   | TCons (c, []) -> pr_tycns ppf c
   | TCons (CNam "Tuple", exps) ->
     fprintf ppf "@[<2>(%a)@]" (pr_some_tys " *") exps

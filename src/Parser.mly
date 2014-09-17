@@ -297,6 +297,8 @@ simple_expr:
       { Num ( ~- $2, get_loc ()) }
   | STRING
       { String ($1, get_loc ()) }
+  | LPAREN RPAREN
+      { Cons (tuple, [], get_loc ()) }
   | LPAREN expr RPAREN
       { $2 }
   | LPAREN expr error
@@ -359,7 +361,7 @@ pattern:
   | pattern AS pattern
       { PAnd ($1, $3, get_loc ()) }
   | pattern_comma_list  %prec below_COMMA
-      { PCons (CNam "Tuple", List.rev $1, get_loc ()) }
+      { PCons (tuple, List.rev $1, get_loc ()) }
 ;
 pattern_comma_list:
   | pattern COMMA pattern
@@ -415,6 +417,8 @@ simple_typ:
   | LIDENT_ABCRST   { TVar (VNam (Type_sort, $1)) }
   | UIDENT          { TCons (CNam $1, []) }
   | alien_term      { Alien $1 }
+  | LPAREN RPAREN
+      { TCons (tuple, []) }
   | LPAREN typ RPAREN
       { $2 }
   | LPAREN typ error
