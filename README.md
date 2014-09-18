@@ -14,7 +14,7 @@ sudo cp ./invargent /usr/local/bin/invargent # optionally, install executable
 make clean  # remove the executable and intermediate files
 ```
 
-Version 1.2.1 is the last one planned for 2014, unless new incentives appear.
+News: I resumed work on improving the coverage (i.e. combating incompleteness) of the algorithm.
 
 Milestones: [x] - completed, [#] - finishing (75%-95%), [+] - in the middle (25%-75%), [-] - just started (5%-25%), [_] - not started.
 
@@ -29,6 +29,7 @@ Version 2.0 goals -- version targets may be reassigned:
 - [x] Add inequalities with a variable as one side and `min` as LHS or `max` as RHS to the numerical sort. (v1.2)
 - [x] Flagship example: AVL tree from OCaml standard library (height imbalance limited by 2). (v1.2)
 - [x] Option to detect all dead code. (v1.2.1)
+- [-] Improve coverage for examples from Chuan-kai Lin's PhD thesis. (v1.2.2)
 - [_] Solver directives in .gadt source code -- exposing the options available from the command-line interface. (v1.3)
 - [_] Or-patterns `p1 | p2` introducing disjunctions in premises, either eliminated by disjunction elimination or expanded by implication clause duplication -- depending on user-level option; preserved in exported code. (v1.3)
 - [_] Export Haskell code. (v1.3)

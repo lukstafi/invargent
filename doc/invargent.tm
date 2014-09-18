@@ -1,4 +1,4 @@
-<TeXmacs|1.99.1>
+<TeXmacs|1.0.7.18>
 
 <style|article>
 
@@ -1173,21 +1173,24 @@
   <math|\<cal-Q\>.\<wedge\><rsub|i><around*|(|D<rsub|i>\<Rightarrow\>C<rsub|i>|)>>,
   and we call <math|D> the <em|negated constraint>. Such constraints are
   generated for pattern matching branches whose right-hand-side is the
-  expression <verbatim|assert false>. Solving for the sort of terms is
-  affected by negative constraints only indirectly, in that we check whether
-  the solution found by multisort abduction contradicts the negated
-  constraints. If some negated constraint is satisfiable, we discard the
-  answer and ``fall back'' to try finding another answer.
+  expression <verbatim|assert false>. A generic approach to account for
+  negative constraints is as follows. We check whether the solution found by
+  multisort abduction contradicts the negated constraints. If some negated
+  constraint is satisfiable, we discard the answer and ``fall back'' to try
+  finding another answer. Unfortunately, this approach is insufficient when
+  the answer sought for is not among the maximally general answers to the
+  remaining, <em|positive part> of the constraint. Therefore, we introduce
+  <em|negation elimination>.
 
-  For the numerical sort, we perform <em|negation elimination>. Our
-  implementation of negation elimination can produce too strong constraints
-  when the numerical domain is intended to contain non-integer rational
-  numbers, and can be turned off by the <verbatim|-no_int_negation> option.
-  It can also produce too weak constraints, because it produces at most one
-  atom for a given negated constraint. If the abduction answer for terms does
-  already contradict a negated constraint <math|D>, we are done. Otherwise,
-  let <math|D=c<rsub|1>\<wedge\>\<ldots\>\<wedge\>c<rsub|n>>. For numerical
-  sort atoms <math|c<rsub|i>>, either drop them from consideration or convert
+  For the numerical sort, our implementation of negation elimination can
+  produce too strong constraints when the numerical domain is intended to
+  contain non-integer rational numbers, and can be turned off by the
+  <verbatim|-no_int_negation> option. It can also produce too weak
+  constraints, because it produces at most one atom for a given negated
+  constraint. If the abduction answer for terms does already contradict a
+  negated constraint <math|D>, we are done. Otherwise, let
+  <math|D=c<rsub|1>\<wedge\>\<ldots\>\<wedge\>c<rsub|n>>. For numerical sort
+  atoms <math|c<rsub|i>>, either drop them from consideration or convert
   their negation <math|\<neg\>c<rsub|i>> into <math|d<rsub|i>> or
   <math|d<rsub|i<rsub|1>>\<vee\>d<rsub|i<rsub|2>>> as follows. The conversion
   assumes that the numerical domain is integers. We convert an inequality
@@ -1216,6 +1219,30 @@
   satisfiable. We provide a function <math|NegElim<around*|(|\<neg\>D,<wide|B<rsub|i>|\<bar\>>|)>=d<rsub|i<rsub|0>>>,
   where <math|d<rsub|i<rsub|0>>> is the biggest, syntactically, such atom,
   and <math|B<rsub|i>=A\<wedge\>D<rsub|i>\<wedge\>C<rsub|i>>.
+
+  Unfortunately, for the sort of terms we do not have well-defined
+  representation of dis-equalities not using negations. The generic approach
+  of relying on backtracking to find another abduction answer is more useful
+  for terms than for the numeric sort. It falls short, however, when negation
+  was intended to prevent the answer from being too general. Ideally, we
+  would introduce disequation atoms <math|\<tau\><wide|\<neq\>|\<dot\>>\<tau\>>
+  and follow the scheme we use for the numericalsort. Instead, we limit
+  negation elimination to considering atoms of the form
+  <math|\<beta\><wide|=|\<dot\>>\<varepsilon\><rsub|1><around*|(|<wide|\<tau\>|\<bar\>>|)>>,
+  and contradict them by introducing atoms
+  <math|\<beta\><wide|=|\<dot\>>\<varepsilon\><rsub|2><around*|(|<wide|\<alpha\>|\<bar\>>|)>>,
+  for <math|\<varepsilon\><rsub|1>\<neq\>\<varepsilon\><rsub|2>> and fresh
+  answer variables <math|<wide|\<alpha\>|\<bar\>>>. The datatype constructor
+  <math|\<varepsilon\><rsub|2>> is picked so that the atom is valid, using
+  the same validation procedure as the one passed to the abduction algorithm.
+  The alternatives <math|\<varepsilon\><rsub|2>> to
+  <math|\<varepsilon\><rsub|1>> are collected from datatype definitions.
+
+  Since the <em|discard> (or taboo) list used by backtracking is based on
+  complete answers, it is preferable to perform negation elimination prior to
+  abduction. Otherwise, the search might fall into a loop where abduction
+  keeps returning the same answer, since it is more general than the
+  discarded answer incorporating negation elimination result.
 
   <section|<em|opti> and <em|subopti>: <em|minimum> and <em|maximum>
   relations in <verbatim|num>><label|OptiAtoms>
@@ -1914,15 +1941,15 @@
       and Normalizing Formulas> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-2><vspace|0.5fn>
 
-      <with|par-left|<quote|1tab>|2.1<space|2spc>Normalization
+      <with|par-left|<quote|1.5fn>|2.1<space|2spc>Normalization
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-3>>
 
-      <with|par-left|<quote|2tab>|2.1.1<space|2spc>Implementation details
+      <with|par-left|<quote|3fn>|2.1.1<space|2spc>Implementation details
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-4>>
 
-      <with|par-left|<quote|1tab>|2.2<space|2spc>Simplification
+      <with|par-left|<quote|1.5fn>|2.2<space|2spc>Simplification
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-5>>
 
@@ -1930,23 +1957,23 @@
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-6><vspace|0.5fn>
 
-      <with|par-left|<quote|1tab>|3.1<space|2spc>Simple constraint abduction
+      <with|par-left|<quote|1.5fn>|3.1<space|2spc>Simple constraint abduction
       for terms <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-7>>
 
-      <with|par-left|<quote|2tab>|3.1.1<space|2spc>Heuristic for better
+      <with|par-left|<quote|3fn>|3.1.1<space|2spc>Heuristic for better
       answers to invariants <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-8>>
 
-      <with|par-left|<quote|1tab>|3.2<space|2spc>Joint constraint abduction
+      <with|par-left|<quote|1.5fn>|3.2<space|2spc>Joint constraint abduction
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-9>>
 
-      <with|par-left|<quote|1tab>|3.3<space|2spc>Abduction for terms with
+      <with|par-left|<quote|1.5fn>|3.3<space|2spc>Abduction for terms with
       Alien Subterms <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-10>>
 
-      <with|par-left|<quote|1tab>|3.4<space|2spc>Simple constraint abduction
+      <with|par-left|<quote|1.5fn>|3.4<space|2spc>Simple constraint abduction
       for linear arithmetics <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-11>>
 
@@ -1954,20 +1981,20 @@
       Generalization> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-12><vspace|0.5fn>
 
-      <with|par-left|<quote|1tab>|4.1<space|2spc>Extended convex hull
+      <with|par-left|<quote|1.5fn>|4.1<space|2spc>Extended convex hull
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-13>>
 
-      <with|par-left|<quote|1tab>|4.2<space|2spc>Issues in inferring
+      <with|par-left|<quote|1.5fn>|4.2<space|2spc>Issues in inferring
       postconditions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-14>>
 
-      <with|par-left|<quote|1tab>|4.3<space|2spc>Abductive disjunction
+      <with|par-left|<quote|1.5fn>|4.3<space|2spc>Abductive disjunction
       elimination given quantifier prefix
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-15>>
 
-      <with|par-left|<quote|1tab>|4.4<space|2spc>Incorporating negative
+      <with|par-left|<quote|1.5fn>|4.4<space|2spc>Incorporating negative
       constraints <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-16>>
 
@@ -1979,15 +2006,15 @@
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-17><vspace|0.5fn>
 
-      <with|par-left|<quote|1tab>|5.1<space|2spc>Normalization, validity and
+      <with|par-left|<quote|1.5fn>|5.1<space|2spc>Normalization, validity and
       implication checking <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-18>>
 
-      <with|par-left|<quote|1tab>|5.2<space|2spc>Abduction
+      <with|par-left|<quote|1.5fn>|5.2<space|2spc>Abduction
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-19>>
 
-      <with|par-left|<quote|1tab>|5.3<space|2spc>Disjunction elimination
+      <with|par-left|<quote|1.5fn>|5.3<space|2spc>Disjunction elimination
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-20>>
 
@@ -1995,24 +2022,24 @@
       for Predicate Variables> <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-21><vspace|0.5fn>
 
-      <with|par-left|<quote|1tab>|6.1<space|2spc>Invariant Parameter
+      <with|par-left|<quote|1.5fn>|6.1<space|2spc>Invariant Parameter
       Candidates <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-22>>
 
-      <with|par-left|<quote|1tab>|6.2<space|2spc>Solving for Predicates in
+      <with|par-left|<quote|1.5fn>|6.2<space|2spc>Solving for Predicates in
       Negative Positions <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-23>>
 
-      <with|par-left|<quote|1tab>|6.3<space|2spc>Solving for Existential
+      <with|par-left|<quote|1.5fn>|6.3<space|2spc>Solving for Existential
       Types Predicates and Main Algorithm
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-24>>
 
-      <with|par-left|<quote|1tab>|6.4<space|2spc>Stages of iteration
+      <with|par-left|<quote|1.5fn>|6.4<space|2spc>Stages of iteration
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-25>>
 
-      <with|par-left|<quote|1tab>|6.5<space|2spc>Implementation details
+      <with|par-left|<quote|1.5fn>|6.5<space|2spc>Implementation details
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-26>>
 

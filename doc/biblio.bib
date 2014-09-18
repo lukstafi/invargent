@@ -65,8 +65,48 @@
   treatment =    "T Theoretical or Mathematical",
 }
 
+@article{ExTyADTs,
+ author = {L{\"a}ufer, Konstantin and Odersky, Martin},
+ title = {Polymorphic Type Inference and Abstract Data Types},
+ journal = {ACM Trans. Program. Lang. Syst.},
+ issue_date = {Sept. 1994},
+ volume = {16},
+ number = {5},
+ month = sep,
+ year = {1994},
+ issn = {0164-0925},
+ pages = {1411--1430},
+ numpages = {20},
+ url = {http://doi.acm.org/10.1145/186025.186031},
+ doi = {10.1145/186025.186031},
+ acmid = {186031},
+ publisher = {ACM},
+ address = {New York, NY, USA},
+ keywords = {dynamic dispatching, existentially quantified types, first-class abstract types, polymorphism, type inference, universally quantified types},
+}
+
+@article{IndexedTypes,
+ author = {Zenger, Christoph},
+ title = {Indexed Types},
+ journal = {Theor. Comput. Sci.},
+ issue_date = {Nov. 15, 1997},
+ volume = {187},
+ number = {1-2},
+ month = nov,
+ year = {1997},
+ issn = {0304-3975},
+ pages = {147--165},
+ numpages = {19},
+ url = {http://dx.doi.org/10.1016/S0304-3975(97)00062-5},
+ doi = {10.1016/S0304-3975(97)00062-5},
+ acmid = {270793},
+ publisher = {Elsevier Science Publishers Ltd.},
+ address = {Essex, UK},
+ keywords = {constraints, dependent types, functional languages, type inference, type system},
+}
+
 @ARTICLE{simonet-pottier-hmg-toplas,
-  author = {Vincent Simonet and Francois Pottier},
+  author = {Vincent Simonet and Fran\c{c}ois Pottier},
   title = {A Constraint-Based Approach to Guarded Algebraic Data
                  Types},
   month = JAN,
@@ -120,6 +160,40 @@ year = 1999,
 month = "January",
 address = "San Antonio",
 pages = "214--227"
+}
+
+@phdthesis{DMLThesis,
+ author = "Hongwei Xi",
+ title = {Dependent Types in Practical Programming},
+ year = 1998,
+ month = "December",
+ address = "Department of Mathematical Sciences, Carnegie Mellon University"
+}
+
+@inproceedings{XiGRDTs,
+ author = {Xi, Hongwei and Chen, Chiyan and Chen, Gang},
+ title = {Guarded Recursive Datatype Constructors},
+ booktitle = {Proceedings of the 30th ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages},
+ series = {POPL '03},
+ year = {2003},
+ isbn = {1-58113-628-5},
+ location = {New Orleans, Louisiana, USA},
+ pages = {224--235},
+ numpages = {12},
+ url = {http://doi.acm.org/10.1145/604131.604150},
+ doi = {10.1145/604131.604150},
+ acmid = {604150},
+ publisher = {ACM},
+ address = {New York, NY, USA},
+ keywords = {guarded recursive datatype constructors},
+} 
+
+@inproceedings{HMX,
+    author = {Martin Odersky and Martin Sulzmann and Martin Wehr},
+    title = {Type inference with constrained types},
+    booktitle = {Fourth International Workshop on Foundations of Object-Oriented Programming (FOOL)},
+    year = {1997},
+    publisher = {}
 }
 
 @inproceedings{InductLoopInv,
@@ -185,7 +259,7 @@ pages = "214--227"
 }
 
 @INPROCEEDINGS{regis-gianas-pottier-08,
-  author = {Yann Regis-Gianas and Francois Pottier},
+  author = {Yann R\'{e}gis-Gianas and Fran\c{c}ois Pottier},
   title = {A {Hoare} Logic for Call-by-Value Functional
                  Programs},
   booktitle = {Proceedings of the Ninth International Conference on
@@ -365,6 +439,7 @@ pages = "214--227"
    note = {10.1007/978-3-642-14128-7_17},
    year = {2010}
 }
+
 @InProceedings{LoopQuantElim,
   author =	{Deepak Kapur},
   title =	{Automatically Generating Loop Invariants Using Quantifier Elimination},
@@ -378,6 +453,33 @@ pages = "214--227"
   address =	{Dagstuhl, Germany},
   URL =		{http://drops.dagstuhl.de/opus/volltexte/2006/511},
   annote =	{Keywords: Program verification, loop invariants, inductive assertions, quantifier elimination}
+}
+
+@inproceedings{Sheard04,
+    author = {Tim Sheard},
+    title = {Languages of the Future},
+    booktitle = {In OOPSLA ’04: Companion to the 19th annual ACM SIGPLAN conference on Object-oriented programming systems, languages, and applications},
+    year = {2004},
+    pages = {116--119},
+    publisher = {ACM Press}
+}
+
+@inproceedings{CheneyHinzePhantomTypes,
+ author = {Cheney, James and Hinze, Ralf},
+ title = {A Lightweight Implementation of Generics and Dynamics},
+ booktitle = {Proceedings of the 2002 ACM SIGPLAN Workshop on Haskell},
+ series = {Haskell '02},
+ year = {2002},
+ isbn = {1-58113-605-6},
+ location = {Pittsburgh, Pennsylvania},
+ pages = {90--104},
+ numpages = {15},
+ url = {http://doi.acm.org/10.1145/581690.581698},
+ doi = {10.1145/581690.581698},
+ acmid = {581698},
+ publisher = {ACM},
+ address = {New York, NY, USA},
+ keywords = {dynamic typing, generic programming, type representations},
 }
 
 @inproceedings{ComplDecidableGADTs,
@@ -396,6 +498,21 @@ pages = "214--227"
  publisher = {ACM},
  address = {New York, NY, USA},
  keywords = {GADTs, Haskell, type inference},
+}
+
+@article{OutsideIn,
+  author    = {Dimitrios Vytiniotis and
+               Simon L. Peyton Jones and
+               Tom Schrijvers and
+               Martin Sulzmann},
+  title     = {OutsideIn(X) Modular type inference with local assumptions},
+  journal   = {J. Funct. Program.},
+  volume    = {21},
+  number    = {4-5},
+  year      = {2011},
+  pages     = {333-412},
+  ee        = {http://dx.doi.org/10.1017/S0956796811000098},
+  bibsource = {DBLP, http://dblp.uni-trier.de}
 }
 
 @inproceedings{StratifiedGADTs,
@@ -457,10 +574,19 @@ pages = "214--227"
     publisher = {MIT Press}
 }
 
-@TECHREPORT{simulRigidEUnifUndec,
+@INPROCEEDINGS{SPJUnifGADTs,
+    author = {Simon Peyton Jones, Dimitrios Vytiniotis, Stephanie Weirich and Geoffrey Washburn},
+    title = {Simple unification-based type inference for GADTs},
+    conftitle = {Eleventh ACM SIGPLAN International Conference on Functional Programming},
+    year = {2006},
+    publisher = {ACM Press}
+}
+
+@INPROCEEDINGS{simulRigidEUnifUndec,
     author = {Anatoli Degtyarev and Andrei Voronkov},
     title = {Simultaneous Rigid E-Unification is Undecidable},
-    institution = {Computer Science Logic. 9th International Workshop, CSL'95},
+    conftitle = {Computer Science Logic. 9th International Workshop},
+    series = {CSL '95}
     year = {1995}
 }
 
@@ -568,7 +694,7 @@ pages = "214--227"
 @inproceedings{ConvexHull,
   author    = {Komei Fukuda and
                Thomas M. Liebling and
-               Christine L{\"u}tolf},
+               Christine Lütolf},
   title     = {Extended Convex Hull},
   booktitle = {Proceedings of the 12th Canadian Conference on Computational
                Geometry, Fredericton, New Brunswick, Canada, August 16-19,
@@ -612,4 +738,21 @@ pages = "214--227"
  NOTE = {Submitted for publication},
  url = {http://www.ii.uni.wroc.pl/~lukstafi/pubs/ESOP2014.pdf},
  year = {2014},
+}
+
+@inproceedings{LightDML,
+  added-at = {2013-01-25T00:00:00.000+0100},
+  author = {Zhu, He and Jagannathan, Suresh},
+  booktitle={Verification, Model Checking, and Abstract Interpretation},
+  editor = {Giacobazzi, Roberto and Berdine, Josh and Mastroeni, Isabella},
+  ee = {http://dx.doi.org/10.1007/978-3-642-35873-9_19},
+  isbn = {978-3-642-35873-9},
+  keywords = {dblp},
+  pages = {295-314},
+  publisher = {Springer},
+  series = {Lecture Notes in Computer Science},
+  title = {Compositional and Lightweight Dependent Type Inference for ML.},
+  url = {http://dblp.uni-trier.de/db/conf/vmcai/vmcai2013.html#ZhuJ13},
+  volume = 7737,
+  year = 2013
 }
