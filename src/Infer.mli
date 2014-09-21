@@ -67,6 +67,13 @@ val prenexize : cnstrnt -> Defs.quant_ops * cnstrnt
 val normalize :
   Defs.quant_ops -> cnstrnt -> (int, int) Hashtbl.t * branch list
 
+(** Contains information about phantom enumerations,
+    i.e. alternatives to a datatype parameter's nullary concrete type
+    excluded by an [assert false] pattern-matching branch.
+    If the value for an is an empty list, the entry is not a phantom
+    enumeration. *)
+val phantom_enumeration : (Terms.cns_name, Terms.cns_name list) Hashtbl.t
+
 (* Eliminate shared conclusions during {!simplify}. *)
 val simplify :
   Defs.VarSet.t ->

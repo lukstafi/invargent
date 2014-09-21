@@ -144,8 +144,7 @@ let tests = "InvarGenT" >::: [
            test_case ~test_annot:true "concat_strings" ());
       "pointwise-rbtree_rotate" >::
         (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
+           skip_if !debug "debug";
            test_case "pointwise_rbtree_rotate" ());
       "pointwise-zip2" >::
         (fun () ->
@@ -201,7 +200,7 @@ let tests = "InvarGenT" >::: [
            test_case "non_pointwise_avl" ());
       "non_pointwise-avl_delmin" >::
         (fun () ->
-           todo "tune parameters";
+           todo "FIXME";
            (* skip_if !debug "debug"; *)
            test_case "non_pointwise_avl_delmin" ());
       "non_pointwise-fd_comp" >::

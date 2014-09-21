@@ -172,8 +172,111 @@ let normalize_expr e =
     aux k' e in
   !new_ex_types, aux None e
 
+let phantom_enumeration = Hashtbl.create 5
+(* Presence of a value [None] means that the datatype is excluded from
+   being part of a phantom enumeration. *)
+let phantom_enumeration_arg : (cns_name, cns_name list option array) Hashtbl.t
+  = Hashtbl.create 15
+
+exception Not_enum
+let extract_phantom_enumerations = function
+  | TypConstr _ | LetRecVal _ | LetVal _ -> ()
+  | ValConstr (_, _, _, phi, _, name, args, loc) ->
+    let sb, _ = separate_subst empty_q phi in
+    let args =
+      Array.map (fun v -> subst_typ sb (TVar v)) (Array.of_list args) in
+    let enums =
+      try Hashtbl.find phantom_enumeration_arg name
+      with Not_found ->
+        let enums = Array.make (Array.length args) (Some []) in
+        Hashtbl.add phantom_enumeration_arg name enums;
+        enums in
+    Array.iteri
+      (fun i ->
+         function
+         | None ->
+           (match args.(i) with
+            | TCons (c_name, []) ->
+              (*[* Format.printf "not-enum: %a@\n" pr_cns c_name; *]*)
+              (* Mark [c_name] as not an enum. *)
+              (try
+                 let bad_enum = Hashtbl.find phantom_enumeration c_name in
+                 List.iter
+                   (fun name -> Hashtbl.replace phantom_enumeration name [])
+                   bad_enum;
+                 Hashtbl.replace phantom_enumeration c_name []
+               with Not_found -> Hashtbl.add phantom_enumeration c_name [])
+            | _ -> ())
+         | Some enum ->
+           (match args.(i) with
+            | TCons (c_name, []) ->
+              (*[* Format.printf "is-enum: %a@\n" pr_cns c_name; *]*)
+              (try
+                 let old_enum =
+                   try
+                     let enum = Hashtbl.find phantom_enumeration c_name in
+                     if enum = [] then (
+                       (*[* Format.printf "but not enum %a@\n"
+                         pr_cns c_name; *]*)
+                       List.iter
+                         (fun name ->
+                            Hashtbl.replace phantom_enumeration name [])
+                         enum;
+                       enums.(i) <- None;
+                       raise Not_enum)
+                     else enum
+                   with Not_found -> [] in
+                 let new_enum =
+                   list_remove c_name
+                     (unique_sorted (List.sort compare (old_enum @ enum))) in
+                 enums.(i) <- Some (c_name::new_enum);
+                 if new_enum <> [] then
+                   Hashtbl.replace phantom_enumeration c_name new_enum;
+                 List.iter
+                   (function
+                     | d_name when d_name <> c_name ->
+                       let d_enum =
+                         try Hashtbl.find phantom_enumeration d_name
+                         with Not_found -> [] in
+                       Hashtbl.replace phantom_enumeration d_name
+                         (list_remove d_name
+                            (unique_sorted (List.sort compare 
+                                              (c_name::new_enum @ d_enum))))
+                     | _ -> ())
+                   enum
+               with Not_enum -> ())
+            | t ->
+              (* Mark position as not enumeration position. *)
+              (*[* Format.printf "not-enum-2: %a; enum=%a@\n" pr_ty t
+                (pr_sep_list "," pr_cns) enum; *]*)
+              List.iter
+                (fun name -> Hashtbl.replace phantom_enumeration name [])
+                enum;
+              enums.(i) <- None))
+      enums
+
+  | PrimVal (_, _, (_, _, ty), _, loc) ->
+    match return_type ty with
+    | TCons (c_name, []) ->
+      (* Mark [c_name] as not an enum. *)
+      (try
+         let bad_enum = Hashtbl.find phantom_enumeration c_name in
+         List.iter
+           (fun name -> Hashtbl.replace phantom_enumeration name [])
+           bad_enum;
+         Hashtbl.replace phantom_enumeration c_name []
+       with Not_found -> Hashtbl.add phantom_enumeration c_name [])
+    | _ -> ()
+
 let normalize_item = function
-  | (TypConstr _ | ValConstr _ | PrimVal _) as item -> [], item
+  | (TypConstr _ | ValConstr _ | PrimVal _) as item ->
+    extract_phantom_enumerations item;
+    (*[* Format.printf "phantom %d enumerations after: %a@\n"
+      (Hashtbl.length phantom_enumeration) pr_struct_item item;
+    Hashtbl.iter
+      (fun name enum -> Format.printf "phantom: name=%a enum=%a@\n"
+        pr_cns name (pr_sep_list "," pr_cns) enum) phantom_enumeration; *]*)
+    [], item
   | LetRecVal (docu, x, e, ty, tes, lc) ->
     let extys, e = normalize_expr e in
     let extys, tes = fold_map
@@ -1467,4 +1570,6 @@ let simplify preserve q brs =
 (** {2 Postprocessing and printing} *)
 
 let reset_state () =
+  Hashtbl.clear phantom_enumeration;
+  Hashtbl.clear phantom_enumeration_arg;
   fresh_expr_var_id := 0; fresh_chi_id := 0

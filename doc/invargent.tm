@@ -1212,7 +1212,7 @@
   discarding those disjuncts that contradict any implication branch.
   Specifically, let <math|\<cal-Q\>.\<wedge\><rsub|i><around*|(|D<rsub|i>\<Rightarrow\>C<rsub|i>|)>>
   be the constraint we solve, and let <math|\<exists\><wide|\<alpha\>|\<bar\>>.A>
-  be an abduction answer for <math|\<cal-Q\>.\<wedge\><rsub|i:C<rsub|i>\<neq\>\<b-F\>><around*|(|D<rsub|i>\<Rightarrow\>C<rsub|i>|)>>.
+  be a term abduction answer for <math|\<cal-Q\>.\<wedge\><rsub|i:C<rsub|i>\<neq\>\<b-F\>><around*|(|D<rsub|i>\<Rightarrow\>C<rsub|i>|)>>.
   We search for <math|i> such that for all <math|k> with
   <math|C<rsub|k>\<neq\>\<b-F\>> and <math|D<rsub|k>> satisfiable,
   <math|d<rsub|i>\<wedge\>A\<wedge\>D<rsub|k>\<wedge\>C<rsub|k>> is
@@ -1226,17 +1226,23 @@
   for terms than for the numeric sort. It falls short, however, when negation
   was intended to prevent the answer from being too general. Ideally, we
   would introduce disequation atoms <math|\<tau\><wide|\<neq\>|\<dot\>>\<tau\>>
-  and follow the scheme we use for the numericalsort. Instead, we limit
-  negation elimination to considering atoms of the form
-  <math|\<beta\><wide|=|\<dot\>>\<varepsilon\><rsub|1><around*|(|<wide|\<tau\>|\<bar\>>|)>>,
-  and contradict them by introducing atoms
-  <math|\<beta\><wide|=|\<dot\>>\<varepsilon\><rsub|2><around*|(|<wide|\<alpha\>|\<bar\>>|)>>,
-  for <math|\<varepsilon\><rsub|1>\<neq\>\<varepsilon\><rsub|2>> and fresh
-  answer variables <math|<wide|\<alpha\>|\<bar\>>>. The datatype constructor
+  and follow the scheme we use for the numerical sort. For now, we only cover
+  a very specific use of negation, to discriminate among type-level
+  ``enumeration''. We limit negation elimination to considering atoms of the
+  form <math|\<beta\><wide|=|\<dot\>>\<varepsilon\><rsub|1>>, and contradict
+  them by introducing atoms <math|\<beta\><wide|=|\<dot\>>\<varepsilon\><rsub|2>>,
+  for types <math|\<varepsilon\><rsub|1>\<neq\>\<varepsilon\><rsub|2>>
+  without parameters which we call <em|phantom enumerations>. The variables
+  <math|\<beta\>> are limited to the answer variables generated in the
+  previous iteration of the main algorithm. The nullary datatype constructor
   <math|\<varepsilon\><rsub|2>> is picked so that the atom is valid, using
   the same validation procedure as the one passed to the abduction algorithm.
-  The alternatives <math|\<varepsilon\><rsub|2>> to
-  <math|\<varepsilon\><rsub|1>> are collected from datatype definitions.
+  The heuristic defines phantom enumerations as nullary phantom types that do
+  not share datype parameter position (in GADT constructor definitions) with
+  non-enumeration types. When the equations derived for different negated
+  constraints involve a common variable as the left-hand-side, we select a
+  common right-hand-side. In the end, we only introduce the negation
+  elimination result to the answer when a single disjunct remains.
 
   Since the <em|discard> (or taboo) list used by backtracking is based on
   complete answers, it is preferable to perform negation elimination prior to

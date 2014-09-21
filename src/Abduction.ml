@@ -10,6 +10,7 @@ let fail_timeout_count = ref 4
 let no_alien_prem = ref true(* false *)
 let neg_before_abd = ref true
 let num_neg_since = ref 1
+let term_neg_since = ref 1
 let more_general = ref false
 let richer_answers = ref false
 let no_num_abduction = ref false
@@ -769,17 +770,76 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
            ()
       )
       brs_typ brs_num in
+  (* Negative constraint prior to abduction. *)
+  let neg_cns_pre =
+    if not !neg_before_abd || iter_no < !term_neg_since then []
+    else map_some
+        (fun (cnj, loc) ->
+           try
+             (*[* Format.printf
+               "abd-neg-pre: trying neg=%a...@\n%!" pr_formula cnj;
+              *]*)
+             let cnj = unify ~use_quants:false q cnj in
+             (*[* Format.printf "abd-neg-pre: passed@\n%!"; *]*)
+             Some (cnj, loc)
+           with Contradiction _ -> None)
+        neg_brs in
+  let neg_term =
+    (* Select [bvs] variables equated with constructors participating in
+       phantom type families. Filter candidates through validation. *)
+    let dsjs =
+      (* TODO: For now, we conjoin multiple disjuncts rather than
+         choosing one; reconsider since it might not be consistent. *)
+      concat_map
+        (fun (cnj, loc) ->
+           map_some
+             (function
+               | v, (TCons (c_name, args), loc)
+                 when VarSet.mem v bvs &&
+                      Hashtbl.mem Infer.phantom_enumeration c_name ->
+                 let enum =
+                   Hashtbl.find Infer.phantom_enumeration c_name in
+                 let enum =
+                   List.filter
+                     (fun name ->
+                        try validate
+                              ([], [v, (TCons (name, []), loc)]); true
+                        with Contradiction _ -> false)
+                     enum in
+                 if enum = [] then None
+                 else Some (v, (enum, loc))
+               | _ -> None)
+           cnj.cnj_typ)
+        neg_cns_pre in
+    (* Coordinate with other negative constraints, and select the
+       unambiguous ones. *)
+    let dsjs = List.map
+        (function
+          | v, (names, loc)::rem_names ->
+            v, List.fold_left list_inter names (List.map fst rem_names), loc
+          | _ -> assert false)
+        (collect dsjs) in
+    map_some
+      (function
+        | v, [name], loc -> Some (v, (TCons (name, []), loc))
+        | _ -> None)
+      dsjs in
+  (*[* if !neg_before_abd && iter_no >= !term_neg_since then
+    Format.printf "neg_term=%a@\n" pr_subst neg_term; *]*)
   (* We do not remove nonrecursive branches for types -- it will help
      other sorts do better validation. *)
   let cand_bvs, alien_eqs, tvs, ans_typ, more_in_brs =
     try
-      abd_typ q ~bvs ~dissociate ~validate ~discard:discard.at_typ brs_typ
+      abd_typ q ~bvs ~dissociate ~validate ~discard:discard.at_typ
+        ((sep_formulas [], neg_term)::brs_typ)
     with Suspect (cnj, lc) ->
       (*[* Format.printf
         "abd: fallback abd_typ loc=%a@\nsuspect=%a@\n%!"
         pr_loc lc pr_formula cnj;
        *]*)
       raise (NoAnswer (Type_sort, "term abduction failed", None, lc)) in
+  (* Drop the pseudo-branch with term negation. *)
+  let more_in_brs = List.tl more_in_brs in
   let brs_num = List.map2
       (fun (nonrec,prem,concl) (more_p, more_c) ->
          nonrec, more_p.cnj_num @ prem, more_c.cnj_num @ concl)
@@ -789,7 +849,7 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
   (* Filter out negated constraints that already are contradicted. Of
      the result, use only sorts other than [Type_sort] as negated
      constraints. *)
-  let neg_cns =
+  let neg_cns_post =
     if iter_no < !num_neg_since then []
     else map_some
         (fun (cnj, loc) ->
@@ -804,7 +864,7 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
            with Contradiction _ -> None)
         neg_brs in
   let neg_num ans_num =
-    if neg_cns = [] then []
+    if neg_cns_post = [] then []
     else
       (* Branches to verify disjuncts from negative
          constraints. Coalesce facts from subsumed branches. *)
@@ -829,7 +889,7 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
                VarSet.diff (NumDefs.fvs_formula cnj) bvs in
              try Some (snd (NumS.simplify q elimvs cnj), lc)
              with Contradiction _ -> None)
-          neg_cns in
+          neg_cns_post in
       NumS.negation_elim q ~bvs ~verif_cns:verif_cns_num
         num_neg_cns in
   let neg_num_res =

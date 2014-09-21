@@ -366,6 +366,7 @@ val pr_formula : Format.formatter -> formula -> unit
 val pr_ty : Format.formatter -> typ -> unit
 val pr_alien_ty : Format.formatter -> alien_subterm -> unit
 val pr_sort : Format.formatter -> Defs.sort -> unit
+val pr_cns : Format.formatter -> cns_name -> unit
 val pr_typscheme :
   Format.formatter -> typ_scheme -> unit
 val pr_ans :

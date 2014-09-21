@@ -304,6 +304,7 @@ let union_merge_f (type a) (type b) (type c)
 
 let list_inter a b = List.filter (fun e -> List.mem e b) a
 let list_diff a b = List.filter (fun e -> not (List.mem e b)) a
+let list_remove a b = List.filter (fun e -> e <> a) b
 
 let replace_assocs ~repl l = List.map
   (fun (k,_ as kv) -> try k, List.assoc k repl with Not_found -> kv)

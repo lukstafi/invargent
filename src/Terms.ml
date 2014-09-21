@@ -918,6 +918,8 @@ let pr_sort ppf = function
   | Num_sort -> fprintf ppf "num"
   | Type_sort -> fprintf ppf "type"
 
+let pr_cns ppf name = fprintf ppf "%s" (cns_str name)
+
 let pr_typscheme ppf = function
   | [], [], ty -> pr_ty ppf ty
   | vs, [], ty ->
