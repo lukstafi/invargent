@@ -146,6 +146,18 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "pointwise_rbtree_rotate" ());
+      "pointwise-zip2-simpler1" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "pointwise_zip2-simpler1" ());
+      "pointwise-zip2-simpler2" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "pointwise_zip2-simpler2" ());
+      "pointwise-zip2-simpler3" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "pointwise_zip2-simpler3" ());
       "pointwise-zip2" >::
         (fun () ->
            todo "FIXME";
@@ -160,6 +172,11 @@ let tests = "InvarGenT" >::: [
            todo "FIXME";
            (* skip_if !debug "debug"; *)
            test_case "pointwise_avl_ins" ());
+      "pointwise-extract1" >::
+        (fun () ->
+           todo "FIXME";
+           (* skip_if !debug "debug"; *)
+           test_case "pointwise_extract" ());
       "pointwise-extract" >::
         (fun () ->
            todo "FIXME";
@@ -168,7 +185,7 @@ let tests = "InvarGenT" >::: [
       "pointwise-extract2" >::
         (fun () ->
            todo "FIXME";
-           (* skip_if !debug "debug"; *)
+           skip_if !debug "debug";
            test_case "pointwise_extract2" ());
       "pointwise-run_state" >::
         (fun () ->
@@ -218,13 +235,11 @@ let tests = "InvarGenT" >::: [
            test_case "non_pointwise_zip1" ());
       "non_pointwise-zip1-simpler" >::
         (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
-           test_case ~richer_answers:true "non_pointwise_zip2" ());
+           skip_if !debug "debug";
+           test_case ~richer_answers:true "non_pointwise_zip1-simpler" ());
       "non_pointwise-leq" >::
         (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
+           skip_if !debug "debug";
            test_case ~richer_answers:true "non_pointwise_leq" ());
       "non_pointwise-run_state" >::
         (fun () ->
@@ -235,7 +250,7 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            todo "FIXME";
            (* skip_if !debug "debug"; *)
-           test_case ~richer_answers:true "non_pointwise_run_state" ());
+           test_case ~richer_answers:true "non_pointwise_run_state2" ());
       "avl_tree" >::
         (fun () ->
            skip_if !debug "debug";

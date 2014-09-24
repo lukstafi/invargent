@@ -12,7 +12,8 @@ datacons Leaf : RoB (Black, Z)
 
 datacons RNode : ∀a.RoB (Black, a) * Int * RoB (Black, a) ⟶ RoB (Red, a)
 
-datacons BNode : ∀a, b, c.RoB (a, c) * Int * RoB (b, c) ⟶ RoB (Black, S c)
+datacons BNode : ∀a, b, c.RoB (a, c) * Int * RoB (b, c) ⟶
+   RoB (Black, S c)
 
 datatype Dir
 

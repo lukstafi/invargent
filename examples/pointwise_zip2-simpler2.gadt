@@ -1,0 +1,16 @@
+datatype List : type
+datacons N : ∀a. List a
+datacons C : ∀a. a * List a ⟶ List a
+
+datatype Zip2 : type * type
+datacons Zero2 : ∀a. Zip2 (a, List a)
+datacons Succ2 :
+  ∀a, b, c. Zip2 (a, b) ⟶ Zip2 ((c → a), (List c → b))
+
+external zipZ : ∀a, b. Zip2 (a, b) → b
+
+let rec zipS = fun f r -> function
+  | Zero2 -> C (f, r)
+  | Succ2 n -> function
+    | N -> zipZ n
+    | C (z, zs) -> zipS (f z) (r zs) n

@@ -455,13 +455,19 @@
   requirements. To solve <math|D\<Rightarrow\>C> the algorithm starts with
   <math|\<b-U\><around*|(|D\<wedge\>C|)>> and iteratively replaces subterms
   by fresh variables <math|\<alpha\>\<in\><wide|\<alpha\>|\<bar\>>> for a
-  final solution <math|\<exists\><wide|\<alpha\>|\<bar\>>.A>. To mitigate
-  some of the limitations of fully maximal answers, we start from
-  <math|\<b-U\><rsub|><around*|(|<wide|A|~><around*|(|D\<wedge\>C|)>|)>>,
+  final solution <math|\<exists\><wide|\<alpha\>|\<bar\>>.A>. As our primary
+  approach to mitigate some of the limitations of fully maximal answers, we
+  start from <math|\<b-U\><rsub|><around*|(|<wide|A|~><around*|(|D\<wedge\>C|)>|)>>,
   where <math|\<exists\><wide|\<alpha\>|\<bar\>>.A> is the solution to
   previous problems solved by the joint abduction algorithm, and
   <math|<wide|A|~><around*|(|\<cdummy\>|)>> is the corresponding
-  substitution. During abduction <math|Abd<around*|(|\<cal-Q\>,<wide|\<beta\>|\<bar\>>,<wide|D<rsub|i>,C<rsub|i>|\<bar\>>|)>>,
+  substitution. Moreover, motivated by examples from Chuan-kai Lin
+  <cite|PracticalGADTsInfer>, we intruduce variable-variable equations
+  <math|\<beta\><rsub|1><wide|=|\<dot\>>\<beta\><rsub|2>>, for
+  <math|\<beta\><rsub|1>\<beta\><rsub|2>\<subset\><wide|\<beta\>|\<bar\>>>,
+  not implied by <math|<wide|A|~><around*|(|D\<wedge\>C|)>>, as additional
+  candidate answer atoms. During abduction
+  <math|Abd<around*|(|\<cal-Q\>,<wide|\<beta\>|\<bar\>>,<wide|D<rsub|i>,C<rsub|i>|\<bar\>>|)>>,
   we ensure that the (partial as well as final) answer
   <math|\<exists\><wide|\<alpha\>|\<bar\>>.A> satisfies
   <math|\<vDash\>\<cal-Q\>.A<around*|[|<wide|\<alpha\>|\<bar\>><wide|\<beta\>|\<bar\>>\<assign\><wide|t|\<bar\>>|]>>
@@ -479,7 +485,7 @@
   quantified variable that is not in <math|<wide|\<beta\>|\<bar\>>> and to
   the right of <math|\<beta\><rsub|1>> in <math|\<cal-Q\>>.
 
-  In implementing <cite|AbductionSolvMaher> p. 13, we follow top-down
+  In implementing <cite|AbductionSolvMaher> p. 13, we follow a top-down
   approach where bigger subterms are abstracted first -- replaced by a fresh
   variable, \ together with an arbitrary selection of other occurrences of
   the subterm. If dropping the candidate atom maintains
@@ -488,19 +494,20 @@
   the subterm by the fresh variable; proceeding to subterms of the subterm;
   preserving the subterm; replacing the subterm by variables corresponding to
   earlier occurrences of the subterm. This results in a single, branching
-  pass over all subterms considered. Finally, we clean up the solution by
+  pass over all subterms considered. Finally, we clean-up the solution by
   eliminating fresh variables when possible (i.e. substituting-out equations
   <math|x<wide|=|\<dot\>>\<alpha\>> for variable <math|x> and fresh variable
   <math|\<alpha\>>).
 
   Although there could be an infinite number of abduction answers, there is
-  always a finite number of <em|fully maximal> answers, one of which we
-  compute. We use a search scheme that tests as soon as possible. The simple
-  abduction algorithm takes a partial solution -- a conjunction of candidate
-  solutions for some other branches -- and checks if the solution being
-  generated is satisfiable together with the candidate partial solution. The
-  algorithm also takes several indicators to let it select the expected
-  answer:
+  always a finite number of <em|fully maximal> answers, or more generally, a
+  finite number of equivalence classes of formulas strictly stronger than a
+  given conjunction of equations in the domain <math|T<around*|(|F|)>>. We
+  use a search scheme that tests as soon as possible. The simple abduction
+  algorithm takes a partial solution -- a conjunction of candidate solutions
+  for some other branches -- and checks if the solution being generated is
+  satisfiable together with the candidate partial solution. The algorithm
+  also takes several indicators to let it select the expected answer:
 
   <\itemize>
     <item>a number that determines how many correct solutions to skip;
@@ -547,18 +554,36 @@
     for some ><wide|t|\<bar\>>|}>>>>>
   </eqnarray*>
 
-  \;
+  To move further beyond fully maximal answers, we incorporate candidates
+  <math|\<beta\><rsub|1><wide|=|\<dot\>>\<beta\><rsub|2>> for which the
+  following conditions hold: <math|\<beta\><rsub|1>\<beta\><rsub|2>\<subset\><wide|\<beta\>|\<bar\>>>,
+  <math|\<beta\><rsub|1>\<assign\>t<rsub|1>\<in\>\<b-U\><rsub|><around*|(|<wide|A|~><around*|(|D\<wedge\>C|)>|)>>,
+  <math|\<beta\><rsub|2>\<assign\>t<rsub|2>\<in\>\<b-U\><rsub|><around*|(|<wide|A|~><around*|(|D\<wedge\>C|)>|)>>
+  and <math|t<rsub|1><wide|=|\<dot\>>t<rsub|2>> is satisfiable. We also need
+  to include the unifier of <math|t<rsub|1><wide|=|\<dot\>>t<rsub|2>> among
+  the candidates, since otherwise the equation
+  <math|\<beta\><rsub|1><wide|=|\<dot\>>\<beta\><rsub|2>> would not suffice
+  to imply that of the atoms <math|\<beta\><rsub|1><wide|=|\<dot\>>t<rsub|1>>,
+  <math|\<beta\><rsub|2><wide|=|\<dot\>>t<rsub|2>> which belongs to the
+  conclusion <math|C>. The <em|full candidates>
+  <math|\<b-U\><rsub|><around*|(|<wide|A|~><around*|(|D\<wedge\>C|)>|)>> and
+  the <em|guess candidates> <math|<wide|\<beta\><rsub|1>\<assign\>\<beta\><rsub|2>;\<b-U\><around*|(|t<rsub|1><wide|=|\<dot\>>t<rsub|2>|)>|\<bar\>>>
+  are kept apart, the guess candidates are guessed before the full
+  candidates.
 
   To recapitulate, the implementation is:
 
   <\itemize>
     <item><verbatim|abstract> is the entry point.
 
-    <item>If <verbatim|cand=[]> -- no more candidates to add to the partial
-    solution: check for repeated answers, skipping, and discarded answers.
+    <item>If <verbatim|guess_cand=[]> and <verbatim|full_cand=[]> -- no more
+    candidates to add to the partial solution: check for repeated answers,
+    skipping, and discarded answers.
 
-    <item>Otherwise, pick the next atom <math|FV<around*|(|c|)>\<cap\><wide|\<beta\>|\<bar\>>\<neq\>\<varnothing\>>
-    if any, reordering the candidates until one is found.
+    <item>If <verbatim|guess_cand=[]>, pick the next <verbatim|full_cand>
+    atom <math|FV<around*|(|c|)>\<cap\><wide|\<beta\>|\<bar\>>\<neq\>\<varnothing\>>
+    if any, reordering the candidates until one is found. Otherwise, pick the
+    first <verbatim|guess_cand> atom without reordering.
 
     <item><verbatim|step> works through a single atom of the form <math|x=t>.
 
@@ -1925,6 +1950,8 @@
   <\collection>
     <\associate|bib>
       AbductionSolvMaher
+
+      PracticalGADTsInfer
 
       AbductionSolvMaher
 

@@ -367,7 +367,7 @@ let rec equal = function
   | TList t, TList u -> forall2 (equal (t, u))
   | _ -> fun _ _ -> False
 test b_not (equal (TInt, TList TInt) Zero Nil)"
-        [1, "∃a, b. δ = ((Ty a, Ty b) → a → b → Bool)"]
+        [1, "∃a, b. δ = ((Ty b, Ty a) → b → a → Bool)"]
     );
 
   "equal with assert" >::
@@ -396,7 +396,7 @@ let rec equal = function
   | _ -> fun _ _ -> False
   | TInt, TList l -> (function Nil -> assert false)
   | TList l, TInt -> (fun _ -> function Nil -> assert false)"
-        [1, "∃a, b. δ = ((Ty a, Ty b) → a → b → Bool)"]
+        [1, "∃a, b. δ = ((Ty b, Ty a) → b → a → Bool)"]
     );
 
   "equal with assert and test" >::
@@ -426,7 +426,7 @@ let rec equal = function
   | TInt, TList l -> (function Nil -> assert false)
   | TList l, TInt -> (fun _ -> function Nil -> assert false)
 test b_not (equal (TInt, TList TInt) Zero Nil)"
-        [1, "∃a, b. δ = ((Ty a, Ty b) → a → b → Bool)"]
+        [1, "∃a, b. δ = ((Ty b, Ty a) → b → a → Bool)"]
     );
 
   "SPJ non-principal 1" >::
