@@ -978,7 +978,9 @@ let revert_uni ~cmp_v ~cmp_w ~uni_v ~bvs eqn =
     solve ~eqn ~cmp_v ~cmp_w uni_v in
   List.filter (fun (v,_) -> uni_v v && not (VarSet.mem v bvs)) rev_sb
 
+(* We currently do not measure satisfiability of negative constraints. *)
 let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
+    ~neg_validate:_
     skip (eqs_i, ineqs_i, optis_i, suboptis_i)
     (opti_lhs, (d_eqn, d_ineqn), (c_eqn, c_ineqn, c_optis, c_suboptis)) =
   let skip = ref skip in
@@ -1256,9 +1258,9 @@ module NumAbd = struct
   let abd_fail_flag = abd_fail_flag
 
   let abd_simple {qcmp_v; cmp_w; cmp_v; uni_v; bvs}
-      ~discard ~validate acc br =
+      ~discard ~validate ~neg_validate acc br =
     abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs
-      ~discard ~validate 0 acc br
+      ~discard ~validate ~neg_validate 0 acc br
 
   let extract_ans ans = ans
 
@@ -1433,6 +1435,8 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
            ()
          | None -> ())
       brs in
+  (* We currently do not make use of negative constraints. *)
+  let neg_validate _ = 0 in
   let brs, unproc_brs =
     if iter_no > 1 || !early_num_abduction
     then brs, []
@@ -1476,7 +1480,7 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
       unproc_brs in
   let ans = JCA.abd
       {cmp_v; cmp_w; NumAbd.qcmp_v = q.cmp_v; uni_v = q.uni_v; bvs}
-      ~discard ~validate ([], [], [], []) brs in
+      ~discard ~validate ~neg_validate ([], [], [], []) brs in
   [], elim_uni @ ans_to_num_formula ans
 
 

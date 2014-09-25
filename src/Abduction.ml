@@ -8,6 +8,7 @@
 let timeout_count = ref 700(* 5000 *)(* 50000 *)
 let fail_timeout_count = ref 4(* 10 *)
 let no_alien_prem = ref true(* false *)
+let guess_eqs_nonvar = ref true
 let neg_before_abd = ref true
 let num_neg_since = ref 1
 let term_neg_since = ref 1
@@ -187,7 +188,9 @@ let revert_uni q ~bvs ~pms ~dissociate ans prem cand =
   c_sb, cand
 
 let cand_var_eqs q bvs cnj_typ =
-  let cands = List.filter (fun (v, _) -> VarSet.mem v bvs) cnj_typ in
+  let cands = List.filter
+      (function _, (TVar _, _) when !guess_eqs_nonvar -> false
+              | v, _ ->  VarSet.mem v bvs) cnj_typ in
   concat_map
     (fun ((v1,(t1,lc1)), (v2,(t2,lc2))) ->
        try
@@ -201,7 +204,7 @@ let cand_var_eqs q bvs cnj_typ =
 
 
 let abd_simple q ?without_quant ~bvs ~pms ~dissociate
-    ~validate ~discard skip (vs, ans) (prem, concl) =
+    ~validate ~neg_validate ~discard skip (vs, ans) (prem, concl) =
   let counter = ref 0 in
   let pms = add_vars vs pms in
   let skip = ref skip in
@@ -390,7 +393,17 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
             ddepth (var_str c6x) pr_ty c6t; *]*)
           () in
         if !richer_answers then (choice6 (); choice1 ())
-        else (choice1 (); choice6 ());
+        else (
+          let c6sx =
+            if !revert_cst then x, (c_subst_typ c_sb t, lc)
+            else sx in
+          if neg_validate (vs, ans @ full_cand) >
+             neg_validate (vs, ans @ c6sx::full_cand)
+          then (
+            (*[* Format.printf
+              "abd_simple: [%d] negation choice inversion@\n%!" ddepth; *]*)
+            choice6 (); choice1 ())
+          else (choice1 (); choice6 ()));
         step deep c_sb x lc {typ_sub=t; typ_ctx=[]} repls
           is_p bvs pms vs ans rem_cand
     and step deep c_sb x lc loc repls is_p bvs pms vs ans
@@ -618,8 +631,10 @@ module TermAbd = struct
   let abd_fail_timeout = !fail_timeout_count
   let abd_fail_flag = abd_fail_flag
 
-  let abd_simple (q, pms, dissociate) ~discard ~validate (bvs, acc) br =
-    abd_simple q ~bvs ~pms ~dissociate ~validate ~discard 0 acc br
+  let abd_simple (q, pms, dissociate) ~discard ~validate ~neg_validate
+      (bvs, acc) br =
+    abd_simple q ~bvs ~pms ~dissociate ~validate ~neg_validate
+        ~discard 0 acc br
 
   let extract_ans (bvs, vs_ans) = vs_ans
   let discard_ans = extract_ans
@@ -637,7 +652,7 @@ end
 
 module JCA = Joint.JointAbduction (TermAbd)
 
-let abd_typ q ~bvs ?(dissociate=false) ~validate ~discard
+let abd_typ q ~bvs ?(dissociate=false) ~validate ~neg_validate ~discard
     (brs : TermAbd.branch list) =
   (*[* Format.printf "abd_typ:@ bvs=@ %a@\n%!"
     pr_vars bvs; *]*)
@@ -667,7 +682,8 @@ let abd_typ q ~bvs ?(dissociate=false) ~validate ~discard
   (*[* Format.printf "abd_typ: alien_vs=%a@\nalien_eqs=%a@\n%!"
     pr_vars pms pr_subst !alien_eqs; *]*)
   let cand_bvs, (vs, ans) =
-    JCA.abd (q, pms, dissociate) ~discard ~validate (bvs, ([], [])) brs in
+    JCA.abd (q, pms, dissociate) ~discard ~validate ~neg_validate
+      (bvs, ([], [])) brs in
   (*[* Format.printf "abd_typ: result vs=%s@\nans=%a@\n%!"
     (String.concat ","(List.map var_str vs))
     pr_subst ans; *]*)
@@ -737,9 +753,10 @@ let abd_mockup_num q ~bvs brs =
       let cnj_num = ans_num @ prem.cnj_num @ concl_num in
       ignore (NumS.satisfiable cnj_num))
     brs_typ brs_num in
+  let neg_validate _ = 0 in
   try
     let cand_bvs, alien_eqs, tvs, ans_typ, more_in_brs =
-      abd_typ q ~bvs ~validate ~discard:[] brs_typ in
+      abd_typ q ~bvs ~validate ~neg_validate ~discard:[] brs_typ in
     Some (List.map2
             (fun (prem_num,concl_num) (more_p, more_c) ->
                prem_num @ more_p.cnj_num,
@@ -774,7 +791,22 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
                           (nonrec, prem.cnj_num, concl.cnj_num))
            | None -> None)
           brs) in
-  let validate (vs, ans) = List.iter2
+  (* Negative constraint prior to abduction. *)
+  let neg_cns_pre =
+    if not !neg_before_abd || iter_no < !term_neg_since then []
+    else map_some
+        (fun (cnj, loc) ->
+           try
+             (*[* Format.printf
+               "abd-neg-pre: trying neg=%a...@\n%!" pr_formula cnj;
+              *]*)
+             let cnj = unify ~use_quants:false q cnj in
+             (*[* Format.printf "abd-neg-pre: passed@\n%!"; *]*)
+             Some (cnj, loc)
+           with Contradiction _ -> None)
+        neg_brs in
+  let validate (vs, ans) =
+    List.iter2
       (fun (prem, concl_ty) (nonrec, _, concl_num) ->
          (* Do not use quantifiers, because premise is in the conjunction. *)
          (* TODO: after cleanup optimized in abd_simple, pass clean_ans
@@ -796,20 +828,17 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
            ()
       )
       brs_typ brs_num in
-  (* Negative constraint prior to abduction. *)
-  let neg_cns_pre =
-    if not !neg_before_abd || iter_no < !term_neg_since then []
-    else map_some
-        (fun (cnj, loc) ->
+  let neg_validate (vs, ans) =
+    (* Returns the number of negative constraints not contradicted by
+       the answer, i.e. the closer to 0 the better. *)
+    List.fold_left
+      (fun acc (cnj, _) ->
+         acc +
            try
-             (*[* Format.printf
-               "abd-neg-pre: trying neg=%a...@\n%!" pr_formula cnj;
-              *]*)
-             let cnj = unify ~use_quants:false q cnj in
-             (*[* Format.printf "abd-neg-pre: passed@\n%!"; *]*)
-             Some (cnj, loc)
-           with Contradiction _ -> None)
-        neg_brs in
+             ignore
+               (combine_sbs ~use_quants:false q [cnj.cnj_typ; ans]); 1
+           with Contradiction _ -> 0)
+      0 neg_cns_pre in
   let neg_term =
     (* Select [bvs] variables equated with constructors participating in
        phantom type families. Filter candidates through validation. *)
@@ -856,7 +885,8 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
      other sorts do better validation. *)
   let cand_bvs, alien_eqs, tvs, ans_typ, more_in_brs =
     try
-      abd_typ q ~bvs ~dissociate ~validate ~discard:discard.at_typ
+      abd_typ q ~bvs ~dissociate ~validate ~neg_validate
+        ~discard:discard.at_typ
         ((sep_formulas [], neg_term)::brs_typ)
     with Suspect (cnj, lc) ->
       (*[* Format.printf

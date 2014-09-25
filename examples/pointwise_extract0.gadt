@@ -17,9 +17,10 @@ datacons ForkR : ∀a, b. Path b ⟶ Path (Fk (a, b))
 external append : ∀a. List a → List a → List a
 external map : ∀a, b. (a → b) → List a → List b
 
-external find : ∀a, b. (a → Bool) → Tree (b, a) → List (Path b)
-
-let rec extract = function
-  | Here -> (function End m -> m | Fork (_, _) -> assert false)
-  | ForkL p1 -> (function Fork (x, y) -> extract p1 x | End _ -> assert false)
-  | ForkR p1 -> (function Fork (x, y) -> extract p1 y | End _ -> assert false)
+let rec find = fun f -> function
+  | End m ->
+    (match f m with
+      | True -> C (Here, N)
+      | False -> N)
+  | Fork (x, y) -> append (map (fun y -> ForkL y) (find f x))
+                          (map (fun y -> ForkR y) (find f y))

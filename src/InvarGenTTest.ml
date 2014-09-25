@@ -172,21 +172,23 @@ let tests = "InvarGenT" >::: [
            todo "FIXME";
            (* skip_if !debug "debug"; *)
            test_case "pointwise_avl_ins" ());
+      "pointwise-extract0" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "pointwise_extract0" ());
       "pointwise-extract1" >::
         (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
-           test_case "pointwise_extract" ());
-      "pointwise-extract" >::
-        (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
-           test_case "pointwise_extract" ());
+           skip_if !debug "debug";
+           test_case "pointwise_extract1" ());
       "pointwise-extract2" >::
         (fun () ->
            todo "FIXME";
-           skip_if !debug "debug";
+           (* skip_if !debug "debug"; *)
            test_case "pointwise_extract2" ());
+      "pointwise-extract" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "pointwise_extract" ());
       "pointwise-run_state" >::
         (fun () ->
            skip_if !debug "debug";

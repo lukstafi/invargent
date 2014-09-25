@@ -569,7 +569,10 @@
   <math|\<b-U\><rsub|><around*|(|<wide|A|~><around*|(|D\<wedge\>C|)>|)>> and
   the <em|guess candidates> <math|<wide|\<beta\><rsub|1>\<assign\>\<beta\><rsub|2>;\<b-U\><around*|(|t<rsub|1><wide|=|\<dot\>>t<rsub|2>|)>|\<bar\>>>
   are kept apart, the guess candidates are guessed before the full
-  candidates.
+  candidates. By default, we additionally limit consideration to atoms
+  <math|\<beta\><rsub|1><wide|=|\<dot\>>t<rsub|1>>,
+  <math|\<beta\><rsub|2><wide|=|\<dot\>>t<rsub|2>> where
+  <math|t<rsub|1>,t<rsub|2>> are not themselves variables.
 
   To recapitulate, the implementation is:
 
@@ -630,6 +633,9 @@
       <item>An option <verbatim|richer_answers> reorders the choices to: 6,
       1, 2, 4, 3, 5; it does not increase computational cost but sometimes
       leads to answers that are not most general.
+
+      <item>If choice 6 would lead to more negative constraints contradicted
+      than choice 1, we pick choice 6 first for a particular candidate atom.
     </itemize>
 
     <item>Form initial candidates <math|Rev<rsub|\<forall\>><around*|(|\<cal-Q\>,<wide|\<beta\>|\<bar\>>,\<b-U\><around*|(|D\<wedge\>A<rsub|p>|)>,\<b-U\><around*|(|A<rsub|p>\<wedge\>D\<wedge\>C|)>|)>>.

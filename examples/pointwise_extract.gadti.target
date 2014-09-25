@@ -28,4 +28,4 @@ external map : ∀a, b. (a → b) → List a → List b
 
 val find : ∀a, b. (a → Bool) → Tree (b, a) → List (Path b)
 
-val extract : ∀a, b. Path a → Tree (a, b) → b
+val extract : ∀a, b. Path b → Tree (b, a) → a

@@ -25,6 +25,11 @@ val no_alien_prem : bool ref
 (** [no_num_abduction=true] does not perform numerical
     abduction. Default [false]. *)
 val no_num_abduction : bool ref
+(** [guess_eqs_nonvar=true] means the only guess equations [x=y] tried
+    are for [x=s], [y=t] in either the premise or conclusion of
+    abduction problem where neither [s] nor [t] are variables.
+    Default [true]. *)
+val guess_eqs_nonvar : bool ref
 (** [neg_before_abd=false] moves numerical negation elimination till
     after numerical abduction, with possibly better determination of
     negative facts, but worse availability of the negative
@@ -43,6 +48,7 @@ val abd_simple :
   bvs:Defs.VarSet.t ->
   pms:Defs.VarSet.t -> dissociate:bool ->
   validate:((Defs.var_name list * Terms.subst) -> unit) ->
+  neg_validate:((Defs.var_name list * Terms.subst) -> int) ->
   discard:((Defs.var_name list * Terms.subst) list) ->
   int ->
   Defs.var_name list * Terms.subst ->
@@ -53,6 +59,7 @@ val abd_typ :
   bvs:Defs.VarSet.t ->
   ?dissociate:bool ->
   validate:((Defs.var_name list * Terms.subst) -> unit) ->
+  neg_validate:((Defs.var_name list * Terms.subst) -> int) ->
   discard:((Defs.var_name list * Terms.subst) list) ->
   (Terms.sep_formula * Terms.subst) list ->
   Defs.VarSet.t * Terms.subst *        (* alien_eqs *)

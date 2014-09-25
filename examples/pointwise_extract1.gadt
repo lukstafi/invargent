@@ -21,6 +21,8 @@ external find : ∀a, b. (a → Bool) → Tree (b, a) → List (Path b)
 
 let rec extract = fun p t ->
   match p with
-    | Here -> (match t with End m -> m)
-    | ForkL p1 -> (match t with Fork (x, y) -> extract p1 x)
-    | ForkR p1 -> (match t with Fork (x, y) -> extract p1 y)
+    | Here -> (match t with End m -> m | Fork (_, _) -> assert false)
+    | ForkL p1 ->
+      (match t with Fork (x, y) -> extract p1 x | End _ -> assert false)
+    | ForkR p1 ->
+      (match t with Fork (x, y) -> extract p1 y | End _ -> assert false)

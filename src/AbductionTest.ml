@@ -27,10 +27,11 @@ let br_simple lhs rhs =
 let test_simple lhs_m rhs_m ?(validate=(fun _ -> ())) skip res =
   let lhs = p_formula lhs_m and rhs = p_formula rhs_m in
   let lhs, rhs = br_simple lhs rhs in
+  let neg_validate _ = 0 in
   let ans =
     match abd_simple q ~without_quant:()
       ~bvs:VarSet.empty ~pms:VarSet.empty ~dissociate:false
-      ~validate ~discard:[] skip ([],[]) (lhs, rhs) with
+      ~validate ~neg_validate ~discard:[] skip ([],[]) (lhs, rhs) with
     | None -> "none"
     | Some (bvs, (vs, ans_typ)) ->
       pr_to_str pr_formula
@@ -101,7 +102,8 @@ ta = A";
         let ans =
           try let cand_bvs, alien_eqs, vs, ans_typ, _ =
                 abd_typ q ~bvs
-                  ~validate:(fun _ -> ()) ~discard:[]
+                  ~validate:(fun _ -> ())
+                  ~neg_validate:(fun _ -> 0) ~discard:[]
                 [lhs0, rhs0; lhs1, rhs1] in
               pr_to_str pr_formula (to_formula ans_typ)
           with Suspect _ -> "none" in

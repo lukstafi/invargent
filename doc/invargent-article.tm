@@ -21,7 +21,7 @@
   <include|invargent.tm>
 
   <\bibliography|bib|tm-plain|biblio.bib>
-    <\bib-list|4>
+    <\bib-list|5>
       <bibitem*|1><label|bib-ArithQuantElim>Sergey<nbsp>Berezin,
       Vijay<nbsp>Ganesh<localize| and >David L.<nbsp>Dill.<newblock> An
       online proof-producing decision procedure for mixed-integer linear
@@ -37,7 +37,12 @@
       Computational Geometry, Fredericton, New Brunswick, Canada, August
       16-19, 2000>. 2000.<newblock>
 
-      <bibitem*|3><label|bib-AbductionSolvMaher>Michael<nbsp>Maher<localize|
+      <bibitem*|3><label|bib-PracticalGADTsInfer>Chuan-kai<nbsp>Lin.<newblock>
+      <with|font-shape|italic|Practical type inference for the GADT type
+      system>.<newblock> PhD dissertation, Portland State University,
+      Department of Computer Science, 2010.<newblock>
+
+      <bibitem*|4><label|bib-AbductionSolvMaher>Michael<nbsp>Maher<localize|
       and >Ge<nbsp>Huang.<newblock> On computing constraint abduction
       answers.<newblock> <localize|In >Iliano<nbsp>Cervesato,
       Helmut<nbsp>Veith<localize| and >Andrei<nbsp>Voronkov<localize|,
@@ -47,7 +52,7 @@
       <localize|pages >421--435. Springer Berlin / Heidelberg,
       2008.<newblock> 10.1007/978-3-540-89439-1<rsub|3>0.<newblock>
 
-      <bibitem*|4><label|bib-AntiUnifAlg>B<nbsp>Østvold.<newblock> A
+      <bibitem*|5><label|bib-AntiUnifAlg>B<nbsp>Østvold.<newblock> A
       functional reconstruction of anti-unification.<newblock>
       <localize|Technical Report>, Norwegian Computing Center, Oslo, Norway,
       2004.<newblock>
@@ -111,8 +116,8 @@
     <associate|auto-7|<tuple|3.1|6|invargent.tm>>
     <associate|auto-8|<tuple|3.1.1|8|invargent.tm>>
     <associate|auto-9|<tuple|3.2|8|invargent.tm>>
-    <associate|bib-AbductionSolvMaher|<tuple|3|22>>
-    <associate|bib-AntiUnifAlg|<tuple|4|22>>
+    <associate|bib-AbductionSolvMaher|<tuple|4|22>>
+    <associate|bib-AntiUnifAlg|<tuple|5|22>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
@@ -120,6 +125,7 @@
     <associate|bib-ConvexHull|<tuple|2|22>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
     <associate|bib-ESOP2014|<tuple|9|23>>
+    <associate|bib-PracticalGADTsInfer|<tuple|3|?>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
     <associate|bib-disjelimTechRep|<tuple|6|23>>
     <associate|bib-invariantsTechRep2|<tuple|7|23>>
@@ -135,6 +141,8 @@
   <\collection>
     <\associate|bib>
       AbductionSolvMaher
+
+      PracticalGADTsInfer
 
       AbductionSolvMaher
 
