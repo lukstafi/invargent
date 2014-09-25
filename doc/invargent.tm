@@ -548,15 +548,16 @@
   initial candidate by eliminating universally quantified variables:
 
   <\eqnarray*>
-    <tformat|<table|<row|<cell|Rev<rsub|\<forall\>><around*|(|\<cal-Q\>,<wide|\<beta\>|\<bar\>>,D,C|)>>|<cell|=>|<cell|<around*|{|S<around*|(|c|)><mid|\|>c\<in\>C,S=<around*|[|<wide|\<beta\><rsub|u>|\<bar\>>\<assign\><wide|t<rsub|u>|\<bar\>>|]><with|mode|text|
-    for ><wide|\<forall\>\<beta\><rsub|u>|\<bar\>>\<subset\>\<cal-Q\>,\<cal-M\>\<vDash\>D\<Rightarrow\><wide|S|\<dot\>>,<next-line><with|mode|text|
+    <tformat|<table|<row|<cell|Rev<rsub|\<forall\>><around*|(|\<cal-Q\>,<wide|\<beta\>|\<bar\>>,D,C|)>>|<cell|=>|<cell|<around*|{|S<around*|(|c|)><mid|\|>c\<in\>C,S=<around*|[|<wide|t<rsub|u>|\<bar\>>\<assign\><wide|t<rprime|'><rsub|u>|\<bar\>>|]><with|mode|text|
+    for >FV<around*|(|t<rsub|u>|)>\<cap\><wide|\<beta\><rsub|u>|\<bar\>>\<neq\>\<varnothing\>,<wide|\<forall\>\<beta\><rsub|u>|\<bar\>>\<subset\>\<cal-Q\>,\<cal-M\>\<vDash\>D\<Rightarrow\><wide|S|\<dot\>>,<next-line><with|mode|text|
     \ \ \ \ \ \ \ >\<cal-M\>\<vDash\>\<cal-Q\>.S<around*|(|c|)><around*|[|<wide|\<beta\>|\<bar\>>\<assign\><wide|t|\<bar\>>|]><with|mode|text|
     for some ><wide|t|\<bar\>>|}>>>>>
   </eqnarray*>
 
-  To move further beyond fully maximal answers, we incorporate candidates
-  <math|\<beta\><rsub|1><wide|=|\<dot\>>\<beta\><rsub|2>> for which the
-  following conditions hold: <math|\<beta\><rsub|1>\<beta\><rsub|2>\<subset\><wide|\<beta\>|\<bar\>>>,
+  Note that <math|S> above is a substitution of subterms rather than of
+  variables. To move further beyond fully maximal answers, we incorporate
+  candidates <math|\<beta\><rsub|1><wide|=|\<dot\>>\<beta\><rsub|2>> for
+  which the following conditions hold: <math|\<beta\><rsub|1>\<beta\><rsub|2>\<subset\><wide|\<beta\>|\<bar\>>>,
   <math|\<beta\><rsub|1>\<assign\>t<rsub|1>\<in\>\<b-U\><rsub|><around*|(|<wide|A|~><around*|(|D\<wedge\>C|)>|)>>,
   <math|\<beta\><rsub|2>\<assign\>t<rsub|2>\<in\>\<b-U\><rsub|><around*|(|<wide|A|~><around*|(|D\<wedge\>C|)>|)>>
   and <math|t<rsub|1><wide|=|\<dot\>>t<rsub|2>> is satisfiable. We also need

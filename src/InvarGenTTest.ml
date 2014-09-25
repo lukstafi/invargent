@@ -169,8 +169,7 @@ let tests = "InvarGenT" >::: [
            test_case "pointwise_avl_rotl" ());
       "pointwise-avl_ins" >::
         (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
+           skip_if !debug "debug";
            test_case "pointwise_avl_ins" ());
       "pointwise-extract0" >::
         (fun () ->

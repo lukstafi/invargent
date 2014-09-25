@@ -16,6 +16,7 @@ let more_general = ref false
 let richer_answers = ref false
 let no_num_abduction = ref false
 let revert_cst = ref true
+let revert_at_uni = ref true
 
 open Defs
 open Terms
@@ -87,7 +88,6 @@ let rich_return_type_heur bvs ans cand =
         | sx -> sx)
       cand
 
-(* let revert_uni_in_all = ref (\* false *\) true *)
 let rich_return_type = ref true
 
 exception Distinct
@@ -179,13 +179,33 @@ let revert_uni q ~bvs ~pms ~dissociate ans prem cand =
              avs
            @ [c, (o, olc)])
         (collect c_sb) in
+  let tu_sb =
+    if not !revert_at_uni then []
+    else map_some
+        (function
+          | v, (TVar _, _) -> None
+          | v, (t, lc)
+            when VarSet.exists univar (fvs_typ t) ->
+            Some (t, (v, lc))
+          | _ -> None)
+        prem in
+  let tu_sb =
+    if not !revert_at_uni then []
+    else List.map
+        (fun (tu, vs) ->
+           (* Maximum should be the leftmost here. *)
+           let leq (v1,_) (v2,_) = not (q.cmp_v v1 v2 = Left_of) in
+           let ov, olc = maximum ~leq vs in
+           let o = TVar ov in
+           tu, (o, olc))
+        (collect tu_sb) in
   (*[* Format.printf "revert_uni: cand=%a@\n%!" pr_subst cand; *]*)
   let cand =
     if !rich_return_type
     then rich_return_type_heur bvs ans cand
     else cand in
   (*[* Format.printf "revert_uni: res=%a@\n%!" pr_subst cand; *]*)
-  c_sb, cand
+  tu_sb @ c_sb, cand
 
 let cand_var_eqs q bvs cnj_typ =
   let cands = List.filter
@@ -568,7 +588,8 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
     in
     if implies_concl vs ans then Some (bvs, (vs, ans))
     else
-      let {cnj_typ; _} as prem_n_concl = prem_and ((* ans @ *) concl) in
+      let {cnj_typ; _} as prem_n_concl =
+        prem_and ((* ans @ *) concl) in
       (* FIXME: hmm... *)
       (* let cnj_typ = list_diff cnj_typ discard in *)
       let guess_cand = cand_var_eqs q bvs prem_n_concl.cnj_typ in
