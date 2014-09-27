@@ -23,34 +23,24 @@ external rotl :
 external rotr :
   ∀a. AVL (S (S a)) → Int → AVL a → Choice (AVL (S (S a)), AVL (S (S (S a))))
 
-let empty = function
-  | Tip -> IsZ
-  | LNode (_, _, _) -> NotZ
-  | SNode (_, _, _) -> NotZ
-  | MNode (_, _, _) -> NotZ
+external empty :  ∀a. AVL a → Zero a
 
 let rec delmin = function
   | LNode (a, x, b) ->
     (match empty a with
-      | IsZ -> x, L b
+      | IsZ -> L b
       | NotZ ->
         (match delmin a with
-          y, k ->
-          (match k with
-            | L a -> y, rotl a x b
-            | R a -> y, R (LNode (a, x, b)))))
+          | L a -> rotl a x b
+          | R a -> R (LNode (a, x, b))))
   | SNode (a, x, b) ->
     (match empty a with
-      | IsZ -> x, L b
+      | IsZ -> L b
       | NotZ ->
         (match delmin a with
-          y, k ->
-          (match k with
-            | L a -> y, R (LNode (a, x, b))
-            | R a -> y, R (SNode (a, x, b)))))
+          | L a -> R (LNode (a, x, b))
+          | R a -> R (SNode (a, x, b))))
   | MNode (a, x, b) ->
     (match delmin a with
-      y, k ->
-      (match k with
-        | L a -> y, L (SNode (a, x, b))
-        | R a -> y, R (MNode (a, x, b))))
+      | L a -> L (SNode (a, x, b))
+      | R a -> R (MNode (a, x, b)))

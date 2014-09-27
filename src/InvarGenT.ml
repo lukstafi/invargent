@@ -126,6 +126,9 @@ let main () =
      under certain conditions; exclusive with -weaker_pruning.";
     "-richer_answers", Arg.Set Abduction.richer_answers,
     "Keep some equations in term abduction answers even if redundant.";
+    "-prefer_guess", Arg.Set Abduction.prefer_guess,
+    "Try to guess equality-between-parameters before considering other \
+     possibilities. Implied by -richer_answers.";
     "-more_existential", Arg.Set DisjElim.more_existential,
     "More general invariant at expense of more existential postcondition.";
     "-show_extypes", Arg.Set Terms.show_extypes,

@@ -35,22 +35,16 @@ let rec delmin = function
       | IsZ -> x, L b
       | NotZ ->
         (match delmin a with
-          y, k ->
-          (match k with
-            | L a -> y, rotl a x b
-            | R a -> y, R (LNode (a, x, b)))))
+          | y, L a -> y, rotl a x b
+          | y, R a -> y, R (LNode (a, x, b))))
   | SNode (a, x, b) ->
     (match empty a with
       | IsZ -> x, L b
       | NotZ ->
         (match delmin a with
-          y, k ->
-          (match k with
-            | L a -> y, R (LNode (a, x, b))
-            | R a -> y, R (SNode (a, x, b)))))
+          | y, L a -> y, R (LNode (a, x, b))
+          | y, R a -> y, R (SNode (a, x, b))))
   | MNode (a, x, b) ->
     (match delmin a with
-      y, k ->
-      (match k with
-        | L a -> y, L (SNode (a, x, b))
-        | R a -> y, R (MNode (a, x, b))))
+      | y, L a -> y, L (SNode (a, x, b))
+      | y, R a -> y, R (MNode (a, x, b)))

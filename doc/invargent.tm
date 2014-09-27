@@ -637,6 +637,9 @@
 
       <item>If choice 6 would lead to more negative constraints contradicted
       than choice 1, we pick choice 6 first for a particular candidate atom.
+
+      <item>An option <verbatim|prefer_guess> reorders choice 6 prior to
+      choice 1, but only for guess candidates, i.e. <verbatim|guess_cand>.
     </itemize>
 
     <item>Form initial candidates <math|Rev<rsub|\<forall\>><around*|(|\<cal-Q\>,<wide|\<beta\>|\<bar\>>,\<b-U\><around*|(|D\<wedge\>A<rsub|p>|)>,\<b-U\><around*|(|A<rsub|p>\<wedge\>D\<wedge\>C|)>|)>>.

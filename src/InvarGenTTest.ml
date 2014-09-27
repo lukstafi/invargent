@@ -17,7 +17,8 @@ let input_file file =
    with End_of_file -> ());
   Buffer.contents buf
 
-let test_case ?(test_annot=false) ?(richer_answers=false) file () =
+let test_case ?(test_annot=false) ?(richer_answers=false)
+    ?(prefer_guess=false) file () =
   if !debug then Printexc.record_backtrace true;
   let ntime = Sys.time () in
   Terms.reset_state ();
@@ -33,6 +34,8 @@ let test_case ?(test_annot=false) ?(richer_answers=false) file () =
         assert false) in
   let old_richer_answers = !Abduction.richer_answers in
   Abduction.richer_answers := richer_answers;
+  let old_prefer_guess = !Abduction.prefer_guess in
+  Abduction.prefer_guess := prefer_guess;
   (try
      let verif_res =
        InvarGenT.process_file ~do_sig:true ~do_ml:true
@@ -55,6 +58,7 @@ let test_case ?(test_annot=false) ?(richer_answers=false) file () =
      Printexc.print_backtrace stdout;
      assert_failure msg);
   Abduction.richer_answers := old_richer_answers;
+  Abduction.prefer_guess := old_prefer_guess;
   Format.printf " t=%.3fs " (Sys.time () -. ntime)
 
 let tests = "InvarGenT" >::: [
@@ -158,11 +162,20 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "pointwise_zip2-simpler3" ());
+      "pointwise-zip2-simpler4" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "pointwise_zip2-simpler4" ());
       "pointwise-zip2" >::
         (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
+           (* This test is close enough. *)
+           skip_if !debug "debug";
            test_case "pointwise_zip2" ());
+      "pointwise-zip2-harder" >::
+        (fun () ->
+           todo "too hard but not call-by-value";
+           skip_if !debug "debug";
+           test_case "pointwise_zip2-harder" ());
       "pointwise-avl_rotl" >::
         (fun () ->
            skip_if !debug "debug";
@@ -182,7 +195,7 @@ let tests = "InvarGenT" >::: [
       "pointwise-extract2" >::
         (fun () ->
            todo "FIXME";
-           (* skip_if !debug "debug"; *)
+           skip_if !debug "debug";
            test_case "pointwise_extract2" ());
       "pointwise-extract" >::
         (fun () ->
@@ -216,11 +229,24 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "non_pointwise_avl" ());
+      "avl_delmin-simpler" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "avl_delmin-simpler" ());
+      "non_pointwise-avl_delmin-modified" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "non_pointwise_avl_delmin-modified" ());
       "non_pointwise-avl_delmin" >::
         (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
+           todo "too hard, beyond fully maximal";
+           skip_if !debug "debug";
            test_case "non_pointwise_avl_delmin" ());
+      "non_pointwise-avl_delmin2" >::
+        (fun () ->
+           todo "too hard, beyond fully maximal";
+           skip_if !debug "debug";
+           test_case "non_pointwise_avl_delmin2" ());
       "non_pointwise-fd_comp" >::
         (fun () ->
            skip_if !debug "debug";
@@ -229,29 +255,35 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "non_pointwise_fd_comp2" ());
-      "non_pointwise-zip1" >::
-        (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
-           test_case "non_pointwise_zip1" ());
       "non_pointwise-zip1-simpler" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~richer_answers:true "non_pointwise_zip1-simpler" ());
+           test_case ~prefer_guess:true "non_pointwise_zip1-simpler" ());
+      "non_pointwise-zip1-simpler2" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case ~prefer_guess:true "non_pointwise_zip1-simpler2" ());
+      "non_pointwise-zip1-modified" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case ~prefer_guess:true "non_pointwise_zip1-modified" ());
+      "non_pointwise-zip1" >::
+        (fun () ->
+           todo "variable contamination from local definition";
+           skip_if !debug "debug";
+           test_case "non_pointwise_zip1" ());
       "non_pointwise-leq" >::
         (fun () ->
            skip_if !debug "debug";
            test_case ~richer_answers:true "non_pointwise_leq" ());
       "non_pointwise-run_state" >::
         (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
-           test_case ~richer_answers:true "non_pointwise_run_state" ());
+           skip_if !debug "debug";
+           test_case ~prefer_guess:true "non_pointwise_run_state" ());
       "non_pointwise-run_state2" >::
         (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
-           test_case ~richer_answers:true "non_pointwise_run_state2" ());
+           skip_if !debug "debug";
+           test_case ~prefer_guess:true "non_pointwise_run_state2" ());
       "avl_tree" >::
         (fun () ->
            skip_if !debug "debug";

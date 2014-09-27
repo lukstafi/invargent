@@ -30,6 +30,10 @@ val no_num_abduction : bool ref
     abduction problem where neither [s] nor [t] are variables.
     Default [true]. *)
 val guess_eqs_nonvar : bool ref
+(** [prefer_guess=true] tries to guess equality-between-parameters
+    before considering other candidate abduction answer atoms.
+    Default [false]. *)
+val prefer_guess : bool ref
 (** [neg_before_abd=false] moves numerical negation elimination till
     after numerical abduction, with possibly better determination of
     negative facts, but worse availability of the negative

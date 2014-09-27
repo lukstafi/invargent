@@ -7,7 +7,7 @@ datacons Zero2 : ∀a. Zip2 (a, List a)
 datacons Succ2 :
   ∀a, b, c. Zip2 (a, b) ⟶ Zip2 ((c → a), (List c → b))
 
-let zip2 =
+let zip2 = fun n f ->
   let rec zipZ = function
     | Zero2 -> N
     | Succ2 n -> fun _ -> zipZ n in
@@ -16,5 +16,5 @@ let zip2 =
     | Succ2 n -> function
       | N -> zipZ n
       | C (z, zs) -> zipS (f z) (r zs) n in
-  let rec z2 = fun n f -> zipS f (z2 n f) n in
+  let rec z2 = zipS f z2 n in
   z2

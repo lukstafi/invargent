@@ -9,11 +9,12 @@ datacons Succ1 :
 
 external zip_with : ∀a, b, c. (a → b → c) → List a → List b → List c
 
+external apply : ∀a, b. (a → b) → a → b
+
 external repeat : ∀a. a → List a
 
-let zip1 =
-  let rec z1 = fun fs -> function
-    | Zero1 -> fs
-    | Succ1 n2 -> fun xs -> z1 (zip_with apply fs xs) n2 in
-  fun n f -> z1 (repeat f) n
-  
+let rec z1 = fun fs -> function
+  | Zero1 -> fs
+  | Succ1 n2 -> fun xs -> z1 (zip_with apply fs xs) n2
+
+let zip1 = fun n f -> z1 (repeat f) n

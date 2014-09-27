@@ -9,6 +9,7 @@ let timeout_count = ref 700(* 5000 *)(* 50000 *)
 let fail_timeout_count = ref 4(* 10 *)
 let no_alien_prem = ref true(* false *)
 let guess_eqs_nonvar = ref true
+let prefer_guess = ref false
 let neg_before_abd = ref true
 let num_neg_since = ref 1
 let term_neg_since = ref 1
@@ -331,6 +332,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
               pr_subst ans; *]*)
             raise (Result (bvs, pms, vs, ans)))
       | guess_cand, full_cand ->
+        let is_guess_cand = guess_cand <> [] in
         let is_p, (x, (t, lc) as sx), (guess_cand, full_cand as rem_cand) =
           if guess_cand = [] then
             let is_p, sx, full_cand = unpack_cand true bvs full_cand in
@@ -417,11 +419,13 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
           let c6sx =
             if !revert_cst then x, (c_subst_typ c_sb t, lc)
             else sx in
-          if neg_validate (vs, ans @ full_cand) >
+          if !prefer_guess && is_guess_cand ||
+             neg_validate (vs, ans @ full_cand) >
              neg_validate (vs, ans @ c6sx::full_cand)
           then (
             (*[* Format.printf
-              "abd_simple: [%d] negation choice inversion@\n%!" ddepth; *]*)
+              "abd_simple: [%d] guess/negation=%b choice inversion@\n%!"
+              ddepth (!prefer_guess && is_guess_cand); *]*)
             choice6 (); choice1 ())
           else (choice1 (); choice6 ()));
         step deep c_sb x lc {typ_sub=t; typ_ctx=[]} repls
@@ -833,6 +837,9 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
          (* TODO: after cleanup optimized in abd_simple, pass clean_ans
             and remove cleanup here *)
          let vs, ans = cleanup q vs ans in
+         (*[* Format.printf "validate-typ: trying v-prem=@ %a@\nv-concl=@ \
+                              %a@\nv-ans=@ %a@\n%!"
+           pr_subst prem.cnj_typ pr_subst concl_ty pr_subst ans; *]*)
          let {cnj_typ=sb_ty; cnj_num=ans_num; cnj_so=_} =
            combine_sbs ~use_quants:false q [prem.cnj_typ; concl_ty; ans] in
          if not dissociate && not !no_num_abduction then
