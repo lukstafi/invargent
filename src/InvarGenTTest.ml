@@ -146,6 +146,15 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case ~test_annot:true "concat_strings" ());
+      "list-head" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "list_head" ());
+      "pointwise-head" >::
+        (fun () ->
+           todo "beyond current negation handling for term constraints";
+           skip_if !debug "debug";
+           test_case "pointwise_head" ());
       "pointwise-rbtree_rotate" >::
         (fun () ->
            skip_if !debug "debug";

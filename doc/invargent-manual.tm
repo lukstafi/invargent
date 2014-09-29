@@ -1,4 +1,4 @@
-<TeXmacs|1.99.1>
+<TeXmacs|1.0.7.18>
 
 <style|article>
 
@@ -847,6 +847,10 @@
     general. This can always be fixed by adding a <verbatim|test> clause to
     the definition which uses a type conflicting with the too specific type.
 
+    <item*|<verbatim|-prefer_guess>>Try to guess equality-between-parameters
+    before considering other possibilities. Implied by
+    <verbatim|-richer_answers> but less invasive.
+
     <item*|<verbatim|-more_existential>>More general invariant at expense of
     more existential postcondition. To avoid too abstract postconditions,
     disjunction elimination can infer additional constraints over invariant
@@ -957,10 +961,11 @@
 
     datacons LNil : List 0
 
-    datacons LCons : \<forall\>n [0\<leq\>n]. Elem * List n
-    \<longrightarrow\> List (n+1)
+    datacons LCons : <math|\<forall\>>n [0<math|\<leq\>>n]. Elem * List n
+    <math|\<longrightarrow\>> List (n+1)
 
-    external length : \<forall\>n. List n \<rightarrow\> Num n = "length"
+    external length : <math|\<forall\>>n. List n <math|\<rightarrow\>> Num n
+    = "length"
 
     \;
 

@@ -6,6 +6,9 @@
     @since Mar 2013
 *)
 open OUnit
+
+let debug = ref (* true *)false
+
 open Aux
 open Defs
 open NumDefs
@@ -21,6 +24,7 @@ let tests = "NumS" >::: [
 
   "convex hull: basic cst" >::
     (fun () ->
+      skip_if !debug "debug";
       Terms.reset_state ();
       Infer.reset_state ();
       (* try *)
@@ -52,6 +56,7 @@ let tests = "NumS" >::: [
 
   "convex hull: basic equations" >::
     (fun () ->
+      skip_if !debug "debug";
       Terms.reset_state ();
       Infer.reset_state ();
       (* try *)
@@ -83,6 +88,7 @@ let tests = "NumS" >::: [
 
   "convex hull: basic sides" >::
     (fun () ->
+      skip_if !debug "debug";
       Terms.reset_state ();
       Infer.reset_state ();
       (* try *)
@@ -113,6 +119,7 @@ let tests = "NumS" >::: [
 
   "convex hull: basic angle" >::
     (fun () ->
+      skip_if !debug "debug";
       Terms.reset_state ();
       Infer.reset_state ();
       (* try *)

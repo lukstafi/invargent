@@ -812,8 +812,12 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
                let concl = unify ~use_quants:false q concl in
                assert (concl.cnj_so = []);
                if not (is_right (NumS.satisfiable prem.cnj_num)) then None
-               else Some ((prem, concl.cnj_typ),
-                          (nonrec, prem.cnj_num, concl.cnj_num))
+               else (
+                 (*[* Format.printf "br-num: prem=%a; concl=%a@\n%!"
+                   NumDefs.pr_formula prem.cnj_num
+                   NumDefs.pr_formula concl.cnj_num; *]*)
+                 Some ((prem, concl.cnj_typ),
+                          (nonrec, prem.cnj_num, concl.cnj_num)))
            | None -> None)
           brs) in
   (* Negative constraint prior to abduction. *)
@@ -924,12 +928,12 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
       raise (NoAnswer (Type_sort, "term abduction failed", None, lc)) in
   (* Drop the pseudo-branch with term negation. *)
   let more_in_brs = List.tl more_in_brs in
-  let brs_num = List.map2
+  let verif_brs_num = List.map2
       (fun (nonrec,prem,concl) (more_p, more_c) ->
          nonrec, more_p.cnj_num @ prem, more_c.cnj_num @ concl)
       brs_num more_in_brs in
   (* OK, we can change [brs_num] now. *)
-  let brs_num = List.filter (fun (_, _, concl) -> concl<>[]) brs_num in
+  let brs_num = List.filter (fun (_, _, concl) -> concl<>[]) verif_brs_num in
   (* Filter out negated constraints that already are contradicted. Of
      the result, use only sorts other than [Type_sort] as negated
      constraints. *)
@@ -961,10 +965,10 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
              let allconcl = concat_map
                  (fun (_,prem2,concl2) ->
                     if NumDefs.subformula prem2 prem then concl2 else [])
-                 brs_num in
+                 verif_brs_num in
              try Some (NumS.satisfiable_exn (ans_num @ prem @ allconcl))
              with Contradiction _ -> None)
-          brs_num in
+          verif_brs_num in
       (* Filter out already solved negative constraints. *)
       let num_neg_cns = map_some
           (fun (c,lc)->
