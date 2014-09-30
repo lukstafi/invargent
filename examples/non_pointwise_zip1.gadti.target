@@ -11,4 +11,4 @@ external zip_with : ∀a, b, c. (a → b → c) → List a → List b → List c
 
 external repeat : ∀a. a → List a
 
-val zip1 : ∀a, b. Zip1 (List a, b) → a → b
+val zip1 : ∀a, b. Zip1 (List b, a) → b → a

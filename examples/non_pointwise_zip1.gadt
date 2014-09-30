@@ -12,6 +12,7 @@ external zip_with : ∀a, b, c. (a → b → c) → List a → List b → List c
 external repeat : ∀a. a → List a
 
 let zip1 =
+  let rec apply = fun f x -> f x in
   let rec z1 = fun fs -> function
     | Zero1 -> fs
     | Succ1 n2 -> fun xs -> z1 (zip_with apply fs xs) n2 in

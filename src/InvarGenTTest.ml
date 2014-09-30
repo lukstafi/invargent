@@ -278,7 +278,6 @@ let tests = "InvarGenT" >::: [
            test_case ~prefer_guess:true "non_pointwise_zip1-modified" ());
       "non_pointwise-zip1" >::
         (fun () ->
-           todo "variable contamination from local definition";
            skip_if !debug "debug";
            test_case "non_pointwise_zip1" ());
       "non_pointwise-leq" >::

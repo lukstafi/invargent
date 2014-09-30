@@ -13,10 +13,11 @@ open Aux
 let debug = ref false(* true *)
 
 let test_common more_general more_existential no_num_abduction
-    nodeadcode msg test =
+    nodeadcode prefer_guess msg test =
   let ntime = Sys.time () in
   Terms.reset_state ();
   Infer.reset_state ();
+  let old_nodeadcode = !Defs.nodeadcode in
   Defs.nodeadcode := nodeadcode;
   let prog = (Infer.normalize_program % Parser.program Lexer.token)
       (Lexing.from_string test) in
@@ -39,15 +40,21 @@ let test_common more_general more_existential no_num_abduction
          pr_ty ty pr_formula phi)
     !all_ex_types;
   *]*)
+  let old_more_general = !Abduction.more_general in
   Abduction.more_general := more_general;
+  let old_no_num_abduction = !Abduction.no_num_abduction in
   Abduction.no_num_abduction := no_num_abduction;
+  let old_more_existential = !DisjElim.more_existential in
   DisjElim.more_existential := more_existential;
+  let old_prefer_guess = !Abduction.prefer_guess in
+  Abduction.prefer_guess := prefer_guess;
   let _, res, sol =
     Invariants.solve q_ops new_ex_types exty_res_of_chi brs in
-  Defs.nodeadcode := false;
-  Abduction.more_general := false;
-  Abduction.no_num_abduction := false;
-  DisjElim.more_existential := false;
+  Defs.nodeadcode := old_nodeadcode;
+  Abduction.more_general := old_more_general;
+  Abduction.no_num_abduction := old_no_num_abduction;
+  Abduction.prefer_guess := old_prefer_guess;
+  DisjElim.more_existential := old_more_existential;
   (*[* Format.printf
     "Test: res=@\n%a@\n%!" pr_formula res;
   List.iter
@@ -65,12 +72,17 @@ let test_common more_general more_existential no_num_abduction
 
 let test_case ?(more_general=false) ?(more_existential=false)
     ?(no_num_abduction=false)
-    ?(nodeadcode=false) msg test answers =
+    ?(nodeadcode=false) ?(prefer_guess=false) msg test answers =
+  let old_nodeadcode = !Defs.nodeadcode in
+  let old_more_general = !Abduction.more_general in
+  let old_no_num_abduction = !Abduction.no_num_abduction in
+  let old_prefer_guess = !Abduction.prefer_guess in
+  let old_more_existential = !DisjElim.more_existential in
   if !debug then Printexc.record_backtrace true;
   try
     let q, res, sol =
       test_common more_general more_existential no_num_abduction
-        nodeadcode msg test in
+        nodeadcode prefer_guess msg test in
     let test_sol (chi, result) =
       let _, (vs, ans) = nice_ans (List.assoc chi sol) in
       ignore (Format.flush_str_formatter ());
@@ -83,19 +95,21 @@ let test_case ?(more_general=false) ?(more_existential=false)
   with (Defs.Report_toplevel _ | Terms.Contradiction _) as exn ->
     ignore (Format.flush_str_formatter ());
     Terms.pr_exception Format.str_formatter exn;
-    Defs.nodeadcode := false;
-    Abduction.more_general := false;
-    Abduction.no_num_abduction := false;
-    DisjElim.more_existential := false;
+    Defs.nodeadcode := old_nodeadcode;
+    Abduction.more_general := old_more_general;
+    Abduction.no_num_abduction := old_no_num_abduction;
+    Abduction.prefer_guess := old_prefer_guess;
+    DisjElim.more_existential := old_more_existential;
     assert_failure (Format.flush_str_formatter ())
 
 let test_nonrec_case ?(more_general=false) ?(more_existential=false)
-    ?(no_num_abduction=false) ?(nodeadcode=false) msg test answers =
+    ?(no_num_abduction=false) ?(nodeadcode=false)
+    ?(prefer_guess=false) msg test answers =
   if !debug then Printexc.record_backtrace true;
   try
     let q, res, sol =
       test_common more_general more_existential no_num_abduction
-        nodeadcode msg test in
+        nodeadcode prefer_guess msg test in
     let test_sol (v, result) =
       let res_sb, _ = Infer.separate_subst q res in
       let ty = fst (List.assoc (VId (Type_sort, v)) res_sb) in
@@ -105,7 +119,7 @@ let test_nonrec_case ?(more_general=false) ?(more_existential=false)
         result
         (Format.flush_str_formatter ()) in
     List.iter test_sol answers
-  with (Report_toplevel _ | Contradiction _) as exn ->
+  with (Report_toplevel _ | Contradiction _ | NoAnswer _) as exn ->
     ignore (Format.flush_str_formatter ());
     Terms.pr_exception Format.str_formatter exn;
     Abduction.more_general := false;
@@ -115,18 +129,19 @@ let test_nonrec_case ?(more_general=false) ?(more_existential=false)
 
 let test_case_fail ?(more_general=false) ?(more_existential=false)
     ?(no_num_abduction=false)
-    ?(nodeadcode=false) msg test answer =
+    ?(nodeadcode=false) ?(prefer_guess=false) msg test answer =
   if !debug then Printexc.record_backtrace true;
   try
     let q, res, sol =
       test_common more_general more_existential no_num_abduction
-        nodeadcode msg test in
+        nodeadcode prefer_guess msg test in
     let _, (vs, ans) = nice_ans (snd (List.hd sol)) in
     ignore (Format.flush_str_formatter ());
     Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
       (pr_sep_list "," pr_tyvar) vs pr_formula ans;
     assert_failure (Format.flush_str_formatter ())
-  with (Defs.Report_toplevel _ | Terms.Contradiction _) as exn ->
+  with (Defs.Report_toplevel _ | Terms.Contradiction _ |
+        Terms.NoAnswer _) as exn ->
     ignore (Format.flush_str_formatter ());
     Terms.pr_exception Format.str_formatter exn;
     Defs.nodeadcode := false;
@@ -296,7 +311,6 @@ let rec eval = function
 
   "eval hard" >::
     (fun () ->
-       todo "too hard, requires non-fully maximal abduction";
        skip_if !debug "debug";
        test_case "eval term"
 "datatype Term : type
@@ -495,9 +509,8 @@ let rec g = function
 
   "TS non-principal subexpr 2" >::
     (fun () ->
-       todo "should not pass unless in a non-default setting";
        skip_if !debug "debug";
-       test_case "TS non-principal"
+       test_case_fail "TS non-principal"
 "datatype List : type
 datacons LNil : ∀a. List a
 datacons LCons : ∀a. a * List a ⟶ List a
@@ -510,7 +523,11 @@ let rec g = function
   | L (x, y) -> y
 test g (L (LCons (True, LNil), LCons (\"a\", LNil)))
 "
-      [1, "∃a. δ = (Erk (List a, List (List String), a) → List (List String))"]
+     "File \"\", line 9, characters 16-28:
+No answer in type: term abduction failed
+"
+     (* possible type if abduction gets "too good":
+        "δ = (Erk (List a, List (List String), a) → List (List String))" *)
     );
 
 
