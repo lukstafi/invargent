@@ -150,8 +150,9 @@
   (omitting the <verbatim|let> keyword) exports a value using
   <verbatim|external> in OCaml code, which is OCaml source declaration of the
   foreign function interface of OCaml. When we are not interested in linking
-  and running the exported code, we can follow the convention of reusing the
-  name in the FFI definition: <verbatim|external f : >...<verbatim| = "f">.
+  and running the exported code, we can omit the part starting with the
+  <verbatim|=> sign. The exported code will reuse the name in the FFI
+  definition: <verbatim|external f : >...<verbatim| = "f">.
 
   The type inferred is <verbatim|eval : <math|\<forall\>>a. Term
   a<math|\<rightarrow\>>a>. GADTs make it possible to reveal that
@@ -1035,8 +1036,14 @@
   the places where they are used. The inference fails because of lack of
   sharing of information about <verbatim|l> due to facts about <verbatim|l' =
   add x l>, resp. about <verbatim|r> due to facts about <verbatim|r' = add x
-  r>, with the other branch. More sophisticated algorithms might mitigate
-  that.
+  r>, with the other branch. The limits on information sharing between
+  pattern matching branches can also manifest in more mundane situations.
+  Compare for example the sources <verbatim|pointwise_extract.gadt> and
+  <verbatim|pointwise_extract2.gadt> from the examples directory. Type
+  inference fails for the latter example, which has functions as bodies of
+  pattern matching branches, rather than deconstructing a variable introduced
+  only once. More sophisticated algorithms might mitigate these shortcomings
+  in future versions of InvarGenT.
 
   We end with an example where there is little hope of improvement. The
   <verbatim|rotr> and <verbatim|rotl> functions in <verbatim|avl_tree.gadt>

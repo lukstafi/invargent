@@ -50,7 +50,7 @@ val abd_simple :
   Defs.quant_ops ->
   ?without_quant:unit ->
   bvs:Defs.VarSet.t ->
-  pms:Defs.VarSet.t -> dissociate:bool ->
+  dissociate:bool ->
   validate:((Defs.var_name list * Terms.subst) -> unit) ->
   neg_validate:((Defs.var_name list * Terms.subst) -> int) ->
   discard:((Defs.var_name list * Terms.subst) list) ->

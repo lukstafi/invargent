@@ -90,6 +90,10 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "binary_plus" ());
+      "binary_plus-harder" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "binary_plus-harder" ());
       "flatten_pairs" >::
         (fun () ->
            skip_if !debug "debug";
