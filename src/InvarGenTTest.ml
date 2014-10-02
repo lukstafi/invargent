@@ -155,6 +155,10 @@ let tests = "InvarGenT" >::: [
            todo "beyond current negation handling for term constraints";
            skip_if !debug "debug";
            test_case "pointwise_head" ());
+      "pointwise-refine" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "pointwise_refine" ());
       "pointwise-rbtree_rotate" >::
         (fun () ->
            skip_if !debug "debug";
@@ -203,7 +207,7 @@ let tests = "InvarGenT" >::: [
            test_case "pointwise_extract1" ());
       "pointwise-extract2" >::
         (fun () ->
-           todo "FIXME";
+           todo "share/enforce type information across branches";
            skip_if !debug "debug";
            test_case "pointwise_extract2" ());
       "pointwise-extract" >::
@@ -213,7 +217,7 @@ let tests = "InvarGenT" >::: [
       "pointwise-run_state" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~richer_answers:true "pointwise_run_state" ());
+           test_case "pointwise_run_state" ());
       "non_outsidein-rx" >::
         (fun () ->
            skip_if !debug "debug";
@@ -221,7 +225,7 @@ let tests = "InvarGenT" >::: [
       "non_pointwise-split" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~richer_answers:true "non_pointwise_split" ());
+           test_case "non_pointwise_split" ());
       "non_pointwise-avl_small_rec" >::
         (fun () ->
            skip_if !debug "debug";
@@ -248,12 +252,10 @@ let tests = "InvarGenT" >::: [
            test_case "non_pointwise_avl_delmin-modified" ());
       "non_pointwise-avl_delmin" >::
         (fun () ->
-           todo "too hard, beyond fully maximal";
            skip_if !debug "debug";
            test_case "non_pointwise_avl_delmin" ());
       "non_pointwise-avl_delmin2" >::
         (fun () ->
-           todo "too hard, beyond fully maximal";
            skip_if !debug "debug";
            test_case "non_pointwise_avl_delmin2" ());
       "non_pointwise-fd_comp" >::
@@ -283,15 +285,15 @@ let tests = "InvarGenT" >::: [
       "non_pointwise-leq" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~richer_answers:true "non_pointwise_leq" ());
+           test_case ~prefer_guess:true "non_pointwise_leq" ());
       "non_pointwise-run_state" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~prefer_guess:true "non_pointwise_run_state" ());
+           test_case "non_pointwise_run_state" ());
       "non_pointwise-run_state2" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~prefer_guess:true "non_pointwise_run_state2" ());
+           test_case "non_pointwise_run_state2" ());
       "avl_tree" >::
         (fun () ->
            skip_if !debug "debug";

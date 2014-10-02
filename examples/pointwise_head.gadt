@@ -1,0 +1,10 @@
+datatype Z
+datatype S : type
+
+datatype List : type * num
+datacons LNil : ∀a. List(a, Z)
+datacons LCons : ∀a, b. a * List(a, b) ⟶ List(a, S b)
+
+let head = function
+  | LCons (x, _) -> x
+  | LNil -> assert false

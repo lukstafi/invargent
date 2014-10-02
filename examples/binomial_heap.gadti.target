@@ -17,7 +17,7 @@ datacons HCons :
 
 datacons HNil : ∀a, n. Heap (a, n, n)
 
-external compare : ∀i, j. Num i → Num j → Order (i, j) = "compare"
+external compare : ∀i, j. Num i → Num j → Order (i, j)
 
 external let leq : ∀a. a → a → Bool = "(<=)"
 
@@ -26,8 +26,8 @@ val rank : ∀a, n. Tree (a, n) → Num n
 val link : ∀a, n. (Tree (a, n), Tree (a, n)) → Tree (a, n + 1)
 
 val ins_tree : ∀a, n, k, m. Tree (a, k) → Heap (a, m, n) →
-            ∃4:i, j[min (i, k, m) ∧ max (j, k, n) ∧ 0 ≤ i ∧ 0 ≤ j].
-               Heap (a, i, j))
+            ∃i, j[min (i, k, m) ∧ max (j, k, n) ∧ 0 ≤ i ∧ 0 ≤ j].
+               Heap (a, i, j)
 
 val merge :
 

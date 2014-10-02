@@ -1,0 +1,11 @@
+datatype Z
+
+datatype S : type
+
+datatype List : type * num
+
+datacons LNil : ∀a. List (a, Z)
+
+datacons LCons : ∀a, b.a * List (a, b) ⟶ List (a, S b)
+
+val head : ∀a, b. List (a, S b) → a

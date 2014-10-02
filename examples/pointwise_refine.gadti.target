@@ -1,0 +1,15 @@
+datatype Option : type
+
+datacons ONone : ∀a. Option a
+
+datacons OSome : ∀a.a ⟶ Option a
+
+datatype D : type * type * type
+
+datacons D1 : ∀a. D (Int, Bool, a)
+
+datacons D2 : ∀b, c. D (Option b, Option c, b)
+
+external val three : Int
+
+val refine : ∀a, b. D (a, b, Bool) → (a, b)

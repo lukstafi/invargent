@@ -216,7 +216,7 @@ let empty_state : state = [], NumS.empty_state
 
 let holds q avs (ty_st, num_st) cnj =
   let {cnj_typ=ty_st; cnj_num; cnj_so=_} =
-    unify ~pms:avs ~sb:ty_st q.op cnj in
+    unify ~use_quants:true ~sb:ty_st q.op cnj in
   let num_st = NumS.holds q.op avs num_st cnj_num in
   ty_st, num_st
 

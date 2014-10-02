@@ -120,7 +120,7 @@ let implies_ans mod_aliens ans (_,c_ans) =
 
 exception Timeout
 
-let revert_uni q ~bvs ~pms ~dissociate ans prem cand =
+let revert_uni q ~bvs ~dissociate ans prem cand =
   let univar v = not (VarSet.mem v bvs) && q.uni_v v in
   let u_sb = map_some
       (function
@@ -391,7 +391,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
                        (VarSet.add c6x (fvs_typ c6t))) bvs
                 else bvs in
               let {cnj_typ=ans'; _} =
-                unify ~bvs:bvs' ~pms ~sb:ans
+                unify ~bvs:bvs' ~sb:ans
                   q [Eqty (TVar c6x, c6t, c6lc)] in
               (*[* Format.printf
                 "abd_simple: [%d] validate 6 ans'=@ %a@\n%!" ddepth pr_subst ans'; *]*)
@@ -460,7 +460,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
                       (VarSet.add x (fvs_typ t'))) bvs
                else bvs in
              let {cnj_typ=ans'; _} =
-               unify ~bvs:bvs' ~pms:pms' ~sb:ans
+               unify ~bvs:bvs' ~sb:ans
                  q [Eqty (TVar x, t', lc)] in
              (*[* Format.printf
                "abd_simple: [%d] validate 2 ans=@ %a@\n%!" ddepth pr_subst ans; *]*)
@@ -499,7 +499,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
                       (VarSet.add x (fvs_typ t))) bvs
                else bvs in
              let {cnj_typ=ans; _} =
-               unify ~bvs:bvs' ~pms ~sb:ans
+               unify ~bvs:bvs' ~sb:ans
                  q [Eqty (TVar x, t, lc)] in
              (*[* Format.printf
                "abd_simple: [%d] validate 4 ans=@ %a@\n%!" ddepth pr_subst ans; *]*)
@@ -556,7 +556,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
                     else bvs in
                   let {cnj_typ=ans'; _} =
                     (*[* try *]*)
-                      unify ~bvs:bvs' ~pms ~sb:ans
+                      unify ~bvs:bvs' ~sb:ans
                         q [Eqty (TVar x, t', lc)]
                   (*[* with Terms.Contradiction _ as e ->
                     Format.printf
@@ -598,7 +598,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
       (* let cnj_typ = list_diff cnj_typ discard in *)
       let guess_cand = cand_var_eqs q bvs prem_n_concl.cnj_typ in
       let c_sb, init_cand =
-        revert_uni q ~bvs ~pms ~dissociate ans
+        revert_uni q ~bvs ~dissociate ans
           prem.cnj_typ prem_n_concl.cnj_typ in
       (* From longest to shortest. *)
       (* FIXME: revert to shortest-to-longest, have better idea how
@@ -620,7 +620,7 @@ let abd_simple q ?without_quant ~bvs ~pms ~dissociate
       with Result (bvs, pms, vs, ans) ->
         (*[* Format.printf "abd_simple: Final validation@\n%!"; *]*)
         let {cnj_typ=ans; cnj_num; cnj_so=_} =
-          unify ~bvs ~pms q (to_formula ans) in
+          unify ~bvs q (to_formula ans) in
         assert (cnj_num = []);
         validate (vs, ans);
         (*[* Format.printf
@@ -747,7 +747,7 @@ let abd_mockup_num q ~bvs brs =
   let brs_typ, brs_num = List.split
     (map_some (fun (prem, concl) ->
       let prems_opt =
-        try Some (unify q prem)
+        try Some (unify ~use_quants:false q prem)
         with Contradiction _ -> None in
       match prems_opt with
       | Some prem ->
@@ -756,7 +756,7 @@ let abd_mockup_num q ~bvs brs =
         then None
         else                          (* can raise Contradiction *)
           let {cnj_typ=concl_typ; cnj_num=concl_num; cnj_so=concl_so} =
-            unify q concl in
+            unify ~use_quants:false q concl in
           List.iter (function
           | CFalse loc ->
             raise (Contradiction (Type_sort,

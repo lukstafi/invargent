@@ -1303,6 +1303,7 @@ let rec one_of =
 
   "existential option" >::
     (fun () ->
+       todo "FIXME";
        skip_if !debug "debug";
        test_case ~more_existential:true "existential option"
 "datatype Option : type
@@ -2014,7 +2015,7 @@ let rec map2 = fun f ->
         [2,"∃n, k, a.
   δ =
     ((a → a → a) → (List (a, n), List (a, k)) →
-       ∃i[i=max (n, k)].List (a, i))"]
+       ∃i[i=max (k, n)].List (a, i))"]
     );
 
 
@@ -2128,9 +2129,9 @@ let rec filter_map2 = fun p q r f g h ->
       | False -> zs"
         [1,"∃a, b, c.
   δ =
-    ((a → c → Bool) → (a → Bool) → (c → Bool) →
-       (a → c → b) → (a → b) → (c → b) → (List a, List c) →
-       List b)"]
+    ((a → b → Bool) → (a → Bool) → (b → Bool) →
+       (a → b → c) → (a → c) → (b → c) → (List a, List b) →
+       List c)"]
     );
 
   "non-num list filter-map2 with filter postfix" >::
@@ -2161,9 +2162,9 @@ let rec filter_map2 = fun p q r f g h ->
       | False -> zs"
         [2,"∃a, b, c.
   δ =
-    ((a → c → Bool) → (a → Bool) → (c → Bool) →
-       (a → c → b) → (a → b) → (c → b) → (List a, List c) →
-       ∃.List b)"]
+    ((a → b → Bool) → (a → Bool) → (b → Bool) →
+       (a → b → c) → (a → c) → (b → c) → (List a, List b) →
+       ∃.List c)"]
     );
 
   "list filter-map2 with filter postfix" >::
@@ -2194,10 +2195,10 @@ let rec filter_map2 = fun p q r f g h ->
       | False -> zs"
         [2,"∃n, k, a, b, c.
   δ =
-    ((a → c → Bool) → (a → Bool) → (c → Bool) →
-       (a → c → b) → (a → b) → (c → b) →
-       (List (a, n), List (c, k)) → ∃i[0 ≤ i ∧
-       i≤max (n, k)].List (b, i))"]
+    ((a → b → Bool) → (a → Bool) → (b → Bool) →
+       (a → b → c) → (a → c) → (b → c) →
+       (List (a, n), List (b, k)) → ∃i[0 ≤ i ∧
+       i≤max (n, k)].List (c, i))"]
     );
 
   "list map2 with filter postfix" >::
@@ -2226,9 +2227,9 @@ let rec map2_filter = fun q r f g h ->
       LCons (f x y, zs)"
         [2,"∃n, k, a, b, c.
   δ =
-    ((a → Bool) → (c → Bool) → (a → c → b) → (a → b) →
-       (c → b) → (List (a, n), List (c, k)) → ∃i[i≤max (n, k) ∧
-       min (k, n)≤i].List (b, i))"]
+    ((a → Bool) → (b → Bool) → (a → b → c) → (a → c) →
+       (b → c) → (List (a, n), List (b, k)) → ∃i[i≤max (n, k) ∧
+       min (n, k)≤i].List (c, i))"]
     );
 
   "avl_tree--height" >::
