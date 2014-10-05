@@ -2,18 +2,21 @@
     Data Structures". The only difference is that instead of a generic
     list type, we need two specific data types, [Forest] and [Heap]. *)
 
-datatype Tree : type * num
-datatype Forest : type * num
-datatype Heap : type * num * num
+datatype Order : order
+datacons Zero : Order zero
+datacons Succ : ∀o. Order o ⟶ Order (succ o)
 
-datacons Node : ∀a, k [0≤k]. Num k * a * Forest (a, k) ⟶ Tree (a, k)
+datatype Tree : type * order
+datatype Forest : type * order
+datatype Heap : type * order
+
+datacons Node : ∀a, o. Order o * a * Forest (a, o) ⟶ Tree (a, o)
 datacons TCons :
-  ∀a, n [0≤n]. Tree (a, n) * Forest (a, n) ⟶ Forest (a, n+1)
-datacons TNil : ∀a. Forest (a, 0)
+  ∀a, o. Tree (a, o) * Forest (a, o) ⟶ Forest (a, succ o)
+datacons TNil : ∀a. Forest (a, zero)
 datacons HCons :
-  ∀a, k, m, n [0≤k ∧ k+1≤m ∧ m≤n].
-    Tree (a, k) * Heap (a, m, n) ⟶ Heap (a, k, n)
-datacons HNil : ∀a, n. Heap (a, n, n)
+  ∀a, p, q [succ p ≤ q]. Tree (a, p) * Heap (a, q) ⟶ Heap (a, p)
+datacons HNil : ∀a. Heap (a, top)
 
 external let leq : ∀a. a → a → Bool = "(<=)"
 
@@ -24,21 +27,21 @@ let root = function Node (_, x, _) -> x
 let link = function
   | (Node (r, x1, c1) as t1), (Node (_, x2, c2) as t2) ->
     match leq x1 x2 with
-    | True -> Node (r+1, x1, TCons (t2, c1))
-    | False -> Node (r+1, x2, TCons (t1, c2))
+    | True -> Node (Succ r, x1, TCons (t2, c1))
+    | False -> Node (Succ r, x2, TCons (t1, c2))
 
 let rec ins_tree = fun t ->
   efunction
   | HNil -> HCons (t, HNil)
   | HCons (t', ts') as ts ->
     ematch rank t, rank t' with
-    | i, j when i+1<=j -> HCons (t, ts)
-    | i, j when i<=j && j<=i -> ins_tree (link (t, t')) ts'
-    | i, j when j+1<=i ->
+    | i, Succ j when order i<=j -> HCons (t, ts)
+    | i, j when order i<=j && j<=i -> ins_tree (link (t, t')) ts'
+    | Succ i, j when order j<=i ->
       let rts = ins_tree t ts' in
       HCons (t', rts)
 
-let insert = fun x ts -> ins_tree (Node (0, x, TNil)) ts
+let insert = fun x ts -> ins_tree (Node (Zero, x, TNil)) ts
 
 let rec merge = efunction
   | HNil, HNil -> HNil
@@ -46,13 +49,13 @@ let rec merge = efunction
   | HNil, (HCons (_,_) as ts2) -> ts2
   | (HCons (t1, ts1') as ts1), (HCons (t2, ts2') as ts2) ->
     ematch rank t1, rank t2 with
-    | i, j when i+1<=j ->
+    | i, j when order Succ i<=j ->
       let rts = merge (ts1', ts2) in
       HCons (t1, rts)
-    | i, j when i<=j && j<=i ->
+    | i, j when order i<=j && j<=i ->
       let rts = merge (ts1', ts2') in
       ins_tree (link (t1, t2)) rts 
-    | i, j when j+1<=i ->
+    | i, j when order Succ j<=i ->
       let rts = merge (ts1, ts2') in
       HCons (t2, rts)
 

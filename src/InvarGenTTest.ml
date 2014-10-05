@@ -270,6 +270,11 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "non_pointwise_fd_comp2" ());
+      "non_pointwise-fd_comp-harder" >::
+        (fun () ->
+           todo "currently requiring expanded arguments";
+           skip_if !debug "debug";
+           test_case "non_pointwise_fd_comp-harder" ());
       "non_pointwise-zip1-simpler" >::
         (fun () ->
            skip_if !debug "debug";

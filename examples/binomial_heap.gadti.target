@@ -1,33 +1,35 @@
-datatype Tree : type * num
+datatype Order : order
 
-datatype Forest : type * num
+datacons Zero : Order zero
 
-datatype Heap : type * num * num
+datacons Succ : ∀o. Order o ⟶ Order (succ o)
 
-datacons Node : ∀a, k [0≤k]. Num k * a * Forest (a, k) ⟶ Tree (a, k)
+datatype Tree : type * order
+
+datatype Forest : type * order
+
+datatype Heap : type * order
+
+datacons Node : ∀a, o. Order o * a * Forest (a, o) ⟶ Tree (a, o)
 
 datacons TCons :
-  ∀a, n [0≤n]. Tree (a, n) * Forest (a, n) ⟶ Forest (a, n+1)
+  ∀a, o. Tree (a, o) * Forest (a, o) ⟶ Forest (a, succ o)
 
-datacons TNil : ∀a. Forest (a, 0)
+datacons TNil : ∀a. Forest (a, zero)
 
 datacons HCons :
-  ∀a, k, m, n [0≤k ∧ k+1≤m ∧ m≤n].
-    Tree (a, k) * Heap (a, m, n) ⟶ Heap (a, k, n)
+  ∀a, p, q [succ p ≤ q]. Tree (a, p) * Heap (a, q) ⟶ Heap (a, p)
 
-datacons HNil : ∀a, n. Heap (a, n, n)
-
-external compare : ∀i, j. Num i → Num j → Order (i, j)
+datacons HNil : ∀a. Heap (a, top)
 
 external let leq : ∀a. a → a → Bool = "(<=)"
 
-val rank : ∀a, n. Tree (a, n) → Num n
+val rank : ∀a, o. Tree (a, o) → Order o
 
-val link : ∀a, n. (Tree (a, n), Tree (a, n)) → Tree (a, n + 1)
+val link : ∀a, o. (Tree (a, o), Tree (a, o)) → Tree (a, succ o)
 
-val ins_tree : ∀a, n, k, m. Tree (a, k) → Heap (a, m, n) →
-            ∃i, j[min (i, k, m) ∧ max (j, k, n) ∧ 0 ≤ i ∧ 0 ≤ j].
-               Heap (a, i, j)
+val ins_tree : ∀a, p, q. Tree (a, p) → Heap (a, q) →
+            ∃o[min (p, q) ≤ o]. Heap (a, o)
 
 val merge :
 
