@@ -885,6 +885,14 @@
       <math|b\<mapsto\>b+\<Sigma\><rsub|a\<in\>D>k<rsub|a><rsup|s<rsub|a>>a>.
     </enumerate>
 
+    <item>Modify <math|C<rsup|=><rprime|'>> to promote answers with variables
+    rather than constants, as in term abduction: For
+    <math|\<alpha\><rsub|1><wide|=|\<dot\>>\<tau\>,\<ldots\>,\<alpha\><rsub|n><wide|=|\<dot\>>\<tau\>\<in\>C<rsup|=><rprime|'>>,
+    form the substitution of subterms <math|\<alpha\><rsub|1>\<assign\>\<alpha\><rsub|i>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<alpha\><rsub|i>,\<tau\>\<assign\>\<alpha\><rsub|i>>
+    (excluding <math|\<alpha\><rsub|i>\<assign\>\<alpha\><rsub|i>>) where
+    <math|\<alpha\><rsub|i>> is the most upstream existential variable (or
+    parameter) and <math|\<tau\>> is a constant.
+
     <item>Start from <math|Acc\<assign\><around*|{||}>> and
     <math|C<rsub|0>\<assign\>C<rsup|=><rprime|'>\<wedge\>C<rsup|\<leqslant\>><rprime|'>>.
     Try atoms <math|C<rsub|0>=a C<rsub|0><rprime|'>> in some order.
@@ -900,8 +908,9 @@
     <math|a<rprime|'>> of <math|a>, starting with <math|a>, which passes
     validation against other branches in a joint problem:
     <math|Acc\<assign\>Acc\<cup\><around*|{|a<rprime|'>|}>>, or fail if all
-    <math|a<rprime|'>> fail. Choice point, corresponding to choice 4 if
-    <math|a> is selected, choice 5 if a later transformation is selected.
+    <math|a<rprime|'>> fail. (Choice point, corresponding to choice 4 of term
+    abduction if <math|a> is selected, choice 5 of term abduction if a later
+    transformation is selected.)
 
     <\enumerate>
       <item>Let <math|a<rprime|'>> be <math|a> with some transformations

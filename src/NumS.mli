@@ -24,6 +24,10 @@ val passing_ineq_trs : bool ref
 (** Do not create subopti atoms of the form [k<=max(C,..)] etc. where
     [C] is a constant (default true). *)
 val no_subopti_of_cst : bool ref
+(** Replace variable=constant equations by variable=variable equations
+    in initial abduction candidates to promote generality of
+    answers. Default [true]. *)
+val revert_csts : bool ref
 
 val num_of : Terms.typ -> NumDefs.term
 val sort_formula : Terms.formula -> NumDefs.formula

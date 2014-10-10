@@ -670,7 +670,6 @@ let rec increment =
 
   "binary increment" >::
     (fun () ->
-       todo "num abduction: eliminate constants in initial candidates";
        skip_if !debug "debug";
        test_case "binary increment"
 "datatype Binary : num

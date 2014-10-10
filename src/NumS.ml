@@ -16,6 +16,7 @@ let int_pruning = ref true
 let strong_int_pruning = ref false
 let passing_ineq_trs = ref false
 let no_subopti_of_cst = ref true
+let revert_csts = ref true(* false *)
 
 let abd_fail_flag = ref false
 let abd_timeout_flag = ref false
@@ -964,6 +965,27 @@ let revert_uni ~cmp_v ~cmp_w ~uni_v ~bvs eqn =
     solve ~eqn ~cmp_v ~cmp_w uni_v in
   List.filter (fun (v,_) -> uni_v v && not (VarSet.mem v bvs)) rev_sb
 
+let revert_cst cmp_v uni_v eqn =
+  let c_eqn, eqn = partition_map
+      (function
+        | [v, coef], cst, lc -> Left (cst // coef, (v, lc))
+        | eq -> Right eq)
+      eqn in
+  let c_eqn =
+    collect ~cmp_k:Num.compare_num c_eqn in
+  let leq (v1, _) (v2, _) = not (cmp_v v1 v2 = Left_of) || uni_v v1 in
+  let c_eqn =
+    concat_map
+      (fun (cst, vars) ->
+         let ov, olc = maximum ~leq vars in
+         let o = [ov, !/1] in
+         map_some
+           (fun (cv, lc) ->
+              if cv=ov then None else Some ((cv, !/(-1))::o, !/0, lc))
+           vars
+         @ [(o, cst, olc)]) c_eqn in
+  c_eqn @ eqn
+
 (* We currently do not measure satisfiability of negative constraints. *)
 let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
     ~neg_validate:_
@@ -1056,7 +1078,8 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
     (* 3 *)
     (* TODO: "contract" constants in the initial candidates in the
        same fasion as in term abduction. *)
-    
+    let c_eqn0 =
+      if !revert_csts then revert_cst qcmp_v uni_v c_eqn0 else c_eqn0 in
     (* 4 *)
     let rec loop add_eq_tr add_ineq_tr eq_trs ineq_trs
         eqs_acc ineqs_acc optis_acc suboptis_acc
