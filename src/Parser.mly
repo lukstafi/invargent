@@ -41,6 +41,9 @@ let name_sort loc v =
   else if List.mem v.[0]
       ['i';'j';'k';'l';'m';'n']
   then Num_sort
+  else if List.mem v.[0]
+      ['o';'p';'q']
+  then Order_sort
   else syntax_error
     ("type variable <"^v^"> starts with a letter reserved for a future sort")
     loc
@@ -96,6 +99,12 @@ let extract_datatyp allvs loc = function
           let v' = next_var (VarSet.union used allvs) Num_sort in
           (VarSet.add v' used,
            A (Num_atom NumDefs.(Eq (t, Lin (1,1,v'), loc)))::phi), v'
+      | Alien (Order_term (OrderDefs.OVar v as t)) ->
+        if not (VarSet.mem v used) then (VarSet.add v used, phi), v
+        else
+          let v' = next_var (VarSet.union used allvs) Order_sort in
+          (VarSet.add v' used,
+           A (Order_atom OrderDefs.(Eq (t, OVar v', loc)))::phi), v'
       | t ->
         let v = next_var (VarSet.union used allvs) (typ_sort t) in
         (VarSet.add v used, Eqty (t, TVar v, loc)::phi), v)
@@ -123,9 +132,10 @@ let extract_datatyp allvs loc = function
 %token STAR SLASH
 %token MINUS
 %token PLUS ARROW BAR AS
-%token MIN MAX
+%token MIN MAX SUCC
+%token ZERO TOP
 %token FUNCTION EFUNCTION FUN MATCH EMATCH WITH WHEN
-%token NUM TYPE
+%token NUM TYPE ORDER
 %token LESSEQUAL
 %token ASSERT FALSE TEST
 %token DATACONS DATATYPE EXTERNAL LONGARROW DOUBLEARROW
@@ -164,17 +174,50 @@ sort:
       { Num_sort }
   | TYPE
       { Type_sort }
+  | ORDER
+      { Order_sort }
 ;
 
 alien_term:
   | num_term { Num_term $1 }
+  | order_term { Order_term $1 }
 ;
 
 alien_atom:
   | num_atom { Num_atom $1 }
+  | order_atom { Order_atom $1 }
 ;
 
 /* Add new sort syntax here (most recent domain first) */
+
+/* Linear order sort with bottom and top elements: natural numbers
+   with infinity, i.e. countable cardinal numbers. */
+
+order_term:
+  | ZERO
+    { OrderDefs.Zero }
+  | TOP
+    { OrderDefs.Top }
+  | LIDENT_OPQ
+    { OrderDefs.OVar (VNam (Order_sort, $1)) }
+  | SUCC order_term
+    { OrderDefs.Succ $2 }
+;
+
+order_atom:
+  | order_term LESSEQUAL order_term
+    { OrderDefs.Leq ($1, $3, get_loc ()) }
+  | order_term EQUAL MIN LPAREN order_term COMMA order_term RPAREN
+    { OrderDefs.EqMin ($1, $5, $7, get_loc ()) }
+  | order_term EQUAL MAX LPAREN order_term COMMA order_term RPAREN
+    { OrderDefs.EqMax ($1, $5, $7, get_loc ()) }
+  | order_term LESSEQUAL MAX LPAREN order_term COMMA order_term RPAREN
+    { OrderDefs.LeqMax ($1, $5, $7, get_loc ()) }
+  | MIN LPAREN order_term COMMA order_term RPAREN LESSEQUAL order_term
+    { OrderDefs.MinLeq ($3, $5, $8, get_loc ()) }
+  | order_term EQUAL order_term
+    { OrderDefs.Eq ($1, $3, get_loc ()) }
+;
 
 /* Numerical sort */
 

@@ -7,7 +7,7 @@ datatype Balance : type * type * type
 
 datacons Less : ∀a. Balance (a, S a, S a)
 
-datacons Same : ∀b. Balance (b, b, b)
+datacons Same : ∀c. Balance (c, c, c)
 
 datacons More : ∀a. Balance (S a, a, S a)
 

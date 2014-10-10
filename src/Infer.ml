@@ -61,8 +61,8 @@ let rec pr_cnstrnt ppf = function
       (pr_sep_list "," pr_tyvar) (VarSet.elements vs) pr_cnstrnt cn
 
 let pr_brs_old ppf brs =
-  pr_line_list "| " (fun ppf (prem,(sb, num, so)) ->
-    let concl = to_formula sb @ num @ so in
+  pr_line_list "| " (fun ppf (prem,(sb, num, ord, so)) ->
+    let concl = to_formula sb @ num @ ord @ so in
     fprintf ppf "@[<2>%a@ ⟹@ %a@]" pr_formula prem pr_formula concl) ppf brs
 
 let pr_brs ppf brs =
@@ -91,23 +91,27 @@ let pr_rbrs5 ppf brs =
 
 
 let separate_sep_subst ?(avoid=VarSet.empty) ?(keep_uni=false)
-    q {cnj_typ; cnj_num; cnj_so} =
+    q {cnj_typ; cnj_num; cnj_ord; cnj_so} =
   let filter sb = List.filter
       (fun (v,_) -> not (VarSet.mem v avoid) &&
                     (keep_uni || not (q.uni_v v))) sb in
   let sb_ty = filter cnj_typ in
   let sb_num, cnj_num = NumS.separate_subst q cnj_num in
   let sb_num = filter sb_num in
-  let sb = update_sb ~more_sb:sb_num sb_ty in
-  sb, {cnj_typ=[]; cnj_num;
-       cnj_so=subst_formula sb_num cnj_so}
+  let sb_ord, cnj_ord = OrderS.separate_subst q cnj_ord in
+  let sb_ord = filter sb_ord in
+  let more_sb = sb_num @ sb_ord in
+  let sb = update_sb ~more_sb sb_ty in
+  sb, {cnj_typ=[]; cnj_num; cnj_ord;
+       cnj_so=subst_formula more_sb cnj_so}
 
 let separate_subst ?(avoid=VarSet.empty) ?(keep_uni=false) q phi =
-  let sb, {cnj_typ; cnj_num; cnj_so} =
+  let sb, {cnj_typ; cnj_num; cnj_ord; cnj_so} =
     separate_sep_subst ~avoid ~keep_uni q
       (unify ~use_quants:false q phi) in
   assert (cnj_typ=[]);
-  sb, NumS.formula_of_sort cnj_num @ cnj_so
+  sb, NumS.formula_of_sort cnj_num @
+        OrderS.formula_of_sort cnj_ord @ cnj_so
 
 (** {2 Constraint inference} *)
 
@@ -1451,6 +1455,7 @@ let normalize q cn =
 
 let vs_hist_alien_term increase = function
   | Num_term t -> NumDefs.iter_term_vars increase t
+  | Order_term t -> OrderDefs.iter_term_vars increase t
 
 let vs_hist_typ increase =
   typ_fold {(typ_make_fold (fun _ _ -> ()) ())
@@ -1460,6 +1465,8 @@ let vs_hist_typ increase =
 let vs_hist_alien_atom increase = function
     | Num_atom a -> NumDefs.iter_terms
                       (NumDefs.iter_term_vars increase) a
+    | Order_atom a -> OrderDefs.iter_terms
+                      (OrderDefs.iter_term_vars increase) a
 
 let vs_hist_atom increase = function
   | Eqty (t1, t2, _) ->

@@ -55,8 +55,8 @@ let tests = "Abduction" >::: [
       Infer.reset_state ();
       try
         test_simple lhs1 rhs1 0 "tb = td";
-        test_simple lhs1 rhs1 1 "tb = Int ∧
-td = Int"; 
+        test_simple lhs1 rhs1 1 "td = Int ∧
+tb = Int"; 
         test_simple lhs1 rhs1 2 "tb = td";
         test_simple lhs1 rhs1 3 "tb = Int";
         test_simple lhs1 rhs1 4 "ta = (Term tb)";
@@ -75,8 +75,8 @@ td = Int";
       Infer.reset_state ();
       try
         test_simple lhs1 rhs1 0 "tb = (G ta)";
-        test_simple lhs1 rhs1 1 "tb = (G A) ∧
-ta = A"; 
+        test_simple lhs1 rhs1 1 "ta = A ∧
+tb = (G A)"; 
         test_simple lhs1 rhs1 2 "tb = (G A)"; 
         test_simple lhs1 rhs1 3 "none";
       with (Defs.Report_toplevel _ | Terms.Contradiction _) as exn ->
@@ -108,8 +108,8 @@ ta = A";
               pr_to_str pr_formula (to_formula ans_typ)
           with Suspect _ -> "none" in
         assert_equal ~printer:(fun x -> x)
-          "tA = ((Ty tB, Ty tC) → Bool) ∧
-tD = ((Ty Int, Ty Int) → Bool)" ans
+          "tD = ((Ty Int, Ty Int) → Bool) ∧
+tA = ((Ty tB, Ty tC) → Bool)" ans
       with (Defs.Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
         Terms.pr_exception Format.str_formatter exn;

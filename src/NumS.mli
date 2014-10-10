@@ -14,9 +14,6 @@ val early_num_abduction : bool ref
 val abd_prune_at : int ref
 val abd_timeout_count : int ref
 val abd_fail_timeout_count : int ref
-(** Treat the numerical domain as integers when computing negative
-    constraints. Default [true]. *)
-val abd_int_negation : bool ref
 (** Treat the numerical domain as integers when pruning
     formulas. Default [true]. *)
 val int_pruning : bool ref

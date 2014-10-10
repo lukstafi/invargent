@@ -9,4 +9,4 @@ datacons Get : ∀a. State (a, a)
 
 datacons Put : ∀s.s ⟶ State (s, Tuple)
 
-val run_state : ∀a, b. b → State (b, a) → (b, a)
+val run_state : ∀a, b. a → State (a, b) → (a, b)

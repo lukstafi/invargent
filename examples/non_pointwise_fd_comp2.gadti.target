@@ -11,4 +11,4 @@ external fd_fun : ∀a, b. FunDesc (a, b) → a → b
 val o : ∀a, b, c. (b → a) → (c → b) → c → a
 
 val fd_comp :
-   ∀a, b, c. FunDesc (a, b) → FunDesc (b, c) → FunDesc (a, c)
+   ∀a, b, c. FunDesc (b, c) → FunDesc (c, a) → FunDesc (b, a)

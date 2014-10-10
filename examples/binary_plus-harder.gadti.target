@@ -4,7 +4,7 @@ datatype Carry : num
 
 datacons Zero : Binary 0
 
-datacons PZero : ∀k[0 ≤ (1/2) k].Binary ((1/2) k) ⟶ Binary k
+datacons PZero : ∀n[0 ≤ n].Binary n ⟶ Binary (2 n)
 
 datacons POne : ∀n[0 ≤ n].Binary n ⟶ Binary (2 n + 1)
 

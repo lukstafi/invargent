@@ -92,6 +92,7 @@ let cns_str = function
 
 type alien_subterm =
   | Num_term of NumDefs.term
+  | Order_term of OrderDefs.term
 
 type typ =
   | TVar of var_name
@@ -278,6 +279,7 @@ let rec typ_out t =
 
 let alien_term_size = function
   | Num_term t -> NumDefs.term_size t
+  | Order_term t -> OrderDefs.term_size t
 
 let typ_size = typ_fold
     {(typ_make_fold (fun i j -> i+j+1) 1)
@@ -285,6 +287,7 @@ let typ_size = typ_fold
 
 let fvs_alien_term = function
   | Num_term t -> NumDefs.fvs_term t
+  | Order_term t -> OrderDefs.fvs_term t
 
 let fvs_typ = typ_fold
     {(typ_make_fold VarSet.union VarSet.empty)
@@ -303,6 +306,13 @@ let num_unbox ~t2 lc = function
     raise (Contradiction (Num_sort, "sort mismatch",
                           Some (t2, t), lc))
 
+let order_unbox ~t2 lc = function
+  | Alien (Order_term t) -> t
+  | TVar v when var_sort v = Order_sort -> OrderDefs.OVar v
+  | t ->
+    raise (Contradiction (Order_sort, "sort mismatch",
+                          Some (t2, t), lc))
+
 let num_v_unbox v2 lc = function
   | Alien (Num_term t) -> t
   | TVar v when var_sort v = Num_sort -> NumDefs.Lin (1,1,v)
@@ -310,9 +320,18 @@ let num_v_unbox v2 lc = function
     raise (Contradiction (Num_sort, "sort mismatch",
                           Some (TVar v2, t), lc))
 
+let order_v_unbox v2 lc = function
+  | Alien (Order_term t) -> t
+  | TVar v when var_sort v = Order_sort -> OrderDefs.OVar v
+  | t ->
+    raise (Contradiction (Order_sort, "sort mismatch",
+                          Some (TVar v2, t), lc))
+
 let subst_alien_term sb = function
   | Num_term t ->
     Num_term (NumDefs.subst_term num_v_unbox sb t)
+  | Order_term t ->
+    Order_term (OrderDefs.subst_term order_v_unbox sb t)
 
 let subst_typ sb t =
   if sb = [] then t
@@ -324,6 +343,7 @@ let subst_typ sb t =
 
 let hvsubst_alien_term sb = function
   | Num_term t -> Num_term (NumDefs.hvsubst_term sb t)
+  | Order_term t -> Order_term (OrderDefs.hvsubst_term sb t)
 
 let hvsubst_typ sb =
   typ_map {typ_id_map with
@@ -385,6 +405,7 @@ let map_in_subst f =
 (** {3 Formulas} *)
 type alien_atom =
   | Num_atom of NumDefs.atom
+  | Order_atom of OrderDefs.atom
 
 type atom =
   | Eqty of typ * typ * loc
@@ -398,6 +419,7 @@ let a_num a = A (Num_atom a)
 
 let fvs_alien_atom = function
   | Num_atom a -> NumDefs.fvs_atom a
+  | Order_atom a -> OrderDefs.fvs_atom a
 
 let fvs_atom = function
   | Eqty (t1, t2, _) ->
@@ -411,6 +433,7 @@ let fvs_atom = function
 
 let alien_atom_loc = function
   | Num_atom a -> NumDefs.atom_loc a  
+  | Order_atom a -> OrderDefs.atom_loc a  
 
 let atom_loc = function
   | Eqty (_, _, loc) | CFalse loc
@@ -420,6 +443,7 @@ let atom_loc = function
 
 let replace_loc_alien_atom loc = function
   | Num_atom a -> Num_atom (NumDefs.replace_loc_atom loc a)
+  | Order_atom a -> Order_atom (OrderDefs.replace_loc_atom loc a)
 
 let replace_loc_atom loc = function
   | Eqty (t1, t2, _) -> Eqty (t1, t2, loc)
@@ -431,7 +455,8 @@ let replace_loc_atom loc = function
 
 let eq_alien_atom = function
   | Num_atom a1, Num_atom a2 -> NumDefs.eq_atom a1 a2
-  (* | _ -> false *)
+  | Order_atom a1, Order_atom a2 -> OrderDefs.eq_atom a1 a2
+  | _ -> false
 
 let eq_atom a1 a2 =
   match a1, a2 with
@@ -455,6 +480,7 @@ let formula_diff cnj1 cnj2 =
 
 let subst_alien_atom sb = function
   | Num_atom a -> Num_atom (NumDefs.subst_atom num_v_unbox sb a)
+  | Order_atom a -> Order_atom (OrderDefs.subst_atom order_v_unbox sb a)
 
 let subst_atom sb = function
   | Eqty (t1, t2, loc) -> Eqty (subst_typ sb t1, subst_typ sb t2, loc)
@@ -468,6 +494,8 @@ let subst_atom sb = function
 let hvsubst_alien_atom sb = function
   | Num_atom a ->
     Num_atom (NumDefs.hvsubst_atom sb a)
+  | Order_atom a ->
+    Order_atom (OrderDefs.hvsubst_atom sb a)
 
 let hvsubst_atom sb = function
   | Eqty (t1, t2, loc) -> Eqty (hvsubst_typ sb t1, hvsubst_typ sb t2, loc)
@@ -504,6 +532,7 @@ let subst_fo_atom sb = function
 
 let alien_atom_size = function
   | Num_atom a -> NumDefs.atom_size a
+  | Order_atom a -> OrderDefs.atom_size a
 
 let atom_size = function
   | Eqty (t1, t2, _) -> typ_size t1 + typ_size t2 + 1
@@ -518,13 +547,15 @@ type formula = atom list
 type sep_formula = {
   cnj_typ : subst;
   cnj_num : NumDefs.formula;
+  cnj_ord : OrderDefs.formula;
   cnj_so : formula
 }
 
-type ('a, 'b, 'c) sep_sorts = {
+type ('a, 'b, 'c, 'd) sep_sorts = {
   at_typ : 'a;
   at_num : 'b;
-  at_so : 'c
+  at_ord : 'c;
+  at_so : 'd
 }
 
 let fvs_formula phi =
@@ -548,30 +579,59 @@ let update_sep ?(typ_updated=false) ~more phi =
   {cnj_typ =
      if typ_updated then more.cnj_typ
      else update_sb ~more_sb:more.cnj_typ phi.cnj_typ;
-   cnj_num = more.cnj_num @ phi.cnj_num; cnj_so = more.cnj_so @ phi.cnj_so}
+   cnj_num = more.cnj_num @ phi.cnj_num;
+   cnj_ord = more.cnj_ord @ phi.cnj_ord;
+   cnj_so = more.cnj_so @ phi.cnj_so}
 
 let typ_sort = function
   | TCons _ | Fun _ -> Type_sort
   | TVar (VNam (s, _) | VId (s, _)) -> s
   | Alien (Num_term _) -> Num_sort
+  | Alien (Order_term _) -> Order_sort
 
 let sep_formulas cnj =
-  let cnj_typ, cnj_num, cnj_so = List.fold_left
-    (fun (cnj_typ, cnj_num, cnj_so) ->
+  let cnj_typ, cnj_num, cnj_ord, cnj_so = List.fold_left
+    (fun (cnj_typ, cnj_num, cnj_ord, cnj_so) ->
       function
       | (Eqty (TVar v, t, lc) | Eqty (t, TVar v, lc))
         when var_sort v = Type_sort ->
-        (v,(t,lc))::cnj_typ, cnj_num, cnj_so
+        (v,(t,lc))::cnj_typ, cnj_num, cnj_ord, cnj_so
       | Eqty (t1, t2, lc) when typ_sort t1 = Num_sort ->
         cnj_typ,
         NumDefs.Eq (num_unbox ~t2 lc t1, num_unbox ~t2:t1 lc t2, lc)
-        ::cnj_num, cnj_so
+        ::cnj_num, cnj_ord, cnj_so
       | Eqty _ -> assert false
-      | A (Num_atom a) -> cnj_typ, a::cnj_num, cnj_so
+      | A (Num_atom a) -> cnj_typ, a::cnj_num, cnj_ord, cnj_so
+      | A (Order_atom a) -> cnj_typ, cnj_num, a::cnj_ord, cnj_so
       | (PredVarU _ | PredVarB _ | NotEx _ | CFalse _) as a ->
-        cnj_typ, cnj_num, a::cnj_so)
-    ([], [], []) cnj in
-  {cnj_typ; cnj_num; cnj_so}
+        cnj_typ, cnj_num, cnj_ord, a::cnj_so)
+    ([], [], [], []) cnj in
+  {cnj_typ; cnj_num; cnj_ord; cnj_so}
+
+let sep_unsolved cnj =
+  let new_notex = ref false in
+  let at_typ, at_num, at_ord, at_so = List.fold_left
+    (fun (cnj_typ, cnj_num, cnj_ord, cnj_so) ->
+      function
+      | Eqty (t1, t2, loc) when typ_sort t1 = Type_sort ->
+        (t1, t2, loc)::cnj_typ, cnj_num, cnj_ord, cnj_so
+      | Eqty (t1, t2, lc) when typ_sort t1 = Num_sort ->
+        cnj_typ,
+        NumDefs.Eq (num_unbox ~t2 lc t1, num_unbox ~t2:t1 lc t2, lc)
+        ::cnj_num, cnj_ord, cnj_so
+      | Eqty (t1, t2, lc) when typ_sort t1 = Order_sort ->
+        cnj_typ, cnj_num,
+        OrderDefs.Eq (order_unbox ~t2 lc t1, order_unbox ~t2:t1 lc t2, lc)
+        ::cnj_ord, cnj_so
+      | Eqty _ -> assert false
+      | A (Num_atom a) -> cnj_typ, a::cnj_num, cnj_ord, cnj_so
+      | A (Order_atom a) -> cnj_typ, cnj_num, a::cnj_ord, cnj_so
+      | NotEx _ as a ->
+        new_notex := true; cnj_typ, cnj_num, cnj_ord, a::cnj_so
+      | (PredVarU _ | PredVarB _ | CFalse _) as a ->
+        cnj_typ, cnj_num, cnj_ord, a::cnj_so)
+    ([], [], [], []) cnj in
+  !new_notex, {at_typ; at_num; at_ord; at_so}
 
 let to_formula =
   List.map (fun (v,(t,loc)) -> Eqty (TVar v, t, loc))
@@ -656,6 +716,7 @@ let convert = function
 
 let alien_atom_sort = function
   | Num_atom _ -> Num_sort
+  | Order_atom _ -> Order_sort
 
 let atom_sort = function
   | Eqty (t1, t2, lc) ->
@@ -863,12 +924,15 @@ let pr_exty = ref (fun ppf (i, rty) -> failwith "not implemented")
 
 let pr_alien_atom ppf = function
   | Num_atom a -> NumDefs.pr_atom ppf a
+  | Order_atom a -> OrderDefs.pr_atom ppf a
 
 let pr_alien_ty ppf = function
   | Num_term t -> NumDefs.pr_term ppf t
+  | Order_term t -> OrderDefs.pr_term ppf t
 
 let alien_no_parens = function
   | Num_term t -> NumDefs.term_no_parens t
+  | Order_term t -> OrderDefs.term_no_parens t
 
 (* Using "X" because "script chi" is not available on all systems. *)
 let rec pr_atom ppf = function
@@ -917,6 +981,7 @@ and pr_fun_ty ppf ty = match ty with
 let pr_sort ppf = function
   | Num_sort -> fprintf ppf "num"
   | Type_sort -> fprintf ppf "type"
+  | Order_sort -> fprintf ppf "order"
 
 let pr_cns ppf name = fprintf ppf "%s" (cns_str name)
 
@@ -1204,14 +1269,8 @@ let quant_viol q bvs v t =
   let uni_vs =
     List.filter q.uni_v (if bv then npvs else v::npvs) in
   let res =
-  if not bv then
-    uv ||
-    List.exists
-    (fun v2 ->
-      q.uni_v v2 && q.cmp_v v v2 = Left_of) npvs
-  else
-    List.exists
-      (fun v2 -> q.cmp_v v v2 = Left_of) uni_vs in
+    (not bv && uv) ||
+    List.exists (fun v2 -> q.cmp_v v v2 = Left_of) uni_vs in
   res  
 
 let registered_notex_vars = Hashtbl.create 32
@@ -1220,12 +1279,11 @@ let is_old_notex v = Hashtbl.mem registered_notex_vars v
 
 (** Separate type sort and number sort constraints,  *)
 let unify ?use_quants ?bvs ?(sb=[]) q cnj =
-  let new_notex = ref false in
   let use_quants, bvs =
     match use_quants, bvs with
     | None, None -> assert false
     | Some false, None -> false, VarSet.empty
-    | (None | Some true), None -> true, VarSet.empty
+    | Some true, None -> true, VarSet.empty
     | (None | Some true), Some bvs -> true, bvs
     | _ -> assert false in
   let subst_one_sb v s = List.map
@@ -1236,42 +1294,30 @@ let unify ?use_quants ?bvs ?(sb=[]) q cnj =
              (Contradiction (Type_sort, "Quantifier violation",
                              Some (TVar w, t'), loc));
          w, (t', loc)) in
-  let cnj_typ, more_cnj = partition_map
-      (function
-        | Eqty (t1, t2, loc) when typ_sort t1 = Type_sort ->
-          Left (t1, t2, loc)
-        | Eqty (Alien (Num_term t1), Alien (Num_term t2), loc) ->
-          Right (Left (NumDefs.Eq (t1, t2, loc)))
-        | (Eqty (TVar v1, Alien (Num_term t2), loc)
-          | Eqty (Alien (Num_term t2), TVar v1, loc))
-          when var_sort v1 = Num_sort ->
-          Right (Left NumDefs.(Eq (Lin (1,1,v1), t2, loc)))
-        | Eqty (TVar v1, TVar v2, loc)
-          when var_sort v1 = Num_sort && var_sort v2 = Num_sort ->
-          Right (Left NumDefs.(Eq (Lin (1,1,v1), Lin (1,1,v2), loc)))
-        | Eqty (t1, t2, loc) ->
-           raise (Contradiction (typ_sort t1, "Sort mismatch",
-                                 Some (t1, t2), loc))
-        | A (Num_atom a) -> Right (Left a)
-        | (CFalse _ | PredVarU _ | PredVarB _) as a ->
-          Right (Right a)
-        | NotEx _ as a -> new_notex := true; Right (Right a))
-      cnj in
-  let cnj_num, cnj_so = partition_choice more_cnj in
-  let rec aux sb num_cn = function
-    | [] -> sb, num_cn
-    | (t1, t2, loc)::cnj when t1 = t2 -> aux sb num_cn cnj
+  let new_notex, cnj = sep_unsolved cnj in
+  let rec aux sb num_cn ord_cn = function
+    | [] -> sb, num_cn, ord_cn
+    | (t1, t2, loc)::cnj when t1 = t2 -> aux sb num_cn ord_cn cnj
     | (t1, t2, loc)::cnj ->
       match subst_typ sb t1, subst_typ sb t2 with
-      | t1, t2 when t1 = t2 -> aux sb num_cn cnj
+      | t1, t2 when t1 = t2 -> aux sb num_cn ord_cn cnj
       | Alien (Num_term t1), Alien (Num_term t2) ->
-        aux sb (NumDefs.Eq (t1, t2, loc)::num_cn) cnj
+        aux sb (NumDefs.Eq (t1, t2, loc)::num_cn) ord_cn cnj
       | (TVar v, Alien (Num_term t)
         | Alien (Num_term t), TVar v) when var_sort v = Num_sort ->
-        aux sb NumDefs.(Eq (Lin (1,1,v), t, loc)::num_cn) cnj
+        aux sb NumDefs.(Eq (Lin (1,1,v), t, loc)::num_cn) ord_cn cnj
       | TVar v1, TVar v2
         when var_sort v1 = Num_sort && var_sort v2 = Num_sort ->
-        aux sb NumDefs.(Eq (Lin (1,1,v1), Lin (1,1,v2), loc)::num_cn) cnj
+        aux sb NumDefs.(Eq (Lin (1,1,v1), Lin (1,1,v2), loc)::num_cn)
+          ord_cn cnj
+      | Alien (Order_term t1), Alien (Order_term t2) ->
+        aux sb num_cn (OrderDefs.Eq (t1, t2, loc)::ord_cn) cnj
+      | (TVar v, Alien (Order_term t)
+        | Alien (Order_term t), TVar v) when var_sort v = Order_sort ->
+        aux sb num_cn OrderDefs.(Eq (OVar v, t, loc)::ord_cn) cnj
+      | TVar v1, TVar v2
+        when var_sort v1 = Order_sort && var_sort v2 = Order_sort ->
+        aux sb num_cn OrderDefs.(Eq (OVar v1, OVar v2, loc)::ord_cn) cnj
       | (Alien _ as t1, t2 | t1, (Alien _ as t2)) ->
         raise
           (Contradiction (Type_sort, "Type sort mismatch",
@@ -1292,10 +1338,10 @@ let unify ?use_quants ?bvs ?(sb=[]) q cnj =
                           Some (TVar v, t), loc))
       | (TVar v1 as tv1, (TVar v2 as tv2)) ->
         if q.cmp_v v1 v2 = Left_of
-        then aux ((v2, (tv1, loc))::subst_one_sb v2 tv1 sb) num_cn cnj
-        else aux ((v1, (tv2, loc))::subst_one_sb v1 tv2 sb) num_cn cnj
+        then aux ((v2, (tv1, loc))::subst_one_sb v2 tv1 sb) num_cn ord_cn cnj
+        else aux ((v1, (tv2, loc))::subst_one_sb v1 tv2 sb) num_cn ord_cn cnj
       | (TVar v, t | t, TVar v) ->
-        aux ((v, (t, loc))::subst_one_sb v t sb) num_cn cnj
+        aux ((v, (t, loc))::subst_one_sb v t sb) num_cn ord_cn cnj
       | (TCons (f, f_args) as t1,
                               (TCons (g, g_args) as t2)) when f=g ->
         let more_cnj =
@@ -1304,10 +1350,10 @@ let unify ?use_quants ?bvs ?(sb=[]) q cnj =
             raise
               (Contradiction (Type_sort, "Type arity mismatch",
                               Some (t1, t2), loc)) in
-        aux sb num_cn (List.map (fun (t1,t2)->t1,t2,loc) more_cnj @ cnj)
+        aux sb num_cn ord_cn (List.map (fun (t1,t2)->t1,t2,loc) more_cnj @ cnj)
       | Fun (f1, a1), Fun (f2, a2) ->
         let more_cnj = [f1, f2, loc; a1, a2, loc] in
-        aux sb num_cn (more_cnj @ cnj)
+        aux sb num_cn ord_cn (more_cnj @ cnj)
       | (TCons (f, _) as t1,
                          (TCons (g, _) as t2)) ->
         (*[* Format.printf "unify: mismatch f=%s g=%s@ t1=%a@ t2=%a@\n%!"
@@ -1321,8 +1367,8 @@ let unify ?use_quants ?bvs ?(sb=[]) q cnj =
         raise
           (Contradiction (Type_sort, "Type mismatch",
                           Some (t1, t2), loc)) in
-  let cnj_typ, cnj_num = aux sb cnj_num cnj_typ in
-  if !new_notex then List.iter
+  let cnj_typ, cnj_num, cnj_ord = aux sb cnj.at_num cnj.at_ord cnj.at_typ in
+  if new_notex then List.iter
       (function
         | NotEx (t, loc) ->
           (match subst_typ cnj_typ t with
@@ -1330,8 +1376,8 @@ let unify ?use_quants ?bvs ?(sb=[]) q cnj =
              raise (Contradiction (Type_sort, "Should not be existential",
                                    Some (t, st), loc))        
            | _ -> ())
-        | _ -> ()) cnj_so;
-  {cnj_typ; cnj_num; cnj_so}
+        | _ -> ()) cnj.at_so;
+  {cnj_typ; cnj_num; cnj_ord; cnj_so=cnj.at_so}
     
 let subst_of_cnj ?(elim_uni=false) q cnj =
   map_some
@@ -1434,10 +1480,6 @@ let () = pr_exty :=
     let phi, ty =
       if sb=[] then phi, ty
       else subst_formula sb phi, subst_typ sb ty in
-    (*[* Format.printf
-      "@\npr_exty: i=%d ty=%a@ vs=%a@ pvs=%a@ phi=%a@\n%!"
-      i pr_ty ty pr_vars (vars_of_list vs) pr_vars
-       (vars_of_list pvs) pr_formula phi; *]*)
     let evs = VarSet.elements
         (VarSet.diff (vars_of_list vs) (vars_of_list pvs)) in
     let phi = Eqty (ty, ty, dummy_loc)::phi in

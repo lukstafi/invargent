@@ -92,6 +92,7 @@ let tests = "InvarGenT" >::: [
            test_case "binary_plus" ());
       "binary_plus-harder" >::
         (fun () ->
+           todo "currently requiring expanded arguments";
            skip_if !debug "debug";
            test_case "binary_plus-harder" ());
       "flatten_pairs" >::
@@ -307,6 +308,21 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "avl_tree" ());
+      "binomial_heap-ins_tree" >::
+        (fun () ->
+           todo "TODO";
+           skip_if !debug "debug";
+           test_case "binomial_heap-ins_tree" ());
+      "binomial_heap-merge" >::
+        (fun () ->
+           todo "TODO";
+           skip_if !debug "debug";
+           test_case "binomial_heap-merge" ());
+      "binomial_heap" >::
+        (fun () ->
+           todo "TODO";
+           skip_if !debug "debug";
+           test_case "binomial_heap" ());
     ]
 
 let () =

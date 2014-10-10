@@ -4,8 +4,8 @@ datatype Avl : type * num
 
 datacons Empty : ∀a. Avl (a, 0)
 
-datacons Node : ∀k, m, n, a[k=max (m, n) ∧ 0 ≤ m ∧ 0 ≤ n ∧
-   n ≤ m + 2 ∧ m ≤ n + 2].Avl (a, m) * a * Avl (a, n) * Num (k + 1) ⟶
+datacons Node : ∀k, m, n, a[m ≤ n + 2 ∧ n ≤ m + 2 ∧ 0 ≤ n ∧
+   0 ≤ m ∧ k=max (m, n)].Avl (a, m) * a * Avl (a, n) * Num (k + 1) ⟶
    Avl (a, k + 1)
 
 datatype LinOrder
@@ -21,7 +21,7 @@ external val compare : ∀a. a → a → LinOrder
 val height : ∀n, a. Avl (a, n) → Num n
 
 val create :
-   ∀k, n, a[0 ≤ n ∧ 0 ≤ k ∧ n ≤ k + 2 ∧ k ≤ n + 2].
+   ∀k, n, a[k ≤ n + 2 ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ 0 ≤ n].
    Avl (a, k) → a → Avl (a, n) → ∃i[i=max (k + 1, n + 1)].Avl (a, i)
 
 val singleton : ∀a. a → Avl (a, 1)
@@ -49,9 +49,9 @@ val remove_min_binding :
    Avl (a, n) → ∃k[n ≤ k + 1 ∧ k ≤ n ∧ k + 2 ≤ 2 n].Avl (a, k)
 
 val merge :
-   ∀k, n, a[n ≤ k + 2 ∧ k ≤ n + 2].
-   (Avl (a, n), Avl (a, k)) → ∃i[k ≤ i ∧ n ≤ i ∧ i ≤ n + k ∧
-     i≤max (k + 1, n + 1)].Avl (a, i)
+   ∀k, n, a[k ≤ n + 2 ∧ n ≤ k + 2].
+   (Avl (a, n), Avl (a, k)) → ∃i[i≤max (k + 1, n + 1) ∧ k ≤ i ∧
+     n ≤ i ∧ i ≤ n + k].Avl (a, i)
 
 val remove :
    ∀n, a.

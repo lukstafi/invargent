@@ -142,7 +142,8 @@ let disjelim_typ q ~bvs ~preserve brs =
   (*[* Format.printf "disjelim_typ: bvs=%a@ preserve=%a@\nbrs=@ %a@\n%!"
     pr_vars bvs pr_vars preserve (pr_line_list "| " pr_subst) brs; *]*)
   let empty_brs = List.map (fun _ -> []) brs in
-  let empty_eqs = {at_typ=empty_brs; at_num=empty_brs; at_so=()} in
+  let empty_eqs =
+    {at_typ=empty_brs; at_num=empty_brs; at_ord=empty_brs; at_so=()} in
   match brs with
   | [] -> assert false
   | [br] ->
@@ -225,12 +226,20 @@ let disjelim_typ q ~bvs ~preserve brs =
       let eqv_ans = EqsSet.elements
         (List.fold_left EqsSet.inter (List.hd eqvs) (List.tl eqvs)) in
       (* (f) *)
-      let num_eqs, ty_eqs = List.split
+      let ty_eqs, eqs = List.split
+        (List.map (List.partition
+                     (fun (_,(t,_)) -> typ_sort t = Type_sort)) eqs) in
+      let num_eqs, eqs = List.split
         (List.map (List.partition
                      (fun (_,(t,_)) -> typ_sort t = Num_sort)) eqs) in
+      let ord_eqs, eqs = List.split
+        (List.map (List.partition
+                     (fun (_,(t,_)) -> typ_sort t = Order_sort)) eqs) in
+      assert (List.for_all (fun br -> br=[]) eqs);
       let eqs = {
         at_typ = ty_eqs;
         at_num = List.map NumS.sort_of_subst num_eqs;
+        at_ord = List.map OrderS.sort_of_subst ord_eqs;
         at_so = ()} in
       usb, avs, ty_ans @ eqv_ans, eqs
 
@@ -315,18 +324,22 @@ let disjelim q ~bvs ~preserve ~do_num ~initstep brs =
       VarSet.union (fvs_typs preserved) preserve in
     let num_brs = List.map (fun (a,b)->a@b)
         (List.combine (List.map (fun br->br.cnj_num) brs) eqs.at_num) in
+    let ord_brs = List.map (fun (a,b)->a@b)
+        (List.combine (List.map (fun br->br.cnj_ord) brs) eqs.at_ord) in
     let num_avs, num_ans = NumS.disjelim q
         ~preserve:keep_for_simpl ~initstep num_brs in
+    let ord_avs, ord_ans = OrderS.disjelim q
+        ~preserve:keep_for_simpl ~initstep ord_brs in
     (*[* Format.printf "disjelim: before simpl@ vs=%a@ ty_ans=%a@ num_ans=%a@\n%!"
       pr_vars (vars_of_list (num_avs @ avs))
       pr_subst ty_ans NumDefs.pr_formula num_ans; *]*)
     (* (4) *)
     (* Dooes not simplify redundancy. *)
     usb, simplify_dsjelim q initstep ~keep ~preserve (num_avs @ avs)
-      {at_typ=ty_ans; at_num=num_ans; at_so=()}
+      {at_typ=ty_ans; at_num=num_ans; at_ord=ord_ans; at_so=()}
   else
     usb, simplify_dsjelim q initstep ~keep ~preserve avs
-      {at_typ=ty_ans; at_num=[]; at_so=()}
+      {at_typ=ty_ans; at_num=[]; at_ord=[]; at_so=()}
     
 let transitive_cl cnj =
   let {cnj_typ=_; cnj_num; cnj_so=_} = sep_formulas cnj in
@@ -345,10 +358,11 @@ let transitive_cl cnj =
 
 let initstep_heur q ~validate (vs, cnj) =
   (*[* let init_cnj = cnj in *]*)
-  let {cnj_typ; cnj_num; cnj_so} = sep_formulas cnj in
+  let {cnj_typ; cnj_num; cnj_ord; cnj_so} = sep_formulas cnj in
   let cnj = unsep_formulas
       {cnj_typ; cnj_so;
-       cnj_num = NumS.initstep_heur q cnj_num} in
+       cnj_num = NumS.initstep_heur q cnj_num;
+       cnj_ord = OrderS.initstep_heur q cnj_ord} in
   (*let cnj = List.fold_left
       (fun acc c ->
          let acc' = c::acc in

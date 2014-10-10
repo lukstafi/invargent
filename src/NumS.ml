@@ -12,7 +12,6 @@ let abd_prune_at = ref (* 4 *)6(* 10 *)
 let abd_timeout_count = ref (* 500 *)1000(* 5000 *)(* 50000 *)
 let abd_fail_timeout_count = ref 10
 let disjelim_rotations = ref 3
-let abd_int_negation = ref true
 let int_pruning = ref true
 let strong_int_pruning = ref false
 let passing_ineq_trs = ref false
@@ -53,7 +52,6 @@ let sort_of_subst = List.map
 let (!/) i = num_of_int i
 type w = (var_name * num) list * num * loc
 type w_subst = (var_name * w) list
-type cw_subst = ((var_name, bool) choice * w) list
 
 (* Assumes [vars1] and [vars2] are in the same order. *)
 let compare_w (vars1, cst1, _) (vars2, cst2, _) =
@@ -103,18 +101,6 @@ let pr_sw ppf (v, w) =
 
 let pr_w_subst ppf sb =
   Format.fprintf ppf "@[<2>%a@]" (pr_sep_list "," pr_sw) sb
-
-let pr_cw ppf (v, w) =
-  match v with
-  | Left v ->
-    Format.fprintf ppf "@[<2>%s@ =@ %a@]" (var_str v) pr_w w
-  | Right false ->
-    Format.fprintf ppf "@[<2>0 =@ %a@]" pr_w w
-  | Right true ->
-    Format.fprintf ppf "@[<2>1 =@ %a@]" pr_w w
-
-let pr_cw_subst ppf sb =
-  Format.fprintf ppf "@[<2>%a@]" (pr_sep_list "," pr_cw) sb
 
 let pr_ineq ppf (v, (wl, wr)) =
   Format.fprintf ppf "@[<2>[%a]@ ≤@ %s@ ≤@ [%a]@]"
@@ -1068,6 +1054,9 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
       pr_ineqn c_ineqn' pr_eqn d_eqn';
     *]*)
     (* 3 *)
+    (* TODO: "contract" constants in the initial candidates in the
+       same fasion as in term abduction. *)
+    
     (* 4 *)
     let rec loop add_eq_tr add_ineq_tr eq_trs ineq_trs
         eqs_acc ineqs_acc optis_acc suboptis_acc

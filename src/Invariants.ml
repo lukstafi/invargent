@@ -626,8 +626,8 @@ let converge q_ops ~initstep ?guard ~check_only (vs1, cnj1) (vs2, cnj2) =
 
 let neg_constrns = ref true
 
-let empty_disc = {at_typ=[],[]; at_num=[]; at_so=()}
-let empty_dl = {at_typ=[]; at_num=[]; at_so=()}
+let empty_disc = {at_typ=[],[]; at_num=[]; at_ord=[]; at_so=()}
+let empty_dl = {at_typ=[]; at_num=[]; at_ord=[]; at_so=()}
 
 (* Captures where the repeat step is/are. *)
 let disj_step = [|0; 0; 2; 5|]
@@ -1040,7 +1040,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
                       effect on checking the discard list anyway. *)
                    {empty_disc with at_typ=[],s_discard.cnj_typ}
                  | Num_sort ->
-                   {empty_disc with at_num=s_discard.cnj_num} in
+                   {empty_disc with at_num=s_discard.cnj_num}
+                 | Order_sort ->
+                   {empty_disc with at_ord=s_discard.cnj_ord} in
                (*[* Format.printf
                  "solve-finish: sep_disc.typ=%a@ \
                   sep_disc.num=%a@\n%!" pr_subst s_discard.cnj_typ
@@ -1065,7 +1067,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
                | Type_sort ->
                  {discard with at_typ=s_discard.at_typ::discard.at_typ}
                | Num_sort ->
-                 {discard with at_num=s_discard.at_num::discard.at_num} in
+                 {discard with at_num=s_discard.at_num::discard.at_num}
+               | Order_sort ->
+                 {discard with at_ord=s_discard.at_ord::discard.at_ord} in
              loop iter_no discard rol1 sol1 in
       (* 8 *)
       (* Avoid substituting [bvs] -- treat them like leftmost. *)

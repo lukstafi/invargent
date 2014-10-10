@@ -37,7 +37,7 @@ datacons Fst : ∀a, b.Term ((a, b)) ⟶ Term a
 datacons Snd : ∀a, b.Term ((a, b)) ⟶ Term b
 
 (** Small definition. *)
-val snd : ∀a, b. (a, b) → b
+val snd : ∀a, b. (b, a) → a
 
 (** Exposing multiple mutually recursive definitions is tricky, it would
     be easier to only expose the external one. *)

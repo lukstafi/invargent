@@ -72,7 +72,7 @@ val abd_typ :
 
 type discarded =
   ((Defs.var_name list * Terms.subst) list,
-   NumDefs.formula list, unit) Terms.sep_sorts
+   NumDefs.formula list, OrderDefs.formula list, unit) Terms.sep_sorts
 (** Raises [Contradiction] if constraints are contradictory and
     [NoAnswer] when no answer can be found. Returns candidate
     parameters [cand_bvs], alien subterm substitution [alien_eqs] and

@@ -69,21 +69,24 @@ let rich_return_type_heur bvs ans cand =
   if sb=[] && b_sb=[] then cand
   else List.map
       (function
-        | v, (t, lc) when VarSet.mem v bvs ->
+        | v, (t, lc) as sx when VarSet.mem v bvs ->
           (*[* Format.printf "ret_typ_heur: %s= %a := %a@\n%!"
             (var_str v) pr_ty t pr_ty (subst_typ b_sb t);
           *]*)
-          v, (subst_typ b_sb t, lc)
-        | v, (t, lc) when VarSet.mem v ret_only_vars ->
+          let t' = subst_typ b_sb t in
+          if TVar v = t' then sx else v, (t', lc)
+        | v, (t, lc) as sx when VarSet.mem v ret_only_vars ->
           (*[* Format.printf "ret_typ_heur: %s= %a := %a@\n%!"
             (var_str v) pr_ty t pr_ty (subst_typ sb t);
           *]*)
-          v, (subst_typ sb t, lc)
-        | v1, (TVar v2, lc) when VarSet.mem v2 ret_only_vars ->
+          let t' = subst_typ sb t in
+          if TVar v = t' then sx else v, (t', lc)
+        | v1, (TVar v2, lc) as sx when VarSet.mem v2 ret_only_vars ->
           (*[* Format.printf "ret_typ_heur: %s= %s := %a@\n%!"
             (var_str v2) (var_str v1) pr_ty
             (subst_typ sb (TVar v1)); *]*)
-          v2, (subst_typ sb (TVar v1), lc)
+          let t' = subst_typ sb (TVar v1) in
+          if TVar v2 = t' then sx else v2, (t', lc)
         | sx -> sx)
       cand
 
@@ -786,7 +789,8 @@ let abd_mockup_num q ~bvs brs =
   with Suspect _ -> None
 
 type discarded =
-  (TermAbd.answer list, NumDefs.formula list, unit) sep_sorts
+  (TermAbd.answer list, NumDefs.formula list,
+   OrderDefs.formula list, unit) sep_sorts
 
 let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
   let dissociate = iter_no <= 0 in

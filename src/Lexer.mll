@@ -76,14 +76,17 @@ rule token = parse
   | '.'		{ DOT }
   | ':'		{ COLON }
   | "function"  { FUNCTION }
-  | "efunction"  { EFUNCTION }
+  | "efunction" { EFUNCTION }
   | "fun"       { FUN }
   | "match"     { MATCH }
   | "ematch"    { EMATCH }
   | "when"      { WHEN }
   | "with"      { WITH }
   | "num"       { NUM }
+  | "order"     { ORDER }
   | "type"      { TYPE }
+  | "zero"      { ZERO }
+  | "top"       { TOP }
   | "<="        { LESSEQUAL }
   | "≤"         { LESSEQUAL }
   | ';'         { SEMICOLON }
@@ -117,6 +120,7 @@ rule token = parse
   | "→"         { ARROW }
   | "min"       { MIN }
   | "max"       { MAX }
+  | "succ"       { SUCC }
   | "==>"       { DOUBLEARROW }
   | "⟹"        { DOUBLEARROW }
   | "(**"

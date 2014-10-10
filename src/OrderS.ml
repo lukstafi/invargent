@@ -71,30 +71,32 @@ type system = {
 let taut_w iseq w1 w2 =
   if w1 = w2 then true
   else match iseq, w1, w2 with
-    | false, _, WTop _ | false, WCst (0, _), _ -> true
-    | false, WCst (i, _), WCst (j, _) -> i <= j
+    | false, _, WTop | false, WCst 0, _ -> true
+    | false, WCst i, WCst j -> i <= j
+    | true, _, _ when w1 = w2 -> true
+    | _ -> false
 
 (* Is v1+i1 <= v2+i2? *)
 let sys_leq i1 v1 i2 v2 system =
   try
-    let v_sys = VarSet.find v1 system in
-    let i4, _ = VarSet.find v2 v_sys.rhs_vars in
+    let v_sys = VarMap.find v1 system.v_system in
+    let i4, _ = VarMap.find v2 v_sys.rhs_vars in
     i2 - i1 >= i4
   with Not_found -> false
 
 (* Is v1+i1 <= 0? *)
 let sys_leq_c i1 v1 system =
   try
-    let v_sys = VarSet.find v1 system in
+    let v_sys = VarMap.find v1 system.v_system in
     match v_sys.rhs_cst with
-    | Some i4 -> ~-i1 >= i4
+    | Some (i4, _) -> ~-i1 >= i4
     | None -> false
   with Not_found -> false
 
 (* Is 0 <= v2+i2? *)
 let sys_c_leq i2 v2 system =
   try
-    let v_sys = VarSet.find v2 system in
+    let v_sys = VarMap.find v2 system.v_system in
     let i4, _ = v_sys.lhs_cst in
     ~-i2 <= i4
   with Not_found -> false
@@ -110,42 +112,45 @@ let rec succs i v =
 let rec succs_nat i =
   if i <= 0 then Zero else Succ (succs_nat (i-1))
 
-let unsolve system : formula =
+let unsolve (system : system) : formula =
   let c_minleqs, c_eqmins = partition_map
       (fun (i2, v2, i3, v3, lc) ->
-         let i1 = if i2 < 0 || i3 < 0 then ~-min i2 i3 else 0 in
+         let i1 = if i2 < 0 || i3 < 0 then ~-(min i2 i3) else 0 in
          let i2' = i2 + i1 and i3' = i3 + i1 in
          if sys_leq_c i2 v2 system && sys_leq_c i3 v3 system
          then Right
              (EqMin (succs_nat i1, succs i2' v2, succs i3' v3, lc),
               [v2, i2; v3, i3])
-         else Left
-             (MinLeq (succs i2' v2, succs i3' v3, succs i1 v, lc)))
+         else Left                      (* FIXME: rethink *)
+             (MinLeq (succs i2' v2, succs i3' v3, succs_nat i1, lc)))
       system.c_lhs_minis in
   let c_eqmins, implicit_leq_c = List.split c_eqmins in
+  let implicit_leq_c = List.concat implicit_leq_c in
   let c_leqmaxs, c_eqmaxs = partition_map
       (fun (i2, v2, i3, v3, lc) ->
-         let i1 = if i2 < 0 || i3 < 0 then ~-min i2 i3 else 0 in
+         let i1 = if i2 < 0 || i3 < 0 then ~-(min i2 i3) else 0 in
          let i2' = i2 + i1 and i3' = i3 + i1 in
          if sys_c_leq i2 v2 system && sys_c_leq i3 v3 system
          then Right
-             (EqMax (succs i1 v, succs i2' v2, succs i3' v3, lc),
+             (EqMax (succs_nat i1, succs i2' v2, succs i3' v3, lc),
               [v2, i2; v3, i3])
-         else Left
-             (LeqMax (succs i1 v, succs i2' v2, succs i3' v3, lc)))
+         else Left                      (* FIXME: rethink *)
+             (LeqMax (succs_nat i1, succs i2' v2, succs i3' v3, lc)))
       system.c_rhs_maxis in
   let c_eqmaxs, implicit_geq_c = List.split c_eqmaxs in
+  let implicit_geq_c = List.concat implicit_geq_c in
   c_minleqs @ c_eqmins @ c_leqmaxs @ c_eqmaxs @
     concat_varmap
       (fun v v_sys ->
          let lhs_c_i, lhs_c_lc = v_sys.lhs_cst
-         and rhs_c_i, rhs_c_lc = v_sys.rhs_cst in
+         and rhs_c_i, rhs_c_lc =
+           match v_sys.rhs_cst with
+           | Some (i, lc) -> Some i, Some lc
+           | None -> None, None in
          let cst =
-           if lhs_c_i > rhs_c_i then assert false
-           else if lhs_c_i = rhs_c_i && rhs_c_i <> 0
-           then
-             if lhs_c_i > 0 then [Eq (OVar v, succs_nat lhs_c_i, lhs_c_lc)]
-             else assert false               (* contradictory constraint *)
+           if Some lhs_c_i > rhs_c_i then assert false
+           else if Some lhs_c_i = rhs_c_i
+           then [Eq (OVar v, succs_nat lhs_c_i, lhs_c_lc)]
            else
              let lhs_cst =
                if lhs_c_i <= 0 then []
@@ -154,16 +159,18 @@ let unsolve system : formula =
                then []
                else [Leq (succs_nat lhs_c_i, OVar v, lhs_c_lc)] in
              let rhs_cst =
-               if rhs_c_i = 0 then []
-               else if rhs_c_i < 0 then assert false
-               else if List.mem_assoc v implicit_leq_c &&
-                       List.assoc v implicit_leq_c <= rhs_c_i
-               then []
-               else [Leq (OVar v, succs_nat rhs_c_i, rhs_c_lc)] in
+               match rhs_c_i with
+               | None -> []
+               | Some rhs_c_i ->
+                 if rhs_c_i < 0 then assert false
+                 else if List.mem_assoc v implicit_leq_c &&
+                         List.assoc v implicit_leq_c <= rhs_c_i
+                 then []
+                 else [Leq (OVar v, succs_nat rhs_c_i, unsome rhs_c_lc)] in
              lhs_cst @ rhs_cst in
          let minleqs, eqmins = partition_map
              (fun (i2, v2, i3, v3, lc) ->
-                let i1 = if i2 < 0 || i3 < 0 then ~-min i2 i3 else 0 in
+                let i1 = if i2 < 0 || i3 < 0 then ~-(min i2 i3) else 0 in
                 let i2 = i2 + i1 and i3 = i3 + i1 in
                 if sys_leq i1 v i2 v2 system && sys_leq i1 v i3 v3 system
                 then Right
@@ -175,7 +182,7 @@ let unsolve system : formula =
          let eqmins, implicit1 = List.split eqmins in
          let leqmaxs, eqmaxs = partition_map
              (fun (i2, v2, i3, v3, lc) ->
-                let i1 = if i2 < 0 || i3 < 0 then ~-min i2 i3 else 0 in
+                let i1 = if i2 < 0 || i3 < 0 then ~-(min i2 i3) else 0 in
                 let i2 = i2 + i1 and i3 = i3 + i1 in
                 if sys_leq i2 v2 i1 v system && sys_leq i3 v3 i1 v system
                 then Right
@@ -219,7 +226,7 @@ let unsolve system : formula =
                   then [Leq (succs (~-i2) v, OVar v2, lc)]
                   else [Leq (OVar v, succs i2 v2, lc)])
              v_sys.rhs_vars in
-         cst @ eqmins @ eqmaxs @ lhs_minis @ rhs_maxis @ lhs_vs @ rhs_vs)
+         cst @ eqmins @ eqmaxs @ minleqs @ leqmaxs @ lhs_vs @ rhs_vs)
       system.v_system
 
 let flatten a : w_atom list =
@@ -261,39 +268,6 @@ let flatten a : w_atom list =
 
 let flatten_formula cnj = concat_map flatten cnj
 
-let ineq_transitive_cl ~cmp_v edge_l =
-  let edges = Hashtbl.create 8 in
-  let nodes = Hashtbl.create 8 in
-  List.iter
-    (fun (t1, t2, loc) ->
-       Hashtbl.replace nodes t1 (); Hashtbl.replace nodes t2 ();
-       Hashtbl.replace edges (t1, t2) loc)
-    edge_l;
-  (* More edges by affine displacement. *)
-  Hashtbl.iter
-    (fun i _ ->
-       Hashtbl.iter
-         (fun j _ ->
-            let w = unexpand_sides ~cmp_v ((i, j), dummy_loc) in
-            if taut_w false w
-            then Hashtbl.add edges (i, j) dummy_loc)
-         nodes) nodes;
-  (* Floyd-Warshall algo *)
-  let add i j k =
-    if not (Hashtbl.mem edges (i, j)) then
-      let lc1 = Hashtbl.find edges (i, k)
-      and lc2 = Hashtbl.find edges (k, j) in
-      let lc = loc_union lc1 lc2 in
-      Hashtbl.add edges (i, j) lc in
-  Hashtbl.iter
-    (fun k _ ->
-       Hashtbl.iter
-         (fun i _ ->
-            Hashtbl.iter
-              (fun j _ -> try add i j k with Not_found -> ())
-              nodes) nodes) nodes;
-  edges
-
 (* Quantifier violation when the rightmost variable of an atom (here
    represented by a list of its terms) is universally quantified (not
    a [bvs] parameter). *)
@@ -307,6 +281,7 @@ let quant_viol cmp_v uni_v bvs ts =
   *]*)
   res
 
+(*
 let solve_aux ?use_quants ?(strict=false)
     ~eqs ~ineqs ~eqs' ~optis ~suboptis ~eqn ~ineqn ~cnj
     ~cmp_v ~cmp_w uni_v = TODO
@@ -340,10 +315,12 @@ let solve_get_eqn ?use_quants ?strict
     (*[* Format.printf "NumS.main-solve: done@\n%a@\n@\n%!"
       pr_state res; *]*)
     res, !all_implicit
+*)
 
 let solve ?use_quants ?strict
     ?eqs ?ineqs ?eqs' ?optis ?suboptis ?eqn ?ineqn ?cnj
-    ~cmp_v ~cmp_w uni_v = (* TODO *)
+    ~cmp_v ~cmp_w uni_v = failwith "TODO"
+(*
   let res, implicits =
     solve_get_eqn ?use_quants ?strict
       ?eqs ?ineqs ?eqs' ?optis ?suboptis ?eqn ?ineqn ?cnj
@@ -352,6 +329,15 @@ let solve ?use_quants ?strict
   then Format.printf "NumS.main-solve: implicits=@ %a@\n%!"
       pr_ineqn implicits; *]*)
   res
+*)
 
+let separate_subst q cnj =
+  if cnj = [] then [], [] else failwith "Order.separate_subst: TODO"
 
-exception Result of TODO
+let disjelim q ~preserve ~initstep brs =
+  [], []                                (* TODO *)
+
+let initstep_heur q cnj =
+  cnj                                   (* TODO *)
+
+(* exception Result of TODO *)

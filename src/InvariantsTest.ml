@@ -381,7 +381,7 @@ let rec equal = function
   | TList t, TList u -> forall2 (equal (t, u))
   | _ -> fun _ _ -> False
 test b_not (equal (TInt, TList TInt) Zero Nil)"
-        [1, "∃a, b. δ = ((Ty b, Ty a) → b → a → Bool)"]
+        [1, "∃a, b. δ = ((Ty a, Ty b) → a → b → Bool)"]
     );
 
   "equal with assert" >::
@@ -410,7 +410,7 @@ let rec equal = function
   | _ -> fun _ _ -> False
   | TInt, TList l -> (function Nil -> assert false)
   | TList l, TInt -> (fun _ -> function Nil -> assert false)"
-        [1, "∃a, b. δ = ((Ty b, Ty a) → b → a → Bool)"]
+        [1, "∃a, b. δ = ((Ty a, Ty b) → a → b → Bool)"]
     );
 
   "equal with assert and test" >::
@@ -440,7 +440,7 @@ let rec equal = function
   | TInt, TList l -> (function Nil -> assert false)
   | TList l, TInt -> (fun _ -> function Nil -> assert false)
 test b_not (equal (TInt, TList TInt) Zero Nil)"
-        [1, "∃a, b. δ = ((Ty b, Ty a) → b → a → Bool)"]
+        [1, "∃a, b. δ = ((Ty a, Ty b) → a → b → Bool)"]
     );
 
   "SPJ non-principal 1" >::
@@ -651,8 +651,26 @@ let rec append =
         [1,"∃n, k. δ = (List n → List k → List (n + k))"];
     );
 
+  "binary increment simple" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case ~nodeadcode:true "binary increment simple"
+"datatype Binary : num
+
+datacons Zero : Binary 0
+datacons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
+datacons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
+
+let rec increment =
+  function Zero -> POne Zero
+    | PZero a1 -> POne a1
+    | POne a1 -> PZero (increment a1)"
+        [1,"∃n. δ = (Binary n → Binary (n + 1))"]
+    );
+
   "binary increment" >::
     (fun () ->
+       todo "num abduction: eliminate constants in initial candidates";
        skip_if !debug "debug";
        test_case "binary increment"
 "datatype Binary : num
@@ -1545,7 +1563,7 @@ let rec ub = efunction
           let r = ub a1 b1 in
           POne r)"
         [2,"∃n, k.
-  δ = (Binary k → Binary n → ∃i[n ≤ i ∧ i ≤ n + k].Binary i)"]
+  δ = (Binary k → Binary n → ∃i[i ≤ n + k ∧ n ≤ i].Binary i)"]
     );
 
   "binary upper bound expanded" >::
@@ -1583,8 +1601,8 @@ let rec ub = efunction
           POne r)"
         [2,"∃n, k.
   δ =
-    (Binary k → Binary n → ∃i[n ≤ i ∧ i ≤ n + k ∧
-       k ≤ i].Binary i)"]
+    (Binary k → Binary n → ∃i[k ≤ i ∧ i ≤ n + k ∧
+       n ≤ i].Binary i)"]
     );
 
   "binary upper bound" >::
@@ -1954,7 +1972,7 @@ let rec zip =
     | UCons xs, UCons ys ->
       let zs = zip (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (n, k)].Unary i) ∧ 0 ≤ k"]
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (k, n)].Unary i) ∧ 0 ≤ k"]
     );
 
   "list zip prefix expanded" >::
@@ -1974,7 +1992,7 @@ let rec zip =
       let zs = zip (xs, ys) in
       LCons ((x, y), zs)"
         [2,"∃n, k, a, b.
-  δ = ((List (a, n), List (b, k)) → ∃i[i=min (n, k)].List ((a, b), i))"]
+  δ = ((List (a, n), List (b, k)) → ∃i[i=min (k, n)].List ((a, b), i))"]
     );
 
   "unary maximum expanded" >::
@@ -1993,11 +2011,12 @@ let rec map2 =
     | UCons xs, UCons ys ->
       let zs = map2 (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=max (n, k)].Unary i)"]
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=max (k, n)].Unary i)"]
     );
 
   "list map2 with postfix expanded" >::
     (fun () ->
+       todo "keep separate bvs variables";
        skip_if !debug "debug";
        test_case "list map2 with postfix"
 "datatype List : type * num
@@ -2039,12 +2058,13 @@ let rec filter_zip = fun f ->
       | False -> zs"
         [2,"∃n, k, a, b.
   δ =
-    ((a → b → Bool) → (List (a, n), List (b, k)) → ∃i[0 ≤ i ∧
-       i ≤ n ∧ i ≤ k].List ((a, b), i))"]
+    ((a → b → Bool) → (List (a, n), List (b, k)) → ∃i[i ≤ k ∧
+       i ≤ n ∧ 0 ≤ i].List ((a, b), i))"]
     );
 
   "list filter-map2 with postfix" >::
     (fun () ->
+       todo "keep separate bvs variables";
        skip_if !debug "debug";
        test_case "list filter-map2 with postfix"
 "datatype List : type * num
@@ -2098,7 +2118,7 @@ let rec filter_map2 =
       ematch p x y with
       | True -> LCons (f x y, zs)
       | False -> zs"
-        [2,"∃n, k. δ = ((List n, List k) → ∃i[0 ≤ i ∧ i≤max (k, n)].List i)"]
+        [2,"∃n, k. δ = ((List n, List k) → ∃i[i≤max (n, k) ∧ 0 ≤ i].List i)"]
     );
 
   "non-num no postcond list filter-map2 with filter postfix" >::
@@ -2162,9 +2182,9 @@ let rec filter_map2 = fun p q r f g h ->
       | False -> zs"
         [2,"∃a, b, c.
   δ =
-    ((a → b → Bool) → (a → Bool) → (b → Bool) →
-       (a → b → c) → (a → c) → (b → c) → (List a, List b) →
-       ∃.List c)"]
+    ((b → c → Bool) → (b → Bool) → (c → Bool) →
+       (b → c → a) → (b → a) → (c → a) → (List b, List c) →
+       ∃.List a)"]
     );
 
   "list filter-map2 with filter postfix" >::
@@ -2195,10 +2215,10 @@ let rec filter_map2 = fun p q r f g h ->
       | False -> zs"
         [2,"∃n, k, a, b, c.
   δ =
-    ((a → b → Bool) → (a → Bool) → (b → Bool) →
-       (a → b → c) → (a → c) → (b → c) →
-       (List (a, n), List (b, k)) → ∃i[0 ≤ i ∧
-       i≤max (n, k)].List (c, i))"]
+    ((b → c → Bool) → (b → Bool) → (c → Bool) →
+       (b → c → a) → (b → a) → (c → a) →
+       (List (b, n), List (c, k)) → ∃i[i≤max (n, k) ∧
+       0 ≤ i].List (a, i))"]
     );
 
   "list map2 with filter postfix" >::
@@ -2227,9 +2247,9 @@ let rec map2_filter = fun q r f g h ->
       LCons (f x y, zs)"
         [2,"∃n, k, a, b, c.
   δ =
-    ((a → Bool) → (b → Bool) → (a → b → c) → (a → c) →
-       (b → c) → (List (a, n), List (b, k)) → ∃i[i≤max (n, k) ∧
-       min (n, k)≤i].List (c, i))"]
+    ((b → Bool) → (c → Bool) → (b → c → a) → (b → a) →
+       (c → a) → (List (b, n), List (c, k)) → ∃i[i≤max (n, k) ∧
+       min (k, n)≤i].List (a, i))"]
     );
 
   "avl_tree--height" >::
@@ -2267,7 +2287,7 @@ let create = fun l x r ->
         [2,"∃n, k, a.
   δ =
     (Avl (a, k) → a → Avl (a, n) →
-       ∃i[i=max (n + 1, k + 1)].Avl (a, i)) ∧
+       ∃i[i=max (k + 1, n + 1)].Avl (a, i)) ∧
   0 ≤ n ∧ 0 ≤ k ∧ n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
@@ -2938,8 +2958,8 @@ let merge = efunction
 "
         [2,"∃n, k, a.
   δ =
-    ((Avl (a, n), Avl (a, k)) → ∃i[k ≤ i ∧ n ≤ i ∧
-       i ≤ n + k ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
+    ((Avl (a, n), Avl (a, k)) → ∃i[i≤max (k + 1, n + 1) ∧ k ≤ i ∧
+       n ≤ i ∧ i ≤ n + k].Avl (a, i)) ∧
   n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
@@ -2992,8 +3012,8 @@ let merge = efunction
 "
         [2,"∃n, k, a.
   δ =
-    ((Avl (a, n), Avl (a, k)) → ∃i[k ≤ i ∧ n ≤ i ∧
-       i ≤ n + k ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
+    ((Avl (a, n), Avl (a, k)) → ∃i[i≤max (k + 1, n + 1) ∧ k ≤ i ∧
+       n ≤ i ∧ i ≤ n + k].Avl (a, i)) ∧
   n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
@@ -3046,8 +3066,8 @@ let merge = efunction
 "
         [2,"∃n, k, a.
   δ =
-    ((Avl (a, n), Avl (a, k)) → ∃i[k ≤ i ∧ n ≤ i ∧
-       i ≤ n + k ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
+    ((Avl (a, n), Avl (a, k)) → ∃i[i≤max (k + 1, n + 1) ∧ k ≤ i ∧
+       n ≤ i ∧ i ≤ n + k].Avl (a, i)) ∧
   n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 

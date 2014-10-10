@@ -14,7 +14,7 @@ datacons IsZero : Calc ⟶ Term Bool
 
 datacons If : ∀a.Term Bool * Term a * Term a ⟶ Term a
 
-val snd : ∀a, b. (a, b) → b
+val snd : ∀a, b. (b, a) → a
 
 val calc : Calc → ∃n.Num n
 

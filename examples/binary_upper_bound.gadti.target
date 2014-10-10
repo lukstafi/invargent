@@ -2,11 +2,11 @@ datatype Binary : num
 
 datacons Zero : Binary 0
 
-datacons PZero : ∀n[0 ≤ n].Binary n ⟶ Binary (2 n)
+datacons PZero : ∀k[0 ≤ (1/2) k].Binary ((1/2) k) ⟶ Binary k
 
 datacons POne : ∀n[0 ≤ n].Binary n ⟶ Binary (2 n + 1)
 
 val ub :
    ∀k, n.
-   Binary k → Binary n → ∃i[n ≤ i ∧ i ≤ n + k ∧
-     k ≤ i].Binary i
+   Binary k → Binary n → ∃i[k ≤ i ∧ i ≤ n + k ∧
+     n ≤ i].Binary i

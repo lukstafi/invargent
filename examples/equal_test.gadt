@@ -4,7 +4,7 @@ datacons Nil : ∀a. List a
 datacons TInt : Ty Int
 datacons TPair : ∀a, b. Ty a * Ty b ⟶ Ty (a, b)
 datacons TList : ∀a. Ty a ⟶ Ty (List a)
-external let zero : Int = "0"
+external let zero_int : Int = "0"
 external let eq_int : Int → Int → Bool = "(=)"
 external let b_and : Bool → Bool → Bool = "(&&)"
 external let b_not : Bool → Bool = "not"
@@ -18,4 +18,4 @@ let rec equal = function
               (equal (t2, u2) x2 y2))
   | TList t, TList u -> forall2 (equal (t, u))
   | _ -> fun _ _ -> False
-test b_not (equal (TInt, TList TInt) zero Nil)
+test b_not (equal (TInt, TList TInt) zero_int Nil)

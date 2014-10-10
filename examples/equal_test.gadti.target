@@ -10,7 +10,7 @@ datacons TPair : ∀a, b.Ty a * Ty b ⟶ Ty ((a, b))
 
 datacons TList : ∀a.Ty a ⟶ Ty (List a)
 
-external val zero : Int
+external val zero_int : Int
 
 external val eq_int : Int → Int → Bool
 
@@ -21,4 +21,4 @@ external val b_not : Bool → Bool
 external forall2 :
    ∀a, b. (a → b → Bool) → List a → List b → Bool
 
-val equal : ∀a, b. (Ty b, Ty a) → b → a → Bool
+val equal : ∀a, b. (Ty a, Ty b) → a → b → Bool

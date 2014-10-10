@@ -29,7 +29,7 @@ val loc_tighter : loc -> loc -> loc
 (** The locations have nonempty intersection. *)
 val interloc : loc -> loc -> bool
 
-type sort = Num_sort | Type_sort
+type sort = Num_sort | Type_sort | Order_sort
 val sort_str : sort -> string
 
 (** Type variables (and constants) remember their sort. Sort
@@ -49,6 +49,12 @@ val vars_of_list : var_name list -> VarSet.t
 val add_vars : var_name list -> VarSet.t -> VarSet.t
 val no_vs : VarSet.t
 val vars_of_map : ('a -> VarSet.t) -> 'a list -> VarSet.t
+
+module VarMap : (Map.S with type key = var_name)
+val varmap_of_list : (var_name * 'a) list -> 'a VarMap.t
+val add_to_varmap : (var_name * 'a) list -> 'a VarMap.t -> 'a VarMap.t
+val empty_vmap : 'a VarMap.t
+val concat_varmap : (var_name -> 'a -> 'b list) -> 'a VarMap.t -> 'b list
 
 (** {2 Quantification} *)
 

@@ -39,11 +39,12 @@ let interloc loc1 loc2 =
   not (loc1.end_pos.pos_cnum < loc2.beg_pos.pos_cnum ||
          loc1.beg_pos.pos_cnum > loc2.end_pos.pos_cnum)
 
-type sort = Num_sort | Type_sort
+type sort = Num_sort | Type_sort | Order_sort
 
 let sort_str = function
   | Num_sort -> "num"
   | Type_sort -> "type"
+  | Order_sort -> "order"
 
 
 (** Type variables (and constants) remember their sort. Sort
@@ -71,6 +72,18 @@ let add_vars l vs =
 let no_vs = VarSet.empty
 let vars_of_map f l =
   List.fold_left (fun acc x -> VarSet.union acc (f x)) VarSet.empty l
+
+module VarMap =
+  Map.Make (struct type t = var_name let compare = Pervasives.compare end)
+let varmap_of_list l =
+  List.fold_right (uncurry VarMap.add) l VarMap.empty
+let add_to_varmap l vs =
+  List.fold_right (uncurry VarMap.add) l vs
+let empty_vmap = VarMap.empty
+let concat_varmap f vmap =
+  VarMap.fold
+    (fun v x acc -> List.rev_append (f v x) acc) vmap []
+    
 
 (** {2 Quantification} *)
 

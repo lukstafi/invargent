@@ -26,7 +26,7 @@ datacons Fst : ∀a, b.Term ((a, b)) ⟶ Term a
 
 datacons Snd : ∀a, b.Term ((a, b)) ⟶ Term b
 
-val snd : ∀a, b. (a, b) → b
+val snd : ∀a, b. (b, a) → a
 
 val calc : Calc → ∃n.Num n
 

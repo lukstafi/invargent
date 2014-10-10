@@ -62,6 +62,7 @@ val clause_loc : ('a, 'b) clause -> lc
 
 type alien_subterm =
   | Num_term of NumDefs.term
+  | Order_term of OrderDefs.term
 
 type typ =
   | TVar of Defs.var_name
@@ -73,6 +74,7 @@ val num : NumDefs.term -> typ
 
 type alien_atom =
   | Num_atom of NumDefs.atom
+  | Order_atom of OrderDefs.atom
 
 type atom =
   | Eqty of typ * typ * lc
@@ -203,15 +205,17 @@ type hvsubst = (Defs.var_name * Defs.var_name) list
 type sep_formula = {
   cnj_typ : subst;
   cnj_num : NumDefs.formula;
+  cnj_ord : OrderDefs.formula;
   cnj_so : formula
 }
 (** We could define [sep_formula = (subst, NumDefs.formula formula)
     sep_sorts], but [sep_formula] is used frequently enough to earn
     a dedicated type. *)
-type ('a, 'b, 'c) sep_sorts = {
+type ('a, 'b, 'c, 'd) sep_sorts = {
   at_typ : 'a;
   at_num : 'b;
-  at_so : 'c
+  at_ord : 'c;
+  at_so : 'd
 }
 
 val num_unbox : t2:typ -> Defs.loc -> typ -> NumDefs.term

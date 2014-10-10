@@ -1,0 +1,35 @@
+datatype Binary : num
+datatype Carry : num
+
+datacons Zero : Binary 0
+datacons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
+datacons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
+
+datacons CZero : Carry 0
+datacons COne : Carry 1
+
+let rec plus =
+  function CZero ->
+    (function
+      | Zero -> (fun p -> p)
+      | PZero a1 as a ->
+        (function Zero -> a
+	  | PZero b1 -> PZero (plus CZero a1 b1)
+	  | POne b1 -> POne (plus CZero a1 b1))
+      | POne a1 as a ->
+        (function Zero -> a
+	  | PZero b1 -> POne (plus CZero a1 b1)
+	  | POne b1 -> PZero (plus COne a1 b1)))
+    | COne ->
+    (function Zero ->
+        (function Zero -> POne(Zero)
+	  | PZero b1 -> POne b1
+	  | POne b1 -> PZero (plus COne Zero b1))
+      | PZero a1 ->
+        (function Zero -> POne a1
+	  | PZero b1 -> POne (plus CZero a1 b1)
+	  | POne b1 -> PZero (plus COne a1 b1))
+      | POne a1 ->
+        (function Zero -> PZero (plus COne a1 Zero)
+	  | PZero b1 -> PZero (plus COne a1 b1)
+	  | POne b1 -> POne (plus COne a1 b1)))

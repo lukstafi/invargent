@@ -9,4 +9,4 @@ datacons FDG : ∀a, b.a → b ⟶ FunDesc (a, b)
 external fd_fun : ∀a, b. FunDesc (a, b) → a → b
 
 val fd_comp :
-   ∀a, b, c. FunDesc (c, b) → FunDesc (b, a) → FunDesc (c, a)
+   ∀a, b, c. FunDesc (b, c) → FunDesc (c, a) → FunDesc (b, a)
