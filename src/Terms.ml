@@ -1286,6 +1286,8 @@ let unify ?use_quants ?bvs ?(sb=[]) q cnj =
     | Some true, None -> true, VarSet.empty
     | (None | Some true), Some bvs -> true, bvs
     | _ -> assert false in
+  (*[* Format.printf "unify: bvs=%a@ cnj=@ %a@\n%!"
+    pr_vars bvs pr_formula cnj; *]*)
   let subst_one_sb v s = List.map
       (fun (w,(t,loc)) ->
          let modif, t' = subst_one v s t in

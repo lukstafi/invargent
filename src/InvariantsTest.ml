@@ -2015,7 +2015,6 @@ let rec map2 =
 
   "list map2 with postfix expanded" >::
     (fun () ->
-       todo "keep separate bvs variables";
        skip_if !debug "debug";
        test_case "list map2 with postfix"
 "datatype List : type * num
@@ -2063,7 +2062,6 @@ let rec filter_zip = fun f ->
 
   "list filter-map2 with postfix" >::
     (fun () ->
-       todo "keep separate bvs variables";
        skip_if !debug "debug";
        test_case "list filter-map2 with postfix"
 "datatype List : type * num
@@ -2083,8 +2081,8 @@ let rec filter_map2 = fun p f ->
         [2,"∃n, k, a.
   δ =
     ((a → a → Bool) → (a → a → a) →
-       (List (a, n), List (a, k)) → ∃i[0 ≤ i ∧ n ≤ i + k ∧
-       k ≤ i + n ∧ i≤max (n, k)].List (a, i))"]
+       (List (a, n), List (a, k)) → ∃i[i≤max (n, k) ∧ k ≤ i + n ∧
+       n ≤ i + k ∧ 0 ≤ i].List (a, i))"]
     );
 
   "list filter-map2 with filter postfix mono" >::

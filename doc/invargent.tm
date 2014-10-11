@@ -483,7 +483,11 @@
   forbid substitution of a variable <math|\<beta\><rsub|1>> from
   <math|<wide|\<beta\>|\<bar\>>> with a term containing a universally
   quantified variable that is not in <math|<wide|\<beta\>|\<bar\>>> and to
-  the right of <math|\<beta\><rsub|1>> in <math|\<cal-Q\>>.
+  the right of <math|\<beta\><rsub|1>> in <math|\<cal-Q\>>. Also, we forbid
+  substitution of a variable <math|\<beta\><rsub|1>> from
+  <math|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>> with a term containing a
+  variable <math|\<beta\><rsub|2>\<in\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rprime|'>>>
+  for <math|\<chi\>\<neq\>\<chi\><rprime|'>>.
 
   In implementing <cite|AbductionSolvMaher> p. 13, we follow a top-down
   approach where bigger subterms are abstracted first -- replaced by a fresh

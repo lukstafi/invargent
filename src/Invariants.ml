@@ -214,7 +214,7 @@ type state = subst * NumS.state
 
 let empty_state : state = [], NumS.empty_state
 
-let holds q avs (ty_st, num_st) cnj =
+let holds q ~avs (ty_st, num_st) cnj =
   let {cnj_typ=ty_st; cnj_num; cnj_so=_} =
     unify ~use_quants:true ~sb:ty_st q.op cnj in
   let num_st = NumS.holds q.op avs num_st cnj_num in
@@ -299,7 +299,7 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
     (*[* Format.printf "split-loop-6: ans0=@\n%a@\ninit_res=%a@\n%!"
       pr_formula ans0 pr_formula init_res; *]*)
     let init_state =
-      try holds q avs empty_state init_res
+      try holds q ~avs empty_state init_res
       with Contradiction _ as e -> raise (convert e) in
     (* 7 *)
     (* TODO: would it be better to implement it through
@@ -309,7 +309,7 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
       (fun (b,ans) -> b,
         List.filter (fun c ->
           try
-            state := holds q avs !state [c];
+            state := holds q ~avs !state [c];
             ans_res := c :: !ans_res;
             false
           with Contradiction _ -> true) ans)
@@ -961,7 +961,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
           if abdsjelim=[] then brs1
           else (true,[],abdsjelim)::brs1 in
         let cand_bvs, alien_eqs, (vs, ans) =
-          Abduction.abd q.op ~bvs ~iter_no ~discard brs1 neg_cns1 in
+          Abduction.abd q.op ~bvs ~xbvs:q.b_vs ~iter_no
+            ~discard brs1 neg_cns1 in
         (*[* Format.printf
           "solve: iter_no=%d abd answer=@ %a@\n%!"
           iter_no pr_formula ans; *]*)

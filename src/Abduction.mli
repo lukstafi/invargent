@@ -50,6 +50,7 @@ val abd_simple :
   Defs.quant_ops ->
   ?without_quant:unit ->
   bvs:Defs.VarSet.t ->
+  xbvs:(Defs.var_name, Defs.VarSet.t) Hashtbl.t ->
   dissociate:bool ->
   validate:((Defs.var_name list * Terms.subst) -> unit) ->
   neg_validate:((Defs.var_name list * Terms.subst) -> int) ->
@@ -61,6 +62,7 @@ val abd_simple :
 val abd_typ :
   Defs.quant_ops ->
   bvs:Defs.VarSet.t ->
+  xbvs:(Defs.var_name, Defs.VarSet.t) Hashtbl.t ->
   ?dissociate:bool ->
   validate:((Defs.var_name list * Terms.subst) -> unit) ->
   neg_validate:((Defs.var_name list * Terms.subst) -> int) ->
@@ -80,6 +82,7 @@ type discarded =
 val abd :
   Defs.quant_ops ->
   bvs:Defs.VarSet.t ->
+  xbvs:(Defs.var_name, Defs.VarSet.t) Hashtbl.t ->
   ?iter_no:int ->
   discard:discarded ->
   (bool * Terms.formula * Terms.formula) list ->
@@ -89,5 +92,6 @@ val abd :
 val abd_mockup_num :
   Defs.quant_ops ->
   bvs:Defs.VarSet.t ->
+  xbvs:(Defs.var_name, Defs.VarSet.t) Hashtbl.t ->
   (Terms.formula * Terms.formula) list ->
   (NumDefs.formula * NumDefs.formula) list option
