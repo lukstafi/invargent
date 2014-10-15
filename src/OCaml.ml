@@ -255,6 +255,10 @@ let cns_typ =
                    (fun n cns -> List.fold_left
                        CNames.union (CNames.singleton (CNam n)) cns)}
 
+let builtin_type = function
+  | CNam "Array" -> true
+  | _ -> false
+
 let rec pr_struct_items ~funtys ~lettys constrs ppf defined defining prog =
   (*[*
   if prog<>[] then
@@ -276,7 +280,12 @@ let rec pr_struct_items ~funtys ~lettys constrs ppf defined defining prog =
      | None -> ()
      | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     let cns = try List.assoc c_n constrs with Not_found -> [] in
-    if cns=[]
+    if cns=[] && builtin_type c_n
+    then
+      fprintf ppf "@[<2>(** %s %a%a = built-in *)@]@\n"
+        (if CNames.is_empty defining then "type" else "and")
+        pr_ty_wildcards sorts pr_tycns c_n
+    else if cns=[]
     then
       fprintf ppf "@[<2>%s %a%a =@ %s_phantom@]@\n"
         (if CNames.is_empty defining then "type" else "and")

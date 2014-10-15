@@ -920,12 +920,38 @@
       <item>Let <math|a<rprime|'>> be <math|a> with some transformations
       applied.
 
+      <item>If <math|a<rprime|'>> contains a variable <math|\<beta\><rsub|1>>
+      from <math|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>> and a variable
+      <math|\<beta\><rsub|2>\<in\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rprime|'>>>
+      for <math|\<chi\>\<neq\>\<chi\><rprime|'>>, then before trying
+      <math|a<rprime|'>> try atoms <math|a<rprime|''>> containing variables
+      <math|\<beta\><rsub|1>,\<beta\><rsub|3>> if
+      <math|\<beta\><rsub|\<chi\>>\<less\><rsub|\<cal-Q\>>\<beta\><rsub|\<chi\><rprime|'>>>,
+      or <math|\<beta\><rsub|2>,\<beta\><rsub|4>> if
+      <math|\<beta\><rsub|\<chi\><rprime|'>>\<less\><rsub|\<cal-Q\>>\<beta\><rsub|\<chi\>>>,
+      for <math|\<beta\><rsub|3>\<in\><wide|\<beta\>|\<bar\>><rsup|\<chi\>>>
+      and <math|\<beta\><rsub|4>\<in\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rprime|'>>>,
+      such that <math|a<rprime|''>\<wedge\>B\<Rightarrow\>C> (if any).
+
+      <\itemize>
+        <item>Currently, we only try atoms of the form
+        <math|\<beta\>\<leq\>\<beta\><rprime|'>> and
+        <math|\<beta\><wide|=|\<dot\>>\<beta\><rprime|'>>. In the future, we
+        might try rotations and shifts <math|\<beta\>\<leq\>k*\<beta\><rprime|'>+c>
+        for constants <math|k,c> analogous to the transformation
+        coefficients.
+      </itemize>
+
       <item>If <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|'>|}>|)>>
+      (resp. <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|''>|}>|)>>)
       does not pass <verbatim|validate> for all <math|a<rprime|'>>, fail.
 
       <item>If <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|'>|}>|)>>
-      passes <verbatim|validate>, add <math|a> to transformations as in step
-      (2), and repeat with <math|C<rsub|0>\<assign\>C<rsub|0><rprime|'>,Acc\<assign\>Acc\<cup\><around*|{|a<rprime|'>|}>>.
+      (resp. <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|''>|}>|)>>)
+      passes <verbatim|validate>, add <math|a> (resp. <math|a<rprime|''>>) to
+      transformations as in step (2), and repeat with
+      <math|C<rsub|0>\<assign\>C<rsub|0><rprime|'>,Acc\<assign\>Acc\<cup\><around*|{|a<rprime|'>|}>>
+      (resp. <math|Acc\<assign\>Acc\<cup\><around*|{|a<rprime|''>|}>>).
     </enumerate>
 
     <item>The answers are <math|A<rsub|i+1>=A<rsub|i>\<wedge\>Acc>.
@@ -1461,7 +1487,7 @@
   <math|Split<around*|(|<wide|\<alpha\>|\<bar\>>,A,<wide|A<rsub|\<beta\><rsub|\<chi\>>><rsup|0>|\<bar\>>|)>>.
 
   <\eqnarray*>
-    <tformat|<table|<row|<cell|\<alpha\>\<prec\>\<beta\>>|<cell|\<equiv\>>|<cell|\<alpha\>\<less\><rsub|\<cal-Q\>>\<beta\>\<vee\><around*|(|\<alpha\>\<leqslant\><rsub|\<cal-Q\>>\<beta\>\<wedge\>\<beta\>\<nless\><rsub|\<cal-Q\>>\<alpha\>\<wedge\>\<alpha\>\<in\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<wedge\>\<beta\>\<nin\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>|)>>>|<row|<cell|A<rsub|\<alpha\>\<beta\>>>|<cell|=>|<cell|<around*|{|\<beta\><wide|=|\<dot\>>\<alpha\>\<in\>A<mid|\|>\<beta\>\<in\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<wedge\><around*|(|\<exists\>\<alpha\>|)>\<in\>\<cal-Q\>\<wedge\>\<beta\>\<prec\>\<alpha\>|}>>>|<row|<cell|A<rsub|0>>|<cell|=>|<cell|A\\A<rsub|\<alpha\>\<beta\>>>>|<row|<cell|A<rsup|1><rsub|\<chi\>>>|<cell|=>|<cell|<around*|{|c\<in\>A<rsub|0><mid|\|>\<forall\>\<alpha\>\<in\>FV<around*|(|c|)>\\<wide|\<beta\>|\<bar\>><rsup|\<chi\>>.<around*|(|\<exists\>\<alpha\>|)>\<in\>\<cal-Q\>|}>>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|\<cal-M\>\<nvDash\>\<cal-Q\>.<around*|(|A\<setminus\>\<cup\><rsub|\<chi\>>A<rsup|1><rsub|\<chi\>>|)><around*|[|<wide|\<alpha\>|\<bar\>>\<assign\><wide|t|\<bar\>>|]><with|mode|text|
+    <tformat|<table|<row|<cell|\<alpha\>\<prec\>\<beta\>>|<cell|\<equiv\>>|<cell|\<alpha\>\<less\><rsub|\<cal-Q\>>\<beta\>\<vee\><around*|(|\<alpha\>\<leqslant\><rsub|\<cal-Q\>>\<beta\>\<wedge\>\<beta\>\<nless\><rsub|\<cal-Q\>>\<alpha\>\<wedge\>\<alpha\>\<in\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<wedge\>\<beta\>\<nin\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>|)>>>|<row|<cell|A<rsub|\<alpha\>\<beta\>>>|<cell|=>|<cell|<around*|{|\<beta\><wide|=|\<dot\>>\<alpha\>\<in\>A<mid|\|>\<beta\>\<in\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<wedge\><around*|(|\<exists\>\<alpha\>|)>\<in\>\<cal-Q\>\<wedge\>\<beta\>\<prec\>\<alpha\>|}>>>|<row|<cell|A<rsub|0>>|<cell|=>|<cell|A\\A<rsub|\<alpha\>\<beta\>>>>|<row|<cell|A<rsup|1><rsub|\<chi\>>>|<cell|=>|<cell|<around*|{|c\<in\>A<rsub|0><mid|\|>\<forall\>\<alpha\>\<in\>FV<around*|(|c|)>\\<wide|\<beta\>|\<bar\>><rsup|\<chi\>>.<around*|(|\<exists\>\<alpha\>|)>\<in\>\<cal-Q\>\<vee\>\<alpha\>\<less\><rsub|\<cal-Q\>>\<beta\><rsub|\<chi\>>|}>>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|\<cal-M\>\<nvDash\>\<cal-Q\>.<around*|(|A\<setminus\>\<cup\><rsub|\<chi\>>A<rsup|1><rsub|\<chi\>>|)><around*|[|<wide|\<alpha\>|\<bar\>>\<assign\><wide|t|\<bar\>>|]><with|mode|text|
     \ for all ><wide|t|\<bar\>>>>|<row|<cell|<with|mode|text|then
     return>>|<cell|>|<cell|\<bot\>>>|<row|<cell|<with|mode|text|for all
     ><wide|A<rsub|\<chi\>><rsup|+>|\<bar\>><with|mode|text| min. w.r.t.
@@ -1504,7 +1530,7 @@
     <math|A<rsub|+>> equations introduced by <math|Strat> in an earlier
     iteration.
 
-    <item><math|<tabular|<tformat|<table|<row|<cell|A<rsup|1><rsub|\<chi\>>>|<cell|=>|<cell|<around*|{|c\<in\>A<rsub|0><mid|\|>\<forall\>\<alpha\>\<in\>FV<around*|(|c|)>\\<wide|\<beta\>|\<bar\>><rsup|\<chi\>>.<around*|(|\<exists\>\<alpha\>|)>\<in\>\<cal-Q\>|}>>>>>>>
+    <item><math|<tabular|<tformat|<table|<row|<cell|A<rsup|1><rsub|\<chi\>>>|<cell|=>|<cell|<around*|{|c\<in\>A<rsub|0><mid|\|>\<forall\>\<alpha\>\<in\>FV<around*|(|c|)>\\<wide|\<beta\>|\<bar\>><rsup|\<chi\>>.<around*|(|\<exists\>\<alpha\>|)>\<in\>\<cal-Q\>\<vee\>\<alpha\>\<less\><rsub|\<cal-Q\>>\<beta\><rsub|\<chi\>>|}>>>>>>>
     Gather atoms pertaining to predicate <math|\<chi\>>, which should not
     remain in the residuum.
 

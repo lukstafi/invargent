@@ -97,6 +97,7 @@ let tests = "InvarGenT" >::: [
            test_case "binary_plus-harder" ());
       "flatten_pairs" >::
         (fun () ->
+           todo "FIXME";
            skip_if !debug "debug";
            test_case "flatten_pairs" ());
       "equational_reas" >::
@@ -323,6 +324,65 @@ let tests = "InvarGenT" >::: [
            todo "TODO";
            skip_if !debug "debug";
            test_case "binomial_heap" ());
+      "liquid_dotprod-simpler" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "liquid_dotprod_simpler" ());
+      "liquid_dotprod" >::
+        (fun () ->
+           todo "TODO";
+           skip_if !debug "debug";
+           test_case "liquid_dotprod" ());
+      "liquid_bcopy" >::
+        (fun () ->
+           todo "TODO";
+           skip_if !debug "debug";
+           test_case "liquid_bcopy" ());
+      "liquid_bsearch" >::
+        (fun () ->
+           todo "TODO";
+           skip_if !debug "debug";
+           test_case "liquid_bsearch" ());
+      "liquid_queen" >::
+        (fun () ->
+           todo "TODO";
+           skip_if !debug "debug";
+           test_case "liquid_queen" ());
+      "liquid_isort" >::
+        (fun () ->
+           todo "TODO";
+           skip_if !debug "debug";
+           test_case "liquid_isort" ());
+      "liquid_tower" >::
+        (fun () ->
+           todo "TODO";
+           skip_if !debug "debug";
+           test_case "liquid_tower" ());
+      "liquid_matmult" >::
+        (fun () ->
+           todo "TODO";
+           skip_if !debug "debug";
+           test_case "liquid_matmult" ());
+      "liquid_heapsort" >::
+        (fun () ->
+           todo "TODO";
+           skip_if !debug "debug";
+           test_case "liquid_heapsort" ());
+      "liquid_fft" >::
+        (fun () ->
+           todo "TODO";
+           skip_if !debug "debug";
+           test_case "liquid_fft" ());
+      "liquid_simplex" >::
+        (fun () ->
+           todo "TODO";
+           skip_if !debug "debug";
+           test_case "liquid_simplex" ());
+      "liquid_gauss" >::
+        (fun () ->
+           todo "TODO";
+           skip_if !debug "debug";
+           test_case "liquid_gauss" ());
     ]
 
 let () =

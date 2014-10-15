@@ -1,0 +1,24 @@
+datatype Array : type * num
+external let array_make :
+  ∀n, a [0≤n]. Num n → a → Array (a, n) = "fun a b -> Array.make a b"
+external let array_get :
+  ∀n, k, a [0≤k ∧ k+1≤n]. Array (a, n) → Num k → a = "fun a b -> Array.get a b"
+external let array_set :
+  ∀n, k, a [0≤k ∧ k+1≤n]. Array (a, n) → Num k → a → () =
+  "fun a b c -> Array.set a b c"
+external let array_length :
+  ∀n, a. Array (a, n) → Num n = "fun a -> Array.length a"
+
+external let add : Int → Int → Int = "fun n k -> n + k"
+external let prod : Int → Int → Int = "fun n k -> n * k"
+external let int0 : Int = "0"
+
+let dotprod = fun v1 v2 ->
+  let n = array_length v1 in
+  let rec loop = fun sum i ->
+    match i with
+      | _ when n <= i -> sum
+      | _ when i+1 <= n ->
+        loop (add (prod (array_get v1 i) (array_get v2 i)) sum)
+          (i + 1) in
+  loop int0 0

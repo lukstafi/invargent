@@ -109,6 +109,19 @@ let var_scope_str = function
 | Right_of -> "right_of"
 
 
+exception Omit
+let crosses_xparams ~xbvs cvs =
+  try
+    Hashtbl.iter
+      (fun b vs ->
+         let pvs = VarSet.add b vs in
+         if not (VarSet.is_empty (VarSet.inter cvs pvs)) &&
+            not (VarSet.is_empty (VarSet.diff cvs pvs))
+         then raise Omit) xbvs;
+    false
+  with Omit -> true
+
+
 (** {2 Printing} *)
 let current_file_name = ref ""
 

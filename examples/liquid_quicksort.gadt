@@ -1,0 +1,151 @@
+let min m n = if m <= n then m else n 
+(*
+ * This is an example showing that array bounds checking
+ * is not needed for doing quicksort on an array.
+ * The code is copied from SML/NJ lib with some modification.
+ *)
+let rec sortRange arr start n =
+  let item i = Array.get arr i in
+  let swap i j =
+    let tmp = item i in 
+    (Array.set arr i (item j); Array.set arr j tmp)
+  in
+  let rec vecswap i j n = 
+		if n = 0 then () else (swap i j; vecswap (i+1) (j+1) (n-1)) 
+  in 
+
+  (* calculate the median of three *)
+  let med3 a b c =
+    let a' = item a in
+		let b' = item b in 
+		let c' = item c in
+		let lt_ab = a' < b' in
+		let lt_bc = b' < c' in
+		let gt_bc = c' < b' in
+		let lt_ac = a' < c' in
+		if lt_ab && lt_bc then
+			b else
+		if lt_ab then
+			if lt_ac then c else a else
+		if gt_bc then b else
+		if lt_ac then a else c
+	in 
+
+  (* generate the pivot for splitting the elements *)
+  let getPivot a n =
+    if n <= 7 then a + n/2  
+    else let p1 = a in
+				 let pm = a + n/2 in
+				 let pn = a + n - 1 in
+       	 if n <= 40 then med3 p1 pm pn else
+      		 let d = n / 8 in
+					 let _2d = 2 * d in
+					 let p1_plus_d = p1 + d in
+					 let p1_plus_2_d = p1 + _2d in
+					 let pm_minus_d = pm - d in
+					 let pm_plus_d = pm + d in
+					 let pn_minus_2_d = pn - _2d in
+					 let pn_minus_d = pn - d in
+           let newp1 = med3 p1 p1_plus_d p1_plus_2_d in
+	   			 let newpm = med3 pm_minus_d pm pm_plus_d in
+	   			 let newpn = med3 pn_minus_2_d pn_minus_d pn in 
+							med3 newp1 newpm newpn
+	  (* insertSort is called if there are less than 8 elements to be sorted *)
+  in
+  let rec insertSort start n =
+    let limit = start + n in
+    let rec outer i =
+      if i >= limit then ()
+      else let rec inner j =
+             if j <= start then outer (i+1)
+             else let j' = j - 1 in
+									if item j' > item j then
+										(swap j j'; inner j') else
+										outer (i+1)
+           in inner i
+    in outer (start+1)
+
+  and quickSort a n =
+    let rec bottom limit pa pb = 
+			let arg = (pa, pb) in
+      if limit < pb then arg else
+			if item a < item pb then arg else
+				if item pb < item a then bottom limit pa (pb+1) else
+						(swap pa pb; bottom limit pa(*(pa+1)*) (pb+1))
+		in 
+    let rec top limit pc pd = 
+			let arg = (pc, pd) in
+      if pc < limit then arg else
+      if item pc < item a then arg else
+			if item a < item pc then top limit (pc-1) pd else
+			(swap pc pd; top limit (pc-1) pd(*(pd-1)*)) 
+    in 
+    let rec split pa pb pc pd =
+			let (_, pb) = bottom pc pa pb in
+      let (pc, _) = top pb pc pd in
+      if pb >= pc then (pa, pb, pc, pd)
+      else 
+      (swap pb pc; 
+								 split pa (pb+1) (pc-1) pd) 
+ 	  in 
+
+    let pm = getPivot a n in
+    let pa = a + 1 in
+    let pd = a + n - 1 in
+    let _ = swap a pm in
+    let (_, pb, pc, _) = split pa pa pd pd in
+
+    let pn = a + n in
+		
+    let r = min (pa-a) (pb-pa) in
+    let _ = vecswap a (pb-r) r in
+
+    (*let r = min (pd-pc) (pn-pd-1) in
+    let _ = vecswap pb (pn-r) r in*)
+    let n' = pb - pa in
+
+    let _ = if n' > 1 then sorting a n' else () in
+    (*let _none = if 1 < n' then if n' > 7 then quickSort a n' else insertSort a n' else () in*)
+    (*let _ = (fun y -> y) a in
+    let _ = (fun y -> y) n' in
+    let _ = if 1 < n' then (*quickSort a n'*)sortRange arr a n' else () in*)
+    let n' = pd - pc in
+      
+    let _ = if n' > 1 then sorting (pn-n') n' else () in ()
+    (*let __11_none = if 1 < n'' then if n'' > 7 then quickSort pn_minus_n'' n'' else insertSort a n'' else () in ()*)
+    (*let _ = (fun y -> y) pn_minus_n' in
+    let _ = (fun y -> y) n' in
+    let _ = if 1 < n' then (*quickSort pn_minus_n' n'*)sortRange arr
+     pn_minus_n' n' else () in ()*)
+
+  and sorting a n = if n < 7 then insertSort a n else quickSort a n in
+  (*let sorting _3_start _11_n = if _11_n < 7 then insertSort _3_start _11_n else quickSort _3_start _11_n
+  in*) 
+  sorting start n 
+    (*quickSort start n*)
+  (*if n <= 7 then insertSort start n else quickSort start n*)
+(*let qs _1_vec =
+  sortRange _1_vec 0 (Array.length _1_vec) *)
+(*withtype {size:nat} 'a vect(size) -> unit*)
+(*in*) 
+
+(* sorted checks if a list is well-sorted *)
+let
+sorted arr =
+  let len = Array.length arr in
+  let rec s v k =
+    let v' = Array.get arr k  in
+			if v > v' then false else if k+1 = len then true else s v' (k+1)
+	in
+		if len <= 1 then true else 
+			s (Array.get arr 0) 1 
+
+let gen_vec rr =
+    let rec fill_arr i = 
+        let len = Array.length rr in
+        if i < len then 
+          let fill _none = Random.int 1000 in
+          let i' = i + 1 in
+          Array.set rr i (fill ()); fill_arr i' 
+        else ()
+    in fill_arr 0

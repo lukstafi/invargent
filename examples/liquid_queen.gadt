@@ -1,0 +1,59 @@
+let abs x = if x < 0 then (-x) else x 
+
+let queen _1_size =
+begin
+  let queenArray = Array.make _1_size 0 in
+  let assign _1_i _1_j = Array.set queenArray _1_i _1_j in
+  let rec dotsPrint _2_n = 
+			begin
+			if _2_n = 0 then () else 
+				let _2_n_minus = _2_n - 1 in dotsPrint _2_n_minus
+			end
+	in  
+  let queenPrint _none =
+	begin
+    let rec _1_aux _1_row = 
+		begin
+      if _1_row = _1_size then () else
+      let _1_n = Array.get queenArray _1_row in 
+			let _1_n_minus = _1_n - 1 in 
+			let _1_size_minus_1_n = _1_size - _1_n in 
+			let _1_row_plus = _1_row + 1 in
+			dotsPrint _1_n_minus; dotsPrint _1_size_minus_1_n; _1_aux _1_row_plus 
+    end
+    in _1_aux 0
+	end 
+  in
+  let test _2_j =
+    let q2j = Array.get queenArray _2_j  in
+    let rec _2_aux _2_i =
+		begin
+      if _2_i < _2_j then
+        let q2i = Array.get queenArray _2_i in
+				let qdiff = q2j - q2i in
+				let absqdiff = abs qdiff in
+        let j_minus_i = _2_j - _2_i in
+        if q2i = q2j then false else if absqdiff = j_minus_i then false else 
+					let _2_i_plus = _2_i + 1 in _2_aux _2_i_plus
+      else true
+		end
+    in _2_aux 0  
+  in
+  let rec loop _2_row =
+		let _2_row_minus = _2_row - 1 in
+		let _2_row_plus = _2_row + 1 in
+		let _get_queenArray_2_row = Array.get queenArray _2_row in
+    let next = _get_queenArray_2_row + 1 in
+      if _1_size < next then
+        begin assign _2_row 0; if _2_row = 0 then () else loop _2_row_minus end
+      else
+      begin 
+				assign _2_row next;
+        if test _2_row then
+				begin
+          if _2_row_plus = _1_size then begin queenPrint (); loop _2_row end else loop _2_row_plus
+				end
+        else loop _2_row
+      end  
+	in loop 0
+end 

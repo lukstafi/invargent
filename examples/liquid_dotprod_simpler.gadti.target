@@ -1,0 +1,20 @@
+datatype Array : type * num
+
+external val array_make : ∀n, a[0 ≤ n]. Num n → a → Array (a, n)
+
+external val array_get :
+   ∀n, k, a[0 ≤ k ∧ k + 1 ≤ n]. Array (a, n) → Num k → a
+
+external val array_set :
+   ∀n, k, a[0 ≤ k ∧ k + 1 ≤ n].
+   Array (a, n) → Num k → a → Tuple
+
+external val array_length : ∀n, a. Array (a, n) → Num n
+
+external val add : Int → Int → Int
+
+external val prod : Int → Int → Int
+
+external val int0 : Int
+
+val dotprod : ∀k, n[k ≤ n]. Array (Int, k) → Array (Int, n) → Int

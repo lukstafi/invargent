@@ -284,9 +284,13 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
           (var_str b) pr_vars (Hashtbl.find q.b_vs b); *]*)
         let xbvs = VarSet.add b (Hashtbl.find q.b_vs b) in
         let ans = List.filter
-            (fun c -> VarSet.for_all
-                (fun cv -> not (q.uni_v cv) || VarSet.mem cv xbvs)
-                (fvs_atom c))
+            (fun c ->
+               let cvs = fvs_atom c in
+               VarSet.exists (fun cv -> VarSet.mem cv xbvs) cvs &&
+               VarSet.for_all
+                 (fun cv -> not (q.uni_v cv) || VarSet.mem cv xbvs ||
+                            VarSet.mem cv bvs && q.cmp_v cv b = Left_of)
+                 cvs)
             ans0 in
         b, ans)
       negbs in
@@ -429,7 +433,7 @@ let simplify q_ops ?keepvs ?guard ?initstep (vs, cnj) =
     | Some false -> Some vs in
   (* Passing [localvs] will prune atoms with non-local variables. *)
   let _, num_ans' =
-    NumS.simplify q_ops ?localvs ?guard VarSet.empty num_ans in
+    NumS.simplify q_ops ?keepvs ?localvs ?guard VarSet.empty num_ans in
   (*[* Format.printf "simplify:@\nnum_ans=%a@\nnum_ans'=%a@\n%!"
     NumDefs.pr_formula num_ans NumDefs.pr_formula num_ans'; *]*)
   let ty_ans = subst_sb ~sb:num_sb ty_ans in

@@ -1,0 +1,91 @@
+let rec heapify size data i =
+	let left = 2 * i in
+	let right = 2 * i in
+  let left = left + 1 in
+  let right = right + 2 in
+	let largest =
+	    (if left < size then
+        let gl = Array.get data left in
+        let gi = Array.get data i in
+		 if gl > gi then left else i
+	     else i (*: int[0,n)*))
+  in
+	let largest =
+	    (if right < size then
+		 if Array.get data right > Array.get data largest then right
+		 else largest
+	     else largest(*: int[0,n)*))
+  in
+	if largest > i then
+		let temp = Array.get data i in
+    let temp2 = Array.get data largest in
+		let _none = Array.set data i temp2 in
+		let _none = Array.set data largest temp in
+	    heapify size data largest
+	else ()
+(*withtype {n:nat,i:nat | i < n} <n-i> =>
+         float heap(n) * int(i) -> unit*)
+
+let buildheap size data =
+	let rec loop i =
+	    if i >= 0 then
+		    let _none = heapify size data i in 
+        let i' = i - 1 in
+        loop i' 
+	    else ()
+(*withtype {i:int | i < n} <max(i+1,0)> => int(i) -> unit*)
+    in
+    let size' = size / 2 in
+    let size'_1 = size' - 1 in
+	  loop size'_1
+(*withtype {n:nat} float heap(n) -> unit*)
+
+let heapsort maxx size data =
+	let  _none = buildheap size data in
+	let rec loop i =
+	    if i >= 1 then
+		    let temp = Array.get data i in
+        let gd0 = Array.get data 0 in
+		    let _none = Array.set data i gd0 in
+		    let _none = Array.set data 0 temp in
+		    let _none = heapify i data 0 in
+        let i' = i - 1 in
+		    loop i'
+	    else ()
+        (*withtype {i:int | i < n} <max(i,0)> => int(i) -> unit*)
+    in
+    let maxx' = maxx - 1 in
+	loop maxx'
+(*withtype {n:nat} float heap(n) -> unit*)
+
+let print_array	data i j =
+	let rec loop k =
+	  if k < j then
+      let sdk = Array.get data k in
+ 	    (*let _none = print_float sdk in*)
+      let k' = k + 1 in
+      loop k'
+    else ()
+        (*withtype {k:int | i <= k <= j} <j-k> => int(k) -> unit*)
+  in
+	loop i
+(*withtype {n:nat, i:int, j:int | 0 <= i <= j <= n} <j-i> =>
+         float array(n) * int(i) * int(j) -> unit*)
+
+let main _none =
+	let maxx = 16 in
+	let data = Array.make maxx 0 in
+    let rec init i =
+	    if i < maxx then
+        let isq = i * i in
+        let i_16 = 16 * i in 
+        let diff = i_16 - isq in
+		    let _none = Array.set data i diff in
+        let i' = i + 1 in
+		    init i'
+	    else ()
+	(*withtype {i:nat} int(i) -> unit*)
+  in
+	let _none = init 0 in
+	heapsort maxx 0 data; print_array data 0 maxx; data
+(*withtype <> => unit -> unit*)

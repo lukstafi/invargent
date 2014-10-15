@@ -70,6 +70,10 @@ type quant_ops = {
 }
 val empty_q : quant_ops
 
+val crosses_xparams : 
+  xbvs:(var_name, VarSet.t) Hashtbl.t -> VarSet.t -> bool
+
+
 (** {2 Printing} *)
 val current_file_name : string ref
 

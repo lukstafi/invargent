@@ -1,0 +1,79 @@
+let fabs f =
+  if (f > 0.0) then f else (0.0 -. f)
+
+let getRow data i =
+  let stride = Bigarray.Array2.dim2 data in
+  let rowData = Array.make stride 0.0 in
+  let rec extract j =
+    if j < stride then
+      Array.set rowData j (Bigarray.Array2.get data i j)
+    else ()
+  in
+    extract 0;
+    rowData
+
+let putRow data i row =
+  let stride = Array.length row in
+  let rec put j =
+    if j < stride then
+      Bigarray.Array2.set data i j (Array.get row j)
+    else ()
+  in put 0
+
+let rowSwap data i j =
+  let temp = getRow data i in
+  let _none = putRow data i (getRow data j) in
+    putRow data j temp
+
+let norm r n i =
+  let x = Array.get r i in
+  let _none = Array.set r i 1.0 in
+  let rec loop k =
+    if k < n then
+      let _none = Array.set r k ((Array.get r k) /. x) in
+	loop (k+1)
+    else ()
+  in loop (i+1)
+
+let rowElim r s n i =
+  let x = Array.get s i in
+  let _none = Array.set s i 0.0 in
+  let rec loop k =
+    if k < n then
+      let _none = Array.set s k ((Array.get s k) -. x *. (Array.get r k)) in
+	loop (k+1)
+    else ()
+  in
+    loop (i+1)
+
+let rowMax data m i =
+  let x = fabs (Bigarray.Array2.get data i i) in
+  let rec loop j x max =
+    if j < m then
+      let y = fabs (Bigarray.Array2.get data j i) in
+        if (y > x) then loop (j+1) y j
+	else loop (j+1) x max
+    else max
+  in
+    loop (i+1) x i
+
+let gauss data =
+  let n = Bigarray.Array2.dim1 data in
+  let rec loop1 i =
+    if i < n then
+      let max = rowMax data n i in
+      let _none = (fun x -> x) (n + 1) in
+      let _none = norm (getRow data max) (n+1) i in
+      let _none = rowSwap data i max in
+      let rec loop2 j =
+	if j < n then
+	  let _none = rowElim (getRow data i) (getRow data j) (n+1) i
+	  in
+	    loop2 (j+1)
+	else ()
+      in
+      let _none = loop2 (i+1) in
+	loop1 (i+1)
+    else ()
+  in
+    loop1 (0)

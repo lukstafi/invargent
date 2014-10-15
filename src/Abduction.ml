@@ -224,7 +224,6 @@ let cand_var_eqs q bvs cnj_typ =
        with Contradiction _ -> [])
     (triangle cands)
 
-exception Omit
 let abd_simple q ?without_quant ~bvs ~xbvs ~dissociate
     ~validate ~neg_validate ~discard skip (vs, ans) (prem, concl) =
   let counter = ref 0 in
@@ -623,15 +622,7 @@ let abd_simple q ?without_quant ~bvs ~xbvs ~dissociate
                VarSet.is_empty (VarSet.diff tvs pvs)
              else
                let cvs = VarSet.add v tvs in
-               try
-                 Hashtbl.iter
-                   (fun b vs ->
-                      let pvs = VarSet.add b vs in
-                      if not (VarSet.is_empty (VarSet.inter cvs pvs)) &&
-                         not (VarSet.is_empty (VarSet.diff cvs pvs))
-                      then raise Omit) xbvs;
-                 true
-               with Omit -> false) in
+               not (crosses_xparams ~xbvs cvs)) in
       let init_cand = filter_cand init_cand
       and guess_cand = filter_cand guess_cand in
       (*[* Format.printf
@@ -1015,7 +1006,7 @@ let abd q ~bvs ~xbvs ?(iter_no=2) ~discard brs neg_brs =
     else
       try
         (* [tvs] includes alien variables! *)
-        NumS.abd q ~bvs ~discard:discard.at_num ~iter_no
+        NumS.abd q ~bvs ~xbvs ~discard:discard.at_num ~iter_no
           (* [true] means non-recursive *)
           ((true, [], neg_num_res)::brs_num)
       with

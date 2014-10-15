@@ -28,6 +28,10 @@ val no_subopti_of_cst : bool ref
     in initial abduction candidates to promote generality of
     answers. Default [true]. *)
 val revert_csts : bool ref
+(** When an abduction candidate has variables from different predicate
+    variables' parameters, guess a replacement using variables
+    more-to-the-left in the quantifier prefix. *)
+val promote_xconfl_upward : bool ref
 
 val num_of : Terms.typ -> NumDefs.term
 val sort_formula : Terms.formula -> NumDefs.formula
@@ -47,6 +51,7 @@ val abd_timeout_flag : bool ref
 val abd :
   Defs.quant_ops ->
   bvs:Defs.VarSet.t ->
+  xbvs:(Defs.var_name, Defs.VarSet.t) Hashtbl.t ->
   discard:NumDefs.formula list ->
   ?iter_no:int ->
   (bool * NumDefs.formula * NumDefs.formula) list ->
@@ -65,7 +70,7 @@ val disjelim :
     equal to something else. *)
 val simplify :
   Defs.quant_ops ->
-  ?localvs:Defs.VarSet.t -> ?guard:NumDefs.formula ->
+  ?keepvs:Defs.VarSet.t -> ?localvs:Defs.VarSet.t -> ?guard:NumDefs.formula ->
   Defs.VarSet.t -> NumDefs.formula -> 
   Defs.var_name list * NumDefs.formula
 
