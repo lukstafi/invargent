@@ -17,8 +17,8 @@ let input_file file =
    with End_of_file -> ());
   Buffer.contents buf
 
-let test_case ?(test_annot=false) ?(richer_answers=false)
-    ?(prefer_guess=false) file () =
+let test_case ?(test_annot=false) ?richer_answers
+    ?prefer_guess ?abd_rotations ?num_abd_timeout file () =
   if !debug then Printexc.record_backtrace true;
   let ntime = Sys.time () in
   Terms.reset_state ();
@@ -33,9 +33,21 @@ let test_case ?(test_annot=false) ?(richer_answers=false)
         (*[* Format.printf "not found f=%s@\n%!" (f^".gadt"); *]*)
         assert false) in
   let old_richer_answers = !Abduction.richer_answers in
-  Abduction.richer_answers := richer_answers;
+  (match richer_answers with
+   | None -> ()
+   | Some richer_answers -> Abduction.richer_answers := richer_answers);
   let old_prefer_guess = !Abduction.prefer_guess in
-  Abduction.prefer_guess := prefer_guess;
+  (match prefer_guess with
+   | None -> ()
+   | Some prefer_guess -> Abduction.prefer_guess := prefer_guess);
+  let old_abd_rotations = !NumS.abd_rotations in
+  (match abd_rotations with
+   | None -> ()
+   | Some abd_rotations -> NumS.abd_rotations := abd_rotations);  
+  let old_num_abd_timeout = !NumS.abd_timeout_count in
+  (match num_abd_timeout with
+   | None -> ()
+   | Some num_abd_timeout -> NumS.abd_timeout_count := num_abd_timeout);  
   (try
      let verif_res =
        InvarGenT.process_file ~do_sig:true ~do_ml:true
@@ -59,6 +71,8 @@ let test_case ?(test_annot=false) ?(richer_answers=false)
      assert_failure msg);
   Abduction.richer_answers := old_richer_answers;
   Abduction.prefer_guess := old_prefer_guess;
+  NumS.abd_rotations := old_abd_rotations;
+  NumS.abd_timeout_count := old_num_abd_timeout;
   Format.printf " t=%.3fs " (Sys.time () -. ntime)
 
 let tests = "InvarGenT" >::: [
@@ -97,9 +111,14 @@ let tests = "InvarGenT" >::: [
            test_case "binary_plus-harder" ());
       "flatten_pairs" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "flatten_pairs" ());
+      "flatten_quadrs" >::
+        (fun () ->
+           todo "FIXME";
+           skip_if !debug "debug";
+           test_case ~abd_rotations:4 ~num_abd_timeout:2000
+             "flatten_quadrs" ());
       "equational_reas" >::
         (fun () ->
            skip_if !debug "debug";

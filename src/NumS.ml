@@ -1007,6 +1007,7 @@ let revert_cst cmp_v uni_v eqn =
          @ [(o, cst, olc)]) c_eqn in
   c_eqn @ eqn
 
+exception Omit_trans
 (* We currently do not measure satisfiability of negative constraints. *)
 (* TODO: guess equalities between parameters. *)
 let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~xbvs ~discard ~validate
@@ -1180,8 +1181,20 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~xbvs ~discard ~validate
             let eqn, ineqn, optin, suboptin = split_w_atom a' in
             (* [new_eqn, new_ineqn] are only used to determine the
                variables contributed to the answer. *)
-            (* FIXME: perhaps new_eqn, new_ineqn should come from
-               b_eqs, b_ineqs? *)
+            (* If weakening transformations are used, check if still
+               implies the conclusion. *)
+            if !passing_ineq_trs && not (iseq_w_atom a)
+            then (
+              let b_eqs', b_ineqs', b_optis', b_suboptis' =
+                solve ~eqs:b_eqs ~ineqs:b_ineqs
+                  ~eqn:(eqn @ c0eqn @ d_eqn)
+                  ~ineqn:(ineqn @ c0ineqn @ d_ineqn)
+                  ~optis:b_optis ~suboptis:b_suboptis
+                  ~cmp_v ~cmp_w uni_v in
+              if not (implies ~cmp_v ~cmp_w uni_v b_eqs' b_ineqs'
+                        b_optis' b_suboptis'
+                        c_eqn c_ineqn c_optis c_suboptis)
+              then raise Omit_trans);
             let (eqs_acc, ineqs_acc, optis_acc, suboptis_acc),
                 new_eqn, new_ineqn, _ =
               solve_get_eqn ~use_quants:bvs
@@ -1195,9 +1208,9 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~xbvs ~discard ~validate
                  (eqs_acc, ineqs_acc, optis_acc, suboptis_acc));
             *]*)
             let new_vs =
-              (* VarSet.inter bvs *)
-              (VarSet.union (vars_of_map fvs_w new_eqn)
-                 (vars_of_map fvs_w new_ineqn)) in
+              VarSet.inter bvs
+                (VarSet.union (vars_of_map fvs_w new_eqn)
+                   (vars_of_map fvs_w new_ineqn)) in
             (*[* Format.printf
               "NumS.abd_simple: [%d] approaching 7. new_vs=@ %a\
                @ crosses=%b@\n%!"
@@ -1297,9 +1310,21 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~xbvs ~discard ~validate
               "NumS.abd_simple: [%d] 7. invalid, error=@\n%a@\n%!"
               ddepth Terms.pr_exception e;
             *]*)
+            ()
+          | Omit_trans ->
+            (*[* Format.printf
+              "NumS.abd_simple: [%d] 7. too weak@\n%!" ddepth;
+            *]*)
             () in
         try_trans a;
-        laziter (fun tr -> try_trans (trans_w_atom ~cmp_v tr a)) trs;
+        laziter
+          (fun tr ->
+             (*[* Format.printf
+               "NumS.abd_simple: [%d] 7. performing tr=@ %a@ \
+                on a=@ %a@ ...@\n%!"
+               ddepth pr_w tr pr_w_atom a;
+             *]*)
+             try_trans (trans_w_atom ~cmp_v tr a)) trs;
         if not !passes then (
           (* 7c *)
           (*[* Format.printf
@@ -1331,7 +1356,10 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~xbvs ~discard ~validate
         let eq_trs = List.fold_left add_eq_tr eq_trs d_eqn' in
         let add_ineq_tr = add_tr ks_ineq in
         let add_Ineq_tr = add_atom_tr true ks_ineq in
-        let ineq_trs = List.fold_left add_ineq_tr eq_trs d_ineqn' in
+        let ineq_trs =
+          if !passing_ineq_trs
+          then List.fold_left add_ineq_tr eq_trs d_ineqn'
+          else eq_trs in
         loop add_Eq_tr add_Ineq_tr eq_trs ineq_trs
           eqs_i ineqs_i optis_i suboptis_i
           c_eqn0 c_ineqn0 c_optis0 c_suboptis0

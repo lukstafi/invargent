@@ -881,9 +881,9 @@
       <math|k=-n\<ldots\>n,s=-1,1> to the stack of transformations to be
       tried for atoms <math|b\<in\>C>.
 
-      <item>For inequalities <math|a>, add combinations <math|k<rsup|s>*a+b>
-      for <math|k=0\<ldots\>n,s=-1,1> to the stack of trasformations to be
-      tried only for inequalities <math|b\<in\>C>.
+      <item>Optionally, for inequalities <math|a>, add combinations
+      <math|k<rsup|s>*a+b> for <math|k=0\<ldots\>n,s=-1,1> to the stack of
+      trasformations to be tried only for inequalities <math|b\<in\>C>.
 
       <item>The final transformations have the form:
       <math|b\<mapsto\>b+\<Sigma\><rsub|a\<in\>D>k<rsub|a><rsup|s<rsub|a>>a>.
@@ -912,9 +912,11 @@
     <math|a<rprime|'>> of <math|a>, starting with <math|a>, which passes
     validation against other branches in a joint problem:
     <math|Acc\<assign\>Acc\<cup\><around*|{|a<rprime|'>|}>>, or fail if all
-    <math|a<rprime|'>> fail. (Choice point, corresponding to choice 4 of term
-    abduction if <math|a> is selected, choice 5 of term abduction if a later
-    transformation is selected.)
+    <math|a<rprime|'>> fail. If option (2b) is on, and <math|a> is an
+    inequality, ensure that <math|a<rprime|'>\<wedge\>B\<Rightarrow\>C>.
+    (Choice point, corresponding to choice 4 of term abduction if <math|a> is
+    selected, choice 5 of term abduction if a later transformation is
+    selected.)
 
     <\enumerate>
       <item>Let <math|a<rprime|'>> be <math|a> with some transformations
@@ -949,7 +951,7 @@
       <item>If <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|'>|}>|)>>
       (resp. <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|''>|}>|)>>)
       passes <verbatim|validate>, add <math|a> (resp. <math|a<rprime|''>>) to
-      transformations as in step (2), and repeat with
+      transformations as in step (2), and repeat from step 5 with
       <math|C<rsub|0>\<assign\>C<rsub|0><rprime|'>,Acc\<assign\>Acc\<cup\><around*|{|a<rprime|'>|}>>
       (resp. <math|Acc\<assign\>Acc\<cup\><around*|{|a<rprime|''>|}>>).
     </enumerate>
