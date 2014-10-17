@@ -13,13 +13,17 @@ open Aux
 let debug = ref false(* true *)
 
 let test_common ?more_general ?more_existential ?no_num_abduction
-    ?nodeadcode ?prefer_guess msg test =
+    ?nodeadcode ?force_nodeadcode ?prefer_guess msg test =
   let ntime = Sys.time () in
   Terms.reset_state ();
   Infer.reset_state ();
   let old_nodeadcode = !Defs.nodeadcode in
   (match nodeadcode with
    | None -> () | Some nodeadcode -> Defs.nodeadcode := nodeadcode);
+  let old_force_nodeadcode = !Defs.force_nodeadcode in
+  (match force_nodeadcode with
+   | None -> ()
+   | Some force_nodeadcode -> Defs.force_nodeadcode := force_nodeadcode);
   let prog = (Infer.normalize_program % Parser.program Lexer.token)
       (Lexing.from_string test) in
   let new_ex_types, preserve, orig_cn = Infer.infer_prog_mockup prog in
@@ -59,6 +63,7 @@ let test_common ?more_general ?more_existential ?no_num_abduction
   let _, res, sol =
     Invariants.solve q_ops new_ex_types exty_res_of_chi brs in
   Defs.nodeadcode := old_nodeadcode;
+  Defs.force_nodeadcode := old_force_nodeadcode;
   Abduction.more_general := old_more_general;
   Abduction.no_num_abduction := old_no_num_abduction;
   Abduction.prefer_guess := old_prefer_guess;
@@ -79,8 +84,10 @@ let test_common ?more_general ?more_existential ?no_num_abduction
   q_ops, res, sol
 
 let test_case ?more_general ?more_existential
-    ?no_num_abduction ?nodeadcode ?prefer_guess msg test answers =
+    ?no_num_abduction ?nodeadcode ?force_nodeadcode ?prefer_guess
+    msg test answers =
   let old_nodeadcode = !Defs.nodeadcode in
+  let old_force_nodeadcode = !Defs.force_nodeadcode in
   let old_more_general = !Abduction.more_general in
   let old_no_num_abduction = !Abduction.no_num_abduction in
   let old_prefer_guess = !Abduction.prefer_guess in
@@ -89,7 +96,7 @@ let test_case ?more_general ?more_existential
   try
     let q, res, sol =
       test_common ?more_general ?more_existential ?no_num_abduction
-        ?nodeadcode ?prefer_guess msg test in
+        ?nodeadcode ?force_nodeadcode ?prefer_guess msg test in
     let test_sol (chi, result) =
       let _, (vs, ans) = nice_ans (List.assoc chi sol) in
       ignore (Format.flush_str_formatter ());
@@ -103,6 +110,7 @@ let test_case ?more_general ?more_existential
     ignore (Format.flush_str_formatter ());
     Terms.pr_exception Format.str_formatter exn;
     Defs.nodeadcode := old_nodeadcode;
+    Defs.force_nodeadcode := old_force_nodeadcode;
     Abduction.more_general := old_more_general;
     Abduction.no_num_abduction := old_no_num_abduction;
     Abduction.prefer_guess := old_prefer_guess;
@@ -110,8 +118,10 @@ let test_case ?more_general ?more_existential
     assert_failure (Format.flush_str_formatter ())
 
 let test_nonrec_case ?more_general ?more_existential
-    ?no_num_abduction ?nodeadcode ?prefer_guess msg test answers =
+    ?no_num_abduction ?nodeadcode ?force_nodeadcode ?prefer_guess
+    msg test answers =
   let old_nodeadcode = !Defs.nodeadcode in
+  let old_force_nodeadcode = !Defs.force_nodeadcode in
   let old_more_general = !Abduction.more_general in
   let old_no_num_abduction = !Abduction.no_num_abduction in
   let old_prefer_guess = !Abduction.prefer_guess in
@@ -120,7 +130,7 @@ let test_nonrec_case ?more_general ?more_existential
   try
     let q, res, sol =
       test_common ?more_general ?more_existential ?no_num_abduction
-        ?nodeadcode ?prefer_guess msg test in
+        ?nodeadcode ?force_nodeadcode ?prefer_guess msg test in
     let test_sol (v, result) =
       let res_sb, _ = Infer.separate_subst q res in
       let ty = fst (List.assoc (VId (Type_sort, v)) res_sb) in
@@ -134,6 +144,7 @@ let test_nonrec_case ?more_general ?more_existential
     ignore (Format.flush_str_formatter ());
     Terms.pr_exception Format.str_formatter exn;
     Defs.nodeadcode := old_nodeadcode;
+    Defs.force_nodeadcode := old_force_nodeadcode;
     Abduction.more_general := old_more_general;
     Abduction.no_num_abduction := old_no_num_abduction;
     Abduction.prefer_guess := old_prefer_guess;
@@ -141,8 +152,9 @@ let test_nonrec_case ?more_general ?more_existential
     assert_failure (Format.flush_str_formatter ())
 
 let test_case_fail ?more_general ?more_existential ?no_num_abduction
-    ?nodeadcode ?prefer_guess msg test answer =
+    ?nodeadcode ?force_nodeadcode ?prefer_guess msg test answer =
   let old_nodeadcode = !Defs.nodeadcode in
+  let old_force_nodeadcode = !Defs.force_nodeadcode in
   let old_more_general = !Abduction.more_general in
   let old_no_num_abduction = !Abduction.no_num_abduction in
   let old_prefer_guess = !Abduction.prefer_guess in
@@ -151,7 +163,7 @@ let test_case_fail ?more_general ?more_existential ?no_num_abduction
   try
     let q, res, sol =
       test_common ?more_general ?more_existential ?no_num_abduction
-        ?nodeadcode ?prefer_guess msg test in
+        ?nodeadcode ?force_nodeadcode ?prefer_guess msg test in
     let _, (vs, ans) = nice_ans (snd (List.hd sol)) in
     ignore (Format.flush_str_formatter ());
     Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
@@ -162,6 +174,7 @@ let test_case_fail ?more_general ?more_existential ?no_num_abduction
     ignore (Format.flush_str_formatter ());
     Terms.pr_exception Format.str_formatter exn;
     Defs.nodeadcode := old_nodeadcode;
+    Defs.force_nodeadcode := old_force_nodeadcode;
     Abduction.more_general := old_more_general;
     Abduction.no_num_abduction := old_no_num_abduction;
     Abduction.prefer_guess := old_prefer_guess;
@@ -281,7 +294,7 @@ let rec foo =
   "deadcode foo fail" >::
     (fun () ->
       skip_if !debug "debug";
-      test_case_fail "foo without when, positive"
+      test_case_fail ~force_nodeadcode:true "foo without when, positive"
 "datatype Positive : num
 datacons Pos : ∀n [0 ≤ n]. Num n ⟶ Positive n
 
@@ -667,23 +680,6 @@ let rec append =
   function LNil -> (function (LNil | LCons (_,_)) as l -> l)
     | LCons (x, xs) -> (fun l -> LCons (x, append xs l))"
         [1,"∃n, k. δ = (List n → List k → List (n + k))"];
-    );
-
-  "binary increment simple" >::
-    (fun () ->
-       skip_if !debug "debug";
-       test_case "binary increment simple"
-"datatype Binary : num
-
-datacons Zero : Binary 0
-datacons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
-datacons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
-
-let rec increment =
-  function Zero -> POne Zero
-    | PZero a1 -> POne a1
-    | POne a1 -> PZero (increment a1)"
-        [1,"∃n. δ = (Binary n → Binary (n + 1))"]
     );
 
   "binary increment" >::
@@ -2728,8 +2724,7 @@ let rec add = fun x -> efunction
   "avl_tree--add" >::
     (fun () ->
        skip_if !debug "debug";
-       (* FIXME: remove dependency on nodeadcode:false *)
-       test_case ~nodeadcode:false "avl_tree--add"
+       test_case "avl_tree--add"
 "datatype Avl : type * num
 datacons Empty : ∀a. Avl (a, 0)
 datacons Node :

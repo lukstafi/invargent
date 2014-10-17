@@ -747,8 +747,11 @@
     to typecheck too. This option keeps pattern matching branches with
     <verbatim|assert false> in their bodies in exported code nevertheless.
 
-    <item*|<verbatim|-no_dead_code>>Reject all programs with dead code (may
-    misclassify programs using <em|min> or <em|max> atoms). Unreachable
+    <item*|<verbatim|-allow_dead_code>>Allow more programs with dead code
+    than would otherwise pass.
+
+    <item*|<verbatim|-force_no_dead_code>>Reject all programs with dead code
+    (may misclassify programs using <em|min> or <em|max> atoms). Unreachable
     pattern matching branches lead to unsatisfiable premises of the type
     inference constraint, which we detect. However, sometimes multiple
     implications in the simplified form of the constraint can correspond to

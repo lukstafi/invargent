@@ -924,10 +924,13 @@ let implies ~cmp_v ~cmp_w uni_v eqs ineqs optis suboptis c_eqn c_ineqn
   else List.for_all
       (fun cho ->
          let o_eqn, o_ineqn, _, _ = split_formula cho in
-         let eqs, ineqs, _, _ = solve ~eqs ~ineqs
-             ~eqn:o_eqn ~ineqn:o_ineqn ~cmp_v ~cmp_w uni_v in
-         implies_case ~cmp_v ~cmp_w uni_v eqs ineqs c_eqn c_ineqn
-           c_optis c_suboptis)
+         (* FIXME: do we need try-with here? *)
+         try
+           let eqs, ineqs, _, _ = solve ~eqs ~ineqs
+               ~eqn:o_eqn ~ineqn:o_ineqn ~cmp_v ~cmp_w uni_v in
+           implies_case ~cmp_v ~cmp_w uni_v eqs ineqs c_eqn c_ineqn
+             c_optis c_suboptis
+         with Terms.Contradiction _ -> true)
       (choices ~cmp_v optis suboptis)
 
 let implies_ans ~cmp_v ~cmp_w uni_v (eqs, ineqs, optis, suboptis)
@@ -1496,6 +1499,8 @@ let abd q ~bvs ~xbvs ~discard ?(iter_no=2) brs =
   *]*)
   let brs = List.map
       (fun (nonrec, prem, concl) ->
+         (*[* Format.printf "NumS.abd: splitting premise=@\n%a@\n%!"
+           pr_formula prem; *]*)
          let d_eqn, d_ineqn, d_optis, d_suboptis =
            split_flatten ~cmp_v prem in
          (* We normalize to reduce the number of opti and subopti
@@ -1507,6 +1512,9 @@ let abd q ~bvs ~xbvs ~discard ?(iter_no=2) brs =
                ~eqs:[] ~ineqs:[] ~eqs':[] ~cnj:[]
                ~eqn:d_eqn ~ineqn:d_ineqn
                ~optis:d_optis ~suboptis:d_suboptis in
+           (*[* Format.printf
+             "NumS.abd: premise has %d optis, %d suboptis@\n%!"
+             (List.length d_optis) (List.length d_suboptis); *]*)
            (* FIXME: [choices] now adds these inequalities, remove *)
            (* let d_ineqn = flat2 d_optis @ d_ineqn in *)
            let opti_lhs = List.fold_left
@@ -1540,7 +1548,10 @@ let abd q ~bvs ~xbvs ~discard ?(iter_no=2) brs =
                (choices ~cmp_v d_optis d_suboptis) in
            if !nodeadcode && res=[] && !contr_exc<>None
            then (deadcode_flag := true; raise (unsome !contr_exc))
-           else res
+           else (
+             (*[* Format.printf "NumS.abd: done splitting #=%d of=@\n%a@\n%!"
+               (List.length res) pr_formula prem; *]*)
+             res)
          with Terms.Contradiction _ as e ->
            if !nodeadcode then (deadcode_flag := true; raise e)
            else [])
@@ -1549,6 +1560,7 @@ let abd q ~bvs ~xbvs ~discard ?(iter_no=2) brs =
      satisfiable. *)
   (* TODO: optimize -- don't redo work. *)
   let guard_brs = List.concat brs in
+  (*[* Format.printf "NumS.abd: brs processing past splitting@\n%!"; *]*)
   let brs = concat_map
       (fun obrs ->
          let contr_exc = ref None in
@@ -1595,14 +1607,23 @@ let abd q ~bvs ~xbvs ~discard ?(iter_no=2) brs =
                                ~cmp_v ~cmp_w q.uni_v); )*)
                br)
              obrs in
-         if !nodeadcode && res=[] && !contr_exc<>None
+         if res=[] && !nodeadcode && !force_nodeadcode && !contr_exc<>None
          then (deadcode_flag := true; raise (unsome !contr_exc))
-         else res)
+         else
+           let brs_n = List.length res in
+           let brs_r = ref brs_n in
+           List.map (fun br -> br, (brs_r, brs_n, br)) res)
       brs in
-  (* FIXME *)
-  let validate (eqs, ineqs, optis, suboptis) = List.iter
-      (fun (_, _, (d_eqn, d_ineqn), (c_eqn, c_ineqn, c_optis, c_suboptis)) ->
-         (*[* Format.printf "validate:@\nd_eqn=%a@\nc_eqn=%a@\nd_ineqn=%a@\nc_ineqn=%a@\nc_optis=%a@\nc_suboptis=%a@\n%!"
+  let brs, validate_brs = List.split brs in
+  (*[* Format.printf "NumS.abd: brs processing past merging@\n%!"; *]*)
+  let validate (eqs, ineqs, optis, suboptis) =
+    List.iter
+      (fun (brs_r, (_ (*[* as brs_n *]*)),
+            (_, _, (d_eqn, d_ineqn), (c_eqn, c_ineqn, c_optis, c_suboptis))) ->
+         (*[* Format.printf
+          "validate: brs_r=%d; brs_n=%d\
+           @\nd_eqn=%a@\nc_eqn=%a@\nd_ineqn=%a@\nc_ineqn=%a\
+           @\nc_optis=%a@\nc_suboptis=%a@\n%!" !brs_r brs_n
            pr_eqn d_eqn pr_eqn c_eqn pr_ineqn d_ineqn pr_ineqn c_ineqn
            pr_optis c_optis pr_suboptis c_suboptis; *]*)
          let prem_state =
@@ -1623,8 +1644,11 @@ let abd q ~bvs ~xbvs ~discard ?(iter_no=2) brs =
              pr_suboptis br_suboptis; *]*)
            ()
          | Left e ->
-           if !nodeadcode then raise e)
-      brs in
+           if !nodeadcode then (
+             decr brs_r;
+             if !brs_r <= 0 then (deadcode_flag := true; raise e)))
+      validate_brs;
+    List.iter (fun (brs_r, brs_n, br) -> brs_r := brs_n) validate_brs in
   (* We currently do not make use of negative constraints. *)
   let neg_validate _ = 0 in
   let brs, unproc_brs =

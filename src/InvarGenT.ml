@@ -91,9 +91,11 @@ let main () =
     "Annotate the `function` and `let..in` nodes in generated OCaml code";
     "-keep_assert_false", Arg.Clear OCaml.drop_assert_false,
     "Keep `assert false` clauses in exported code";
-    "-no_dead_code", Arg.Set Defs.nodeadcode,
-    "Reject all programs with dead code (may misclassify programs using \
-     `min` or `max` atoms as having dead code)";
+    "-allow_dead_code", Arg.Clear Defs.nodeadcode,
+    "Allow more programs with dead code";
+    "-force_no_dead_code", Arg.Set Defs.force_nodeadcode,
+    "Forbid programs with dead code (can discard some good programs with \
+     `min` or `max` in invariants)";
     "-term_abduction_timeout", Arg.Set_int Abduction.timeout_count,
     "Limit on term simple abduction steps (default 700)";
     "-term_abduction_fail", Arg.Set_int Abduction.fail_timeout_count,

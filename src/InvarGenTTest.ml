@@ -337,8 +337,7 @@ let tests = "InvarGenT" >::: [
       "avl_tree" >::
         (fun () ->
            skip_if !debug "debug";
-           (* FIXME: remove dependency on nodeadcode:false *)
-           test_case ~nodeadcode:false "avl_tree" ());
+           test_case "avl_tree" ());
       "binomial_heap-ins_tree" >::
         (fun () ->
            todo "TODO";

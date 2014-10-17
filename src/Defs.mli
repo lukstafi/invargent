@@ -8,8 +8,15 @@
 (** If [nodeadcode=true], fail on implication branches with
     contradictory premises, which are not negation branches. "False
     positives" are possible in complex programs using [min] or [max]
-    atoms. Default [false]. *)
+    atoms, especially if [force_nodeadcode=true]. False negatives are
+    possible only if [force_nodeadcode=false]. Default [true]. *)
 val nodeadcode : bool ref
+(** If [force_nodeadcode=false], let through some cases indicative of
+    dead code when a possible alternative explanation is that the
+    contradiction is due to a combination of min, max predicates. The
+    min, max predicates are treated as disjunctions, and are expanded
+    to DNF in premises. Default [false]. *)
+val force_nodeadcode : bool ref
 val deadcode_flag : bool ref
 
 (** Source location for reporting parsing and inference problems. *)
