@@ -950,8 +950,7 @@
 
       <item>If <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|'>|}>|)>>
       (resp. <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|''>|}>|)>>)
-      passes <verbatim|validate>, add <math|a> (resp. <math|a<rprime|''>>) to
-      transformations as in step (2), and repeat from step 5 with
+      passes <verbatim|validate>, repeat from step 5 with
       <math|C<rsub|0>\<assign\>C<rsub|0><rprime|'>,Acc\<assign\>Acc\<cup\><around*|{|a<rprime|'>|}>>
       (resp. <math|Acc\<assign\>Acc\<cup\><around*|{|a<rprime|''>|}>>).
     </enumerate>

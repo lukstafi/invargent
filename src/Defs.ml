@@ -5,7 +5,7 @@
     @author Lukasz Stafiniak lukstafi (AT) gmail.com
     @since Mar 2013
 *)
-let nodeadcode = ref false
+let nodeadcode = ref true
 let deadcode_flag = ref false
 
 open Lexing

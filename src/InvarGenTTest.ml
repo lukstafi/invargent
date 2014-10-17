@@ -18,7 +18,8 @@ let input_file file =
   Buffer.contents buf
 
 let test_case ?(test_annot=false) ?richer_answers
-    ?prefer_guess ?abd_rotations ?num_abd_timeout file () =
+    ?prefer_guess ?abd_rotations ?num_abd_timeout
+    ?num_abd_fail_timeout ?nodeadcode file () =
   if !debug then Printexc.record_backtrace true;
   let ntime = Sys.time () in
   Terms.reset_state ();
@@ -48,6 +49,15 @@ let test_case ?(test_annot=false) ?richer_answers
   (match num_abd_timeout with
    | None -> ()
    | Some num_abd_timeout -> NumS.abd_timeout_count := num_abd_timeout);  
+  let old_num_abd_fail_timeout = !NumS.abd_fail_timeout_count in
+  (match num_abd_fail_timeout with
+   | None -> ()
+   | Some num_abd_fail_timeout ->
+     NumS.abd_fail_timeout_count := num_abd_fail_timeout);
+  let old_nodeadcode = !Defs.nodeadcode in
+  (match nodeadcode with
+   | None -> ()
+   | Some nodeadcode -> Defs.nodeadcode := nodeadcode);
   (try
      let verif_res =
        InvarGenT.process_file ~do_sig:true ~do_ml:true
@@ -73,6 +83,8 @@ let test_case ?(test_annot=false) ?richer_answers
   Abduction.prefer_guess := old_prefer_guess;
   NumS.abd_rotations := old_abd_rotations;
   NumS.abd_timeout_count := old_num_abd_timeout;
+  NumS.abd_fail_timeout_count := old_num_abd_fail_timeout;
+  Defs.nodeadcode := old_nodeadcode;
   Format.printf " t=%.3fs " (Sys.time () -. ntime)
 
 let tests = "InvarGenT" >::: [
@@ -115,10 +127,8 @@ let tests = "InvarGenT" >::: [
            test_case "flatten_pairs" ());
       "flatten_quadrs" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
-           test_case ~abd_rotations:4 ~num_abd_timeout:2000
-             "flatten_quadrs" ());
+           test_case ~abd_rotations:4 "flatten_quadrs" ());
       "equational_reas" >::
         (fun () ->
            skip_if !debug "debug";
@@ -327,7 +337,8 @@ let tests = "InvarGenT" >::: [
       "avl_tree" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case "avl_tree" ());
+           (* FIXME: remove dependency on nodeadcode:false *)
+           test_case ~nodeadcode:false "avl_tree" ());
       "binomial_heap-ins_tree" >::
         (fun () ->
            todo "TODO";

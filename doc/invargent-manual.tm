@@ -889,12 +889,12 @@
     <verbatim|.ml> file.
   </description>
 
-  Let us see another example where parameters allowing the solver do more
-  work are needed:
+  Let us see an example where a parameter allowing the solver do more search
+  is needed:
 
   <\code>
-    $ ./invargent -inform -num_abduction_rotations 4 -num_abduction_timeout
-    2000 \\ examples/flatten_quadrs.gadt
+    $ ./invargent -inform -num_abduction_rotations 4
+    examples/flatten_quadrs.gadt
 
     val flatten_quadrs :
 

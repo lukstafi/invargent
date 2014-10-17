@@ -16,7 +16,7 @@ module type ABD_PARAMS = sig
   type answer
   type discarded
   type branch
-  val abd_fail_timeout : int
+  val abd_fail_timeout : int ref
   val abd_fail_flag : bool ref
   val abd_simple :
     args -> discard:discarded list ->
@@ -55,7 +55,7 @@ module JointAbduction (P : ABD_PARAMS) = struct
         | Some acc ->
           loop fails discard acc (br::done_brs) aside_brs more_brs
         | None ->
-          if fails > P.abd_fail_timeout
+          if fails > !P.abd_fail_timeout
           then (
             (*[* Format.printf
               "Joint.abd-loop: TIMEOUT %d failed [%d] at@ ans=%a@\n%!"
@@ -84,10 +84,11 @@ module JointAbduction (P : ABD_PARAMS) = struct
           check_aside fails best discard acc (br::done_brs) aside_brs
         | None ->
           if best then culprit := Some br;
-          if P.is_taut (P.extract_ans acc) || fails > P.abd_fail_timeout
+          if P.is_taut (P.extract_ans acc) || fails > !P.abd_fail_timeout
           then (
             (*[* Format.printf
-              "abd-check_aside: quit failed [%d] at@ ans=%a@\n%!" ddepth
+              "abd-check_aside: quit failed [%d] at fails=%d@ \
+               fail_timeout=%d@ ans=%a@\n%!" ddepth fails !P.abd_fail_timeout
               P.pr_ans (P.extract_ans acc); *]*)
             let concl =
               match !culprit with
@@ -95,7 +96,7 @@ module JointAbduction (P : ABD_PARAMS) = struct
               | Some br -> P.concl_of_br br in
             let lc = List.fold_left loc_union dummy_loc
                 (List.map atom_loc concl) in
-            if fails > P.abd_fail_timeout then P.abd_fail_flag := true;
+            if fails > !P.abd_fail_timeout then P.abd_fail_flag := true;
             raise (Suspect (concl, lc)))
           else
             loop (fails+1) (P.discard_ans acc::discard) init_acc [] []

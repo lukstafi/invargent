@@ -462,9 +462,11 @@ let abd_simple q ?without_quant ~bvs ~xbvs ~dissociate
                unify ~bvs:bvs' ~sb:ans
                  q [Eqty (TVar x, t', lc)] in
              (*[* Format.printf
-               "abd_simple: [%d] validate 2 ans=@ %a@\n%!" ddepth pr_subst ans; *]*)
+               "abd_simple: [%d] validate 2 ans=@ %a@\n%!" ddepth
+               pr_subst ans; *]*)
              validate (vs', ans');
-             (*[* Format.printf "abd_simple: [%d] choice 2 OK@\n%!" ddepth; *]*)
+             (*[* Format.printf "abd_simple: [%d] choice 2 OK@\n%!"
+               ddepth; *]*)
              abstract deep c_sb repls' bvs' vs' ans' rem_cand
            with Contradiction _ ->
              ())
@@ -670,7 +672,7 @@ module TermAbd = struct
   (* premise including alien premise, conclusion *)
   type branch = sep_formula * subst
 
-  let abd_fail_timeout = !fail_timeout_count
+  let abd_fail_timeout = fail_timeout_count
   let abd_fail_flag = abd_fail_flag
 
   let abd_simple (xbvs, q, dissociate) ~discard ~validate ~neg_validate
