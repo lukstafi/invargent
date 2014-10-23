@@ -30,7 +30,7 @@ Version 2.0 goals -- version targets may be reassigned:
 - [x] Flagship example: AVL tree from OCaml standard library (height imbalance limited by 2). (v1.2)
 - [x] Option to detect all dead code. (v1.2.1)
 - [x] Improve coverage for examples from Chuan-kai Lin's PhD thesis. (v1.3)
-- [-] Improve coverage for DML / Liquid Types examples. (v1.3)
+- [+] Improve coverage for DML / Liquid Types examples. (v1.3)
 - [-] New sort: order. (v1.3)
 - [#] Order sort example: binomial heap. (v1.3)
 - [ ] Solver directives in .gadt source code -- exposing the options available from the command-line interface. (v1.4)

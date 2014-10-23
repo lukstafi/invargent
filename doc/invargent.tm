@@ -548,14 +548,16 @@
   <math|x<wide|=|\<dot\>>t> can stand for either <math|x\<assign\>t>, or
   <math|y\<assign\>x> for <math|t=y>.
 
-  To simplify the search in presence of a quantifier, we preprocess the
-  initial candidate by eliminating universally quantified variables:
+  To simplify the search in presence of a quantifier prefix, we preprocess
+  the initial candidate by eliminating universally quantified variables:
 
   <\eqnarray*>
-    <tformat|<table|<row|<cell|Rev<rsub|\<forall\>><around*|(|\<cal-Q\>,<wide|\<beta\>|\<bar\>>,D,C|)>>|<cell|=>|<cell|<around*|{|S<around*|(|c|)><mid|\|>c\<in\>C,S=<around*|[|<wide|t<rsub|u>|\<bar\>>\<assign\><wide|t<rprime|'><rsub|u>|\<bar\>>|]><with|mode|text|
-    for >FV<around*|(|t<rsub|u>|)>\<cap\><wide|\<beta\><rsub|u>|\<bar\>>\<neq\>\<varnothing\>,<wide|\<forall\>\<beta\><rsub|u>|\<bar\>>\<subset\>\<cal-Q\>,\<cal-M\>\<vDash\>D\<Rightarrow\><wide|S|\<dot\>>,<next-line><with|mode|text|
-    \ \ \ \ \ \ \ >\<cal-M\>\<vDash\>\<cal-Q\>.S<around*|(|c|)><around*|[|<wide|\<beta\>|\<bar\>>\<assign\><wide|t|\<bar\>>|]><with|mode|text|
-    for some ><wide|t|\<bar\>>|}>>>>>
+    <tformat|<table|<row|<cell|S>|<cell|=>|<cell|<around*|[|<wide|t<rsub|u>|\<bar\>>\<assign\><wide|t<rprime|'><rsub|u>|\<bar\>>|]><with|mode|text|
+    for >FV<around*|(|t<rsub|u>|)>\<cap\><wide|\<beta\><rsub|u>|\<bar\>>\<neq\>\<varnothing\>,<wide|\<forall\>\<beta\><rsub|u>|\<bar\>>\<subset\>\<cal-Q\><with|mode|text|
+    such that >\<cal-M\>\<vDash\>D\<Rightarrow\><wide|S|\<dot\>>,>>|<row|<cell|Rev<rsub|\<forall\>><around*|(|\<cal-Q\>,<wide|\<beta\>|\<bar\>>,D,C|)>>|<cell|=>|<cell|<around*|{|c<rprime|'><mid|\|>c\<in\>C,<with|mode|text|if
+    >\<cal-M\>\<vDash\>\<cal-Q\>.c<around*|[|<wide|\<beta\>|\<bar\>>\<assign\><wide|t|\<bar\>>|]><with|mode|text|
+    for some ><wide|t|\<bar\>><with|mode|text| then
+    >c<rprime|'>=c<with|mode|text| else >c<rprime|'>=S<around*|(|c|)>|}>>>>>
   </eqnarray*>
 
   Note that <math|S> above is a substitution of subterms rather than of
@@ -856,9 +858,26 @@
   to normalize them as well.
 
   Our abduction algorithm follows a familiar incrementally-generate-and-test
-  scheme as in term abduction. During the iteration, we build a lazy list of
-  possible transformations with linear combinations involving atoms <math|a>
-  that will not be part of the answer but are implied by <math|D\<wedge\>C>.
+  scheme as in term abduction. There are two new ideas, which can also be
+  applied to abduction in other domains. We build a lazy list of possible
+  transformations with linear combinations involving equations <math|a>
+  implied by <math|D\<wedge\>C>. We pair each inequality <math|c> in <math|C>
+  with all inequalities <math|d> implied by <math|D> which share a variable
+  with <math|c> and try out the abduction answers to <math|d\<Rightarrow\>c>
+  as contributions to the partial abduction answer to
+  <math|D\<Rightarrow\>C>.
+
+  To simplify the search in presence of a quantifier prefix, we preprocess
+  the initial candidate by eliminating universally quantified variables:
+
+  <\eqnarray*>
+    <tformat|<table|<row|<cell|S>|<cell|=>|<cell|<around*|[|<wide|\<beta\><rsub|u>|\<bar\>>\<assign\><wide|t<rsub|u>|\<bar\>>|]><with|mode|text|
+    for ><wide|\<forall\>\<beta\><rsub|u>|\<bar\>>\<subset\>\<cal-Q\><with|mode|text|
+    such that >\<cal-M\>\<vDash\>D\<Rightarrow\><wide|S|\<dot\>>,>>|<row|<cell|Rev<rsub|\<forall\>><around*|(|\<cal-Q\>,<wide|\<beta\>|\<bar\>>,D,C|)>>|<cell|=>|<cell|<around*|{|c<rprime|'><mid|\|>c\<in\>C,<with|mode|text|if
+    >\<cal-M\>\<vDash\>\<cal-Q\>.c<around*|[|<wide|\<beta\>|\<bar\>>\<assign\><wide|t|\<bar\>>|]><with|mode|text|
+    for some ><wide|t|\<bar\>><with|mode|text| then
+    >c<rprime|'>=c<with|mode|text| else >c<rprime|'>=S<around*|(|c|)>|}>>>>>
+  </eqnarray*>
 
   Abduction algorithm:
 
@@ -871,19 +890,20 @@
     <math|D<rprime|'>=<wide|A<rsub|i>|~><around*|(|D\<wedge\><no-break>A<rsub|i>|)>>
     and <math|D<rsup|=><rprime|'>> be the equations in <math|D<rprime|'>>,
     i.e. substituted equations and implicit equalities. Let
-    <math|D<rsup|\<leqslant\>><rprime|'>=<wide|A<rsub|i>|~><around*|(|D<rsup|\<leqslant\>>|)>>.
-
-    <item>Prepare the initial transformations from atoms in
-    <math|D<rsup|=><rprime|'>> and <math|D<rsup|\<leqslant\>><rprime|'>>.
+    <math|D<rsup|\<leqslant\>><rprime|'>> be a solved form of inequalities.
 
     <\enumerate>
-      <item>For equations <math|a>, add combinations <math|k<rsup|s>*a+b> for
-      <math|k=-n\<ldots\>n,s=-1,1> to the stack of transformations to be
-      tried for atoms <math|b\<in\>C>.
+      <item>Let <math|C<rsup|=><rsub|0>=Rev<rsub|\<forall\>><around*|(|\<cal-Q\>,<wide|\<beta\>|\<bar\>>,D<rsup|=><rprime|'>,C<rsup|=><rprime|'>|)>>
+      and <math|C<rsup|\<leqslant\>><rsub|0>=Rev<rsub|\<forall\>><around*|(|\<cal-Q\>,<wide|\<beta\>|\<bar\>>,D<rsup|=><rprime|'>,C<rsup|\<leqslant\>><rprime|'>|)>>.
+    </enumerate>
 
-      <item>Optionally, for inequalities <math|a>, add combinations
-      <math|k<rsup|s>*a+b> for <math|k=0\<ldots\>n,s=-1,1> to the stack of
-      trasformations to be tried only for inequalities <math|b\<in\>C>.
+    <item>Prepare the initial transformations from atoms
+    <math|a\<in\>D<rsup|=><rprime|'>>:
+
+    <\enumerate>
+      <item>Add combinations <math|k<rsup|s>*a+b> for
+      <math|k=-n\<ldots\>n,s=-1,1> to the stack of transformations to be
+      tried for atoms <math|b>.
 
       <item>The final transformations have the form:
       <math|b\<mapsto\>b+\<Sigma\><rsub|a\<in\>D>k<rsub|a><rsup|s<rsub|a>>a>.
@@ -899,7 +919,8 @@
 
     <item>Start from <math|Acc\<assign\><around*|{||}>> and
     <math|C<rsub|0>\<assign\>C<rsup|=><rprime|'>\<wedge\>C<rsup|\<leqslant\>><rprime|'>>.
-    Try atoms <math|C<rsub|0>=a C<rsub|0><rprime|'>> in some order.
+    Handle atoms <math|a> in <math|C<rsub|0>=a C<rsub|0><rprime|'>>,
+    equations first.
 
     <item>Let <math|B=A<rsub|i>\<wedge\>D\<wedge\>C<rsub|0><rprime|'>\<wedge\>Acc>.
 
@@ -908,40 +929,30 @@
     repeat with <math|C<rsub|0>\<assign\>C<rsub|0><rprime|'>>. Corresponds to
     choice 1 of term abduction.
 
-    <item>If <math|B\<nRightarrow\>C>, for a transformation
-    <math|a<rprime|'>> of <math|a>, starting with <math|a>, which passes
-    validation against other branches in a joint problem:
+    <item>If <math|B\<nRightarrow\>C>, for a candidate <math|a<rprime|'>>
+    generated for <math|a>, starting with <math|a>, which passes validation
+    against other branches in a joint problem:
     <math|Acc\<assign\>Acc\<cup\><around*|{|a<rprime|'>|}>>, or fail if all
-    <math|a<rprime|'>> fail. If option (2b) is on, and <math|a> is an
-    inequality, ensure that <math|a<rprime|'>\<wedge\>B\<Rightarrow\>C>.
-    (Choice point, corresponding to choice 4 of term abduction if <math|a> is
-    selected, choice 5 of term abduction if a later transformation is
-    selected.)
+    <math|a<rprime|'>> fail.
 
     <\enumerate>
-      <item>Let <math|a<rprime|'>> be <math|a> with some transformations
-      applied.
+      <item>If <math|a> is an inequality, let <math|a<rsub|0>> be an
+      abduction answer to <math|d\<Rightarrow\>Rev<rsub|\<forall\>><around*|(|\<cal-Q\>,<wide|\<beta\>|\<bar\>>,D<rsup|=><rprime|'>,<wide|Acc<rsup|=>|~><around*|(|a|)>|)>>,
+      where <math|d> belongs to the solved form inequalities implied by
+      <math|D<rprime|'>>. Otherwise, let <math|a<rsub|0>=<wide|Acc<rsup|=>|~><around*|(|a|)>>.
 
-      <item>If <math|a<rprime|'>> contains a variable <math|\<beta\><rsub|1>>
-      from <math|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>> and a variable
-      <math|\<beta\><rsub|2>\<in\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rprime|'>>>
-      for <math|\<chi\>\<neq\>\<chi\><rprime|'>>, then before trying
-      <math|a<rprime|'>> try atoms <math|a<rprime|''>> containing variables
-      <math|\<beta\><rsub|1>,\<beta\><rsub|3>> if
-      <math|\<beta\><rsub|\<chi\>>\<less\><rsub|\<cal-Q\>>\<beta\><rsub|\<chi\><rprime|'>>>,
-      or <math|\<beta\><rsub|2>,\<beta\><rsub|4>> if
-      <math|\<beta\><rsub|\<chi\><rprime|'>>\<less\><rsub|\<cal-Q\>>\<beta\><rsub|\<chi\>>>,
-      for <math|\<beta\><rsub|3>\<in\><wide|\<beta\>|\<bar\>><rsup|\<chi\>>>
-      and <math|\<beta\><rsub|4>\<in\><wide|\<beta\>|\<bar\>><rsup|\<chi\><rprime|'>>>,
-      such that <math|a<rprime|''>\<wedge\>B\<Rightarrow\>C> (if any).
+      <item>Sort the candidates <math|a<rsub|0>> in order of increasing size.
+      Let <math|a<rprime|'>> be <math|a<rsub|0>> with some
+      <math|D<rsup|=><rprime|'>>-derived transformation applied.
 
       <\itemize>
-        <item>Currently, we only try atoms of the form
-        <math|\<beta\>\<leq\>\<beta\><rprime|'>> and
-        <math|\<beta\><wide|=|\<dot\>>\<beta\><rprime|'>>. In the future, we
-        might try rotations and shifts <math|\<beta\>\<leq\>k*\<beta\><rprime|'>+c>
-        for constants <math|k,c> analogous to the transformation
-        coefficients.
+        <item>Currently, we do not perform transformations when
+        <math|a<rsub|0>> is an inequality, for simplicity and speed at cost
+        of missing some answers. However, we eliminate the universal
+        variables, i.e. we use <math|Rev<rsub|\<forall\>>> above. If it
+        proves necessary, we will also try the transformations for the
+        inequalities. For example, by trying all candidates <math|a<rsub|0>>
+        before proceeding to the next transformation.
       </itemize>
 
       <item>If <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|'>|}>|)>>
@@ -977,13 +988,33 @@
 
   We use the <verbatim|nums> library for exact precision rationals.
 
-  Our algorithm finds only fully maximal answers. This means that for many
-  invariant inference problems, some implication branches in initial steps of
-  the main algorithm are insolvable. That is, when the instantiations of the
-  invariants found so far are not informative enough, the expected answer of
-  the JCA problem is not a fully maximal SCA answer to these branches. The
-  backtracking mechanism of the joint constraint abduction algorithm
-  mitigates the problem.
+  To find the abduction answers to <math|d\<Rightarrow\>c>, pick a common
+  variable <math|\<alpha\>\<in\>FV<around*|(|d|)>\<cap\>FV<around*|(|c|)>>.
+  We have four possibilities:
+
+  <\enumerate>
+    <item><math|d\<Leftrightarrow\>\<alpha\>\<leqslant\>d<rsub|\<alpha\>>>
+    and <math|c\<Leftrightarrow\>\<alpha\>\<leqslant\>c<rsub|\<alpha\>>>: the
+    abduction answers are <math|c> and <math|d<rsub|\<alpha\>>\<leqslant\>c<rsub|\<alpha\>>>,
+
+    <item><math|d\<Leftrightarrow\>\<alpha\>\<leqslant\>d<rsub|\<alpha\>>>
+    and <math|c\<Leftrightarrow\>c<rsub|\<alpha\>>\<leqslant\>\<alpha\>>: the
+    abduction answer is only <math|c>,
+
+    <item><math|d\<Leftrightarrow\>d<rsub|\<alpha\>>\<leqslant\>\<alpha\>>
+    and <math|c\<Leftrightarrow\>\<alpha\>\<leqslant\>c<rsub|\<alpha\>>>: the
+    abduction answer is only <math|c>,
+
+    <item><math|d\<Leftrightarrow\>d<rsub|\<alpha\>>\<leqslant\>\<alpha\>>
+    and <math|c\<Leftrightarrow\>c<rsub|\<alpha\>>\<leqslant\>\<alpha\>>: the
+    abduction answers are <math|c> and <math|c<rsub|\<alpha\>>\<leqslant\>d<rsub|\<alpha\>>>.
+  </enumerate>
+
+  Thanks to cases (1) and (4) above, the abduction algorithm can find some
+  answers which are not fully maximal. The joint constraint abduction
+  algorithm can help in some of the remaining cases where fully maximal
+  abduction is insufficient for some implications, by solving simpler
+  implications first.
 
   We provide an optional optimization: we do not pass, in the first call to
   numerical abduction (the second iteration of the main algorithm), branches

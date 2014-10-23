@@ -1,10 +1,20 @@
-(*
-let{n:nat} dotprod v1 v2 = begin
-    loop (vect_length v1) 0 0
-      where rec loop n sum i =
-        if eq_int i n then sum else loop n (sum + (v1..(i) * v2..(i) : int)) (i+1)
-    withtype int(n) -> int -> {i:nat | i <= n} int (i) -> int
-end withtype int vect(n) -> int vect(n) -> int
-;;
+datatype Array : type * num
 
-*)
+external val array_make : ∀n, a[0 ≤ n]. Num n → a → Array (a, n)
+
+external val array_get :
+   ∀n, k, a[0 ≤ k ∧ k + 1 ≤ n]. Array (a, n) → Num k → a
+
+external val array_set :
+   ∀n, k, a[0 ≤ k ∧ k + 1 ≤ n].
+   Array (a, n) → Num k → a → Tuple
+
+external val array_length : ∀n, a. Array (a, n) → Num n
+
+external val add : Int → Int → Int
+
+external val prod : Int → Int → Int
+
+external val int0 : Int
+
+val dotprod : ∀k, n[k ≤ n]. Array (Int, k) → Array (Int, n) → Int

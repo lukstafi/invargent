@@ -1,7 +1,8 @@
 open OUnit
 
 let tests =
-  "InvarGenT" >::: [TermsTest.tests; InferTest.tests; NumSTest.tests;
+  "InvarGenT" >::: [TermsTest.tests; InferTest.tests;
+                    OrderSTest.tests; NumSTest.tests;
                     AbductionTest.tests; DisjElimTest.tests;
                     InvariantsTest.tests; InvarGenTTest.tests]
 

@@ -2095,8 +2095,8 @@ let rec filter_map2 = fun p f ->
         [2,"∃n, k, a.
   δ =
     ((a → a → Bool) → (a → a → a) →
-       (List (a, n), List (a, k)) → ∃i[i≤max (n, k) ∧ k ≤ i + n ∧
-       n ≤ i + k ∧ 0 ≤ i].List (a, i))"]
+       (List (a, n), List (a, k)) → ∃i[i≤max (n, k) ∧ n ≤ i + k ∧
+       k ≤ i + n].List (a, i))"]
     );
 
   "list filter-map2 with filter postfix mono" >::
@@ -2970,7 +2970,7 @@ let merge = efunction
         [2,"∃n, k, a.
   δ =
     ((Avl (a, n), Avl (a, k)) → ∃i[i≤max (k + 1, n + 1) ∧ k ≤ i ∧
-       n ≤ i ∧ i ≤ n + k].Avl (a, i)) ∧
+       i ≤ n + k ∧ n ≤ i].Avl (a, i)) ∧
   n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
@@ -3024,7 +3024,7 @@ let merge = efunction
         [2,"∃n, k, a.
   δ =
     ((Avl (a, n), Avl (a, k)) → ∃i[i≤max (k + 1, n + 1) ∧ k ≤ i ∧
-       n ≤ i ∧ i ≤ n + k].Avl (a, i)) ∧
+       i ≤ n + k ∧ n ≤ i].Avl (a, i)) ∧
   n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
@@ -3078,7 +3078,7 @@ let merge = efunction
         [2,"∃n, k, a.
   δ =
     ((Avl (a, n), Avl (a, k)) → ∃i[i≤max (k + 1, n + 1) ∧ k ≤ i ∧
-       n ≤ i ∧ i ≤ n + k].Avl (a, i)) ∧
+       i ≤ n + k ∧ n ≤ i].Avl (a, i)) ∧
   n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 

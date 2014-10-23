@@ -10,6 +10,8 @@ open Defs
 open Terms
 open Aux
 
+let debug = ref (* true *)false
+
 let cmp_v v1 v2 = Same_quant
 let uni_v v = v=VNam (Type_sort, "tx")
               || v=VNam (Type_sort, "ty")
@@ -47,20 +49,21 @@ let tests = "DisjElim" >::: [
 
   "basic" >::
     (fun () ->
-      test_case "abstract arg" " ⟹ ta = F A
+       skip_if !debug "debug";
+       test_case "abstract arg" " ⟹ ta = F A
 | ⟹ ta = F B" "∃t1. ta = (F t1)";
-      test_case "infer eq" " ⟹ ta = A ∧ tb = A
+       test_case "infer eq" " ⟹ ta = A ∧ tb = A
 | ⟹ ta = B ∧ tb = B" "∃. tb = ta ∧ ta = tb";
-      test_case "abstract bigger" " ⟹ ta = G (A, C)
+       test_case "abstract bigger" " ⟹ ta = G (A, C)
 | ⟹ ta = G (B, C)" "∃t1. ta = (G (t1, C))";
-      test_case "abstract & infer" " ⟹ ta = G (A, C) ∧ C = tb
+       test_case "abstract & infer" " ⟹ ta = G (A, C) ∧ C = tb
 | ⟹ ta = G (B, D) ∧ D = tb" "∃t1. ta = (G (t1, tb))";
-
     );
 
   "simplified eval" >::
     (fun () ->
-      test_case "eval" " (Term tf) = tc ∧ Int = tf ⟹ td = Int ∧ ta = (Term te → td) ∧ tc = (Term te)
+       skip_if !debug "debug";
+       test_case "eval" " (Term tf) = tc ∧ Int = tf ⟹ td = Int ∧ ta = (Term te → td) ∧ tc = (Term te)
 | (Term tg) = tc ∧ Boolean = tg ⟹ td = Bool ∧
     ta1 = (Term Int → Int) ∧ ta = (Term te → td) ∧ tc = (Term te)
 | (Term ta3) = tc ∧ Int = ta3 ⟹ td = Int ∧

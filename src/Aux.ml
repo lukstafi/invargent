@@ -404,6 +404,9 @@ let pop_assoc x l =
       else aux (pair :: acc) l in
   aux [] l
 
+let hashtbl_to_assoc h =
+  Hashtbl.fold (fun k v acc -> (k, v)::acc) h []
+
 (** {2 Lazy lists} *)
 type 'a lazy_list = 'a lazy_list_ Lazy.t
 and 'a lazy_list_ = LazNil | LazCons of 'a * 'a lazy_list

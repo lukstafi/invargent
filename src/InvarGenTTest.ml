@@ -359,7 +359,6 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_dotprod_simpler" ());
       "liquid_dotprod" >::
         (fun () ->
-           todo "TODO";
            skip_if !debug "debug";
            test_case "liquid_dotprod" ());
       "liquid_bcopy" >::
