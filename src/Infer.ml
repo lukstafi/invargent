@@ -848,7 +848,7 @@ let prepare_scheme phi res =
 let infer_prog solver prog =
   let ntime = ref (Sys.time ()) in
   let start_time = !ntime in
-  let gamma = ref [] in
+  let gamma = ref builtin_gamma in
   let update_new_ex_types q new_ex_types sb sb_chi =
     let more_items = ref [] in
     (* FIXME: possibly duplicate with code at the end of [solve].  Clean up

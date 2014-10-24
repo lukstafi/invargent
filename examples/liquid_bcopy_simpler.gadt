@@ -18,9 +18,7 @@ let rec bcopy_aux = fun src des -> function
   | i, m when i+1 <= m ->
       let n = array_get src i in
       array_set des i n;
-      let j = i + 1 in
-      bcopy_aux src des (j, m)
+      bcopy_aux src des (i + 1, m)
 
 let bcopy = fun src des ->
-  let sz = array_length src in
-  bcopy_aux src des (0, sz)
+  bcopy_aux src des (0, array_length src)

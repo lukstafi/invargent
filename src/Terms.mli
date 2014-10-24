@@ -18,6 +18,7 @@ val tuple : cns_name
 val numtype : cns_name
 val booltype : cns_name
 val stringtype : cns_name
+val builtin_progseq : string
 
 module CNames : (Set.S with type elt = cns_name)
 val cnames_of_list : cns_name list -> CNames.t
@@ -336,6 +337,8 @@ type sigma =
 val sigma : sigma
 val all_ex_types : (int * lc) list ref
 
+val builtin_gamma : (string * typ_scheme) list
+
 val fresh_typ_var : unit -> Defs.var_name
 val fresh_num_var : unit -> Defs.var_name
 val fresh_var : Defs.sort -> Defs.var_name
@@ -358,8 +361,9 @@ type ('a, 'b) pr_expr_annot =
 
 val pr_expr :
   ?export_num:(string * string * string * string) ->
-  ?export_if:(string*string*string)
-  -> ?export_bool:((bool * string) list) ->
+  ?export_if:(string * string * string) ->
+  ?export_bool:((bool * string) list) ->
+  ?export_progseq:(string * string * string) ->
   (Format.formatter -> ('a, 'b) pr_expr_annot -> unit) ->
   Format.formatter -> ('a, 'b) expr -> unit
 val pr_uexpr : Format.formatter -> uexpr -> unit

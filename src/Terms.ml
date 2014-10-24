@@ -22,6 +22,7 @@ let tuple = CNam "Tuple"
 let numtype = CNam "Num"
 let booltype = CNam "Bool"
 let stringtype = CNam "String"
+let builtin_progseq = "builtin_progseq"
 
 module CNames =
     Set.Make (struct type t = cns_name let compare = Pervasives.compare end)
@@ -798,7 +799,8 @@ type ('a, 'b) pr_expr_annot =
   | LetInOpen of 'b
   | LetInNode of 'b
 
-let pr_expr ?export_num ?export_if ?export_bool pr_ann ppf exp =
+let pr_expr ?export_num ?export_if ?export_bool ?export_progseq
+    pr_ann ppf exp =
   let rec aux ppf = function
     | Var (s, _) -> fprintf ppf "%s" s
     | String (s, _) -> fprintf ppf "\"%s\"" s
@@ -818,6 +820,10 @@ let pr_expr ?export_num ?export_if ?export_bool pr_ann ppf exp =
       fprintf ppf "%s" (List.assoc true (unsome export_bool))
     | Cons (CNam "False", [], _) when export_bool <> None ->
       fprintf ppf "%s" (List.assoc false (unsome export_bool))
+    | App (App (Var (f, _), e1, _), e2, _) when f = builtin_progseq ->
+      let kwd_beg, kwd_mid, kwd_end = unsome export_progseq in
+      fprintf ppf "@[<0>%s%a@ %s@ %a%s@]"
+        kwd_beg aux e1 kwd_mid aux e2 kwd_end
     | App (Lam (_, [PCons (CNam "True", [], _), [], e1;
                     PCons (CNam "False", [], _), [], e2], _),
            cond, _) when export_if <> None ->
@@ -951,6 +957,7 @@ and pr_formula ppf atoms =
 
 and pr_ty ppf = function
   | TVar v -> fprintf ppf "%s" (var_str v)
+  | TCons (CNam "Tuple", []) -> fprintf ppf "()"
   | TCons (CNam c, []) -> fprintf ppf "%s" c
   | TCons (CNam "Tuple", exps) ->
     fprintf ppf "@[<2>(%a)@]" (pr_sep_list "," pr_ty) exps
@@ -1520,6 +1527,11 @@ let parser_unary_typs =
 let parser_unary_vals = Hashtbl.create 31
 let parser_last_typ = ref 0
 let parser_last_num = ref 0
+
+let ty_unit = TCons (tuple, [])
+let builtin_gamma = [
+  builtin_progseq, ([], [], Fun (ty_unit, Fun (ty_unit, ty_unit)));
+]
 
 let setup_builtins () =
   Hashtbl.add parser_unary_typs "Num" ();

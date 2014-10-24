@@ -309,6 +309,9 @@ expr:
       { AssertEqty ($3, $5, $7, get_loc ()) }
   | expr PLUS expr
       { NumAdd ($1, $3, get_loc ()) }
+  | expr SEMICOLON expr
+      { App (App (Var (builtin_progseq, get_loc ()),
+                  $1, get_loc ()), $3, get_loc ()) }
   | expr_comma_list %prec below_COMMA
       { Cons (tuple, (List.rev $1), get_loc ()) }
   | simple_expr

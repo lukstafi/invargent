@@ -35,7 +35,6 @@ Version 2.0 goals -- version targets may be reassigned:
 - [#] Order sort example: binomial heap. (v1.3)
 - [ ] Solver directives in .gadt source code -- exposing the options available from the command-line interface. (v1.4)
 - [ ] Or-patterns `p1 | p2` introducing disjunctions in premises, either eliminated by disjunction elimination or expanded by implication clause duplication -- depending on user-level option; preserved in exported code. (v1.4)
-- [ ] Export Haskell code. (v1.4)
 - [ ] Meta-automatic mode: retry with modified user-level parameter settings if inference fails. (v1.4)
 - [ ] Ability to parse `.gadti` and `.mli` files, and use them with the module access `open M`, `let open M in ...`, `M.(...)` and `M.x` syntaxes. (v1.5)
 - [ ] Improve error reporting (likely culprit). (v1.5)

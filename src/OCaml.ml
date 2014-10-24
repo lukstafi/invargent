@@ -188,6 +188,7 @@ let pr_annot_full lettys ppf = function
 
 let pr_expr funtys lettys ppf =
   let export_if = "if", "then", "else" in
+  let export_progseq = "", ";", "" in
   let export_num =
     if !num_is = "int" then None
     else if !num_is = "float" then Some ("float_of_int", "", "+.", "")
@@ -201,7 +202,7 @@ let pr_expr funtys lettys ppf =
   let pr_ann =
     if funtys || lettys
     then pr_annot_full lettys else pr_annot_rec in
-  pr_expr ?export_num ~export_if ~export_bool pr_ann ppf
+  pr_expr ?export_num ~export_if ~export_bool ~export_progseq pr_ann ppf
 
 let pr_rhs_docu ppf = function
   | None -> ()
