@@ -27,6 +27,7 @@ datacons Found : ∀a. a ⟶ Answer a
 
 let bsearch = fun key vec ->
   let rec look = fun lo hi ->
+    assert num 0 <= lo;
     match hi + (-1) with
       | hi_m when lo+1 <= hi_m ->
         let m = div2 (hi + lo) in

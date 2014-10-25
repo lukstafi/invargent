@@ -822,7 +822,7 @@ let pr_expr ?export_num ?export_if ?export_bool ?export_progseq
       fprintf ppf "%s" (List.assoc false (unsome export_bool))
     | App (App (Var (f, _), e1, _), e2, _) when f = builtin_progseq ->
       let kwd_beg, kwd_mid, kwd_end = unsome export_progseq in
-      fprintf ppf "@[<0>%s%a@ %s@ %a%s@]"
+      fprintf ppf "@[<0>(%s%a@ %s@ %a%s)@]"
         kwd_beg aux e1 kwd_mid aux e2 kwd_end
     | App (Lam (_, [PCons (CNam "True", [], _), [], e1;
                     PCons (CNam "False", [], _), [], e2], _),

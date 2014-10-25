@@ -7,6 +7,6 @@ datacons Return : ∀a, s.a ⟶ State (s, a)
 
 datacons Get : ∀a. State (a, a)
 
-datacons Put : ∀s.s ⟶ State (s, Tuple)
+datacons Put : ∀s.s ⟶ State (s, ())
 
 val run_state : ∀a, b. a → State (a, b) → (a, b)

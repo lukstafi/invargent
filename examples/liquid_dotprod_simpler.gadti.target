@@ -6,8 +6,7 @@ external val array_get :
    ∀n, k, a[0 ≤ k ∧ k + 1 ≤ n]. Array (a, n) → Num k → a
 
 external val array_set :
-   ∀n, k, a[0 ≤ k ∧ k + 1 ≤ n].
-   Array (a, n) → Num k → a → Tuple
+   ∀n, k, a[0 ≤ k ∧ k + 1 ≤ n]. Array (a, n) → Num k → a → ()
 
 external val array_length : ∀n, a. Array (a, n) → Num n
 

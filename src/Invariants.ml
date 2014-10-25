@@ -385,7 +385,7 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
 
 (** Eliminate provided variables if they do not contribute to
     constraints and generally simplify the formula. *)
-let simplify q_ops ?keepvs ?guard ?initstep (vs, cnj) =
+let simplify q_ops ~bvs ?keepvs ?guard ?initstep (vs, cnj) =
   let vs = vars_of_list vs in
   (*[* Format.printf "simplify: keepvs=%a@ vs=%a@ cnj=%a@\n%!"
     (pr_some pr_vars) keepvs pr_vars vs pr_formula cnj; *]*)
@@ -410,6 +410,8 @@ let simplify q_ops ?keepvs ?guard ?initstep (vs, cnj) =
         | v, (TVar v2, lc) -> v2, (TVar v, lc)
         | _ -> assert false)
       ty_sb in
+  (*[* Format.printf "simplify: vs=%a@\nty_sb=%a@\n%!" pr_vars vs
+    pr_subst ty_sb; *]*)
   let ty_ans = update_sb ~more_sb:ty_sb ty_ans in
   let ty_ans =
     match keepvs with
@@ -421,7 +423,9 @@ let simplify q_ops ?keepvs ?guard ?initstep (vs, cnj) =
   let num_sb, more_num_ans =
     match keepvs with
     | None ->
-      (* List.partition (fun (v,_) -> not (VarSet.mem v vs)) *) num_sb,[]
+      List.partition
+        (fun (v,_) -> true (* VarSet.mem v vs || not (VarSet.mem v bvs) *))
+        num_sb
     | Some keepvs ->
       List.partition (fun (v,_) -> not (VarSet.mem v keepvs)) num_sb in
   let num_ans = NumS.sort_of_subst more_num_ans @ num_ans in
@@ -448,11 +452,11 @@ let simplify q_ops ?keepvs ?guard ?initstep (vs, cnj) =
   let vs = VarSet.inter vs (fvs_formula ans) in
   (*[* Format.printf "simplify: vs=%a@ ty_sb=%a@ num_sb=%a@ ans=%a@\n%!"
     pr_vars vs pr_subst ty_sb pr_subst num_sb pr_formula ans; *]*)
-  vs, ans
+  ty_sb @ num_sb, (vs, ans)
 
-let vsimplify q_ops ?keepvs ?guard ?initstep ans =
-  let vs, ans = simplify q_ops ?keepvs ?guard ?initstep ans in
-  VarSet.elements vs, ans
+let vsimplify q_ops ~bvs ?keepvs ?guard ?initstep ans =
+  let num_sb, (vs, ans) = simplify q_ops ~bvs ?keepvs ?guard ?initstep ans in
+  num_sb, (VarSet.elements vs, ans)
 
 (** Generally simplify the formula. Do not normalize non-type sort atoms. *)
 let prune_redund q_ops ?localvs ?guard ~initstep (vs, cnj) =
@@ -850,9 +854,10 @@ let solve q_ops new_ex_types exty_res_chi brs =
           let keepvs =
             add_vars [delta; delta'] (VarSet.union localvs bvs) in
           (* 3 *)
-          let g_vs, g_ans =
-            if initstep then g_vs, g_ans
-            else vsimplify q_ops ~keepvs ~initstep (g_vs, g_ans) in
+          (* FIXME: disappearing substitution? *)
+          let _, (g_vs, g_ans) =
+            if initstep then [], (g_vs, g_ans)
+            else vsimplify q_ops ~bvs ~keepvs ~initstep (g_vs, g_ans) in
           let fvs = VarSet.elements
               (VarSet.diff (fvs_formula g_ans)
                  (vars_of_list [delta;delta'])) in
@@ -1171,13 +1176,24 @@ let solve q_ops new_ex_types exty_res_chi brs =
                 freshened when predicate variable is instantiated. *)
              let dans = subst_formula [b, (tdelta, dummy_loc)] dans in
              let vs' = dvs @ vs in
-             let _, ans' = simplify q.op (vs', dans @ ans) in
+             let num_sb, (_, ans') = simplify q.op ~bvs (vs', dans @ ans) in
              (*[* Format.printf
                "solve-loop-10: vs=%a@ ans=%a@ chi%d(.)=@ %a@\n%!"
                pr_vars (vars_of_list vs) pr_formula ans i
                pr_ans (vs', ans'); *]*)
-             i, (vs', ans'))
-          sol1 in    
+             num_sb, (i, (vs', ans')))
+          sol1 in
+      let new_sbs, sol2 = List.split sol2 in
+      (* FIXME: is it possible to have non-disjoint domains of [new_sbs]? *)
+      let new_sb = List.concat new_sbs in
+      (*[* Format.printf "Invariants.new_sb=%a@\n%!" pr_subst new_sb; *]*)
+      let sol2 = List.map
+          (fun (i, (vs, ans)) ->
+             let ans = subst_formula new_sb ans in
+             let ans_vs = fvs_formula ans in
+             let vs = List.filter (fun v->VarSet.mem v ans_vs) vs in
+             i, (vs, ans))
+          sol2 in
       (* 10 *)
       let finished1 =
         iter_no >= 1 && List.for_all2
@@ -1313,6 +1329,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                | v, (TVar v2, lc) when v2=delta || v2=delta' ->
                  v2, (TVar v, lc)
                | sv -> sv) sb in
+         (* FIXME: shouln't we propagate [sb] to other answers? *)
          let rty = subst_typ sb ty
          and rphi = subst_formula sb rphi in
          (* FIXME: We ignore the "predicted" parameters and instead

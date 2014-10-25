@@ -10,10 +10,18 @@ external val array_set :
 
 external val array_length : ∀n, a. Array (a, n) → Num n
 
-external val add : Int → Int → Int
+datatype LinOrder
 
-external val prod : Int → Int → Int
+datacons LE : LinOrder
 
-external val int0 : Int
+datacons GT : LinOrder
 
-val dotprod : ∀k, n[k ≤ n]. Array (Int, k) → Array (Int, n) → Int
+datacons EQ : LinOrder
+
+external val compare : ∀a. a → a → LinOrder
+
+external val equal : ∀a. a → a → Bool
+
+external val div2 : ∀n. Num (2 n) → Num n
+
+val bsearch : ∀n, a. a → Array (a, n + 1) → ∃k[0 ≤ k + 1 ∧ k ≤ n].Num k

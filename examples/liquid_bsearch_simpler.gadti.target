@@ -1,0 +1,33 @@
+datatype Array : type * num
+
+external val array_make : ∀n, a[0 ≤ n]. Num n → a → Array (a, n)
+
+external val array_get :
+   ∀n, k, a[0 ≤ k ∧ k + 1 ≤ n]. Array (a, n) → Num k → a
+
+external val array_set :
+   ∀n, k, a[0 ≤ k ∧ k + 1 ≤ n]. Array (a, n) → Num k → a → ()
+
+external val array_length : ∀n, a. Array (a, n) → Num n
+
+datatype LinOrder
+
+datacons LE : LinOrder
+
+datacons GT : LinOrder
+
+datacons EQ : LinOrder
+
+external val compare : ∀a. a → a → LinOrder
+
+external val equal : ∀a. a → a → Bool
+
+external val div2 : ∀n. Num (2 n) → Num n
+
+datatype Answer : type
+
+datacons NotFound : ∀a. Answer a
+
+datacons Found : ∀a.a ⟶ Answer a
+
+val bsearch : ∀n, a. a → Array (a, n) → Answer a
