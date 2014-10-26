@@ -2977,7 +2977,7 @@ let merge = efunction
   "avl_tree--merge" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case "avl_tree--remove_min_binding"
+       test_case "avl_tree--merge"
 "datatype Avl : type * num
 datacons Empty : ∀a. Avl (a, 0)
 datacons Node :
@@ -3031,7 +3031,7 @@ let merge = efunction
   "avl_tree--merge2" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case "avl_tree--remove_min_binding"
+       test_case "avl_tree--merge2"
 "datatype Avl : type * num
 datacons Empty : ∀a. Avl (a, 0)
 datacons Node :
@@ -3086,7 +3086,7 @@ let merge = efunction
     (fun () ->
        todo "too hard for current numerical abduction";
        skip_if !debug "debug";
-       test_case "avl_tree--remove_min_binding"
+       test_case "avl_tree--merge3"
 "datatype Avl : type * num
 datacons Empty : ∀a. Avl (a, 0)
 datacons Node :
@@ -3199,7 +3199,7 @@ let rec remove = fun x -> efunction
   "avl_tree--remove" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case "avl_tree--remove_min_binding"
+       test_case "avl_tree--remove"
 "datatype Avl : type * num
 datacons Empty : ∀a. Avl (a, 0)
 datacons Node :

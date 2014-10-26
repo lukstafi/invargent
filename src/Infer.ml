@@ -10,7 +10,7 @@ let annotating_fun = ref true
 let annotating_letin = ref false
 let inform_toplevel = ref false
 let time_toplevel = ref false
-let merge_rec_nonrec = ref true
+let merge_rec_nonrec = ref (* false *)true
 
 open Defs
 open Terms
@@ -79,9 +79,9 @@ let pr_rbrs3 ppf brs =
       nonrec pr_formula prem pr_formula concl) ppf brs
 
 let pr_rbrs4 ppf brs =
-  pr_line_list "| " (fun ppf (nonrec, _, prem,concl) ->
-    fprintf ppf "@[<2>nonrec=%b;@ %a@ ⟹@ %a@]"
-      nonrec pr_formula prem pr_formula concl) ppf brs
+  pr_line_list "| " (fun ppf (nonrec, chiK_pos, prem,concl) ->
+    fprintf ppf "@[<2>nonrec=%b; #chiK_pos=%d;@ %a@ ⟹@ %a@]"
+      nonrec (List.length chiK_pos) pr_formula prem pr_formula concl) ppf brs
 
 let pr_rbrs5 ppf brs =
   (* TODO: print the chiK *)

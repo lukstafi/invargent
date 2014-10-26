@@ -97,7 +97,7 @@ val pr_rbrs3 :
   Format.formatter -> (bool * Terms.formula * Terms.formula) list -> unit
 val pr_rbrs4 :
   Format.formatter ->
-  (bool * 'a * Terms.formula * Terms.formula) list -> unit
+  (bool * 'a list * Terms.formula * Terms.formula) list -> unit
 val pr_rbrs5 :
   Format.formatter ->
   (bool * 'a * 'b * Terms.formula * Terms.formula) list -> unit

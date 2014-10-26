@@ -1010,6 +1010,10 @@
     abduction answers are <math|c> and <math|c<rsub|\<alpha\>>\<leqslant\>d<rsub|\<alpha\>>>.
   </enumerate>
 
+  As a heuristic, we order the candidates by their size, but if the premise
+  already bounds a variable by a constant, we de-prioritize other bounds of
+  the variable by a constant.
+
   Thanks to cases (1) and (4) above, the abduction algorithm can find some
   answers which are not fully maximal. The joint constraint abduction
   algorithm can help in some of the remaining cases where fully maximal

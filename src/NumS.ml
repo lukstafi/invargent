@@ -59,7 +59,7 @@ type w_subst = (var_name * w) list
 let w_size (vars, cst, _) =
   (if cst =/ !/0 then 0 else 1) +
     List.fold_left
-      (fun acc (_, coef) -> if cst =/ !/0 then acc else acc + 1) 0 vars
+      (fun acc (_, coef) -> if coef =/ !/0 then acc else acc + 1) 0 vars
 
 (* Assumes [vars1] and [vars2] are in the same order. *)
 let compare_w (vars1, cst1, _) (vars2, cst2, _) =
@@ -1047,28 +1047,48 @@ let revert_cst cmp_v uni_v eqn =
          @ [(o, cst, olc)]) c_eqn in
   c_eqn @ eqn
 
-let abd_cands ~cmp_v ~uni_v d_ineqs (vars, cst, lc (*[* as w *]*)) =
+let abd_cands ~cmp_v ~uni_v d_ineqs (vars, cst, lc as w) =
   (*[* Format.printf "NumS.abd_cands: w=%a@\nd_ineqs=@ %a@\n%!"
     pr_w w pr_ineqs (hashtbl_to_assoc d_ineqs); *]*)
-  concat_map
-    (fun ((v, coef), vars1) ->
-       (*[* Format.printf "NumS.abd_cands: trying v=%s@\n%!" (var_str v)
+  let cands =
+    concat_map
+      (fun ((v, coef), vars1) ->
+         (*[* Format.printf "NumS.abd_cands: trying v=%s@\n%!" (var_str v)
          ; *]*)
-       try
-         let lhs, rhs = Hashtbl.find d_ineqs v in
-         (* No change of sign for c because it stays on the same side. *)
-         let c = mult (!/1 // coef) (vars1, cst, lc) in
-         let ohs = if coef </ !/0 then lhs else rhs in
-         let res = List.map (fun d ->
-             (* Change of sign for d only when it moves to right side. *)
-             if coef </ !/0 then diff ~cmp_v c d
-             else sum_w ~cmp_v c d)
-             (WSet.elements ohs) in
-       (*[* Format.printf "NumS.abd_cands: c=%a@ res=@ %a@\n%!"
-           pr_w c pr_ineqn res; *]*)
-         res         
-       with Not_found -> [])
-    (one_out vars)
+         try
+           let lhs, rhs = Hashtbl.find d_ineqs v in
+           (* No change of sign for c because it stays on the same side. *)
+           let c = mult (!/1 // abs_num coef) (vars1, cst, lc) in
+           let ohs = if coef </ !/0 then lhs else rhs in
+           let res = List.map (fun d ->
+               (* Change of sign for d only when it moves to right side. *)
+               if coef </ !/0 then diff ~cmp_v c d
+               else sum_w ~cmp_v c d)
+               (WSet.elements ohs) in
+           (*[* Format.printf "NumS.abd_cands: c=%a@ res=@ %a@\n%!"
+             pr_w c pr_ineqn res; *]*)
+           res
+         with Not_found -> [])
+      (one_out vars) in
+  let early_cands, late_cands = partition_map
+      (function
+        | [v,_], _, _ as w ->
+          (* A single variable bounded by a constant -- deprioritize
+             if the variable is already bounded. *)
+            let bounded =
+              try
+                let lhs, rhs = Hashtbl.find d_ineqs v in
+                WSet.exists (fun (vars,_,_) -> vars=[]) lhs ||
+                WSet.exists (fun (vars,_,_) -> vars=[]) rhs
+              with Not_found -> false in
+            if bounded then Right w else Left w
+        | w -> Left w)
+      cands in
+  List.sort
+    (fun w1 w2 -> compare (w_size w1) (w_size w2))
+    (w::early_cands) @
+    late_cands
+
 
 exception Omit_trans
 (* We currently do not measure satisfiability of negative constraints. *)
@@ -1409,9 +1429,6 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~xbvs ~discard ~validate
        | Leq_w w ->
          let w = subst_if_qv ~uni_v ~bvs ~cmp_v rev_sb w in
          let cands = abd_cands ~cmp_v ~uni_v d_ineqs w in
-         let cands = List.sort
-             (fun w1 w2 -> compare (w_size w1) (w_size w2))
-             (w::cands) in
          (*[* Format.printf "NumS.abd_simple: [%d] 7. c0s=@ %a@\n%!"
            ddepth pr_ineqn cands; *]*)
          (* TODO: ^ another variant -- always try w at the end. *)

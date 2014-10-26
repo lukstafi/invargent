@@ -375,14 +375,17 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_bsearch_simpler" ());
       "liquid_bsearch" >::
         (fun () ->
-           todo "TODO";
            skip_if !debug "debug";
            test_case "liquid_bsearch" ());
       "liquid_bsearch-harder" >::
         (fun () ->
-           todo "TODO";
            skip_if !debug "debug";
            test_case "liquid_bsearch_harder" ());
+      "liquid_bsearch2-simpler2" >::
+        (fun () ->
+           todo "TODO";
+           skip_if !debug "debug";
+           test_case "liquid_bsearch2_simpler2" ());
       "liquid_bsearch2-simpler" >::
         (fun () ->
            todo "TODO";
