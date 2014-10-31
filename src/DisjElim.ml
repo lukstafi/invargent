@@ -354,26 +354,3 @@ let transitive_cl cnj =
       (Joint.transitive_cl cnj_typ) [] in
   let cnj_num = NumS.transitive_cl cnj_num in
   cnj_typ @ NumS.formula_of_sort cnj_num
-
-
-let initstep_heur q ~validate (vs, cnj) =
-  (*[* let init_cnj = cnj in *]*)
-  let {cnj_typ; cnj_num; cnj_ord; cnj_so} = sep_formulas cnj in
-  let cnj = unsep_formulas
-      {cnj_typ; cnj_so;
-       cnj_num = NumS.initstep_heur q cnj_num;
-       cnj_ord = OrderS.initstep_heur q cnj_ord} in
-  (*let cnj = List.fold_left
-      (fun acc c ->
-         let acc' = c::acc in
-         try validate acc'; acc'
-         with Contradiction _ ->
-           (*[* Format.printf "initstep-valid-loop: %a incomp. acc=%a@\n%!"
-             pr_atom c pr_formula acc; *]*)
-           acc)
-      [] cnj in*)
-  (*[* Format.printf
-    "DisjElim.initstep_heur:@\ninit_cnj=%a@\ncnj=%a@\n%!"
-    pr_formula init_cnj pr_formula cnj; *]*)
-  VarSet.elements (VarSet.inter (fvs_formula cnj) (vars_of_list vs)),
-  cnj

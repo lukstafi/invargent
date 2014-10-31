@@ -2712,13 +2712,19 @@ let rec add = fun x -> efunction
        | hr', hl when hr' <= hl+2 -> create l y r'
        | hr', hl when hl+3 <= hr' -> rotl l y r')
 "
-(* Tricky! The weaker result is due to lack of sharing of information
+(* Tricky! The weaker result might be due to lack of sharing of information
    about [l] due to facts about [l' = add x l], resp. about [r] due
    to facts about [r' = add x r], with the other branch. *)
-        [2,"∃n, a.
+(* Correct answer: *)
+(*[2,"∃n, a.
   δ =
     (a → Avl (a, n) → ∃k[1 ≤ k ∧ n ≤ k ∧
-       k ≤ n + 1].Avl (a, k))"];
+       k ≤ n + 1].Avl (a, k))"];*)
+       (* Weaker answer *)
+       [2,"∃n, a.
+  δ =
+    (a → Avl (a, n) → ∃k[k ≤ n + 1 ∧ n ≤ k + 2 ∧
+       1 ≤ k].Avl (a, k))"];
     );
 
   "avl_tree--add" >::

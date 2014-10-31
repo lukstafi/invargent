@@ -381,21 +381,27 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "liquid_bsearch_harder" ());
-      "liquid_bsearch2-simpler2" >::
-        (fun () ->
-           todo "TODO";
-           skip_if !debug "debug";
-           test_case "liquid_bsearch2_simpler2" ());
       "liquid_bsearch2-simpler" >::
         (fun () ->
-           todo "TODO";
            skip_if !debug "debug";
            test_case "liquid_bsearch2_simpler" ());
+      "liquid_bsearch2-simpler2" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "liquid_bsearch2_simpler2" ());
       "liquid_bsearch2" >::
         (fun () ->
-           todo "TODO";
            skip_if !debug "debug";
            test_case "liquid_bsearch2" ());
+      "liquid_bsearch2-harder1" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "liquid_bsearch2_harder1" ());
+      "liquid_bsearch2-harder2" >::
+        (fun () ->
+           todo "too hard to guess the existential type";
+           skip_if !debug "debug";
+           test_case "liquid_bsearch2_harder2" ());
       "liquid_bsearch2-harder" >::
         (fun () ->
            todo "TODO";

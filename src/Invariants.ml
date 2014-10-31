@@ -833,10 +833,15 @@ let solve q_ops new_ex_types exty_res_chi brs =
                    DisjElim.disjelim q_ops ~bvs ~preserve
                      ~do_num:(disj_step.(1) <= iter_no)
                      ~initstep cnjs in
-                 (*[* Format.printf "solve-3: disjelim g_ans=%a@\n%!"
+                 (*[* Format.printf
+                   "solve-3: disjelim pre-simpl g_ans=%a@\n%!"
                    pr_formula g_ans; *]*)
                  abdsjelim := to_formula usb @ !abdsjelim;
-                 i, (g_vs, g_ans)
+                 let ans = g_vs, g_ans in
+                 i,
+                 if initstep
+                 then connected [delta] ans
+                 else ans
                with Not_found ->
                  (*[* Format.printf "solve: disjelim branches for %d not found@\n%!"
                    i; *]*)

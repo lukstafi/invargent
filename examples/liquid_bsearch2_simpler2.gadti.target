@@ -24,7 +24,11 @@ external val equal : ∀a. a → a → Bool
 
 external val div2 : ∀n. Num (2 n) → Num n
 
-val look :
+external look :
    ∀i, k, n, a[n + 1 ≤ i ∧ k ≤ n + 1 ∧ 0 ≤ k].
-   a → Array (a, i) → Num k → Num n → ∃k[k ≤ n ∧
-     0 ≤ k + 1].Num k
+   a → Array (a, i) → Num k → Num n → ∃i[i ≤ n ∧
+     0 ≤ i + 1].Num i
+
+val bsearch :
+   ∀n, a[0 ≤ n + 1].
+   a → Array (a, n + 1) → ∃i[i ≤ n ∧ 0 ≤ i + 1].Num i

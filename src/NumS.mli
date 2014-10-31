@@ -111,8 +111,3 @@ val separate_subst :
   Terms.subst * NumDefs.formula
 
 val transitive_cl : NumDefs.formula -> NumDefs.formula
-
-(** Currently, only removes opti atoms k=min(a,b) | k=max(a,b) where
-    a or b is a constant, assuming the atom is directed. *)
-val initstep_heur :
-  Defs.quant_ops -> NumDefs.formula -> NumDefs.formula

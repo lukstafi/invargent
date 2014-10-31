@@ -117,7 +117,7 @@ let main () =
     "-no_num_abduction", Arg.Set Abduction.no_num_abduction,
     "Turn off numerical abduction; will not ensure correctness.";
     "-disjelim_rotations", Arg.Set_int NumS.disjelim_rotations,
-    "Disjunction elimination: check coefficients from 1/N (default 3)";
+    "Disjunction elimination: check coefficients from 1/N to N (default 3)";
     "-iterations_timeout", Arg.Set_int Invariants.timeout_count,
     "Limit on main algorithm iterations (default 7)";
     "-weaker_pruning", Arg.Clear NumS.int_pruning,

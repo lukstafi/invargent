@@ -1043,7 +1043,8 @@
   unification algorithm to separate sorts. Since as a result we do not
   introduce variables for <em|alien subterms>, we include the variables
   introduced by anti-unification in constraints sent to disjunction
-  elimination for their respective sorts.
+  elimination for their respective sorts. We use ``disjunction elimination''
+  as a synonym of ``constraint generalization''.
 
   The adjusted algorithm looks as follows:
 
@@ -1274,7 +1275,12 @@
   as ><wide|t|\<bar\>>|)>> is skipped.
 
   Due to greater flexibility of the numerical domain, abductive extension of
-  numerical disjunction elimination does not seem necessary.
+  numerical disjunction elimination does not seem necessary and is turned off
+  by default. It could take a similar form, we experiment with the following
+  heuristic. If atoms specific to a disjunct (i.e. not shared by all
+  disjuncts) do not contain a variable, do not include the disjunct when
+  considering inclusion of inequalities containing the variable in the
+  constraint generalization answer.
 
   <subsection|Incorporating negative constraints><label|NegElim>
 

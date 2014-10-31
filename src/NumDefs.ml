@@ -181,6 +181,7 @@ let rec pr_term ppf = function
   | Lin (-1, 1, v) -> fprintf ppf "-%s" (var_str v)
   | Lin (m, 1, v) -> fprintf ppf "%d %s" m (var_str v)
   | Lin (m, n, v) -> fprintf ppf "(%d/%d) %s" m n (var_str v)
+  | Add [] -> fprintf ppf "0"
   | Add cmb -> fprintf ppf "%a" (pr_sep_list " +" pr_term) cmb
 
 let flatten t =
