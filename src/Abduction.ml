@@ -6,7 +6,7 @@
     @since Mar 2013
 *)
 let timeout_count = ref 700(* 5000 *)(* 50000 *)
-let fail_timeout_count = ref 4(* 10 *)
+let fail_timeout_count = ref (* 4 *)10
 let no_alien_prem = ref true(* false *)
 let guess_eqs_nonvar = ref true
 let prefer_guess = ref false

@@ -25,5 +25,5 @@ external val equal : ∀a. a → a → Bool
 external val div2 : ∀n. Num (2 n) → Num n
 
 val bsearch :
-   ∀n, a[0 ≤ n + 1].
-   a → Array (a, n + 1) → ∃k[k ≤ n ∧ 0 ≤ k + 1].Num k
+   ∀n, a[0 ≤ n].
+   a → Array (a, n) → ∃k[k + 1 ≤ n ∧ 0 ≤ k + 1].Num k

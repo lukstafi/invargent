@@ -23,7 +23,6 @@ external let div2 : ∀n. Num (2 n) → Num n = "fun x -> x / 2"
 
 let bsearch = fun key vec ->
   let rec look = fun key vec lo hi ->
-    assert num -1 <= hi;
     ematch hi with
       | _ when lo <= hi ->
         let m = div2 (hi + lo) in

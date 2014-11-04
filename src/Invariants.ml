@@ -605,9 +605,9 @@ let converge q_ops ~initstep ?guard ~check_only (vs1, cnj1) (vs2, cnj2) =
   let renaming = valid_cn num_ren @ renaming in
   (*[* Format.printf
     "converge: pms_old=%a@ pms_new=%a@ vs_old=%a@ vs_new=%a@
-    renaming3=%a@ old c2_ty=%a@\n%!"
+    renaming3=%a@ old c2_ty=%a@ old c2_num=%a@\n%!"
     pr_vars pms_old pr_vars pms_new pr_vars vs_old pr_vars vs_new
-    pr_subst renaming pr_subst c2_ty; *]*)
+    pr_subst renaming pr_subst c2_ty NumDefs.pr_formula c2_num; *]*)
   let c2_ty = subst_sb ~sb:renaming c2_ty
   and c2_num = NumS.subst_formula renaming c2_num
   and vs2 = List.map
@@ -790,7 +790,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
       if iter_no < disj_step.(0) then sol1, brs1, [], rol1
       else
         (* 2 *)
-        (* The [t2] arguments should in the solution become equal! *)
+        (* The [t2] arguments should become equal in the solution! *)
         let g_rol = collect
             (concat_map
                (fun (nonrec,chiK_pos,prem,concl) ->
@@ -818,6 +818,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
             fvs_formula ans
           with Not_found -> VarSet.empty in
         let bvs = bparams iter_no in    (* for [disjelim] *)
+        let recbvs = bparams 0 in       (* for [lift_ex_types] *)
         let abdsjelim = ref [] in
         let g_rol = List.map
             (fun (i,_) ->
@@ -827,7 +828,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
                             with Not_found -> 0); *]*)
                try
                  let cnjs = List.assoc i g_rol in
-                 let preserve = VarSet.add delta (dsj_preserve i) in
+                 let preserve =
+                   VarSet.add delta (dsj_preserve i) in
                  (* [usb] is additional abductive the answer. *)
                  let usb, (g_vs, g_ans) =
                    DisjElim.disjelim q_ops ~bvs ~preserve
@@ -858,32 +860,43 @@ let solve q_ops new_ex_types exty_res_chi brs =
           let localvs = vars_of_list g_vs in
           let keepvs =
             add_vars [delta; delta'] (VarSet.union localvs bvs) in
+          (*[* Format.printf
+            "lift_ex_types: g_vs=%a@ init g_ans=%a@\n%!"
+            pr_vars (vars_of_list g_vs) pr_formula g_ans;
+          *]*)
           (* 3 *)
-          (* FIXME: disappearing substitution? *)
-          let _, (g_vs, g_ans) =
-            if initstep then [], (g_vs, g_ans)
-            else vsimplify q_ops ~bvs ~keepvs ~initstep (g_vs, g_ans) in
-          let fvs = VarSet.elements
-              (VarSet.diff (fvs_formula g_ans)
-                 (vars_of_list [delta;delta'])) in
-          let pvs = VarSet.diff (vars_of_list fvs) (vars_of_list g_vs) in
-          let pvs = VarSet.elements pvs in
           let chi_vs = dsj_preserve i in
-          let pvs = List.filter
-              (fun v -> not (q.uni_v v) || VarSet.mem v chi_vs) pvs in
+          let fvs = VarSet.diff (fvs_formula g_ans)
+              (vars_of_list [delta; delta']) in
+          let e_vs = VarSet.diff fvs chi_vs in
+          (* FIXME: disappearing substitution? *)
+          let _, (_, g_ans) =
+            if initstep then [], (VarSet.elements e_vs, g_ans)
+            else vsimplify q_ops ~bvs ~keepvs ~initstep
+                (VarSet.elements e_vs, g_ans) in
+          (* [e_vs] does not contain [chi_vs] while [fvs] may have
+             eliminated variables. *)
+          let allvs = VarSet.diff (fvs_formula g_ans)
+              (vars_of_list [delta; delta']) in
+          let pvs = VarSet.diff allvs localvs in
+          let pvs = VarSet.elements pvs in
+          (* FIXME: ensure universal variables are eliminated? W *)
+          let pvs, uvs = List.partition
+              (fun v -> not (q.uni_v v) ||
+                        (* FIXME: remove chi_vs if should be recbvs *)
+                        VarSet.mem v (* chi_vs *)recbvs) pvs in
           let targs = List.map (fun v -> TVar v) pvs in
           let tpar = TCons (tuple, targs) in
           let phi =
             Eqty (tdelta', tpar, dummy_loc)
             :: g_ans in
           (*[* Format.printf
-            "lift_ex_types: fvs=%a@ pvs=%a@ g_vs=%a@ tpar=%a@ g_ans=%a@ phi=%a@\n%!"
-            pr_vars (vars_of_list fvs)
-            pr_vars (vars_of_list pvs)
-            pr_vars (vars_of_list g_vs) pr_ty tpar
-            pr_formula g_ans pr_formula phi;
+            "lift_ex_types: fvs=%a@ pvs=%a@ uvs=%a@ tpar=%a@ \
+             g_ans=%a@ allvs=%a@ phi=%a@\n%!"
+            pr_vars fvs pr_vars (vars_of_list pvs) pr_vars (vars_of_list uvs)
+            pr_ty tpar pr_formula g_ans pr_vars allvs pr_formula phi;
           *]*)
-          tpar, (pvs @ g_vs, phi) in
+          tpar, (VarSet.elements allvs, phi) in
         (* 4b *)
         let g_rol = List.map2
             (fun (i,ans1) (j,ans2) ->
