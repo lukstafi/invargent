@@ -35,11 +35,12 @@ type q_with_bvs = {
   mutable allbvs : VarSet.t;
   mutable allchi : Ints.t;
   mutable negbs : var_name list;
+  recover_escaping : (int, subst) Hashtbl.t;
 }
   
 let new_q q_ops =
-  let posi_b = Hashtbl.create 16 in
-  let chiK_i = Hashtbl.create 16 in
+  let posi_b = Hashtbl.create 8 in
+  let chiK_i = Hashtbl.create 8 in
   let positive_b v = Hashtbl.mem posi_b v in
   let is_chiK i = Hashtbl.mem chiK_i i in
   let b_vs = Hashtbl.create 16 in
@@ -94,6 +95,7 @@ let new_q q_ops =
     b_vs; b_renaming; b_qvs; allbvs = VarSet.empty;
     add_bchi; find_b; find_chi; is_chiK;
     positive_b; negbs = [];
+    recover_escaping = Hashtbl.create 8;
   } in q
 
 let renaming_sb =
@@ -516,23 +518,18 @@ let converge q_ops ~initstep ?guard ~check_only (vs1, cnj1) (vs2, cnj2) =
           (function Eqty (t1, t2, _) -> t1=tdelta' || t2=tdelta'
                   | _ -> false) cnj
       with
-      | Eqty (TVar v, t, lc) when v = delta' ->
-        (v, (t, lc)) :: List.remove_assoc delta' c_ty
-      | Eqty (t, TVar v, lc) when v = delta' ->
-        (v, (t, lc)) :: List.remove_assoc delta' c_ty
+      | Eqty (TVar v, tpar, lc) when v = delta' ->
+        tpar, lc, List.remove_assoc delta' c_ty
+      | Eqty (tpar, TVar v, lc) when v = delta' ->
+        tpar, lc, List.remove_assoc delta' c_ty
       | _ -> assert false
-    with Not_found -> c_ty in
-  let c1_ty = recover_param c1_ty cnj1 in
-  let c2_ty = recover_param c2_ty cnj2 in
+    with Not_found -> TCons (tuple, []), dummy_loc, c_ty in
+  let tpar_old, lc_old, c1_ty = recover_param c1_ty cnj1 in
+  let tpar_new, lc_new, c2_ty = recover_param c2_ty cnj2 in
   assert (c1_so = []); assert (c2_so = []);
   (* Recover old variable names. *)
-  let pms_old =
-    try fvs_typ (fst (List.assoc delta' c1_ty))
-    with Not_found -> VarSet.empty in
+  let pms_old = fvs_typ tpar_old and pms_new = fvs_typ tpar_new in
   let vs_old = VarSet.diff (vars_of_list vs1) pms_old in
-  let pms_new =
-    try fvs_typ (fst (List.assoc delta' c2_ty))
-    with Not_found -> VarSet.empty in
   let vs_new = VarSet.diff (vars_of_list vs2) pms_new in
   let valid_sb = map_some
       (function
@@ -546,10 +543,7 @@ let converge q_ops ~initstep ?guard ~check_only (vs1, cnj1) (vs2, cnj2) =
   let c1_ty = List.sort cmp c1_ty and c2_ty = List.sort cmp c2_ty in
   let cnj_tys = inter_merge cmp
       (fun (v,(t1,_)) (_,(t2,_)) ->
-         if v=delta'
-         then Eqty (TCons (tuple,[]), TCons (tuple,[]),dummy_loc)
-         (* i.e. none *)
-         else Eqty (t1,t2,dummy_loc)) c1_ty c2_ty in
+         Eqty (t1,t2,dummy_loc)) c1_ty c2_ty in
   let {cnj_typ=renaming; cnj_num=ren_num; cnj_so=_} =
     unify ~use_quants:false q_ops cnj_tys in
   (*[* Format.printf "converge: cnj_tys=%a@\nren_num=%a@\nrenaming1=%a@\n%!"
@@ -616,7 +610,8 @@ let converge q_ops ~initstep ?guard ~check_only (vs1, cnj1) (vs2, cnj2) =
            | TVar v2, _ -> v2 | _ -> assert false
          with Not_found -> v)
       vs2 in
-  let localvs = VarSet.diff (vars_of_list vs2) pms_new in
+  let vs2 = vars_of_list vs2 in
+  let localvs = VarSet.diff vs2 pms_new in
   (*[* Format.printf "converge: initstep=%b localvs=%a@\n%!"
     initstep pr_vars localvs; *]*)
   let guard = map_opt guard
@@ -625,11 +620,24 @@ let converge q_ops ~initstep ?guard ~check_only (vs1, cnj1) (vs2, cnj2) =
     if check_only
     then NumS.prune_redundant q_ops ~localvs ?guard ~initstep c2_num
     else NumS.converge q_ops ~localvs ?guard ~initstep c1_num c2_num in
+  let res = to_formula c2_ty @ NumS.formula_of_sort c_num in
+  let res_vs = fvs_formula res in
+  let res_pms = map_some (fun v ->
+      let v = 
+        try match List.assoc v renaming with
+          | TVar v2, _ -> v2 | _ -> assert false
+        with Not_found -> v in
+      if VarSet.mem v res_vs then Some v else None)
+      (VarSet.elements pms_new) in
+  let res_tpar = TCons
+      (tuple, List.map (fun v -> TVar v) res_pms) in
   (*[* Format.printf
     "converge: check_only=%b vs2=%a@\nc2_ty=%a@\nc2_num=%a@\nc_num=%a@\n%!"
-    check_only pr_vars (vars_of_list vs2)
+    check_only pr_vars vs2
     pr_subst c2_ty NumDefs.pr_formula c2_num NumDefs.pr_formula c_num; *]*)
-  vs2, to_formula c2_ty @ NumS.formula_of_sort c_num
+  res_tpar,
+  (VarSet.elements (VarSet.inter res_vs vs2),
+   Eqty (tdelta', res_tpar, lc_new)::res)
 
 
 let neg_constrns = ref true
@@ -901,8 +909,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
         let g_rol = List.map2
             (fun (i,ans1) (j,ans2) ->
                assert (i = j);
-               let tpar, ans2 = lift_ex_types q.op i ans2 in
-               let ans2 =
+               let _ (* tpar *), ans2 = lift_ex_types q.op i ans2 in
+               let tpar, ans2 =
                  converge q.op ~guard
                    ~initstep
                    ~check_only:(iter_no < disj_step.(3)) ans1 ans2 in
@@ -935,17 +943,29 @@ let solve q_ops new_ex_types exty_res_chi brs =
               | a -> a) in
         let sol1 = List.map
             (fun (i, (vs, old_phi)) ->
-               let phi = esb_formula old_phi in
+               let recover_escaping =
+                 try Hashtbl.find q.recover_escaping i
+                 with Not_found -> [] in
+               let phi = subst_formula recover_escaping
+                   (esb_formula old_phi) in
                let b =
                  try List.find (not % q.positive_b) (q.find_b i)
                  with Not_found -> assert false in
                let fvs = VarSet.elements
                    (VarSet.diff (fvs_formula phi)
                       (vars_of_list (delta::delta'::vs))) in
+               let ibvs = Hashtbl.find q.b_vs b in
+               (* Restored parameters. *)
+               let rvs = List.filter
+                   (fun v -> VarSet.mem v ibvs && not (List.mem v vs))
+                   fvs in
                let nvs = List.filter
-                   (fun v -> not (q.uni_v v) && q.cmp_v b v = Left_of) fvs in
+                   (fun v -> q.cmp_v b v = Left_of) fvs in
                let nvs = List.map (fun v -> v, freshen_var v) nvs in
-               let phi = subst_formula (renaming_sb nvs) phi in
+               let escaping_sb = renaming_sb nvs in
+               Hashtbl.replace q.recover_escaping
+                 i (escaping_sb @ recover_escaping);
+               let phi = subst_formula escaping_sb phi in
                (*[* Format.printf
                  "lift-params: i=%d@ vs=%a@ fvs=%a@ nvs=%a@ phi=%a@ phi'=%a@\n%!"
                  i pr_vars (vars_of_list vs)
@@ -953,7 +973,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                  pr_vars (vars_of_list (List.map snd nvs)) pr_formula old_phi
                  pr_formula phi; *]*)
                if nvs <> [] then q.add_b_vs_of b nvs;
-               i, (List.map snd nvs @ vs, phi))
+               i, (List.map snd nvs @ rvs @ vs, phi))
             sol1 in
         (*[* Format.printf "solve: substituting invariants at step 5@\n%!"; *]*)
         let brs0 = sb_brs_PredU q sol1 brs in

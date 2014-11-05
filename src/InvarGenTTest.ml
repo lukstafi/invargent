@@ -399,7 +399,6 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_bsearch2_harder1" ());
       "liquid_bsearch2-harder2" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_bsearch2_harder2" ());
       "liquid_bsearch2-harder3" >::
