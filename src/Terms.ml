@@ -69,6 +69,49 @@ type ('a, 'b) expr =
 and ('a, 'b) clause =
   pat * (('a, 'b) expr * ('a, 'b) expr) list * ('a, 'b) expr
 
+let rec equal_pat p q = match p, q with
+  | Zero, Zero -> true
+  | One _, One _ -> true
+  | PVar (x, _), PVar (y, _) -> x = y
+  | PAnd (a, b, _), PAnd (c, d, _) ->
+    equal_pat a c && equal_pat b d ||
+    equal_pat a d && equal_pat b c
+  | PCons (x, xs, _), PCons (y, ys, _) ->
+    x = y && List.for_all2 equal_pat xs ys
+  | _ -> false
+
+let rec equal_expr x y = match x, y with
+  | Var (x, _), Var (y, _) -> x = y
+  | Num (i, _), Num (j, _) -> i = j
+  | NumAdd (a, b, _), NumAdd (c, d, _) ->
+    equal_expr a c && equal_expr b d ||
+    equal_expr a d && equal_expr b c
+  | String (x, _), String (y, _) -> x = y
+  | Cons (a, xs, _), Cons (b, ys, _) ->
+    a = b && List.for_all2 equal_expr xs ys
+  | App (a, b, _), App (c, d, _) ->
+    equal_expr a c && equal_expr b d    
+  | Lam (_, xs, _), Lam (_, ys, _) ->
+    List.for_all2 equal_clause xs ys
+  | ExLam (i, xs, _), ExLam (j, ys, _) ->
+    i = j && List.for_all2 equal_clause xs ys
+  | Letrec (_, _, x, a, b, _), Letrec (_, _, y, c, d, _) ->
+    x = y && equal_expr a c && equal_expr b d
+  | Letin (_, x, a, b, _), Letin (_, y, c, d, _) ->
+    equal_pat x y && equal_expr a c && equal_expr b d
+  | AssertFalse _, AssertFalse _ -> true
+  | AssertLeq (a, b, c, _), AssertLeq (d, e, f, _) ->
+    equal_expr a d && equal_expr b e && equal_expr c f
+  | AssertEqty (a, b, c, _), AssertEqty (d, e, f, _) ->
+    equal_expr a d && equal_expr b e && equal_expr c f
+  | _ -> false
+
+and equal_clause (p, xs, a) (q, ys, b) =
+  equal_pat p q && List.for_all2
+    (fun (a, b) (c, d) -> equal_expr a c && equal_expr b d) xs ys &&
+  equal_expr a b
+
+
 let expr_loc = function
   | Var (_, loc)
   | Num (_, loc)
@@ -836,6 +879,23 @@ let pr_expr ?export_num ?export_if ?export_bool ?export_progseq
            cond, _) when export_if <> None ->
       let kwd_if, kwd_then, kwd_else = unsome export_if in
       fprintf ppf "@[<0>(%s@ %a@ %s@ %a@ %s@ %a)@]" kwd_if aux cond
+        kwd_then aux e1 kwd_else aux e2
+    | App (Lam (_, [One _, ([lhs1, rhs1] as ineqs), e1;
+                    One _, [NumAdd (rhs2, Num (1, _),
+                                    _), lhs2], e2], _),
+           Cons (CNam "Tuple", [], _), _)
+      when export_if <> None &&
+           equal_expr lhs1 lhs2 && equal_expr rhs1 rhs2 ->
+      let kwd_if, kwd_then, kwd_else = unsome export_if in
+      fprintf ppf "@[<0>(%s@ %a@ %s@ %a@ %s@ %a)@]" kwd_if
+        (pr_sep_list "&&" pr_guard_leq) ineqs
+        kwd_then aux e1 kwd_else aux e2
+    | App (Lam (_, [One _, ineqs, e1;
+                    One _, [], e2], _),
+           Cons (CNam "Tuple", [], _), _) when export_if <> None ->
+      let kwd_if, kwd_then, kwd_else = unsome export_if in
+      fprintf ppf "@[<0>(%s@ %a@ %s@ %a@ %s@ %a)@]" kwd_if
+        (pr_sep_list "&&" pr_guard_leq) ineqs
         kwd_then aux e1 kwd_else aux e2
     | Cons (x, [], _) ->
       fprintf ppf "%s" (cns_str x)

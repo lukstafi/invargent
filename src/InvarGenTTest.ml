@@ -404,7 +404,7 @@ let tests = "InvarGenT" >::: [
       "liquid_bsearch2-harder3" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case "liquid_bsearch2_harder3" ());
+           test_case ~test_annot:true "liquid_bsearch2_harder3" ());
       "liquid_bsearch2-harder4" >::
         (fun () ->
            todo "too hard to guess the existential type";

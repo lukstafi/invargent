@@ -1,0 +1,49 @@
+type num = int
+(** type _ array = built-in *)
+let array_make : (*0 ≤ n*) ((* n *) num -> 'a -> ('a (* n *)) array) =
+  fun a b -> Array.make a b
+let array_get :
+  (*0 ≤ k ∧ k + 1 ≤ n*) (('a (* n *)) array -> (* k *) num -> 'a) =
+  fun a b -> Array.get a b
+let array_set :
+  (*0 ≤ k ∧ k + 1 ≤ n*)
+  (('a (* n *)) array -> (* k *) num -> 'a -> unit) =
+  fun a b c -> Array.set a b c
+let array_length : (*0 ≤ n*) (('a (* n *)) array -> (* n *) num) =
+  fun a -> Array.length a
+type linOrder =
+  | LE : linOrder
+  | GT : linOrder
+  | EQ : linOrder
+let compare : ('a -> 'a -> linOrder) =
+  fun a b -> let c = Pervasives.compare a b in
+              if c < 0 then LE else if c > 0 then GT else EQ
+let equal : ('a -> 'a -> bool) = fun a b -> a = b
+let div2 : ((* 2 n *) num -> (* n *) num) = fun x -> x / 2
+type ex4 =
+  | Ex4 : (*∀'k, 'n[0 ≤ k + 1 ∧ k + 1 ≤ n].*)(* k *) num ->
+    (* n *) ex4
+type ex3 =
+  | Ex3 : (*∀'k, 'n[0 ≤ k + 1 ∧ k ≤ n].*)(* k *) num -> (* n *) ex3
+let bsearch
+  : type (*n*) a (*0 ≤ n*). (a -> (a (* n *)) array -> (* n *) ex4) =
+  (fun key vec ->
+    let Ex3 xcase =
+    let rec look :
+    type (*i*) (*j*) (*k*) b (*k + 1 ≤ j ∧ 0 ≤ i ∧
+    0 ≤ k + 1*). (b -> (b (* j *)) array -> (* i *) num -> (* k *) num ->
+                     (* k *) ex3)
+    =
+    (fun key vec lo hi ->
+      (if lo <= hi then
+      let m = div2 (hi + lo) in
+      let x = array_get vec m in
+      (((match (compare key x: linOrder) with
+      LE -> let Ex3 xcase = look key vec lo (m + -1) in Ex3 xcase
+        | GT -> let Ex3 xcase = look key vec (m + 1) hi in Ex3 xcase
+        | EQ ->
+            (if equal key x then let xcase = m in Ex3 xcase else
+            let xcase = -1 in Ex3 xcase))) :
+      (* k *) ex3) else let xcase = -1 in Ex3 xcase)) in
+    look key vec 0 (array_length vec + -1) in Ex4 xcase)
+
