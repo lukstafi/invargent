@@ -8,4 +8,4 @@ external let eq : ∀a. a → a → Bool = "(=)"
 let vary = fun e y ->
   match e with
   | EquL, EquL -> eq y "c"
-  | EquR, EquR -> Cons (match y with True -> 5 | False -> 7)
+  | EquR, EquR -> Cons (if y then 5 else 7)

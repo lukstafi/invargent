@@ -117,6 +117,28 @@ let extract_datatyp allvs loc = function
   | _ -> raise (Report_toplevel ("Syntax error: expected datatype",
 			         Some loc))
 
+let expand_if_syntax_nums is_ex ineqs e1 e2 cond_lc case1_lc case2_lc lc =
+  let cases =
+    match ineqs with
+    | [lhs, rhs] when !parse_if_as_integer ->
+      [One case1_lc, ineqs, e1;
+       One case2_lc, [NumAdd (rhs, Num (1, dummy_loc), case2_lc), lhs], e2]
+    | _ -> [One case1_lc, ineqs, e1; One case2_lc, [], e2] in
+  if is_ex
+  then (incr extype_id;
+        App (ExLam (!extype_id, cases, lc), Cons (tuple, [], cond_lc), lc))
+  else App (Lam ((), cases, lc), Cons (tuple, [], cond_lc), lc)
+
+
+let expand_if_syntax_bool is_ex cond e1 e2 case1_lc case2_lc lc =
+  let cases =
+    [PCons (CNam "True", [], case1_lc), [], e1;
+     PCons (CNam "False", [], case2_lc), [], e2] in
+  if is_ex
+  then (incr extype_id;
+        App (ExLam (!extype_id, cases, lc), cond, lc))
+  else App (Lam ((), cases, lc), cond, lc)
+
 %}
 
       /* Ocamlyacc Declarations */
@@ -134,7 +156,7 @@ let extract_datatyp allvs loc = function
 %token PLUS ARROW BAR AS
 %token MIN MAX SUCC
 %token ZERO TOP
-%token FUNCTION EFUNCTION FUN MATCH EMATCH WITH WHEN
+%token FUNCTION EFUNCTION FUN MATCH EMATCH WITH WHEN IF EIF THEN ELSE
 %token NUM TYPE ORDER
 %token LESSEQUAL
 %token ASSERT FALSE TEST
@@ -301,6 +323,28 @@ expr:
       { unclosed "match" 1 "with" 3 }
   | EMATCH expr error
       { unclosed "ematch" 1 "with" 3 }
+  | IF expr_leqs_list THEN expr ELSE expr
+      { expand_if_syntax_nums false $2 $4 $6
+            {beg_pos = rhs_start_pos 2; end_pos = rhs_end_pos 2}
+            {beg_pos = rhs_start_pos 4; end_pos = rhs_end_pos 4}
+            {beg_pos = rhs_start_pos 6; end_pos = rhs_end_pos 6}
+            (get_loc ()) }
+  | EIF expr_leqs_list THEN expr ELSE expr
+      { expand_if_syntax_nums true $2 $4 $6
+            {beg_pos = rhs_start_pos 2; end_pos = rhs_end_pos 2}
+            {beg_pos = rhs_start_pos 4; end_pos = rhs_end_pos 4}
+            {beg_pos = rhs_start_pos 6; end_pos = rhs_end_pos 6}
+            (get_loc ()) }
+  | IF expr THEN expr ELSE expr
+      { expand_if_syntax_bool false $2 $4 $6
+            {beg_pos = rhs_start_pos 4; end_pos = rhs_end_pos 4}
+            {beg_pos = rhs_start_pos 6; end_pos = rhs_end_pos 6}
+            (get_loc ()) }
+  | EIF expr THEN expr ELSE expr
+      { expand_if_syntax_bool true $2 $4 $6
+            {beg_pos = rhs_start_pos 4; end_pos = rhs_end_pos 4}
+            {beg_pos = rhs_start_pos 6; end_pos = rhs_end_pos 6}
+            (get_loc ()) }
   | ASSERT FALSE
       { AssertFalse (get_loc ()) }
   | ASSERT NUM expr LESSEQUAL expr SEMICOLON expr

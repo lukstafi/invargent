@@ -5,7 +5,15 @@
     @author Lukasz Stafiniak lukstafi (AT) gmail.com
     @since Mar 2013
 *)
+(** If [show_extypes = true], print existential type definitions in
+    [gadti] signatures. Default [false]. *)
 val show_extypes : bool ref
+(** If [parse_if_as_integer = true], parse [if a <= b then c else d]
+    as [match () with _ when a <= b -> c | _ when b+1 <= a -> d], otherwise
+    as [match () with _ when a <= b -> c | _ -> d]. Multi-conjunction
+    [if] clauses are always parsed with the [else] branch without the
+    [when] clause. Default [true]. *)
+val parse_if_as_integer : bool ref
 
 (** {2 Definitions} *)
 

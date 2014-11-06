@@ -37,7 +37,7 @@ let calc, eval =
         cond (snd eval b) rt re in
     calc, function
     | IsZero x -> let r = calc x in is_zero r
-    | If (b, t, e) -> (match snd eval b with True -> snd eval t | False -> snd eval e)
+    | If (b, t, e) -> if snd eval b then snd eval t else snd eval e
     | Pair (x, y) -> snd eval x, snd eval y
     | Fst p -> (match snd eval p with x, y -> x)
     | Snd p -> (match snd eval p with x, y -> y) in

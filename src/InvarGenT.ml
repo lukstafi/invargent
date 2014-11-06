@@ -120,6 +120,9 @@ let main () =
     "Disjunction elimination: check coefficients from 1/N to N (default 3)";
     "-iterations_timeout", Arg.Set_int Invariants.timeout_count,
     "Limit on main algorithm iterations (default 7)";
+    "-if_else_no_when", Arg.Clear Terms.parse_if_as_integer,
+    "Do not add <when> clause to the <else> branch of an <if> expression \
+     with a single inequality as condition.";
     "-weaker_pruning", Arg.Clear NumS.int_pruning,
     "Do not assume integers as the numerical domain when pruning \
      redundant atoms.";

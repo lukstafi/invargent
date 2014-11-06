@@ -18,10 +18,7 @@ external append : ∀a. List a → List a → List a
 external map : ∀a, b. (a → b) → List a → List b
 
 let rec find = fun f -> function
-  | End m ->
-    (match f m with
-      | True -> C (Here, N)
-      | False -> N)
+  | End m -> if f m then C (Here, N) else N
   | Fork (x, y) -> append (map (fun y -> ForkL y) (find f x))
                           (map (fun y -> ForkR y) (find f y))
 

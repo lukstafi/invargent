@@ -55,7 +55,8 @@
   corresponding to declaration <verbatim|datatype Num : num> and definitions
   of numeric constants <verbatim|newcons 0 : Num 0 newcons 1 : Num 1>... The
   programmer can use <verbatim|external> declarations to give the semantics
-  of choice to the <verbatim|Num> data-type.
+  of choice to the <verbatim|Num> data-type. The type with additional support
+  as <verbatim|Num> is the integers.
 
   When solving negative constraints, arising from <verbatim|assert false>
   clauses, we assume that the intended domain of the sort <verbatim|num> is
@@ -100,8 +101,7 @@
 
     \ \ \| Plus (x, y) -\> plus (eval x) (eval y)
 
-    \ \ \| If (b, t, e) -\> (match eval b with True -\<gtr\> eval t \| False
-    -\<gtr\> eval e)
+    \ \ \| If (b, t, e) -\> if eval b then eval t else eval e
   </code>
 
   Let us look at the corresponding generated, also called <em|exported>,
@@ -159,12 +159,11 @@
   <verbatim|IsZero x> is a <verbatim|Term Bool> and therefore the result of
   <verbatim|eval> should in its case be <verbatim|Bool>, <verbatim|Plus (x,
   y)> is a <verbatim|Term Num> and the result of <verbatim|eval> should in
-  its case be <verbatim|Num>, etc. InvarGenT does not provide an
-  <verbatim|if<math|\<ldots\>>then<math|\<ldots\>>else<math|\<ldots\>>>
-  syntax to stress that the branching is relevant to generating
-  postconditions, but it does export <verbatim|match<math|/>ematch
+  its case be <verbatim|Num>, etc. The <verbatim|if/eif<math|\<ldots\>>then<math|\<ldots\>>else<math|\<ldots\>>>
+  syntax is a syntactic sugar for <verbatim|match<math|/>ematch
   <math|\<ldots\>> with True -\<gtr\> <math|\<ldots\>> \| False -\<gtr\>
-  <math|\<ldots\>>> using <verbatim|if> expressions.
+  <math|\<ldots\>>>, and any such expressions are exported using
+  <verbatim|if> expressions.
 
   <verbatim|equal> is a function comparing values provided representation of
   their types:
@@ -417,17 +416,13 @@
 
     \ \ \ \ \| LCons (x, xs) -\>
 
-    \ \ \ \ \ \ ematch f x with
-
-    \ \ \ \ \ \ \ \ \| True -\>
+    \ \ \ \ \ \ eif f x then
 
     \ \ \ \ \ \ \ \ \ \ let ys = filter f xs in
 
     \ \ \ \ \ \ \ \ \ \ LCons (x, ys)
 
-    \ \ \ \ \ \ \ \ \| False -\>
-
-    \ \ \ \ \ \ \ \ \ \ filter f xs
+    \ \ \ \ \ \ else filter f xs
   </code>
 
   We get <verbatim|filter<math|:\<forall\>>n,
@@ -435,11 +430,11 @@
   n)<math|\<rightarrow\>> <math|\<exists\>>k[0<math|\<leq\>>n
   <math|\<wedge\>> 0<math|\<leq\>>k <math|\<wedge\>> k<math|\<leq\>>n].List
   (a, k)>. Note that we need to use both <verbatim|efunction> and
-  <verbatim|ematch> above, since every use of <verbatim|function> or
-  <verbatim|match> will force the types of its branches to be equal. In
-  particular, for lists with length the resulting length would have to be the
-  same in each branch. If the constraint cannot be met, as for
-  <verbatim|filter> with either <verbatim|function> or <verbatim|match>, the
+  <verbatim|eif> above, since every use of <verbatim|function>,
+  <verbatim|match> or <verbatim|if> will force the types of its branches to
+  be equal. In particular, for lists with length the resulting length would
+  have to be the same in each branch. If the constraint cannot be met, as for
+  <verbatim|filter> with either <verbatim|function> or <verbatim|if>, the
   code will not type-check.
 
   A more complex example that computes bitwise <em|or> -- <verbatim|ub>
@@ -551,7 +546,9 @@
   For the syntax of expressions, we discourage non-ASCII symbols. Below
   <math|e,e<rsub|i>> stand for any expression, <math|p,p<rsub|i>> stand for
   any pattern, <math|x> stands for any lower-case identifier and <math|K> for
-  an upper-case identifier.
+  an upper-case identifier. <math|K<rsub|T>> stands for <verbatim|True>,
+  <math|K<rsub|F>> for <verbatim|False>, and <math|K<rsub|u>> for
+  <verbatim|()>.
 
   <block|<tformat|<table|<row|<cell|named
   value>|<cell|<math|x>>|<cell|<verbatim|x> \ --lower-case
@@ -564,10 +561,21 @@
   p1-\<gtr\>e1 \| >...<verbatim| \| pn-\<gtr\>en>>>|<row|<cell|pattern
   match>|<cell|<math|\<lambda\><around*|(|p<rsub|1>.e<rsub|1>\<ldots\>p<rsub|n>.e<rsub|n>|)>
   e>>|<cell|<verbatim|match e with p1-\<gtr\>e1 \| >...<verbatim| \|
-  pn-\<gtr\>en>>>|<row|<cell|postcond. function>|<cell|<math|\<lambda\><around*|[|K|]><around*|(|p<rsub|1>.e<rsub|1>\<ldots\>p<rsub|n>.e<rsub|n>|)>>>|<cell|<verbatim|efunction
+  pn-\<gtr\>en>>>|<row|<cell|if-then-else
+  clause>|<cell|<math|\<lambda\><around*|(|K<rsub|T>.e<rsub|1>,K<rsub|F>.e<rsub|2>|)>
+  e>>|<cell|<verbatim|if e then e1 else e2>>>|<row|<cell|if-then-else
+  condition>|<cell|<math|\<lambda\><around*|(|_<with|math-font-series|bold|
+  when >m\<leqslant\>n.e<rsub|1>,\<ldots\>|)> K<rsub|u>>>|<cell|<verbatim|if
+  m \<less\>= n then e1 else e2>>>|<row|<cell|postcond.
+  function>|<cell|<math|\<lambda\><around*|[|K|]><around*|(|p<rsub|1>.e<rsub|1>\<ldots\>p<rsub|n>.e<rsub|n>|)>>>|<cell|<verbatim|efunction
   p1-\<gtr\>e1 \| >...>>|<row|<cell|postcond.
   match>|<cell|<math|\<lambda\><around*|[|K|]><around*|(|p<rsub|1>.e<rsub|1>\<ldots\>p<rsub|n>.e<rsub|n>|)>
-  e>>|<cell|<verbatim|ematch e with p1-\<gtr\>e1 \| >...>>|<row|<cell|rec.
+  e>>|<cell|<verbatim|ematch e with p1-\<gtr\>e1 \|
+  >...>>|<row|<cell|eif-then-else clause>|<cell|<math|\<lambda\><around*|[|K|]><around*|(|K<rsub|T>.e<rsub|1>,K<rsub|F>.e<rsub|2>|)>
+  e>>|<cell|<verbatim|eif e then e1 else e2>>>|<row|<cell|eif-then-else
+  condition>|<cell|<math|\<lambda\><around*|[|K|]><around*|(|_<with|math-font-series|bold|
+  when >m\<leqslant\>n.e<rsub|1>,\<ldots\>|)> K<rsub|u>>>|<cell|<verbatim|eif
+  m \<less\>= n then e1 else e2>>>|<row|<cell|rec.
   definition>|<cell|<math|<with|math-font-series|bold|letrec> x=e<rsub|1>
   <with|math-font-series|bold|in> e<rsub|2>>>|<cell|<verbatim|let rec x = e1
   in e2>>>|<row|<cell|definition>|<cell|<math|<with|math-font-series|bold|let>
@@ -815,6 +823,20 @@
     <verbatim|assert false> facts alone, a call with
     <verbatim|-no_num_abduction> may still find the correct invariant and
     postcondition.
+
+    <item*|<verbatim|-if_else_no_when>>Do not add <verbatim|when> clause to
+    the <verbatim|else> branch of an <verbatim|if> expression with a single
+    inequality as condition. Expressions <verbatim|if>, resp. <verbatim|eif>,
+    with a single inequality as the condition are expanded into expressions
+    <verbatim|match>, resp. <verbatim|ematch>, with <verbatim|when>
+    conditions on both the <verbatim|True> branch and the <verbatim|False>
+    branch. I.e. <verbatim|if m \<less\>= n then e1 else e2> is expanded into
+    <verbatim|match () with _ when m \<less\>= n -\<gtr\> e1 \| _ when n+1
+    \<less\>= m -\<gtr\> e2>. Passing <verbatim|-if_else_no_when> will result
+    in expansion <verbatim|match () with _ when m \<less\>= n -\<gtr\> e1 \|
+    _ -\<gtr\> e2>. The same effect can be achieved for a particular
+    expression by artificially incresing the number of inequalities:
+    <verbatim|if m \<less\>= n && m \<less\>= n then e1 else e2>.
 
     <item*|<verbatim|-weaker_pruning>>Do not assume integers as the numerical
     domain when pruning redundant atoms.

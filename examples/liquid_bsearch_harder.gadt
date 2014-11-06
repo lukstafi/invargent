@@ -27,16 +27,12 @@ datacons Found : ∀a. a ⟶ Answer a
 
 let bsearch = fun key vec ->
   let rec look = fun lo hi ->
-    match hi with
-      | _ when lo <= hi ->
+    if lo <= hi then
         let m = div2 (hi + lo) in
         let x = array_get vec m in
-        (match compare key x with
-           | LE -> look lo (m + (-1))
-           | GT -> look (m + 1) hi
-           | EQ ->
-             match equal key x with
-               | True -> Found x
-               | False -> NotFound)
-      | _ when hi + 1 <= lo -> NotFound in
+        match compare key x with
+          | LE -> look lo (m + (-1))
+          | GT -> look (m + 1) hi
+          | EQ -> if equal key x then Found x else NotFound
+    else NotFound in
   look 0 (array_length vec + (-1))

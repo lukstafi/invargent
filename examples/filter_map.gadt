@@ -5,9 +5,7 @@ datacons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 let rec filter = fun f g ->
   efunction LNil -> LNil
     | LCons (x, xs) ->
-      ematch f x with
-        | True ->
+      eif f x then
           let ys = filter f g xs in
           LCons (g x, ys)
-	| False ->
-          filter f g xs
+      else filter f g xs

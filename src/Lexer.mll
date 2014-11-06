@@ -82,6 +82,10 @@ rule token = parse
   | "ematch"    { EMATCH }
   | "when"      { WHEN }
   | "with"      { WITH }
+  | "if"        { IF }
+  | "eif"       { EIF }
+  | "then"      { THEN }
+  | "else"      { ELSE }
   | "num"       { NUM }
   | "order"     { ORDER }
   | "type"      { TYPE }

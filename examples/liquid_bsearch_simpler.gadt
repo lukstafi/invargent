@@ -35,9 +35,6 @@ let bsearch = fun key vec ->
         (match compare key x with
            | LE -> look lo (m + (-1))
            | GT -> look (m + 1) hi
-           | EQ ->
-             match equal key x with
-               | True -> Found x
-               | False -> NotFound)
+           | EQ -> if equal key x then Found x else NotFound)
       | hi_m when hi_m <= lo -> NotFound in
   look 0 (array_length vec + (-1))

@@ -15,7 +15,7 @@ let rec eval = function
   | Lit i -> i
   | IsZero x -> is_zero (eval x)
   | Plus (x, y) -> plus (eval x) (eval y)
-  | If (b, t, e) -> (match eval b with True -> eval t | False -> eval e)
+  | If (b, t, e) -> if eval b then eval t else eval e
   | Pair (x, y) -> eval x, eval y
   | Fst p -> (match eval p with x, y -> x)
   | Snd p -> (match eval p with x, y -> y)

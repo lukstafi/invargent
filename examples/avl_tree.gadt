@@ -31,34 +31,32 @@ let rotr = efunction
     | Node (ll, lx, lr, hl), x, r ->
       assert num 0 <= height r;
       assert type hl = height r + 3;
-      (ematch height ll, height lr with
-      | m, n when n <= m ->
+      eif height lr <= height ll then
         let r' = create lr x r in
         create ll lx r'
-      | m, n when m+1 <= n ->
-        (ematch lr with
+      else
+        ematch lr with
         | Empty -> assert false
         | Node (lrl, lrx, lrr, _) ->
           let l' = create ll lx lrl in
           let r' = create lrr x r in
-          create l' lrx r'))
+          create l' lrx r'
 
 let rotl = efunction
     | l, x, Empty -> assert false
     | l, x, Node (rl, rx, rr, hr) ->
       assert num 0 <= height l;
       assert type hr = height l + 3;
-      (ematch height rr, height rl with
-      | m, n when n <= m ->
+      eif height rl <= height rr then
         let l' = create l x rl in
         create l' rx rr
-      | m, n when m+1 <= n ->
-        (ematch rl with
+      else
+        ematch rl with
         | Empty -> assert false
         | Node (rll, rlx, rlr, _) ->
           let l' = create l x rll in
           let r' = create rlr rx rr in
-          create l' rlx r'))
+          create l' rlx r'
 
 let rec add = fun x -> efunction
   | Empty -> Node (Empty, x, Empty, 1)
@@ -67,14 +65,10 @@ let rec add = fun x -> efunction
     | EQ, _, _ -> Node (l, x, r, h)
     | LT, hl, hr ->
       let l' = add x l in
-      (ematch height l' with
-       | hl' when hl' <= hr+2 -> create l' y r
-       | hl' when hr+3 <= hl' -> rotr (l', y, r))
+      eif height l' <= hr+2 then create l' y r else rotr (l', y, r)
     | GT, hl, hr ->
       let r' = add x r in
-      (ematch height r' with
-       | hr' when hr' <= hl+2 -> create l y r'
-       | hr' when hl+3 <= hr' -> rotl (l, y, r'))
+      eif height r' <= hl+2 then create l y r' else rotl (l, y, r')
 
 let rec mem = fun x -> function
   | Empty -> False

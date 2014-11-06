@@ -23,18 +23,14 @@ external let div2 : ∀n. Num (2 n) → Num n = "fun x -> x / 2"
 
 let rec look = fun key vec lo hi ->
   assert num -1 <= hi;
-  ematch hi with
-    | _ when lo <= hi ->
+  eif lo <= hi then
       let m = div2 (hi + lo) in
       let x = array_get vec m in
-      (ematch compare key x with
-         | LE -> look key vec lo (m + (-1))
-         | GT -> look key vec (m + 1) hi
-         | EQ ->
-           ematch equal key x with
-             | True -> m
-             | False -> -1)
-    | _ when hi + 1 <= lo -> -1
+      ematch compare key x with
+        | LE -> look key vec lo (m + (-1))
+        | GT -> look key vec (m + 1) hi
+        | EQ -> eif equal key x then m else -1
+  else -1
 
 let bsearch = fun key vec ->
   look key vec 0 (array_length vec + (-1))

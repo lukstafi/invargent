@@ -144,17 +144,22 @@
   (p1,p2) p3 -\<gtr\> e>>|<cell|<verbatim|Lam(<math|\<ldots\>>)>>>|<row|<cell|branching
   function>|<cell|<math|\<lambda\><around*|(|p<rsub|1>.e<rsub|1>\<ldots\>p<rsub|n>.e<rsub|n>|)>>>|<cell|<verbatim|function
   p1-\<gtr\>e1 \| >...<verbatim| \| pn-\<gtr\>en>>|<cell|<verbatim|Lam(<math|\<ldots\>>)>>>|<row|<cell|cond.
-  branch>|<cell|<math|\<lambda\><around*|(|p<rsub|1><with|math-font-series|bold|
-  when >m\<leqslant\>n.e<rsub|1>\<ldots\>|)>>>|<cell|<verbatim|function p1
-  when m\<less\>=n-\<gtr\>e1\|>...<verbatim|>>|<cell|<verbatim|Lam(<math|\<ldots\>>)>>>|<row|<cell|pattern
+  branch>|<cell|<math|p<with|math-font-series|bold| when
+  >\<wedge\><rsub|i\<in\>\<b-2\>>m<rsub|i>\<leqslant\>n<rsub|i>.e>>|<cell|<verbatim|p
+  when m1\<less\>=n1 && m2\<less\>=n2 -\<gtr\>
+  e>>|<cell|<verbatim|Lam(<math|\<ldots\>>)>>>|<row|<cell|pattern
   match>|<cell|<math|\<lambda\><around*|(|p<rsub|1>.e<rsub|1>\<ldots\>p<rsub|n>.e<rsub|n>|)>
   e>>|<cell|<verbatim|match e with p1-\<gtr\>e1 \|
-  >...>|<cell|<verbatim|App(Lam>...<verbatim|,e)>>>|<row|<cell|postcond.
+  >...>|<cell|<verbatim|App(Lam<math|\<ldots\>>,e)>>>|<row|<cell|if-then-else
+  clause>|<cell|<math|\<lambda\><around*|(|K<rsub|T>.e<rsub|1>,K<rsub|F>.e<rsub|2>|)>
+  e>>|<cell|<verbatim|if e then e1 else e2>>|<cell|<verbatim|App(Lam<math|\<ldots\>>,e)>>>|<row|<cell|postcond.
   function>|<cell|<math|\<lambda\><around*|[|K|]><around*|(|p<rsub|1>.e<rsub|1>\<ldots\>p<rsub|n>.e<rsub|n>|)>>>|<cell|<verbatim|efunction
   p1-\<gtr\>e1 \| >...>|<cell|<verbatim|ExLam>>>|<row|<cell|postcond.
   match>|<cell|<math|\<lambda\><around*|[|K|]><around*|(|p<rsub|1>.e<rsub|1>\<ldots\>p<rsub|n>.e<rsub|n>|)>
   e>>|<cell|<verbatim|ematch e with p1-\<gtr\>e1 \|
-  >...>|<cell|<verbatim|App(ExLam>...<verbatim|)>>>|<row|<cell|rec.
+  >...>|<cell|<verbatim|App(ExLam>...<verbatim|)>>>|<row|<cell|eif-then-else
+  clause>|<cell|<math|\<lambda\><around*|[|K|]><around*|(|K<rsub|T>.e<rsub|1>,K<rsub|F>.e<rsub|2>|)>
+  e>>|<cell|<verbatim|eif e then e1 else e2>>|<cell|<verbatim|App(ExLam<math|\<ldots\>>)>>>|<row|<cell|rec.
   definition>|<cell|<math|<with|math-font-series|bold|letrec> x=e<rsub|1>
   <with|math-font-series|bold|in> e<rsub|2>>>|<cell|<verbatim|let rec x = e1
   in e2>>|<cell|<verbatim|Letrec>>>|<row|<cell|definition>|<cell|<math|<with|math-font-series|bold|let>
@@ -168,6 +173,24 @@
   inequality>|<cell|<math|<with|math-font-series|bold|assert num
   >e<rsub|1>\<leqslant\>e<rsub|2>;e<rsub|3>>>|<cell|<verbatim|assert num e1
   \<less\>= e2; e3>>|<cell|<verbatim|AssertLeq>>>>>>
+
+  There are also variants of the if-then-else clause syntax supporting
+  <math|<with|math-font-series|bold|when>> conditions:
+
+  <\itemize>
+    <item><verbatim|if m1 \<less\>= n1 && m2 \<less\>= n2 && <math|\<ldots\>>
+    then e1 else e2> is <math|\<lambda\><around*|(|_<with|math-font-series|bold|
+    when >\<wedge\><rsub|i>m<rsub|i>\<leqslant\>n<rsub|i>.e<rsub|1>,_.e<rsub|2>|)>
+    K<rsub|u>>,
+
+    <item><verbatim|if m \<less\>= n then e1 else e2> is
+    <math|\<lambda\><around*|(|_<with|math-font-series|bold| when
+    >m\<leqslant\>n.e<rsub|1>,_<with|math-font-series|bold| when
+    >n+1\<leqslant\>m.e<rsub|2>|)> K<rsub|u>> if integer mode is on (as in
+    default setting),
+
+    <item>similarly for the <verbatim|eif> variants.
+  </itemize>
 
   Parts of the logic hidden from the user:
 

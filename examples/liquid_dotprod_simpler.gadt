@@ -16,9 +16,7 @@ external let int0 : Int = "0"
 let dotprod = fun v1 v2 ->
   let n = array_length v1 in
   let rec loop = fun sum i ->
-    match i with
-      | _ when n <= i -> sum
-      | _ when i+1 <= n ->
+    if n <= i then sum else
         loop (add (prod (array_get v1 i) (array_get v2 i)) sum)
           (i + 1) in
   loop int0 0

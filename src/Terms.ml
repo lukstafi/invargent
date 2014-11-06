@@ -5,6 +5,7 @@
     @author Lukasz Stafiniak lukstafi (AT) gmail.com
     @since Mar 2013
 *)
+let parse_if_as_integer = ref true
 let show_extypes = ref false
 
 (** {2 Definitions} *)

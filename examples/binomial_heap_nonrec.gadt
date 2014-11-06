@@ -12,6 +12,5 @@ let rank = function Node (r, _, _) -> r
 
 let link = function
   | (Node (r, x1, c1) as t1), (Node (_, x2, c2) as t2) ->
-    match leq x1 x2 with
-    | True -> Node (r+1, x1, TCons (t2, c1))
-    | False -> Node (r+1, x2, TCons (t1, c2))
+    if leq x1 x2 then Node (r+1, x1, TCons (t2, c1))
+    else Node (r+1, x2, TCons (t1, c2))

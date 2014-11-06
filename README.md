@@ -14,7 +14,9 @@ sudo cp ./invargent /usr/local/bin/invargent # optionally, install executable
 make clean  # remove the executable and intermediate files
 ```
 
-News: I decided to implement a new domain / sort! It will be an order domain, with bottom aka. zero element, top element, and successor. $p <= succ p, succ p <= p ==> p = top, p <= q && q <= p ==> p = q$. The subset of named elements (corresponding to the Herbrand model) is a linear order ($zero, succ zero, succ (succ zero), ..., top$), but the domain does not assume linearity. Thus it can be extended with incomparable constants in a future version.
+News: The order domain is postponed to v1.4. The v1.3 release is focused on improving completeness.
+
+I decided to implement a new domain / sort. It will be an order domain, with bottom aka. zero element, top element, and successor. $p <= succ p, succ p <= p ==> p = top, p <= q && q <= p ==> p = q$. The subset of named elements (corresponding to the Herbrand model) is a linear order ($zero, succ zero, succ (succ zero), ..., top$), but the domain does not assume linearity. Thus it can be extended with incomparable constants in a future version.
 
 Milestones: [x] - completed, [#] - finishing (75%-95%), [+] - in the middle (25%-75%), [-] - just started (5%-25%), [_] - not started.
 
@@ -30,9 +32,10 @@ Version 2.0 goals -- version targets may be reassigned:
 - [x] Flagship example: AVL tree from OCaml standard library (height imbalance limited by 2). (v1.2)
 - [x] Option to detect all dead code. (v1.2.1)
 - [x] Improve coverage for examples from Chuan-kai Lin's PhD thesis. (v1.3)
-- [+] Improve coverage for DML / Liquid Types examples. (v1.3)
-- [-] New sort: order. (v1.3)
-- [#] Order sort example: binomial heap. (v1.3)
+- [#] Improve coverage for DML / Liquid Types examples. (v1.3)
+- [x] if-then-else syntax. (v1.3)
+- [-] New sort: order. (v1.4)
+- [#] Order sort example: binomial heap. (v1.4)
 - [ ] Solver directives in .gadt source code -- exposing the options available from the command-line interface. (v1.4)
 - [ ] Or-patterns `p1 | p2` introducing disjunctions in premises, either eliminated by disjunction elimination or expanded by implication clause duplication -- depending on user-level option; preserved in exported code. (v1.4)
 - [ ] Meta-automatic mode: retry with modified user-level parameter settings if inference fails. (v1.4)
