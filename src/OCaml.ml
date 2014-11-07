@@ -123,6 +123,8 @@ let postprocess elim_extypes e =
       Cons (k, List.map aux args, loc)
     | NumAdd (e1, e2, loc) ->
       NumAdd (aux e1, aux e2, loc)
+    | NumCoef (x, e, loc) ->
+      NumCoef (x, aux e, loc)
     | App (e1, e2, loc) ->
       App (aux e1, aux e2, loc)
     | Lam (ann, cls, loc) ->
@@ -191,13 +193,14 @@ let pr_expr funtys lettys ppf =
   let export_progseq = "", ";", "" in
   let export_num =
     if !num_is = "int" then None
-    else if !num_is = "float" then Some ("float_of_int", "", "+.", "")
+    else if !num_is = "float" then Some ("float_of_int", "", "+.", "*.", "")
     else if !num_is_mod
     then
       let num_is = String.capitalize !num_is in
-      Some (num_is ^ ".of_int", num_is ^ ".(", "+", ")")
+      Some (num_is ^ ".of_int", num_is ^ ".(", "+", "*", ")")
     else Some
-        (!num_is ^ "_of_int", "add_" ^ !num_is ^ " (", ") (", ")") in
+        (!num_is ^ "_of_int", "add_" ^ !num_is ^ " (",
+         "mult_" ^ !num_is ^ " (", ") (", ")") in
   let export_bool = [true, "true"; false, "false"] in
   let pr_ann =
     if funtys || lettys

@@ -55,6 +55,7 @@ type ('a, 'b) expr =
 | Var of string * loc
 | Num of int * loc
 | NumAdd of ('a, 'b) expr * ('a, 'b) expr * loc
+| NumCoef of int * ('a, 'b) expr * loc
 | String of string * loc
 | Cons of cns_name * ('a, 'b) expr list * loc
 | App of ('a, 'b) expr * ('a, 'b) expr * loc
@@ -86,6 +87,8 @@ let rec equal_expr x y = match x, y with
   | NumAdd (a, b, _), NumAdd (c, d, _) ->
     equal_expr a c && equal_expr b d ||
     equal_expr a d && equal_expr b c
+  | NumCoef (x, a, _), NumCoef (y, b, _) ->
+    x = y && equal_expr a b
   | String (x, _), String (y, _) -> x = y
   | Cons (a, xs, _), Cons (b, ys, _) ->
     a = b && List.for_all2 equal_expr xs ys
@@ -116,6 +119,7 @@ let expr_loc = function
   | Var (_, loc)
   | Num (_, loc)
   | NumAdd (_, _, loc)
+  | NumCoef (_, _, loc)
   | String (_, loc)
   | Cons (_, _, loc)
   | App (_, _, loc)
@@ -170,6 +174,9 @@ let fuse_exprs =
     | NumAdd (e1, e2, lc1), NumAdd (f1, f2, lc2) ->
       assert (lc1==lc2);
       NumAdd (aux e1 f1, aux e2 f2, lc1)
+    | NumCoef (x, a, lc1), NumCoef (y, b, lc2) ->
+      assert (x==y && lc1==lc2);
+      NumCoef (x, aux a b, lc1)
     | App (e1, e2, lc1), App (f1, f2, lc2) ->
       assert (lc1==lc2);
       App (aux e1 f1, aux e2 f2, lc1)
@@ -851,12 +858,17 @@ let pr_expr ?export_num ?export_if ?export_bool ?export_progseq
     | Num (i, _) ->
       (match export_num with
        | None -> fprintf ppf "%d" i
-       | Some (fname, _, _, _) -> fprintf ppf "(%s %d)" fname i)
+       | Some (fname, _, _, _, _) -> fprintf ppf "(%s %d)" fname i)
     | NumAdd (a, b, _) ->
       (match export_num with
        | None -> fprintf ppf "@[<2>%a@ +@ %a@]" aux a aux b
-       | Some (_, lbr, op, rbr) ->
+       | Some (_, lbr, op, _, rbr) ->
          fprintf ppf "@[<2>%s%a@ %s@ %a%s@]" lbr aux a op aux b rbr)
+    | NumCoef (x, a, _) ->
+      (match export_num with
+       | None -> fprintf ppf "@[<2>%d@ *@ %a@]" x aux a
+       | Some (fname, lbr, _, op, rbr) ->
+         fprintf ppf "@[<2>%s%s %d@ %s@ %a%s@]" lbr fname x op aux a rbr)
     | Cons (CNam "Tuple", exps, _) ->
       fprintf ppf "@[<2>(%a)@]"
         (pr_sep_list "," aux) exps

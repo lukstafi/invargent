@@ -311,6 +311,22 @@ n23
 "
     );
 
+  "abs" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "absolute value by coefficient"
+         "let abs = efunction x -> eif 0 <= x then x else -1 * x"
+         [2, "∃n. δ = (Num n → ∃k[k=max (-n, n)].Num k)"]
+    );
+
+  "abs2" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "absolute value by subtraction"
+         "let abs = efunction x -> eif 0 <= x then x else 0 - x"
+         [2, "∃n. δ = (Num n → ∃k[k=max (n, -n)].Num k)"]
+    );
+
   "eval" >::
     (fun () ->
        skip_if !debug "debug";

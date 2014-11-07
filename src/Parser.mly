@@ -167,6 +167,8 @@ let expand_if_syntax_bool is_ex cond e1 e2 case1_lc case2_lc lc =
 %nonassoc LET AND
 %nonassoc below_WITH
 %nonassoc FUNCTION EFUNCTION WITH WHEN
+%nonassoc THEN
+%nonassoc ELSE
 %right ARROW
 %nonassoc AS
 %nonassoc BAR
@@ -177,7 +179,7 @@ let expand_if_syntax_bool is_ex cond e1 e2 case1_lc case2_lc lc =
 %nonassoc below_COMMA
 %left COMMA
 %nonassoc DOT
-%left PLUS
+%left PLUS MINUS
 %nonassoc STAR
 %nonassoc prec_constr_appl              /* above AS BAR COLONCOLON COMMA */
 %nonassoc LPAREN LBRACKET
@@ -353,6 +355,19 @@ expr:
       { AssertEqty ($3, $5, $7, get_loc ()) }
   | expr PLUS expr
       { NumAdd ($1, $3, get_loc ()) }
+  | expr MINUS expr
+      { NumAdd ($1,
+                NumCoef (-1, $3, {beg_pos = rhs_start_pos 2;
+                                  end_pos = rhs_end_pos 3}),
+                get_loc ()) }
+  | expr error
+      { syntax_error "error after expression " 2 }
+  | expr STAR expr
+      { match $1 with
+        | Num (i, _) -> NumCoef (i, $3, get_loc ())
+        | _ ->
+          raise (Report_toplevel ("Non-constant coefficient",
+			          Some (get_loc ()))) }
   | expr SEMICOLON expr
       { App (App (Var (builtin_progseq, get_loc ()),
                   $1, get_loc ()), $3, get_loc ()) }
@@ -383,8 +398,6 @@ simple_expr:
       { Cons (CNam $1, [], get_loc ()) }
   | INT
       { Num ($1, get_loc ()) }
-  | MINUS INT
-      { Num ( ~- $2, get_loc ()) }
   | STRING
       { String ($1, get_loc ()) }
   | LPAREN RPAREN

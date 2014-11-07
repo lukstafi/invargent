@@ -61,6 +61,8 @@ let newline = '\n' | "\r\n"
 rule token = parse
   | [' ' '\t']	{ token lexbuf }
   | newline     { incr_lineno lexbuf; token lexbuf }
+  | ('-' digit+) as num
+		{ INT (int_of_string num) }
   | digit+ as num
 		{ INT (int_of_string num) }
   | '+'		{ PLUS }

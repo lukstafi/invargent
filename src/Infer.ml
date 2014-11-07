@@ -117,7 +117,7 @@ let separate_subst ?(avoid=VarSet.empty) ?(keep_uni=false) q phi =
 
 let ex_intro_elim e =
   let rec aux = function
-    | Var _ | Num _ | NumAdd _ | String _
+    | Var _ | Num _ | NumAdd _ | NumCoef _ | String _
     | Cons _ -> false
     | App (e1, _, _) -> aux e1
     | Lam _ -> false
@@ -146,6 +146,7 @@ let normalize_expr e =
     | _, Cons (k, es, lc) -> Cons (k, List.map (aux None) es, lc)
     | _, App (e1, e2, lc) -> App (aux k' e1, aux None e2, lc)
     | _, NumAdd (e1, e2, lc) -> NumAdd (aux None e1, aux None e2, lc)
+    | _, NumCoef (x, e, lc) -> NumCoef (x, aux None e, lc)
     | _, Lam ((), cls, lc) -> Lam ((), List.map (aux_cl k') cls, lc)
     | None, ExLam (k, cls, lc) ->
       let chi_id = incr fresh_chi_id; !fresh_chi_id in
@@ -439,6 +440,17 @@ let constr_gen_expr gamma e t =
       Ex (vars_of_list [a1; a2],
           cn_and cn1 (cn_and cn2 (A [Eqty (t, rt, loc)]))),
       NumAdd (e1, e2, loc)
+    | NumCoef (x, e, loc) ->
+      let a1 = fresh_var Num_sort in
+      let t1 = TCons (numtype, [TVar a1]) in
+      (*[* Format.printf "constr_gen_expr: NumCoef=%d * %a@\n%!"
+        x pr_uexpr e; *]*)
+      let cn, e = aux gamma t1 e in
+      let rt = TCons (numtype, [Alien (Num_term NumDefs.(
+          Lin (x, 1, a1)))]) in
+      Ex (VarSet.singleton a1,
+          cn_and cn (A [Eqty (t, rt, loc)])),
+      NumCoef (x, e, loc)
     | String (_, loc) as e ->
       A [Eqty (TCons (stringtype, []), t, loc)],
       e
@@ -766,6 +778,9 @@ let annotate_expr q res_sb chi_sb nice_sb e : texpr =
       and evs2, e2 = aux nice_sb e2 in
       VarSet.union evs1 evs2,
       NumAdd (e1, e2, lc)
+    | NumCoef (x, e, lc) ->
+      let evs, e = aux nice_sb e in
+      evs, NumCoef (x, e, lc)
     | App (e1, e2, lc) ->
       let evs1, e1 = aux nice_sb e1
       and evs2, e2 = aux nice_sb e2 in
