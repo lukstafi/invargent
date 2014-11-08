@@ -479,6 +479,8 @@ simple_pattern:
   | EXCLAMATION                             { Zero }
   | UIDENT
       { PCons (CNam $1, [], get_loc ()) }
+  | LPAREN RPAREN
+      { PCons (tuple, [], get_loc ()) }
   | LPAREN pattern RPAREN
       { $2 }
 ;

@@ -1,0 +1,59 @@
+datatype Array : type * num
+external let array_make :
+  ∀n, a [0≤n]. Num n → a → Array (a, n) = "fun a b -> Array.make a b"
+external let array_get :
+  ∀n, k, a [0≤k ∧ k+1≤n]. Array (a, n) → Num k → a = "fun a b -> Array.get a b"
+external let array_set :
+  ∀n, k, a [0≤k ∧ k+1≤n]. Array (a, n) → Num k → a → () =
+  "fun a b c -> Array.set a b c"
+external let array_length :
+  ∀n, a [0≤n]. Array (a, n) → Num n = "fun a -> Array.length a"
+
+external let n2i : ∀n. Num n → Int = "fun i -> i"
+external let equal : ∀a. a → a → Bool = "fun x y -> x = y"
+external let leq : ∀a. a → a → Bool = "fun x y -> x <= y"
+
+external let print : String → () = "print_string"
+external let string_make : ∀a. Int → String → String =
+  "fun n s -> String.make n s.[0]"
+external let abs : Int → Int = "fun i -> if i < 0 then ~-i else i"
+external let minus : Int → Int → Int = "(-)"
+external let plus : Int → Int → Int = "(+)"
+
+let print_row = fun size pos ->
+  print (string_make (minus pos (n2i 1)) "."); print "Q";
+  print (string_make (minus (n2i size) pos) ".")
+
+let print_queens = fun board size ->
+  let rec aux = fun row ->
+    if size <= row then ()
+    else (print_row size (array_get board row); aux (row + 1)) in
+  aux 0
+
+let solved = fun board j ->
+  let q2j = array_get board j in
+  let rec aux = fun i ->
+    if i + 1 <= j then
+      let q2i = array_get board i in
+      let qdiff = abs (minus q2j q2i) in
+      if equal q2i q2j then False
+      else if equal qdiff (n2i (j - i)) then False
+      else aux (i + 1)
+    else True in
+  aux 0
+
+let rec loop = fun board size row ->
+  let next = plus (array_get board row) (n2i 1) in
+  if leq (n2i (size + 1)) next then (
+    array_set board row (n2i 0);
+    if row <= 0 then () else loop board size (row - 1))
+  else (
+    array_set board row next;
+    if solved board row then
+      if size <= row + 1 then (print_queens board size; loop board size row)
+      else loop board size (row + 1)
+    else loop board size row)
+
+let queens = fun size ->
+  let board = array_make size (n2i 0) in
+  loop board size 0
