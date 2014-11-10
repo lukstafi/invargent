@@ -130,7 +130,7 @@ let list_some_list = function
   | Some a -> a
   | None -> []
 
-let unsome = function None -> invalid_arg "Aux.unsome" | Some e -> e
+let unsome = function None -> raise Not_found | Some e -> e
 
 let array_mapi_some f a =
   let r = Array.mapi f a in
@@ -208,6 +208,12 @@ let triangle l =
     | [] -> acc
     | e::l -> aux (List.map (fun d -> e,d) l @ acc) l in
   aux [] l
+
+let triangle_iter f l =
+  let rec aux = function
+    | [] -> ()
+    | e::l -> List.iter (f e) l; aux l in
+  aux l
 
 let transpose_lists lls =
   let rec aux acc = function

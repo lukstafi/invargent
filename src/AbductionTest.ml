@@ -28,10 +28,9 @@ let test_simple lhs_m rhs_m ?(validate=(fun _ -> ())) skip res =
   let lhs = p_formula lhs_m and rhs = p_formula rhs_m in
   let lhs, rhs = br_simple lhs rhs in
   let neg_validate _ = 0 in
-  let xbvs = Hashtbl.create 1 in
   let ans =
     match abd_simple q ~without_quant:()
-      ~bvs:VarSet.empty ~xbvs ~dissociate:false
+      ~obvs:VarSet.empty ~bvs:VarSet.empty ~dissociate:false
       ~validate ~neg_validate ~discard:[] skip ([],[]) (lhs, rhs) with
     | None -> "none"
     | Some (bvs, (vs, ans_typ)) ->
@@ -100,10 +99,9 @@ tb = (G A)";
         let lhs1, rhs1 = br_simple lhs1 rhs1 in
         let vA = VNam (Type_sort, "tA") in
         let bvs = VarSet.singleton vA in
-        let xbvs = Hashtbl.create 1 in
         let ans =
           try let cand_bvs, alien_eqs, vs, ans_typ, _ =
-                abd_typ q ~bvs ~xbvs
+                abd_typ q ~bvs
                   ~validate:(fun _ -> ())
                   ~neg_validate:(fun _ -> 0) ~discard:[]
                 [lhs0, rhs0; lhs1, rhs1] in

@@ -28,7 +28,7 @@ type ex2 =
 let cond : (bool -> (* i *) num -> (* j *) num -> ex2) =
   fun a0 a1 a2 -> Ex2 ((fun c a b -> if c then a else b) a0 a1 a2)
 (** Small definition. *)
-let snd : type a b . ((b * a) -> a) = (fun ((_, x)) -> x)
+let snd : type a b . ((b * a) -> a) = (fun (_, x) -> x)
 type ex3 =
   | Ex3 : (*∀'n.*)(* n *) num -> ex3
 (** Exposing multiple mutually recursive definitions is tricky, it would

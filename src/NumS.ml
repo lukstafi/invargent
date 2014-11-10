@@ -19,7 +19,6 @@ let strong_int_pruning = ref false
 let passing_ineq_trs = ref false
 let no_subopti_of_cst = ref true
 let revert_csts = ref true(* false *)
-let promote_xconfl_upward = ref true
 
 let abd_fail_flag = ref false
 let abd_timeout_flag = ref false
@@ -1095,7 +1094,7 @@ let abd_cands ~cmp_v ~uni_v d_ineqs (vars, cst, lc as w) =
 exception Omit_trans
 (* We currently do not measure satisfiability of negative constraints. *)
 (* TODO: guess equalities between parameters. *)
-let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~xbvs ~discard ~validate
+let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
     ~neg_validate:_
     skip (eqs_i, ineqs_i, optis_i, suboptis_i)
     (opti_lhs, (d_eqn, d_ineqn), (c_eqn, c_ineqn, c_optis, c_suboptis)) =
@@ -1323,80 +1322,10 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~xbvs ~discard ~validate
           (*[* Format.printf
             "NumS.abd_simple: [%d] approaching 7. new_vs=@ %a\
              @ crosses=%b@\n%!"
-            ddepth pr_vars new_vs (crosses_xparams ~xbvs new_vs);
+            ddepth pr_vars new_vs (crosses_xparams ~cmp_v:qcmp_v ~bvs new_vs);
           *]*)
           (* 7b *)
-          if !promote_xconfl_upward && crosses_xparams ~xbvs new_vs
-          then (
-            let xibvs = ref VarSet.empty in
-            let xib = ref None in
-            Hashtbl.iter
-              (fun v ibvs ->
-                 match !xib with
-                 | None ->
-                   if not (VarSet.is_empty (VarSet.inter new_vs ibvs))
-                   then (xibvs := ibvs; xib := Some v)
-                 | Some v' ->
-                   if qcmp_v v v' = Left_of &&
-                      not (VarSet.is_empty (VarSet.inter new_vs ibvs))
-                   then (xibvs := ibvs; xib := Some v))
-              xbvs;
-            let vpairs = triangle
-                (List.filter (fun v -> var_sort v = Num_sort)
-                   (VarSet.elements !xibvs)) in
-            let guess_cands =
-              (* TODO: try doing rotations and shifts. *)
-              concat_map (fun (v1,v2) ->
-                  [false, v1, v2; false, v2, v1; true, v1, v2]) vpairs in
-            List.iter
-              (fun (iseq, v1, v2) ->
-                 let guess = [v1, !/1; v2, !/(-1)], !/0, w_atom_loc a' in
-                 let eqn = if iseq then [guess] else [] in
-                 let ineqn = if iseq then [] else [guess] in
-                 try
-                   let b_eqs, b_ineqs, b_optis, b_suboptis =
-                     solve ~eqs:eqs_acc0 ~ineqs:ineqs_acc0
-                       ~eqn:(eqn @ c0eqn @ d_eqn)
-                       ~ineqn:(ineqn @ c0ineqn @ d_ineqn)
-                       ~optis:(optis_acc @ c0optis)
-                       ~suboptis:(suboptis_acc @ c0suboptis)
-                       ~cmp_v ~cmp_w uni_v in
-                   (*[* Format.printf
-                     "NumS.abd_simple: [%d] 7b1.@ eqn=@ %a;@ ineqn=@ \
-                      %a@\nb_eqs=@ %a@\
-                      \nb_ineqs=@ %a@\n%!"
-                     ddepth pr_eqn eqn pr_ineqn ineqn
-                     pr_w_subst b_eqs pr_ineqs b_ineqs;
-                   *]*)
-
-                   if implies ~cmp_v ~cmp_w uni_v b_eqs b_ineqs
-                       b_optis b_suboptis
-                       c_eqn c_ineqn c_optis c_suboptis
-                   then (
-                     let (eqs_acc, ineqs_acc, optis_acc, suboptis_acc) =
-                       solve ~use_quants:bvs
-                         ~eqs:eqs_acc0 ~ineqs:ineqs_acc0
-                         ~optis:(optin @ optis_acc)
-                         ~suboptis:(suboptin @ suboptis_acc)
-                         ~eqn ~ineqn ~cmp_v ~cmp_w uni_v in
-                     ignore (validate (eqs_acc, ineqs_acc,
-                                       optis_acc, suboptis_acc));
-                     passes := true;
-                     (*[* Format.printf
-                       "NumS.abd_simple: [%d] 7b2. validated@\neqs=%a\
-                        @\nineqs=%a@\n%!"
-                       ddepth pr_w_subst eqs_acc pr_ineqs ineqs_acc; *]*)
-                     (*[* Format.printf
-                       "NumS.abd_simple: [%d] loop at:\
-                        @\neqs=@ %a@\nineqs=@ %a@\n%!"
-                       ddepth pr_w_subst eqs_acc pr_ineqs ineqs_acc;
-                     *]*)
-                     loop eq_trs eqs_acc ineqs_acc optis_acc suboptis_acc
-                       c0eqn c0ineqn c0optis c0suboptis
-                   )
-                 with Terms.Contradiction _ -> ()
-              )
-              guess_cands);
+          if crosses_xparams ~cmp_v:qcmp_v ~bvs new_vs then raise Omit_trans;
           ignore (validate (eqs_acc, ineqs_acc, optis_acc, suboptis_acc));
           passes := true;
           (*[* Format.printf
@@ -1423,7 +1352,7 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~xbvs ~discard ~validate
           ()
         | Omit_trans ->
           (*[* Format.printf
-            "NumS.abd_simple: [%d] 7. too weak@\n%!" ddepth;
+            "NumS.abd_simple: [%d] 7. too weak or crossing params@\n%!" ddepth;
           *]*)
           () in
       let a0 = subst_w_atom ~cmp_v eqs_acc0 a in
@@ -1508,6 +1437,7 @@ let make_cmp q v1 v2 =
   match q.cmp_v v1 v2 with
   | Left_of -> 1
   | Right_of -> -1
+  | Same_params -> compare v2 v1
   | Same_quant -> compare v2 v1
 
 
@@ -1518,7 +1448,6 @@ module NumAbd = struct
     cmp_w : (w -> w -> int);
     qcmp_v : (var_name -> var_name -> var_scope);
     uni_v : (var_name -> bool);
-    xbvs : (Defs.var_name, Defs.VarSet.t) Hashtbl.t;
     bvs : VarSet.t}
   type answer = accu
   type discarded = w list * w list * optis * suboptis
@@ -1529,9 +1458,9 @@ module NumAbd = struct
   let abd_fail_timeout = abd_fail_timeout_count
   let abd_fail_flag = abd_fail_flag
 
-  let abd_simple {qcmp_v; cmp_w; cmp_v; uni_v; bvs; xbvs}
+  let abd_simple {qcmp_v; cmp_w; cmp_v; uni_v; bvs}
       ~discard ~validate ~neg_validate acc br =
-    abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~xbvs
+    abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs
       ~discard ~validate ~neg_validate 0 acc br
 
   let extract_ans ans = ans
@@ -1562,7 +1491,7 @@ module JCA = Joint.JointAbduction (NumAbd)
 
 (* FIXME: eliminate optis from premise, but first try simplifying
    them with both premise and conclusion of a branch. *)
-let abd q ~bvs ~xbvs ~discard ?(iter_no=2) brs =
+let abd q ~bvs ~discard ?(iter_no=2) brs =
   abd_timeout_flag := false;
   let cmp_v = make_cmp q in
   let cmp_w (vars1,cst1,_) (vars2,cst2,_) =
@@ -1779,7 +1708,7 @@ let abd q ~bvs ~xbvs ~discard ?(iter_no=2) brs =
            (List.map (expand_atom true) concl_eqs))
       unproc_brs in
   let ans = JCA.abd
-      {cmp_v; cmp_w; NumAbd.qcmp_v = q.cmp_v; uni_v = q.uni_v; bvs; xbvs}
+      {cmp_v; cmp_w; NumAbd.qcmp_v = q.cmp_v; uni_v = q.uni_v; bvs}
       ~discard ~validate ~neg_validate ([], [], [], []) brs in
   [], elim_uni @ ans_to_num_formula ans
 
@@ -2744,6 +2673,7 @@ let subst_formula sb phi =
 (* match q.cmp_v v1 v2 with
   | Left_of -> 1
   | Right_of -> -1
+  | Same_params -> compare v2 v1
   | Same_quant -> compare v2 v1
  *)
 let separate_subst_aux q ~no_csts ~keep cnj =

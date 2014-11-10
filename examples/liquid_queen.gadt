@@ -31,7 +31,7 @@ let queens = fun size ->
       if size <= row then ()
       else (print_row (array_get board row); aux (row + 1)) in
     aux 0 in
-  let solved = fun j ->
+  let rec solved = fun j ->
     let q2j = array_get board j in
     let rec aux = fun i ->
       if i + 1 <= j then

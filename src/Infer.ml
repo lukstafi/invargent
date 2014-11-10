@@ -134,7 +134,8 @@ let fresh_chi_id = ref 0
 let fresh_expr_var_id = ref 0
 
 let normalize_expr e =
-  (*[* Format.printf "normalize_expr: e=@\n%a@\n%!" pr_uexpr e; *]*)
+  (*[* Format.printf
+    "normalize_expr: e=@\n%a@\n%!" pr_uexpr e; *]*)
   let new_ex_types = ref [] in
   let rec aux k' e =
     match k', e with
@@ -1125,7 +1126,9 @@ let prenexize cn =
   let quant = Hashtbl.create 64 in
   let univars = Hashtbl.create 32 in
   let allvars = Hashtbl.create 64 in
+  let parent_param = Hashtbl.create 32 in
   let same_as v1 v2 =
+    Hashtbl.replace parent_param v1 v2;
     if Hashtbl.mem quant v1
     then (
       let q_id = Hashtbl.find quant v1 in
@@ -1141,26 +1144,30 @@ let prenexize cn =
       then Hashtbl.replace univars v1 (Hashtbl.find univars v2)
       else Hashtbl.remove univars v1)
     else (
-        (*[* Format.printf "same_as: unknown vars %s, %s@\n%!"
-          (var_str v1) (var_str v2); *]*)
+      (*[* Format.printf "same_as: unknown vars %s, %s@\n%!"
+        (var_str v1) (var_str v2); *]*)
       assert false) in
   let cmp_v v1 v2 =
-    try
-      let id1 = Hashtbl.find quant v1
-      and id2 = Hashtbl.find quant v2 in
-      if id1 < id2 then Left_of
-      else if id1 = id2 then Same_quant
-      else Right_of
-    with Not_found ->
-      let c1 = not (Hashtbl.mem allvars v1)
-      and c2 = not (Hashtbl.mem allvars v2) in
-      if c1 && c2 then Same_quant
-      else if c1 then Right_of
-      else if c2 then Left_of
-      else (
-        (*[* Format.printf "cmp_v: unknown vars %s, %s@\n%!"
-          (var_str v1) (var_str v2); *]*)
-        assert false) in
+    let par1 = try Hashtbl.find parent_param v1 with Not_found -> v1
+    and par2 = try Hashtbl.find parent_param v2 with Not_found -> v2 in
+    if par1 = par2 then Same_params
+    else
+      try
+        let id1 = Hashtbl.find quant v1
+        and id2 = Hashtbl.find quant v2 in
+        if id1 < id2 then Left_of
+        else if id1 = id2 then Same_quant
+        else Right_of
+      with Not_found ->
+        let c1 = not (Hashtbl.mem allvars v1)
+        and c2 = not (Hashtbl.mem allvars v2) in
+        if c1 && c2 then Same_quant
+        else if c1 then Right_of
+        else if c2 then Left_of
+        else (
+          (*[* Format.printf "cmp_v: unknown vars %s, %s@\n%!"
+            (var_str v1) (var_str v2); *]*)
+          assert false) in
   let uni_v v =
     try Hashtbl.find univars v with Not_found -> false in
   let current_id = ref 0
@@ -1177,7 +1184,7 @@ let prenexize cn =
     (*[* Format.printf "alternate: %s.%a@\n%!" (if !at_uni then "∀" else "∃")
       pr_vars !current_vars;
     current_vars := VarSet.empty;
-     *]*)
+    *]*)
     incr current_id;
     change := false; at_uni := not !at_uni in
   let rec aux = function

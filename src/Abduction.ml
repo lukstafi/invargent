@@ -224,7 +224,8 @@ let cand_var_eqs q bvs cnj_typ =
        with Contradiction _ -> [])
     (triangle cands)
 
-let abd_simple q ?without_quant ~bvs ~xbvs ~dissociate
+(* [obvs] stands for original [bvs], excluding candidates. *)
+let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
     ~validate ~neg_validate ~discard skip (vs, ans) (prem, concl) =
   let counter = ref 0 in
   let skip = ref skip in
@@ -611,24 +612,17 @@ let abd_simple q ?without_quant ~bvs ~xbvs ~dissociate
               if c=0 then Pervasives.compare (v1,t1) (v2,t2) else c)
           init_cand in
       (*[* Format.printf
-        "abd_simple: before xbvs filtering@\ninit=@ %a@\nguess=@ %a@\n%!"
+        "abd_simple: before xcrosses filtering@\ninit=@ %a@\nguess=@ %a@\n%!"
         pr_subst init_cand pr_subst guess_cand; *]*)
       let filter_cand = List.filter
           (fun (v,(t,_)) ->
              not (VarSet.mem v bvs) ||
-             let tvs = fvs_typ t in
-             VarSet.is_empty (VarSet.inter tvs bvs) ||
-             if Hashtbl.mem xbvs v
-             then
-               let pvs = VarSet.add v (Hashtbl.find xbvs v) in
-               VarSet.is_empty (VarSet.diff tvs pvs)
-             else
-               let cvs = VarSet.add v tvs in
-               not (crosses_xparams ~xbvs cvs)) in
+             not (crosses_xparams ~cmp_v:q.cmp_v ~bvs:obvs
+                    (VarSet.add v (fvs_typ t)))) in
       let init_cand = filter_cand init_cand
       and guess_cand = filter_cand guess_cand in
       (*[* Format.printf
-        "abd_simple: xbvs filtered@\ninit=@ %a@\nguess=@ %a@\n%!"
+        "abd_simple: xcrosses filtered@\ninit=@ %a@\nguess=@ %a@\n%!"
         pr_subst init_cand pr_subst guess_cand; *]*)
       try
         if not !more_general
@@ -666,7 +660,7 @@ let abd_simple q ?without_quant ~bvs ~xbvs ~dissociate
 
 module TermAbd = struct
   type accu = VarSet.t * (var_name list * subst)
-  type args = (var_name, Defs.VarSet.t) Hashtbl.t * quant_ops * bool
+  type args = VarSet.t * quant_ops * bool
   type answer = var_name list * subst
   type discarded = answer
   (* premise including alien premise, conclusion *)
@@ -675,9 +669,9 @@ module TermAbd = struct
   let abd_fail_timeout = fail_timeout_count
   let abd_fail_flag = abd_fail_flag
 
-  let abd_simple (xbvs, q, dissociate) ~discard ~validate ~neg_validate
+  let abd_simple (obvs, q, dissociate) ~discard ~validate ~neg_validate
       (bvs, acc) br =
-    abd_simple q ~bvs ~xbvs ~dissociate ~validate ~neg_validate
+    abd_simple q ~obvs ~bvs ~dissociate ~validate ~neg_validate
         ~discard 0 acc br
 
   let extract_ans (bvs, vs_ans) = vs_ans
@@ -696,7 +690,7 @@ end
 
 module JCA = Joint.JointAbduction (TermAbd)
 
-let abd_typ q ~bvs ~xbvs ?(dissociate=false) ~validate ~neg_validate ~discard
+let abd_typ q ~bvs ?(dissociate=false) ~validate ~neg_validate ~discard
     (brs : TermAbd.branch list) =
   (*[* Format.printf "abd_typ:@ bvs=@ %a@\n%!"
     pr_vars bvs; *]*)
@@ -725,7 +719,7 @@ let abd_typ q ~bvs ~xbvs ?(dissociate=false) ~validate ~neg_validate ~discard
   (*[* Format.printf "abd_typ: alien_eqs=%a@\n%!"
     pr_subst !alien_eqs; *]*)
   let cand_bvs, (vs, ans) =
-    JCA.abd (xbvs, q, dissociate) ~discard ~validate ~neg_validate
+    JCA.abd (bvs, q, dissociate) ~discard ~validate ~neg_validate
       (bvs, ([], [])) brs in
   (*[* Format.printf "abd_typ: result vs=%s@\nans=%a@\n%!"
     (String.concat ","(List.map var_str vs))
@@ -760,7 +754,7 @@ let abd_typ q ~bvs ~xbvs ?(dissociate=false) ~validate ~neg_validate ~discard
     brs in
   cand_bvs, !alien_eqs, vs, ans, more_in_brs
 
-let abd_mockup_num q ~bvs ~xbvs brs =
+let abd_mockup_num q ~bvs brs =
   (* Do not change the order and no. of branches afterwards. *)
   let brs_typ, brs_num = List.split
     (map_some (fun (prem, concl) ->
@@ -799,7 +793,7 @@ let abd_mockup_num q ~bvs ~xbvs brs =
   let neg_validate _ = 0 in
   try
     let cand_bvs, alien_eqs, tvs, ans_typ, more_in_brs =
-      abd_typ q ~bvs ~xbvs ~validate ~neg_validate ~discard:[] brs_typ in
+      abd_typ q ~bvs ~validate ~neg_validate ~discard:[] brs_typ in
     Some (List.map2
             (fun (prem_num,concl_num) (more_p, more_c) ->
                prem_num @ more_p.cnj_num,
@@ -811,7 +805,7 @@ type discarded =
   (TermAbd.answer list, NumDefs.formula list,
    OrderDefs.formula list, unit) sep_sorts
 
-let abd q ~bvs ~xbvs ?(iter_no=2) ~discard brs neg_brs =
+let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
   let dissociate = iter_no <= 0 in
   (* Do not change the order and no. of branches afterwards. *)
   (*[* Format.printf "abd: iter_no=%d prepare branches@\n%!" iter_no; *]*)
@@ -936,7 +930,7 @@ let abd q ~bvs ~xbvs ?(iter_no=2) ~discard brs neg_brs =
      other sorts do better validation. *)
   let cand_bvs, alien_eqs, tvs, ans_typ, more_in_brs =
     try
-      abd_typ q ~bvs ~xbvs ~dissociate ~validate ~neg_validate
+      abd_typ q ~bvs ~dissociate ~validate ~neg_validate
         ~discard:discard.at_typ
         ((sep_formulas [], neg_term)::brs_typ)
     with Suspect (cnj, lc) ->
@@ -1008,7 +1002,7 @@ let abd q ~bvs ~xbvs ?(iter_no=2) ~discard brs neg_brs =
     else
       try
         (* [tvs] includes alien variables! *)
-        NumS.abd q ~bvs ~xbvs ~discard:discard.at_num ~iter_no
+        NumS.abd q ~bvs ~discard:discard.at_num ~iter_no
           (* [true] means non-recursive *)
           ((true, [], neg_num_res)::brs_num)
       with

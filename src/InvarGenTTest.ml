@@ -416,7 +416,6 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_queen_simpler" ());
       "liquid_queen" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_queen" ());
       "liquid_isort" >::

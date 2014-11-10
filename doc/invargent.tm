@@ -902,6 +902,12 @@
     >c<rprime|'>=c<with|mode|text| else >c<rprime|'>=S<around*|(|c|)>|}>>>>>
   </eqnarray*>
 
+  Before accepting a new atom into the partial answer, we check that it would
+  not violate the quantifier conditions from the <em|split> phase of the main
+  algorithm, and that the partial answer is satisfiable with all implication
+  branches of the joint abduction problem. We call this check
+  <em|validation>.
+
   Abduction algorithm:
 
   <\enumerate>
@@ -980,11 +986,11 @@
 
       <item>If <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|'>|}>|)>>
       (resp. <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|''>|}>|)>>)
-      does not pass <verbatim|validate> for all <math|a<rprime|'>>, fail.
+      does not pass validation for all <math|a<rprime|'>>, fail.
 
       <item>If <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|'>|}>|)>>
       (resp. <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|''>|}>|)>>)
-      passes <verbatim|validate>, repeat from step 5 with
+      passes validation, repeat from step 5 with
       <math|C<rsub|0>\<assign\>C<rsub|0><rprime|'>,Acc\<assign\>Acc\<cup\><around*|{|a<rprime|'>|}>>
       (resp. <math|Acc\<assign\>Acc\<cup\><around*|{|a<rprime|''>|}>>).
     </enumerate>

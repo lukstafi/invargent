@@ -205,7 +205,8 @@ let pr_expr funtys lettys ppf =
   let pr_ann =
     if funtys || lettys
     then pr_annot_full lettys else pr_annot_rec in
-  pr_expr ?export_num ~export_if ~export_bool ~export_progseq pr_ann ppf
+  pr_expr ?export_num ~export_if ~export_bool ~export_progseq
+    pr_ann ppf
 
 let pr_rhs_docu ppf = function
   | None -> ()

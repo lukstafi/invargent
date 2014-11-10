@@ -66,7 +66,7 @@ val concat_varmap : (var_name -> 'a -> 'b list) -> 'a VarMap.t -> 'b list
 (** {2 Quantification} *)
 
 type var_scope =
-| Left_of | Same_quant | Right_of
+| Left_of | Same_params | Same_quant | Right_of
 
 val var_scope_str : var_scope -> string
 
@@ -77,8 +77,9 @@ type quant_ops = {
 }
 val empty_q : quant_ops
 
-val crosses_xparams : 
-  xbvs:(var_name, VarSet.t) Hashtbl.t -> VarSet.t -> bool
+val crosses_xparams :
+  cmp_v : (var_name -> var_name -> var_scope) ->
+  bvs:VarSet.t -> VarSet.t -> bool
 
 
 (** {2 Printing} *)

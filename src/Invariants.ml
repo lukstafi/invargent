@@ -282,7 +282,7 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
     (* 3 *)
     let ans_cand = List.map
       (fun b ->
-        (*[* Format.printf "split-loop-3: b=%s@ target=%a@\n%!"
+        (*[* Format.printf "@\nsplit-loop-3: b=%s@ target=%a@\n%!"
           (var_str b) pr_vars (Hashtbl.find q.b_vs b); *]*)
         let xbvs = VarSet.add b (Hashtbl.find q.b_vs b) in
         let ans = List.filter
@@ -290,15 +290,19 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
                let cvs = fvs_atom c in
                VarSet.exists (fun cv -> VarSet.mem cv xbvs) cvs &&
                VarSet.for_all
-                 (fun cv -> not (q.uni_v cv) || VarSet.mem cv xbvs ||
-                            VarSet.mem cv bvs && q.cmp_v cv b = Left_of)
+                 (fun cv ->
+                    (*[* Format.printf "cv=%s, %s;@ " (var_str cv)
+                      (var_scope_str (q.cmp_v cv b)); *]*)
+                    not (q.uni_v cv) || VarSet.mem cv xbvs ||
+                    VarSet.mem cv bvs && q.cmp_v cv b = Left_of)
                  cvs)
             ans0 in
         b, ans)
       negbs in
-    (*[* Format.printf "split-loop-3: ans1=@\n%a@\n%!"
-      pr_bchi_subst (List.map (fun (b,a)->b,(VarSet.elements (Hashtbl.find q.b_vs b),a))
-                       ans_cand); *]*)
+    (*[* Format.printf "@\nsplit-loop-3: ans1=@\n%a@\n%!"
+      pr_bchi_subst
+      (List.map (fun (b,a)->b, (VarSet.elements (Hashtbl.find q.b_vs b),a))
+         ans_cand); *]*)
     (* 6 *)
     let init_res = List.filter
       (fun c -> not (List.exists (List.memq c % snd) ans_cand)) ans0 in
@@ -393,7 +397,7 @@ let simplify q_ops ~bvs ?keepvs ?guard ?initstep (vs, cnj) =
     (pr_some pr_vars) keepvs pr_vars vs pr_formula cnj; *]*)
   let cmp_v v1 v2 =
     let c1 = VarSet.mem v1 vs and c2 = VarSet.mem v2 vs in
-    if c1 && c2 then Same_quant
+    if c1 && c2 then Same_params
     else if c1 then Right_of
     else if c2 then Left_of
     else q_ops.Defs.cmp_v v1 v2 in
@@ -467,7 +471,7 @@ let prune_redund q_ops ?localvs ?guard ~initstep (vs, cnj) =
     pr_vars vs pr_formula cnj; *]*)
   let cmp_v v1 v2 =
     let c1 = VarSet.mem v1 vs and c2 = VarSet.mem v2 vs in
-    if c1 && c2 then Same_quant
+    if c1 && c2 then Same_params
     else if c1 then Right_of
     else if c2 then Left_of
     else q_ops.Defs.cmp_v v1 v2 in
@@ -1008,7 +1012,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
           if abdsjelim=[] then brs1
           else (true,[],abdsjelim)::brs1 in
         let cand_bvs, alien_eqs, (vs, ans) =
-          Abduction.abd q.op ~bvs ~xbvs:q.b_vs ~iter_no
+          Abduction.abd q.op ~bvs ~iter_no
             ~discard brs1 neg_cns1 in
         (*[* Format.printf
           "solve: iter_no=%d abd answer=@ %a@\n%!"
@@ -1121,14 +1125,15 @@ let solve q_ops new_ex_types exty_res_chi brs =
              loop iter_no discard rol1 sol1 in
       (* 8 *)
       (* Avoid substituting [bvs] -- treat them like leftmost. *)
-      let cmp_v v1 v2 =
-        let c1 = VarSet.mem v1 bvs and c2 = VarSet.mem v2 bvs in
-        if c1 && c2 then Same_quant
-        else if c1 then Left_of
-        else if c2 then Right_of
-        else q.op.Defs.cmp_v v1 v2 in
-      let q_op = {q.op with cmp_v} in
-      let ans_sb, _ = Infer.separate_subst ~avoid:bvs q_op ans_res in
+      let ans_sb, _ =
+        let cmp_v v1 v2 =
+          let c1 = VarSet.mem v1 bvs and c2 = VarSet.mem v2 bvs in
+          if c1 && c2 then Same_quant
+          else if c1 then Left_of
+          else if c2 then Right_of
+          else q.op.Defs.cmp_v v1 v2 in
+        let q_op = {q.op with cmp_v} in
+        Infer.separate_subst ~avoid:bvs q_op ans_res in
       (* Do not substitute in postconditions -- they do not have free
                  variables! *)
       unfinished_postcond_flag := false;
@@ -1310,15 +1315,17 @@ let solve q_ops new_ex_types exty_res_chi brs =
         with Contradiction _ -> ()
       ) neg_cns;
     let bvs = bparams !timeout_count in
+    (* Push parameters to the right so that they are kept in answers. *)
+    let q_op =
     let cmp_v v1 v2 =
       let c1 = VarSet.mem v1 bvs and c2 = VarSet.mem v2 bvs in
       if c1 && c2 then Same_quant
       else if c1 then Left_of
       else if c2 then Right_of
       else q.op.Defs.cmp_v v1 v2 in
-    (* Push parameters to the right so that they are kept in answers. *)
-    let q_op = {q.op with cmp_v} in
-    let ans_sb, _ = Infer.separate_subst q_op ans_res in
+      {q.op with cmp_v} in
+    let ans_sb, _ =
+      Infer.separate_subst q_op ans_res in
     (*[* Format.printf "solve: final@\nans_res=%a@\nans_sb=%a@\n%!"
       pr_formula ans_res pr_subst ans_sb;
     *]*)

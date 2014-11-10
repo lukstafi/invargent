@@ -89,7 +89,7 @@ let concat_varmap f vmap =
 (** {2 Quantification} *)
 
 type var_scope =
-| Left_of | Same_quant | Right_of
+| Left_of | Same_params | Same_quant | Right_of
 
 type quant_ops = {
   cmp_v : var_name -> var_name -> var_scope;
@@ -107,18 +107,21 @@ let empty_q = {
 let var_scope_str = function
 | Left_of -> "left_of"
 | Same_quant -> "same_quant"
+| Same_params -> "same_params"
 | Right_of -> "right_of"
 
 
 exception Omit
-let crosses_xparams ~xbvs cvs =
+(* Linearization of quantifiers is a problem here because we want "<>
+   Incomparable" (before prenexization) rather than "<> Same_quant". *)
+let crosses_xparams ~cmp_v ~bvs cvs =
   try
-    Hashtbl.iter
-      (fun b vs ->
-         let pvs = VarSet.add b vs in
-         if not (VarSet.is_empty (VarSet.inter cvs pvs)) &&
-            not (VarSet.is_empty (VarSet.diff cvs pvs))
-         then raise Omit) xbvs;
+    let pvs = List.filter
+        (fun v -> VarSet.mem v bvs) (VarSet.elements cvs) in
+    triangle_iter
+      (* Same_params is OK. *)
+      (fun v1 v2 -> if cmp_v v1 v2 = Same_quant then raise Omit)
+      pvs;
     false
   with Omit -> true
 

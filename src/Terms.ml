@@ -822,6 +822,9 @@ and pr_one_pat ppf = function
   | Zero -> fprintf ppf "%s" "!"
   | One _ -> fprintf ppf "%s" "_"
   | PVar (x, _) -> fprintf ppf "%s" x
+  | PCons (CNam "Tuple", pats, _) ->
+    fprintf ppf "@[<2>(%a)@]"
+      (pr_sep_list "," ~pr_hd:pr_pat pr_more_pat) pats
   | PCons (x, [], _) ->
       fprintf ppf "%s" (cns_str x)
   | p -> fprintf ppf "(%a)" pr_pat p
@@ -873,23 +876,31 @@ let pr_expr ?export_num ?export_if ?export_bool ?export_progseq
       fprintf ppf "@[<2>(%a)@]"
         (pr_sep_list "," aux) exps
     | Cons (CNam "True", [], _) when export_bool <> None ->
-      fprintf ppf "%s" (List.assoc true (unsome export_bool))
+      fprintf ppf "%s" (try List.assoc true (unsome export_bool)
+                        with Not_found -> "true")
     | Cons (CNam "False", [], _) when export_bool <> None ->
-      fprintf ppf "%s" (List.assoc false (unsome export_bool))
+      fprintf ppf "%s" (try List.assoc false (unsome export_bool)
+                        with Not_found -> "false")
     | App (App (Var (f, _), e1, _), e2, _) when f = builtin_progseq ->
-      let kwd_beg, kwd_mid, kwd_end = unsome export_progseq in
+      let kwd_beg, kwd_mid, kwd_end =
+        try unsome export_progseq
+        with Not_found -> "(", ";", ")" in
       fprintf ppf "@[<0>(%s%a@ %s@ %a%s)@]"
         kwd_beg aux e1 kwd_mid aux e2 kwd_end
     | App (Lam (_, [PCons (CNam "True", [], _), [], e1;
                     PCons (CNam "False", [], _), [], e2], _),
            cond, _) when export_if <> None ->
-      let kwd_if, kwd_then, kwd_else = unsome export_if in
+      let kwd_if, kwd_then, kwd_else =
+        try unsome export_if
+        with Not_found -> "if", "then", "else" in
       fprintf ppf "@[<0>(%s@ %a@ %s@ %a@ %s@ %a)@]" kwd_if aux cond
         kwd_then aux e1 kwd_else aux e2
     | App (Lam (_, [PCons (CNam "False", [], _), [], e1;
                     PCons (CNam "True", [], _), [], e2], _),
            cond, _) when export_if <> None ->
-      let kwd_if, kwd_then, kwd_else = unsome export_if in
+      let kwd_if, kwd_then, kwd_else =
+        try unsome export_if
+        with Not_found -> "if", "then", "else" in
       fprintf ppf "@[<0>(%s@ %a@ %s@ %a@ %s@ %a)@]" kwd_if aux cond
         kwd_then aux e1 kwd_else aux e2
     | App (Lam (_, [One _, ([lhs1, rhs1] as ineqs), e1;
@@ -898,14 +909,18 @@ let pr_expr ?export_num ?export_if ?export_bool ?export_progseq
            Cons (CNam "Tuple", [], _), _)
       when export_if <> None &&
            equal_expr lhs1 lhs2 && equal_expr rhs1 rhs2 ->
-      let kwd_if, kwd_then, kwd_else = unsome export_if in
+      let kwd_if, kwd_then, kwd_else =
+        try unsome export_if
+        with Not_found -> "if", "then", "else" in
       fprintf ppf "@[<0>(%s@ %a@ %s@ %a@ %s@ %a)@]" kwd_if
         (pr_sep_list "&&" pr_guard_leq) ineqs
         kwd_then aux e1 kwd_else aux e2
     | App (Lam (_, [One _, ineqs, e1;
                     One _, [], e2], _),
            Cons (CNam "Tuple", [], _), _) when export_if <> None ->
-      let kwd_if, kwd_then, kwd_else = unsome export_if in
+      let kwd_if, kwd_then, kwd_else =
+        try unsome export_if
+        with Not_found -> "if", "then", "else" in
       fprintf ppf "@[<0>(%s@ %a@ %s@ %a@ %s@ %a)@]" kwd_if
         (pr_sep_list "&&" pr_guard_leq) ineqs
         kwd_then aux e1 kwd_else aux e2
