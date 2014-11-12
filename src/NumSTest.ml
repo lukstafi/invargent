@@ -43,7 +43,7 @@ let tests = "NumS" >::: [
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
         assert_equal ~printer:(fun x -> x)
-          "∃. n1 = n2 ∧ n3 ≤ n1 + 2"
+          "∃. n2 = n1 ∧ n3 ≤ n1 + 2"
           (Format.flush_str_formatter ())
       with (Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
@@ -56,7 +56,7 @@ let tests = "NumS" >::: [
 
   "convex hull: basic equations 1" >::
     (fun () ->
-      (* skip_if !debug "debug"; *)
+      skip_if !debug "debug";
       Terms.reset_state ();
       Infer.reset_state ();
       (* try *)
@@ -74,8 +74,8 @@ let tests = "NumS" >::: [
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
         assert_equal ~printer:(fun x -> x)
-          "∃. n2≤max (n3, n4) ∧ min (n3, n4)≤n2 ∧ n1≤max (n3, n4) ∧
-  min (n3, n4)≤n1 ∧ min (n3, n2)≤n1 ∧ n1 = n2"
+          "∃. min (n4, n3)≤n2 ∧ n1≤max (n4, n3) ∧ n2≤max (n4, n1) ∧
+  n2≤max (n4, n3) ∧ min (n4, n3)≤n1 ∧ min (n4, n2)≤n1 ∧ n2 = n1"
           (Format.flush_str_formatter ())
       with (Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());
@@ -88,7 +88,6 @@ let tests = "NumS" >::: [
 
   "convex hull: basic equations 2" >::
     (fun () ->
-      todo "FIXME";
       skip_if !debug "debug";
       Terms.reset_state ();
       Infer.reset_state ();
@@ -107,8 +106,8 @@ let tests = "NumS" >::: [
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
         assert_equal ~printer:(fun x -> x)
-          "∃. n4≤max (n1, n2) ∧ min (n1, n2)≤n4 ∧ n3≤max (n1, n2) ∧
-  min (n1, n2)≤n3 ∧ min (n2, n4)≤n3 ∧ n3 = n4"
+          "∃. min (n2, n1)≤n3 ∧ n3≤max (n2, n1) ∧ n4≤max (n2, n1) ∧
+  n4≤max (n2, n3) ∧ min (n2, n1)≤n4 ∧ n4 = n3"
           (Format.flush_str_formatter ())
       with (Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());

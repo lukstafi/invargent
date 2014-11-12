@@ -194,6 +194,11 @@ let equal_w ~cmp_v w1 w2 = zero_p (diff ~cmp_v w1 w2)
 let equal_2w ~cmp_v (w1, w2) (w3, w4) =
   equal_w ~cmp_v w1 w3 && equal_w ~cmp_v w2 w4
 
+let compare_w ~cmp_v w1 w2 =
+  match diff ~cmp_v w1 w2 with
+  | [], cst, _ -> Num.compare_num cst !/0
+  | (_, k)::_, _, _ -> Num.compare_num k !/0
+
 (* Comparison disregarding the order of variables in the quantifier. *)
 let nonq_cmp_w (vars1,cst1,_) (vars2,cst2,_) =
   let rec aux = function
@@ -1941,7 +1946,10 @@ let keep_nonredund ~cmp_v ~cmp_w ineqs l =
       if strict_sat ~cmp_v ~cmp_w ineqs ~strict:(mult !/(-1) a) l
       then loop (project ~cmp_v ~cmp_w ineqs [a]) (a::acc) drop l
       else loop ineqs acc (a::drop) l in
-  loop ineqs [] [] l
+  (*[* let (_, ineq_res, _ as res) = *]*) loop ineqs [] [] l (*[* in
+  Format.printf
+    "NumS.keep_nonredund: res=@ %a@\n%!" pr_ineqn ineq_res;
+  res *]*)
 
 let ineqn_of_eqineq_w = concat_map
     (function
@@ -2081,19 +2089,40 @@ let disjelim_aux q ~preserve ~initstep brs =
          with Terms.Contradiction _ -> [])
       brs in
   (* Now restore non-redundancy needed for convex hull algo. *)
-  let faces = List.map
+  let faces, equations = split_map
       (fun (eqs, ineqs) ->
-         let eqs = unsubst eqs and ineqs = unsolve ineqs in
+         let eq_classes = collect ~cmp_k:(compare_w ~cmp_v)
+             (List.map (fun (v, rhs) -> rhs, v) eqs) in
+         let eq_sides = concat_map
+             (fun (rhs, lvs) ->
+                let ws =
+                  rhs::List.map
+                      (fun v -> [v, !/1], !/0, dummy_loc) lvs in
+                (*[* Format.printf "eq_class:@ %a@\n%!" pr_eqn ws; *]*)
+                let pairs = triangle ws in
+                map_some (fun (w1, w2) ->
+                    let w = diff ~cmp_v w1 w2 in
+                    match w with
+                    | [], _, _ -> None
+                    | (v, k)::_, _, _ when k </ !/0 -> Some (mult !/(-1) w)
+                    | _ -> Some w)
+                  pairs)
+             eq_classes in
+         let ineqs = unsolve ineqs in
          let faces =
-           ineqs @ concat_map (fun w -> [w; mult !/(-1) w]) eqs in
+           ineqs @ eq_sides @ List.map (mult !/(-1)) eq_sides in
          let _, res, _ = keep_nonredund ~cmp_v ~cmp_w [] faces in
-         res)
+         res, wset_of_list eq_sides)
       polytopes in
   let common_faces =
     match faces with
     | hd::tl when !abductive_disjelim ->
       List.fold_left WSet.inter (wset_of_list hd) (List.map wset_of_list tl)
     | _ -> WSet.empty in
+  let common_equations =
+    match equations with
+    | hd::tl -> WSet.elements (List.fold_left WSet.inter hd tl)
+    | _ -> [] in
   let polytopes =
     if !abductive_disjelim
     then List.map2
@@ -2201,37 +2230,25 @@ let disjelim_aux q ~preserve ~initstep brs =
   let result = List.map sort_w result in
   (*[* Format.printf "NumS.disjelim: result=%a@\n%!"
     pr_ineqn result; *]*)
-  let rec idemp eqn ineqn = function
+  let rec idemp ineqn = function
     | e1::(e2::_ as tl) when (* nonq_cmp_w e1 e2 = 0 *)
-        equal_w ~cmp_v e1 e2 -> idemp eqn ineqn tl
+        equal_w ~cmp_v e1 e2 -> idemp ineqn tl
     | e::tl when List.exists (fun w -> zero_p (sum_w ~cmp_v e w)) tl ->
       (* Two inequalities forming an equation. *)
-      idemp (e::eqn) ineqn
+      idemp ineqn
         (List.filter (fun w -> not (zero_p (sum_w ~cmp_v e w))) tl)
-    | e::tl -> idemp eqn (e::ineqn) tl
-    | [] -> eqn, ineqn in
-  let eqn, ineqn =
-    idemp [] [] (List.sort nonq_cmp_w result) in
+    | e::tl -> idemp (e::ineqn) tl
+    | [] -> ineqn in
+  (* Rather than using convex hull, we get the common equations directly. *)
+  let ineqn = idemp [] (List.sort nonq_cmp_w result) in
   (*[* Format.printf "NumS.disjelim: solution@\neqn=%a@\nineqn=%a@\n%!"
-    pr_eqn eqn pr_ineqn ineqn; *]*)
-  let redundant_eqn =
-    collect ~cmp_k:Num.compare_num
-      (List.map (fun (vars,cst,lc) -> cst,(vars,lc)) eqn) in
-  let redundant_eqn =
-    Aux.concat_map
-      (fun (_,ws) -> List.map
-          (fun ((w1,lc1),(w2,lc2)) ->
-             diff ~cmp_v (w1, !/0, lc1) (w2, !/0, lc2))
-          (Aux.triangle ws))
-      redundant_eqn in
-  (*[* Format.printf "NumS.disjelim:@\neqn=%a@\nredundant_eqn=%a@\n%!"
-    pr_eqn eqn pr_eqn redundant_eqn; *]*)
+    pr_eqn common_equations pr_ineqn ineqn; *]*)
   let check_redund face ptope =
     (*[* Format.printf
       "NumS.disjelim-check_redund: face=%a@\nptope=%a@\n%!" pr_w face
       pr_ineqn ptope; *]*)
     let eqs, ineqs, _, _ =
-      solve ~eqn ~ineqn:ptope ~cmp_v ~cmp_w q.uni_v in
+      solve ~eqn:common_equations ~ineqn:ptope ~cmp_v ~cmp_w q.uni_v in
     let ineqn = [mult !/(-1) face] in
     (*[* Format.printf
       "NumS.disjelim-check_redund: neg-face %a \
@@ -2445,7 +2462,7 @@ let disjelim_aux q ~preserve ~initstep brs =
   [],
   List.map expand_opti optis @
     List.map expand_subopti suboptis @
-    List.map (expand_atom true) (eqn @ redundant_eqn)
+    List.map (expand_atom true) (common_equations (* @ redundant_eqn *))
   @ List.map (expand_atom false) ineqn
 
 let disjelim q ~preserve ~initstep brs =

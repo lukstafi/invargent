@@ -122,6 +122,14 @@ let map_some2 f l1 l2 =
   in
   List.rev (maps_f [] (l1, l2))
 
+let split_map f l =
+  let rec map_f (xs, ys as acc) = function
+    | [] -> acc
+    | a::l ->
+      let x, y = f a in
+      map_f (x::xs, y::ys) l in
+  map_f ([], []) l
+
 let list_some = function
   | Some a -> [a]
   | None -> []

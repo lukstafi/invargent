@@ -1122,7 +1122,7 @@
   half-space represented convex hull of closed polytopes. It can be
   generalized to unbounded polytopes -- conjunctions of linear inequalities.
   Our implementation is inspired by this algorithm but very much simpler, at
-  cost of losing the maximality requirement.
+  cost of losing the optimality requirement.
 
   First we find among the given inequalities those which are also the faces
   of resulting convex hull. The negation of such inequality is not
@@ -1146,7 +1146,9 @@
   <math|a\<leqslant\>b\<wedge\>b\<leqslant\>a>. We eliminate all equations
   and implicit equalities which contain a variable not shared by all
   <math|D<rsub|i>>, by substituting out such variables. We pass the resulting
-  inequalities to the convex hull algorithm.
+  inequalities to the convex hull algorithm. Separately, we compute the
+  equations common to all branches, because the convex hull algorithm is not
+  guaranteed to recover them.
 
   <subsection|Issues in inferring postconditions><label|NumConv>
 
