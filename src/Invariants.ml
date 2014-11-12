@@ -222,6 +222,13 @@ let holds q ~avs (ty_st, num_st) cnj =
   let num_st = NumS.holds q.op avs num_st cnj_num in
   ty_st, num_st
 
+let abductive_holds q ~avs ~bvs (ty_st, num_st) cnj =
+  let {cnj_typ=ty_st; cnj_num; cnj_so=_} =
+    unify ~use_quants:true ~sb:ty_st q.op cnj in
+  (* No need to use avs. *)
+  let num_st, more = NumS.abductive_holds q.op ~bvs num_st cnj_num in
+  (ty_st, num_st), NumS.num_to_formula more
+
 let satisfiable q (ty_st, num_st) cnj =
   let {cnj_typ=ty_st; cnj_num; cnj_so=_} =
     unify ~use_quants:false ~sb:ty_st q.op cnj in
@@ -317,12 +324,17 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
     let ans_res = ref init_res and state = ref init_state in
     let ans_ps = List.map
       (fun (b,ans) -> b,
-        List.filter (fun c ->
+        concat_map (fun c ->
           try
-            state := holds q ~avs !state [c];
+            let state', more_ans = abductive_holds q ~avs ~bvs !state [c] in
+            state := state';
             ans_res := c :: !ans_res;
-            false
-          with Contradiction _ -> true) ans)
+            more_ans
+          with Contradiction _ (*[*as e*]*) ->
+            (*[* Format.printf
+              "split-rejected: c=%a@\nbecause: %a@\n%!"
+              pr_atom c pr_exception e; *]*)
+            [c]) ans)
       ans_cand in
     let ans_res = !ans_res in    
     let more_discard = concat_map snd ans_ps in
@@ -375,11 +387,15 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
       let avs' = VarSet.diff avs
         (List.fold_left VarSet.union VarSet.empty avss) in
       let ans_res', discard', sol' =
-        loop avs' ans_res (more_discard @ discard) sol' in
+         (* ans_res, (more_discard @ discard), sol' in *)
+        (* FIXME: DEBUG *)
+      loop avs' ans_res (more_discard @ discard) sol' in (* *)
       (* 16 *)
       ans_res', discard',
+      (* FIXME: DEBUG *)
       List.map2
-        (fun avs (b, (avs', ans')) -> b, (avs@avs', ans')) avsl sol'
+         (fun avs (b, (avs', ans')) -> b, (avs@avs', ans')) avsl sol' (* *)
+      (* List.map2 (fun avs (b, ans) -> b, (avs, ans)) avsl sol' *)
     else
       (* 17 *)
       ans_res, more_discard @ discard,

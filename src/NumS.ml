@@ -521,11 +521,20 @@ let merge_one_nonredund ~cmp_v ~cmp_w l1 l2 = (* merge cmp_w l1 l2 *)
 (* Assumption: [v] is downstream of all [vars] *)
 (* TODO: understand why the equivalent of [Terms.quant_viol] utterly
    fails here. *)
-let quant_viol uni_v bvs v vars =
-  let res = uni_v v && not (VarSet.mem v bvs) in
-  (*[* if res then
-   Format.printf "NumS.quant_viol: v=%s; uni(v)=%b; bvs(v)=%b@\n%!"
-    (var_str v) (uni_v v) (VarSet.mem v bvs);
+let quant_viol uni_v cmp_v ~storeable bvs v0 vars =
+  (* FIXME: v should already be to the right of vars. *)
+  let leq v1 v2 = cmp_v v1 v2 >= 0 in
+  let v = maximum ~leq (v0::List.map fst vars) in
+  let res = uni_v v &&
+            if storeable then VarSet.mem v bvs
+            else not (VarSet.mem v bvs) in
+  (*[* let v1 = match vars with (v1,_)::_ -> v1 | _ -> v0 in
+  if res then
+   Format.printf
+     "NumS.quant_viol: v=%s; v0=%s; v1=%s; cmp0=%d; cmp1=%d; \
+      uni(v)=%b; bvs(v)=%b@\n%!"
+    (var_str v) (var_str v0) (var_str v1) (cmp_v v v0) (cmp_v v v1)
+    (uni_v v) (VarSet.mem v bvs);
   *]*)
   res
 
@@ -576,12 +585,16 @@ let trans_wset ~cmp_v ineqs is_left wn =
       proj (WSet.add w acc) (more @ wn) in
   proj WSet.empty wn
 
-let solve_aux ?use_quants ?(strict=false)
+type quant_viol_response =
+    Store_viol of VarSet.t | Fail_viol of VarSet.t | Ignore_viol
+
+let solve_aux ~use_quants ?(strict=false)
     ~eqs ~ineqs ~eqs' ~optis ~suboptis ~eqn ~ineqn ~cnj
     ~cmp_v ~cmp_w uni_v =
-  let use_quants, bvs = match use_quants with
-    | None -> false, VarSet.empty
-    | Some bvs -> true, bvs in
+  let storeable, use_quants, bvs = match use_quants with
+    | Ignore_viol -> false, false, VarSet.empty
+    | Store_viol bvs -> true, true, bvs
+    | Fail_viol bvs -> false, true, bvs in
   let eqs = if eqs' = [] then eqs else List.map
       (fun (v,eq) -> v, subst_w ~cmp_v eqs' eq) eqs @ eqs' in
   let eqs_implicits = ref [] in
@@ -616,10 +629,19 @@ let solve_aux ?use_quants ?(strict=false)
   let eqn = List.sort cmp_w eqn in
   (*[* Format.printf "NumS.solve: start@ eqn=@ %a@ ineqn=@ %a@\n%!"
     pr_eqn eqn pr_ineqn ineqn; *]*)
+  let quant_viol_cnj = ref [] in
   let rec elim acc = function
     | [] -> List.rev acc
+    | ((v, k)::vars, cst, loc as w)::eqn
+        when storeable && quant_viol uni_v cmp_v ~storeable bvs v vars ->
+      quant_viol_cnj := Eq_w w :: !quant_viol_cnj;
+      let w_sb = v, mult (!/(-1) // k) (vars, cst, loc) in
+      let acc = subst_one_sb ~cmp_v w_sb acc in
+      let eqn = List.map (subst_one ~cmp_v w_sb) eqn in
+      elim (w_sb::acc) eqn
     | ((v, k)::vars, cst, loc)::eqn
-        when use_quants && quant_viol uni_v bvs v vars ->
+        when use_quants &&
+             quant_viol uni_v cmp_v ~storeable:false bvs v vars ->
       (*[* Format.printf "NumS.solve: fail--quant viol eq=@ %a@\n%!"
         pr_w ((v, k)::vars, cst, loc); *]*)
       let t1, t2 =
@@ -689,33 +711,8 @@ let solve_aux ?use_quants ?(strict=false)
                   Some (Terms.num t1, Terms.num t2), loc))
       else Right (norm_w ~cmp_v w)
     else Left (diff ~cmp_v lhs rhs) in
-  let rec proj (ineqs : ineqs) implicits ineqn =
-    match ineqn with
-    | [] -> ineqs, implicits
-    | ([], cst, _)::ineqn
-        when (strict && cst </ !/0) || (not strict && cst <=/ !/0) ->
-      proj ineqs implicits ineqn
-    | ([], cst, loc)::_ ->
-        (*[* Format.printf "NumS.solve: fail-- ineq=@ %a@\n%!"
-          pr_w ([], cst, loc); *]*)
-      raise (Terms.Contradiction
-               (Num_sort,
-                "Failed numeric inequality (cst="^
-                  Num.string_of_num cst^")",
-                None, loc))
-    | ((v, k)::vars, cst, loc)::ineqn
-        when use_quants && quant_viol uni_v bvs v vars ->
-        (*[* Format.printf "NumS.solve: fail--quant viol ineq=@ %a@\n%!"
-          pr_w ((v, k)::vars, cst, loc); *]*)
-      let t1, t2 =
-        match expand_atom false ((v, k)::vars, cst, loc) with
-        | Leq (t1, t2, _) -> t1, t2
-        | _ -> assert false in
-      raise (Terms.Contradiction
-               (Num_sort,
-                "Quantifier violation (numeric inequality)",
-                Some (Terms.num t1, Terms.num t2), loc))
-    | ((v,k)::vars, cst, loc)::ineqn ->
+  let rec proj (ineqs : ineqs) implicits ineqn0 =
+    let handle_proj v k vars cst loc ineqn =
       let trans_wset = trans_wset ~cmp_v ineqs in
       let (left, right), ineqs =
         try pop_assoc v ineqs
@@ -761,6 +758,38 @@ let solve_aux ?use_quants ?(strict=false)
         (var_str v) pr_ineqn more_ineqn pr_ineqs [more_ineqs]; *]*)  
       let ineqs = more_ineqs::ineqs in
       proj ineqs (more_implicits @ implicits) ineqn in
+    match ineqn0 with
+    | [] -> ineqs, implicits
+    | ([], cst, _)::ineqn
+        when (strict && cst </ !/0) || (not strict && cst <=/ !/0) ->
+      proj ineqs implicits ineqn
+    | ([], cst, loc)::_ ->
+        (*[* Format.printf "NumS.solve: fail-- ineq=@ %a@\n%!"
+          pr_w ([], cst, loc); *]*)
+      raise (Terms.Contradiction
+               (Num_sort,
+                "Failed numeric inequality (cst="^
+                  Num.string_of_num cst^")",
+                None, loc))
+    | ((v, k)::vars, cst, loc as w)::ineqn
+        when storeable && quant_viol uni_v cmp_v ~storeable bvs v vars ->
+      quant_viol_cnj := Leq_w w :: !quant_viol_cnj;
+      handle_proj v k vars cst loc ineqn
+    | ((v, k)::vars, cst, loc)::ineqn
+        when use_quants &&
+             quant_viol uni_v cmp_v ~storeable:false bvs v vars ->
+        (*[* Format.printf "NumS.solve: fail--quant viol ineq=@ %a@\n%!"
+          pr_w ((v, k)::vars, cst, loc); *]*)
+      let t1, t2 =
+        match expand_atom false ((v, k)::vars, cst, loc) with
+        | Leq (t1, t2, _) -> t1, t2
+        | _ -> assert false in
+      raise (Terms.Contradiction
+               (Num_sort,
+                "Quantifier violation (numeric inequality)",
+                Some (Terms.num t1, Terms.num t2), loc))
+    | ((v,k)::vars, cst, loc)::ineqn ->
+      handle_proj v k vars cst loc ineqn in
   let propagate (m, n) =
     let (m_vars, m_cst, _ as m) = subst_w ~cmp_v eqn m
     and (n_vars, n_cst, _ as n) = subst_w ~cmp_v eqn n in
@@ -788,11 +817,12 @@ let solve_aux ?use_quants ?(strict=false)
     pr_ineqs ineqs; *]*)
   
   (eqn @ eqs, ineqs,
-   optis, suboptis), eqn0, ineqn0, WSet.elements (wset_of_list implicits)
+   optis, suboptis), eqn0, ineqn0, WSet.elements (wset_of_list implicits),
+  !quant_viol_cnj
 
 type num_solution = w_subst * ineqs * optis * suboptis
 
-let solve_get_eqn ?use_quants ?strict
+let solve_get_eqn ~use_quants ?strict
     ?(eqs=[]) ?(ineqs=[]) ?(eqs'=[])
     ?(optis=[]) ?(suboptis=[]) ?(eqn=[]) ?(ineqn=[]) ?(cnj=[])
     ~cmp_v ~cmp_w uni_v =
@@ -803,10 +833,13 @@ let solve_get_eqn ?use_quants ?strict
   let all_implicit = ref [] in
   let all_eqn = ref [] in
   let all_ineqn = ref [] in
-  let rec loop ((eqs,ineqs,optis,suboptis),eqn0,ineqn0,implicits) =
+  let all_quant_viol_cnj = ref [] in
+  let rec loop ((eqs, ineqs, optis, suboptis),
+                eqn0, ineqn0, implicits, quant_viol_cnj) =
     if implicits=[] then (
       all_eqn := eqn0 @ !all_eqn;
       all_ineqn := ineqn0 @ !all_ineqn;
+      all_quant_viol_cnj := quant_viol_cnj @ !all_quant_viol_cnj;
       (eqs, ineqs, optis, suboptis))
     else (
       (*[* Format.printf "solve: implicits=%a@\n%!"
@@ -814,26 +847,27 @@ let solve_get_eqn ?use_quants ?strict
       all_implicit := implicits @ !all_implicit;
       all_eqn := eqn0 @ !all_eqn;
       all_ineqn := ineqn0 @ !all_ineqn;
+      all_quant_viol_cnj := quant_viol_cnj @ !all_quant_viol_cnj;
       loop
-        (solve_aux ?use_quants ?strict ~eqs ~ineqs ~optis ~suboptis
+        (solve_aux ~use_quants ?strict ~eqs ~ineqs ~optis ~suboptis
            ~eqn:implicits
            ~eqs':[] ~ineqn:[] ~cnj:[] ~cmp_v ~cmp_w uni_v)) in
   if eqn=[] && (eqs=[] || eqs'=[]) && ineqn=[] && optis=[] &&
      suboptis=[] && cnj=[]
-  then (eqs @ eqs', ineqs, [], []), [], [], []
+  then (eqs @ eqs', ineqs, [], []), [], [], [], []
   else
     let (eqs,ineqs,optis,suboptis as res) =
-      loop (solve_aux ?use_quants ?strict ~eqs ~ineqs ~eqs' ~optis ~suboptis
+      loop (solve_aux ~use_quants ?strict ~eqs ~ineqs ~eqs' ~optis ~suboptis
               ~eqn ~ineqn ~cnj ~cmp_v ~cmp_w uni_v) in
     (*[* Format.printf "NumS.main-solve: done@\n%a@\n@\n%!"
       pr_state res; *]*)
-    res, !all_eqn, !all_ineqn, !all_implicit
+    res, !all_eqn, !all_ineqn, !all_implicit, !all_quant_viol_cnj
 
-let solve ?use_quants ?strict
+let solve ?(use_quants=Ignore_viol) ?strict
     ?eqs ?ineqs ?eqs' ?optis ?suboptis ?eqn ?ineqn ?cnj
     ~cmp_v ~cmp_w uni_v =
-  let res, _, _, implicits =
-    solve_get_eqn ?use_quants ?strict
+  let res, _, _, implicits, _ =
+    solve_get_eqn ~use_quants ?strict
       ?eqs ?ineqs ?eqs' ?optis ?suboptis ?eqn ?ineqn ?cnj
       ~cmp_v ~cmp_w uni_v in
   (*[* if implicits <> []
@@ -1048,8 +1082,11 @@ let revert_cst cmp_v uni_v eqn =
          @ [(o, cst, olc)]) c_eqn in
   c_eqn @ eqn
 
-let abd_cands ~cmp_v ~uni_v d_ineqs (vars, cst, lc as w) =
-  (*[* Format.printf "NumS.abd_cands: w=%a@\nd_ineqs=@ %a@\n%!"
+(* TODO: perhaps include other branches in finding which variables are
+   bounded by a constant. *)
+let abd_cands ~cmp_v ~uni_v ~b_ineqs ~d_ineqs (vars, cst, lc as w) =
+  (*[* Format.printf
+    "NumS.abd_cands: w=%a@ (see also b_ineqs above)@\nd_ineqs=@ %a@\n%!"
     pr_w w pr_ineqs (hashtbl_to_assoc d_ineqs); *]*)
   let cands =
     concat_map
@@ -1073,21 +1110,20 @@ let abd_cands ~cmp_v ~uni_v d_ineqs (vars, cst, lc as w) =
       (one_out vars) in
   let early_cands, late_cands = partition_map
       (function
-        | [v,_], _, _ as w ->
+        | [v,k], _, _ as w ->
           (* A single variable bounded by a constant -- deprioritize
              if the variable is already bounded. *)
             let bounded =
               try
-                let lhs, rhs = Hashtbl.find d_ineqs v in
-                WSet.exists (fun (vars,_,_) -> vars=[]) lhs ||
-                WSet.exists (fun (vars,_,_) -> vars=[]) rhs
+                let lhs, rhs = List.assoc v b_ineqs in
+                k >/ !/0 && WSet.exists (fun (vars,_,_) -> vars=[]) lhs ||
+                k </ !/0 && WSet.exists (fun (vars,_,_) -> vars=[]) rhs
               with Not_found -> false in
             if bounded then Right w else Left w
         | w -> Left w)
       cands in
   List.sort
-    (fun w1 w2 -> compare (w_size w1) (w_size w2))
-    (w::early_cands) @
+    (fun w1 w2 -> compare (w_size w1) (w_size w2)) (w::early_cands) @
     late_cands
 
 
@@ -1111,8 +1147,9 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
     (* Extract more equations implied by premise and earlier answer. *)
     (* A contradiction in premise here means the answer so far
        conflicts with a live-code branch, should be discarded. *)
-    let (d_eqs, d_ineqs, _, _), _, _, d_implicits =
-      solve_get_eqn ~eqs:eqs_i ~eqs':[]
+    let (d_eqs, d_ineqs, _, _), _, _, d_implicits, _ =
+      (* TODO: could we speed up abduction by using Store_viol? *)
+      solve_get_eqn ~use_quants:Ignore_viol ~eqs:eqs_i ~eqs':[]
         ~ineqs:ineqs_i ~eqn:d_eqn' ~ineqn:d_ineqn'
         ~optis:[] ~suboptis:[] ~cnj:[] ~cmp_v ~cmp_w uni_v in
     (*[* Format.printf
@@ -1275,8 +1312,8 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
           (* [new_eqn, new_ineqn] are only used to determine the
              variables contributed to the answer. *)
           let (eqs_acc, ineqs_acc, optis_acc, suboptis_acc),
-              new_eqn, new_ineqn, _ =
-            solve_get_eqn ~use_quants:bvs
+              new_eqn, new_ineqn, _, _ =
+            solve_get_eqn ~use_quants:(Fail_viol bvs)
               ~eqs:eqs_acc0 ~ineqs:ineqs_acc0
               ~optis:(optin @ optis_acc) ~suboptis:(suboptin @ suboptis_acc)
               ~eqn ~ineqn ~cmp_v ~cmp_w uni_v in
@@ -1359,7 +1396,8 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
       (match a0 with
        | Leq_w w ->
          let w = subst_if_qv ~uni_v ~bvs ~cmp_v rev_sb w in
-         let cands = abd_cands ~cmp_v ~uni_v d_ineqs w in
+         let cands =
+           abd_cands ~cmp_v ~uni_v ~b_ineqs ~d_ineqs w in
          (*[* Format.printf "NumS.abd_simple: [%d] 7. c0s=@ %a@\n%!"
            ddepth pr_ineqn cands; *]*)
          (* TODO: ^ another variant -- always try w at the end. *)
@@ -1516,8 +1554,8 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
             disjunctions. Also recovers implicit equalities
             due to optis. *)
          try
-           let (d_eqs,d_ineqs,d_optis,d_suboptis), _, _, d_opti_eqn =
-             solve_aux ~cmp_v ~cmp_w q.uni_v
+           let (d_eqs,d_ineqs,d_optis,d_suboptis), _, _, d_opti_eqn, _ =
+             solve_aux ~cmp_v ~cmp_w q.uni_v ~use_quants:Ignore_viol
                ~eqs:[] ~ineqs:[] ~eqs':[] ~cnj:[]
                ~eqn:d_eqn ~ineqn:d_ineqn
                ~optis:d_optis ~suboptis:d_suboptis in
@@ -2552,10 +2590,21 @@ let holds q avs (eqs, ineqs, optis, suboptis : state) cnj : state =
     | _, [] -> -1
     | [], _ -> 1
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
-  let eqs, ineqs, optis, suboptis =
-    solve ~use_quants:avs
+  solve ~use_quants:(Fail_viol avs)
+      ~eqs ~ineqs ~optis ~suboptis ~cnj ~cmp_v ~cmp_w q.uni_v
+
+let abductive_holds q ~bvs (eqs, ineqs, optis, suboptis : state) cnj =
+  let cmp_v = make_cmp q in
+  let cmp_w (vars1,_,_) (vars2,_,_) =
+    match vars1, vars2 with
+    | [], [] -> 0
+    | _, [] -> -1
+    | [], _ -> 1
+    | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
+  let state, _, _, _, quant_viol_cnj =
+    solve_get_eqn ~use_quants:(Store_viol bvs)
       ~eqs ~ineqs ~optis ~suboptis ~cnj ~cmp_v ~cmp_w q.uni_v in
-  eqs, ineqs, optis, suboptis
+  state, expand_formula quant_viol_cnj
 
 let negation_elim q ~bvs ~verif_cns neg_cns =
   (*[* Format.printf "NumS.negation_elim:@\nneg_cns=@ %a@\n%!"

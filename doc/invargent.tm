@@ -1039,9 +1039,9 @@
     abduction answers are <math|c> and <math|c<rsub|\<alpha\>>\<leqslant\>d<rsub|\<alpha\>>>.
   </enumerate>
 
-  As a heuristic, we order the candidates by their size, but if the premise
-  already bounds a variable by a constant, we de-prioritize other bounds of
-  the variable by a constant.
+  As a heuristic, we order the candidates by their size, but if the branch
+  constrint <math|B> already bounds a variable by a constant, we
+  de-prioritize other-side bounds of the variable by a constant.
 
   Thanks to cases (1) and (4) above, the abduction algorithm can find some
   answers which are not fully maximal. The joint constraint abduction
@@ -1558,11 +1558,11 @@
   <math|Split<around*|(|<wide|\<alpha\>|\<bar\>>,A,<wide|A<rsub|\<beta\><rsub|\<chi\>>><rsup|0>|\<bar\>>|)>>.
 
   <\eqnarray*>
-    <tformat|<table|<row|<cell|\<alpha\>\<prec\>\<beta\>>|<cell|\<equiv\>>|<cell|\<alpha\>\<less\><rsub|\<cal-Q\>>\<beta\>\<vee\><around*|(|\<alpha\>\<leqslant\><rsub|\<cal-Q\>>\<beta\>\<wedge\>\<beta\>\<nless\><rsub|\<cal-Q\>>\<alpha\>\<wedge\>\<alpha\>\<in\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<wedge\>\<beta\>\<nin\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>|)>>>|<row|<cell|A<rsub|\<alpha\>\<beta\>>>|<cell|=>|<cell|<around*|{|\<beta\><wide|=|\<dot\>>\<alpha\>\<in\>A<mid|\|>\<beta\>\<in\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<wedge\><around*|(|\<exists\>\<alpha\>|)>\<in\>\<cal-Q\>\<wedge\>\<beta\>\<prec\>\<alpha\>|}>>>|<row|<cell|A<rsub|0>>|<cell|=>|<cell|A\\A<rsub|\<alpha\>\<beta\>>>>|<row|<cell|A<rsup|1><rsub|\<chi\>>>|<cell|=>|<cell|<around*|{|c\<in\>A<rsub|0><mid|\|>\<forall\>\<alpha\>\<in\>FV<around*|(|c|)>\\<wide|\<beta\>|\<bar\>><rsup|\<chi\>>.<around*|(|\<exists\>\<alpha\>|)>\<in\>\<cal-Q\>\<vee\>\<alpha\>\<less\><rsub|\<cal-Q\>>\<beta\><rsub|\<chi\>>|}>>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|\<cal-M\>\<nvDash\>\<cal-Q\>.<around*|(|A\<setminus\>\<cup\><rsub|\<chi\>>A<rsup|1><rsub|\<chi\>>|)><around*|[|<wide|\<alpha\>|\<bar\>>\<assign\><wide|t|\<bar\>>|]><with|mode|text|
+    <tformat|<table|<row|<cell|\<alpha\>\<prec\>\<beta\>>|<cell|\<equiv\>>|<cell|\<alpha\>\<less\><rsub|\<cal-Q\>>\<beta\>\<vee\><around*|(|\<alpha\>\<leqslant\><rsub|\<cal-Q\>>\<beta\>\<wedge\>\<beta\>\<nless\><rsub|\<cal-Q\>>\<alpha\>\<wedge\>\<alpha\>\<in\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<wedge\>\<beta\>\<nin\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>|)>>>|<row|<cell|A<rsub|\<alpha\>\<beta\>>>|<cell|=>|<cell|<around*|{|\<beta\><wide|=|\<dot\>>\<alpha\>\<in\>A<mid|\|>\<beta\>\<in\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<wedge\><around*|(|\<exists\>\<alpha\>|)>\<in\>\<cal-Q\>\<wedge\>\<beta\>\<prec\>\<alpha\>|}>>>|<row|<cell|A<rsub|0>>|<cell|=>|<cell|A\\A<rsub|\<alpha\>\<beta\>>>>|<row|<cell|A<rsup|1><rsub|\<chi\>>>|<cell|=>|<cell|<around*|{|c\<in\>A<rsub|0><mid|\|>\<forall\>\<alpha\>\<in\>FV<around*|(|c|)>\\<wide|\<beta\>|\<bar\>><rsup|\<chi\>>.<around*|(|\<exists\>\<alpha\>|)>\<in\>\<cal-Q\>\<vee\>\<alpha\>\<less\><rsub|\<cal-Q\>>\<beta\><rsub|\<chi\>>|}>>>|<row|<cell|A<rsup|2><rsub|\<chi\>>>|<cell|=>|<cell|Atomized<around*|(|<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>,A<rsub|\<chi\>><rsup|1>|)>>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|\<cal-M\>\<nvDash\>\<cal-Q\>.<around*|(|A\<setminus\>\<cup\><rsub|\<chi\>>A<rsup|2><rsub|\<chi\>>|)><around*|[|<wide|\<alpha\>|\<bar\>>\<assign\><wide|t|\<bar\>>|]><with|mode|text|
     \ for all ><wide|t|\<bar\>>>>|<row|<cell|<with|mode|text|then
     return>>|<cell|>|<cell|\<bot\>>>|<row|<cell|<with|mode|text|for all
     ><wide|A<rsub|\<chi\>><rsup|+>|\<bar\>><with|mode|text| min. w.r.t.
-    >\<subset\><with|mode|text| s.t.>>|<cell|>|<cell|\<wedge\><rsub|\<chi\>><around*|(|A<rsub|\<chi\>><rsup|+>\<subset\>A<rsub|\<chi\>><rsup|1>|)>\<wedge\>\<cal-M\>\<vDash\>\<cal-Q\>.<around*|(|A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>|)><around*|[|<wide|\<alpha\>|\<bar\>>\<assign\><wide|t|\<bar\>>|]><with|mode|text|
+    >\<subset\><with|mode|text| s.t.>>|<cell|>|<cell|\<wedge\><rsub|\<chi\>><around*|(|A<rsub|\<chi\>><rsup|+>\<subset\>A<rsup|2><rsub|\<chi\>>|)>\<wedge\>\<cal-M\>\<vDash\>\<cal-Q\>.<around*|(|\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>\<Rightarrow\>A|)><around*|[|<wide|\<alpha\>|\<bar\>>\<assign\><wide|t|\<bar\>>|]><with|mode|text|
     \ for some ><wide|t|\<bar\>>:>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|Strat<around*|(|A<rsup|+><rsub|\<chi\>>,<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|)><with|mode|text|
     \ returns >\<bot\><with|mode|text| for some
     >\<chi\>>>|<row|<cell|<with|mode|text|then
@@ -1605,6 +1605,16 @@
     Gather atoms pertaining to predicate <math|\<chi\>>, which should not
     remain in the residuum.
 
+    <item><math|<tabular|<tformat|<table|<row|<cell|A<rsup|2><rsub|\<chi\>>>|<cell|=>|<cell|Atomized<around*|(|<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>,A<rsub|\<chi\>><rsup|1>|)>>>>>>>
+    An atomized form of <math|A<rsub|\<chi\>><rsup|1>> wrt.
+    <math|<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>> is a
+    conjunction of atoms equivalent to <math|A<rsub|\<chi\>><rsup|1>>
+    containing some of the implications of <math|A<rsub|\<chi\>><rsup|1>>,
+    see the formal exposition of InvarGenT. Actually, rather than computing
+    the atomized form upfront, we generate its contribution to
+    <math|A<rsub|\<chi\>><rsup|+>> while performing Fourier-Motzkin
+    elimination to check <math|\<cal-M\>\<vDash\>\<cal-Q\>.<around*|(|\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>\<Rightarrow\><no-break>A|)>>.
+
     <item><math|<tabular|<tformat|<table|<row|<cell|<with|mode|text|if
     >\<cal-M\>\<nvDash\>\<cal-Q\>.<around*|(|A\<setminus\>\<cup\><rsub|\<chi\>>A<rsup|1><rsub|\<chi\>>|)><around*|[|<wide|\<alpha\>|\<bar\>>\<assign\><wide|t|\<bar\>>|]><with|mode|text|
     \ for all ><wide|t|\<bar\>><with|mode|text| then return >\<bot\>>>>>>>:
@@ -1613,13 +1623,13 @@
     not in scope of a defining site of recursive definition, resp. an
     existential type elimination site, and has too strong requirements.
 
-    <item><math|<tabular|<tformat|<table|<row|<cell|<with|mode|text|for all
-    ><wide|A<rsub|\<chi\>><rsup|+>|\<bar\>><with|mode|text| min. w.r.t.
-    >\<subset\><with|mode|text| s.t.>>|<cell|>|<cell|\<wedge\><rsub|\<chi\>><around*|(|A<rsub|\<chi\>><rsup|+>\<subset\>A<rsub|\<chi\>><rsup|1>|)>\<wedge\>\<cal-M\>\<vDash\>\<cal-Q\>.<around*|(|A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>|)><around*|[|<wide|\<alpha\>|\<bar\>>\<assign\><wide|t|\<bar\>>|]><with|mode|text|
-    \ for some ><wide|t|\<bar\>>:>>>>>> Select invariants such that the
-    residuum <math|A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>>
-    is consistent. The final residuum <math|A<rsub|res>> represents the
-    global constraints, the solution for global type variables. The solutions
+    <item><math|<with|mode|text|for all ><wide|A<rsub|\<chi\>><rsup|+>|\<bar\>><with|mode|text|
+    min. w.r.t. >\<subset\><with|mode|text|
+    s.t.>\<wedge\><rsub|\<chi\>><around*|(|A<rsub|\<chi\>><rsup|+>\<subset\>A<rsub|\<chi\>><rsup|2>|)>\<wedge\>\<cal-M\>\<vDash\>\<cal-Q\>.<around*|(|\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>\<Rightarrow\>A|)><around*|[|<wide|\<alpha\>|\<bar\>>\<assign\><wide|t|\<bar\>>|]><with|mode|text|
+    \ for some ><wide|t|\<bar\>>:> Select invariants such that the residuum
+    <math|A\<setminus\>\<cup\><rsub|\<chi\>>A<rsub|\<chi\>><rsup|+>> is
+    consistent. The final residuum <math|A<rsub|res>> represents the global
+    constraints, the solution for global type variables. The solutions
     <math|A<rsub|\<chi\>><rsup|+>> represent the invariants, the solution for
     invariant type parameters.
 

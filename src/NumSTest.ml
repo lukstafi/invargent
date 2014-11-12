@@ -54,9 +54,9 @@ let tests = "NumS" >::: [
         assert_failure (Printexc.to_string exn) *)
     );
 
-  "convex hull: basic equations" >::
+  "convex hull: basic equations 1" >::
     (fun () ->
-      skip_if !debug "debug";
+      (* skip_if !debug "debug"; *)
       Terms.reset_state ();
       Infer.reset_state ();
       (* try *)
@@ -76,6 +76,39 @@ let tests = "NumS" >::: [
         assert_equal ~printer:(fun x -> x)
           "∃. n2≤max (n3, n4) ∧ min (n3, n4)≤n2 ∧ n1≤max (n3, n4) ∧
   min (n3, n4)≤n1 ∧ min (n3, n2)≤n1 ∧ n1 = n2"
+          (Format.flush_str_formatter ())
+      with (Report_toplevel _ | Terms.Contradiction _) as exn ->
+        ignore (Format.flush_str_formatter ());
+        Terms.pr_exception Format.str_formatter exn;
+        assert_failure (Format.flush_str_formatter ())
+      (* with exn ->
+        Printexc.print_backtrace stdout;
+        assert_failure (Printexc.to_string exn) *)
+    );
+
+  "convex hull: basic equations 2" >::
+    (fun () ->
+      todo "FIXME";
+      skip_if !debug "debug";
+      Terms.reset_state ();
+      Infer.reset_state ();
+      (* try *)
+      try
+        Printexc.record_backtrace true;
+        let brs = Parser.cn_branches Lexer.token
+	  (Lexing.from_string " ⟹ n3 = n1 ∧ n4 = n1
+|  ⟹ n3 = n2 ∧ n4 = n2") in
+        let brs = List.map (sort_formula % snd) brs in
+        let preserve = List.fold_left
+            (fun vs br -> VarSet.union vs (fvs_formula br))
+            VarSet.empty brs in
+        let vs, ans = disjelim q ~initstep:false ~preserve brs in
+        ignore (Format.flush_str_formatter ());
+        Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
+          (pr_sep_list "," pr_tyvar) vs pr_formula ans;
+        assert_equal ~printer:(fun x -> x)
+          "∃. n4≤max (n1, n2) ∧ min (n1, n2)≤n4 ∧ n3≤max (n1, n2) ∧
+  min (n1, n2)≤n3 ∧ min (n2, n4)≤n3 ∧ n3 = n4"
           (Format.flush_str_formatter ())
       with (Report_toplevel _ | Terms.Contradiction _) as exn ->
         ignore (Format.flush_str_formatter ());

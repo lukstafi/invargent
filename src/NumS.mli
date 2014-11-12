@@ -88,6 +88,7 @@ val converge :
 type state
 val empty_state : state
 val formula_of_state : state -> NumDefs.formula
+val num_to_formula : NumDefs.formula -> Terms.formula
 val pr_state : Format.formatter -> state -> unit
 val satisfiable :
   ?state:state -> NumDefs.formula -> (exn, state) Aux.choice
@@ -96,6 +97,12 @@ val satisfiable_exn : ?state:state -> NumDefs.formula -> state
 val holds :
   Defs.quant_ops -> Defs.VarSet.t ->
   state -> NumDefs.formula -> state
+(** Incremental check whether |= Q.A. Collects implied formulas that
+    would not hold if the given parameters were universally quantified.
+    Raises [Contradiction]. *)
+val abductive_holds :
+  Defs.quant_ops -> bvs:Defs.VarSet.t ->
+  state -> NumDefs.formula -> state * NumDefs.formula
 val negation_elim :
   Defs.quant_ops -> bvs:Defs.VarSet.t ->
   verif_cns:state list ->
