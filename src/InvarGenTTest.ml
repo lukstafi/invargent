@@ -436,6 +436,11 @@ let tests = "InvarGenT" >::: [
            todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_isort" ());
+      "liquid_isort-full" >::
+        (fun () ->
+           todo "too hard for current numerical answer selection";
+           skip_if !debug "debug";
+           test_case "liquid_isort_full" ());
       "liquid_tower" >::
         (fun () ->
            todo "TODO";

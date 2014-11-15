@@ -9,6 +9,7 @@ let early_postcond_abd = ref false
 let timeout_count = ref 7
 let timeout_flag = ref false
 let unfinished_postcond_flag = ref false
+let use_prior_discards = ref (* false *)true
 
 open Defs
 open Terms
@@ -222,12 +223,31 @@ let holds q ~avs (ty_st, num_st) cnj =
   let num_st = NumS.holds q.op avs num_st cnj_num in
   ty_st, num_st
 
+let satisfiable q (ty_st, num_st) cnj =
+  let {cnj_typ=ty_st; cnj_num; cnj_so=_} =
+    unify ~use_quants:false ~sb:ty_st q.op cnj in
+  let num_st = NumS.satisfiable_exn ~state:num_st cnj_num in
+  ty_st, num_st
+
+let implies q (ty_st, num_st) cnj =
+  let {cnj_typ; cnj_num; cnj_so=_} =
+    unify ~use_quants:false ~sb:ty_st q.op cnj in
+  let cnj_typ = subst_formula ty_st (to_formula cnj_typ) in
+  let {cnj_typ=res_ty; cnj_num=res_num; cnj_so=_} =
+    unify ~use_quants:false ~sb:ty_st q.op cnj_typ in
+  res_ty = [] && res_num = [] && NumS.implies_cnj num_st cnj_num
+
+(* 4, 6 *)
 let abductive_holds q ~avs ~bvs (ty_st, num_st) cnj =
   let {cnj_typ=ty_st; cnj_num; cnj_so=_} =
     unify ~use_quants:true ~sb:ty_st q.op cnj in
   (* No need to use avs. *)
-  let num_st, more = NumS.abductive_holds q.op ~bvs num_st cnj_num in
-  (ty_st, num_st), NumS.num_to_formula more
+  let num_st, more = NumS.abductive_holds
+      q.op ~bvs num_st cnj_num in
+  (* 5 *)
+  let old, more = List.partition
+      (fun c -> List.exists (NumDefs.eq_atom c) cnj_num) more in
+  (ty_st, num_st), NumS.num_to_formula old, NumS.num_to_formula more
 
 let satisfiable q (ty_st, num_st) cnj =
   let {cnj_typ=ty_st; cnj_num; cnj_so=_} =
@@ -276,101 +296,124 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
     (*[* Format.printf "split-loop: starting@ avs=%a@\nans=@ %a@\nsol=@ %a@\n%!"
       pr_vars avs
       pr_formula ans pr_bchi_subst (List.map (fun (b,a)->b,([],a))
-     sol); *]*)
+                                      sol); *]*)
     let ans0, ab_eqs = List.partition
-      (function
-      | Eqty (TVar a, TVar b, _)
-          when not (q.uni_v a) && VarSet.mem b q.allbvs &&
-            cmp_v a b = Right_of -> false
-      | Eqty (TVar b, TVar a, _)
-          when not (q.uni_v a) && VarSet.mem b q.allbvs &&
-            cmp_v a b = Right_of -> false
-      | _ -> true) ans in
+        (function
+          | Eqty (TVar a, TVar b, _)
+            when not (q.uni_v a) && VarSet.mem b q.allbvs &&
+                 cmp_v a b = Right_of -> false
+          | Eqty (TVar b, TVar a, _)
+            when not (q.uni_v a) && VarSet.mem b q.allbvs &&
+                 cmp_v a b = Right_of -> false
+          | _ -> true) ans in
     (* 3 *)
     let ans_cand = List.map
-      (fun b ->
-        (*[* Format.printf "@\nsplit-loop-3: b=%s@ target=%a@\n%!"
-          (var_str b) pr_vars (Hashtbl.find q.b_vs b); *]*)
-        let xbvs = VarSet.add b (Hashtbl.find q.b_vs b) in
-        let ans = List.filter
-            (fun c ->
-               let cvs = fvs_atom c in
-               VarSet.exists (fun cv -> VarSet.mem cv xbvs) cvs &&
-               VarSet.for_all
-                 (fun cv ->
-                    (*[* Format.printf "cv=%s, %s;@ " (var_str cv)
-                      (var_scope_str (q.cmp_v cv b)); *]*)
-                    not (q.uni_v cv) || VarSet.mem cv xbvs ||
-                    VarSet.mem cv bvs && q.cmp_v cv b = Left_of)
-                 cvs)
-            ans0 in
-        b, ans)
-      negbs in
+        (fun b ->
+           (*[* Format.printf "@\nsplit-loop-3: b=%s@ target=%a@\n%!"
+             (var_str b) pr_vars (Hashtbl.find q.b_vs b); *]*)
+           let xbvs = VarSet.add b (Hashtbl.find q.b_vs b) in
+           let ans = List.filter
+               (fun c ->
+                  let cvs = fvs_atom c in
+                  VarSet.exists (fun cv -> VarSet.mem cv xbvs) cvs &&
+                  VarSet.for_all
+                    (fun cv ->
+                       (*[* Format.printf "cv=%s, %s;@ " (var_str cv)
+                         (var_scope_str (q.cmp_v cv b)); *]*)
+                       not (q.uni_v cv) || VarSet.mem cv xbvs ||
+                       VarSet.mem cv bvs && q.cmp_v cv b = Left_of)
+                    cvs)
+               ans0 in
+           b, ans)
+        negbs in
     (*[* Format.printf "@\nsplit-loop-3: ans1=@\n%a@\n%!"
       pr_bchi_subst
       (List.map (fun (b,a)->b, (VarSet.elements (Hashtbl.find q.b_vs b),a))
          ans_cand); *]*)
-    (* 6 *)
+    (* 7 *)
     let init_res = List.filter
-      (fun c -> not (List.exists (List.memq c % snd) ans_cand)) ans0 in
+        (fun c -> not (List.exists (List.memq c % snd) ans_cand)) ans0 in
     (*[* Format.printf "split-loop-6: ans0=@\n%a@\ninit_res=%a@\n%!"
       pr_formula ans0 pr_formula init_res; *]*)
     let init_state =
       try holds q ~avs empty_state init_res
       with Contradiction _ as e -> raise (convert e) in
-    (* 7 *)
+    (* 5, 7 *)
     (* TODO: would it be better to implement it through
        [connected ~validate]? *)
-    let ans_res = ref init_res and state = ref init_state in
-    let ans_ps = List.map
-      (fun (b,ans) -> b,
-        concat_map (fun c ->
-          try
-            let state', more_ans = abductive_holds q ~avs ~bvs !state [c] in
-            state := state';
-            ans_res := c :: !ans_res;
-            more_ans
-          with Contradiction _ (*[*as e*]*) ->
-            (*[* Format.printf
-              "split-rejected: c=%a@\nbecause: %a@\n%!"
-              pr_atom c pr_exception e; *]*)
-            [c]) ans)
-      ans_cand in
-    let ans_res = !ans_res in    
-    let more_discard = concat_map snd ans_ps in
-    (*[* Format.printf "split-loop-7: ans+=@\n%a@\nans_res=%a@\n%!"
+    let ans_res = ref init_res and state = ref init_state
+    and context = ref empty_state in
+    let ans_ps, more_ans =
+      List.split
+        (List.map
+           (fun (b,ans) ->
+              let ans, more =
+                List.split
+                  (List.map
+                     (fun c ->
+                        try
+                          let state', old_ans, more_ans =
+                            abductive_holds q ~avs ~bvs !state [c] in
+                          state := state';
+                          let more_ans = List.filter
+                              (fun c -> not (implies q !context [c]))
+                              more_ans in
+                          context := satisfiable q !context old_ans;
+                          (* If the original atom holds under the
+                             quantifier given [more_ans], keep it in
+                             the residuum. *)
+                          if old_ans = [] then ans_res := c :: !ans_res;
+                          (*[* Format.printf
+                              "split-more: b=%s; c=%a@\n\
+                               old_ans=@ %a@\nmore_ans=@ %a@\n%!"
+                              (var_str b) pr_atom c pr_formula old_ans
+                              pr_formula more_ans; *]*)
+                          old_ans, more_ans
+                        with Contradiction _ (*[*as e*]*) ->
+                          context := satisfiable q !context [c];
+                          (*[* Format.printf
+                            "split-rejected: b=%s; c=%a@\nbecause: %a@\n%!"
+                            (var_str b) pr_atom c pr_exception e; *]*)
+                          [c], []) ans) in
+              (b, List.concat ans), List.concat more)
+           ans_cand) in
+    let more_ans = List.concat more_ans in
+    (*[* Format.printf
+      "split-loop-7: ans+=@\n%a@\nmore_ans=%a@\nans_res=%a@\n%!"
       pr_bchi_subst (List.map (fun (b,a)->b,([],a)) ans_ps)
-      pr_formula ans_res; *]*)
-    (* 8 *)
+      pr_formula more_ans pr_formula !ans_res; *]*)
+    let ans_res = more_ans @ !ans_res in    
+    let more_discard = concat_map snd ans_ps in
+    (* 9 *)
     let ans_strat = List.map
-      (fun (b, ans_p) ->
-        let (avs_p, ans_l, ans_r) = strat q b ans_p in
-        (*[* Format.printf "select: ans_l(%s)=@ %a@\n%!"
-          (var_str b) pr_formula ans_l; *]*)
-        (* Negatively occurring [b] "owns" these formal parameters *)
-        q.add_b_vs_of b (List.map (fun v->v,v) avs_p);
-        (* 10 *)
-        let ans0 = List.assoc b sol in
-        let ans = ans0 @ ans_l in
-        (* 11 *)
-        let avs0 = VarSet.inter avs (fvs_formula ans) in
-        (* 12.a *)
-        let avs = VarSet.union avs0 (vars_of_list avs_p) in
-        (b, avs), (b, ans), (avs_p, ans_r))
-      ans_ps in
+        (fun (b, ans_p) ->
+           let (avs_p, ans_l, ans_r) = strat q b ans_p in
+           (*[* Format.printf "select: ans_l(%s)=@ %a@\n%!"
+             (var_str b) pr_formula ans_l; *]*)
+           (* Negatively occurring [b] "owns" these formal parameters *)
+           q.add_b_vs_of b (List.map (fun v->v,v) avs_p);
+           (* 10 *)
+           let ans0 = List.assoc b sol in
+           let ans = ans0 @ ans_l in
+           (* 11 *)
+           let avs0 = VarSet.inter avs (fvs_formula ans) in
+           (* 12.a *)
+           let avs = VarSet.union avs0 (vars_of_list avs_p) in
+           (b, avs), (b, ans), (avs_p, ans_r))
+        ans_ps in
     let avss, sol', more = split3 ans_strat in
     let nvs = List.fold_left
         (fun avs (_,bvs) -> VarSet.union avs bvs) VarSet.empty avss in
     let avs_ps, ans_rs = List.split more in
     (* 12.b *)
     let avss = List.map
-      (fun (b, avs) ->
-        let lbs = List.filter
-          (fun b' -> q.cmp_v b b' = Right_of) negbs in
-        let uvs = List.fold_left VarSet.union VarSet.empty
-          (List.map (flip List.assoc avss) lbs) in
-        VarSet.diff avs uvs)
-      avss in
+        (fun (b, avs) ->
+           let lbs = List.filter
+               (fun b' -> q.cmp_v b b' = Right_of) negbs in
+           let uvs = List.fold_left VarSet.union VarSet.empty
+               (List.map (flip List.assoc avss) lbs) in
+           VarSet.diff avs uvs)
+        avss in
     (* 13 *)
     let ans_p = List.concat ans_rs in
     (*[* Format.printf "split: ans_p=@ %a@ --@ ans_res=@ %a@\n%!"
@@ -381,21 +424,17 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
     let avsl = List.map VarSet.elements avss in
     let ans_res = ab_eqs @ ans_res in
     (* 14 *)
-    if not (VarSet.is_empty nvs)
+    if not (VarSet.is_empty nvs) || more_ans <> []
     then
       (* 15 *)
       let avs' = VarSet.diff avs
-        (List.fold_left VarSet.union VarSet.empty avss) in
+          (List.fold_left VarSet.union VarSet.empty avss) in
       let ans_res', discard', sol' =
-         (* ans_res, (more_discard @ discard), sol' in *)
-        (* FIXME: DEBUG *)
-      loop avs' ans_res (more_discard @ discard) sol' in (* *)
+        loop avs' ans_res (more_discard @ discard) sol' in (* *)
       (* 16 *)
       ans_res', discard',
-      (* FIXME: DEBUG *)
       List.map2
-         (fun avs (b, (avs', ans')) -> b, (avs@avs', ans')) avsl sol' (* *)
-      (* List.map2 (fun avs (b, ans) -> b, (avs, ans)) avsl sol' *)
+        (fun avs (b, (avs', ans')) -> b, (avs@avs', ans')) avsl sol'
     else
       (* 17 *)
       ans_res, more_discard @ discard,
@@ -1091,7 +1130,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
       (* 11 *)
       let finish rol2 sol2 =
         (* start fresh at (iter_no+1) *)
-        match loop (iter_no+1) empty_dl rol2 sol2
+        match loop (iter_no+1)
+                (if !use_prior_discards then discard else empty_dl)
+                rol2 sol2
         with Aux.Right _ as res -> res
            | Aux.Left (sort, e) ->
              (*[* Format.printf
@@ -1235,6 +1276,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                 freshened when predicate variable is instantiated. *)
              let dans = subst_formula [b, (tdelta, dummy_loc)] dans in
              let vs' = dvs @ vs in
+             (* FIXME: perhaps filter-out atoms contained upstream *)
              let num_sb, (_, ans') = simplify q.op ~bvs (vs', dans @ ans) in
              (*[* Format.printf
                "solve-loop-10: vs=%a@ ans=%a@ chi%d(.)=@ %a@\n%!"
@@ -1287,7 +1329,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
         Aux.Right (ans_res, rol2, sol2)
         (* Do at least three iterations: 0, 1, 2. *)
       else if iter_no <= 1 && finished
-      then loop (iter_no+1) empty_dl rol2 sol1
+      then loop (iter_no+1)
+          (if !use_prior_discards then discard else empty_dl)
+          rol2 sol1
       else if iter_no >= !timeout_count
       then
         let unfinished1 =

@@ -26,4 +26,6 @@ external swap :
    ∀n, k, i, a[0 ≤ n ∧ 0 ≤ k ∧ k + 1 ≤ i ∧ n + 1 ≤ i].
    Array (a, i) → Num k → Num n → ()
 
-val insertSort : ∀n, a[1 ≤ n]. Array (a, n) → ()
+val insertSort :
+   ∀i, k, n, a[n ≤ i ∧ 0 ≤ k].
+   Array (a, i) → Num k → Num n → ()

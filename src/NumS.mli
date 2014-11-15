@@ -93,6 +93,9 @@ val pr_state : Format.formatter -> state -> unit
 val satisfiable :
   ?state:state -> NumDefs.formula -> (exn, state) Aux.choice
 val satisfiable_exn : ?state:state -> NumDefs.formula -> state
+(* States computed by [satisfiable] should be used, to match the variable
+   ordering. *)
+val implies_cnj : state -> NumDefs.formula -> bool
 (** Incremental check whether |= Q.A. Raises [Contradiction]. *)
 val holds :
   Defs.quant_ops -> Defs.VarSet.t ->

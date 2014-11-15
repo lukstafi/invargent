@@ -22,9 +22,9 @@ external let equal : ∀a. a → a → Bool = "fun a b -> a = b"
 external swap : ∀n, k, i, a [0 ≤ n ∧ 0 ≤ k ∧ k + 1 ≤ i ∧ n + 1 ≤ i].
       Array (a, i) → Num k → Num n → ()
 
-let rec insertSort = fun arr start n ->
+let rec insertSort = fun arr start finish ->
   let rec outer = fun i ->
-    if start + n <= i then ()
+    if finish + 1 <= i then ()
     else
       let rec inner = fun j ->
         if j <= start then outer (i + 1)

@@ -2298,7 +2298,7 @@ let height = function
   "avl_tree--create" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case "avl_tree--height"
+       test_case "avl_tree--create"
 "datatype Avl : type * num
 datacons Empty : ∀a. Avl (a, 0)
 datacons Node :

@@ -9,6 +9,8 @@ val early_postcond_abd : bool ref
 val timeout_count : int ref
 val timeout_flag : bool ref
 val unfinished_postcond_flag : bool ref
+val use_prior_discards : bool ref
+
 type chi_subst = (int * (Defs.var_name list * Terms.formula)) list
 val neg_constrns : bool ref
 val solve :

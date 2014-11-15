@@ -61,6 +61,18 @@ let w_size (vars, cst, _) =
     List.fold_left
       (fun acc (_, coef) -> if coef =/ !/0 then acc else acc + 1) 0 vars
 
+let w_complexity (vars, cst, _) =
+  let cst_r = ratio_of_num cst in
+  let b2i = Big_int.int_of_big_int in
+  b2i (Ratio.numerator_ratio cst_r) +
+    b2i (Ratio.denominator_ratio cst_r) +
+    List.fold_left
+      (fun acc (_, coef) ->
+         let coef_r = ratio_of_num coef in
+         b2i (Ratio.numerator_ratio coef_r) +
+           b2i (Ratio.denominator_ratio coef_r) + acc)
+      0 vars
+
 (* Assumes [vars1] and [vars2] are in the same order. *)
 let compare_w (vars1, cst1, _) (vars2, cst2, _) =
   let rec loop = function
@@ -1089,6 +1101,7 @@ let revert_cst cmp_v uni_v eqn =
 
 (* TODO: perhaps include other branches in finding which variables are
    bounded by a constant. *)
+(* FIXME: deprioritize inequalities that are implicit equations *)
 let abd_cands ~cmp_v ~uni_v ~b_ineqs ~d_ineqs (vars, cst, lc as w) =
   (*[* Format.printf
     "NumS.abd_cands: w=%a@ (see also b_ineqs above)@\nd_ineqs=@ %a@\n%!"
@@ -1128,7 +1141,8 @@ let abd_cands ~cmp_v ~uni_v ~b_ineqs ~d_ineqs (vars, cst, lc as w) =
         | w -> Left w)
       cands in
   List.sort
-    (fun w1 w2 -> compare (w_size w1) (w_size w2)) (w::early_cands) @
+    (fun w1 w2 -> compare (w_complexity w1) (w_complexity w2))
+    (w::early_cands) @
     late_cands
 
 
@@ -2598,6 +2612,20 @@ let satisfiable_exn ?state cnj =
   let eqs, ineqs, optis, suboptis =
     solve ?eqs ?ineqs ?optis ?suboptis ~cnj ~cmp_v ~cmp_w uni_v in
   eqs, ineqs, optis, suboptis
+
+let implies_cnj (eqs, ineqs, optis, suboptis) cnj =
+  let uni_v _ = false in
+  (* The same order as in make_cmp *)
+  let cmp_v v1 v2 = compare v2 v1 in
+  let cmp_w (vars1,_,_) (vars2,_,_) =
+    match vars1, vars2 with
+    | [], [] -> 0
+    | _, [] -> -1
+    | [], _ -> 1
+    | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
+  let c_eqn, c_ineqn, c_optis, c_suboptis = split_flatten ~cmp_v cnj in
+  implies ~cmp_v ~cmp_w uni_v eqs ineqs optis suboptis c_eqn c_ineqn
+    c_optis c_suboptis 
 
 let holds q avs (eqs, ineqs, optis, suboptis : state) cnj : state =
   let cmp_v = make_cmp q in
