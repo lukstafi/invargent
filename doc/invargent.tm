@@ -970,11 +970,19 @@
       where <math|d> belongs to the solved form inequalities implied by
       <math|D<rprime|'>>. Otherwise, let <math|a<rsub|0>=<wide|Acc<rsup|=>|~><around*|(|a|)>>.
 
-      <item>Sort the candidates <math|a<rsub|0>> in order of increasing size.
-      Let <math|a<rprime|'>> be <math|a<rsub|0>> with some
-      <math|D<rsup|=><rprime|'>>-derived transformation applied.
+      <item>Sort the candidates <math|a<rsub|0>> in order of decreasing
+      value, described below. Let <math|a<rprime|'>> be <math|a<rsub|0>> with
+      some <math|D<rsup|=><rprime|'>>-derived transformation applied.
 
       <\itemize>
+        <item>If the branch constrint <math|B> already bounds a variable by a
+        constant, we de-prioritize candidates <math|a<rsub|0>> that are
+        other-side bounds of the variable by a constant. Otherwise, we
+        increase the value of <math|a<rsub|0>> for each variable that is
+        bound by <math|a<rsub|0>> on the side that it is unbound in <math|B>.
+        We decrease the value of <math|a<rsub|0>> for other variables to
+        favor smaller size.
+
         <item>Currently, we do not perform transformations when
         <math|a<rsub|0>> is an inequality, for simplicity and speed at cost
         of missing some answers. However, we eliminate the universal
@@ -1038,10 +1046,6 @@
     and <math|c\<Leftrightarrow\>c<rsub|\<alpha\>>\<leqslant\>\<alpha\>>: the
     abduction answers are <math|c> and <math|c<rsub|\<alpha\>>\<leqslant\>d<rsub|\<alpha\>>>.
   </enumerate>
-
-  As a heuristic, we order the candidates by their size, but if the branch
-  constrint <math|B> already bounds a variable by a constant, we
-  de-prioritize other-side bounds of the variable by a constant.
 
   Thanks to cases (1) and (4) above, the abduction algorithm can find some
   answers which are not fully maximal. The joint constraint abduction

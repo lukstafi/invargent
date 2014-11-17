@@ -61,18 +61,6 @@ let w_size (vars, cst, _) =
     List.fold_left
       (fun acc (_, coef) -> if coef =/ !/0 then acc else acc + 1) 0 vars
 
-let w_complexity (vars, cst, _) =
-  let cst_r = ratio_of_num cst in
-  let b2i = Big_int.int_of_big_int in
-  b2i (Ratio.numerator_ratio cst_r) +
-    b2i (Ratio.denominator_ratio cst_r) +
-    List.fold_left
-      (fun acc (_, coef) ->
-         let coef_r = ratio_of_num coef in
-         b2i (Ratio.numerator_ratio coef_r) +
-           b2i (Ratio.denominator_ratio coef_r) + acc)
-      0 vars
-
 (* Assumes [vars1] and [vars2] are in the same order. *)
 let compare_w (vars1, cst1, _) (vars2, cst2, _) =
   let rec loop = function
@@ -202,6 +190,7 @@ let taut_w iseq (vars, cst, _) =
 let nonneg_cst_w (vars, cst, _) =
   vars = [] && (cst >=/ !/0)
 
+(* TODO: a bit wasteful, simply compare. *)
 let equal_w ~cmp_v w1 w2 = zero_p (diff ~cmp_v w1 w2)
 let equal_2w ~cmp_v (w1, w2) (w3, w4) =
   equal_w ~cmp_v w1 w3 && equal_w ~cmp_v w2 w4
@@ -1101,8 +1090,7 @@ let revert_cst cmp_v uni_v eqn =
 
 (* TODO: perhaps include other branches in finding which variables are
    bounded by a constant. *)
-(* FIXME: deprioritize inequalities that are implicit equations *)
-let abd_cands ~cmp_v ~uni_v ~b_ineqs ~d_ineqs (vars, cst, lc as w) =
+let abd_cands ~cmp_v ~uni_v ~bvs ~b_ineqs ~d_ineqs (vars, cst, lc as w) =
   (*[* Format.printf
     "NumS.abd_cands: w=%a@ (see also b_ineqs above)@\nd_ineqs=@ %a@\n%!"
     pr_w w pr_ineqs (hashtbl_to_assoc d_ineqs); *]*)
@@ -1110,7 +1098,7 @@ let abd_cands ~cmp_v ~uni_v ~b_ineqs ~d_ineqs (vars, cst, lc as w) =
     concat_map
       (fun ((v, coef), vars1) ->
          (*[* Format.printf "NumS.abd_cands: trying v=%s@\n%!" (var_str v)
-         ; *]*)
+           ; *]*)
          try
            let lhs, rhs = Hashtbl.find d_ineqs v in
            (* No change of sign for c because it stays on the same side. *)
@@ -1128,21 +1116,46 @@ let abd_cands ~cmp_v ~uni_v ~b_ineqs ~d_ineqs (vars, cst, lc as w) =
       (one_out vars) in
   let early_cands, late_cands = partition_map
       (function
-        | [v,k], _, _ as w ->
+        | [v, k], _, _ as w ->
           (* A single variable bounded by a constant -- deprioritize
              if the variable is already bounded. *)
-            let bounded =
-              try
-                let lhs, rhs = List.assoc v b_ineqs in
-                k >/ !/0 && WSet.exists (fun (vars,_,_) -> vars=[]) lhs ||
-                k </ !/0 && WSet.exists (fun (vars,_,_) -> vars=[]) rhs
-              with Not_found -> false in
-            if bounded then Right w else Left w
+          let bounded =
+            try
+              let lhs, rhs = Hashtbl.find b_ineqs v in
+              k >/ !/0 && WSet.exists (fun (vars,_,_) -> vars=[]) lhs ||
+              k </ !/0 && WSet.exists (fun (vars,_,_) -> vars=[]) rhs
+            with Not_found -> false in
+          if bounded then Right w else Left w
+        | (v, k)::vars1, cst1, lc1 as w ->
+          (* Check whether the inequality is an implicit equality. *)
+          let w' = vars1, cst1, lc1 in
+          let bounded =
+            try
+              let lhs, rhs = Hashtbl.find b_ineqs v in
+              k >/ !/0 &&
+              WSet.exists (equal_w ~cmp_v w') lhs ||
+              k </ !/0 &&
+              WSet.exists (equal_w ~cmp_v w') rhs
+            with Not_found -> false in
+          if bounded then Right w else Left w
         | w -> Left w)
       cands in
-  List.sort
-    (fun w1 w2 -> compare (w_complexity w1) (w_complexity w2))
-    (w::early_cands) @
+  (* Promote candidates introducing constraints on unconstrained
+     variables. Otherwise, penalize for size. *)
+  let w_value (vars, cst, _) = List.fold_left
+      (fun acc (v, k) ->
+         try
+           let lhs, rhs = Hashtbl.find b_ineqs v in
+           if VarSet.mem v bvs &&
+              (k >/ !/0 && WSet.is_empty rhs ||
+               k </ !/0 && WSet.is_empty lhs)
+           then acc + 2
+           else acc - 1
+         with Not_found -> acc - 1)
+      (if cst =/ !/0 then 0 else -1) vars in
+  List.map snd
+    (List.sort (fun (x, _) (y, _) -> compare y x)
+       (List.map (fun w->w_value w, w) (w::early_cands))) @
     late_cands
 
 
@@ -1320,6 +1333,7 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
           ddepth pr_w_atom a pr_eqn c0eqn;
       *]*)
       let passes = ref false in
+      let bh_ineqs = complete_ineqs ~cmp_v b_ineqs in
       let try_trans a' =
         try
           (* 7a *)
@@ -1416,7 +1430,7 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
        | Leq_w w ->
          let w = subst_if_qv ~uni_v ~bvs ~cmp_v rev_sb w in
          let cands =
-           abd_cands ~cmp_v ~uni_v ~b_ineqs ~d_ineqs w in
+           abd_cands ~cmp_v ~uni_v ~bvs ~b_ineqs:bh_ineqs ~d_ineqs w in
          (*[* Format.printf "NumS.abd_simple: [%d] 7. c0s=@ %a@\n%!"
            ddepth pr_ineqn cands; *]*)
          (* TODO: ^ another variant -- always try w at the end. *)

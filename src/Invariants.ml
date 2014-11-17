@@ -291,6 +291,7 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
   let negbs =
     if do_postcond then q.negbs
     else List.filter (fun b->not (q.is_chiK (q.find_chi b))) q.negbs in
+  let context = ref empty_state in
   let rec loop avs ans discard sol =
     (* 2 *)
     (*[* Format.printf "split-loop: starting@ avs=%a@\nans=@ %a@\nsol=@ %a@\n%!"
@@ -341,8 +342,7 @@ let split do_postcond avs ans negchi_locs bvs cand_bvs q =
     (* 5, 7 *)
     (* TODO: would it be better to implement it through
        [connected ~validate]? *)
-    let ans_res = ref init_res and state = ref init_state
-    and context = ref empty_state in
+    let ans_res = ref init_res and state = ref init_state in
     let ans_ps, more_ans =
       List.split
         (List.map

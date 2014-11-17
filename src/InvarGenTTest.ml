@@ -426,9 +426,12 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "liquid_isort_simpler2" ());
+      "liquid_isort-simpler3" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "liquid_isort_simpler3" ());
       "liquid_isort-simpler" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_isort_simpler" ());
       "liquid_isort" >::
@@ -438,7 +441,7 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_isort" ());
       "liquid_isort-full" >::
         (fun () ->
-           todo "too hard for current numerical answer selection";
+           todo "FIXME?";
            skip_if !debug "debug";
            test_case "liquid_isort_full" ());
       "liquid_tower" >::
