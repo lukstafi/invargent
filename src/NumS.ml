@@ -19,6 +19,8 @@ let strong_int_pruning = ref false
 let passing_ineq_trs = ref false
 let no_subopti_of_cst = ref true
 let revert_csts = ref true(* false *)
+let discard_penalty = ref 2
+let discourage_upper_bound = ref true
 
 let abd_fail_flag = ref false
 let abd_timeout_flag = ref false
@@ -81,6 +83,8 @@ let compare_w (vars1, cst1, _) (vars2, cst2, _) =
 module WSet = Set.Make (struct type t = w let compare = compare_w end)
 let add_to_wset l ws = List.fold_right WSet.add l ws
 let wset_of_list l = List.fold_right WSet.add l WSet.empty
+let wset_of_map f l =
+  List.fold_left (fun acc x -> WSet.union acc (f x)) WSet.empty l  
 let wset_map f ws =
   WSet.fold (fun w ws -> WSet.add (f w) ws) ws WSet.empty
 let wset_map_to_list f ws =
@@ -1090,7 +1094,8 @@ let revert_cst cmp_v uni_v eqn =
 
 (* TODO: perhaps include other branches in finding which variables are
    bounded by a constant. *)
-let abd_cands ~cmp_v ~uni_v ~bvs ~b_ineqs ~d_ineqs (vars, cst, lc as w) =
+let abd_cands ~cmp_v ~uni_v ~bvs ~discard_ineqs ~b_ineqs ~d_ineqs
+    (vars, cst, lc as w) =
   (*[* Format.printf
     "NumS.abd_cands: w=%a@ (see also b_ineqs above)@\nd_ineqs=@ %a@\n%!"
     pr_w w pr_ineqs (hashtbl_to_assoc d_ineqs); *]*)
@@ -1116,6 +1121,8 @@ let abd_cands ~cmp_v ~uni_v ~bvs ~b_ineqs ~d_ineqs (vars, cst, lc as w) =
       (one_out vars) in
   let early_cands, late_cands = partition_map
       (function
+        | [v, k], _, _ as w when !discourage_upper_bound && k >/ !/0 ->
+          Right w
         | [v, k], _, _ as w ->
           (* A single variable bounded by a constant -- deprioritize
              if the variable is already bounded. *)
@@ -1142,7 +1149,11 @@ let abd_cands ~cmp_v ~uni_v ~bvs ~b_ineqs ~d_ineqs (vars, cst, lc as w) =
       cands in
   (* Promote candidates introducing constraints on unconstrained
      variables. Otherwise, penalize for size. *)
-  let w_value (vars, cst, _) = List.fold_left
+  let w_value (vars, cst, _ as w) =
+    let cst_value = if cst =/ !/0 then 0 else -1 in
+    let discard_value =
+      if WSet.mem w discard_ineqs then ~- !discard_penalty else 0 in
+    List.fold_left
       (fun acc (v, k) ->
          try
            let lhs, rhs = Hashtbl.find b_ineqs v in
@@ -1152,7 +1163,7 @@ let abd_cands ~cmp_v ~uni_v ~bvs ~b_ineqs ~d_ineqs (vars, cst, lc as w) =
            then acc + 2
            else acc - 1
          with Not_found -> acc - 1)
-      (if cst =/ !/0 then 0 else -1) vars in
+      (cst_value + discard_value) vars in
   List.map snd
     (List.sort (fun (x, _) (y, _) -> compare y x)
        (List.map (fun w->w_value w, w) (w::early_cands))) @
@@ -1309,6 +1320,11 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
         "NumS.abd_simple: [%d] 5.@\nb_eqs=@ %a@\nb_ineqs=@ %a@\n%!"
         ddepth pr_w_subst b_eqs pr_ineqs b_ineqs;
       *]*)
+      let discard_ineqs = wset_of_map
+          (fun (_, ineqn, _, suboptis) ->
+             wset_of_list
+               (List.map fst suboptis @ List.map snd suboptis @ ineqn))
+          discard in
 
       if taut a
       || implies ~cmp_v ~cmp_w uni_v b_eqs b_ineqs b_optis b_suboptis
@@ -1430,7 +1446,8 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
        | Leq_w w ->
          let w = subst_if_qv ~uni_v ~bvs ~cmp_v rev_sb w in
          let cands =
-           abd_cands ~cmp_v ~uni_v ~bvs ~b_ineqs:bh_ineqs ~d_ineqs w in
+           abd_cands ~cmp_v ~uni_v ~bvs ~discard_ineqs
+             ~b_ineqs:bh_ineqs ~d_ineqs w in
          (*[* Format.printf "NumS.abd_simple: [%d] 7. c0s=@ %a@\n%!"
            ddepth pr_ineqn cands; *]*)
          (* TODO: ^ another variant -- always try w at the end. *)
@@ -1703,6 +1720,7 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
   let brs, validate_brs = List.split brs in
   (*[* Format.printf "NumS.abd: brs processing past merging@\n%!"; *]*)
   let validate (eqs, ineqs, optis, suboptis) =
+    (* TODO: introduce use-site substitutions *)
     List.iter
       (fun (brs_r, (_ (*[* as brs_n *]*)),
             (_, _, (d_eqn, d_ineqn), (c_eqn, c_ineqn, c_optis, c_suboptis))) ->
