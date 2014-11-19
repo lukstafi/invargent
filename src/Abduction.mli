@@ -81,9 +81,11 @@ type discarded =
 val abd :
   Defs.quant_ops ->
   bvs:Defs.VarSet.t ->
+  xbvs:(int * Defs.VarSet.t) list ->
   ?iter_no:int ->
   discard:discarded ->
-  (bool * Terms.formula * Terms.formula) list ->
+  (bool * (int * (Defs.var_name * Defs.var_name) list) list *
+     Terms.formula * Terms.formula) list ->
   (Terms.formula * Defs.loc) list ->
   Defs.VarSet.t * Terms.subst *
   (Defs.var_name list * Terms.formula)

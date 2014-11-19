@@ -50,9 +50,11 @@ val abd_timeout_flag : bool ref
 val abd :
   Defs.quant_ops ->
   bvs:Defs.VarSet.t ->
+  xbvs:(int * Defs.VarSet.t) list ->
   discard:NumDefs.formula list ->
   ?iter_no:int ->
-  (bool * NumDefs.formula * NumDefs.formula) list ->
+  (bool * (int * (Defs.var_name * Defs.var_name) list) list *
+     NumDefs.formula * NumDefs.formula) list ->
   Defs.var_name list * NumDefs.formula
 
 (** Twice as many angles of rotation are tried out for *)

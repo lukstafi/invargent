@@ -805,12 +805,12 @@ type discarded =
   (TermAbd.answer list, NumDefs.formula list,
    OrderDefs.formula list, unit) sep_sorts
 
-let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
+let abd q ~bvs ~xbvs ?(iter_no=2) ~discard brs neg_brs =
   let dissociate = iter_no <= 0 in
   (* Do not change the order and no. of branches afterwards. *)
   (*[* Format.printf "abd: iter_no=%d prepare branches@\n%!" iter_no; *]*)
   let brs_typ, brs_num = List.split
-      (map_some (fun (nonrec, prem, concl) ->
+      (map_some (fun (nonrec, chi_pos, prem, concl) ->
            let prems_opt =
              try Some (unify ~use_quants:false q prem)
              with Contradiction _ as e ->
@@ -830,7 +830,7 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
                    NumDefs.pr_formula prem.cnj_num
                    NumDefs.pr_formula concl.cnj_num; *]*)
                  Some ((prem, concl.cnj_typ),
-                          (nonrec, prem.cnj_num, concl.cnj_num)))
+                          (nonrec, chi_pos, prem.cnj_num, concl.cnj_num)))
            | None -> None)
           brs) in
   (* Negative constraint prior to abduction. *)
@@ -849,7 +849,7 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
         neg_brs in
   let validate (vs, ans) =
     List.iter2
-      (fun (prem, concl_ty) (nonrec, _, concl_num) ->
+      (fun (prem, concl_ty) (nonrec, _, _, concl_num) ->
          (* Do not use quantifiers, because premise is in the conjunction. *)
          (* TODO: after cleanup optimized in abd_simple, pass clean_ans
             and remove cleanup here *)
@@ -942,11 +942,12 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
   (* Drop the pseudo-branch with term negation. *)
   let more_in_brs = List.tl more_in_brs in
   let verif_brs_num = List.map2
-      (fun (nonrec,prem,concl) (more_p, more_c) ->
-         nonrec, more_p.cnj_num @ prem, more_c.cnj_num @ concl)
+      (fun (nonrec, chi_pos, prem, concl) (more_p, more_c) ->
+         nonrec, chi_pos, more_p.cnj_num @ prem, more_c.cnj_num @ concl)
       brs_num more_in_brs in
   (* OK, we can change [brs_num] now. *)
-  let brs_num = List.filter (fun (_, _, concl) -> concl<>[]) verif_brs_num in
+  let brs_num = List.filter
+      (fun (_, _, _, concl) -> concl<>[]) verif_brs_num in
   (* Filter out negated constraints that already are contradicted. Of
      the result, use only sorts other than [Type_sort] as negated
      constraints. *)
@@ -971,12 +972,12 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
          constraints. Coalesce facts from subsumed branches. *)
       let verif_cns_num =
         map_some
-          (fun (_,prem,_) ->
+          (fun (_,_,prem,_) ->
              (*[* Format.printf
                "abd-neg: verif_br prem=@ %a@\n%!" NumDefs.pr_formula
                prem; *]*)
              let allconcl = concat_map
-                 (fun (_,prem2,concl2) ->
+                 (fun (_,_,prem2,concl2) ->
                     if NumDefs.subformula prem2 prem then concl2 else [])
                  verif_brs_num in
              try Some (NumS.satisfiable_exn (ans_num @ prem @ allconcl))
@@ -1002,9 +1003,9 @@ let abd q ~bvs ?(iter_no=2) ~discard brs neg_brs =
     else
       try
         (* [tvs] includes alien variables! *)
-        NumS.abd q ~bvs ~discard:discard.at_num ~iter_no
+        NumS.abd q ~bvs ~xbvs ~discard:discard.at_num ~iter_no
           (* [true] means non-recursive *)
-          ((true, [], neg_num_res)::brs_num)
+          ((true, [], [], neg_num_res)::brs_num)
       with
       | Contradiction _ as e ->
         (*[* Format.printf "abd: num dead code@\n%!"; *]*)

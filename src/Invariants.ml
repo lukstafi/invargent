@@ -121,9 +121,8 @@ let matchup_vars ~self_owned q b vs =
     (String.concat ", "
        (List.map (fun (v,w)->var_str v^":="^var_str w) nrvs)); *]*)
   q.add_b_vs_of b nrvs;
-  let res = nrvs @ orvs in
   (* [orvs] stores a [delta] substitution, [delta] is absent from [vs] *)
-  renaming_sb res
+  nrvs @ orvs
 
 let sb_atom_PredU q posi psb = function
   | PredVarU (i, (TVar b as t), loc) ->
@@ -132,7 +131,8 @@ let sb_atom_PredU q posi psb = function
        (*[* Format.printf
          "sb_atom_pred: U posi=%b@ chi%d(%s)=@ %a@\n%!"
          posi i (var_str b) pr_ans (vs,phi); *]*)
-       let renaming = matchup_vars ~self_owned:(not posi) q b vs in
+       let renaming =
+         renaming_sb (matchup_vars ~self_owned:(not posi) q b vs) in
        replace_loc loc
          (sb_phi_unary t (subst_formula renaming phi))
      with Not_found ->
@@ -147,11 +147,13 @@ let sb_formula_PredU q posi psb phi =
   concat_map (sb_atom_PredU q posi psb) phi
 
 let sb_brs_PredU q sol brs = List.map
-  (fun (nonrec,prem,concl) ->
+  (fun (nonrec, prem, concl) ->
     nonrec,
-    Aux.map_some                        (* chiK_neg *)
+    map_some                            (* chi_pos *)
+      (function PredVarU (i,t,_) -> Some (i, t) | _ -> None) concl,
+    map_some                            (* chiK_neg *)
       (function PredVarB (i,t1,t2,lc) -> Some (i,t1,t2,lc) | _ -> None) prem,
-    Aux.map_some                        (* chiK_pos *)
+    map_some                            (* chiK_pos *)
       (function PredVarB (i,t1,t2,lc) -> Some (i,t1,t2,lc) | _ -> None) concl,
     sb_formula_PredU q false sol prem,
     sb_formula_PredU q true sol concl)
@@ -164,16 +166,16 @@ let sb_PredB q psb (i, t1, t2, lc) =
        (*[* Format.printf
          "sb_chiK_neg: chi%d(%s,%a)=@ %a@\n%!"
          i (var_str b) pr_ty t2 pr_ans (vs,phi); *]*)
-       let renaming = matchup_vars ~self_owned:false q b vs in
+       let renaming =
+         renaming_sb (matchup_vars ~self_owned:false q b vs) in
        replace_loc lc
          (sb_phi_binary t1 t2 (subst_formula renaming phi))
      with Not_found -> [])
   | _ -> []
 
 let sb_brs_PredB q rol par brs = List.map
-  (fun (nonrec,chiK_neg,chiK_pos,prem,concl) ->
-    nonrec,
-    chiK_pos,
+  (fun (nonrec, chi_pos, chiK_neg, chiK_pos, prem, concl) ->
+    nonrec, chi_pos, chiK_pos,
     concat_map (sb_PredB q rol) chiK_neg @ prem,
     concat_map (sb_PredB q par) chiK_pos @ concl)
   brs
@@ -185,7 +187,8 @@ let sb_atom_pred q posi rol sol = function
        (*[* Format.printf
          "sb_atom_pred: U posi=%b@ chi%d(%s)=@ %a@\n%!"
          posi i (var_str b) pr_ans (vs,phi); *]*)
-       let renaming = matchup_vars (not posi) q b vs in
+       let renaming =
+         renaming_sb (matchup_vars (not posi) q b vs) in
        replace_loc loc
          (sb_phi_unary t (subst_formula renaming phi))
      with Not_found -> [a])  
@@ -195,7 +198,8 @@ let sb_atom_pred q posi rol sol = function
        (*[* Format.printf
          "sb_atom_pred: B posi=%b@ chi%d(%s,%a)=@ %a@\n%!"
          posi i (var_str b) pr_ty t2 pr_ans (vs,phi); *]*)
-       let renaming = matchup_vars false q b vs in
+       let renaming =
+         renaming_sb (matchup_vars false q b vs) in
        replace_loc loc
          (sb_phi_binary t1 t2 (subst_formula renaming phi))
      with Not_found -> [a])
@@ -821,9 +825,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
     let brs1 = sb_brs_PredB q rol1 g_par brs0 in
     (* Collect all relevant constraints together. *)
     let verif_brs = map_some
-        (fun (nonrec, chiK, prem, _) ->
+        (fun (nonrec, chi_pos, chiK, prem, _) ->
            let allconcl = concat_map
-               (fun (_,_,prem2,concl2) ->
+               (fun (_,_,_,prem2,concl2) ->
                   (*[* Format.printf
                     "solve-verif_brs: subformula? %b@\nprem2=%a@\nprem=%a@\n%!"
                     (subformula prem2 prem)
@@ -841,12 +845,12 @@ let solve q_ops new_ex_types exty_res_chi brs =
                false
              with Contradiction _ -> true in
            if dead_case then None
-           else Some
-               (nonrec, chiK, prem, allconcl))
+           else
+             Some (nonrec, chi_pos, chiK, prem, allconcl))
         brs1 in
     (*[* Format.printf "solve: loop iter_no=%d@\nsol=@ %a@\n%!"
       iter_no pr_chi_subst sol1; *]*)
-    (*[* Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs4 brs1; *]*)
+    (*[* Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs5 brs1; *]*)
     (* Guard to prune postconditions. *)
     (* FIXME: is here the right place to collect it, or after
        variable lifting? *)
@@ -860,7 +864,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
         (* The [t2] arguments should become equal in the solution! *)
         let g_rol = collect
             (concat_map
-               (fun (nonrec,chiK_pos,prem,concl) ->
+               (fun (nonrec, chi_pos, chiK_pos, prem, concl) ->
                   if nonrec || disj_step.(2) <= iter_no
                   then
                     List.map
@@ -1041,7 +1045,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
         sol1, brs1, abdsjelim, g_rol in
     (*[* Format.printf "solve-loop: iter_no=%d -- ex. brs substituted@\n%!"
       iter_no; *]*)
-    (*[* Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs4 brs1; *]*)
+    (*[* Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs5 brs1; *]*)
     (* 7a *)
     let neg_cns1 = List.map
         (fun (prem,loc) -> sb_formula_pred q false g_rol sol1 prem, loc)
@@ -1054,7 +1058,25 @@ let solve q_ops new_ex_types exty_res_chi brs =
       try
         (* 6 *)
         let brs1 = List.map
-            (fun (nonrec,_,prem,concl) ->
+            (fun (nonrec, chi_pos, _, prem, concl) ->
+               let chi_pos = List.map
+                   (fun (i, t) ->
+                      match t with
+                      | TVar b ->
+                        (try
+                           let vs, _ = List.assoc i sol1 in
+                           let renaming =
+                             matchup_vars ~self_owned:false q b vs in
+                           (*[* Format.printf
+                             "sb_chi_pos: chi%d(%s)@ lvs=%a;@ rvs=%a@\n%!"
+                             i (var_str b)
+                             pr_vars (vars_of_list (List.map fst renaming))
+                             pr_vars (vars_of_list (List.map snd renaming));
+                           *]*)
+                           i, renaming
+                         with Not_found -> i, [])
+                      | _ -> assert false)
+                   chi_pos in
                let concl =
                  if iter_no>0 || !early_postcond_abd then concl
                  else
@@ -1062,12 +1084,17 @@ let solve q_ops new_ex_types exty_res_chi brs =
                      (fun a->VarSet.is_empty
                          (VarSet.inter (fvs_atom a) early_chiKbs))
                      concl in
-               nonrec,prem,concl) brs1 in
+               nonrec, chi_pos, prem, concl) brs1 in
         let brs1 =
           if abdsjelim=[] then brs1
-          else (true,[],abdsjelim)::brs1 in
+          else (true, [], [], abdsjelim)::brs1 in
+        let xbvs = Hashtbl.fold
+            (fun x xvs acc ->
+               if q.positive_b x then acc
+               else (q.find_chi x, xvs)::acc)
+            q.b_vs [] in
         let cand_bvs, alien_eqs, (vs, ans) =
-          Abduction.abd q.op ~bvs ~iter_no
+          Abduction.abd q.op ~bvs ~xbvs ~iter_no
             ~discard brs1 neg_cns1 in
         (*[* Format.printf
           "solve: iter_no=%d abd answer=@ %a@\n%!"
@@ -1377,12 +1404,12 @@ let solve q_ops new_ex_types exty_res_chi brs =
     let bvs = bparams !timeout_count in
     (* Push parameters to the right so that they are kept in answers. *)
     let q_op =
-    let cmp_v v1 v2 =
-      let c1 = VarSet.mem v1 bvs and c2 = VarSet.mem v2 bvs in
-      if c1 && c2 then Same_quant
-      else if c1 then Left_of
-      else if c2 then Right_of
-      else q.op.Defs.cmp_v v1 v2 in
+      let cmp_v v1 v2 =
+        let c1 = VarSet.mem v1 bvs and c2 = VarSet.mem v2 bvs in
+        if c1 && c2 then Same_quant
+        else if c1 then Left_of
+        else if c2 then Right_of
+        else q.op.Defs.cmp_v v1 v2 in
       {q.op with cmp_v} in
     let ans_sb, _ =
       Infer.separate_subst q_op ans_res in

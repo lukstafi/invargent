@@ -906,7 +906,9 @@
   not violate the quantifier conditions from the <em|split> phase of the main
   algorithm, and that the partial answer is satisfiable with all implication
   branches of the joint abduction problem. We call this check
-  <em|validation>.
+  <em|validation>. For domains other than the term domain, it also involves
+  instantiating use-sites of recursive definitions with parts of the partial
+  answer, split in a simplified way.
 
   Abduction algorithm:
 

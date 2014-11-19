@@ -155,7 +155,7 @@ let pr_sep_br ppf (_, (d_eqn, d_ineqn), (c_eqn, c_ineqn, c_optis, c_suboptis)) =
     pr_eqn c_eqn pr_ineqn c_ineqn
     pr_optis c_optis pr_suboptis c_suboptis
 
-let pr_br3 ppf (_, prem, concl) =
+let pr_br4 ppf (_, _, prem, concl) =
     Format.fprintf ppf "@[<2>%a@ ⟹@ %a@]"
     pr_formula prem pr_formula concl
 
@@ -1577,9 +1577,67 @@ end
 
 module JCA = Joint.JointAbduction (NumAbd)
 
+let rename_w sb (vars, cst, lc) =
+  List.map
+    (fun (v, k as sv) ->
+       try List.assoc v sb, k
+       with Not_found -> sv)
+    vars,
+  cst, lc
+
+let local_split ~cmp_v ~bvs ~xbvs eqn ineqn optis suboptis =
+  let leq x y =
+    let c = cmp_v x y in
+    if c = Same_quant then VarSet.mem x bvs else c <> Right_of in
+  let pick_var vs =
+    let res =
+      maximum ~leq (VarSet.elements vs) in
+    (*[* Format.printf "pick_var: vs=%a; res=%s@\n%!" pr_vars vs
+      (var_str res); *]*)
+    res in
+  let eqn = List.map
+      (fun w -> pick_var (fvs_w w), w) eqn
+  and ineqn = List.map
+      (fun w -> pick_var (fvs_w w), w) ineqn
+  and optis = List.map
+      (fun o -> pick_var (fvs_2w o), o) optis
+  and suboptis = List.map
+      (fun o -> pick_var (fvs_2w o), o) suboptis in
+  let split xvs = map_some
+      (fun (v, a) -> if VarSet.mem v xvs then Some a else None) in
+  List.map
+    (fun (x, xvs) ->
+       let x_eqn = split xvs eqn in
+       let x_ineqn = split xvs ineqn in
+       (*[* Format.printf
+         "local_split: x=%d; xvs=%a@\nx_eqn=%a@\nx_ineqn=%a@\n%!"
+       x pr_vars xvs pr_eqn x_eqn pr_ineqn x_ineqn; *]*)
+       x, (x_eqn, x_ineqn, split xvs optis, split xvs suboptis))
+    xbvs
+
+let subst_chi chi_sb pos_chi =
+  List.fold_left
+    (fun (acc_eqn, acc_ineqn, acc_optis, acc_suboptis)
+      (i, renaming) ->
+      let (eqn, ineqn, optis, suboptis) =
+        try List.assoc i chi_sb
+        with Not_found -> [], [], [], [] in
+      let eqn = List.map (rename_w renaming) eqn
+      and ineqn = List.map (rename_w renaming) ineqn
+      and optis = List.map
+          (fun (w1, w2) -> rename_w renaming w1, rename_w renaming w2)
+          optis
+      and suboptis = List.map
+          (fun (w1, w2) -> rename_w renaming w1, rename_w renaming w2)
+          suboptis in
+      eqn @ acc_eqn, ineqn @ acc_ineqn,
+      optis @ acc_optis, suboptis @ acc_suboptis)
+    ([], [], [], []) pos_chi
+    
+
 (* FIXME: eliminate optis from premise, but first try simplifying
    them with both premise and conclusion of a branch. *)
-let abd q ~bvs ~discard ?(iter_no=2) brs =
+let abd q ~bvs ~xbvs ~discard ?(iter_no=2) brs =
   abd_timeout_flag := false;
   let cmp_v = make_cmp q in
   let cmp_w (vars1,cst1,_) (vars2,cst2,_) =
@@ -1592,10 +1650,10 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
     iter_no
     (String.concat "," (List.map var_str (VarSet.elements bvs))); *]*)
   (*[* Format.printf "NumS.abd: brs=@\n| %a@\n%!"
-    (pr_line_list "| " pr_br3) brs;
+    (pr_line_list "| " pr_br4) brs;
   *]*)
   let brs = List.map
-      (fun (nonrec, prem, concl) ->
+      (fun (nonrec, chi_pos, prem, concl) ->
          (*[* Format.printf "NumS.abd: splitting premise=@\n%a@\n%!"
            pr_formula prem; *]*)
          let d_eqn, d_ineqn, d_optis, d_suboptis =
@@ -1641,7 +1699,7 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
                     (*[* Format.printf
                       "NumS.abd-split: case@\nd_eqs=%a@\nd_ineqs=%a@\n%!"
                       pr_w_subst d_eqs pr_ineqs d_ineqs; *]*)
-                    Some (nonrec, opti_lhs, d_eqs, d_ineqs,
+                    Some (nonrec, chi_pos, opti_lhs, d_eqs, d_ineqs,
                           (d_opti_eqn @ o_eqn @ d_eqn, o_ineqn @ d_ineqn),
                           concl)
                   with Terms.Contradiction _ as e ->
@@ -1668,7 +1726,8 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
       (fun obrs ->
          let contr_exc = ref None in
          let res = map_some
-             (fun ((nonrec, opti_lhs, d_eqs, d_ineqs, (d_eqn, d_ineqn),
+             (fun ((nonrec, chi_pos, opti_lhs,
+                    d_eqs, d_ineqs, (d_eqn, d_ineqn),
                     (c_eqn, c_ineqn, c_optis, c_suboptis)) as br) ->
                let br =
                  try
@@ -1678,7 +1737,7 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
                    let (g_eqn, g_ineqn, g_optis, g_suboptis) =
                      List.fold_left
                        (fun (g_eqn, g_ineqn, g_optis, g_suboptis as g_acc)
-                         ((_, _, _, _, (d2_eqn, d2_ineqn),
+                         ((_, _, _, _, _, (d2_eqn, d2_ineqn),
                            (c2_eqn, c2_ineqn, c2_optis, c2_suboptis)) as br2) ->
                          if br == br2 then g_acc
                          else if implies_case ~cmp_v ~cmp_w q.uni_v
@@ -1699,7 +1758,7 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
                    ignore (solve (* or: ~eqs:d_eqs ~ineqs:d_ineqs *)
                              ~eqn:(g_eqn @ d_eqn) ~ineqn:(g_ineqn @ d_ineqn)
                              ~cmp_v ~cmp_w q.uni_v);
-                   Some (nonrec, opti_lhs, (d_eqn, d_ineqn),
+                   Some (nonrec, chi_pos, opti_lhs, (d_eqn, d_ineqn),
                          (c_eqn, c_ineqn, c_optis, c_suboptis))
                  with Terms.Contradiction _ as e ->
                    if !nodeadcode then contr_exc := Some e;
@@ -1720,10 +1779,13 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
   let brs, validate_brs = List.split brs in
   (*[* Format.printf "NumS.abd: brs processing past merging@\n%!"; *]*)
   let validate (eqs, ineqs, optis, suboptis) =
+    let chi_sb = local_split ~cmp_v:q.cmp_v ~bvs ~xbvs
+        (unsubst eqs) (unsolve ineqs) optis suboptis in
     (* TODO: introduce use-site substitutions *)
     List.iter
       (fun (brs_r, (_ (*[* as brs_n *]*)),
-            (_, _, (d_eqn, d_ineqn), (c_eqn, c_ineqn, c_optis, c_suboptis))) ->
+            (_, chi_pos, _, (d_eqn, d_ineqn),
+             (c_eqn, c_ineqn, c_optis, c_suboptis))) ->
          (*[* Format.printf
           "validate: brs_r=%d; brs_n=%d\
            @\nd_eqn=%a@\nc_eqn=%a@\nd_ineqn=%a@\nc_ineqn=%a\
@@ -1737,11 +1799,14 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
            with Terms.Contradiction _ as e -> Left e in
          match prem_state with
          | Right (eqs,ineqs,optis,suboptis) ->
+           let u_eqn, u_ineqn, u_optis, u_suboptis =
+             subst_chi chi_sb chi_pos in
            let (*[* br_eqs,br_ineqs,br_optis,br_suboptis *]*) _ =
              solve ~eqs ~ineqs
-               ~eqn:c_eqn ~ineqn:c_ineqn
-               ~optis:(optis @ c_optis)
-               ~suboptis:(suboptis @ c_suboptis) ~cmp_v ~cmp_w q.uni_v in
+               ~eqn:(u_eqn @ c_eqn) ~ineqn:(u_ineqn @ c_ineqn)
+               ~optis:(optis @ u_optis @ c_optis)
+               ~suboptis:(suboptis @ u_suboptis @ c_suboptis)
+               ~cmp_v ~cmp_w q.uni_v in
            (*[* Format.printf
              "br_eqs=%a@\nbr_ineqs=%a@\nbr_optis=%a@\nbr_suboptis=%a@\n%!"
              pr_w_subst br_eqs pr_ineqs br_ineqs pr_optis br_optis
@@ -1759,9 +1824,9 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
     if iter_no > 1 || !early_num_abduction
     then brs, []
     else List.partition
-        (fun (nonrec, opti_lhs, prem, concl) -> nonrec) brs in
+        (fun (nonrec, chi_pos, opti_lhs, prem, concl) -> nonrec) brs in
   let brs = List.map
-      (fun (_, opti_lhs,  prem, concl) -> opti_lhs, prem, concl)
+      (fun (_, chi_pos, opti_lhs,  prem, concl) -> opti_lhs, prem, concl)
       brs in
   let brs = List.stable_sort
       (fun (_,(pe1,pi1),_) (_,(pe2,pi2),_) ->
@@ -1774,7 +1839,7 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
   (*[* Format.printf "NumS.abd: unproc_brs=@\n| %a@\n%!"
     (pr_line_list "| " pr_sep_br)
     (List.map
-       (fun (_, opti_lhs,  prem, concl) -> opti_lhs, prem, concl)
+       (fun (_, _, opti_lhs,  prem, concl) -> opti_lhs, prem, concl)
        unproc_brs);
   *]*)
   let discard =
@@ -1782,7 +1847,7 @@ let abd q ~bvs ~discard ?(iter_no=2) brs =
   let elim_uni =
     (* FIXME: rethink *)
     concat_map
-      (fun (_,_,_,(concl_eqs, _, _, _)) ->
+      (fun (_,_,_,_,(concl_eqs, _, _, _)) ->
          List.filter
            (function
              | Eq (Lin (_,_,v), Lin (_,_,w), lc)
