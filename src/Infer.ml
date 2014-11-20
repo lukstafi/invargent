@@ -1124,6 +1124,7 @@ let rec remove_qns = function
 
 let prenexize cn =
   let quant = Hashtbl.create 64 in
+  let upward = Hashtbl.create 64 in
   let univars = Hashtbl.create 32 in
   let allvars = Hashtbl.create 64 in
   let parent_param = Hashtbl.create 32 in
@@ -1170,13 +1171,17 @@ let prenexize cn =
           assert false) in
   let uni_v v =
     try Hashtbl.find univars v with Not_found -> false in
+  let upward_of v1 v2 =
+    try Hashtbl.find upward (v1, v2) with Not_found -> false in
   let current_id = ref 0
   (*[* and current_vars = ref VarSet.empty *]*)
   and change = ref true and at_uni = ref true in
-  let q_add_vars vs =
+  let q_add_vars upvs vs =
+    let v_id = !current_id in
     VarSet.iter (fun v ->
-        Hashtbl.add quant v !current_id;
-        Hashtbl.add allvars v ())
+        Hashtbl.add quant v v_id; Hashtbl.add allvars v ();
+        VarSet.iter (fun up -> Hashtbl.add upward (up, v) true)
+          upvs)
       vs;
     (*[* current_vars := VarSet.union !current_vars vs; *]*)
     change := true in
@@ -1187,27 +1192,27 @@ let prenexize cn =
     *]*)
     incr current_id;
     change := false; at_uni := not !at_uni in
-  let rec aux = function
+  let rec aux upvs = function
     | (All (vs, cn) | Ex (vs, cn))
       when VarSet.is_empty vs ->
-      aux cn    
+      aux upvs cn
     | (All (vs, cn) | Ex (vs, cn))
       when Hashtbl.mem allvars (VarSet.choose vs) ->
-      aux cn
+      aux (VarSet.union vs upvs) cn
     | All (vs, cn) when !at_uni ->
       VarSet.iter (fun v -> Hashtbl.add univars v true) vs;
-      q_add_vars vs; aux cn
-    | Ex (vs, cn) when not !at_uni -> q_add_vars vs; aux cn
+      q_add_vars upvs vs; aux upvs cn
+    | Ex (vs, cn) when not !at_uni -> q_add_vars upvs vs; aux upvs cn
     | (All _ | Ex _ | A _) -> ()
-    | And cns -> List.iter aux cns
-    | Or cns -> List.iter (fun (cn,tr) -> aux cn) cns
-    | Impl (prem, concl) -> aux concl in
+    | And cns -> List.iter (aux upvs) cns
+    | Or cns -> List.iter (fun (cn,tr) -> aux upvs cn) cns
+    | Impl (prem, concl) -> aux upvs concl in
   let rec loop () =
-    alternate (); aux cn; if !change then loop () in
+    alternate (); aux VarSet.empty cn; if !change then loop () in
   (* Start the prefix from existential quantifiers. *)
   loop ();
   (*[* Format.printf "prenexize: done@\n%!"; *]*)
-  {cmp_v; uni_v; same_as}, remove_qns cn
+  {cmp_v; uni_v; same_as; upward_of}, remove_qns cn
 
 type 'a guarded_br = {
   guard_cnj : formula;

@@ -528,9 +528,39 @@ let merge_one_nonredund ~cmp_v ~cmp_w l1 l2 = (* merge cmp_w l1 l2 *)
       aux (e2::acc) (l1, tl2) in
   aux [] (l1, l2)
 
+(* FIXME: should we assume order? *)
+let no_scope_viol ~cmp_v ~upward_of ~bvs (vars, _, _) =
+  let vs = map_some
+      (fun (v, _) -> if VarSet.mem v bvs then Some v else None) vars in
+  let leq v1 v2 = cmp_v v1 v2 <> Right_of in
+  if vs = [] then true
+  else
+    let v = maximum ~leq vs in
+    (*[* Format.printf "no_scope_viol: v=%s@ " (var_str v);
+    let res = *]*)
+    List.for_all
+      (fun (u, _) ->
+         (*[* Format.printf "u=%s bvs=%b cmp=%s up=%b@ " (var_str u)
+           (VarSet.mem u bvs) (var_scope_str (cmp_v v u))
+           (upward_of u v); *]*)
+         (* Case of a parameter candidate. *)
+         not (VarSet.mem u bvs) && cmp_v v u = Left_of ||
+         u == v || upward_of u v || cmp_v v u = Same_params)
+      vars
+      (*[* in Format.printf "@\n%!"; res *]*)
+
+let no_scope_viol_atom ~cmp_v ~upward_of ~bvs = function
+  | Leq_w w -> no_scope_viol ~cmp_v ~upward_of ~bvs w
+  | Eq_w w -> no_scope_viol ~cmp_v ~upward_of ~bvs w
+  | Opti_w ((vars1, cst1, lc1), (vars2, _, _)) ->
+    no_scope_viol ~cmp_v ~upward_of ~bvs (vars1 @ vars2, cst1, lc1)
+  | Subopti_w ((vars1, cst1, lc1), (vars2, _, _)) ->
+    no_scope_viol ~cmp_v ~upward_of ~bvs (vars1 @ vars2, cst1, lc1)
+
 (* Assumption: [v] is downstream of all [vars] *)
 (* TODO: understand why the equivalent of [Terms.quant_viol] utterly
    fails here. *)
+(* FIXME: fail on out-of-scope parameters. *)
 let quant_viol uni_v cmp_v ~storeable bvs v0 vars =
   (* FIXME: v should already be to the right of vars. *)
   let leq v1 v2 = cmp_v v1 v2 >= 0 in
@@ -1173,7 +1203,7 @@ let abd_cands ~cmp_v ~uni_v ~bvs ~discard_ineqs ~b_ineqs ~d_ineqs
 exception Omit_trans
 (* We currently do not measure satisfiability of negative constraints. *)
 (* TODO: guess equalities between parameters. *)
-let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
+let abd_simple ~qcmp_v ~cmp_w ~upward_of cmp_v uni_v ~bvs ~discard ~validate
     ~neg_validate:_
     skip (eqs_i, ineqs_i, optis_i, suboptis_i)
     (opti_lhs, (d_eqn, d_ineqn), (c_eqn, c_ineqn, c_optis, c_suboptis)) =
@@ -1357,6 +1387,8 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
             "NumS.abd_simple: [%d] 7a. trying a'=@ %a@ ...@\n%!"
             ddepth pr_w_atom a';
           *]*)
+          if not (no_scope_viol_atom ~cmp_v:qcmp_v ~upward_of ~bvs a')
+          then raise Omit_trans;
           let eqn, ineqn, optin, suboptin = split_w_atom a' in
           (* [new_eqn, new_ineqn] are only used to determine the
              variables contributed to the answer. *)
@@ -1448,6 +1480,8 @@ let abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs ~discard ~validate
          let cands =
            abd_cands ~cmp_v ~uni_v ~bvs ~discard_ineqs
              ~b_ineqs:bh_ineqs ~d_ineqs w in
+         let cands = List.filter
+             (no_scope_viol ~cmp_v:qcmp_v ~upward_of ~bvs) cands in
          (*[* Format.printf "NumS.abd_simple: [%d] 7. c0s=@ %a@\n%!"
            ddepth pr_ineqn cands; *]*)
          (* TODO: ^ another variant -- always try w at the end. *)
@@ -1535,6 +1569,7 @@ module NumAbd = struct
     cmp_v : (var_name -> var_name -> int);
     cmp_w : (w -> w -> int);
     qcmp_v : (var_name -> var_name -> var_scope);
+    upward_of : var_name -> var_name -> bool;
     uni_v : (var_name -> bool);
     bvs : VarSet.t}
   type answer = accu
@@ -1546,9 +1581,9 @@ module NumAbd = struct
   let abd_fail_timeout = abd_fail_timeout_count
   let abd_fail_flag = abd_fail_flag
 
-  let abd_simple {qcmp_v; cmp_w; cmp_v; uni_v; bvs}
+  let abd_simple {qcmp_v; cmp_w; cmp_v; uni_v; bvs; upward_of}
       ~discard ~validate ~neg_validate acc br =
-    abd_simple ~qcmp_v ~cmp_w cmp_v uni_v ~bvs
+    abd_simple ~qcmp_v ~cmp_w cmp_v ~upward_of uni_v ~bvs
       ~discard ~validate ~neg_validate 0 acc br
 
   let extract_ans ans = ans
@@ -1637,7 +1672,7 @@ let subst_chi chi_sb pos_chi =
 
 (* FIXME: eliminate optis from premise, but first try simplifying
    them with both premise and conclusion of a branch. *)
-let abd q ~bvs ~xbvs ~discard ?(iter_no=2) brs =
+let abd q ~bvs ~xbvs ~upward_of ~discard ?(iter_no=2) brs =
   abd_timeout_flag := false;
   let cmp_v = make_cmp q in
   let cmp_w (vars1,cst1,_) (vars2,cst2,_) =
@@ -1862,7 +1897,8 @@ let abd q ~bvs ~xbvs ~discard ?(iter_no=2) brs =
            (List.map (expand_atom true) concl_eqs))
       unproc_brs in
   let ans = JCA.abd
-      {cmp_v; cmp_w; NumAbd.qcmp_v = q.cmp_v; uni_v = q.uni_v; bvs}
+      {cmp_v; cmp_w; NumAbd.qcmp_v = q.cmp_v;
+       upward_of; uni_v = q.uni_v; bvs}
       ~discard ~validate ~neg_validate ([], [], [], []) brs in
   [], elim_uni @ ans_to_num_formula ans
 

@@ -32,6 +32,7 @@ type q_with_bvs = {
   b_renaming : (var_name, (var_name * var_name) list) Hashtbl.t;
   add_bchi : var_name -> int -> posi:bool -> chiK:bool -> unit;
   find_b : int -> var_name list;
+  find_b_of_v : var_name -> var_name;
   find_chi : var_name -> int;
   mutable allbvs : VarSet.t;
   mutable allchi : Ints.t;
@@ -49,9 +50,12 @@ let new_q q_ops =
   let b_qvs = Hashtbl.create 16 in
   let chi_b = Hashtbl.create 16 in
   let b_chi = Hashtbl.create 16 in
+  let v_b = Hashtbl.create 16 in
   let find_b i = Hashtbl.find_all chi_b i in
+  let find_b_of_v v = Hashtbl.find v_b v in
   let find_chi b = Hashtbl.find b_chi b in
   let rec add_bchi b i ~posi ~chiK =
+    Hashtbl.replace v_b b b;
     if Hashtbl.mem b_chi b
     then (
       let old = Hashtbl.find b_chi b in
@@ -75,7 +79,7 @@ let new_q q_ops =
       (fun (_,v) -> not (List.mem v qvs)) rvs in
     let vs = List.map snd rvs in
     let vss = vars_of_list vs in
-    List.iter (fun v -> q_ops.same_as v b) vs;
+    List.iter (fun v -> q_ops.same_as v b; Hashtbl.replace v_b v b) vs;
     q.allbvs <- VarSet.union q.allbvs vss;
     if Hashtbl.mem posi_b b
     then List.iter (fun v -> Hashtbl.add posi_b v ()) vs;
@@ -94,7 +98,7 @@ let new_q q_ops =
     op = q_ops; cmp_v = q_ops.cmp_v; uni_v = q_ops.uni_v;
     add_b_vs_of; allchi = Ints.empty;
     b_vs; b_renaming; b_qvs; allbvs = VarSet.empty;
-    add_bchi; find_b; find_chi; is_chiK;
+    add_bchi; find_b; find_b_of_v; find_chi; is_chiK;
     positive_b; negbs = [];
     recover_escaping = Hashtbl.create 8;
   } in q
@@ -1093,8 +1097,13 @@ let solve q_ops new_ex_types exty_res_chi brs =
                if q.positive_b x then acc
                else (q.find_chi x, xvs)::acc)
             q.b_vs [] in
+        (* Unfortunately we cannot delegate [upward_of] directly to [q.op] *)
+        let upward_of v1 v2 =
+          let b1 = try q.find_b_of_v v1 with Not_found -> v1 in
+          let b2 = try q.find_b_of_v v2 with Not_found -> v2 in
+          q.op.upward_of b1 b2 in
         let cand_bvs, alien_eqs, (vs, ans) =
-          Abduction.abd q.op ~bvs ~xbvs ~iter_no
+          Abduction.abd q.op ~bvs ~xbvs ~upward_of ~iter_no
             ~discard brs1 neg_cns1 in
         (*[* Format.printf
           "solve: iter_no=%d abd answer=@ %a@\n%!"

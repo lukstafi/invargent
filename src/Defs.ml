@@ -95,12 +95,14 @@ type quant_ops = {
   cmp_v : var_name -> var_name -> var_scope;
   uni_v : var_name -> bool;
   same_as : var_name -> var_name -> unit;
+  upward_of : var_name -> var_name -> bool;
 }
 
 let empty_q = {
   cmp_v = (fun _ _ -> Same_quant);
   uni_v = (fun _ -> false);
   same_as = (fun _ _ -> ());
+  upward_of = (fun _ _ -> false);
 }
   
 

@@ -905,8 +905,12 @@
   Before accepting a new atom into the partial answer, we check that it would
   not violate the quantifier conditions from the <em|split> phase of the main
   algorithm, and that the partial answer is satisfiable with all implication
-  branches of the joint abduction problem. We call this check
-  <em|validation>. For domains other than the term domain, it also involves
+  branches of the joint abduction problem. As part of the quantifier
+  conditions, we ensure that the escaping parameters are upward in the
+  constraint before prenexization, i.e. are parameters of the type of a
+  parent definition (containing a given definition in its body) rather than a
+  parallel definition. The check of satisfiability we call <em|validation>.
+  For domains other than the term domain, validation also involves
   instantiating use-sites of recursive definitions with parts of the partial
   answer, split in a simplified way.
 

@@ -74,6 +74,7 @@ type quant_ops = {
   cmp_v : var_name -> var_name -> var_scope;
   uni_v : var_name -> bool;
   same_as : var_name -> var_name -> unit;
+  upward_of : var_name -> var_name -> bool;
 }
 val empty_q : quant_ops
 

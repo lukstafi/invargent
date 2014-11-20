@@ -436,12 +436,15 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_isort_simpler" ());
       "liquid_isort" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_isort" ());
+      "liquid_isort-harder" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "liquid_isort_harder" ());
       "liquid_isort-full" >::
         (fun () ->
-           todo "FIXME?";
+           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_isort_full" ());
       "liquid_tower" >::

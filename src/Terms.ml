@@ -1357,6 +1357,7 @@ let var_not_left_of q v t =
    non-[bvs] variable to the right of all [bvs] variables. Existential
    variables are not constrained: do not need to be same as or to the
    left of [v]. *)
+(* FIXME: fail on out-of-scope parameters. *)
 let quant_viol q bvs v t =
   let uv = q.uni_v v and bv = VarSet.mem v bvs in
   let npvs = List.filter (fun v-> not (VarSet.mem v bvs))

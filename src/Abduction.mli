@@ -82,6 +82,7 @@ val abd :
   Defs.quant_ops ->
   bvs:Defs.VarSet.t ->
   xbvs:(int * Defs.VarSet.t) list ->
+  upward_of:(Defs.var_name -> Defs.var_name -> bool) ->
   ?iter_no:int ->
   discard:discarded ->
   (bool * (int * (Defs.var_name * Defs.var_name) list) list *

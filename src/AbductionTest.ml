@@ -15,7 +15,8 @@ let debug = ref (* true *)false
 let cmp_v v1 v2 = Same_quant
 let uni_v v = v=VNam (Type_sort, "tx")
               || v=VNam (Type_sort, "ty")
-let q = {cmp_v; uni_v; same_as = fun _ _ -> ()}
+let q = {cmp_v; uni_v; same_as = (fun _ _ -> ());
+         upward_of = (fun _ _ -> false)}
 
 let p_formula s = Parser.formula Lexer.token (Lexing.from_string s)
 

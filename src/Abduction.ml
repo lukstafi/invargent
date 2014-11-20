@@ -37,7 +37,8 @@ exception Result of VarSet.t * var_name list * subst
 
 let empty_q =
   {cmp_v = (fun _ _ -> Same_quant); uni_v = (fun _ -> false);
-   same_as = (fun _ _ -> ())}
+   same_as = (fun _ _ -> ());
+   upward_of = (fun _ _ -> true)}
 
 (* TODO: optimize use of [cleanup] *)
 
@@ -225,6 +226,7 @@ let cand_var_eqs q bvs cnj_typ =
     (triangle cands)
 
 (* [obvs] stands for original [bvs], excluding candidates. *)
+(* FIXME: ensure that only upward parameters are escaping. *)
 let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
     ~validate ~neg_validate ~discard skip (vs, ans) (prem, concl) =
   let counter = ref 0 in
@@ -805,7 +807,7 @@ type discarded =
   (TermAbd.answer list, NumDefs.formula list,
    OrderDefs.formula list, unit) sep_sorts
 
-let abd q ~bvs ~xbvs ?(iter_no=2) ~discard brs neg_brs =
+let abd q ~bvs ~xbvs ~upward_of ?(iter_no=2) ~discard brs neg_brs =
   let dissociate = iter_no <= 0 in
   (* Do not change the order and no. of branches afterwards. *)
   (*[* Format.printf "abd: iter_no=%d prepare branches@\n%!" iter_no; *]*)
@@ -1003,7 +1005,7 @@ let abd q ~bvs ~xbvs ?(iter_no=2) ~discard brs neg_brs =
     else
       try
         (* [tvs] includes alien variables! *)
-        NumS.abd q ~bvs ~xbvs ~discard:discard.at_num ~iter_no
+        NumS.abd q ~bvs ~xbvs ~upward_of ~discard:discard.at_num ~iter_no
           (* [true] means non-recursive *)
           ((true, [], [], neg_num_res)::brs_num)
       with
