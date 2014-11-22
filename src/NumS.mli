@@ -29,8 +29,11 @@ val no_subopti_of_cst : bool ref
     answers. Default [true]. *)
 val revert_csts : bool ref
 (** How much to penalize an abduction candidate inequality for
-    belonging to some formula in the discard list. *)
+    belonging to some formula in the discard list. Default [2]. *)
 val discard_penalty : int ref
+(** How much to penalize an abduction candidate inequality for
+    containing a constant term. Default [1]. *)
+val affine_penalty : int ref
 
 val num_of : Terms.typ -> NumDefs.term
 val sort_formula : Terms.formula -> NumDefs.formula

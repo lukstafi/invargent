@@ -20,7 +20,10 @@ let passing_ineq_trs = ref false
 let no_subopti_of_cst = ref true
 let revert_csts = ref true(* false *)
 let discard_penalty = ref 2
+let affine_penalty = ref 1
+let reward_constrn = ref 2
 let discourage_upper_bound = ref true
+let reward_locality = ref 4
 
 let abd_fail_flag = ref false
 let abd_timeout_flag = ref false
@@ -813,7 +816,15 @@ let solve_aux ~use_quants ?(strict=false)
                 None, loc))
     | ((v, k)::vars, cst, loc as w)::ineqn
         when storeable && quant_viol uni_v cmp_v ~storeable bvs v vars ->
-      quant_viol_cnj := Leq_w w :: !quant_viol_cnj;
+      let old_ineq =
+        try
+          let lhs, rhs = List.assoc v ineqs in
+          let ohs = mult (!/(-1) // k) (vars, cst, loc) in
+          if k >/ !/0 then WSet.mem ohs rhs
+          else WSet.mem ohs lhs
+        with Not_found -> false in
+      if not old_ineq then
+        quant_viol_cnj := Leq_w w :: !quant_viol_cnj;
       handle_proj v k vars cst loc ineqn
     | ((v, k)::vars, cst, loc)::ineqn
         when use_quants &&
@@ -1123,13 +1134,17 @@ let revert_cst cmp_v uni_v eqn =
   c_eqn @ eqn
 
 (* TODO: perhaps include other branches in finding which variables are
-   bounded by a constant. *)
-let abd_cands ~cmp_v ~uni_v ~bvs ~discard_ineqs ~b_ineqs ~d_ineqs
+   bounded by a constant. [d_ineqn] and [d_ineqs] represent the same
+   inequalities, but [d_ineqs] is normalized and completed
+   wrt. transitivity. *)
+(* FIXME: evaluate all atoms introduced with the candidate. *)
+let abd_cands ~cmp_v ~qcmp_v ~uni_v ~bvs ~discard_ineqs
+    ~b_ineqs ~d_ineqn ~d_ineqs
     (vars, cst, lc as w) =
   (*[* Format.printf
     "NumS.abd_cands: w=%a@ (see also b_ineqs above)@\nd_ineqs=@ %a@\n%!"
     pr_w w pr_ineqs (hashtbl_to_assoc d_ineqs); *]*)
-  let cands =
+  let cands_vs =
     concat_map
       (fun ((v, coef), vars1) ->
          (*[* Format.printf "NumS.abd_cands: trying v=%s@\n%!" (var_str v)
@@ -1149,6 +1164,22 @@ let abd_cands ~cmp_v ~uni_v ~bvs ~discard_ineqs ~b_ineqs ~d_ineqs
            res
          with Not_found -> [])
       (one_out vars) in
+  let cands_cst =
+    if cst =/ !/0 then []
+    else map_some
+        (fun (vars2, cst2, lc2) ->
+           let s = sign_num cst in
+           if sign_num cst2 <> s then None
+           else
+             let c = mult (!/(-1) // cst) (vars, !/0, lc) in
+             let d = mult (!/(-1) // cst2) (vars2, !/0, lc2) in
+             (*[* Format.printf
+               "NumS.abd_cands: trying s=%d@ c=%a;@ d=%a;@ res=%a@\n%!"
+               s pr_w c pr_w d pr_w (if s > 0 then diff ~cmp_v d c
+                                     else diff ~cmp_v c d); *]*)
+             if s > 0 then Some (diff ~cmp_v d c)
+             else Some (diff ~cmp_v c d))
+      d_ineqn in
   let early_cands, late_cands = partition_map
       (function
         | [v, k], _, _ as w when !discourage_upper_bound && k >/ !/0 ->
@@ -1176,13 +1207,20 @@ let abd_cands ~cmp_v ~uni_v ~bvs ~discard_ineqs ~b_ineqs ~d_ineqs
             with Not_found -> false in
           if bounded then Right w else Left w
         | w -> Left w)
-      cands in
+      (cands_cst @ cands_vs) in
   (* Promote candidates introducing constraints on unconstrained
      variables. Otherwise, penalize for size. *)
   let w_value (vars, cst, _ as w) =
-    let cst_value = if cst =/ !/0 then 0 else -1 in
+    let cst_value = if cst =/ !/0 then 0 else ~- !affine_penalty in
     let discard_value =
       if WSet.mem w discard_ineqs then ~- !discard_penalty else 0 in
+    let locality =
+      match vars with
+      | [] -> 0
+      | (v, _)::tl ->
+        if List.for_all (fun (v2, _) -> qcmp_v v v2 = Same_params) tl
+        then !reward_locality
+        else 0 in
     List.fold_left
       (fun acc (v, k) ->
          try
@@ -1190,10 +1228,10 @@ let abd_cands ~cmp_v ~uni_v ~bvs ~discard_ineqs ~b_ineqs ~d_ineqs
            if VarSet.mem v bvs &&
               (k >/ !/0 && WSet.is_empty rhs ||
                k </ !/0 && WSet.is_empty lhs)
-           then acc + 2
+           then acc + !reward_constrn
            else acc - 1
          with Not_found -> acc - 1)
-      (cst_value + discard_value) vars in
+      (cst_value + discard_value + locality) vars in
   List.map snd
     (List.sort (fun (x, _) (y, _) -> compare y x)
        (List.map (fun w->w_value w, w) (w::early_cands))) @
@@ -1226,8 +1264,8 @@ let abd_simple ~qcmp_v ~cmp_w ~upward_of cmp_v uni_v ~bvs ~discard ~validate
         ~ineqs:ineqs_i ~eqn:d_eqn' ~ineqn:d_ineqn'
         ~optis:[] ~suboptis:[] ~cnj:[] ~cmp_v ~cmp_w uni_v in
     (*[* Format.printf
-      "NumS.abd_simple:@ d_ineqs=@ %a@\nd_implicits=@ %a@\n%!"
-      pr_ineqs d_ineqs pr_eqn d_implicits;
+      "NumS.abd_simple:@ d_ineqn'=@ %a@\nd_ineqs=@ %a@\nd_implicits=@ %a@\n%!"
+      pr_ineqn d_ineqn' pr_ineqs d_ineqs pr_eqn d_implicits;
     *]*)
     let d_ineqs = complete_ineqs ~cmp_v d_ineqs in
     let d_eqn' = d_implicits @ d_eqn' in
@@ -1462,7 +1500,7 @@ let abd_simple ~qcmp_v ~cmp_w ~upward_of cmp_v uni_v ~bvs ~discard ~validate
         (* with Contradiction _ -> ()) *)
         with
         | Terms.Contradiction (_,msg,tys,_) (*[* as e *]*)
-          when msg != no_pass_msg ->
+        (* FIXME: *) (* when msg != no_pass_msg *) ->
           (*[* Format.printf
             "NumS.abd_simple: [%d] 7. invalid, error=@\n%a@\n%!"
             ddepth Terms.pr_exception e;
@@ -1478,8 +1516,8 @@ let abd_simple ~qcmp_v ~cmp_w ~upward_of cmp_v uni_v ~bvs ~discard ~validate
        | Leq_w w ->
          let w = subst_if_qv ~uni_v ~bvs ~cmp_v rev_sb w in
          let cands =
-           abd_cands ~cmp_v ~uni_v ~bvs ~discard_ineqs
-             ~b_ineqs:bh_ineqs ~d_ineqs w in
+           abd_cands ~cmp_v ~qcmp_v ~uni_v ~bvs ~discard_ineqs
+             ~b_ineqs:bh_ineqs ~d_ineqn:d_ineqn' ~d_ineqs w in
          let cands = List.filter
              (no_scope_viol ~cmp_v:qcmp_v ~upward_of ~bvs) cands in
          (*[* Format.printf "NumS.abd_simple: [%d] 7. c0s=@ %a@\n%!"
@@ -1492,7 +1530,8 @@ let abd_simple ~qcmp_v ~cmp_w ~upward_of cmp_v uni_v ~bvs ~discard ~validate
                  to a=@ %a@ ...@\n%!"
                 ddepth pr_w_atom (Leq_w a0) pr_w_atom a;
               *]*)
-              try_trans (Leq_w a0)) cands
+              try_trans (Leq_w a0))
+           cands
        | _ ->
          try_trans a0;
          laziter

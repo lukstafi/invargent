@@ -814,6 +814,12 @@
     <item*|<verbatim|-num_abduction_fail>>Limit on backtracking steps in
     numerical joint abduction (default 10).
 
+    <item*|<verbatim|-affine_penalty>>How much to penalize an abduction
+    candidate inequality for containing a constant term (default 1). Too
+    small a value may lead to divergence, e.g. in some examples abduction
+    will pick an answer <math|a+1>, which in the following step will force an
+    answer <math|a+2>, then <math|a+3>, etc.
+
     <item*|<verbatim|-no_num_abduction>>Turn off numerical abduction; will
     not ensure correctness. Numerical abduction uses a brute-force algorithm
     and will fail to work in reasonable time for complex constraints.

@@ -1000,7 +1000,7 @@
 
       <item>If <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|'>|}>|)>>
       (resp. <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|''>|}>|)>>)
-      does not pass validation for all <math|a<rprime|'>>, fail.
+      does not pass validation for all <math|a<rprime|'>>, backtrack.
 
       <item>If <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|'>|}>|)>>
       (resp. <math|A<rsub|i>\<wedge\><around*|(|Acc\<cup\><around*|{|a<rprime|''>|}>|)>>)
@@ -1032,8 +1032,8 @@
   We use the <verbatim|nums> library for exact precision rationals.
 
   To find the abduction answers to <math|d\<Rightarrow\>c>, pick a common
-  variable <math|\<alpha\>\<in\>FV<around*|(|d|)>\<cap\>FV<around*|(|c|)>>.
-  We have four possibilities:
+  variable <math|\<alpha\>\<in\>FV<around*|(|d|)>\<cap\>FV<around*|(|c|)>> or
+  the constant <math|\<alpha\>=1>. We have four possibilities:
 
   <\enumerate>
     <item><math|d\<Leftrightarrow\>\<alpha\>\<leqslant\>d<rsub|\<alpha\>>>

@@ -114,6 +114,9 @@ let main () =
     "Limit on numerical simple abduction steps (default 1000)";
     "-num_abduction_fail", Arg.Set_int NumS.abd_fail_timeout_count,
     "Limit on backtracking steps in numerical joint abduction (default 10)";
+    "-affine_penalty", Arg.Set_int NumS.affine_penalty,
+    "How much to penalize an abduction candidate inequality for \
+     containing a constant term (default 1)";
     "-no_num_abduction", Arg.Set Abduction.no_num_abduction,
     "Turn off numerical abduction; will not ensure correctness.";
     "-disjelim_rotations", Arg.Set_int NumS.disjelim_rotations,
