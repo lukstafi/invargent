@@ -1350,7 +1350,6 @@ let rec one_of =
 
   "existential option" >::
     (fun () ->
-       todo "FIXME";
        skip_if !debug "debug";
        test_case ~more_existential:true "existential option"
 "datatype Option : type

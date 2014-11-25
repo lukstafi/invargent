@@ -981,13 +981,28 @@
       some <math|D<rsup|=><rprime|'>>-derived transformation applied.
 
       <\itemize>
-        <item>If the branch constrint <math|B> already bounds a variable by a
-        constant, we de-prioritize candidates <math|a<rsub|0>> that are
-        other-side bounds of the variable by a constant. Otherwise, we
-        increase the value of <math|a<rsub|0>> for each variable that is
-        bound by <math|a<rsub|0>> on the side that it is unbound in <math|B>.
-        We decrease the value of <math|a<rsub|0>> for other variables to
-        favor smaller size.
+        <item>We increase the value of <math|a<rsub|0>> for each variable
+        that is bound by <math|a<rsub|0>> on the side that it is unbound in
+        <math|B>. We decrease the value of <math|a<rsub|0>> for:
+
+        <\itemize>
+          <item>its size, proportionally to the sum of nominators and
+          denominators,
+
+          <item>containing a constant term,
+
+          <item>containing parameters from multiple invariants,
+
+          <item>introducing an implicit equality,
+
+          <item>binding a variable by a constant on the side where it is
+          already bounded by <math|B>,
+
+          <item>binding a variable by a constant on the right (i.e. upper
+          bound).
+        </itemize>
+
+        The score determines the order in which atoms are tried.
 
         <item>Currently, we do not perform transformations when
         <math|a<rsub|0>> is an inequality, for simplicity and speed at cost

@@ -1,0 +1,23 @@
+datatype Array : type * num
+external let array_make :
+  ∀n, a [0≤n]. Num n → a → Array (a, n) = "fun a b -> Array.make a b"
+external let array_get :
+  ∀n, k, a [0≤k ∧ k+1≤n]. Array (a, n) → Num k → a = "fun a b -> Array.get a b"
+external let array_set :
+  ∀n, k, a [0≤k ∧ k+1≤n]. Array (a, n) → Num k → a → () =
+  "fun a b c -> Array.set a b c"
+external let array_length :
+  ∀n, a [0≤n]. Array (a, n) → Num n = "fun a -> Array.length a"
+
+let swap_interval = fun arr start middle n ->
+  let rec item = fun i -> array_get arr i in
+  let rec swap = fun i j ->
+    let tmpj = item j in
+    let tmpi = item i in
+    array_set arr i tmpj; array_set arr j tmpi in
+  let rec vecswap = fun i j n ->
+    assert num i + n <= j;
+    assert num j + n <= array_length arr;
+    if n <= 0 then () else (
+      swap i j; vecswap (i + 1) (j + 1) (n - 1)) in
+  vecswap start middle n
