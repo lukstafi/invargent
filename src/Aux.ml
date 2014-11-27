@@ -237,8 +237,9 @@ let minimal ~less l =
   let rec aux acc = function
     | [] -> acc
     | e::l ->
-      if List.exists (flip less e) acc then aux acc l
-      else aux (e::List.filter (fun f -> not (less e f)) acc) l in
+      if List.exists (flip less e) l || List.exists (flip less e) acc
+      then aux acc l
+      else aux (e::acc) l in
   aux [] l
 
 let maximum ~leq l =

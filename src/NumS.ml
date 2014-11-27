@@ -20,7 +20,8 @@ let passing_ineq_trs = ref false
 let no_subopti_of_cst = ref true
 let revert_csts = ref true(* false *)
 let discard_penalty = ref 2
-let general_reward = ref 4
+let more_general = ref (* true *)false
+let general_reward = ref 2
 let affine_penalty = ref 3
 let reward_constrn = ref 2
 let complexity_penalty = ref 2.0
@@ -32,7 +33,6 @@ let encourage_not_yet_bounded = ref 2
 let discourage_equations_1 = ref 4
 let discourage_equations_2 = ref 4
 let implied_ineqn_penalty = ref 0.0
-let more_general = ref (* true *)false
 
 let abd_fail_flag = ref false
 let abd_timeout_flag = ref false
@@ -1045,6 +1045,82 @@ let implies_ans ~cmp_v ~cmp_w uni_v (eqs, ineqs, optis, suboptis)
   implies ~cmp_v ~cmp_w uni_v eqs ineqs optis suboptis
     c_eqn c_ineqn c_optis c_suboptis 
 
+(* A streamlined portion of the [solve] algorithm dealing with
+   inequalities. *)
+let implies_ineq ~cmp_v ~cmp_w ineqs ineq =
+  let project v (vars, cst, loc as lhs) rhs =
+    if equal_w ~cmp_v lhs rhs
+    then
+      (*[* let w = (v, !/(-1))::vars, cst, loc in
+        Format.printf "NumS.implies_ineq: fail-- strict ineq=@ %a@\n%!"
+        pr_w w; *]*)
+      raise (Terms.Contradiction
+               (Num_sort, "Failed numeric strict inequality",
+                None, loc))
+    else diff ~cmp_v lhs rhs in
+  let rec proj (ineqs : ineqs) ineqn0 =
+    let handle_proj v k vars cst loc ineqn =
+      let trans_wset = trans_wset ~cmp_v ineqs in
+      let (left, right), ineqs =
+        try pop_assoc v ineqs
+        with Not_found -> (WSet.empty, WSet.empty), ineqs in
+      let ineq_l, ineq_r, more_ineqn =
+        (* Change sides wrt. to variable [v]. *)
+        let ohs = mult (!/(-1) // k) (vars, cst, loc) in
+        if k >/ !/0
+        then
+          [], [ohs], wset_map (fun lhs -> project v lhs ohs) left
+        else
+          [ohs], [], wset_map (fun rhs -> project v ohs rhs) right in
+      let more_ineqn = WSet.elements more_ineqn in
+      (*[* Format.printf
+        "NumS.impl-project: try v=%s@\nmore_ineqn=@ %a@\n%!"
+        (var_str v) pr_ineqn more_ineqn; *]*)  
+      let more_ineqn = List.filter
+          (function
+            | [], cst, _ when cst </ !/0 ->
+              false
+            | [], cst, loc ->
+              (*[* Format.printf "NumS.implies_ineq: fail-- ineq.2=@ %a@\n%!"
+                pr_w ([], cst, loc); *]*)
+              raise (Terms.Contradiction
+                       (Num_sort, "Failed numeric inequality",
+                        None, loc))
+            | _ -> true)
+          more_ineqn in
+      let ineqn =
+        merge_one_nonredund ~cmp_v ~cmp_w (List.sort cmp_w more_ineqn) ineqn in
+      let more_ineqs =
+        v, (WSet.union (trans_wset true ineq_l) left,
+            WSet.union (trans_wset false ineq_r) right) in
+      (*[* Format.printf
+        "NumS.impl-project: res v=%s@\nmore_ineqn=@ %a@\nineqs_v=@ %a@\n%!"
+        (var_str v) pr_ineqn more_ineqn pr_ineqs [more_ineqs]; *]*)  
+      let ineqs = more_ineqs::ineqs in
+      proj ineqs ineqn in
+    match ineqn0 with
+    | [] -> ()
+    | ([], cst, _)::ineqn when cst </ !/0 ->
+      proj ineqs ineqn
+    | ([], cst, loc)::_ ->
+      (*[* Format.printf "NumS.implies_ineq: fail-- ineq=@ %a@\n%!"
+        pr_w ([], cst, loc); *]*)
+      raise (Terms.Contradiction
+               (Num_sort,
+                "Failed numeric inequality (cst="^
+                  Num.string_of_num cst^")",
+                None, loc))
+    | ((v,k)::vars, cst, loc)::ineqn ->
+      handle_proj v k vars cst loc ineqn in
+  try proj ineqs [mult !/(-1) ineq];
+    (*[* Format.printf "NumS.implies_ineq: false@ ineq=%a@\n%!"
+      pr_w ineq; *]*)
+    false
+  with Terms.Contradiction _ ->
+    (*[* Format.printf "NumS.implies_ineq: true@ ineq=%a@\n%!"
+      pr_w ineq; *]*)
+    true
+
 exception Timeout
 
 let rec taut = function
@@ -1194,17 +1270,12 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of ~bvs ~discard_ineqs
       (no_scope_viol ~cmp_v:qcmp_v ~upward_of ~bvs)
       (w :: cands_cst @ cands_vs) in
   (*[* Format.printf "abd_cands: filtered@ %a@\n%!" pr_ineqn cands; *]*)
-  let impl_leq (ineqs, _) (_, w) =
-    let ineqn = [mult !/(-1) w] in
-    try ignore
-          (solve ~strict:true ~ineqs ~ineqn ~cmp_v ~cmp_w uni_v);
-      false
-    with Terms.Contradiction _ -> true in
-  let less x y =
+  let less (x_ineqs, x) (y_ineqs, y) =
     (*[* let res = *]*)
-    impl_leq y x && not (impl_leq x y)
+    implies_ineq ~cmp_v ~cmp_w y_ineqs x &&
+    not (implies_ineq ~cmp_v ~cmp_w x_ineqs y)
     (*[* in Format.printf "less: x=%a@ y=%a@ res=%b@\n%!"
-      pr_w (snd x) pr_w (snd y) res;
+      pr_w x pr_w y res;
     res *]*) in
   let minimal_cands =
     if !more_general
