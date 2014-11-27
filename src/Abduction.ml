@@ -307,7 +307,8 @@ let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
                        List.for_all (fun sx -> List.mem sx clean_ans) xs
                        && List.for_all (fun sx -> List.mem sx xs) clean_ans)
                     !skipped in
-              (*[* Format.printf "skipping: [%d] ans=@ %a --@ old_ans=@ %a...@\n%!"
+              (*[* Format.printf
+                "skipping: [%d] ans=@ %a --@ old_ans=@ %a...@\n%!"
                 ddepth pr_subst ans pr_subst old_ans; *]*)
               true
             with Not_found -> false in

@@ -20,6 +20,7 @@ let passing_ineq_trs = ref false
 let no_subopti_of_cst = ref true
 let revert_csts = ref true(* false *)
 let discard_penalty = ref 2
+let general_reward = ref 4
 let affine_penalty = ref 3
 let reward_constrn = ref 2
 let complexity_penalty = ref 2.0
@@ -27,10 +28,11 @@ let reward_locality = ref 1
 let multi_levels_penalty = ref 4
 let discourage_upper_bound = ref 3
 let discourage_already_bounded = ref 4
-let encourage_not_yet_bounded = ref 3
+let encourage_not_yet_bounded = ref 2
 let discourage_equations_1 = ref 4
 let discourage_equations_2 = ref 4
-
+let implied_ineqn_penalty = ref 0.0
+let more_general = ref (* true *)false
 
 let abd_fail_flag = ref false
 let abd_timeout_flag = ref false
@@ -662,7 +664,7 @@ let solve_aux ~use_quants ?(strict=false)
   let eqn = eqn @ more_eqn in
   let optis = optis @ more_optis in
   let suboptis = suboptis @ more_suboptis in
-  let ineqn0 = ineqn @ more_ineqn in
+  let ineqn0 = if more_ineqn = [] then ineqn else ineqn @ more_ineqn in
   (*[* Format.printf "NumS.solve: start ineqn0=@ %a@\n%!"
     pr_ineqn ineqn0; *]*)
   assert (not strict || eqn = []);
@@ -1144,22 +1146,19 @@ let revert_cst cmp_v uni_v eqn =
    bounded by a constant. [d_ineqn] and [d_ineqs] represent the same
    inequalities, but [d_ineqs] is normalized and completed
    wrt. transitivity. *)
-(* FIXME: changes to "evaluate all atoms introduced with the
-   candidate" meaningless? *)
-(* FIXME: discard less general atoms. *)
 let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of ~bvs ~discard_ineqs
     ~eqs_acc0 ~ineqs_acc0 ~optis_acc ~suboptis_acc
-    ~b_ineqs ~d_ineqn ~d_ineqs
+    ~b_ineqs ~bh_ineqs ~d_ineqn ~d_ineqs
     (vars, cst, lc as w) =
   (*[* Format.printf
-    "NumS.abd_cands: w=%a@ bvs=%a@\nd_ineqs=@ %a@\nb_ineqs=@ %a@\n%!"
+    "NumS.abd_cands: w=%a@ bvs=%a@\nd_ineqs=@ %a@\nbh_ineqs=@ %a@\n%!"
     pr_w w pr_vars bvs pr_ineqs (hashtbl_to_assoc d_ineqs)
-    pr_ineqs (hashtbl_to_assoc b_ineqs); *]*)
+    pr_ineqs (hashtbl_to_assoc bh_ineqs); *]*)
   let cands_vs =
     concat_map
       (fun ((v, coef), vars1) ->
          (*[* Format.printf "NumS.abd_cands: trying v=%s@\n%!" (var_str v)
-         ; *]*)
+           ; *]*)
          try
            let lhs, rhs = Hashtbl.find d_ineqs v in
            (* No change of sign for c because it stays on the same side. *)
@@ -1191,12 +1190,47 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of ~bvs ~discard_ineqs
              if s > 0 then Some (diff ~cmp_v d c)
              else Some (diff ~cmp_v c d))
         d_ineqn in
+  let cands = List.filter
+      (no_scope_viol ~cmp_v:qcmp_v ~upward_of ~bvs)
+      (w :: cands_cst @ cands_vs) in
+  (*[* Format.printf "abd_cands: filtered@ %a@\n%!" pr_ineqn cands; *]*)
+  let impl_leq (ineqs, _) (_, w) =
+    let ineqn = [mult !/(-1) w] in
+    try ignore
+          (solve ~strict:true ~ineqs ~ineqn ~cmp_v ~cmp_w uni_v);
+      false
+    with Terms.Contradiction _ -> true in
+  let less x y =
+    (*[* let res = *]*)
+    impl_leq y x && not (impl_leq x y)
+    (*[* in Format.printf "less: x=%a@ y=%a@ res=%b@\n%!"
+      pr_w (snd x) pr_w (snd y) res;
+    res *]*) in
+  let minimal_cands =
+    if !more_general
+    then
+      let cands = List.map
+          (fun w ->
+             let (_, ineqs, _, _), _, _, _, _ =
+               solve_get_eqn ~use_quants:Ignore_viol
+                 ~ineqs:b_ineqs ~ineqn:[w] ~cmp_v ~cmp_w uni_v in
+             ineqs, w) cands in
+      List.map snd (minimal ~less cands)
+    else [] in
+  (*[* if !more_general
+  then Format.printf "abd_cands: minimal@ %a@\n%!" pr_ineqn minimal_cands; *]*)
   (* Promote candidates introducing constraints on unconstrained
      variables. Otherwise, penalize for size. *)
-  let w_value (vars, cst, lc as w) =
+  let w_value orig_w (vars, cst, lc as w) =
     let cst_value = if cst =/ !/0 then 0 else ~- !affine_penalty in
     let discard_value =
       if WSet.mem w discard_ineqs then ~- !discard_penalty else 0 in
+    let minimal =
+      if List.memq orig_w minimal_cands
+      then
+        if !more_general && equal_w ~cmp_v orig_w w
+        then !general_reward else 0
+      else 0 in
     let locality =
       match vars with
       | [] -> 0
@@ -1216,7 +1250,7 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of ~bvs ~discard_ineqs
            if the variable is already bounded. *)
         let bounded =
           try
-            let lhs, rhs = Hashtbl.find b_ineqs v in
+            let lhs, rhs = Hashtbl.find bh_ineqs v in
             k >/ !/0 && WSet.exists (fun (vars,_,_) -> vars=[]) lhs ||
             k </ !/0 && WSet.exists (fun (vars,_,_) -> vars=[]) rhs
           with Not_found -> false in
@@ -1225,10 +1259,9 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of ~bvs ~discard_ineqs
       | (v, k)::vars1 ->
         (* Check whether the inequality is an implicit equality. *)
         let w' = vars1, cst, lc in
-        (* FIXME: is it still needed? *)
         let bounded =
           try
-            let lhs, rhs = Hashtbl.find b_ineqs v in
+            let lhs, rhs = Hashtbl.find bh_ineqs v in
             k >/ !/0 &&
             WSet.exists (equal_w ~cmp_v w') lhs ||
             k </ !/0 &&
@@ -1255,7 +1288,7 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of ~bvs ~discard_ineqs
       List.fold_left
         (fun acc (v, k) ->
            try
-             let lhs, rhs = Hashtbl.find b_ineqs v in
+             let lhs, rhs = Hashtbl.find bh_ineqs v in
              if VarSet.mem v bvs &&
                 (k >/ !/0 && WSet.is_empty rhs ||
                  k </ !/0 && WSet.is_empty lhs)
@@ -1264,30 +1297,40 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of ~bvs ~discard_ineqs
            with Not_found -> acc)
         0 vars in
     (*[* Format.printf
-      "w_value:@ w=%a;@ cst_val=%i@ discard_val=%i@ locality=%i@ \
-       bound=%i@ upper_bound=%i@ complexity=%i@ constraining=%i@\n%!"
-      pr_w w cst_value discard_value locality bound upper_bound
-      complexity constraining; *]*)
+      "w_value:@ orig=%a@ w=%a;@ cst_val=%i@ discard_val=%i@ locality=%i@ \
+       bound=%i@ upper_bound=%i@ complexity=%i@ constraining=%i@ \
+       minimal=%i@\n%!"
+      pr_w orig_w pr_w w cst_value discard_value locality bound upper_bound
+      complexity constraining minimal; *]*)
     cst_value + discard_value + locality + bound + upper_bound +
-      complexity + constraining in
+      complexity + constraining + minimal in
   let cands =
     map_some
       (fun w ->
          try
            (* [new_eqn, new_ineqn] are used to determine the variables
               contributed to the answer and evaluate the candidate. *)
-           let _, new_eqn, new_ineqn, _, _ as acc =
-             solve_get_eqn ~use_quants:(Fail_viol bvs)
+           let _, new_eqn, new_ineqn, _, new_viol as acc =
+             solve_get_eqn ~use_quants:(Store_viol bvs)
                ~eqs:eqs_acc0 ~ineqs:ineqs_acc0
                ~optis:optis_acc ~suboptis:suboptis_acc
                ~ineqn:[w] ~cmp_v ~cmp_w uni_v in
+           let new_ineqn =
+             concat_map
+                 (function
+                   | Leq_w w -> if List.memq w new_ineqn then [] else [w]
+                   | Eq_w w -> [w; mult !/(-1) w]
+                   | Opti_w (w1, w2) | Subopti_w (w1, w2)-> [w1; w2])
+                 new_viol @ new_ineqn in
            let score =
-             List.fold_left
-               (fun (acc : int) w' -> acc + w_value w')
-               (if new_eqn = [] then 0 else !discourage_equations_2)
-               (* [new_ineqn] should already contain [w] *)
-               ((* w :: *) new_eqn @ List.map (mult !/(-1)) new_eqn @
-                  new_ineqn) in
+               List.fold_left
+                 (fun (acc : int) w' -> acc + w_value w w')
+                 (if new_eqn = [] then 0 else ~- !discourage_equations_2)
+                 (* [new_ineqn] should already contain [w] *)
+                 (new_eqn @ List.map (mult !/(-1)) new_eqn @
+                    new_ineqn)
+               - int_of_float (!implied_ineqn_penalty *. float_of_int
+                                   (List.length new_ineqn - 1)) in
            (*[* Format.printf
              "abd_cands:@ w=%a@ new_eqn=%a@ new_ineqn=%a@ total score=%i@\n%!"
              pr_w w pr_eqn new_eqn pr_ineqn new_ineqn score; *]*)
@@ -1297,7 +1340,7 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of ~bvs ~discard_ineqs
              "abd_cands: skipping@ w=%a@\nreason=@ %a@\n%!"
              pr_w w Terms.pr_exception e; *]*)
            None)
-      (w :: cands_cst @ cands_vs) in
+      cands in
   List.map snd
     (List.sort (fun (x, _) (y, _) -> compare y x) cands)
 
@@ -1609,12 +1652,9 @@ let abd_simple ~qcmp_v ~cmp_w ~upward_of cmp_v uni_v ~bvs ~discard ~validate
          let cands =
            abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of ~bvs
              ~discard_ineqs ~eqs_acc0 ~ineqs_acc0 ~optis_acc ~suboptis_acc
-             ~b_ineqs:bh_ineqs ~d_ineqn:d_ineqn' ~d_ineqs w in
-         let cands = List.filter
-             (no_scope_viol ~cmp_v:qcmp_v ~upward_of ~bvs % snd) cands in
+             ~b_ineqs ~bh_ineqs ~d_ineqn:d_ineqn' ~d_ineqs w in
          (*[* Format.printf "NumS.abd_simple: [%d] 7. c0s=@ %a@\n%!"
            ddepth pr_ineqn (List.map snd cands); *]*)
-         (* TODO: ^ another variant -- always try w at the end. *)
          List.iter try_trans_ineq cands
        | _ ->
          try_trans_a a0;

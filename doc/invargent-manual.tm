@@ -820,6 +820,11 @@
     will pick an answer <math|a+1>, which in the following step will force an
     answer <math|a+2>, then <math|a+3>, etc.
 
+    <item*|<verbatim|-more_general_num>>Filter out less general abduction
+    candidate atoms (does not guarantee overall more general answers). The
+    filtering is currently not performed by default to save on computational
+    cost.
+
     <item*|<verbatim|-no_num_abduction>>Turn off numerical abduction; will
     not ensure correctness. Numerical abduction uses a brute-force algorithm
     and will fail to work in reasonable time for complex constraints.

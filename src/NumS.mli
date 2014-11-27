@@ -34,6 +34,9 @@ val discard_penalty : int ref
 (** How much to penalize an abduction candidate inequality for
     containing a constant term. Default [1]. *)
 val affine_penalty : int ref
+(** Filter out less general abduction candidate atoms (does not
+    guarantee overall more general answers). Default [false]. *)
+val more_general : bool ref
 
 val num_of : Terms.typ -> NumDefs.term
 val sort_formula : Terms.formula -> NumDefs.formula

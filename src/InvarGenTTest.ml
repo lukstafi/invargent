@@ -17,7 +17,7 @@ let input_file file =
    with End_of_file -> ());
   Buffer.contents buf
 
-let test_case ?(test_annot=false) ?richer_answers
+let test_case ?(test_annot=false) ?richer_answers ?more_general_num
     ?prefer_guess ?abd_rotations ?num_abd_timeout
     ?num_abd_fail_timeout ?nodeadcode file () =
   if !debug then Printexc.record_backtrace true;
@@ -37,6 +37,10 @@ let test_case ?(test_annot=false) ?richer_answers
   (match richer_answers with
    | None -> ()
    | Some richer_answers -> Abduction.richer_answers := richer_answers);
+  let old_more_general_num = !NumS.more_general in
+  (match more_general_num with
+   | None -> ()
+   | Some more_general_num -> NumS.more_general := more_general_num);
   let old_prefer_guess = !Abduction.prefer_guess in
   (match prefer_guess with
    | None -> ()
@@ -80,6 +84,7 @@ let test_case ?(test_annot=false) ?richer_answers
      Printexc.print_backtrace stdout;
      assert_failure msg);
   Abduction.richer_answers := old_richer_answers;
+  NumS.more_general := old_more_general_num;
   Abduction.prefer_guess := old_prefer_guess;
   NumS.abd_rotations := old_abd_rotations;
   NumS.abd_timeout_count := old_num_abd_timeout;
@@ -428,9 +433,8 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_isort_simpler2" ());
       "liquid_isort-simpler3" >::
         (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
-           test_case "liquid_isort_simpler3" ());
+           skip_if !debug "debug";
+           test_case ~more_general_num:true "liquid_isort_simpler3" ());
       "liquid_isort-simpler" >::
         (fun () ->
            skip_if !debug "debug";

@@ -999,7 +999,15 @@
           already bounded by <math|B>,
 
           <item>binding a variable by a constant on the right (i.e. upper
-          bound).
+          bound),
+
+          <item>optionally, being less general than some other candidate,
+          modulo <math|B>,
+
+          <item>we include the value of inequalities implied by the candidate
+          together with the partial answer (but not the partial answer alone)
+          and not holding when parameters are universally quantified (see
+          <em|atomization>).
         </itemize>
 
         The score determines the order in which atoms are tried.

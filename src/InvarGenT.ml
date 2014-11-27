@@ -117,6 +117,8 @@ let main () =
     "-affine_penalty", Arg.Set_int NumS.affine_penalty,
     "How much to penalize an abduction candidate inequality for \
      containing a constant term (default 1)";
+    "-more_general_num", Arg.Set NumS.more_general,
+    "Filter out less general numerical abduction candidate atoms";
     "-no_num_abduction", Arg.Set Abduction.no_num_abduction,
     "Turn off numerical abduction; will not ensure correctness.";
     "-disjelim_rotations", Arg.Set_int NumS.disjelim_rotations,
