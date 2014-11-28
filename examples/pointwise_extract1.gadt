@@ -19,7 +19,7 @@ external map : ∀a, b. (a → b) → List a → List b
 
 external find : ∀a, b. (a → Bool) → Tree (b, a) → List (Path b)
 
-let rec extract = fun p t ->
+let rec extract p t =
   match p with
     | Here -> (match t with End m -> m | Fork (_, _) -> assert false)
     | ForkL p1 ->

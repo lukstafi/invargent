@@ -25,8 +25,8 @@ datatype Answer : type
 datacons NotFound : ∀a. Answer a
 datacons Found : ∀a. a ⟶ Answer a
 
-let bsearch = fun key vec ->
-  let rec look = fun lo hi ->
+let bsearch key vec =
+  let rec look lo hi =
     assert num 0 <= lo;
     match hi + (-1) with
       | hi_m when lo+1 <= hi_m ->

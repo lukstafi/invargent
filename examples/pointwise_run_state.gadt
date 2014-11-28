@@ -5,7 +5,7 @@ datacons Return : ∀a, s. a ⟶ State (s, a)
 datacons Get : ∀s. State (s, s)
 datacons Put : ∀s. s ⟶ State (s, ())
 
-let rec run_state = fun s -> function
+let rec run_state s = function
   | Return a -> (s, a)
   | Get -> (s, s)
   | Put u -> (u, ())

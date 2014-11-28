@@ -21,19 +21,19 @@ external let minus : Int → Int → Int = "(-)"
 external let plus : Int → Int → Int = "(+)"
 
 
-let queens = fun size ->
+let queens size =
   let board = array_make size (n2i 0) in
-  let print_row = fun pos ->
+  let print_row pos =
     print (string_make (minus pos (n2i 1)) "."); print "Q";
     print (string_make (minus (n2i size) pos) ".") in
-  let print_queens = fun () ->
-    let rec aux = fun row ->
+  let print_queens () =
+    let rec aux row =
       if size <= row then ()
       else (print_row (array_get board row); aux (row + 1)) in
     aux 0 in
-  let rec solved = fun j ->
+  let rec solved j =
     let q2j = array_get board j in
-    let rec aux = fun i ->
+    let rec aux i =
       if i + 1 <= j then
         let q2i = array_get board i in
         let qdiff = abs (minus q2j q2i) in
@@ -42,7 +42,7 @@ let queens = fun size ->
         else aux (i + 1)
       else True in
     aux 0 in
-  let rec loop = fun row ->
+  let rec loop row =
     let next = plus (array_get board row) (n2i 1) in
     if leq (n2i (size + 1)) next then (
       array_set board row (n2i 0);

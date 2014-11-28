@@ -14,7 +14,7 @@ datatype Choice : type * type
 datacons Left : ∀a, b. a ⟶ Choice (a, b)
 datacons Right : ∀a, b. b ⟶ Choice (a, b)
 
-let rec rotr = fun z d -> function
+let rec rotr z d = function
   | Leaf -> assert false
   | Node (Less, a, x, Leaf) -> assert false
   | Node (Same, a, x, (Node (_,_,_,_) as b)) ->

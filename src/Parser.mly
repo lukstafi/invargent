@@ -291,8 +291,18 @@ num_coef:
 expr:
   | opt_docucomment LET REC lident EQUAL expr IN expr
       { Letrec ($1, (), $4, $6, $8, get_loc ()) }
+  | opt_docucomment LET REC lident simple_pattern_list EQUAL expr IN expr
+      { Letrec ($1, (), $4,
+                (List.fold_right (fun p e -> Lam ((), [p, [], e], get_loc ()))
+	           (List.rev $5) $7),
+                $9, get_loc ()) }
   | opt_docucomment LET pattern EQUAL expr IN expr
       { Letin ($1, $3, $5, $7, get_loc ()) }
+  | opt_docucomment LET pattern simple_pattern_list EQUAL expr IN expr
+      { Letin ($1, $3,
+                (List.fold_right (fun p e -> Lam ((), [p, [], e], get_loc ()))
+	           (List.rev $4) $6),
+               $8, get_loc ()) }
   | opt_docucomment LET REC EQUAL expr IN expr
       { syntax_error "lacking let-rec-binding identifier" 4 }
   | opt_docucomment LET EQUAL expr IN expr
@@ -661,11 +671,25 @@ structure_item_raw:
 	  "lacking external binding identifier" 3 }
   | opt_docucomment LET REC lident opt_sig_typ_scheme EQUAL expr opt_tests
       { LetRecVal ($1, $4, $7, $5, $8, get_loc ()) }
+  | opt_docucomment LET REC lident simple_pattern_list
+    opt_sig_typ_scheme EQUAL expr opt_tests
+      { LetRecVal ($1, $4,
+                   (List.fold_right
+                      (fun p e -> Lam ((), [p, [], e], get_loc ()))
+	              (List.rev $5) $8),
+                   $6, $9, get_loc ()) }
   | opt_docucomment LET REC EQUAL
       { syntax_error
 	  "lacking global let-rec-binding identifier" 4 }
   | opt_docucomment LET pattern opt_sig_typ_scheme EQUAL expr
       { LetVal ($1, $3, $6, $4, get_loc ()) }
+  | opt_docucomment LET pattern simple_pattern_list
+    opt_sig_typ_scheme EQUAL expr
+      { LetVal ($1, $3,
+                   (List.fold_right
+                      (fun p e -> Lam ((), [p, [], e], get_loc ()))
+	              (List.rev $4) $7),
+                $5, get_loc ()) }
   | opt_docucomment LET EQUAL
       { syntax_error
 	  "lacking global let-binding identifier" 3 }

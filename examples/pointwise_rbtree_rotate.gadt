@@ -12,7 +12,7 @@ datatype Dir
 datacons LeftD : Dir
 datacons RightD : Dir
 
-let rotate = fun dir1 p_e sib dir2 g_e uncle -> function
+let rotate dir1 p_e sib dir2 g_e uncle = function
   | RNode (x, e, y) ->
     (match dir1, dir2 with
       | RightD, RightD -> BNode (RNode (x, e, y), p_e, RNode (sib, g_e, uncle))

@@ -13,7 +13,7 @@ datacons Same : ∀a,b [a=b]. Meet (a, b)
 datacons NotSame : ∀a, b. Meet (a, b)
 external compare : ∀a,b. Place a → Place b → Meet (a, b)
 
-let rec walk = fun x goal ->
+let rec walk x goal =
   match compare x goal with
   | Same -> Here (x, goal)
   | NotSame ->

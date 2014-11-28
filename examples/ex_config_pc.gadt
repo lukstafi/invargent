@@ -31,7 +31,7 @@ datacons Office : Usecase
 
 let budget_to_cpu = efunction
   | Small -> SlowCPU | Medium -> FastCPU | Large -> FastCPU
-let usecase_to_gpu = fun budget -> efunction
+let usecase_to_gpu budget = efunction
   | Gaming -> FastGPU | Scientific -> FastGPU
   | Office -> config_gpu budget
 

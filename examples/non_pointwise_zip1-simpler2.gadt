@@ -13,8 +13,8 @@ external apply : ∀a, b. (a → b) → a → b
 
 external repeat : ∀a. a → List a
 
-let rec z1 = fun fs -> function
+let rec z1 fs = function
   | Zero1 -> fs
   | Succ1 n2 -> fun xs -> z1 (zip_with apply fs xs) n2
 
-let zip1 = fun n f -> z1 (repeat f) n
+let zip1 n f = z1 (repeat f) n

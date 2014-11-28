@@ -21,7 +21,7 @@ external let equal : ∀a. a → a → Bool = "fun a b -> a = b"
 
 external let div2 : ∀n. Num (2 n) → Num n = "fun x -> x / 2"
 
-let rec look = fun key vec lo hi ->
+let rec look key vec lo hi =
   assert num 0 <= lo;
   assert num lo <= hi + 1;
   eif lo <= hi then

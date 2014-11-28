@@ -11,4 +11,4 @@ external zipZ : ∀a, b. Zip2 (a, b) → b
 
 external zipS : ∀a, b. a → b → Zip2 (a, b) → b
 
-let rec zip2 = fun n f -> zipS f (zip2 n f) n
+let rec zip2 n f = zipS f (zip2 n f) n

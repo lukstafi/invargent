@@ -2,7 +2,7 @@ datatype List : type * num
 datacons LNil : ∀a. List(a, 0)
 datacons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
 
-let rec filter = fun f g ->
+let rec filter f g =
   efunction LNil -> LNil
     | LCons (x, xs) ->
       eif f x then

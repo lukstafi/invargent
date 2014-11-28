@@ -21,7 +21,7 @@ external let equal : ∀a. a → a → Bool = "fun a b -> a = b"
 
 external let div2 : ∀n. Num (2 n) → Num n = "fun x -> x / 2"
 
-let rec look = fun key vec lo hi ->
+let rec look key vec lo hi =
   assert num -1 <= hi;
   eif lo <= hi then
       let m = div2 (hi + lo) in
@@ -32,5 +32,5 @@ let rec look = fun key vec lo hi ->
         | EQ -> eif equal key x then m else -1
   else -1
 
-let bsearch = fun key vec ->
+let bsearch key vec =
   look key vec 0 (array_length vec + (-1))

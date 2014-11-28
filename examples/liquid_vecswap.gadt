@@ -9,13 +9,13 @@ external let array_set :
 external let array_length :
   ∀n, a [0≤n]. Array (a, n) → Num n = "fun a -> Array.length a"
 
-let swap_interval = fun arr start middle n ->
-  let rec item = fun i -> array_get arr i in
-  let rec swap = fun i j ->
+let swap_interval arr start middle n =
+  let rec item i = array_get arr i in
+  let rec swap i j =
     let tmpj = item j in
     let tmpi = item i in
     array_set arr i tmpj; array_set arr j tmpi in
-  let rec vecswap = fun i j n ->
+  let rec vecswap i j n =
     if n <= 0 then () else (
       swap i j; vecswap (i + 1) (j + 1) (n - 1)) in
   vecswap start middle n

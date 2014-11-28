@@ -192,6 +192,24 @@
     <item>similarly for the <verbatim|eif> variants.
   </itemize>
 
+  We add the standard syntactic sugar for function definitions:
+
+  <\itemize>
+    <item><verbatim|let <math|p<rsub|1>> <math|p<rsub|2>> <math|\<ldots\>>
+    <math|p<rsub|n>> = <math|e<rsub|1>> in <math|e<rsub|2>>> expands to
+    <verbatim|let <math|p<rsub|1>> = fun <math|p<rsub|2>> <math|\<ldots\>>
+    <math|p<rsub|n>> -\<gtr\> <math|e<rsub|1>> in <math|e<rsub|2>>>
+
+    <item><verbatim|let rec <math|l<rsub|1>> <math|p<rsub|2>>
+    <math|\<ldots\>> <math|p<rsub|n>> = <math|e<rsub|1>> in <math|e<rsub|2>>>
+    expands to <verbatim|let rec <math|l<rsub|1>> = fun <math|p<rsub|2>>
+    <math|\<ldots\>> <math|p<rsub|n>> -\<gtr\> <math|e<rsub|1>> in
+    <math|e<rsub|2>>>
+
+    <item>top-level <verbatim|let> and <verbatim|let rec> definitions expand
+    correspondingly.
+  </itemize>
+
   Parts of the logic hidden from the user:
 
   <block|<tformat|<table|<row|<cell|unary predicate

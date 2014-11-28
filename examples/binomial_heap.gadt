@@ -29,7 +29,7 @@ let link = function
     if leq x1 x2 then Node (Succ r, x1, TCons (t2, c1))
     else Node (Succ r, x2, TCons (t1, c2))
 
-let rec ins_tree = fun t ->
+let rec ins_tree t =
   efunction
   | HNil -> HCons (t, HNil)
   | HCons (t', ts') as ts ->
@@ -40,7 +40,7 @@ let rec ins_tree = fun t ->
       let rts = ins_tree t ts' in
       HCons (t', rts)
 
-let insert = fun x ts -> ins_tree (Node (Zero, x, TNil)) ts
+let insert x ts = ins_tree (Node (Zero, x, TNil)) ts
 
 let rec merge = efunction
   | HNil, HNil -> HNil
@@ -74,6 +74,6 @@ let rec heap_of_forset = function
   | TCons (t, ts) ->
     HCons (t, heap_of_forset ts)
 
-let delete_min = fun ts ->
+let delete_min ts =
   let Node (_, _, ts1), ts2 = remove_min_tree ts in
   merge (heap_of_forest ts1, ts2)

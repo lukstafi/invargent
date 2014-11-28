@@ -26,5 +26,5 @@ external look :
    a → Array (a, i) → Num k → Num n → ∃i[i≤n ∧
      0 ≤ i + 1].Num i
 
-let bsearch = fun key vec ->
+let bsearch key vec =
   look key vec 0 (array_length vec + (-1))

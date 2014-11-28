@@ -27,7 +27,7 @@ external rotl :
 external rotr :
   ∀a. AVL (S (S a)) → Int → AVL a → Choice (AVL (S (S a)), AVL (S (S (S a))))
 
-let rec ins = fun i -> function
+let rec ins i = function
   | Tip -> R (SNode (Tip, i, Tip))
   | SNode (a, x, b) as t ->
     (match compare i x with

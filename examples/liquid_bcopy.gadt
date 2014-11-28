@@ -13,7 +13,7 @@ external let add : Int → Int → Int = "fun n k -> n + k"
 external let prod : Int → Int → Int = "fun n k -> n * k"
 external let int0 : Int = "0"
 
-let rec bcopy_aux = fun src des -> function
+let rec bcopy_aux src des = function
   | i, m when m <= i -> ()
   | i, m when i+1 <= m ->
       let n = array_get src i in
@@ -21,6 +21,6 @@ let rec bcopy_aux = fun src des -> function
       let j = i + 1 in
       bcopy_aux src des (j, m)
 
-let bcopy = fun src des ->
+let bcopy src des =
   let sz = array_length src in
   bcopy_aux src des (0, sz)

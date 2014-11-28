@@ -11,10 +11,10 @@ let zip2 =
   let rec zipZ = function
     | Zero2 -> N
     | Succ2 n -> fun _ -> zipZ n in
-  let rec zipS = fun f r -> function
+  let rec zipS f r = function
     | Zero2 -> C (f, r)
     | Succ2 n -> function
       | N -> zipZ n
       | C (z, zs) -> zipS (f z) (r zs) n in
-  let rec z2 = fun n f -> zipS f (z2 n f) n in
+  let rec z2 n f = zipS f (z2 n f) n in
   z2

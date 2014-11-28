@@ -17,7 +17,7 @@ datacons ForkR : ∀a, b. Path b ⟶ Path (Fk (a, b))
 external append : ∀a. List a → List a → List a
 external map : ∀a, b. (a → b) → List a → List b
 
-let rec find = fun f -> function
+let rec find f = function
   | End m -> if f m then C (Here, N) else N
   | Fork (x, y) -> append (map (fun y -> ForkL y) (find f x))
                           (map (fun y -> ForkR y) (find f y))

@@ -19,12 +19,12 @@ let height = function
   | Empty -> 0
   | Node (_, _, _, k) -> k
 
-let create = fun l x r ->
+let create l x r =
   ematch height l, height r with
   | i, j when j <= i -> Node (l, x, r, i+1)
   | i, j when i <= j -> Node (l, x, r, j+1)
 
-let singleton = fun x -> Node (Empty, x, Empty, 1)
+let singleton x = Node (Empty, x, Empty, 1)
 
 let rotr = efunction
     | Empty, x, r -> assert false
@@ -58,7 +58,7 @@ let rotl = efunction
           let r' = create rlr rx rr in
           create l' rlx r'
 
-let rec add = fun x -> efunction
+let rec add x = efunction
   | Empty -> Node (Empty, x, Empty, 1)
   | Node (l, y, r, h) ->
     ematch compare x y, height l, height r with
@@ -70,7 +70,7 @@ let rec add = fun x -> efunction
       let r' = add x r in
       eif height r' <= hl+2 then create l y r' else rotl (l, y, r')
 
-let rec mem = fun x -> function
+let rec mem x = function
   | Empty -> False
   | Node (l, y, r, _) ->
     match compare x y with
@@ -105,7 +105,7 @@ let merge = efunction
      | ht1, ht2' when ht1 <= ht2'+2 && ht2' <= ht1+2 -> create t1 x t2'
      | ht1, ht2' when ht2'+3 <= ht1 -> rotr (t1, x, t2'))
 
-let rec remove = fun x -> efunction
+let rec remove x = efunction
   | Empty -> Empty
   | Node (l, y, r, h) ->
     ematch compare x y with

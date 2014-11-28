@@ -19,21 +19,21 @@ external let compare : ∀a. a → a → LinOrder =
               if c < 0 then LE else if c > 0 then GT else EQ"
 external let equal : ∀a. a → a → Bool = "fun a b -> a = b"
 
-let sortRange = fun arr start n ->
-  let rec item = fun i -> array_get arr i in
-  let rec swap = fun i j ->
+let sortRange arr start n =
+  let rec item i = array_get arr i in
+  let rec swap i j =
     let tmpj = item j in
     let tmpi = item i in
     array_set arr i tmpj; array_set arr j tmpi in
-  let rec vecswap = fun i j n ->
+  let rec vecswap i j n =
     if n <= 0 then () else (
       swap i j; vecswap (i + 1) (j + 1) (n - 1)) in
 
-  let rec insertSort = fun start n ->
-    let rec outer = fun i ->
+  let rec insertSort start n =
+    let rec outer i =
       if start + n + 1 <= i + 1 then ()
       else
-        let rec inner = fun j ->
+        let rec inner j =
           if j <= start then outer (i + 1)
           else if equal (compare (item j) (item (j - 1))) LE
           then (swap j (j - 1); inner (j - 1))

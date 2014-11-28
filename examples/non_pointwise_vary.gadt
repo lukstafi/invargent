@@ -5,7 +5,7 @@ datatype Box : type
 datacons Cons : ∀a. a ⟶ Box a
 external let eq : ∀a. a → a → Bool = "(=)"
 
-let vary = fun e y ->
+let vary e y =
   match e with
   | EquL, EquL -> eq y "c"
   | EquR, EquR -> Cons (if y then 5 else 7)

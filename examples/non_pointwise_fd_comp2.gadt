@@ -5,7 +5,7 @@ datacons FDG : ∀a, b. (a → b) ⟶ FunDesc (a, b)
 
 external fd_fun : ∀a, b. FunDesc (a, b) → a → b
 
-let o = fun f g x -> f (g x)
+let o f g x = f (g x)
 
 let fd_comp =
   function

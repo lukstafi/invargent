@@ -613,13 +613,49 @@
   evaluate to <verbatim|True>. Type inference is affected by the constraints
   generated to typecheck the expressions.
 
-  Like in OCaml, types of arguments in declarations of constructors are
-  separated by asterisks. However, the type constructor for tuples is
-  represented by commas, like in Haskell but unlike in OCaml.
+  There are variants of the if-then-else clause syntax supporting
+  <math|<with|math-font-series|bold|when>> conditions:
+
+  <\itemize>
+    <item><verbatim|if m1 \<less\>= n1 && m2 \<less\>= n2 && <math|\<ldots\>>
+    then e1 else e2> is <math|\<lambda\><around*|(|_<with|math-font-series|bold|
+    when >\<wedge\><rsub|i>m<rsub|i>\<leqslant\>n<rsub|i>.e<rsub|1>,_.e<rsub|2>|)>
+    K<rsub|u>>,
+
+    <item><verbatim|if m \<less\>= n then e1 else e2> is
+    <math|\<lambda\><around*|(|_<with|math-font-series|bold| when
+    >m\<leqslant\>n.e<rsub|1>,_<with|math-font-series|bold| when
+    >n+1\<leqslant\>m.e<rsub|2>|)> K<rsub|u>> if integer mode is on (as in
+    default setting),
+
+    <item>similarly for the <verbatim|eif> variants.
+  </itemize>
+
+  We add the standard syntactic sugar for function definitions:
+
+  <\itemize>
+    <item><verbatim|let <math|p<rsub|1>> <math|p<rsub|2>> <math|\<ldots\>>
+    <math|p<rsub|n>> = <math|e<rsub|1>> in <math|e<rsub|2>>> expands to
+    <verbatim|let <math|p<rsub|1>> = fun <math|p<rsub|2>> <math|\<ldots\>>
+    <math|p<rsub|n>> -\<gtr\> <math|e<rsub|1>> in <math|e<rsub|2>>>
+
+    <item><verbatim|let rec <math|l<rsub|1>> <math|p<rsub|2>>
+    <math|\<ldots\>> <math|p<rsub|n>> = <math|e<rsub|1>> in <math|e<rsub|2>>>
+    expands to <verbatim|let rec <math|l<rsub|1>> = fun <math|p<rsub|2>>
+    <math|\<ldots\>> <math|p<rsub|n>> -\<gtr\> <math|e<rsub|1>> in
+    <math|e<rsub|2>>>
+
+    <item>top-level <verbatim|let> and <verbatim|let rec> definitions expand
+    correspondingly.
+  </itemize>
 
   For simplicity of theory and implementation, mutual non-nested recursion
   and or-patterns are not provided. For mutual recursion, nest one recursive
   definition inside another.
+
+  Like in OCaml, types of arguments in declarations of constructors are
+  separated by asterisks. However, the type constructor for tuples is
+  represented by commas, like in Haskell but unlike in OCaml.
 
   At any place between lexemes, regular comments encapsulated in
   <verbatim|(*<math|\<ldots\>>*)> can occur. They are ignored during lexing.

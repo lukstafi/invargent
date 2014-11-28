@@ -9,6 +9,6 @@ datacons Succ1 :
 
 external zip_apply : ∀a, b. List (a → b) → List a → List b
 
-let rec z1 = fun fs -> function
+let rec z1 fs = function
   | Zero1 -> fs
   | Succ1 n2 -> fun xs -> z1 (zip_apply fs xs) n2

@@ -9,7 +9,7 @@ datacons Succ2 :
 
 external zipZ : ∀a, b. Zip2 (a, b) → b
 
-let rec zipS = fun f r -> function
+let rec zipS f r = function
   | Zero2 -> C (f, r)
   | Succ2 n -> function
     | N -> zipZ n
