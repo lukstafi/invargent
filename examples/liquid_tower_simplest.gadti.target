@@ -20,10 +20,22 @@ external val print : String → ()
 
 external val string_make : Int → String → String
 
+external val string_of_int : Int → String
+
 external val abs : Int → Int
 
 external val minus : Int → Int → Int
 
 external val plus : Int → Int → Int
 
-val queens : ∀n[1 ≤ n]. Num n → ()
+external val int0 : Int
+
+external showposts :
+   ∀n[0 ≤ n].
+   Array (Int, n) → Array (Int, n) → Array (Int, n) → Num n → ()
+
+val move :
+   ∀i, j, k, m, n[n ≤ m ∧ k ≤ m ∧ i + j ≤ m ∧ i + 1 ≤ m ∧
+   j ≤ k ∧ j ≤ n + 1 ∧ 0 ≤ i ∧ 1 ≤ k].
+   Num m → Num j → Array (Int, m) → Num i → Array (Int, m) →
+     Num k → Array (Int, m) → Num n → ()

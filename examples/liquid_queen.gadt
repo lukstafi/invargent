@@ -14,7 +14,7 @@ external let equal : ∀a. a → a → Bool = "fun x y -> x = y"
 external let leq : ∀a. a → a → Bool = "fun x y -> x <= y"
 
 external let print : String → () = "print_string"
-external let string_make : ∀a. Int → String → String =
+external let string_make : Int → String → String =
   "fun n s -> String.make n s.[0]"
 external let abs : Int → Int = "fun i -> if i < 0 then ~-i else i"
 external let minus : Int → Int → Int = "(-)"

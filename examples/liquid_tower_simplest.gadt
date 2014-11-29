@@ -1,0 +1,38 @@
+datatype Array : type * num
+external let array_make :
+  ∀n, a [0≤n]. Num n → a → Array (a, n) = "fun a b -> Array.make a b"
+external let array_get :
+  ∀n, k, a [0≤k ∧ k+1≤n]. Array (a, n) → Num k → a = "fun a b -> Array.get a b"
+external let array_set :
+  ∀n, k, a [0≤k ∧ k+1≤n]. Array (a, n) → Num k → a → () =
+  "fun a b c -> Array.set a b c"
+external let array_length :
+  ∀n, a [0≤n]. Array (a, n) → Num n = "fun a -> Array.length a"
+
+external let n2i : ∀n. Num n → Int = "fun i -> i"
+external let equal : ∀a. a → a → Bool = "fun x y -> x = y"
+external let leq : ∀a. a → a → Bool = "fun x y -> x <= y"
+
+external let print : String → () = "print_string"
+external let string_make : Int → String → String =
+  "fun n s -> String.make n s.[0]"
+external let string_of_int : Int → String = "string_of_int"
+
+external let abs : Int → Int = "fun i -> if i < 0 then ~-i else i"
+external let minus : Int → Int → Int = "(-)"
+external let plus : Int → Int → Int = "(+)"
+external let int0 : Int = "0"
+
+external showposts : ∀n [0≤n].
+  Array (Int, n) → Array (Int, n) → Array (Int, n) → Num n → ()
+
+let rec move sz n source s post p post' p' =
+  if n <= 1 then (
+    array_set post (p - 1) (array_get source s);
+    array_set source s int0; showposts source post post' sz)
+  else (
+    move sz (n - 1) source s post' p' post p;
+    array_set post (p - 1) (array_get source (s + n - 1));
+    array_set source (s + n - 1) int0;
+    showposts source post post' sz;
+    move sz (n - 1) post' ((p' - n) + 1) post (p - 1) source (s + n))

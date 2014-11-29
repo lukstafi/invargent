@@ -459,10 +459,19 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "liquid_isort_full" ());
+      "liquid_tower_simplest" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "liquid_tower_simplest" ());
+      "liquid_tower_simpler" >::
+        (fun () ->
+           todo "FIXME";
+           (* skip_if !debug "debug"; *)
+           test_case "liquid_tower_simpler" ());
       "liquid_tower" >::
         (fun () ->
-           todo "TODO";
-           skip_if !debug "debug";
+           todo "FIXME";
+           (* skip_if !debug "debug"; *)
            test_case "liquid_tower" ());
       "liquid_matmult" >::
         (fun () ->
@@ -489,6 +498,11 @@ let tests = "InvarGenT" >::: [
            todo "TODO";
            skip_if !debug "debug";
            test_case "liquid_gauss" ());
+      "liquid_qsort" >::
+        (fun () ->
+           todo "TODO";
+           skip_if !debug "debug";
+           test_case "liquid_qsort" ());
     ]
 
 let () =

@@ -18,7 +18,7 @@ external val leq : ∀a. a → a → Bool
 
 external val print : String → ()
 
-external val string_make : ∀a. Int → String → String
+external val string_make : Int → String → String
 
 external val abs : Int → Int
 

@@ -22,14 +22,14 @@ let revert_csts = ref true(* false *)
 let discard_penalty = ref 2
 let more_general = ref (* true *)false
 let general_reward = ref 2
-let affine_penalty = ref 3
+let affine_penalty = ref 4
 let reward_constrn = ref 2
 let complexity_penalty = ref 2.0
 let reward_locality = ref 1
 let multi_levels_penalty = ref 4
 let discourage_upper_bound = ref 3
 let discourage_already_bounded = ref 4
-let encourage_not_yet_bounded = ref 2
+let encourage_not_yet_bounded = ref 1
 let discourage_equations_1 = ref 4
 let discourage_equations_2 = ref 4
 let implied_ineqn_penalty = ref 0.0
@@ -199,6 +199,18 @@ let norm_w ~cmp_v (vars, cst, loc) =
   vars, cst, loc
 
 let diff ~cmp_v w1 w2 = sum_w ~cmp_v w1 (mult !/(-1) w2)
+
+let norm_by_gcd (vars, _, _ as w) =
+  match vars with
+  | [] -> w
+  | (_, k)::_ when k =/ !/1 || k =/ !/(-1) -> w
+  | (_, k)::vars1 ->
+    let denom k =
+      Big_int.abs_big_int (Ratio.denominator_ratio (ratio_of_num k)) in
+    let norm = List.fold_left
+        (fun acc (_, k) -> Big_int.gcd_big_int acc (denom k))
+        (denom k) vars1 in
+    mult (num_of_big_int norm) w
 
 let zero_p (vars, cst, _) = vars = [] && cst =/ !/0
 let taut_w iseq (vars, cst, _) =
@@ -1234,7 +1246,7 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of ~bvs ~discard_ineqs
     concat_map
       (fun ((v, coef), vars1) ->
          (*[* Format.printf "NumS.abd_cands: trying v=%s@\n%!" (var_str v)
-           ; *]*)
+         ; *]*)
          try
            let lhs, rhs = Hashtbl.find d_ineqs v in
            (* No change of sign for c because it stays on the same side. *)
@@ -1242,8 +1254,8 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of ~bvs ~discard_ineqs
            let ohs = if coef </ !/0 then lhs else rhs in
            let res = List.map (fun d ->
                (* Change of sign for d only when it moves to right side. *)
-               if coef </ !/0 then diff ~cmp_v c d
-               else sum_w ~cmp_v c d)
+               if coef </ !/0 then norm_by_gcd (diff ~cmp_v c d)
+               else norm_by_gcd (sum_w ~cmp_v c d))
                (WSet.elements ohs) in
            (*[* Format.printf "NumS.abd_cands: c=%a@ res=@ %a@\n%!"
              pr_w c pr_ineqn res; *]*)
@@ -1263,8 +1275,8 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of ~bvs ~discard_ineqs
                "NumS.abd_cands: trying s=%d@ c=%a;@ d=%a;@ res=%a@\n%!"
                s pr_w c pr_w d pr_w (if s > 0 then diff ~cmp_v d c
                                      else diff ~cmp_v c d); *]*)
-             if s > 0 then Some (diff ~cmp_v d c)
-             else Some (diff ~cmp_v c d))
+             if s > 0 then Some (norm_by_gcd (diff ~cmp_v d c))
+             else Some (norm_by_gcd (diff ~cmp_v c d)))
         d_ineqn in
   let cands = List.filter
       (no_scope_viol ~cmp_v:qcmp_v ~upward_of ~bvs)
@@ -1344,17 +1356,18 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of ~bvs ~discard_ineqs
       if List.for_all (fun (_, k) -> k >/ !/0) vars
       then ~- !discourage_upper_bound else 0 in
     let complexity =
-      List.fold_left
-        (fun acc (v, k) ->
-           if VarSet.mem v bvs then
-             let r = Num.ratio_of_num k in
-             let kk =
-               abs (Big_int.int_of_big_int (Ratio.numerator_ratio r)) +
-                 abs (Big_int.int_of_big_int
-                        (Ratio.denominator_ratio r)) - 1 in
-             acc - int_of_float (float_of_int kk *. !complexity_penalty)
-           else acc)
-        0 vars in
+      int_of_float
+        (List.fold_left
+           (fun acc (v, k) ->
+              if VarSet.mem v bvs then
+                let r = Num.ratio_of_num k in
+                let kk =
+                  abs (Big_int.int_of_big_int (Ratio.numerator_ratio r)) +
+                    abs (Big_int.int_of_big_int
+                           (Ratio.denominator_ratio r)) - 1 in
+                acc -. float_of_int kk *. !complexity_penalty
+              else acc)
+           0. vars) in
     let constraining =
       List.fold_left
         (fun acc (v, k) ->
@@ -1388,20 +1401,20 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of ~bvs ~discard_ineqs
                ~ineqn:[w] ~cmp_v ~cmp_w uni_v in
            let new_ineqn =
              concat_map
-                 (function
-                   | Leq_w w -> if List.memq w new_ineqn then [] else [w]
-                   | Eq_w w -> [w; mult !/(-1) w]
-                   | Opti_w (w1, w2) | Subopti_w (w1, w2)-> [w1; w2])
-                 new_viol @ new_ineqn in
+               (function
+                 | Leq_w w -> if List.memq w new_ineqn then [] else [w]
+                 | Eq_w w -> [w; mult !/(-1) w]
+                 | Opti_w (w1, w2) | Subopti_w (w1, w2)-> [w1; w2])
+               new_viol @ new_ineqn in
            let score =
-               List.fold_left
-                 (fun (acc : int) w' -> acc + w_value w w')
-                 (if new_eqn = [] then 0 else ~- !discourage_equations_2)
-                 (* [new_ineqn] should already contain [w] *)
-                 (new_eqn @ List.map (mult !/(-1)) new_eqn @
-                    new_ineqn)
-               - int_of_float (!implied_ineqn_penalty *. float_of_int
-                                   (List.length new_ineqn - 1)) in
+             List.fold_left
+               (fun (acc : int) w' -> acc + w_value w w')
+               (if new_eqn = [] then 0 else ~- !discourage_equations_2)
+               (* [new_ineqn] should already contain [w] *)
+               (new_eqn @ List.map (mult !/(-1)) new_eqn @
+                  new_ineqn)
+             - int_of_float (!implied_ineqn_penalty *. float_of_int
+                                 (List.length new_ineqn - 1)) in
            (*[* Format.printf
              "abd_cands:@ w=%a@ new_eqn=%a@ new_ineqn=%a@ total score=%i@\n%!"
              pr_w w pr_eqn new_eqn pr_ineqn new_ineqn score; *]*)

@@ -14,64 +14,61 @@ external let equal : ∀a. a → a → Bool = "fun x y -> x = y"
 external let leq : ∀a. a → a → Bool = "fun x y -> x <= y"
 
 external let print : String → () = "print_string"
-external let string_make : ∀a. Int → String → String =
+external let string_make : Int → String → String =
   "fun n s -> String.make n s.[0]"
+external let string_of_int : Int → String = "string_of_int"
+
 external let abs : Int → Int = "fun i -> if i < 0 then ~-i else i"
 external let minus : Int → Int → Int = "(-)"
 external let plus : Int → Int → Int = "(+)"
 
-let play = fun sz ->
+let play sz =
   let leftPost = array_make sz 0 in
   let middlePost = array_make sz 0 in
   let rightPost = array_make sz 0 in
 
   let initialize post =
-    let rec init_rec = fun i ->
+    let rec init_rec i =
       if i + 1 <= sz - 1 then (
         array_set post i (i+1);
         init_rec (i+1))
-      else ()
-    in init_rec 0
-  in
+      else () in
+    init_rec 0 in
 
   let showpiece n =
     let rec r_rec i =
-      if i + 2 <= n then (print_string (); r_rec (i+1))
-                      else ()
-    in
+      if i + 2 <= n then (
+        print_string " "; r_rec (i+1))
+      else () in
     let rec r2_rec j =    
-      if j + 1 <= sz then (print_string (); r2_rec (j+1))
-                     else ()
-    in (r_rec 1; r2_rec (n+1))
-  in
+      if j + 1 <= sz then (print_string "#"; r2_rec (j+1))
+      else () in
+    r_rec 1;
+    r2_rec (n+1) in
 
-  let showposts _ =
+  let showposts () =
     let rec show_rec i =
-      if i + 1 <= sz - 1 then
-      (showpiece (array_get leftPost i);
-      print_string ();
-      showpiece (array_get middlePost i);
-      print_string ();
-      showpiece (array_get rightPost i);
-      print_newline ();
-      show_rec (i+1))
-      else ()
-    in (show_rec 0; print_newline ())
-  in
+      if i + 1 <= sz - 1 then (
+        showpiece (array_get leftPost i);
+        print_string " ";
+        showpiece (array_get middlePost i);
+        print_string " ";
+        showpiece (array_get rightPost i);
+        print_string "\n";
+        show_rec (i+1))
+      else () in
+    show_rec 0; print_string "\n" in
 
-  let _ = initialize leftPost in
+  initialize leftPost;
   let rec move n source s post p post' p' =
-    if n = 1 then
-      let gss = array_get source s in
-      begin array_set post (p-1) gss; array_set source s 0; (showposts ()) end
-    else begin
-      (move (n-1) source s post' p' post p;
-      let gs = array_get source (s + n-1) in
-      array_set post (p-1) gs;
+    if n <= 1 then (
+      array_set post (p-1) (array_get source s);
+      array_set source s 0; showposts ())
+    else (
+      move (n-1) source s post' p' post p;
+      array_set post (p-1) (array_get source (s + n-1));
       array_set source (s + n-1) 0;
-      (showposts ());
-      move (n-1) post' (p' - (n-1)) post (p-1) source (s+n))
-    end
-  in
-  (showposts ();
-  move sz leftPost 0 rightPost sz middlePost sz)
+      showposts ();
+      move (n-1) post' (p' - (n-1)) post (p-1) source (s+n)) in
+  showposts ();
+  move sz leftPost 0 rightPost sz middlePost sz
