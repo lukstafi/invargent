@@ -201,6 +201,7 @@ let fuse_exprs =
       AssertEqty (aux e1 f1, aux e2 f2, aux e3 f3, lc1)
     | (Var _ as e), f
     | (Num _ as e), f
+    | (String _ as e), f
     | (AssertFalse _ as e), f ->
       assert (e==f); e
     | _ -> assert false

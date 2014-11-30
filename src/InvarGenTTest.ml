@@ -459,20 +459,23 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "liquid_isort_full" ());
-      "liquid_tower_simplest" >::
+      "liquid_tower_showposts" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case "liquid_tower_simplest" ());
+           test_case "liquid_tower_showposts" ());
       "liquid_tower_simpler" >::
         (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
+           skip_if !debug "debug";
            test_case "liquid_tower_simpler" ());
       "liquid_tower" >::
         (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
+           skip_if !debug "debug";
            test_case "liquid_tower" ());
+      "liquid_tower_harder" >::
+        (fun () ->
+           todo "too hard for current numerical abduction";
+           skip_if !debug "debug";
+           test_case "liquid_tower_harder" ());
       "liquid_matmult" >::
         (fun () ->
            todo "TODO";

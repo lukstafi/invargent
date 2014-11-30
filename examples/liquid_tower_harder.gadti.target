@@ -30,4 +30,16 @@ external val plus : Int → Int → Int
 
 external val int0 : Int
 
-val play : ∀n[1 ≤ n]. Num n → ()
+val initialize : ∀k, n[n ≤ k + 1]. Array (Int, k) → Num n → ()
+
+val showpiece : Int → Int → ()
+
+val showposts :
+   ∀i, k, n[i ≤ n + 1 ∧ i ≤ k + 1 ∧ 0 ≤ i].
+   Array (Int, i) → Array (Int, k) → Array (Int, n) → ()
+
+val move :
+   ∀i, j, k, n[n ≤ m ∧ k ≤ m ∧ i + j ≤ m ∧ i + 1 ≤ m ∧
+   j ≤ k ∧ j ≤ n + 1 ∧ 0 ≤ i ∧ 1 ≤ k].
+   Num j → Array (Int, m) → Num i → Array (Int, m) →
+     Num k → Array (Int, m) → Num n → ()
