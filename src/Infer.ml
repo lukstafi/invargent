@@ -186,7 +186,7 @@ let phantom_enumeration_arg : (cns_name, cns_name list option array) Hashtbl.t
 
 exception Not_enum
 let extract_phantom_enumerations = function
-  | TypConstr _ | LetRecVal _ | LetVal _ -> ()
+  | TypConstr _ | PrimTyp _ | LetRecVal _ | LetVal _ -> ()
   | ValConstr (_, _, _, phi, _, name, args, loc) ->
     let sb, _ = separate_subst empty_q phi in
     let args =
@@ -275,7 +275,7 @@ let extract_phantom_enumerations = function
     | _ -> ()
 
 let normalize_item = function
-  | (TypConstr _ | ValConstr _ | PrimVal _) as item ->
+  | (TypConstr _ | PrimTyp _ | ValConstr _ | PrimVal _) as item ->
     extract_phantom_enumerations item;
     (*[* Format.printf "phantom %d enumerations after: %a@\n"
       (Hashtbl.length phantom_enumeration) pr_struct_item item;
@@ -680,6 +680,7 @@ let infer_prog_mockup (prog : program) =
   let gamma = ref [] in
   let cns = List.map (function
     | _, TypConstr _ -> [], VarSet.empty, And []
+    | _, PrimTyp _ -> [], VarSet.empty, And []
     | _, ValConstr _ ->
       [], VarSet.empty, And []
     | _, PrimVal (docu, x, tsch, ext_def, loc) ->
@@ -901,6 +902,8 @@ let infer_prog solver prog =
       (function
         | _, TypConstr (docu, n, sorts, lc) ->
           [ITypConstr (docu, n, sorts, lc)]
+        | _, PrimTyp (docu, n, sorts, expansion, lc) ->
+          [IPrimTyp (docu, n, sorts, expansion, lc)]
         | _, ValConstr (docu, name, vs, phi, args, c_n, c_args, lc) ->
           let sb, phi = separate_subst empty_q phi in
           (*[* Format.printf "ValConstr: n=%s sb=%a@\n%!"

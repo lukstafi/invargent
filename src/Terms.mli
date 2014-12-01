@@ -170,6 +170,7 @@ val reset_state : unit -> unit
     front of a definition or declaration. *)
 type struct_item =
 | TypConstr of string option * cns_name * Defs.sort list * lc
+| PrimTyp of string option * cns_name * Defs.sort list * string * lc
 | ValConstr of
     string option * cns_name * Defs.var_name list * formula * typ list
     * cns_name * Defs.var_name list * lc
@@ -183,8 +184,8 @@ type struct_item =
 (** Represents both signature items and annotated structure items to
     be printed as OCaml source code. *)
 type annot_item =
-| ITypConstr of
-    string option * cns_name * Defs.sort list * lc
+| ITypConstr of string option * cns_name * Defs.sort list * lc
+| IPrimTyp of string option * cns_name * Defs.sort list * string * lc
 | IValConstr of
     string option * cns_name * Defs.var_name list * formula * typ list
     * cns_name * typ list * lc

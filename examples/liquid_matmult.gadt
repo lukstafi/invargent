@@ -1,0 +1,69 @@
+external type Matrix : num * num =
+  "(int, Bigarray.int_elt, Bigarray.c_layout) Bigarray.Array2.t"
+external let matrix_make :
+  ∀n, k [0≤n ∧ 0≤k]. Num n → Num k → Matrix (n, k) =
+  "fun a b -> Bigarray.Array2.create Bigarray.int Bigarray.c_layout a b"
+external let matrix_get :
+  ∀n, k, i, j [0≤i ∧ i+1≤n ∧ 0≤j ∧ j+1≤k].
+   Matrix (n, k) → Num i → Num j → Int = "Bigarray.Array2.get"
+external let matrix_set :
+  ∀n, k, i, j [0≤i ∧ i+1≤n ∧ 0≤j ∧ j+1≤k].
+   Matrix (n, k) → Num i → Num j → Int → () = "Bigarray.Array2.set"
+external let matrix_dim1 :
+  ∀n, k [0≤n ∧ 0≤k]. Matrix (n, k) → Num n = "Bigarray.Array2.dim1"
+external let matrix_dim2 :
+  ∀n, k [0≤n ∧ 0≤k]. Matrix (n, k) → Num k = "Bigarray.Array2.dim2"
+
+external let n2i : ∀n. Num n → Int = "fun i -> i"
+external let equal : ∀a. a → a → Bool = "fun x y -> x = y"
+external let leq : ∀a. a → a → Bool = "fun x y -> x <= y"
+
+external let abs : Int → Int = "fun i -> if i < 0 then ~-i else i"
+external let minus : Int → Int → Int = "(-)"
+external let plus : Int → Int → Int = "(+)"
+external let mult : Int → Int → Int = "( * )"
+external let int0 : Int = "0"
+
+let fillar arr2 fill =
+  let d1 = matrix_dim1 arr2 in
+  let d2 = matrix_dim2 arr2 in
+  let rec loop i =
+    if i + 1 <= d1 
+    then
+      let rec loopi j =
+        if j + 1 <= d2 then (
+          matrix_set arr2 i j (fill ());
+          loopi (j + 1))
+        else () in
+      loopi 0
+    else loop (i + 1) in
+  loop 0
+
+let matmul a b =
+  let p = matrix_dim1 a in
+  let q = matrix_dim2 a in
+  let r = matrix_dim2 b in
+
+  let cdata = matrix_make p r in
+  let callback0 () = int0 in
+  fillar cdata callback0;
+
+  let rec loop1 i =
+    if i + 1 <= p then (
+      let rec loop2 j =
+        if j + 1 <= r then (
+          let rec loop3 k sum =
+            if k + 1 <= q then (
+              let sum_p =
+                plus sum (mult (matrix_get a i k) (matrix_get b k j)) in
+              loop3 (k + 1) sum_p)
+            else sum in
+          let l3 = loop3 0 int0 in
+          matrix_set cdata i j l3;
+          loop2 (j + 1))
+        else () in
+      loop2 0;
+      loop1 (i + 1))
+    else () in
+  loop1 0;
+  cdata

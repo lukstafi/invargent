@@ -1,0 +1,41 @@
+external type Matrix : num * num
+
+external val matrix_make :
+   ∀n, k[0 ≤ n ∧ 0 ≤ k]. Num n → Num k → Matrix (n, k)
+
+external val matrix_get :
+   ∀n, k, i, j[0 ≤ i ∧ i + 1 ≤ n ∧ 0 ≤ j ∧ j + 1 ≤ k].
+   Matrix (n, k) → Num i → Num j → Int
+
+external val matrix_set :
+   ∀n, k, i, j[0 ≤ i ∧ i + 1 ≤ n ∧ 0 ≤ j ∧ j + 1 ≤ k].
+   Matrix (n, k) → Num i → Num j → Int → ()
+
+external val matrix_dim1 :
+   ∀n, k[0 ≤ n ∧ 0 ≤ k]. Matrix (n, k) → Num n
+
+external val matrix_dim2 :
+   ∀n, k[0 ≤ n ∧ 0 ≤ k]. Matrix (n, k) → Num k
+
+external val n2i : ∀n. Num n → Int
+
+external val equal : ∀a. a → a → Bool
+
+external val leq : ∀a. a → a → Bool
+
+external val abs : Int → Int
+
+external val minus : Int → Int → Int
+
+external val plus : Int → Int → Int
+
+external val mult : Int → Int → Int
+
+external val int0 : Int
+
+val fillar :
+   ∀k, n[0 ≤ k ∧ 0 ≤ n]. Matrix (n, k) → (() → Int) → ()
+
+val matmul :
+   ∀i, j, k, n[j ≤ n ∧ 0 ≤ j ∧ 0 ≤ i ∧ 0 ≤ k].
+   Matrix (i, j) → Matrix (n, k) → Matrix (i, k)

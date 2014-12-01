@@ -478,7 +478,6 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_tower_harder" ());
       "liquid_matmult" >::
         (fun () ->
-           todo "TODO";
            skip_if !debug "debug";
            test_case "liquid_matmult" ());
       "liquid_heapsort" >::

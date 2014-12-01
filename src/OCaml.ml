@@ -316,11 +316,43 @@ let rec pr_struct_items ~funtys ~lettys constrs ppf defined defining prog =
     *]*)
     let mutual, prog = List.partition
         (function
-          | ITypConstr (_, c_n, _, _) when CNames.mem c_n defining -> true
+          | (ITypConstr (_, c_n, _, _)
+            | IPrimTyp (_, c_n, _, _, _)) when CNames.mem c_n defining -> true
           | _ -> false)
         prog in
     altsyn := false;
-    pr_struct_items ~funtys ~lettys constrs ppf (CNames.add c_n defined) defining
+    pr_struct_items ~funtys ~lettys constrs ppf
+      (CNames.add c_n defined) defining
+      (mutual @ prog)
+  | IPrimTyp (docu, c_n, sorts, expansion, loc)::prog ->
+    if not (CNames.is_empty defining || CNames.mem c_n defining)
+    then raise (Report_toplevel ("Undefined type constructor(s) "^
+                                   String.concat ","
+                                     (List.map cns_str
+                                        (CNames.elements defining)) ^
+                                   " near type constructor "^cns_str c_n,
+                                 Some loc));
+    altsyn := true;
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
+      fprintf ppf "@[<2>%s %a%a@ =@ %s@]@\n"
+        (if CNames.is_empty defining then "type" else "and")
+        pr_ty_wildcards sorts pr_tycns c_n expansion;
+    let defining = CNames.diff (CNames.remove c_n defining) defined in
+    (*[*
+    Format.printf "OCaml-pr_struct_items:@ defining'=%s@\n%!"
+      (String.concat "," (List.map cns_str (CNames.elements defining)));
+    *]*)
+    let mutual, prog = List.partition
+        (function
+          | (ITypConstr (_, c_n, _, _)
+            | IPrimTyp (_, c_n, _, _, _)) when CNames.mem c_n defining -> true
+          | _ -> false)
+        prog in
+    altsyn := false;
+    pr_struct_items ~funtys ~lettys constrs ppf
+      (CNames.add c_n defined) defining
       (mutual @ prog)
   | IPrimVal (docu, name, tysch, Left ext_def, _)::prog ->
     altsyn := true;

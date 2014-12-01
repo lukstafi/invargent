@@ -652,11 +652,17 @@ structure_item_raw:
       {
         if List.length ($5) = 1 then Hashtbl.add unary_typs ($3) ();
         TypConstr ($1, CNam ($3), List.rev ($5), get_loc ()) }
+  | opt_docucomment EXTERNAL TYPE UIDENT COLON sort_star_list EQUAL STRING
+      {
+        if List.length ($6) = 1 then Hashtbl.add unary_typs ($4) ();
+        PrimTyp ($1, CNam ($4), List.rev ($6), $8, get_loc ()) }
   | opt_docucomment DATATYPE COLON
       { syntax_error
 	  "lacking type identifier" 3 }
   | opt_docucomment DATATYPE UIDENT
       { TypConstr ($1, CNam $3, [], get_loc ()) }
+  | opt_docucomment EXTERNAL TYPE UIDENT EQUAL STRING
+      { PrimTyp ($1, CNam $4, [], $6, get_loc ()) }
   | opt_docucomment
     EXTERNAL lident COLON opt_constr_intro typ EQUAL STRING
       { PrimVal ($1, $3, (fst $5, snd $5, $6), Aux.Left $8, get_loc ()) }

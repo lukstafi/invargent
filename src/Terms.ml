@@ -719,6 +719,7 @@ let predvar_id = ref 0
 
 type struct_item =
 | TypConstr of string option * cns_name * sort list * loc
+| PrimTyp of string option * cns_name * sort list * string * loc
 | ValConstr of
     string option * cns_name * var_name list * formula * typ list
     * cns_name * var_name list * loc
@@ -730,8 +731,8 @@ type struct_item =
     string option * pat * uexpr * typ_scheme option * loc
 
 type annot_item =
-| ITypConstr of
-    string option * cns_name * sort list * loc
+| ITypConstr of string option * cns_name * sort list * loc
+| IPrimTyp of string option * cns_name * sort list * string * loc
 | IValConstr of
     string option * cns_name * var_name list * formula * typ list
     * cns_name * typ list * loc
@@ -750,6 +751,7 @@ let rec enc_funtype res = function
 
 let typ_scheme_of_item ?(env=[]) = function
 | TypConstr _ -> raise Not_found
+| PrimTyp _ -> raise Not_found
 | ValConstr (_, _, vs, phi, args, c_n, c_args, _) ->
   vs, phi, enc_funtype (TCons (c_n, List.map (fun v->TVar v) c_args)) args
 | PrimVal (_, _, t, _, _) -> t
@@ -1144,11 +1146,22 @@ let pr_sig_item ppf = function
      | None -> ()
      | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     fprintf ppf "@[<2>datatype@ %s@]" (cns_str name)
+  | IPrimTyp (docu, name, [], _, _) ->
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
+    fprintf ppf "@[<2>external type@ %s@]" (cns_str name)
   | ITypConstr (docu, name, sorts, _) ->
     (match docu with
      | None -> ()
      | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     fprintf ppf "@[<2>datatype@ %s@ :@ %a@]" (cns_str name)
+      (pr_sep_list " *" pr_sort) sorts
+  | IPrimTyp (docu, name, sorts, _, _) ->
+    (match docu with
+     | None -> ()
+     | Some doc -> fprintf ppf "(**%s*)@\n" doc);
+    fprintf ppf "@[<2>external type@ %s@ :@ %a@]" (cns_str name)
       (pr_sep_list " *" pr_sort) sorts
   | IValConstr (_, Extype _, _, _, _, Extype _, _, _)
     when not !show_extypes -> ()
@@ -1235,6 +1248,9 @@ let pr_signature ppf p =
 let pr_struct_item ppf = function
   | TypConstr (docu, name, sorts, lc) ->
     pr_sig_item ppf (ITypConstr (docu, name, sorts, lc))
+  | PrimTyp (docu, name, sorts, expansion, lc) ->
+    fprintf ppf "@[<2>%a@ =@ \"%s\"@]"
+    pr_sig_item (IPrimTyp (docu, name, sorts, expansion, lc)) expansion
   | ValConstr (docu, name, vs, phi, args, c_n, c_args, lc) ->
     let c_args = List.map (fun v -> TVar v) c_args in
     pr_sig_item ppf (IValConstr (docu, name, vs, phi, args, c_n, c_args, lc))
@@ -1620,7 +1636,8 @@ let parser_last_num = ref 0
 
 let ty_unit = TCons (tuple, [])
 let builtin_gamma = [
-  builtin_progseq, ([], [], Fun (ty_unit, Fun (ty_unit, ty_unit)));
+  (let a = VNam (Type_sort, "a") in let va = TVar a in
+   builtin_progseq, ([a], [], Fun (ty_unit, Fun (va, va))));
 ]
 
 let setup_builtins () =
