@@ -26,6 +26,8 @@ let test_common ?more_general ?more_existential ?no_num_abduction
    | Some force_nodeadcode -> Defs.force_nodeadcode := force_nodeadcode);
   let prog = (Infer.normalize_program % Parser.program Lexer.token)
       (Lexing.from_string test) in
+  (*[* Format.printf "prog: %s@\n%a@\n%!" msg
+    Terms.pr_program (List.map snd prog); *]*)
   let new_ex_types, preserve, orig_cn = Infer.infer_prog_mockup prog in
   (*[* Format.printf "orig_cn: %s@\n%a@\n%!" msg
     Infer.pr_cnstrnt orig_cn; *]*)
@@ -324,7 +326,7 @@ n23
        skip_if !debug "debug";
        test_case "absolute value by subtraction"
          "let abs = efunction x -> eif 0 <= x then x else 0 - x"
-         [2, "∃n. δ = (Num n → ∃k[k=max (n, -n)].Num k)"]
+         [2, "∃n. δ = (Num n → ∃k[k=max (-n, n)].Num k)"]
     );
 
   "eval" >::
@@ -1980,7 +1982,7 @@ let rec zip =
     | UCons xs, UCons ys ->
       let zs = zip (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (n, k)].Unary i)"]
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (k, n)].Unary i)"]
     );
 
   "unary minimum asserted" >::
@@ -2020,7 +2022,7 @@ let rec zip =
       let zs = zip (xs, ys) in
       LCons ((x, y), zs)"
         [2,"∃n, k, a, b.
-  δ = ((List (a, n), List (b, k)) → ∃i[i=min (k, n)].List ((a, b), i))"]
+  δ = ((List (a, n), List (b, k)) → ∃i[i=min (n, k)].List ((a, b), i))"]
     );
 
   "unary maximum expanded" >::
@@ -2039,7 +2041,7 @@ let rec map2 =
     | UCons xs, UCons ys ->
       let zs = map2 (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=max (k, n)].Unary i)"]
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=max (n, k)].Unary i)"]
     );
 
   "list map2 with postfix expanded" >::
@@ -2061,7 +2063,7 @@ let rec map2 = fun f ->
         [2,"∃n, k, a.
   δ =
     ((a → a → a) → (List (a, n), List (a, k)) →
-       ∃i[i=max (k, n)].List (a, i))"]
+       ∃i[i=max (n, k)].List (a, i))"]
     );
 
 
@@ -2110,8 +2112,8 @@ let rec filter_map2 = fun p f ->
         [2,"∃n, k, a.
   δ =
     ((a → a → Bool) → (a → a → a) →
-       (List (a, n), List (a, k)) → ∃i[i≤max (k, n) ∧ k ≤ i + n ∧
-       n ≤ i + k].List (a, i))"]
+       (List (a, n), List (a, k)) → ∃i[i≤max (n, k) ∧ n ≤ i + k ∧
+       k ≤ i + n].List (a, i))"]
     );
 
   "list filter-map2 with filter postfix mono" >::
@@ -2144,7 +2146,7 @@ let rec filter_map2 =
       ematch p x y with
       | True -> LCons (f x y, zs)
       | False -> zs"
-        [2,"∃n, k. δ = ((List n, List k) → ∃i[i≤max (n, k) ∧ 0 ≤ i].List i)"]
+        [2,"∃n, k. δ = ((List n, List k) → ∃i[i≤max (k, n) ∧ 0 ≤ i].List i)"]
     );
 
   "non-num no postcond list filter-map2 with filter postfix" >::
@@ -2175,9 +2177,9 @@ let rec filter_map2 = fun p q r f g h ->
       | False -> zs"
         [1,"∃a, b, c.
   δ =
-    ((a → b → Bool) → (a → Bool) → (b → Bool) →
-       (a → b → c) → (a → c) → (b → c) → (List a, List b) →
-       List c)"]
+    ((b → c → Bool) → (b → Bool) → (c → Bool) →
+       (b → c → a) → (b → a) → (c → a) → (List b, List c) →
+       List a)"]
     );
 
   "non-num list filter-map2 with filter postfix" >::
@@ -2274,8 +2276,8 @@ let rec map2_filter = fun q r f g h ->
         [2,"∃n, k, a, b, c.
   δ =
     ((b → Bool) → (c → Bool) → (b → c → a) → (b → a) →
-       (c → a) → (List (b, n), List (c, k)) → ∃i[i≤max (n, k) ∧
-       min (k, n)≤i].List (a, i))"]
+       (c → a) → (List (b, n), List (c, k)) → ∃i[i≤max (k, n) ∧
+       min (n, k)≤i].List (a, i))"]
     );
 
   "avl_tree--height" >::
@@ -2313,7 +2315,7 @@ let create = fun l x r ->
         [2,"∃n, k, a.
   δ =
     (Avl (a, k) → a → Avl (a, n) →
-       ∃i[i=max (k + 1, n + 1)].Avl (a, i)) ∧
+       ∃i[i=max (n + 1, k + 1)].Avl (a, i)) ∧
   0 ≤ n ∧ 0 ≤ k ∧ n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
@@ -2727,19 +2729,10 @@ let rec add = fun x -> efunction
        | hr', hl when hr' <= hl+2 -> create l y r'
        | hr', hl when hl+3 <= hr' -> rotl l y r')
 "
-(* Tricky! The weaker result might be due to lack of sharing of information
-   about [l] due to facts about [l' = add x l], resp. about [r] due
-   to facts about [r' = add x r], with the other branch. *)
-(* Correct answer: *)
-(*[2,"∃n, a.
+[2,"∃n, a.
   δ =
     (a → Avl (a, n) → ∃k[1 ≤ k ∧ n ≤ k ∧
-       k ≤ n + 1].Avl (a, k))"];*)
-       (* Weaker answer *)
-       [2,"∃n, a.
-  δ =
-    (a → Avl (a, n) → ∃k[k ≤ n + 1 ∧ n ≤ k + 2 ∧
-       1 ≤ k].Avl (a, k))"];
+       k ≤ n + 1].Avl (a, k))"];
     );
 
   "avl_tree--add" >::
@@ -2990,8 +2983,8 @@ let merge = efunction
 "
         [2,"∃n, k, a.
   δ =
-    ((Avl (a, n), Avl (a, k)) → ∃i[i≤max (n + 1, k + 1) ∧ n ≤ i ∧
-       i ≤ n + k ∧ k ≤ i].Avl (a, i)) ∧
+    ((Avl (a, n), Avl (a, k)) → ∃i[i≤max (k + 1, n + 1) ∧ k ≤ i ∧
+       i ≤ n + k ∧ n ≤ i].Avl (a, i)) ∧
   n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
@@ -3044,8 +3037,8 @@ let merge = efunction
 "
         [2,"∃n, k, a.
   δ =
-    ((Avl (a, n), Avl (a, k)) → ∃i[i≤max (n + 1, k + 1) ∧ n ≤ i ∧
-       i ≤ n + k ∧ k ≤ i].Avl (a, i)) ∧
+    ((Avl (a, n), Avl (a, k)) → ∃i[i≤max (k + 1, n + 1) ∧ k ≤ i ∧
+       i ≤ n + k ∧ n ≤ i].Avl (a, i)) ∧
   n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
@@ -3098,8 +3091,8 @@ let merge = efunction
 "
         [2,"∃n, k, a.
   δ =
-    ((Avl (a, n), Avl (a, k)) → ∃i[i≤max (n + 1, k + 1) ∧ n ≤ i ∧
-       i ≤ n + k ∧ k ≤ i].Avl (a, i)) ∧
+    ((Avl (a, n), Avl (a, k)) → ∃i[i≤max (k + 1, n + 1) ∧ k ≤ i ∧
+       i ≤ n + k ∧ n ≤ i].Avl (a, i)) ∧
   n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 

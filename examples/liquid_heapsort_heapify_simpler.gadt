@@ -1,0 +1,51 @@
+datatype Array : type * num
+external let array_make :
+  ∀n, a [0≤n]. Num n → a → Array (a, n) = "fun a b -> Array.make a b"
+external let array_get :
+  ∀n, k, a [0≤k ∧ k+1≤n]. Array (a, n) → Num k → a = "fun a b -> Array.get a b"
+external let array_set :
+  ∀n, k, a [0≤k ∧ k+1≤n]. Array (a, n) → Num k → a → () =
+  "fun a b c -> Array.set a b c"
+external let array_length :
+  ∀n, a [0≤n]. Array (a, n) → Num n = "fun a -> Array.length a"
+
+external let div2 : ∀n. Num (2 n) → Num n = "fun x -> x / 2"
+
+external let n2i : ∀n. Num n → Int = "fun i -> i"
+external let equal : ∀a. a → a → Bool = "fun x y -> x = y"
+external let leq : ∀a. a → a → Bool = "fun x y -> x <= y"
+external let less : ∀a. a → a → Bool = "fun x y -> x < y"
+
+external let print : String → () = "print_string"
+external let string_make : Int → String → String =
+  "fun n s -> String.make n s.[0]"
+external let string_of_int : Int → String = "string_of_int"
+
+external let abs : Int → Int = "fun i -> if i < 0 then ~-i else i"
+external let minus : Int → Int → Int = "(-)"
+external let plus : Int → Int → Int = "(+)"
+external let int0 : Int = "0"
+
+let rec heapify data i =
+  let size = array_length data in
+  let left = 2 * i + 1 in
+  let right = 2 * i + 2 in
+  let largest1 =
+    eif left + 1 <= size then
+      eif less (array_get data i) (array_get data left)
+      then left else i
+    else i (*: int[0,n)*) in
+  let largest2 =
+    eif right + 1 <= size then
+      eif less (array_get data largest1) (array_get data right) then right
+      else largest1
+    else largest1 (*: int[0,n)*) in
+  if i + 1 <= largest2 then
+    let temp = array_get data i in
+    let temp2 = array_get data largest2 in
+    array_set data i temp2;
+    array_set data largest2 temp;
+    heapify data largest2
+  else ()
+(*withtype {n:nat,i:nat | i < n} <n-i> =>
+         a heap(n) * int(i) -> unit*)

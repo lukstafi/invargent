@@ -64,6 +64,7 @@ let test_case ?(test_annot=false) ?richer_answers ?more_general_num
    | Some nodeadcode -> Defs.nodeadcode := nodeadcode);
   (try
      let verif_res =
+       (*[* Format.printf "test_case: file=%s@\n%!" file; *]*)
        InvarGenT.process_file ~do_sig:true ~do_ml:true
          ~full_annot:test_annot (file^".gadt") in
      assert_equal ~printer:(fun x->x)
@@ -480,9 +481,19 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "liquid_matmult" ());
+      "liquid_heapsort-heapify-simpler" >::
+        (fun () ->
+           todo "FIXME";
+           skip_if !debug "debug";
+           test_case "liquid_heapsort_heapify_simpler" ());
+      "liquid_heapsort-heapify" >::
+        (fun () ->
+           todo "FIXME";
+           skip_if !debug "debug";
+           test_case "liquid_heapsort_heapify" ());
       "liquid_heapsort" >::
         (fun () ->
-           todo "TODO";
+           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_heapsort" ());
       "liquid_fft" >::

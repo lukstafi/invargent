@@ -2452,6 +2452,9 @@ let disjelim_aux q ~preserve ~initstep brs =
              pr_formula br; *]*)
            let eqs, ineqs, optis, suboptis =
              solve ~cnj:br ~cmp_v ~cmp_w q.uni_v in
+           (*[* Format.printf
+             "NumS.disjelim: try polytope ineqs=@\n%a@\n%!"
+             pr_ineqs ineqs; *]*)
            (* FIXME: [choices] now adds these inequalities, remove *)
            (* let opti_ineqs = flat2 optis in *)
            map_some
@@ -2517,6 +2520,11 @@ let disjelim_aux q ~preserve ~initstep brs =
     match equations with
     | hd::tl -> WSet.elements (List.fold_left WSet.inter hd tl)
     | _ -> [] in
+  (*[* Format.printf
+    "NumS.disjelim: polytope-ineqs=@\n%a@\nfaces=@\n%a@\nequations=@\n%a@\n%!"
+    (pr_line_list "| " pr_ineqs) (List.map snd polytopes)
+    (pr_line_list "| " pr_ineqn) faces
+    (pr_line_list "| " pr_eqn) (List.map WSet.elements equations); *]*)
   let polytopes =
     if !abductive_disjelim
     then List.map2

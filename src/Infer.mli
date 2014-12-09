@@ -17,7 +17,9 @@ type cnstrnt =
 | A of Terms.formula
 | And of cnstrnt list
 | Impl of Terms.formula * cnstrnt
-| Or of (cnstrnt * (unit -> unit)) list
+| Or of Defs.var_name *
+          (Defs.VarSet.t * cnstrnt * Terms.formula * (unit -> unit)) list *
+          cnstrnt
 | All of Defs.VarSet.t * cnstrnt
 | Ex of Defs.VarSet.t * cnstrnt
 

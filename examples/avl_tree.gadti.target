@@ -50,8 +50,8 @@ val remove_min_binding :
 
 val merge :
    ∀k, n, a[k ≤ n + 2 ∧ n ≤ k + 2].
-   (Avl (a, n), Avl (a, k)) → ∃i[i≤max (n + 1, k + 1) ∧ n ≤ i ∧
-     i ≤ n + k ∧ k ≤ i].Avl (a, i)
+   (Avl (a, n), Avl (a, k)) → ∃i[i≤max (k + 1, n + 1) ∧ k ≤ i ∧
+     i ≤ n + k ∧ n ≤ i].Avl (a, i)
 
 val remove :
    ∀n, a.

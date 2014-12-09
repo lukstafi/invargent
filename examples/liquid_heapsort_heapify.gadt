@@ -29,58 +29,22 @@ external let int0 : Int = "0"
 let rec heapify size data i =
   let left = 2 * i + 1 in
   let right = 2 * i + 2 in
-  let largest =
-    if left + 1 <= size then
-      if less (array_get data i) (array_get data left)
-      then i else left
+  let largest1 =
+    eif left + 1 <= size then
+      eif less (array_get data i) (array_get data left)
+      then left else i
     else i (*: int[0,n)*) in
-  let largest =
-    if right + 1 <= size then
-      if less (array_get data largest) (array_get data right) then right
-      else largest
-    else largest (*: int[0,n)*) in
-  if i + 1 <= largest then
+  let largest2 =
+    eif right + 1 <= size then
+      eif less (array_get data largest1) (array_get data right) then right
+      else largest1
+    else largest1 (*: int[0,n)*) in
+  if i + 1 <= largest2 then
     let temp = array_get data i in
-    let temp2 = array_get data largest in
+    let temp2 = array_get data largest2 in
     array_set data i temp2;
-    array_set data largest temp;
-    heapify size data largest
+    array_set data largest2 temp;
+    heapify size data largest2
   else ()
 (*withtype {n:nat,i:nat | i < n} <n-i> =>
          a heap(n) * int(i) -> unit*)
-
-let buildheap size data =
-  let rec loop i =
-    if 0 <= i then (
-      heapify size data i;
-      loop (i - 1))
-    else () in
-(*withtype {i:int | i < n} <max(i+1,0)> => int(i) -> unit*)
-
-    loop (div2 size - 1)
-(*withtype {n:nat} float heap(n) -> unit*)
-
-let heapsort maxx size data =
-  buildheap size data;
-  let rec loop i =
-    if 1 <= i then
-      let temp = array_get data i in
-      array_set data i (array_get data 0);
-      array_set data 0 temp;
-      heapify i data 0;
-      loop (i - 1)
-    else () in
-      (*withtype {i:int | i < n} <max(i,0)> => int(i) -> unit*)
-  loop (maxx - 1)
-(*withtype {n:nat} float heap(n) -> unit*)
-
-let print_array data i j =
-  let rec loop k =
-    if k + 1 <= j then (
-      print_string (array_get data k);
-      loop (k + 1))
-    else () in
-        (*withtype {k:int | i <= k <= j} <j-k> => int(k) -> unit*)
-  loop i
-(*withtype {n:nat, i:int, j:int | 0 <= i <= j <= n} <j-i> =>
-         string array(n) * int(i) * int(j) -> unit*)

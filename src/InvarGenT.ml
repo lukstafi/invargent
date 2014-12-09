@@ -16,7 +16,9 @@ open Aux
 
 let solver ~new_ex_types ~preserve cn =
   let q_ops, cn = Infer.prenexize cn in
+  (*[* Format.printf "solver: cn=@\n%a@\n%!" Infer.pr_cnstrnt cn; *]*)
   let exty_res_of_chi, brs = Infer.normalize q_ops cn in
+  (*[* Format.printf "solver: normalized=@\n%a@\n%!" Infer.pr_brs brs; *]*)
   let brs = Infer.simplify preserve q_ops brs in
   Invariants.solve q_ops new_ex_types exty_res_of_chi brs
 
@@ -30,6 +32,8 @@ let process_file ?(do_sig=false) ?(do_ml=false)
   let file = open_in fname in
   let prog = (Infer.normalize_program % Parser.program Lexer.token)
       (Lexing.from_channel file) in
+  (*[* Format.printf "process_file:@\n%a@\n%!" pr_program
+    (List.map snd prog); *]*)
   let env, annot = Infer.infer_prog solver prog in
   Infer.annotating_fun := infer_annot_fun;
   Infer.annotating_letin := infer_annot_letin;

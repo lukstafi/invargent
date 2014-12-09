@@ -131,34 +131,25 @@ let revert_uni q ~bvs ~dissociate ans prem cand =
           Some sv
         | v1, (TVar v2, loc) when univar v2 && not (univar v1) ->
           Some (v2, (TVar v1, loc))
-        | _ -> None)
-      prem in
-  let cand = map_some
-      (fun (v,(t,lc)) ->
-         let v =
+        | _ -> None) cand in
+  let cand = List.map
+      (fun (v, (t, lc)) ->
+         let v, t =
            if univar v then
-             try match List.assoc v u_sb with
-               | TVar v2, _ -> v2
-               | _ -> v
-             with Not_found -> v
-           else v in
+             match t with
+             | TVar v2 -> v2, TVar v
+             | _ -> v, t
+           else v, t in
          let vs = fvs_typ t in
-         let t =
+         let t' =
            if not (VarSet.exists univar vs) then t
-           else (
-             (* Ideally, we would compare [uv] with the place in [q]
-                the lifted variant of [v] has, but too cumbersome. *)
-             let t_sb =
-               if VarSet.mem v bvs then u_sb
-               else List.filter
-                   (fun (uv,_) ->
-                      q.cmp_v v uv = Left_of) u_sb in
-             (*[* Format.printf "revert_uni: v=%s %s t=%a t'=%a@\n%!"
-               (var_str v) (var_scope_str (q.cmp_v v (VarSet.choose vs)))
-               pr_ty t pr_ty (subst_typ t_sb t); *]*)
-             subst_typ t_sb t) in
-         if TVar v = t || univar v then None
-         else Some (v, (t, lc)))
+           else subst_typ u_sb t in
+         (*[* if VarSet.exists univar vs then
+           Format.printf "revert_uni: v=%s %s t=%a t'=%a@\n%!"
+             (var_str v) (var_scope_str (q.cmp_v v (VarSet.choose vs)))
+             pr_ty t pr_ty t'; *]*)
+         if TVar v = t' then (v, (t, lc))
+         else (v, (t', lc)))
       cand in
   let c_sb =
     if not !revert_cst then []
@@ -202,7 +193,8 @@ let revert_uni q ~bvs ~dissociate ans prem cand =
            let o = TVar ov in
            tu, (o, olc))
         (collect tu_sb) in
-  (*[* Format.printf "revert_uni: cand=%a@\n%!" pr_subst cand; *]*)
+  (*[* Format.printf "revert_uni:@ prem=%a@ cand=%a@\n%!"
+    pr_subst prem pr_subst cand; *]*)
   let cand =
     if !rich_return_type
     then rich_return_type_heur bvs ans cand

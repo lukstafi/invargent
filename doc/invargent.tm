@@ -306,6 +306,41 @@
   polymorphic <verbatim|let> cases, where <verbatim|let rec> needs to be
   used.
 
+  \ We optimize the disjunctive constraint coming from <verbatim|let>
+  bindings as follows. Rather than inspecting <math|K> in <math|\<Sigma\>>
+  directly, let <math|<around*|\<llbracket\>|\<Sigma\>\<vdash\>K
+  x\<uparrow\>\<alpha\><rsub|0>|\<rrbracket\>>=\<exists\><wide|\<beta\>|\<bar\>><around*|[|D|]><around*|{|x\<mapsto\>\<tau\><rprime|'>|}>>.
+  <math|<around*|\<llbracket\>|\<Gamma\>\<vdash\>K
+  p.e<rsub|2>:<no-break>\<alpha\><rsub|0>\<rightarrow\><no-break>\<tau\>|\<rrbracket\>>>
+  is equivalent to, or at least implied by:
+
+  <\equation*>
+    <around*|\<llbracket\>|\<Sigma\>\<vdash\>K
+    p\<downarrow\>\<alpha\><rsub|0>|\<rrbracket\>>\<wedge\>\<forall\><wide|\<beta\>|\<bar\>>.D\<Rightarrow\><around*|\<llbracket\>|\<Gamma\>\<vdash\>p.e<rsub|2>:\<tau\><rprime|'>\<rightarrow\>\<tau\>|\<rrbracket\>>
+  </equation*>
+
+  Let us set <math|\<b-C\><rsub|0>=<neg|E><around*|(|\<alpha\><rsub|0>|)>>,
+  <math|\<b-C\><rsub|K>=<around*|\<llbracket\>|\<Sigma\>\<vdash\>K
+  p\<downarrow\>\<alpha\><rsub|0>|\<rrbracket\>>>,
+  <math|\<b-D\><rsub|0>=\<beta\><rsub|0><wide|=|\<dot\>>\<alpha\><rsub|0>>
+  and <math|\<b-D\><rsub|K>=\<beta\><rsub|0><wide|=|\<dot\>>\<tau\><rprime|'>\<wedge\>D>.
+  Then,
+
+  <\equation*>
+    \<exists\>\<alpha\><rsub|0>.<around*|\<llbracket\>|\<Gamma\>\<vdash\>e<rsub|1>:\<alpha\><rsub|0>|\<rrbracket\>>\<wedge\><around*|(|<around*|\<llbracket\>|\<Gamma\>\<vdash\>p.e<rsub|2>:\<alpha\><rsub|0>\<rightarrow\>\<tau\>|\<rrbracket\>>\<wedge\><neg|E><around*|(|\<alpha\><rsub|0>|)>\<vee\><rsub|\<cal-E\>><around*|\<llbracket\>|\<Gamma\>\<vdash\>K
+    p.e<rsub|2>:\<alpha\><rsub|0>\<rightarrow\>\<tau\>|\<rrbracket\>>|)>
+  </equation*>
+
+  is equivalent to:
+
+  <\equation*>
+    \<exists\>\<alpha\><rsub|0>.<around*|\<llbracket\>|\<Gamma\>\<vdash\>e<rsub|1>:\<alpha\><rsub|0>|\<rrbracket\>>\<wedge\>\<vee\><rsub|i\<in\><around*|{|0|}>\<cup\>\<cal-E\>><around*|(|\<b-C\><rsub|i>\<wedge\>\<forall\><wide|\<beta\>|\<bar\>>\<beta\><rsub|0>.<around*|(|\<b-D\><rsub|i>\<Rightarrow\><around*|\<llbracket\>|\<Gamma\>\<vdash\>p.e<rsub|2>:\<beta\><rsub|0>\<rightarrow\>\<tau\>|\<rrbracket\>>|)>|)>
+  </equation*>
+
+  We use the same variable <math|\<beta\><rsub|0>> across disjuncts of the
+  same disjunction, so that <math|<around*|\<llbracket\>|\<Gamma\>\<vdash\>p.e<rsub|2>:\<beta\><rsub|0>\<rightarrow\>\<tau\>|\<rrbracket\>>>
+  can be derived and simplified only once.
+
   The second argument of the predicate variable
   <math|\<chi\><rsub|K><around*|(|\<gamma\>,\<alpha\>|)>\<nosymbol\>>
   provides an ``escape route'' for free variables, i.e. precondition
@@ -399,11 +434,9 @@
   <subsection|Normalization>
 
   We reduce the constraint to alternation-minimizing prenex-normal form, as
-  in the formalization. We explored the option to preserve the scope
-  relations, but it was less suited for determining quantifier violations. We
-  return a <verbatim|var_scope>-producing variable comparison function. The
-  branches we return from normalization have unified conclusions, since we
-  need to unify for solving disjunctions anyway.
+  in the formalization. We return a <verbatim|var_scope>-producing variable
+  comparison function. The branches we return from normalization have unified
+  conclusions, since we need to unify for solving disjunctions anyway.
 
   Releasing constraints \ from under <verbatim|Or> is done iteratively,
   somewhat similar to how disjunction would be treated in constraint solvers.
@@ -587,7 +620,9 @@
   <math|x<wide|=|\<dot\>>t> is added to the partial solution, we add to
   <math|<wide|\<beta\>|\<bar\>>> existential variables in <math|t>. Note that
   <math|x<wide|=|\<dot\>>t> can stand for either <math|x\<assign\>t>, or
-  <math|y\<assign\>x> for <math|t=y>.
+  <math|y\<assign\>x> for <math|t=y>. For a universally quantified variable
+  <math|x\<nin\><wide|\<beta\>|\<bar\>>>, <math|x\<assign\>t> will not be
+  part of the answer as it does not hold under the quantifier.
 
   To simplify the search in presence of a quantifier prefix, we preprocess
   the initial candidate by eliminating universally quantified variables:
@@ -595,10 +630,12 @@
   <\eqnarray*>
     <tformat|<table|<row|<cell|S>|<cell|=>|<cell|<around*|[|<wide|t<rsub|u>|\<bar\>>\<assign\><wide|t<rprime|'><rsub|u>|\<bar\>>|]><with|mode|text|
     for >FV<around*|(|t<rsub|u>|)>\<cap\><wide|\<beta\><rsub|u>|\<bar\>>\<neq\>\<varnothing\>,<wide|\<forall\>\<beta\><rsub|u>|\<bar\>>\<subset\>\<cal-Q\><with|mode|text|
-    such that >\<cal-M\>\<vDash\>D\<Rightarrow\><wide|S|\<dot\>>,>>|<row|<cell|Rev<rsub|\<forall\>><around*|(|\<cal-Q\>,<wide|\<beta\>|\<bar\>>,D,C|)>>|<cell|=>|<cell|<around*|{|c<rprime|'><mid|\|>c\<in\>C,<with|mode|text|if
-    >\<cal-M\>\<vDash\>\<cal-Q\>.c<around*|[|<wide|\<beta\>|\<bar\>>\<assign\><wide|t|\<bar\>>|]><with|mode|text|
-    for some ><wide|t|\<bar\>><with|mode|text| then
-    >c<rprime|'>=c<with|mode|text| else >c<rprime|'>=S<around*|(|c|)>|}>>>>>
+    such that >\<cal-M\>\<vDash\>D\<Rightarrow\><wide|S|\<dot\>>,>>|<row|<cell|S<rprime|'>>|<cell|=>|<cell|<around*|[|<wide|u|\<bar\>>\<assign\><wide|t<rprime|'><rsub|u>|\<bar\>>|]><with|mode|text|
+    for ><wide|u|\<bar\>>\<subset\><wide|\<beta\><rsub|u>|\<bar\>>,<wide|\<forall\>\<beta\><rsub|u>|\<bar\>>\<subset\>\<cal-Q\><with|mode|text|
+    such that >\<cal-M\>\<vDash\>D\<wedge\>C\<Rightarrow\><wide|S|\<dot\>><rprime|'>,>>|<row|<cell|Rev<rsub|\<forall\>><around*|(|\<cal-Q\>,<wide|\<beta\>|\<bar\>>,D,C|)>>|<cell|=>|<cell|<around*|{|c<rprime|'><mid|\|>c=x<wide|=|\<dot\>>t\<in\>C,<with|mode|text|if
+    >x=S<rprime|'><around*|(|t|)><with|mode|text| then
+    >c<rprime|'>=S<around*|(|c|)><with|mode|text| else
+    >c<rprime|'>=S*S<rprime|'><around*|(|c|)>|}>>>>>
   </eqnarray*>
 
   Note that <math|S> above is a substitution of subterms rather than of
@@ -696,7 +733,9 @@
     form the substitution of subterms <math|\<alpha\><rsub|1>\<assign\>\<alpha\><rsub|i>,\<ldots\>,\<alpha\><rsub|n>\<assign\>\<alpha\><rsub|i>,\<tau\>\<assign\>\<alpha\><rsub|i>>
     (excluding <math|\<alpha\><rsub|i>\<assign\>\<alpha\><rsub|i>>) where
     <math|\<alpha\><rsub|i>> is the most upstream existential variable (or
-    parameter) and <math|\<tau\>> is a constant.
+    parameter) and <math|\<tau\>> is a constant. Note that analogous
+    transformation for a universally quantified variable as right-hand-sides
+    is performed by <math|Rev<rsub|\<forall\>>>.
 
     <\itemize>
       <item>Since for efficiency reasons we do not always remove alien
