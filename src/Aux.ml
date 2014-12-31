@@ -60,6 +60,15 @@ let fold_map f acc l =
       let acc, hd = f acc hd in aux acc (hd::res) tl in
   aux acc [] l
 
+let rev_fold_map2 f acc l1 l2 =
+  let rec aux acc res =
+    function
+    | [], [] -> acc, res
+    | hd1::tl1, hd2::tl2 ->
+      let acc, hd = f acc hd1 hd2 in aux acc (hd::res) (tl1, tl2)
+    | _ -> assert false in
+  aux acc [] (l1, l2)
+
 let one_out l =
   let rec aux acc lhs = function
     | [] -> List.rev acc
@@ -199,6 +208,9 @@ let flat2 l =
 let fst3 (a,_,_) = a
 let snd3 (_,b,_) = b
 let thr3 (_,_,c) = c
+
+let map_fst f (a, b) = f a, b
+let map_snd f (a, b) = a, f b
 
 let product l =
   List.fold_left (fun prod set -> concat_map
@@ -422,6 +434,10 @@ let pop_assoc x l =
 let hashtbl_to_assoc h =
   Hashtbl.fold (fun k v acc -> (k, v)::acc) h []
 
+let rec list_take n = function
+  | a::l when n > 0 -> a :: list_take (n-1) l
+  | _ -> []
+
 (** {2 Lazy lists} *)
 type 'a lazy_list = 'a lazy_list_ Lazy.t
 and 'a lazy_list_ = LazNil | LazCons of 'a * 'a lazy_list
@@ -508,3 +524,5 @@ let pr_some pr_a ppf = function
   | None -> fprintf ppf "%s" "none"
   | Some a -> pr_a ppf a
 
+let pr_ints ppf ints =
+  pr_sep_list "," (fun ppf -> fprintf ppf "%d") ppf (Ints.elements ints)

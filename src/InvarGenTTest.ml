@@ -248,7 +248,6 @@ let tests = "InvarGenT" >::: [
            test_case "pointwise_extract1" ());
       "pointwise-extract2" >::
         (fun () ->
-           todo "share/enforce type information across branches";
            skip_if !debug "debug";
            test_case "pointwise_extract2" ());
       "pointwise-extract" >::
@@ -275,10 +274,10 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "non_pointwise_avl_small" ());
-      "non_pointwise-vary" >::
+      (* "non_pointwise-vary" >::
         (fun () ->
-           todo "should not pass unless in a non-default setting";
-           test_case "non_pointwise_vary" ());
+           (* TODO: should not pass unless in a non-default setting *)
+           test_case_fail "non_pointwise_vary" ()); *)
       "non_pointwise-avl_rotr" >::
         (fun () ->
            skip_if !debug "debug";

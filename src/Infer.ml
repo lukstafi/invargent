@@ -51,9 +51,9 @@ let rec pr_cnstrnt ppf = function
     pr_sep_list " ∧" pr_cnstrnt ppf cns; fprintf ppf "@]"
   | Impl (prem,concl) -> fprintf ppf "@[<2>";
     pr_formula ppf prem; fprintf ppf "@ ⟹@ %a@]" pr_cnstrnt concl
-  | Or (v, cns, phi) -> fprintf ppf "@[<2>[";
+  | Or (v, cns, phi) -> fprintf ppf "@[<0>[";
     pr_sep_list " ∨" (pr_disj_cnstrnt v) ppf cns;
-    fprintf ppf "],@ Φ(%s)=%a@]" (var_str v) pr_cnstrnt phi
+    fprintf ppf "], Φ(%s)=@\n%a@]" (var_str v) pr_cnstrnt phi
   | All (vs, cn) ->
     fprintf ppf "@[<0>∀%a.@ %a@]"
       (pr_sep_list "," pr_tyvar) (VarSet.elements vs) pr_cnstrnt cn
@@ -62,7 +62,7 @@ let rec pr_cnstrnt ppf = function
       (pr_sep_list "," pr_tyvar) (VarSet.elements vs) pr_cnstrnt cn
 
 and pr_disj_cnstrnt v ppf (vs, c, d, _) =
-     fprintf ppf "@[<2>%a ∧@ (∀%a,%s.%a@ ⟹@ Φ)@]" pr_cnstrnt c
+     fprintf ppf "@[<0>%a ∧@ (∀%a,%s.%a@ ⟹@ Φ)@]" pr_cnstrnt c
        pr_vars vs (var_str v) pr_formula d
 
 let pr_brs_old ppf brs =
@@ -90,16 +90,22 @@ let pr_rbrs4 ppf brs =
 
 let pr_rbrs5 ppf brs =
   (* TODO: print the chiK *)
-  pr_line_list "| " (fun ppf (nonrec,_,_,prem,concl) ->
-    fprintf ppf "@[<2>nonrec=%b;@ %a@ ⟹@ %a@]"
-      nonrec pr_formula prem pr_formula concl) ppf brs
+  pr_line_list "| " (fun ppf (nonrec, chi_pos, chiK_pos, prem, concl) ->
+    fprintf ppf "@[<2>nonrec=%b;@ chiK_pos=%a;@ %a@ ⟹@ %a@]"
+      nonrec (pr_sep_list "," Format.pp_print_int)
+      (List.map (fun (i,_,_,_) -> i) chiK_pos)
+      pr_formula prem pr_formula concl) ppf brs
 
 
 let separate_sep_subst ?(avoid=VarSet.empty) ?(keep_uni=false)
     q {cnj_typ; cnj_num; cnj_ord; cnj_so} =
-  let filter sb = List.filter
-      (fun (v,_) -> not (VarSet.mem v avoid) &&
-                    (keep_uni || not (q.uni_v v))) sb in
+  let filter sb =
+    if keep_uni && VarSet.is_empty avoid
+    then sb
+    else
+      List.filter
+        (fun (v,_) -> not (VarSet.mem v avoid) &&
+                      (keep_uni || not (q.uni_v v))) sb in
   let sb_ty = filter cnj_typ in
   let sb_num, cnj_num = NumS.separate_subst q cnj_num in
   let sb_num = filter sb_num in
@@ -113,7 +119,7 @@ let separate_sep_subst ?(avoid=VarSet.empty) ?(keep_uni=false)
 let separate_subst ?(avoid=VarSet.empty) ?(keep_uni=false) q phi =
   let sb, {cnj_typ; cnj_num; cnj_ord; cnj_so} =
     separate_sep_subst ~avoid ~keep_uni q
-      (unify ~use_quants:false q phi) in
+      (solve ~use_quants:false q phi) in
   assert (cnj_typ=[]);
   sb, NumS.formula_of_sort cnj_num @
         OrderS.formula_of_sort cnj_ord @ cnj_so
@@ -161,12 +167,13 @@ let normalize_expr e =
         [delta; delta'],
         [PredVarB (chi_id, tdelta, tdelta', lc)],
         [tdelta], ety_cn, [delta'] in
+      Hashtbl.add ex_type_chi k chi_id;
       Hashtbl.add sigma ety_cn ex_sch;
       (*[* Format.printf "normalize_expr: adding exty %d head pat=%a@\n%!"
         chi_id pr_pat (fst3 (List.hd cls)); *]*)
       new_ex_types := (k, lc) :: !new_ex_types;
       all_ex_types := (k, lc) :: !all_ex_types;
-      Lam ((), List.map (aux_cl (Some k)) cls, lc)
+      ExLam (k, List.map (aux_cl (Some k)) cls, lc)
     | Some _, ExLam (_, cls, lc) ->
       Lam ((), List.map (aux_cl k') cls, lc)
     | _, Letrec (docu, ann, x, e1, e2, lc) ->
@@ -605,7 +612,17 @@ let constr_gen_expr gamma e t =
       *]*)
       Ex (vars_of_list [a0], cn_and cn1 (Or (b0, disjs, cn2))),
       Letin (docu, p, e1, e2, loc)
-    | ExLam (ety_id, cls, loc) -> assert false
+    | ExLam (ety_id, cls, loc) ->
+      let a0 = fresh_typ_var () in
+      let t0 = TVar a0 in
+      let chi_id =
+        try Hashtbl.find ex_type_chi ety_id
+        with Not_found -> assert false in
+      let cn, e = aux gamma t (Lam ((), cls, loc)) in
+      Ex (vars_of_list [a0],
+          cn_and (A [RetType (t, t0, loc);
+                     PredVarU (chi_id, t0, loc)]) cn),
+      e
 
   and aux_cl count gamma t1 t2 (p, guards, e) =
     let is_neg = single_assert_false e in
@@ -1157,9 +1174,9 @@ let prenexize cn =
   let allvars = Hashtbl.create 64 in
   let parent_param = Hashtbl.create 32 in
   let same_as v1 v2 =
-    Hashtbl.replace parent_param v1 v2;
     if Hashtbl.mem quant v1
     then (
+      Hashtbl.replace parent_param v2 v1;
       let q_id = Hashtbl.find quant v1 in
       Hashtbl.replace quant v2 q_id;
       if Hashtbl.mem univars v1
@@ -1167,6 +1184,7 @@ let prenexize cn =
       else Hashtbl.remove univars v2)
     else if Hashtbl.mem quant v2
     then (
+      Hashtbl.replace parent_param v1 v2;
       let q_id = Hashtbl.find quant v2 in
       Hashtbl.replace quant v1 q_id;
       if Hashtbl.mem univars v2
@@ -1259,7 +1277,7 @@ type 'a guarded_br = {
 
 (* FIXME: needs a rewrite or better description. *)
 let normalize q cn =
-  let unify ?sb cnj = unify ~use_quants:false ?sb q cnj in
+  let unify ?sb cnj = solve ~use_quants:false ?sb q cnj in
   (* Predicate variables for invariants of recursive definitions (some
      positive occs of unary pred vars are for postconditions). *)
   let chi_rec = Hashtbl.create 2 in
@@ -1295,7 +1313,8 @@ let normalize q cn =
            (*[* Format.printf "simplify_brs: passed unify@\n%!"; *]*)
            (* FIXME: only filter out if known to hold *)
            let concl_so = List.filter
-               (function NotEx (_, _) -> false | _ -> true) concl_so in
+               (function NotEx _ -> false
+                       | _ -> true) concl_so in
            (* 2 *)
            List.iter (fun (v, (t, _)) ->
                match return_type t with
@@ -1562,6 +1581,8 @@ let vs_hist_atom increase = function
   | PredVarB (_, t1, t2, _) ->
     vs_hist_typ increase t1; vs_hist_typ increase t2
   | NotEx (t, _) -> vs_hist_typ increase t
+  | RetType (t1, t2, _) ->
+    vs_hist_typ increase t1; vs_hist_typ increase t2
   | Terms.A a -> vs_hist_alien_atom increase a
 
 let vs_hist_sb increase sb =
@@ -1600,12 +1621,15 @@ let simplify preserve q brs =
     | _ -> false in                         (* FIXME: check other sorts? *)
   let nonred_pr_atom a = not (redundant_atom true a) in
   let nonred_atom a = not (redundant_atom false a) in
+  (* FIXME: should we identify the same nonrec branches as
+     Invariants.solve? *)
   let is_nonrec prem concl =
     not (List.exists (function
         | PredVarU (i, _, _) -> Hashtbl.mem chi_rec i
         | _ -> false) concl) &&
     not (List.exists (function
-        | PredVarB (i, _, _, _) -> true | _ -> false) prem) in
+        | PredVarB (i, _, _, _) -> true(* Hashtbl.mem chiK_res i *)
+        | _ -> false) prem) in
   let brs = List.map
       (fun (prem,concl) ->
          List.filter nonred_pr_atom prem,
@@ -1655,7 +1679,32 @@ let simplify preserve q brs =
       try merge acc (meet (is_nonrec prem concl) prem concl brs)
       with Not_found -> merge (br::acc) brs in
   let brs = merge [] brs in
-  (*[* Format.printf "simplify: ended.@\n%!"; *]*)
+  (*[* Format.printf
+    "simplify: ended phase 1; start solving RetType. brs=@\n%a@\n%!"
+    pr_brs brs; *]*)
+  let retypes, brs = fold_map
+      (fun retypes (prem, concl) ->
+         let concl = solve ~use_quants:false q concl in
+         let more, cnj_so = partition_map
+           (function
+             | RetType (TVar v1, t2, lc) -> Left (v1, t2, lc)
+             | RetType _ -> assert false
+             | a -> Right a)
+           concl.cnj_so in
+         more @ retypes, (prem, {concl with cnj_so}))
+      [] brs in
+  let brs = List.map
+      (fun (prem, concl) ->
+         let more = map_some
+           (fun (v1, t2, lc2) ->
+             try
+               let t1, lc1 = List.assoc v1 concl.cnj_typ in
+               let t1 = return_type t1 in
+               Some (Eqty (t1, t2, loc_union lc1 lc2))
+             with Not_found -> None)
+           retypes in
+         prem, more @ unsep_formulas concl)
+      brs in
   List.stable_sort
     (fun (prem1,_) (prem2,_) -> List.length prem1 - List.length prem2)
     brs

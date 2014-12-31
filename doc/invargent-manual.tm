@@ -901,6 +901,20 @@
     out a couple of rotations: convex combinations of the inequalities
     defining the sides. This parameter decides how many rotations to try.
 
+    <item*|<verbatim|-postcond_opti_limit>>Limit the number of atoms
+    <math|x=min(a,b)>, <math|x=max(a,b)> in (intermediate and final)
+    postconditions (default 4). Unfortunately, inference time is exponential
+    in the number of atoms of this form. The final postconditions usually
+    have few of these atoms, but a greater number is sometimes needed in the
+    intermediate steps of the main loop.\ 
+
+    <item*|<verbatim|-postcond_subopti_limit>>Limit the number of atoms
+    <math|min(a,b)\<leqslant\>x>, <math|x\<leqslant\>max(a,b)> in
+    (intermediate and final) postconditions (default 4). Unfortunately,
+    inference time is exponential in the number of atoms of this form. The
+    final postconditions usually have few of these atoms, but a greater
+    number is sometimes needed in the intermediate steps of the main loop.
+
     <item*|<verbatim|-iterations_timeout>>Limit on main algorithm iterations
     (default 6). Answers found in an iteration of the main algorithm are
     propagated to use sites in the next iteration. However, for about four

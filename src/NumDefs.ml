@@ -191,6 +191,18 @@ let flatten t =
     | Lin (j,k,v) -> (j,k,v)::vars, cst in
   flat ([], (0,1)) t
 
+let equal_to_cst =
+  let rec flatten = function
+    | Add [t] -> flatten t
+    | t -> t in
+ function
+  | Eq (t1, t2, _) ->
+    (match flatten t1, flatten t2 with
+     | Lin _, Cst _
+     | Cst _, Lin _ -> true
+     | _ -> false)
+  | _ -> false
+
 (* Simplified, i.e. non-normalizing, detection of directed opti atoms. *)
 let direct_opti t1 t2 =
   let unpack (j,k,v) = Lin (j,k,v) in

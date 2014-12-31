@@ -58,6 +58,8 @@ val flatten :
 val direct_opti :
   term -> term -> (Defs.var_name * bool * term * term) option
 val taut_atom_or_undir_opti : atom -> bool
+(** Equation between a variable and a constant. *)
+val equal_to_cst : atom -> bool
 
 val pr_term : Format.formatter -> term -> unit
 val pr_atom : Format.formatter -> atom -> unit

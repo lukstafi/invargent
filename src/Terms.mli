@@ -92,6 +92,7 @@ type atom =
   | PredVarU of int * typ * lc
   | PredVarB of int * typ * typ * lc
   | NotEx of typ * lc
+  | RetType of typ * typ * Defs.loc
   | A of alien_atom
 
 val a_num : NumDefs.atom -> atom
@@ -322,9 +323,18 @@ val unify :
   ?use_quants:bool -> ?bvs:Defs.VarSet.t ->
   ?sb:subst -> Defs.quant_ops ->
   atom list -> sep_formula
+val solve_retypes :
+  ?use_quants:bool -> ?bvs:Defs.VarSet.t ->
+  sb:subst -> Defs.quant_ops ->
+  atom list -> sep_formula
+val solve :
+  ?use_quants:bool -> ?bvs:Defs.VarSet.t ->
+  ?sb:subst -> Defs.quant_ops ->
+  atom list -> sep_formula
 val to_formula : subst -> formula
 (** Find the atoms in the formula which are valid substitutions. *)
-val subst_of_cnj : ?elim_uni:bool -> Defs.quant_ops -> formula -> subst
+val subst_of_cnj :
+  ?elim_uni:bool -> Defs.quant_ops -> formula -> subst * formula
 val combine_sbs :
   ?use_quants:bool -> ?bvs:Defs.VarSet.t ->
   Defs.quant_ops ->
@@ -345,6 +355,7 @@ type sigma =
     Hashtbl.t
 
 val sigma : sigma
+val ex_type_chi : (int, int) Hashtbl.t
 val all_ex_types : (int * lc) list ref
 
 val builtin_gamma : (string * typ_scheme) list

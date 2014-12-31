@@ -33,6 +33,10 @@ let encourage_not_yet_bounded = ref 1
 let discourage_equations_1 = ref 4
 let discourage_equations_2 = ref 4
 let implied_ineqn_penalty = ref 0.0
+let preserve_params = ref (* false *)true
+let max_opti_postcond = ref 4
+let max_subopti_postcond = ref 4
+let opti_postcond_reward = ref 5
 
 let abd_fail_flag = ref false
 let abd_timeout_flag = ref false
@@ -74,6 +78,38 @@ let w_size (vars, cst, _) =
   (if cst =/ !/0 then 0 else 1) +
     List.fold_left
       (fun acc (_, coef) -> if coef =/ !/0 then acc else acc + 1) 0 vars
+
+let w_complexity1 bvs vars =
+  int_of_float
+    (List.fold_left
+       (fun acc (v, k) ->
+          if VarSet.mem v bvs then
+            let r = Num.ratio_of_num k in
+            let kk =
+              abs (Big_int.int_of_big_int (Ratio.numerator_ratio r)) +
+                abs (Big_int.int_of_big_int
+                       (Ratio.denominator_ratio r)) - 1 in
+            acc -. float_of_int kk *. !complexity_penalty
+          else acc)
+       0. vars)
+
+let w_complexity2 bvs (vars, cst, _) =
+  let rcst = Num.ratio_of_num cst in
+  let cc =
+    abs (Big_int.int_of_big_int (Ratio.numerator_ratio rcst)) +
+      abs (Big_int.int_of_big_int
+             (Ratio.denominator_ratio rcst)) - 1 in
+  List.fold_left
+    (fun acc (v, k) ->
+       if VarSet.mem v bvs then
+         let r = Num.ratio_of_num k in
+         let kk =
+           abs (Big_int.int_of_big_int (Ratio.numerator_ratio r)) +
+             abs (Big_int.int_of_big_int
+                    (Ratio.denominator_ratio r)) - 1 in
+         acc - kk
+       else acc + !opti_postcond_reward)
+    cc vars
 
 (* Assumes [vars1] and [vars2] are in the same order. *)
 let compare_w (vars1, cst1, _) (vars2, cst2, _) =
@@ -1355,19 +1391,7 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of ~bvs ~discard_ineqs
     let upper_bound =
       if List.for_all (fun (_, k) -> k >/ !/0) vars
       then ~- !discourage_upper_bound else 0 in
-    let complexity =
-      int_of_float
-        (List.fold_left
-           (fun acc (v, k) ->
-              if VarSet.mem v bvs then
-                let r = Num.ratio_of_num k in
-                let kk =
-                  abs (Big_int.int_of_big_int (Ratio.numerator_ratio r)) +
-                    abs (Big_int.int_of_big_int
-                           (Ratio.denominator_ratio r)) - 1 in
-                acc -. float_of_int kk *. !complexity_penalty
-              else acc)
-           0. vars) in
+    let complexity = w_complexity1 bvs vars in
     let constraining =
       List.fold_left
         (fun acc (v, k) ->
@@ -1449,16 +1473,16 @@ let abd_simple ~qcmp_v ~cmp_w ~upward_of cmp_v uni_v ~bvs ~discard ~validate
     (* Extract more equations implied by premise and earlier answer. *)
     (* A contradiction in premise here means the answer so far
        conflicts with a live-code branch, should be discarded. *)
-    let (d_eqs, d_ineqs, _, _), _, _, d_implicits, _ =
+    let (d_eqs0, d_ineqs0, _, _), _, _, d_implicits, _ =
       (* TODO: could we speed up abduction by using Store_viol? *)
       solve_get_eqn ~use_quants:Ignore_viol ~eqs:eqs_i ~eqs':[]
         ~ineqs:ineqs_i ~eqn:d_eqn' ~ineqn:d_ineqn'
         ~optis:[] ~suboptis:[] ~cnj:[] ~cmp_v ~cmp_w uni_v in
     (*[* Format.printf
-      "NumS.abd_simple:@ d_ineqn'=@ %a@\nd_ineqs=@ %a@\nd_implicits=@ %a@\n%!"
-      pr_ineqn d_ineqn' pr_ineqs d_ineqs pr_eqn d_implicits;
+      "NumS.abd_simple:@ d_ineqn'=@ %a@\nd_ineqs0=@ %a@\nd_implicits=@ %a@\n%!"
+      pr_ineqn d_ineqn' pr_ineqs d_ineqs0 pr_eqn d_implicits;
     *]*)
-    let d_ineqs = complete_ineqs ~cmp_v d_ineqs in
+    let d_ineqs = complete_ineqs ~cmp_v d_ineqs0 in
     let d_eqn' = d_implicits @ d_eqn' in
     (* 1a *)
     let zero = [], !/0, dummy_loc in
@@ -2426,12 +2450,22 @@ let prune_redundant q ?localvs ?(guard=[]) ~initstep cnj =
 
 (* Currently, [initstep] is only used to generate more -- redundant --
    [subopti] atoms. *)
-let disjelim_aux q ~preserve ~initstep brs =
+let disjelim_aux q ~preserve ~bvs ~param_bvs ~initstep brs =
   let cmp_v = make_cmp q in
+  (* Move preserved variables to the front of parameters but behind
+     variables that should be eliminated. *)
   let cmp_v v1 v2 =
-    let v1c = VarSet.mem v1 preserve and v2c = VarSet.mem v2 preserve in
-    if v1c && not v2c then 1
-    else if v2c && not v1c then -1
+    let v1p = VarSet.mem v1 preserve and v2p = VarSet.mem v2 preserve
+    and v1b = VarSet.mem v1 param_bvs and v2b = VarSet.mem v2 param_bvs in
+    (* Preserved in front of parameters. *)
+    (* v1p && v2p -> else branch *)
+    if      v1p && not v2p && v2b then -1
+    else if v1p && not (v2p || v2b) then 1
+    else if not v1p && v1b && v2p then 1
+    (* not v1p && v1b && not v2p && v2b -> else branch *)
+    else if not v1p && v1b && not (v2p || v2b) then 1
+    else if not (v1p || v1b) && (v2p || v2b) then -1
+    (* not (v1p || v1b) && not (v2p || v2b) -> else branch *)
     else cmp_v v1 v2 in
   let cmp_w (vars1,cst1,_) (vars2,cst2,_) =
     match vars1, vars2 with
@@ -2440,8 +2474,10 @@ let disjelim_aux q ~preserve ~initstep brs =
     | [], _ -> 1
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
   (*[* Format.printf
-    "NumS.disjelim:@ preserve=%a@ initstep=%b@\n%!"
+    "NumS.disjelim_aux:@ preserve=%a@ initstep=%b@\n%!"
     pr_vars preserve initstep; *]*)
+  let preserved =
+    if !preserve_params then VarSet.union preserve param_bvs else preserve in
   (* Case-split on [optis]. *)
   (* Discard empty disjuncts. *)
   let polytopes = concat_map
@@ -2470,9 +2506,9 @@ let disjelim_aux q ~preserve ~initstep brs =
                       ~cmp_v ~cmp_w q.uni_v in
                   (* Simplify downto preserved variables. *)
                   let eqs = List.filter
-                      (fun (v,_) -> VarSet.mem v preserve) eqs in
+                      (fun (v,_) -> VarSet.mem v preserved) eqs in
                   let ineqs = List.filter
-                      (fun (v,_) -> VarSet.mem v preserve) ineqs in
+                      (fun (v,_) -> VarSet.mem v preserved) ineqs in
                   (*[* Format.printf
                     "NumS.disjelim: success opti_choice=@\n%a@\n%!"
                     pr_w_formula opti_subopti; *]*)
@@ -2729,7 +2765,17 @@ let disjelim_aux q ~preserve ~initstep brs =
     List.map (fun (_,_,w1, w2) -> w1, w2)
       (map_some direct_opti optis) in
   (*[* Format.printf "NumS.disjelim: optis=@\n%a@\n%!"
-    pr_optis optis; *]*)  
+    pr_optis optis; *]*)
+  let optis =
+    List.map snd
+      (List.sort (fun (x, _) (y, _) -> y - x)
+         (List.map
+            (fun (w1, w2 as c) ->
+               w_complexity2 bvs w1 + w_complexity2 bvs w2, c)
+            optis)) in
+  let optis = list_take !max_opti_postcond optis in
+  (*[* Format.printf "NumS.disjelim: filtered optis=@\n%a@\n%!"
+    pr_optis optis; *]*)
   (* Generating subopti atoms. *)
   let ptopes_ineqs = List.map
       (fun ptope ->
@@ -2861,20 +2907,42 @@ let disjelim_aux q ~preserve ~initstep brs =
       suboptis in
   (*[* Format.printf "NumS.disjelim: suboptis=@\n%a@\n%!"
     pr_suboptis suboptis; *]*)  
-  [],
+  let suboptis =
+    List.map snd
+      (List.sort (fun (x, _) (y, _) -> y - x)
+         (List.map
+            (fun (w1, w2 as c) ->
+               w_complexity2 bvs w1 + w_complexity2 bvs w2, c)
+            suboptis)) in
+  let suboptis = list_take !max_subopti_postcond suboptis in
+  (*[* Format.printf "NumS.disjelim: filtered suboptis=@\n%a@\n%!"
+    pr_suboptis suboptis; *]*)
   List.map expand_opti optis @
     List.map expand_subopti suboptis @
     List.map (expand_atom true) (common_equations (* @ redundant_eqn *))
   @ List.map (expand_atom false) ineqn
 
-let disjelim q ~preserve ~initstep brs =
-  (*[* Format.printf "NumS.disjelim: preserve=%a #brs=%d@\ninit brs=@\n%a@\n%!"
-    pr_vars preserve (List.length brs)
+let cleanup ~preserve cnj =
+  List.filter
+    (fun c ->
+       VarSet.exists (fun p -> VarSet.mem p preserve) (fvs_atom c))
+    cnj
+
+let disjelim q ~preserve ~bvs ~param_bvs ~initstep brs =
+  (*[* Format.printf "NumS.disjelim: preserve=%a #brs=%d@ params=%a@ bvs=%a\
+                       @\ninit brs=@\n%a@\n%!"
+    pr_vars preserve (List.length brs) pr_vars param_bvs pr_vars bvs
     (pr_line_list "| " pr_formula) brs; *]*)
   match brs with
   | [] -> assert false
-  | [br] -> disjelim_aux q ~preserve ~initstep [br; br]
-  | _ -> disjelim_aux q ~preserve ~initstep brs
+  | [br] ->
+    [],
+    cleanup ~preserve
+      (disjelim_aux q ~preserve ~bvs ~param_bvs ~initstep [br; br])
+  | _ ->
+    [],
+    cleanup ~preserve
+      (disjelim_aux q ~preserve ~bvs ~param_bvs ~initstep brs)
 
 let simplify q ?(keepvs=VarSet.empty) ?localvs ?(guard=[]) elimvs cnj =
   (*[* Format.printf "NumS.simplify: elimvs=%s;@\ncnj=@ %a@\n%!"
@@ -3200,6 +3268,7 @@ let separate_subst_aux q ~no_csts ~keep cnj =
 
 (* Optimization. FIXME: check if worth it. *)
 exception Not_substitution
+         
 
 (* FIXME: check if using [separate_subst_aux] instead can be fixed. *)
 let separate_num_subst q ~no_csts ~keep cnj =

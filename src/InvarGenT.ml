@@ -125,8 +125,14 @@ let main () =
     "Filter out less general numerical abduction candidate atoms";
     "-no_num_abduction", Arg.Set Abduction.no_num_abduction,
     "Turn off numerical abduction; will not ensure correctness.";
-    "-disjelim_rotations", Arg.Set_int NumS.disjelim_rotations,
-    "Disjunction elimination: check coefficients from 1/N to N (default 3)";
+    "-postcond_rotations", Arg.Set_int NumS.disjelim_rotations,
+    "In postconditions, check coefficients from 1/N to N (default 3)";
+    "-postcond_opti_limit", Arg.Set_int NumS.max_opti_postcond,
+    "Limit the number of atoms x = min(a, b), x = max(a, b) \
+     in (intermediate and final) postconditions (default 4)";
+    "-postcond_subopti_limit", Arg.Set_int NumS.max_subopti_postcond,
+    "Limit the number of atoms min(a, b) <= x, x <= max(a, b) \
+     in (intermediate and final) postconditions (default 4)";
     "-iterations_timeout", Arg.Set_int Invariants.timeout_count,
     "Limit on main algorithm iterations (default 7)";
     "-if_else_no_when", Arg.Clear Terms.parse_if_as_integer,

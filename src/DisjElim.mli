@@ -11,6 +11,9 @@
 val more_existential : bool ref
 
 val disjelim :
-  Defs.quant_ops -> bvs:Defs.VarSet.t -> preserve:Defs.VarSet.t ->
-  do_num:bool -> initstep:bool -> Terms.formula list ->
+  Defs.quant_ops -> ?target:Defs.var_name ->
+  bvs:Defs.VarSet.t -> param_bvs:Defs.VarSet.t ->
+  preserve:Defs.VarSet.t -> up_of_anchor:(Defs.var_name -> bool) ->
+  do_num:bool -> initstep:bool -> residuum:Terms.formula ->
+  Terms.formula list ->
   Terms.subst * (Defs.var_name list * Terms.atom list)

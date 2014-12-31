@@ -466,6 +466,7 @@ type atom =
   | PredVarU of int * typ * loc
   | PredVarB of int * typ * typ * loc
   | NotEx of typ * loc
+  | RetType of typ * typ * loc
   | A of alien_atom
 
 let a_num a = A (Num_atom a)
@@ -482,6 +483,8 @@ let fvs_atom = function
   | PredVarB (_, t1, t2, _) ->
     VarSet.union (fvs_typ t1) (fvs_typ t2)
   | NotEx (t, _) -> fvs_typ t
+  | RetType (t1, t2, _) ->
+    VarSet.union (fvs_typ t1) (fvs_typ t2)
   | A a -> fvs_alien_atom a
 
 let alien_atom_loc = function
@@ -491,6 +494,7 @@ let alien_atom_loc = function
 let atom_loc = function
   | Eqty (_, _, loc) | CFalse loc
   | PredVarU (_, _, loc) | PredVarB (_, _, _, loc) | NotEx (_, loc)
+  | RetType (_, _, loc)
     -> loc
   | A a -> alien_atom_loc a
 
@@ -504,6 +508,7 @@ let replace_loc_atom loc = function
   | PredVarU (n, t, _) -> PredVarU (n, t, loc)
   | PredVarB (n, t1, t2, _) -> PredVarB (n, t1, t2, loc)
   | NotEx (t, _) -> NotEx (t, loc)
+  | RetType (t1, t2, _) -> RetType (t1, t2, loc)
   | A a -> A (replace_loc_alien_atom loc a)
 
 let eq_alien_atom = function
@@ -512,6 +517,7 @@ let eq_alien_atom = function
   | _ -> false
 
 let eq_atom a1 a2 =
+  a1 == a2 ||
   match a1, a2 with
   | Eqty (t1, t2, _), Eqty (t3, t4, _)
     when t1=t3 && t2=t4 || t1=t4 && t2=t3 -> true
@@ -542,6 +548,8 @@ let subst_atom sb = function
   | PredVarB (n, t1, t2, lc) ->
     PredVarB (n, subst_typ sb t1, subst_typ sb t2, lc)
   | NotEx (t, lc) -> NotEx (subst_typ sb t, lc)
+  | RetType (t1, t2, lc) ->
+    RetType (subst_typ sb t1, subst_typ sb t2, lc)
   | A a -> A (subst_alien_atom sb a)
 
 let hvsubst_alien_atom sb = function
@@ -557,6 +565,8 @@ let hvsubst_atom sb = function
   | PredVarB (n, t1, t2, lc) ->
     PredVarB (n, hvsubst_typ sb t1, hvsubst_typ sb t2, lc)
   | NotEx (t, lc) -> NotEx (hvsubst_typ sb t, lc)
+  | RetType (t1, t2, lc) ->
+    RetType (hvsubst_typ sb t1, hvsubst_typ sb t2, lc)
   | A a -> A (hvsubst_alien_atom sb a)
 
 let sb_atom_unary arg = function
@@ -566,6 +576,7 @@ let sb_atom_unary arg = function
   | PredVarU (_, t, _) -> assert false
   | PredVarB (_, t1, t2, _) -> assert false
   | NotEx _ -> assert false
+  | RetType (t1, t2, lc) -> assert false
   | A _ as a -> a
 
 let sb_atom_binary arg1 arg2 = function
@@ -575,10 +586,12 @@ let sb_atom_binary arg1 arg2 = function
   | PredVarU (_, t, _) -> assert false
   | PredVarB (_, t1, t2, _) -> assert false
   | NotEx _ -> assert false
+  | RetType _ -> assert false
   | A _ as a -> a
 
 let subst_fo_atom sb = function
   | Eqty (t1, t2, loc) -> Eqty (subst_typ sb t1, subst_typ sb t2, loc)
+  | RetType (t1, t2, loc) -> RetType (subst_typ sb t1, subst_typ sb t2, loc)
   | CFalse _ as a -> a
   | (PredVarU _ | PredVarB _ | NotEx _) as a -> a
   | A a -> A (subst_alien_atom sb a)
@@ -589,6 +602,7 @@ let alien_atom_size = function
 
 let atom_size = function
   | Eqty (t1, t2, _) -> typ_size t1 + typ_size t2 + 1
+  | RetType (t1, t2, _) -> typ_size t1 + typ_size t2 + 1
   | CFalse _ -> 1
   | PredVarU (_, t, _) -> typ_size t + 1
   | PredVarB (_, t1, t2, _) -> typ_size t1 + typ_size t2 + 1
@@ -656,7 +670,7 @@ let sep_formulas cnj =
       | Eqty _ -> assert false
       | A (Num_atom a) -> cnj_typ, a::cnj_num, cnj_ord, cnj_so
       | A (Order_atom a) -> cnj_typ, cnj_num, a::cnj_ord, cnj_so
-      | (PredVarU _ | PredVarB _ | NotEx _ | CFalse _) as a ->
+      | (PredVarU _ | PredVarB _ | NotEx _ | CFalse _ | RetType _) as a ->
         cnj_typ, cnj_num, cnj_ord, a::cnj_so)
     ([], [], [], []) cnj in
   {cnj_typ; cnj_num; cnj_ord; cnj_so}
@@ -681,7 +695,7 @@ let sep_unsolved cnj =
       | A (Order_atom a) -> cnj_typ, cnj_num, a::cnj_ord, cnj_so
       | NotEx _ as a ->
         new_notex := true; cnj_typ, cnj_num, cnj_ord, a::cnj_so
-      | (PredVarU _ | PredVarB _ | CFalse _) as a ->
+      | (PredVarU _ | PredVarB _ | CFalse _ | RetType _) as a ->
         cnj_typ, cnj_num, cnj_ord, a::cnj_so)
     ([], [], [], []) cnj in
   !new_notex, {at_typ; at_num; at_ord; at_so}
@@ -779,6 +793,7 @@ let atom_sort = function
     if s1 = s2 then s1
     else raise
         (Contradiction (s1, "Sort mismatch", Some (t1, t2), lc))
+  | RetType _ -> Type_sort
   | CFalse _ -> Type_sort
   | PredVarU _ -> Type_sort
   | PredVarB _ -> Type_sort
@@ -792,6 +807,7 @@ type sigma =
     Hashtbl.t
 
 let sigma : sigma = Hashtbl.create 128
+let ex_type_chi = Hashtbl.create 128
 let all_ex_types = ref []
 
 (** {2 Printing} *)
@@ -1035,6 +1051,8 @@ let alien_no_parens = function
 let rec pr_atom ppf = function
   | Eqty (t1, t2, _) ->
     fprintf ppf "@[<2>%a@ =@ %a@]" pr_one_ty t1 pr_one_ty t2
+  | RetType (t1, t2, _) ->
+    fprintf ppf "@[<2>RetType@ (%a,@ %a)@]" pr_one_ty t1 pr_one_ty t2
   | CFalse _ -> pp_print_string ppf "FALSE"
   | PredVarU (i,ty,lc) -> fprintf ppf "@[<2>X%d(%a)@]" i pr_ty ty
   | PredVarB (i,t1,t2,lc) ->
@@ -1276,7 +1294,7 @@ let pr_struct_item ppf = function
     (match docu with
      | None -> ()
      | Some doc -> fprintf ppf "(**%s*)@\n" doc);
-    fprintf ppf "@[<2>let@ %a@%a@ =@ %a@]" pr_pat pat
+    fprintf ppf "@[<2>let@ %a@ %a@ =@ %a@]" pr_pat pat
       pr_opt_sig_tysch tysch pr_uexpr expr
 
 let pr_program ppf p =
@@ -1384,6 +1402,12 @@ let quant_viol q bvs v t =
   let res =
     (not bv && uv) ||
     List.exists (fun v2 -> q.cmp_v v v2 = Left_of) uni_vs in
+  (*[* if res then Format.printf
+      "quant_viol: v=%s bv=%b uv=%b v2=%s@\n%!" (var_str v)
+      bv uv (if List.exists (fun v2 -> q.cmp_v v v2 = Left_of) uni_vs
+             then var_str
+                 (List.find (fun v2 -> q.cmp_v v v2 = Left_of) uni_vs)
+             else "none"); *]*)
   res  
 
 let registered_notex_vars = Hashtbl.create 32
@@ -1412,7 +1436,8 @@ let unify ?use_quants ?bvs ?(sb=[]) q cnj =
   let new_notex, cnj = sep_unsolved cnj in
   let rec aux sb num_cn ord_cn = function
     | [] -> sb, num_cn, ord_cn
-    | (t1, t2, loc)::cnj when t1 = t2 -> aux sb num_cn ord_cn cnj
+    | (t1, t2, loc)::cnj when t1 = t2 ->
+      aux sb num_cn ord_cn cnj
     | (t1, t2, loc)::cnj ->
       match subst_typ sb t1, subst_typ sb t2 with
       | t1, t2 when t1 = t2 -> aux sb num_cn ord_cn cnj
@@ -1493,21 +1518,61 @@ let unify ?use_quants ?bvs ?(sb=[]) q cnj =
            | _ -> ())
         | _ -> ()) cnj.at_so;
   {cnj_typ; cnj_num; cnj_ord; cnj_so=cnj.at_so}
-    
+
+let solve_retypes ?use_quants ?bvs ~sb q cnj =
+  let rec aux sb num_cn ord_cn so_cn = function  
+    | RetType (TCons _ as t1, t2, loc)::cnj ->
+      let res =
+        unify ?use_quants ?bvs ~sb q [Eqty (t1, t2, loc)] in
+      aux res.cnj_typ (res.cnj_num @ num_cn) (res.cnj_ord @ ord_cn)
+        (res.cnj_so @ so_cn) cnj
+    | RetType (Fun (_, t1), t2, loc)::cnj ->
+      aux sb num_cn ord_cn so_cn (RetType (t1, t2, loc)::cnj)
+    | RetType (TVar _ as t1, t2, loc)::cnj ->
+      (match subst_typ sb t1, subst_typ sb t2 with
+       | TCons _ as t1, t2 ->
+         let res =
+           unify ?use_quants ?bvs ~sb q [Eqty (t1, t2, loc)] in
+         aux res.cnj_typ (res.cnj_num @ num_cn) (res.cnj_ord @ ord_cn)
+           (res.cnj_so @ so_cn) cnj
+       | Fun (_, t1), t2 ->
+         aux sb num_cn ord_cn so_cn (RetType (t1, t2, loc)::cnj)
+       | TVar _ as t1, t2 ->
+         aux sb num_cn ord_cn (RetType (t1, t2, loc)::so_cn) cnj
+       | t1, t2 ->
+         raise (Contradiction
+                  (Type_sort, "Return type should be existential",
+                   Some (t1, t2), loc)))
+    | RetType (t1, t2, loc)::cnj ->
+      raise (Contradiction
+               (Type_sort, "Return type should be existential",
+                Some (t1, t2), loc))
+    | a::cnj -> aux sb num_cn ord_cn (a::so_cn) cnj
+    | [] ->
+      {cnj_typ = sb; cnj_num = num_cn; cnj_ord = ord_cn; cnj_so = so_cn} in
+  aux sb [] [] [] cnj
+
+let solve ?use_quants ?bvs ?sb q cnj =
+  let res = unify ?use_quants ?bvs ?sb q cnj in
+  let res' =
+    solve_retypes ?use_quants ?bvs ~sb:res.cnj_typ q res.cnj_so in
+  {res' with cnj_num = res'.cnj_num @ res.cnj_num;
+             cnj_ord = res'.cnj_ord @ res.cnj_ord}
+
 let subst_of_cnj ?(elim_uni=false) q cnj =
-  map_some
+  partition_map
     (function
       | Eqty (TVar v, t, lc)
         when (elim_uni || not (q.uni_v v))
           && VarSet.for_all (fun v2 -> q.cmp_v v v2 <> Left_of)
                (fvs_typ t) ->
-        Some (v,(t,lc))
+        Left (v,(t,lc))
       | Eqty (t, TVar v, lc)
         when (elim_uni || not (q.uni_v v))
           && VarSet.for_all (fun v2 -> q.cmp_v v v2 <> Left_of)
                (fvs_typ t) ->
-        Some (v,(t,lc))
-      | _ -> None)
+        Left (v,(t,lc))
+      | c -> Right c)
     cnj
 
 let combine_sbs ?use_quants ?bvs q ?(more_phi=[]) sbs =
@@ -1649,7 +1714,7 @@ let () = setup_builtins ()
 
 let reset_state () =
   extype_id := 0; all_ex_types := [];
-  predvar_id := 0; Hashtbl.clear sigma;
+  predvar_id := 0; Hashtbl.clear sigma; Hashtbl.clear ex_type_chi;
   fresh_var_id := 0;
   parser_more_items := [];
   Hashtbl.clear parser_unary_typs;

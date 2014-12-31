@@ -30,7 +30,7 @@ let abd_timeout_flag = ref false
 
 let residuum q prem concl =
   let concl = to_formula concl in
-  unify ~use_quants:false q (subst_formula prem concl)
+  solve ~use_quants:false q (subst_formula prem concl)
 
 (* Result remembers the invariant parameters [bvs]. *)
 exception Result of VarSet.t * var_name list * subst
@@ -763,7 +763,7 @@ let abd_mockup_num q ~bvs brs =
         then None
         else                          (* can raise Contradiction *)
           let {cnj_typ=concl_typ; cnj_num=concl_num; cnj_so=concl_so} =
-            unify ~use_quants:false q concl in
+            solve ~use_quants:false q concl in
           List.iter (function
           | CFalse loc ->
             raise (Contradiction (Type_sort,
@@ -817,7 +817,9 @@ let abd q ~bvs ~xbvs ~upward_of ?(iter_no=2) ~discard brs neg_brs =
                  (function CFalse _ -> true | _ -> false) prem.cnj_so
              then None
              else                          (* can raise Contradiction *)
-               let concl = unify ~use_quants:false q concl in
+               let concl = solve ~use_quants:false q concl in
+               (*[* if concl.cnj_so <> [] then Format.printf
+                   "abd-br: concl-so=%a@\n%!" pr_formula concl.cnj_so; *]*)
                assert (concl.cnj_so = []);
                if not (is_right (NumS.satisfiable prem.cnj_num)) then None
                else (

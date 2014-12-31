@@ -21,15 +21,17 @@ let q = {cmp_v; uni_v; same_as = (fun _ _ -> ());
 let test_case msg test result =
   Terms.reset_state ();
   Infer.reset_state ();
-  (* try *)
+  let target = VNam (Type_sort, "ta") in
   try
     Printexc.record_backtrace true;
     let brs = Parser.cn_branches Lexer.token
       (Lexing.from_string test) in
     let preserve = List.fold_left VarSet.union VarSet.empty
         (List.map (fun (prem,concl) -> fvs_formula (prem@concl)) brs) in
-    let usb, (vs, ans) = DisjElim.disjelim q ~initstep:false
-        ~bvs:VarSet.empty ~preserve ~do_num:true
+    let usb, (vs, ans) = DisjElim.disjelim q ~target ~initstep:false
+        ~bvs:VarSet.empty ~param_bvs:VarSet.empty ~preserve
+        ~up_of_anchor:(fun _ -> true) ~do_num:true
+        ~residuum:[]
         (List.map (uncurry (@)) brs) in
     ignore (Format.flush_str_formatter ());
     Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"

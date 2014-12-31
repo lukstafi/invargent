@@ -616,12 +616,7 @@ let rec append =
 
   "append asserted" >::
     (fun () ->
-       todo "too hard for current numerical abduction";
        skip_if !debug "debug";
-       (* Too hard for the current abduction algo: when it discovers
-          that the result is [n + k], rather than [n], it is already
-          committed to requiring that the result is no less than [1],
-          which on following iterations blows up. *)
        test_case "list append simple numeric"
 "datatype Elem
 datatype List : num
@@ -682,22 +677,6 @@ let rec interleave3 =
           | LCons (z,zs) ->
             LCons (x, LCons (y, LCons (z, interleave3 xs ys zs)))))"
         [1,"∃n, k, i. δ = (List i → List k → List n → List (n + k + i))"];
-    );
-
-  "append" >::
-    (fun () ->
-       todo "disjunctive patterns";
-       skip_if !debug "debug";
-       test_case "list append numeric"
-"datatype Elem
-datatype List : num
-datacons LNil : List 0
-datacons LCons : ∀n [0≤n]. Elem * List n ⟶ List (n+1)
-
-let rec append =
-  function LNil -> (function (LNil | LCons (_,_)) as l -> l)
-    | LCons (x, xs) -> (fun l -> LCons (x, append xs l))"
-        [1,"∃n, k. δ = (List n → List k → List (n + k))"];
     );
 
   "binary increment" >::
@@ -763,7 +742,6 @@ let rec plus =
 
   "binary plus asserted" >::
     (fun () ->
-       todo "too hard for current numerical abduction";
        skip_if !debug "debug";
        test_case "binary plus"
 "datatype Binary : num
@@ -781,7 +759,7 @@ let rec plus =
   function CZero ->
     (function Zero ->
         (function b when num_of_binary b+1 <= 0 -> assert false
-           | b (* when 0 <= num_of_binary b *) -> b)
+           | b when 0 <= num_of_binary b -> b)
       | PZero a1 as a ->
         (function Zero -> a
 	  | PZero b1 -> PZero (plus CZero a1 b1)
@@ -803,49 +781,9 @@ let rec plus =
         (function Zero -> PZero (plus COne a1 Zero)
 	  | PZero b1 -> PZero (plus COne a1 b1)
 	  | POne b1 -> POne (plus COne a1 b1)))"
-        [1,"∃n, k, i. δ = (Carry i → Binary k → Binary n → Binary (n + k + i))"]
-    );
-
-  "binary plus" >::
-    (fun () ->
-       todo "disjunctive patterns";
-       skip_if !debug "debug";
-       test_case "binary plus"
-"datatype Binary : num
-datatype Carry : num
-
-datacons Zero : Binary 0
-datacons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
-datacons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
-
-datacons CZero : Carry 0
-datacons COne : Carry 1
-
-let rec plus =
-  function CZero ->
-    (function Zero -> (function (Zero | PZero _ | POne _) as b -> b)
-      | PZero a1 as a ->
-        (function Zero -> a
-	  | PZero b1 -> PZero (plus CZero a1 b1)
-	  | POne b1 -> POne (plus CZero a1 b1))
-      | POne a1 as a ->
-        (function Zero -> a
-	  | PZero b1 -> POne (plus CZero a1 b1)
-	  | POne b1 -> PZero (plus COne a1 b1)))
-    | COne ->
-    (function Zero ->
-        (function Zero -> POne(Zero)
-	  | PZero b1 -> POne b1
-	  | POne b1 -> PZero (plus COne Zero b1))
-      | PZero a1 as a ->
-        (function Zero -> POne a1
-	  | PZero b1 -> POne (plus CZero a1 b1)
-	  | POne b1 -> PZero (plus COne a1 b1))
-      | POne a1 as a ->
-        (function Zero -> PZero (plus COne a1 Zero)
-	  | PZero b1 -> PZero (plus COne a1 b1)
-	  | POne b1 -> POne (plus COne a1 b1)))"
-        [1,"∃n, k, i. δ = (Carry i → Binary k → Binary n → Binary (n + k + i))"]
+        [1,"∃n, k, i.
+  δ = (Carry i → Binary k → Binary n → Binary (n + k + i)) ∧ 
+  0 ≤ n"]
     );
 
   "binary plus with test" >::
@@ -1489,7 +1427,7 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
-        [2,"∃n. δ = (List n → ∃k[0 ≤ k ∧ k ≤ n].List k)"];
+        [2,"∃n. δ = (List n → ∃k[k ≤ n ∧ 0 ≤ k].List k)"];
 
     );
 
@@ -1513,7 +1451,7 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
-        [2,"∃n. δ = (List (Bar, n) → ∃k[0 ≤ k ∧ k ≤ n].List (Bar, k))"];
+        [2,"∃n. δ = (List (Bar, n) → ∃k[k ≤ n ∧ 0 ≤ k].List (Bar, k))"];
     );
 
   "filter poly" >::
@@ -1535,7 +1473,7 @@ let rec filter = fun f ->
           filter f xs"
         [2,"∃n, a.
   δ =
-    ((a → Bool) → List (a, n) → ∃k[0 ≤ k ∧ k ≤ n].List (a, k))"];
+    ((a → Bool) → List (a, n) → ∃k[k ≤ n ∧ 0 ≤ k].List (a, k))"];
     );
 
   "poly filter map" >::
@@ -1557,8 +1495,8 @@ let rec filter = fun f g ->
           filter f g xs"
         [2,"∃n, a, b.
   δ =
-    ((a → Bool) → (a → b) → List (a, n) → ∃k[0 ≤ k ∧
-       k ≤ n].List (b, k))"];
+    ((a → Bool) → (a → b) → List (a, n) → ∃k[k ≤ n ∧
+       0 ≤ k].List (b, k))"];
 
     );
 
@@ -1631,45 +1569,8 @@ let rec ub = efunction
           POne r)"
         [2,"∃n, k.
   δ =
-    (Binary k → Binary n → ∃i[k ≤ i ∧ i ≤ n + k ∧
-       n ≤ i].Binary i)"]
-    );
-
-  "binary upper bound" >::
-    (fun () ->
-       todo "disjunctive patterns";
-       skip_if !debug "debug";
-       (* We need to expand the branch when the first argument is
-          [Zero] from [efunction b -> b] to the cases as below, to
-          convey the fact that the numerical parameter is non-negative. *)
-       test_case "binary upper bound -- bitwise or"
-"datatype Binary : num
-datacons Zero : Binary 0
-datacons PZero : ∀n [0≤n]. Binary n ⟶ Binary(2 n)
-datacons POne : ∀n [0≤n]. Binary n ⟶ Binary(2 n + 1)
-
-let rec ub = efunction
-  | Zero -> (efunction (Zero | PZero _ | POne _) as b -> b)
-  | PZero a1 as a ->
-      (efunction Zero -> a
-        | PZero b1 ->
-          let r = ub a1 b1 in
-          PZero r
-        | POne b1 ->
-          let r = ub a1 b1 in
-          POne r)
-  | POne a1 as a ->
-      (efunction Zero -> a
-        | PZero b1 ->
-          let r = ub a1 b1 in
-          POne r
-        | POne b1 ->
-          let r = ub a1 b1 in
-          POne r)"
-        [2,"∃n, k.
-  δ =
-    (Binary k → Binary n → ∃i[n ≤ i ∧ k ≤ i ∧
-       i ≤ n + k].Binary i)"]
+    (Binary k → Binary n → ∃i[i ≤ n + k ∧ n ≤ i ∧
+       k ≤ i].Binary i)"]
     );
 
   "nested recursion simple eval" >::
@@ -1982,7 +1883,7 @@ let rec zip =
     | UCons xs, UCons ys ->
       let zs = zip (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (k, n)].Unary i)"]
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (n, k)].Unary i)"]
     );
 
   "unary minimum asserted" >::
@@ -2047,7 +1948,7 @@ let rec map2 =
   "list map2 with postfix expanded" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case "list map2 with postfix"
+       test_case "list map2 with postfix expanded"
 "datatype List : type * num
 datacons LNil : ∀a. List(a, 0)
 datacons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
@@ -2087,8 +1988,8 @@ let rec filter_zip = fun f ->
       | False -> zs"
         [2,"∃n, k, a, b.
   δ =
-    ((a → b → Bool) → (List (a, n), List (b, k)) → ∃i[i ≤ k ∧
-       i ≤ n ∧ 0 ≤ i].List ((a, b), i))"]
+    ((a → b → Bool) → (List (a, n), List (b, k)) → ∃i[i ≤ n ∧
+       i ≤ k ∧ 0 ≤ i].List ((a, b), i))"]
     );
 
   "list filter-map2 with postfix" >::
@@ -2112,8 +2013,8 @@ let rec filter_map2 = fun p f ->
         [2,"∃n, k, a.
   δ =
     ((a → a → Bool) → (a → a → a) →
-       (List (a, n), List (a, k)) → ∃i[i≤max (n, k) ∧ n ≤ i + k ∧
-       k ≤ i + n].List (a, i))"]
+       (List (a, n), List (a, k)) → ∃i[i≤max (n, k) ∧ n ≤ k + i ∧
+       k ≤ n + i].List (a, i))"]
     );
 
   "list filter-map2 with filter postfix mono" >::
@@ -2146,7 +2047,10 @@ let rec filter_map2 =
       ematch p x y with
       | True -> LCons (f x y, zs)
       | False -> zs"
-        [2,"∃n, k. δ = ((List n, List k) → ∃i[i≤max (k, n) ∧ 0 ≤ i].List i)"]
+        [2,"∃n, k.
+  δ =
+    ((List n, List k) → ∃i[i≤max (k, n) ∧ i ≤ n + k ∧
+       0 ≤ i].List i)"]
     );
 
   "non-num no postcond list filter-map2 with filter postfix" >::
@@ -2245,7 +2149,7 @@ let rec filter_map2 = fun p q r f g h ->
   δ =
     ((b → c → Bool) → (b → Bool) → (c → Bool) →
        (b → c → a) → (b → a) → (c → a) →
-       (List (b, n), List (c, k)) → ∃i[i≤max (k, n) ∧
+       (List (b, n), List (c, k)) → ∃i[i≤max (k, n) ∧ i ≤ n + k ∧
        0 ≤ i].List (a, i))"]
     );
 
@@ -2276,8 +2180,8 @@ let rec map2_filter = fun q r f g h ->
         [2,"∃n, k, a, b, c.
   δ =
     ((b → Bool) → (c → Bool) → (b → c → a) → (b → a) →
-       (c → a) → (List (b, n), List (c, k)) → ∃i[i≤max (k, n) ∧
-       min (n, k)≤i].List (a, i))"]
+       (c → a) → (List (b, n), List (c, k)) → ∃i[min (k, n)≤i ∧
+       i≤max (n, k) ∧ i ≤ n + k ∧ 0 ≤ i].List (a, i))"]
     );
 
   "avl_tree--height" >::
@@ -2387,8 +2291,8 @@ let rotr = efunction (* hl = hr + 3 *)
 "
         [2,"∃n, a.
   δ =
-    ((Avl (a, n + 3), a, Avl (a, n)) → ∃k[n + 3 ≤ k ∧
-       k ≤ n + 4].Avl (a, k)) ∧
+    ((Avl (a, n + 3), a, Avl (a, n)) → ∃k[k ≤ n + 4 ∧
+       n + 3 ≤ k].Avl (a, k)) ∧
   0 ≤ n"];
     );
 
@@ -2428,8 +2332,8 @@ let rotr = efunction
 "
         [2,"∃n, a.
   δ =
-    ((Avl (a, n + 3), a, Avl (a, n)) → ∃k[n + 3 ≤ k ∧
-       k ≤ n + 4].Avl (a, k)) ∧
+    ((Avl (a, n + 3), a, Avl (a, n)) → ∃k[k ≤ n + 4 ∧
+       n + 3 ≤ k].Avl (a, k)) ∧
   0 ≤ n"];
     );
 
@@ -2470,14 +2374,14 @@ let rotr = efunction
 "
         [2,"∃n, a.
   δ =
-    ((Avl (a, n + 3), a, Avl (a, n)) → ∃k[n + 3 ≤ k ∧
-       k ≤ n + 4].Avl (a, k)) ∧
+    ((Avl (a, n + 3), a, Avl (a, n)) → ∃k[k ≤ n + 4 ∧
+       n + 3 ≤ k].Avl (a, k)) ∧
   0 ≤ n"];
     );
 
   "avl_tree--rotr" >::
     (fun () ->
-       todo "too hard for current numerical abduction";
+       (* FIXME: analyse the result and adapt the flagship AVL example. *)
        skip_if !debug "debug";
        test_case "avl_tree--rotr"
 "datatype Avl : type * num
@@ -2509,7 +2413,11 @@ let rotr = fun l x r -> (* hl = hr + 3 *)
           let r' = create lrr x r in
           create l' lrx r')))
 "
-        [2,""];
+        [2,"∃n, k, a.
+  δ =
+    (Avl (a, k) → a → Avl (a, n) → ∃n[n ≤ k + 1 ∧
+       k ≤ n].Avl (a, n)) ∧
+  0 ≤ n ∧ n + 2 ≤ k ∧ k ≤ n + 3"];
     );
 
   (* The [rotl] functions are symmetrical to [rotr]. *)
@@ -2550,8 +2458,8 @@ let rotl = efunction (* hl + 3 = hr *)
 "
         [2,"∃n, a.
   δ =
-    ((Avl (a, n), a, Avl (a, n + 3)) → ∃k[n + 3 ≤ k ∧
-       k ≤ n + 4].Avl (a, k)) ∧
+    ((Avl (a, n), a, Avl (a, n + 3)) → ∃k[k ≤ n + 4 ∧
+       n + 3 ≤ k].Avl (a, k)) ∧
   0 ≤ n"];
     );
 
@@ -2591,14 +2499,14 @@ let rotl = efunction
 "
         [2,"∃n, a.
   δ =
-    ((Avl (a, n), a, Avl (a, n + 3)) → ∃k[n + 3 ≤ k ∧
-       k ≤ n + 4].Avl (a, k)) ∧
+    ((Avl (a, n), a, Avl (a, n + 3)) → ∃k[k ≤ n + 4 ∧
+       n + 3 ≤ k].Avl (a, k)) ∧
   0 ≤ n"];
     );
 
   "avl_tree--rotl" >::
     (fun () ->
-       todo "too hard for current numerical abduction";
+       (* FIXME: analyse the result and adapt the flagship AVL example. *)
        skip_if !debug "debug";
        test_case "avl_tree--rotl"
 "datatype Avl : type * num
@@ -2630,13 +2538,17 @@ let rotl = fun l x r -> (* hl + 3 = hr *)
           let r' = create rlr rx rr in
           create l' rlx r')))
 "
-        [2,""];
+        [2,"∃n, k, a.
+  δ =
+    (Avl (a, k) → a → Avl (a, n) → ∃k[k ≤ n + 1 ∧
+       n ≤ k].Avl (a, k)) ∧
+  0 ≤ k ∧ n ≤ k + 3 ∧ k + 2 ≤ n"];
     );
 
   "avl_tree--add-simple" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case ~no_num_abduction:true "avl_tree--add"
+       test_case ~no_num_abduction:true "avl_tree--add-simple"
 "datatype Avl : type * num
 datacons Empty : ∀a. Avl (a, 0)
 datacons Node :
@@ -2687,7 +2599,7 @@ let rec add = fun x -> efunction
   "avl_tree--add-simple2" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case ~no_num_abduction:true "avl_tree--add"
+       test_case ~no_num_abduction:true "avl_tree--add-simple2"
 "datatype Avl : type * num
 datacons Empty : ∀a. Avl (a, 0)
 datacons Node :
@@ -2788,7 +2700,7 @@ let rec add = fun x -> efunction
 
   "avl_tree--add2" >::
     (fun () ->
-       todo "too hard for current numerical abduction";
+       (* FIXME: check if it's better for the flagship AVL example. *)
        skip_if !debug "debug";
        test_case "avl_tree--add"
 "datatype Avl : type * num
@@ -2837,8 +2749,8 @@ let rec add = fun x -> efunction
    to facts about [r' = add x r], with the other branch. *)
         [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃k[k ≤ n + 1 ∧ 1 ≤ k ∧
-       n ≤ k].Avl (a, k))"];
+    (a → Avl (a, n) → ∃k[1 ≤ k ∧ n ≤ k ∧
+       k ≤ n + 1].Avl (a, k))"];
     );
 
   "avl_tree--remove_min_binding-simple" >::
@@ -2883,8 +2795,8 @@ let rec remove_min_binding = efunction
 (* The inequality [k + 2 ≤ 2 n] corresponds to the fact [n=1 ==> k=0]. *)
         [2,"∃n, a.
   δ =
-    (Avl (a, n) → ∃k[n ≤ k + 1 ∧ k ≤ n ∧
-       k + 2 ≤ 2 n].Avl (a, k)) ∧
+    (Avl (a, n) → ∃k[k + 2 ≤ 2 n ∧ k ≤ n ∧
+       n ≤ k + 1].Avl (a, k)) ∧
   1 ≤ n"];
     );
 
@@ -2929,8 +2841,8 @@ let rec remove_min_binding = efunction
 (* The inequality [k + 2 ≤ 2 n] corresponds to the fact [n=1 ==> k=0]. *)
         [2,"∃n, a.
   δ =
-    (Avl (a, n) → ∃k[n ≤ k + 1 ∧ k ≤ n ∧
-       k + 2 ≤ 2 n].Avl (a, k)) ∧
+    (Avl (a, n) → ∃k[k + 2 ≤ 2 n ∧ k ≤ n ∧
+       n ≤ k + 1].Avl (a, k)) ∧
   1 ≤ n"];
     );
 
@@ -3098,6 +3010,7 @@ let merge = efunction
 
   "avl_tree--merge3" >::
     (fun () ->
+       (* FIXME: analyse for the thesis. *)
        todo "too hard for current numerical abduction";
        skip_if !debug "debug";
        test_case "avl_tree--merge3"

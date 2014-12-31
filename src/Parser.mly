@@ -126,7 +126,8 @@ let expand_if_syntax_nums is_ex ineqs e1 e2 cond_lc case1_lc case2_lc lc =
     | _ -> [One case1_lc, ineqs, e1; One case2_lc, [], e2] in
   if is_ex
   then (incr extype_id;
-        App (ExLam (!extype_id, cases, lc), Cons (tuple, [], cond_lc), lc))
+        App (ExLam (!extype_id, cases, lc),
+             Cons (tuple, [], cond_lc), lc))
   else App (Lam ((), cases, lc), Cons (tuple, [], cond_lc), lc)
 
 

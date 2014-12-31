@@ -47,7 +47,8 @@ module JointAbduction (P : ABD_PARAMS) = struct
       | br::more_brs ->
         (*[* let ddepth = incr debug_dep; !debug_dep in *]*)
         (*[* Format.printf
-          "abd-loop: [%d] #discard=%d, #done_brs=%d, #aside_brs=%d, #more_brs=%d@\n%a@\n%!"
+          "abd-loop: [%d] #discard=%d, #done_brs=%d, #aside_brs=%d, \
+          #more_brs=%d@\n%a@\n%!"
           ddepth (List.length discard) (List.length done_brs)
           (List.length aside_brs)
           (List.length more_brs) P.pr_branch br; *]*)

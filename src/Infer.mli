@@ -76,7 +76,7 @@ val normalize :
     enumeration. *)
 val phantom_enumeration : (Terms.cns_name, Terms.cns_name list) Hashtbl.t
 
-(* Eliminate shared conclusions during {!simplify}. *)
+(** Eliminate shared conclusions. Solve [RetType] constraints. *)
 val simplify :
   Defs.VarSet.t ->
   Defs.quant_ops -> branch list -> branch list
@@ -102,6 +102,9 @@ val pr_rbrs4 :
   (bool * 'a list * Terms.formula * Terms.formula) list -> unit
 val pr_rbrs5 :
   Format.formatter ->
-  (bool * 'a * 'b * Terms.formula * Terms.formula) list -> unit
+  (bool * (int * Terms.typ) list *
+     (int * Terms.typ * Terms.typ * Terms.lc) list * Terms.atom list *
+     Terms.atom list)
+         list -> unit
 
 val reset_state : unit -> unit

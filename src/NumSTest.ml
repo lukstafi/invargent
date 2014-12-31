@@ -39,7 +39,10 @@ let tests = "NumS" >::: [
         let preserve = List.fold_left
             (fun vs br -> VarSet.union vs (fvs_formula br))
             VarSet.empty brs in
-        let vs, ans = disjelim q ~initstep:false ~preserve brs in
+        let bvs = VarSet.empty in
+        let param_bvs = VarSet.empty in
+        let vs, ans = disjelim q
+            ~initstep:false ~preserve ~param_bvs ~bvs brs in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
@@ -60,6 +63,7 @@ let tests = "NumS" >::: [
       skip_if !debug "debug";
       Terms.reset_state ();
       Infer.reset_state ();
+      let old_max_subopti_postcond = !max_subopti_postcond in
       (* try *)
       try
         Printexc.record_backtrace true;
@@ -70,7 +74,12 @@ let tests = "NumS" >::: [
         let preserve = List.fold_left
             (fun vs br -> VarSet.union vs (fvs_formula br))
             VarSet.empty brs in
-        let vs, ans = disjelim q ~initstep:false ~preserve brs in
+        let bvs = VarSet.empty in
+        let param_bvs = VarSet.empty in
+        max_subopti_postcond := 10;
+        let vs, ans = disjelim q
+            ~initstep:false ~preserve ~bvs ~param_bvs brs in
+        max_subopti_postcond := old_max_subopti_postcond;
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
@@ -79,6 +88,7 @@ let tests = "NumS" >::: [
   n2≤max (n4, n3) ∧ min (n4, n3)≤n1 ∧ min (n4, n2)≤n1 ∧ n2 = n1"
           (Format.flush_str_formatter ())
       with (Report_toplevel _ | Terms.Contradiction _) as exn ->
+        max_subopti_postcond := old_max_subopti_postcond;
         ignore (Format.flush_str_formatter ());
         Terms.pr_exception Format.str_formatter exn;
         assert_failure (Format.flush_str_formatter ())
@@ -92,7 +102,7 @@ let tests = "NumS" >::: [
       skip_if !debug "debug";
       Terms.reset_state ();
       Infer.reset_state ();
-      (* try *)
+      let old_max_subopti_postcond = !max_subopti_postcond in
       try
         Printexc.record_backtrace true;
         let brs = Parser.cn_branches Lexer.token
@@ -102,7 +112,12 @@ let tests = "NumS" >::: [
         let preserve = List.fold_left
             (fun vs br -> VarSet.union vs (fvs_formula br))
             VarSet.empty brs in
-        let vs, ans = disjelim q ~initstep:false ~preserve brs in
+        let bvs = VarSet.empty in
+        let param_bvs = VarSet.empty in
+        max_subopti_postcond := 10;
+        let vs, ans = disjelim q
+            ~initstep:false ~preserve ~bvs ~param_bvs brs in
+        max_subopti_postcond := old_max_subopti_postcond;
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
@@ -111,6 +126,7 @@ let tests = "NumS" >::: [
   n4≤max (n2, n3) ∧ min (n2, n1)≤n4 ∧ n4 = n3"
           (Format.flush_str_formatter ())
       with (Report_toplevel _ | Terms.Contradiction _) as exn ->
+        max_subopti_postcond := old_max_subopti_postcond;
         ignore (Format.flush_str_formatter ());
         Terms.pr_exception Format.str_formatter exn;
         assert_failure (Format.flush_str_formatter ())
@@ -134,7 +150,10 @@ let tests = "NumS" >::: [
         let preserve = List.fold_left
             (fun vs br -> VarSet.union vs (fvs_formula br))
             VarSet.empty brs in
-        let vs, ans = disjelim q ~initstep:false ~preserve brs in
+        let bvs = VarSet.empty in
+        let param_bvs = VarSet.empty in
+        let vs, ans = disjelim q
+            ~initstep:false ~preserve ~bvs ~param_bvs brs in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
@@ -167,7 +186,10 @@ let tests = "NumS" >::: [
         let preserve = List.fold_left
             (fun vs br -> VarSet.union vs (fvs_formula br))
             VarSet.empty brs in
-        let vs, ans = disjelim q ~initstep:false ~preserve brs in
+        let bvs = VarSet.empty in
+        let param_bvs = VarSet.empty in
+        let vs, ans = disjelim q
+            ~initstep:false ~preserve ~bvs ~param_bvs brs in
         disjelim_rotations := old_disjelim_rotations;
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"

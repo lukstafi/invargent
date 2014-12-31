@@ -37,6 +37,12 @@ val affine_penalty : int ref
 (** Filter out less general abduction candidate atoms (does not
     guarantee overall more general answers). Default [false]. *)
 val more_general : bool ref
+(** How many opti atoms: [x = min(a, b)], [x = max(a, b)] in a
+    postcondition. *)
+val max_opti_postcond : int ref
+(** How many subopti atoms: [min(a, b) <= x], [x <= max(a, b)] in a
+    postcondition. *)
+val max_subopti_postcond : int ref
 
 val num_of : Terms.typ -> NumDefs.term
 val sort_formula : Terms.formula -> NumDefs.formula
@@ -68,7 +74,8 @@ val abd :
 val disjelim_rotations : int ref
 (** For uniformity, we return an empty list as introduced variables. *)
 val disjelim :
-  Defs.quant_ops -> preserve:Defs.VarSet.t -> initstep:bool ->
+  Defs.quant_ops -> preserve:Defs.VarSet.t ->
+  bvs:Defs.VarSet.t -> param_bvs:Defs.VarSet.t -> initstep:bool ->
   NumDefs.formula list -> Defs.var_name list * NumDefs.formula
 
 (** Eliminate provided variables from the substitution part of solved
