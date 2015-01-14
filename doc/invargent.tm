@@ -1659,7 +1659,8 @@
   <math|Split<around*|(|<wide|\<alpha\>|\<bar\>>,A,<wide|A<rsub|\<beta\><rsub|\<chi\>>><rsup|0>|\<bar\>>|)>>.
 
   <\eqnarray*>
-    <tformat|<table|<row|<cell|\<alpha\>\<prec\>\<beta\>>|<cell|\<equiv\>>|<cell|\<alpha\>\<less\><rsub|\<cal-Q\>>\<beta\>\<vee\><around*|(|\<alpha\>\<leqslant\><rsub|\<cal-Q\>>\<beta\>\<wedge\>\<beta\>\<nless\><rsub|\<cal-Q\>>\<alpha\>\<wedge\>\<alpha\>\<in\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<wedge\>\<beta\>\<nin\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>|)>>>|<row|<cell|A<rsub|\<alpha\>\<beta\>>>|<cell|=>|<cell|<around*|{|\<beta\><wide|=|\<dot\>>\<alpha\>\<in\>A<mid|\|>\<beta\>\<in\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<wedge\><around*|(|\<exists\>\<alpha\>|)>\<in\>\<cal-Q\>\<wedge\>\<beta\>\<prec\>\<alpha\>|}>>>|<row|<cell|A<rsub|0>>|<cell|=>|<cell|A\\A<rsub|\<alpha\>\<beta\>>>>|<row|<cell|A<rsup|1><rsub|\<chi\>>>|<cell|=>|<cell|<around*|{|c\<in\>A<rsub|0><mid|\|>\<forall\>\<alpha\>\<in\>FV<around*|(|c|)>\\<wide|\<beta\>|\<bar\>><rsup|\<chi\>>.<around*|(|\<exists\>\<alpha\>|)>\<in\>\<cal-Q\>\<vee\>\<alpha\>\<less\><rsub|\<cal-Q\>>\<beta\><rsub|\<chi\>>|}>>>|<row|<cell|A<rsup|2><rsub|\<chi\>>>|<cell|=>|<cell|Atomized<around*|(|<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>,A<rsub|\<chi\>><rsup|1>|)>>>|<row|<cell|A<rsup|3><rsub|\<chi\>>>|<cell|=>|<cell|A<rsup|2><rsub|\<chi\>>\\\<cup\><rsub|\<chi\><rprime|'>>A<rsup|1><rsub|\<chi\><rprime|'>>>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|\<cal-M\>\<nvDash\>\<cal-Q\>.<around*|(|A\<setminus\>\<cup\><rsub|\<chi\>>A<rsup|2><rsub|\<chi\>>|)><around*|[|<wide|\<alpha\>|\<bar\>>\<assign\><wide|t|\<bar\>>|]><with|mode|text|
+    <tformat|<table|<row|<cell|\<alpha\>\<prec\>\<beta\>>|<cell|\<equiv\>>|<cell|\<alpha\>\<less\><rsub|\<cal-Q\>>\<beta\>\<vee\><around*|(|\<alpha\>\<leqslant\><rsub|\<cal-Q\>>\<beta\>\<wedge\>\<beta\>\<nless\><rsub|\<cal-Q\>>\<alpha\>\<wedge\>\<alpha\>\<in\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<wedge\>\<beta\>\<nin\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>|)>>>|<row|<cell|A<rsub|\<alpha\>\<beta\>>>|<cell|=>|<cell|<around*|{|\<beta\><wide|=|\<dot\>>\<alpha\>\<in\>A<mid|\|>\<beta\>\<in\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<wedge\><around*|(|\<exists\>\<alpha\>|)>\<in\>\<cal-Q\>\<wedge\>\<beta\>\<prec\>\<alpha\>|}>>>|<row|<cell|A<rsub|0>>|<cell|=>|<cell|A\\A<rsub|\<alpha\>\<beta\>>>>|<row|<cell|A<rsup|1><rsub|\<chi\>>>|<cell|=>|<cell|<around*|{|c\<in\>A<rsub|0><mid|\|>\<forall\>\<alpha\>\<in\>FV<around*|(|c|)>\\<wide|\<beta\>|\<bar\>><rsup|\<chi\>>.<around*|(|\<exists\>\<alpha\>|)>\<in\>\<cal-Q\>\<vee\>\<alpha\>\<less\><rsub|\<cal-Q\>>\<beta\><rsub|\<chi\>>\<wedge\>\<alpha\>\<nin\>PrimCV<around*|(|c|)><next-line><with|mode|text|
+    \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ >\<vee\>\<alpha\>\<in\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>\<wedge\>\<alpha\>\<in\>PrimCV<around*|(|c|)>|}>>>|<row|<cell|A<rsup|2><rsub|\<chi\>>>|<cell|=>|<cell|Atomized<around*|(|<wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>,A<rsub|\<chi\>><rsup|1>|)>>>|<row|<cell|A<rsup|3><rsub|\<chi\>>>|<cell|=>|<cell|A<rsup|2><rsub|\<chi\>>\\\<cup\><rsub|\<chi\><rprime|'>>A<rsup|1><rsub|\<chi\><rprime|'>>>>|<row|<cell|<with|mode|text|if>>|<cell|>|<cell|\<cal-M\>\<nvDash\>\<cal-Q\>.<around*|(|A\<setminus\>\<cup\><rsub|\<chi\>>A<rsup|2><rsub|\<chi\>>|)><around*|[|<wide|\<alpha\>|\<bar\>>\<assign\><wide|t|\<bar\>>|]><with|mode|text|
     \ for all ><wide|t|\<bar\>>>>|<row|<cell|<with|mode|text|then
     return>>|<cell|>|<cell|\<bot\>>>|<row|<cell|<with|mode|text|for all
     ><wide|A<rsub|\<chi\>><rsup|+>|\<bar\>><with|mode|text| min. w.r.t.
@@ -1679,14 +1680,22 @@
   <math|\<beta\><rsub|2>\<in\>FV<around*|(|c|)>> such that
   <math|\<beta\><rsub|1>\<less\><rsub|\<cal-Q\>>\<beta\><rsub|2>> for
   <math|\<beta\><rsub|1>\<in\><wide|\<beta\>|\<bar\>><rsup|\<chi\>>>, if
-  <math|\<beta\><rsub|2>> is universally quantified in <math|\<cal-Q\>>, then
-  return <math|\<bot\>>; otherwise, introduce a fresh variable
+  <math|\<beta\><rsub|2>> is universally quantified in <math|\<cal-Q\>> and
+  <math|\<beta\><rsub|2>\<nin\><wide|<wide|\<beta\>|\<bar\>><rsup|\<chi\>>|\<bar\>>>,
+  then return <math|\<bot\>>; otherwise, introduce a fresh variable
   <math|\<alpha\><rsub|f>>, replace <math|c\<assign\>c<around*|[|\<beta\><rsub|2>\<assign\>\<alpha\><rsub|f>|]>>,
   add <with|mode|math|\<beta\><rsub|2><wide|=|\<dot\>>\<alpha\><rsub|f>> to
   <with|mode|math|A<rsup|R><rsub|\<chi\>>> and <math|\<alpha\><rsub|f>> to
   <with|mode|math|<wide|\<alpha\>|\<bar\>><rsub|+><rsup|\<chi\>>>, after
   replacing all such <with|mode|math|\<beta\><rsub|2>> add the resulting
   <math|c> to <with|mode|math|A<rsub|\<chi\>><rsup|L>>.
+  <math|PrimV<around*|(|c|)>> stands for <em|primary constrained variables>
+  of an atom <math|c>. These are defined as the substituted variables in
+  solved forms for term constraints, and in the case of a numerical atom, the
+  shared variable of a directed opti or subopti atom, i.e. the variable
+  <math|v> in <math|v\<leqslant\>max<around*|(|\<ldots\>|)>>,
+  <math|min<around*|(|\<ldots\>|)>\<leqslant\>v>,
+  <math|v=max<around*|(|\<ldots\>|)>>, <math|v=min<around*|(|\<ldots\>|)>>.\ 
 
   Description of the algorithm in more detail:
 
@@ -1729,6 +1738,7 @@
     recursive definition, resp. the existential type introduction site, is
     not in scope of a defining site of recursive definition, resp. an
     existential type elimination site, and has too strong requirements.
+    FIXME:
 
     <item><math|<with|mode|text|for all ><wide|A<rsub|\<chi\>><rsup|+>|\<bar\>><with|mode|text|
     min. w.r.t. >\<subset\><with|mode|text|

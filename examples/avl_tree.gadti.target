@@ -33,8 +33,8 @@ val rotr :
 
 val rotl :
    ∀n, a[0 ≤ n].
-   (Avl (a, n), a, Avl (a, n + 3)) → ∃k[k ≤ n + 4 ∧
-     n + 3 ≤ k].Avl (a, k)
+   (Avl (a, n), a, Avl (a, n + 3)) → ∃k[n + 3 ≤ k ∧
+     k ≤ n + 4].Avl (a, k)
 
 val add :
    ∀n, a.

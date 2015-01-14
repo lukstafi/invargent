@@ -334,7 +334,7 @@ let solve ?use_quants ?strict
 let separate_subst q cnj =
   if cnj = [] then [], [] else failwith "Order.separate_subst: TODO"
 
-let disjelim q ~preserve ~initstep brs =
+let disjelim q ~target_vs ~preserve ~initstep brs =
   [], []                                (* TODO *)
 
 let initstep_heur q cnj =

@@ -74,7 +74,7 @@ val abd :
 val disjelim_rotations : int ref
 (** For uniformity, we return an empty list as introduced variables. *)
 val disjelim :
-  Defs.quant_ops -> preserve:Defs.VarSet.t ->
+  Defs.quant_ops -> target_vs:Defs.VarSet.t -> preserve:Defs.VarSet.t ->
   bvs:Defs.VarSet.t -> param_bvs:Defs.VarSet.t -> initstep:bool ->
   NumDefs.formula list -> Defs.var_name list * NumDefs.formula
 
@@ -134,4 +134,4 @@ val separate_subst :
   Defs.quant_ops -> ?no_csts:bool -> ?keep:Defs.VarSet.t -> NumDefs.formula ->
   Terms.subst * NumDefs.formula
 
-val transitive_cl : NumDefs.formula -> NumDefs.formula
+val transitive_cl : Defs.quant_ops -> NumDefs.formula -> NumDefs.formula

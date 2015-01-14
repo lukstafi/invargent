@@ -487,6 +487,13 @@ let fvs_atom = function
     VarSet.union (fvs_typ t1) (fvs_typ t2)
   | A a -> fvs_alien_atom a
 
+let prim_constr_var = function
+  | Eqty (TVar v, _, _) -> Some v
+  | RetType (TVar v, _, _) -> Some v
+  | A (Num_atom a) -> NumDefs.prim_constr_var a
+  | A (Order_atom a) -> OrderDefs.prim_constr_var a
+  | _ -> None
+
 let alien_atom_loc = function
   | Num_atom a -> NumDefs.atom_loc a  
   | Order_atom a -> OrderDefs.atom_loc a  

@@ -1,0 +1,39 @@
+datatype Array : type * num
+
+external val array_make : ∀n, a[0 ≤ n]. Num n → a → Array (a, n)
+
+external val array_get :
+   ∀n, k, a[0 ≤ k ∧ k + 1 ≤ n]. Array (a, n) → Num k → a
+
+external val array_set :
+   ∀n, k, a[0 ≤ k ∧ k + 1 ≤ n]. Array (a, n) → Num k → a → ()
+
+external val array_length : ∀n, a[0 ≤ n]. Array (a, n) → Num n
+
+external val div2 : ∀n. Num (2 n) → Num n
+
+external val n2i : ∀n. Num n → Int
+
+external val equal : ∀a. a → a → Bool
+
+external val leq : ∀a. a → a → Bool
+
+external val less : ∀a. a → a → Bool
+
+external val print : String → ()
+
+external val string_make : Int → String → String
+
+external val string_of_int : Int → String
+
+external val abs : Int → Int
+
+external val minus : Int → Int → Int
+
+external val plus : Int → Int → Int
+
+external val int0 : Int
+
+val heapify :
+   ∀i, k, n, a[i ≤ k ∧ n + 1 ≤ i ∧ 0 ≤ n].
+   Num i → Array (a, k) → Num n → ()

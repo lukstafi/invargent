@@ -8,9 +8,6 @@ Place for TODOs/FIXMEs, especially if not expressed in other places. See README.
 * TODO: 'Update' and 'verify' modes of inference: use an existing `.gadti` file to provide a type annotation on the toplevel `.gadt` expressions. In update mode, if typechecking fails, retry without type annotation. In verify mode, check that the resulting type matches the interface type from `.gadti` -- is not less general. In update mode, regenerate the `.gadti` file.
 * TODO: term abduction seems to no longer need alien premises. Rethink and remove.
 * FIXME: missing `newtype` declarations should be errors. Do sort checking against declaration.
-* TODO: introduce to the parser the syntax for `min` and `max` terms used by printing.
-* FIXME: filtering / checking connected / simplification / initstep heuristic, for disjunction elimination, need rethinking and cleanup.
-* TODO: remove postcondition atoms implied by the invariant.
+* FIXME: filtering / checking connected / simplification, for disjunction elimination, need rethinking and cleanup.
 * FIXME: check consistency of the order of `w` variables throughout `NumS`.
-* FIXME: clean up the use of `localvs` for pruning and simplification.
-* TODO: describe the behavior of `initstep` preserving facts about parameters in the documentation.
+* FIXME: optimize solved form of numerical inequalities by only storing GLB and LUB constants.

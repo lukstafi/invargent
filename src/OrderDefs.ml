@@ -40,6 +40,13 @@ let fvs_atom = function
   | LeqMax (t1, t2, t3, _) ->
     VarSet.union (fvs_term t1) (VarSet.union (fvs_term t2) (fvs_term t3))
 
+let prim_constr_var = function
+  | EqMin (OVar v, _, _, _)
+  | MinLeq (_, OVar v, _, _)
+  | EqMax (OVar v, _, _, _)
+  | LeqMax (OVar v, _, _, _) -> Some v
+  | _ -> None
+
 let fvs_formula phi =
   List.fold_left VarSet.union VarSet.empty (List.map fvs_atom phi)
 

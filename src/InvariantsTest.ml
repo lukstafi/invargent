@@ -326,7 +326,7 @@ n23
        skip_if !debug "debug";
        test_case "absolute value by subtraction"
          "let abs = efunction x -> eif 0 <= x then x else 0 - x"
-         [2, "∃n. δ = (Num n → ∃k[k=max (-n, n)].Num k)"]
+         [2, "∃n. δ = (Num n → ∃k[k=max (n, -n)].Num k)"]
     );
 
   "eval" >::
@@ -2049,7 +2049,7 @@ let rec filter_map2 =
       | False -> zs"
         [2,"∃n, k.
   δ =
-    ((List n, List k) → ∃i[i≤max (k, n) ∧ i ≤ n + k ∧
+    ((List n, List k) → ∃i[i≤max (n, k) ∧ i ≤ n + k ∧
        0 ≤ i].List i)"]
     );
 
@@ -2180,8 +2180,8 @@ let rec map2_filter = fun q r f g h ->
         [2,"∃n, k, a, b, c.
   δ =
     ((b → Bool) → (c → Bool) → (b → c → a) → (b → a) →
-       (c → a) → (List (b, n), List (c, k)) → ∃i[min (k, n)≤i ∧
-       i≤max (n, k) ∧ i ≤ n + k ∧ 0 ≤ i].List (a, i))"]
+       (c → a) → (List (b, n), List (c, k)) → ∃i[i≤max (n, k) ∧
+       min (k, n)≤i ∧ i ≤ n + k ∧ 0 ≤ i].List (a, i))"]
     );
 
   "avl_tree--height" >::
@@ -2415,8 +2415,8 @@ let rotr = fun l x r -> (* hl = hr + 3 *)
 "
         [2,"∃n, k, a.
   δ =
-    (Avl (a, k) → a → Avl (a, n) → ∃n[n ≤ k + 1 ∧
-       k ≤ n].Avl (a, n)) ∧
+    (Avl (a, k) → a → Avl (a, n) → ∃n[k ≤ n ∧
+       n ≤ k + 1].Avl (a, n)) ∧
   0 ≤ n ∧ n + 2 ≤ k ∧ k ≤ n + 3"];
     );
 
@@ -2499,8 +2499,8 @@ let rotl = efunction
 "
         [2,"∃n, a.
   δ =
-    ((Avl (a, n), a, Avl (a, n + 3)) → ∃k[k ≤ n + 4 ∧
-       n + 3 ≤ k].Avl (a, k)) ∧
+    ((Avl (a, n), a, Avl (a, n + 3)) → ∃k[n + 3 ≤ k ∧
+       k ≤ n + 4].Avl (a, k)) ∧
   0 ≤ n"];
     );
 
@@ -2540,8 +2540,8 @@ let rotl = fun l x r -> (* hl + 3 = hr *)
 "
         [2,"∃n, k, a.
   δ =
-    (Avl (a, k) → a → Avl (a, n) → ∃k[k ≤ n + 1 ∧
-       n ≤ k].Avl (a, k)) ∧
+    (Avl (a, k) → a → Avl (a, n) → ∃k[n ≤ k ∧
+       k ≤ n + 1].Avl (a, k)) ∧
   0 ≤ k ∧ n ≤ k + 3 ∧ k + 2 ≤ n"];
     );
 

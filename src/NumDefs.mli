@@ -26,6 +26,7 @@ type formula = atom list
 val fvs_term : term -> Defs.VarSet.t
 val fvs_atom : atom -> Defs.VarSet.t
 val fvs_formula : formula -> Defs.VarSet.t
+val prim_constr_var : atom -> Defs.var_name option
 val formula_inter : formula -> formula -> formula
 val subformula : formula -> formula -> bool
 val atom_loc : atom -> Defs.loc

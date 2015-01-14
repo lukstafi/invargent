@@ -33,12 +33,12 @@ let rec heapify size data i =
     eif left + 1 <= size then
       eif less (array_get data i) (array_get data left)
       then left else i
-    else i (*: int[0,n)*) in
+    else i in
   let largest2 =
     eif right + 1 <= size then
       eif less (array_get data largest1) (array_get data right) then right
       else largest1
-    else largest1 (*: int[0,n)*) in
+    else largest1 in
   if i + 1 <= largest2 then
     let temp = array_get data i in
     let temp2 = array_get data largest2 in
@@ -46,5 +46,5 @@ let rec heapify size data i =
     array_set data largest2 temp;
     heapify size data largest2
   else ()
-(*withtype {n:nat,i:nat | i < n} <n-i> =>
-         a heap(n) * int(i) -> unit*)
+(* We do not get the constraint [i + 1 <= size], because if [i] is larger,
+   the last [else] branch is entered. *)

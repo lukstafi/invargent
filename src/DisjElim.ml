@@ -7,6 +7,7 @@
 *)
 
 let more_existential = ref false
+let preserve_all_typ = ref false
 
 open Defs
 open Terms
@@ -50,10 +51,25 @@ let antiunif q ~bvs ts =
       with Not_found ->
         let n =
           find_map (function TCons (n, _) -> Some n | _ -> None) ts in
+        let tn =
+          try Some (List.find (function TCons _ -> true | _ -> false) ts)
+          with Not_found -> None in
         let b = find_map
             (function TVar v when is_uni v -> Some v | _ -> None)
             ts in
         if n <> None && List.for_all
+             (function TCons _ as t2 when Some t2=tn -> true
+                     | TVar v -> not (is_uni v) | _ -> false) ts
+        then
+          let t = unsome tn in
+          let more_sb = map_some
+            (function
+              | TVar v -> Some (v, (t, dummy_loc))
+              | _ -> None)
+            ts in
+          let usb = update_sb ~more_sb usb in
+          [], t, usb, gsb
+        else if n <> None && List.for_all
              (function TCons (n2, _) when Some n2=n -> true
                      | TVar v -> not (is_uni v) | _ -> false) ts
         then
@@ -136,21 +152,24 @@ let pr_ty_brs ppf brs =
   pr_line_list "|  " pr_subst ppf brs
 
 (* TODO: filter according to [preserve] variables. *)
-let disjelim_typ q ~bvs ~preserve brs =
+let disjelim_typ q ~bvs ~target (* ~preserve *) brs =
   let cmp_k (v1,_) (v2,_) = compare v1 v2 in
   let brs = List.map (List.sort cmp_k) brs in
-  (*[* Format.printf "disjelim_typ: bvs=%a@ preserve=%a@\nbrs=@ %a@\n%!"
-    pr_vars bvs pr_vars preserve (pr_line_list "| " pr_subst) brs; *]*)
+  (*[* Format.printf "disjelim_typ: bvs=%a@ target=%s@\nbrs=@ %a@\n%!"
+    pr_vars bvs (var_str target) (pr_line_list "| " pr_subst) brs; *]*)
   let empty_brs = List.map (fun _ -> []) brs in
   let empty_eqs =
     {at_typ=empty_brs; at_num=empty_brs; at_ord=empty_brs; at_so=()} in
   match brs with
   | [] -> assert false
   | [br] ->
-    let br = List.filter (fun (v,_) -> VarSet.mem v preserve) br in
+    let br = List.filter (fun (v,_) -> v = target) br in
     [], [], br, empty_eqs
   | br::more_brs ->
     (* (a) V *)
+    let br =
+      if !preserve_all_typ then br
+      else List.filter (fun (v,_) -> v = target) br in
     let gs = List.map (fun (v,(t,lc)) -> v,([t],[lc])) br in
     let aux =
       inter_merge
@@ -245,13 +264,15 @@ let disjelim_typ q ~bvs ~preserve brs =
 
 
 (* FIXME: too much mess together with [disjelim] *)
-let simplify_dsjelim q initstep ~target ~preserve vs ans =
+let simplify_dsjelim q initstep ~target (* ~preserve *) vs ans =
   (*[* Format.printf
-    "disjelim-simplify: initial@ preserve=%a@ ty_ans=%a@ num_ans=%a@\n%!"
-    pr_vars preserve pr_subst ans.at_typ
+    "disjelim-simplify: initial@ target=%s ty_ans=%a@ num_ans=%a@\n%!"
+    (var_str target) pr_subst ans.at_typ
     NumDefs.pr_formula ans.at_num;  *]*)
   let target_rhs = map_some
       (fun (v,(t,_)) -> if v = target then Some t else None) ans.at_typ in
+  let preserve =
+    VarSet.add target (fvs_typs target_rhs) in
   let ty_sb, ty_ans = List.partition
       (fun (v,_) -> not (VarSet.mem v preserve) || List.mem v vs)
       ans.at_typ in
@@ -266,7 +287,7 @@ let simplify_dsjelim q initstep ~target ~preserve vs ans =
       ans.at_num in
   let keep_more = VarSet.inter (vars_of_list minmax_vs) target_vs in
   let preserve = VarSet.union keep_more preserve in *)
-  let num_ans = NumS.transitive_cl ans.at_num in
+  let num_ans = NumS.transitive_cl q ans.at_num in
   let num_ans, sb =
     let num_ans_sb, _ (* num_ans *) =
       NumS.separate_subst q ~no_csts:true ~keep:preserve num_ans in
@@ -296,12 +317,11 @@ let simplify_dsjelim q initstep ~target ~preserve vs ans =
   (*[* Format.printf
     "disjelim-simplify: parts@ ty_sb=%a@ ty_ans=%a@ num_ans=%a@\n%!"
     pr_subst ty_sb pr_formula ty_ans pr_formula num_ans;  *]*)
-  let preserved = VarSet.union target_vs preserve in
+  (* let preserved = VarSet.union target_vs preserve in *)
   let ans = List.filter
       (fun c ->
          let cvs = fvs_atom c in
-         VarSet.exists (fun v -> VarSet.mem v cvs) target_vs &&
-      VarSet.for_all (fun v -> VarSet.mem v preserved) cvs)
+         VarSet.exists (fun v -> VarSet.mem v cvs) target_vs)
       (ty_ans @ num_ans) in
   let ans_vs = fvs_formula ans in
   let vs = List.filter
@@ -313,13 +333,13 @@ let simplify_dsjelim q initstep ~target ~preserve vs ans =
   vs, ans
 
 (* FIXME: introduce existential type variables for escaping parameters *)
-let disjelim q ?target ~bvs ~param_bvs ~preserve (* ~old_local *)
+let disjelim q ?target ~bvs ~param_bvs (* ~preserve *) (* ~old_local *)
     ~up_of_anchor ~do_num ~initstep ~residuum brs =
   let target = match target with None -> delta | Some v -> v in
   (* (1) D_i,s *)
   (*[* Format.printf
-    "disjelim:@ target=%s@ bvs=%a;@ param=%a;@ preserve=%a@\n%!"
-    (var_str target) pr_vars bvs pr_vars param_bvs pr_vars preserve; *]*)
+    "disjelim:@ target=%s@ bvs=%a;@ param=%a@\n%!"
+    (var_str target) pr_vars bvs pr_vars param_bvs; *]*)
   let brs = map_some
       (fun br ->
          try Some (solve ~use_quants:false q br)
@@ -335,7 +355,7 @@ let disjelim q ?target ~bvs ~param_bvs ~preserve (* ~old_local *)
        of sorts other than "type" *)
     (* (2) *)
     let usb, avs, ty_ans, eqs =
-      disjelim_typ q ~bvs ~preserve
+      disjelim_typ q ~bvs ~target (* ~preserve *)
         (List.map (fun br->br.cnj_typ) brs) in
     let target_vs =
       try fvs_typ (fst (List.assoc target ty_ans))
@@ -375,20 +395,23 @@ let disjelim q ?target ~bvs ~param_bvs ~preserve (* ~old_local *)
       (* Variables not in [q] will behave as rightmost. *)
       (* (3) *)
       let preserved = map_some
-          (fun (v,(t,_)) -> if VarSet.mem v preserve then Some t else None)
+          (fun (v,(t,_)) -> if v = target then Some t else None)
           ty_ans in
+      let target_vs = fvs_typs preserved in
       let keep_for_simpl =
-        VarSet.union (fvs_typs preserved) preserve in
+        VarSet.union target_vs (VarSet.filter up_of_anchor param_bvs) in
       let keep_for_simpl =
         (* VarSet.filter (fun v -> not (List.mem_assoc v restore_sb)) *)
-        keep_for_simpl in  
+        keep_for_simpl in
+      (*[* Format.printf "disjelim:@ keep_for_simpl=%a@\n%!"
+        pr_vars keep_for_simpl; *]*)
       let num_brs = List.map2
           (fun a b -> residuum_num @ a @ b) brs_num eqs_num in
       let ord_brs = List.map2
           (fun a b -> residuum_ord @ a @ b) brs_ord eqs_ord in
-      let num_avs, num_ans = NumS.disjelim q
+      let num_avs, num_ans = NumS.disjelim q ~target_vs
           ~preserve:keep_for_simpl ~bvs ~param_bvs ~initstep num_brs in
-      let ord_avs, ord_ans = OrderS.disjelim q
+      let ord_avs, ord_ans = OrderS.disjelim q ~target_vs
           ~preserve:keep_for_simpl ~initstep ord_brs in
       (*[* Format.printf
         "disjelim: before simpl@ vs=%a@ ty_ans=%a@ num_ans=%a@\n%!"
@@ -396,22 +419,9 @@ let disjelim q ?target ~bvs ~param_bvs ~preserve (* ~old_local *)
         pr_subst ty_ans NumDefs.pr_formula num_ans; *]*)
       (* (4) *)
       (* Dooes not simplify redundancy. *)
-      usb, simplify_dsjelim q initstep ~target ~preserve (num_avs @ avs)
+      usb, simplify_dsjelim q initstep ~target (* ~preserve *) (num_avs @ avs)
         {at_typ=ty_ans; at_num=num_ans; at_ord=ord_ans; at_so=()}
     else
-      usb, simplify_dsjelim q initstep ~target ~preserve avs
+      usb, simplify_dsjelim q initstep ~target (* ~preserve *) avs
         {at_typ=ty_ans; at_num=[]; at_ord=[]; at_so=()}
-    
-let transitive_cl cnj =
-  let {cnj_typ=_; cnj_num; cnj_so=_} = sep_formulas cnj in
-  let cnj_typ = concat_map
-    (function
-      | Eqty (t1, t2, loc) ->
-        [t1, t2, loc; t2, t1, loc]
-      | _ -> [])
-    cnj in
-  let cnj_typ = Hashtbl.fold
-      (fun (i,j) lc cnj -> if i<j then Eqty (i, j, lc)::cnj else cnj)
-      (Joint.transitive_cl cnj_typ) [] in
-  let cnj_num = NumS.transitive_cl cnj_num in
-  cnj_typ @ NumS.formula_of_sort cnj_num
+

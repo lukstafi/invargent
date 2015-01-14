@@ -206,6 +206,7 @@ val fvs_typs : typ list -> Defs.VarSet.t
 val fvs_atom : atom -> Defs.VarSet.t
 val fvs_formula : formula -> Defs.VarSet.t
 val formula_loc : formula -> lc
+val prim_constr_var : atom -> Defs.var_name option
 
 (** {3 Formulas} *)
 

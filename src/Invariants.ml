@@ -292,15 +292,16 @@ let satisfiable q (ty_st, num_st) cnj =
   ty_st, NumS.satisfiable_exn ~state:num_st cnj_num
 
 (* 10 *)
-let strat q b ans =
+let strat q bvs b ans =
   let (_, ans_r), ans = fold_map
       (fun (pvs, ans_r) c ->
          let vs = VarSet.elements (VarSet.diff (fvs_atom c) pvs) in
          let vs = List.filter
              (fun v -> q.cmp_v b v = Left_of) vs in
          let loc = atom_loc c in
-         if List.exists q.uni_v vs then
-           (let bad = List.find q.uni_v vs in
+         let is_uni v = q.uni_v v && not (VarSet.mem v bvs) in 
+         if List.exists is_uni vs then
+           (let bad = List.find is_uni vs in
             raise (NoAnswer
                      (var_sort bad, "Escaping universal variable",
                       Some (TVar b, TVar bad), loc)));
@@ -357,16 +358,29 @@ let split do_postcond ~avs ans negchi_locs ~bvs ~cand_bvs q =
            let ans = List.filter
                (fun c ->
                   let cvs = fvs_atom c in
+                  let prim_constr_v = prim_constr_var c in
+                  let xbvs_prim_constr =
+                    match prim_constr_v with
+                    | None -> false | Some v -> VarSet.mem v xbvs in
+                  (*[* Format.printf
+                    "c=%a@\nxbvs_prim_constr=%b@\n%!"
+                    pr_atom c xbvs_prim_constr; *]*)
                   VarSet.exists (fun cv -> VarSet.mem cv xbvs) cvs &&
                   VarSet.for_all
                     (fun cv ->
-                       (*[* Format.printf "cv=%s, %s, up=%b, down=%b;@ "
+                       (*[* Format.printf
+                         "cv=%s, %s, up=%b, down=%b, uni=%b, xbvs=%b, bvs=%b;@ "
                          (var_str cv)
                          (var_scope_str (q.cmp_v cv b))
-                         (q.op.upward_of cv b) (q.op.upward_of b cv); *]*)
+                         (q.op.upward_of cv b) (q.op.upward_of b cv)
+                       (q.uni_v cv) (VarSet.mem cv xbvs)
+                       (VarSet.mem cv bvs); *]*)
                        not (q.uni_v cv) || VarSet.mem cv xbvs ||
+                       (* FIXME: postcond? *)
                        (postcond || VarSet.mem cv bvs) &&
-                       q.cmp_v cv b = Left_of)
+                       Some cv <> prim_constr_v &&
+                       (xbvs_prim_constr && VarSet.mem cv bvs ||
+                        q.cmp_v cv b = Left_of))
                     cvs)
                ans0 in
            b, ans)
@@ -432,7 +446,7 @@ let split do_postcond ~avs ans negchi_locs ~bvs ~cand_bvs q =
     (* 9 *)
     let ans_strat = List.map
         (fun (b, ans_p) ->
-           let (avs_p, ans_l, ans_r) = strat q b ans_p in
+           let (avs_p, ans_l, ans_r) = strat q !bvs b ans_p in
            (*[* Format.printf "select: ans_l(%s)=@ %a@\n%!"
              (var_str b) pr_formula ans_l; *]*)
            (* Negatively occurring [b] "owns" these formal parameters *)
@@ -1030,13 +1044,13 @@ let solve q_ops new_ex_types exty_res_chi brs =
           if iter_no < disj_step.(2) then lazy (g_collect true)
           else lazy [] in
         (* 2 *)
-        let dsj_preserve exchi =
+        (* let dsj_preserve exchi =
           let exty = Hashtbl.find exty_of_chi exchi in
           try
             let chi = Hashtbl.find exty_res_chi exty in
             let _, ans = List.assoc chi sol1 in
             fvs_formula ans
-          with Not_found -> VarSet.empty in
+          with Not_found -> VarSet.empty in *)
         let bvs = bparams iter_no in    (* for [disjelim] *)
         let abdsjelim = ref [] in
         let g_rol = List.map
@@ -1064,8 +1078,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
                  let cnjs =
                    try List.assoc i g_rol
                    with Not_found -> List.assoc i (Lazy.force g_rol_all) in
-                 let preserve =
-                   VarSet.add delta (dsj_preserve i) in
+                 (* let preserve =
+                   VarSet.add delta (dsj_preserve i) in *)
                  let param_bvs =
                    VarSet.filter
                      (fun v ->
@@ -1078,10 +1092,11 @@ let solve q_ops new_ex_types exty_res_chi brs =
                      bvs in
                  (*[* Format.printf "@\n%!"; *]*)
                  (* [usb] is additional abductive the answer. *)
+                 let up_of_anchor v = upward_of v anchor in
                  let usb, (g_vs, g_ans) =
                    DisjElim.disjelim q_ops (* ?old_delta *)
-                     ~bvs ~param_bvs ~preserve
-                     ~up_of_anchor:(fun v -> upward_of v anchor)
+                     ~bvs ~param_bvs (* ~preserve *)
+                     ~up_of_anchor
                      ~do_num:(disj_step.(1) <= iter_no) ~initstep
                      ~residuum:(if !use_solution_in_postcond
                                 then ans1_res else []) cnjs in
@@ -1123,10 +1138,13 @@ let solve q_ops new_ex_types exty_res_chi brs =
             pr_vars (vars_of_list g_vs) pr_formula g_ans;
           *]*)
           (* 3 *)
-          let chi_vs = dsj_preserve i in
           let fvs = VarSet.diff (fvs_formula g_ans)
               (vars_of_list [delta; delta']) in
-          let e_vs = VarSet.diff fvs chi_vs in
+          let anchor =
+            try Hashtbl.find q.chiK_anchor i
+            with Not_found -> assert false in
+          let e_vs = VarSet.filter
+              (fun v -> not (upward_of v anchor)) fvs in
           (* FIXME: disappearing substitution? *)
           let _, (_, g_ans) =
             if initstep then [], (VarSet.elements e_vs, g_ans)

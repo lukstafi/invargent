@@ -26,10 +26,11 @@ let test_case msg test result =
     Printexc.record_backtrace true;
     let brs = Parser.cn_branches Lexer.token
       (Lexing.from_string test) in
-    let preserve = List.fold_left VarSet.union VarSet.empty
-        (List.map (fun (prem,concl) -> fvs_formula (prem@concl)) brs) in
+    (* let preserve = List.fold_left VarSet.union VarSet.empty
+        (List.map (fun (prem,concl) -> fvs_formula (prem@concl)) brs)
+      in *)
     let usb, (vs, ans) = DisjElim.disjelim q ~target ~initstep:false
-        ~bvs:VarSet.empty ~param_bvs:VarSet.empty ~preserve
+        ~bvs:VarSet.empty ~param_bvs:VarSet.empty (* ~preserve *)
         ~up_of_anchor:(fun _ -> true) ~do_num:true
         ~residuum:[]
         (List.map (uncurry (@)) brs) in
@@ -56,7 +57,7 @@ let tests = "DisjElim" >::: [
        test_case "abstract arg" " ⟹ ta = F A
 | ⟹ ta = F B" "∃t1. ta = (F t1)";
        test_case "infer eq" " ⟹ ta = A ∧ tb = A
-| ⟹ ta = B ∧ tb = B" "∃. tb = ta ∧ ta = tb";
+| ⟹ ta = B ∧ tb = B" "∃. ta = tb";
        test_case "abstract bigger" " ⟹ ta = G (A, C)
 | ⟹ ta = G (B, C)" "∃t1. ta = (G (t1, C))";
        test_case "abstract & infer" " ⟹ ta = G (A, C) ∧ C = tb
@@ -67,14 +68,14 @@ let tests = "DisjElim" >::: [
     (fun () ->
        skip_if !debug "debug";
        test_case "eval" " (Term tf) = tc ∧ Int = tf ⟹ td = Int ∧ ta = (Term te → td) ∧ tc = (Term te)
-| (Term tg) = tc ∧ Boolean = tg ⟹ td = Bool ∧
+| (Term tg) = tc ∧ Bool = tg ⟹ td = Bool ∧
     ta1 = (Term Int → Int) ∧ ta = (Term te → td) ∧ tc = (Term te)
 | (Term ta3) = tc ∧ Int = ta3 ⟹ td = Int ∧
     ta9 = (Term Int → Int) ∧ ta6 = (Term Int → Int) ∧ ta = (Term te → td) ∧ tc = (Term te)
 | (Term tc5) = tc ∧ (tc6, tc7) = tc5 ⟹ td = (tc8, tc9) ∧ td1 = td3 ∧
     td1 = (Term tc6 → tc8) ∧ td3 = (Term tc7 → tc9) ∧ ta = (Term te →
     td) ∧ tc = (Term te)"
-        "∃. ta = (Term te → td) ∧ tc = (Term te)"
+        "∃. ta = (Term te → td)"
     );
 
 ]
