@@ -35,9 +35,9 @@ let tests = "NumS" >::: [
 	  (Lexing.from_string " ⟹ n1 = n2 ∧ n3 <= n2 + 2
 |  ⟹ n1 = n2 ∧ n3 <= n2
 |  ⟹ n1 = n2 ∧ n3 <= n2 + 1") in
-        let brs = List.map (sort_formula % snd) brs in
+        let brs = List.map (fun (_, c) -> [], sort_formula c) brs in
         let preserve = List.fold_left
-            (fun vs br -> VarSet.union vs (fvs_formula br))
+            (fun vs (_, br) -> VarSet.union vs (fvs_formula br))
             VarSet.empty brs in
         let bvs = VarSet.empty in
         let param_bvs = VarSet.empty in
@@ -71,9 +71,9 @@ let tests = "NumS" >::: [
         let brs = Parser.cn_branches Lexer.token
 	  (Lexing.from_string " ⟹ n1 = n3 ∧ n2 = n3
 |  ⟹ n1 = n4 ∧ n2 = n4") in
-        let brs = List.map (sort_formula % snd) brs in
+        let brs = List.map (fun (_, c) -> [], sort_formula c) brs in
         let preserve = List.fold_left
-            (fun vs br -> VarSet.union vs (fvs_formula br))
+            (fun vs (_, br) -> VarSet.union vs (fvs_formula br))
             VarSet.empty brs in
         let bvs = VarSet.empty in
         let param_bvs = VarSet.empty in
@@ -109,9 +109,9 @@ let tests = "NumS" >::: [
         let brs = Parser.cn_branches Lexer.token
 	  (Lexing.from_string " ⟹ n3 = n1 ∧ n4 = n1
 |  ⟹ n3 = n2 ∧ n4 = n2") in
-        let brs = List.map (sort_formula % snd) brs in
+        let brs = List.map (fun (_, c) -> [], sort_formula c) brs in
         let preserve = List.fold_left
-            (fun vs br -> VarSet.union vs (fvs_formula br))
+            (fun vs (_, br) -> VarSet.union vs (fvs_formula br))
             VarSet.empty brs in
         let bvs = VarSet.empty in
         let param_bvs = VarSet.empty in
@@ -147,9 +147,9 @@ let tests = "NumS" >::: [
         let brs = Parser.cn_branches Lexer.token
 	  (Lexing.from_string " ⟹ n1 <= n2 ∧ 0 <= n1 ∧ n2 <= 1
 |  ⟹ n2 <= n1 + 2 ∧ 2 <= n2 ∧ n1 <= 1") in
-        let brs = List.map (sort_formula % snd) brs in
+        let brs = List.map (fun (_, c) -> [], sort_formula c) brs in
         let preserve = List.fold_left
-            (fun vs br -> VarSet.union vs (fvs_formula br))
+            (fun vs (_, br) -> VarSet.union vs (fvs_formula br))
             VarSet.empty brs in
         let bvs = VarSet.empty in
         let param_bvs = VarSet.empty in
@@ -183,9 +183,9 @@ let tests = "NumS" >::: [
         let brs = Parser.cn_branches Lexer.token
 	  (Lexing.from_string " ⟹ n1 <= n2 ∧ 0 <= n1 ∧ n2 <= 1
 |  ⟹ n2 <= n1 ∧ 2 <= n2 ∧ n1 <= 3") in
-        let brs = List.map (sort_formula % snd) brs in
+        let brs = List.map (fun (_, c) -> [], sort_formula c) brs in
         let preserve = List.fold_left
-            (fun vs br -> VarSet.union vs (fvs_formula br))
+            (fun vs (_, br) -> VarSet.union vs (fvs_formula br))
             VarSet.empty brs in
         let bvs = VarSet.empty in
         let param_bvs = VarSet.empty in

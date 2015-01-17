@@ -33,7 +33,7 @@ let test_case msg test result =
         ~bvs:VarSet.empty ~param_bvs:VarSet.empty (* ~preserve *)
         ~up_of_anchor:(fun _ -> true) ~do_num:true
         ~residuum:[]
-        (List.map (uncurry (@)) brs) in
+        (List.map (fun (p, c) -> p, p @ c) brs) in
     ignore (Format.flush_str_formatter ());
     Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
       (pr_sep_list "," pr_tyvar) vs pr_formula ans;

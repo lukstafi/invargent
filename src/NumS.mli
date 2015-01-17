@@ -37,6 +37,8 @@ val affine_penalty : int ref
 (** Filter out less general abduction candidate atoms (does not
     guarantee overall more general answers). Default [false]. *)
 val more_general : bool ref
+(** Twice as many angles of rotation are tried out for *)
+val disjelim_rotations : int ref
 (** How many opti atoms: [x = min(a, b)], [x = max(a, b)] in a
     postcondition. *)
 val max_opti_postcond : int ref
@@ -70,13 +72,12 @@ val abd :
      NumDefs.formula * NumDefs.formula) list ->
   Defs.var_name list * NumDefs.formula
 
-(** Twice as many angles of rotation are tried out for *)
-val disjelim_rotations : int ref
 (** For uniformity, we return an empty list as introduced variables. *)
 val disjelim :
   Defs.quant_ops -> target_vs:Defs.VarSet.t -> preserve:Defs.VarSet.t ->
   bvs:Defs.VarSet.t -> param_bvs:Defs.VarSet.t -> initstep:bool ->
-  NumDefs.formula list -> Defs.var_name list * NumDefs.formula
+  (NumDefs.formula * NumDefs.formula) list ->
+  Defs.var_name list * NumDefs.formula
 
 (** Eliminate provided variables from the substitution part of solved
     form and generally simplify the formula, but do not perform
@@ -93,7 +94,8 @@ val simplify :
     atoms over opti atoms. *)
 val prune_redundant :
   Defs.quant_ops -> ?localvs:Defs.VarSet.t ->
-  ?guard:NumDefs.formula -> initstep:bool ->
+  ?guard:NumDefs.formula ->
+  initstep:bool ->
   NumDefs.formula -> NumDefs.formula
 
 (** Intersect atoms of the formulas, but only after generating

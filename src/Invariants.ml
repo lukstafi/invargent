@@ -649,7 +649,8 @@ let prune_redund q_ops ?localvs ?guard ~initstep (vs, cnj) =
 
 (* Rename the new solution to match variables of the old solution. *)
 (* TODO: ugly, rewrite or provide a medium-level description. *)
-let converge q_ops ~initstep ?guard ~check_only (vs1, cnj1) (vs2, cnj2) =
+let converge q_ops ~initstep ?guard ~check_only
+    (vs1, cnj1) (vs2, cnj2) =
   (*[* Format.printf
     "converge: check_only=%b@ vs1=%a@ vs2=%a@\ncnj1=%a@\ncnj2=%a\n%!"
     check_only pr_vars (vars_of_list vs1) pr_vars (vars_of_list vs2)
@@ -765,7 +766,8 @@ let converge q_ops ~initstep ?guard ~check_only (vs1, cnj1) (vs2, cnj2) =
   let c_num =
     if check_only
     then NumS.prune_redundant q_ops ~localvs ?guard ~initstep c2_num
-    else NumS.converge q_ops ~localvs ?guard ~initstep c1_num c2_num in
+    else NumS.converge q_ops ~localvs ?guard ~initstep
+        c1_num c2_num in
   let res = to_formula c2_ty @ NumS.formula_of_sort c_num in
   let res_vs = fvs_formula res in
   let res_pms = map_some (fun v ->
@@ -1032,7 +1034,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                            i pr_ty t1 pr_ty t2
                            pr_formula prem pr_formula phi;
                          *]*)
-                         i, phi)
+                         i, (prem, phi))
                       chiK_pos
                   else [])
                verif_brs) in

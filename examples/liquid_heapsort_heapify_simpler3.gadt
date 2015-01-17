@@ -28,7 +28,6 @@ external let int0 : Int = "0"
 
 let rec heapify size data i =
   assert num size <= array_length data;
-  assert num 0 <= i;
   let left = 2 * i + 1 in
   let right = 2 * i + 2 in
   let largest1 =

@@ -1530,8 +1530,7 @@ let rec ub = efunction
         | POne b1 ->
           let r = ub a1 b1 in
           POne r)"
-        [2,"∃n, k.
-  δ = (Binary k → Binary n → ∃i[i ≤ n + k ∧ n ≤ i].Binary i)"]
+        [2,"∃n, k. δ = (Binary k → Binary n → ∃k[n ≤ k].Binary k)"]
     );
 
   "binary upper bound expanded" >::
@@ -1888,6 +1887,7 @@ let rec zip =
 
   "unary minimum asserted" >::
     (fun () ->
+       todo "FIXME";
        skip_if !debug "debug";
        test_case "unary minimum asserted"
 "datatype Unary : num
@@ -2458,8 +2458,8 @@ let rotl = efunction (* hl + 3 = hr *)
 "
         [2,"∃n, a.
   δ =
-    ((Avl (a, n), a, Avl (a, n + 3)) → ∃k[k ≤ n + 4 ∧
-       n + 3 ≤ k].Avl (a, k)) ∧
+    ((Avl (a, n), a, Avl (a, n + 3)) → ∃k[n + 3 ≤ k ∧
+       k ≤ n + 4].Avl (a, k)) ∧
   0 ≤ n"];
     );
 

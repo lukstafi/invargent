@@ -15,5 +15,5 @@ val disjelim :
   bvs:Defs.VarSet.t -> param_bvs:Defs.VarSet.t ->
   (* preserve:Defs.VarSet.t -> *) up_of_anchor:(Defs.var_name -> bool) ->
   do_num:bool -> initstep:bool -> residuum:Terms.formula ->
-  Terms.formula list ->
+  (Terms.formula * Terms.formula) list ->
   Terms.subst * (Defs.var_name list * Terms.atom list)

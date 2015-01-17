@@ -486,9 +486,12 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_heapsort_heapify_simpler" ());
       "liquid_heapsort-heapify-simpler2" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_heapsort_heapify_simpler2" ());
+      "liquid_heapsort-heapify-simpler3" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "liquid_heapsort_heapify_simpler3" ());
       "liquid_heapsort-heapify" >::
         (fun () ->
            todo "FIXME";

@@ -341,8 +341,9 @@ let disjelim q ?target ~bvs ~param_bvs (* ~preserve *) (* ~old_local *)
     "disjelim:@ target=%s@ bvs=%a;@ param=%a@\n%!"
     (var_str target) pr_vars bvs pr_vars param_bvs; *]*)
   let brs = map_some
-      (fun br ->
-         try Some (solve ~use_quants:false q br)
+      (fun (prem, br) ->
+         try Some (solve ~use_quants:false q prem,
+                   solve ~use_quants:false q br)
          with Contradiction _ -> None) brs in
   if brs = [] then [], ([], [])
   else
@@ -356,7 +357,7 @@ let disjelim q ?target ~bvs ~param_bvs (* ~preserve *) (* ~old_local *)
     (* (2) *)
     let usb, avs, ty_ans, eqs =
       disjelim_typ q ~bvs ~target (* ~preserve *)
-        (List.map (fun br->br.cnj_typ) brs) in
+        (List.map (fun (_, br) -> br.cnj_typ) brs) in
     let target_vs =
       try fvs_typ (fst (List.assoc target ty_ans))
       with Not_found -> VarSet.empty in
@@ -387,10 +388,14 @@ let disjelim q ?target ~bvs ~param_bvs (* ~preserve *) (* ~old_local *)
         List.map (OrderDefs.hvsubst_atom lift_rn)
           residuum.cnj_ord in
       let brs_num = List.map
-          (fun br -> List.map (NumDefs.hvsubst_atom lift_rn) br.cnj_num)
+          (fun (prem, br) ->
+             List.map (NumDefs.hvsubst_atom lift_rn) prem.cnj_num,
+             List.map (NumDefs.hvsubst_atom lift_rn) br.cnj_num)
           brs in
       let brs_ord = List.map
-          (fun br -> List.map (OrderDefs.hvsubst_atom lift_rn) br.cnj_ord)
+          (fun (prem, br) ->
+             List.map (OrderDefs.hvsubst_atom lift_rn) prem.cnj_ord,
+             List.map (OrderDefs.hvsubst_atom lift_rn) br.cnj_ord)
           brs in
       (* Variables not in [q] will behave as rightmost. *)
       (* (3) *)
@@ -406,9 +411,9 @@ let disjelim q ?target ~bvs ~param_bvs (* ~preserve *) (* ~old_local *)
       (*[* Format.printf "disjelim:@ keep_for_simpl=%a@\n%!"
         pr_vars keep_for_simpl; *]*)
       let num_brs = List.map2
-          (fun a b -> residuum_num @ a @ b) brs_num eqs_num in
+          (fun (prem, a) b -> prem, residuum_num @ a @ b) brs_num eqs_num in
       let ord_brs = List.map2
-          (fun a b -> residuum_ord @ a @ b) brs_ord eqs_ord in
+          (fun (prem, a) b -> prem, residuum_ord @ a @ b) brs_ord eqs_ord in
       let num_avs, num_ans = NumS.disjelim q ~target_vs
           ~preserve:keep_for_simpl ~bvs ~param_bvs ~initstep num_brs in
       let ord_avs, ord_ans = OrderS.disjelim q ~target_vs

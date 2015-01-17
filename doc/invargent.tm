@@ -1578,7 +1578,7 @@
   arises. Currently, we only generate new <em|opti> and <em|subopti> atoms
   for postconditions, i.e. during disjunction elimination.
 
-  <subsection|Disjunction elimination>
+  <subsection|Constraint generalization>
 
   We eliminate <em|opti> and <em|subopti> atoms prior to finding the extended
   convex hull of <math|<wide|D<rsub|i>|\<bar\>>> by expanding the definition
@@ -1608,6 +1608,26 @@
   <math|k<wide|=|\<dot\>>min<around*|(|v,c|)>> for a constant <math|c>,
   similarly for <em|subopti> atoms, while in initial iterations where
   disjunction elimination is only performed for non-recursive branches.
+
+  We need to further extend the notion of (abductive) constraint
+  generalization, to achieve the results required for postcondition
+  inference. For constraint branches <math|<wide|D<rsub|i>\<Rightarrow\>C<rsub|i>|\<bar\>>>,
+  we need not only the disjuncts <math|<wide|D<rsub|i>\<wedge\>C<rsub|i>|\<bar\>>>,
+  but also the premises <math|<wide|D<rsub|i>|\<bar\>>>. We keep <em|opti>
+  and <em|subopti> atoms <math|opti<around*|(|v,w|)>,subopti<around*|(|v,w|)>>
+  such that either both <math|v\<leqslant\>w> and <math|w\<leqslant\>v> are
+  <em|satisfiable with> all <em|implication branches>, or neither is. An atom
+  <math|c> is satisfiable with implication
+  <math|D<rsub|i>\<Rightarrow\>C<rsub|i>> here, when either
+  <math|c\<wedge\>D<rsub|i>> is not satisfiable, or
+  <math|c\<wedge\>D<rsub|i>\<wedge\>C<rsub|i>> is satisfiable. The underlying
+  idea is that since <em|opti> and <em|subopti> atoms express a disjunction,
+  resp. <math|v\<leqslant\>0\<wedge\>w\<leqslant\>0\<wedge\><around*|(|v<wide|=|\<dot\>>0\<vee\>w<wide|=|\<dot\>>0|)>>
+  and <math|v\<leqslant\>0\<vee\>w\<leqslant\>0>, they are meaningful when
+  both cases of the disjunction can obtain under some circumstances. When
+  only one of the atoms, say <math|v\<leqslant\>w>, is satisfiable with all
+  implication branches, we make an abductive guess that
+  <math|v\<leqslant\>w>.
 
   <section|Solving for Predicate Variables><label|MainAlgo>
 
