@@ -10,16 +10,22 @@ open Defs
 open Terms
 open Aux
 
-let debug = ref false(* true *)
+let debug = ref false(*[* true *]*)
 
 let test_common ?more_general ?more_existential ?no_num_abduction
-    ?nodeadcode ?force_nodeadcode ?prefer_guess msg test =
+    ?nodeadcode ?force_nodeadcode ?prefer_guess
+    ?guess_from_postcond msg test =
   let ntime = Sys.time () in
   Terms.reset_state ();
   Infer.reset_state ();
   let old_nodeadcode = !Defs.nodeadcode in
   (match nodeadcode with
    | None -> () | Some nodeadcode -> Defs.nodeadcode := nodeadcode);
+  let old_guess_from_postcond = !Defs.guess_from_postcond in
+  (match guess_from_postcond with
+   | None -> ()
+   | Some guess_from_postcond ->
+     Defs.guess_from_postcond := guess_from_postcond);
   let old_force_nodeadcode = !Defs.force_nodeadcode in
   (match force_nodeadcode with
    | None -> ()
@@ -65,6 +71,7 @@ let test_common ?more_general ?more_existential ?no_num_abduction
   let _, res, sol =
     Invariants.solve q_ops new_ex_types exty_res_of_chi brs in
   Defs.nodeadcode := old_nodeadcode;
+  Defs.guess_from_postcond := old_guess_from_postcond;
   Defs.force_nodeadcode := old_force_nodeadcode;
   Abduction.more_general := old_more_general;
   Abduction.no_num_abduction := old_no_num_abduction;
@@ -87,8 +94,9 @@ let test_common ?more_general ?more_existential ?no_num_abduction
 
 let test_case ?more_general ?more_existential
     ?no_num_abduction ?nodeadcode ?force_nodeadcode ?prefer_guess
-    msg test answers =
+    ?guess_from_postcond msg test answers =
   let old_nodeadcode = !Defs.nodeadcode in
+  let old_guess_from_postcond = !Defs.guess_from_postcond in
   let old_force_nodeadcode = !Defs.force_nodeadcode in
   let old_more_general = !Abduction.more_general in
   let old_no_num_abduction = !Abduction.no_num_abduction in
@@ -98,7 +106,8 @@ let test_case ?more_general ?more_existential
   try
     let q, res, sol =
       test_common ?more_general ?more_existential ?no_num_abduction
-        ?nodeadcode ?force_nodeadcode ?prefer_guess msg test in
+        ?nodeadcode ?force_nodeadcode ?prefer_guess
+        ?guess_from_postcond msg test in
     let test_sol (chi, result) =
       let _, (vs, ans) = nice_ans (List.assoc chi sol) in
       ignore (Format.flush_str_formatter ());
@@ -112,6 +121,7 @@ let test_case ?more_general ?more_existential
     ignore (Format.flush_str_formatter ());
     Terms.pr_exception Format.str_formatter exn;
     Defs.nodeadcode := old_nodeadcode;
+    Defs.guess_from_postcond := old_guess_from_postcond;
     Defs.force_nodeadcode := old_force_nodeadcode;
     Abduction.more_general := old_more_general;
     Abduction.no_num_abduction := old_no_num_abduction;
@@ -121,8 +131,9 @@ let test_case ?more_general ?more_existential
 
 let test_nonrec_case ?more_general ?more_existential
     ?no_num_abduction ?nodeadcode ?force_nodeadcode ?prefer_guess
-    msg test answers =
+    ?guess_from_postcond msg test answers =
   let old_nodeadcode = !Defs.nodeadcode in
+  let old_guess_from_postcond = !Defs.guess_from_postcond in
   let old_force_nodeadcode = !Defs.force_nodeadcode in
   let old_more_general = !Abduction.more_general in
   let old_no_num_abduction = !Abduction.no_num_abduction in
@@ -132,9 +143,10 @@ let test_nonrec_case ?more_general ?more_existential
   try
     let q, res, sol =
       test_common ?more_general ?more_existential ?no_num_abduction
-        ?nodeadcode ?force_nodeadcode ?prefer_guess msg test in
+        ?nodeadcode ?force_nodeadcode ?prefer_guess
+        ?guess_from_postcond msg test in
     let test_sol (v, result) =
-      let res_sb, _ = Infer.separate_subst q res in
+      let res_sb, _ = Infer.separate_subst ~apply:false q res in
       let ty = fst (List.assoc (VId (Type_sort, v)) res_sb) in
       ignore (Format.flush_str_formatter ());
       Format.fprintf Format.str_formatter "%a" pr_ty ty;
@@ -146,6 +158,7 @@ let test_nonrec_case ?more_general ?more_existential
     ignore (Format.flush_str_formatter ());
     Terms.pr_exception Format.str_formatter exn;
     Defs.nodeadcode := old_nodeadcode;
+    Defs.guess_from_postcond := old_guess_from_postcond;
     Defs.force_nodeadcode := old_force_nodeadcode;
     Abduction.more_general := old_more_general;
     Abduction.no_num_abduction := old_no_num_abduction;
@@ -154,8 +167,10 @@ let test_nonrec_case ?more_general ?more_existential
     assert_failure (Format.flush_str_formatter ())
 
 let test_case_fail ?more_general ?more_existential ?no_num_abduction
-    ?nodeadcode ?force_nodeadcode ?prefer_guess msg test answer =
+    ?nodeadcode ?force_nodeadcode ?prefer_guess
+    ?guess_from_postcond msg test answer =
   let old_nodeadcode = !Defs.nodeadcode in
+  let old_guess_from_postcond = !Defs.guess_from_postcond in
   let old_force_nodeadcode = !Defs.force_nodeadcode in
   let old_more_general = !Abduction.more_general in
   let old_no_num_abduction = !Abduction.no_num_abduction in
@@ -165,7 +180,8 @@ let test_case_fail ?more_general ?more_existential ?no_num_abduction
   try
     let q, res, sol =
       test_common ?more_general ?more_existential ?no_num_abduction
-        ?nodeadcode ?force_nodeadcode ?prefer_guess msg test in
+        ?nodeadcode ?force_nodeadcode ?prefer_guess
+        ?guess_from_postcond msg test in
     let _, (vs, ans) = nice_ans (snd (List.hd sol)) in
     ignore (Format.flush_str_formatter ());
     Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
@@ -176,6 +192,7 @@ let test_case_fail ?more_general ?more_existential ?no_num_abduction
     ignore (Format.flush_str_formatter ());
     Terms.pr_exception Format.str_formatter exn;
     Defs.nodeadcode := old_nodeadcode;
+    Defs.guess_from_postcond := old_guess_from_postcond;
     Defs.force_nodeadcode := old_force_nodeadcode;
     Abduction.more_general := old_more_general;
     Abduction.no_num_abduction := old_no_num_abduction;
@@ -1369,7 +1386,7 @@ let rec map =
     | LCons (x, xs) ->
       let ys = map xs in
       LCons (f x, ys)"
-        [2,"∃n. δ = (List n → ∃.List n)"];
+        [2,"∃n. δ = (List n → ∃k[k=max (0, n)].List k)"];
     );
 
   "map not existential poly" >::
@@ -1385,7 +1402,8 @@ let rec map = fun f ->
     | LCons (x, xs) ->
       let ys = map f xs in
       LCons (f x, ys)"
-        [2,"∃n, a, b. δ = ((a → b) → List (a, n) → ∃.List (b, n))"];
+        [2,"∃n, a, b.
+  δ = ((a → b) → List (a, n) → ∃k[k=max (0, n)].List (b, k))"];
     );
 
   "map not existential instance" >::
@@ -1405,7 +1423,7 @@ let rec map =
     | LCons (x, xs) ->
       let ys = map xs in
       LCons (f x, ys)"
-        [2,"∃n. δ = (List (Foo, n) → ∃.List (Bar, n))"];
+        [2,"∃n. δ = (List (Foo, n) → ∃k[k=max (n, 0)].List (Bar, k))"];
     );
 
   "filter mono" >::
@@ -1427,7 +1445,7 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
-        [2,"∃n. δ = (List n → ∃k[k ≤ n ∧ 0 ≤ k].List k)"];
+        [2,"∃n. δ = (List n → ∃k[0 ≤ k ∧ k ≤ n].List k)"];
 
     );
 
@@ -1451,7 +1469,7 @@ let rec filter =
           LCons (x, ys)
 	| False ->
           filter xs"
-        [2,"∃n. δ = (List (Bar, n) → ∃k[k ≤ n ∧ 0 ≤ k].List (Bar, k))"];
+        [2,"∃n. δ = (List (Bar, n) → ∃k[0 ≤ k ∧ k ≤ n].List (Bar, k))"];
     );
 
   "filter poly" >::
@@ -1473,7 +1491,7 @@ let rec filter = fun f ->
           filter f xs"
         [2,"∃n, a.
   δ =
-    ((a → Bool) → List (a, n) → ∃k[k ≤ n ∧ 0 ≤ k].List (a, k))"];
+    ((a → Bool) → List (a, n) → ∃k[0 ≤ k ∧ k ≤ n].List (a, k))"];
     );
 
   "poly filter map" >::
@@ -1495,8 +1513,8 @@ let rec filter = fun f g ->
           filter f g xs"
         [2,"∃n, a, b.
   δ =
-    ((a → Bool) → (a → b) → List (a, n) → ∃k[k ≤ n ∧
-       0 ≤ k].List (b, k))"];
+    ((a → Bool) → (a → b) → List (a, n) → ∃k[0 ≤ k ∧
+       k ≤ n].List (b, k))"];
 
     );
 
@@ -1530,7 +1548,8 @@ let rec ub = efunction
         | POne b1 ->
           let r = ub a1 b1 in
           POne r)"
-        [2,"∃n, k. δ = (Binary k → Binary n → ∃k[n ≤ k].Binary k)"]
+        [2,"∃n, k.
+  δ = (Binary k → Binary n → ∃i[n ≤ i ∧ i ≤ n + k].Binary i)"]
     );
 
   "binary upper bound expanded" >::
@@ -1568,8 +1587,8 @@ let rec ub = efunction
           POne r)"
         [2,"∃n, k.
   δ =
-    (Binary k → Binary n → ∃i[i ≤ n + k ∧ n ≤ i ∧
-       k ≤ i].Binary i)"]
+    (Binary k → Binary n → ∃i[k ≤ i ∧ n ≤ i ∧
+       i ≤ n + k].Binary i)"]
     );
 
   "nested recursion simple eval" >::
@@ -1885,11 +1904,10 @@ let rec zip =
         [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (n, k)].Unary i)"]
     );
 
-  "unary minimum asserted" >::
+  "unary minimum asserted 1" >::
     (fun () ->
-       todo "FIXME";
        skip_if !debug "debug";
-       test_case "unary minimum asserted"
+       test_case "unary minimum asserted 1"
 "datatype Unary : num
 datacons UNil : Unary 0
 datacons UCons : ∀n [0≤n]. Unary n ⟶ Unary (n+1)
@@ -1903,7 +1921,51 @@ let rec zip =
     | UCons xs, UCons ys ->
       let zs = zip (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (k, n)].Unary i) ∧ 0 ≤ k"]
+        [2,"∃n, k. δ = ((Unary n, Unary k) → \
+            ∃i[i=min (k, n)].Unary i) ∧ 0 ≤ k"]
+    );
+
+  "unary minimum asserted 2" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case ~guess_from_postcond:false "unary minimum asserted 2"
+"datatype Unary : num
+datacons UNil : Unary 0
+datacons UCons : ∀n [0≤n]. Unary n ⟶ Unary (n+1)
+external num_of_unary : ∀n. Unary n → Num n
+
+let rec zip =
+  efunction
+    | UNil, u when num_of_unary u + 1 <= 0 -> assert false
+    | UNil, u when 0 <= num_of_unary u -> UNil
+    | UCons _, UNil -> UNil
+    | UCons xs, UCons ys ->
+      let zs = zip (xs, ys) in
+      UCons zs"
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (k, n)].Unary i) \
+            ∧ 0 ≤ k"]
+    );
+
+  "unary minimum asserted 3" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "unary minimum asserted 3"
+"datatype Unary : num
+datacons UNil : Unary 0
+datacons UCons : ∀n [0≤n]. Unary n ⟶ Unary (n+1)
+external num_of_unary : ∀n. Unary n → Num n
+
+let rec zip =
+  efunction
+    | _, u when num_of_unary u + 1 <= 0 -> assert false
+    | u, _ when num_of_unary u + 1 <= 0 -> assert false
+    | UNil, u when 0 <= num_of_unary u -> UNil
+    | u, UNil when 0 <= num_of_unary u -> UNil
+    | UCons xs, UCons ys ->
+      let zs = zip (xs, ys) in
+      UCons zs"
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (k, n)].Unary i) ∧
+  0 ≤ n ∧ 0 ≤ k"]
     );
 
   "list zip prefix expanded" >::
@@ -1923,7 +1985,7 @@ let rec zip =
       let zs = zip (xs, ys) in
       LCons ((x, y), zs)"
         [2,"∃n, k, a, b.
-  δ = ((List (a, n), List (b, k)) → ∃i[i=min (n, k)].List ((a, b), i))"]
+  δ = ((List (a, n), List (b, k)) → ∃i[i=min (k, n)].List ((a, b), i))"]
     );
 
   "unary maximum expanded" >::
@@ -1942,7 +2004,10 @@ let rec map2 =
     | UCons xs, UCons ys ->
       let zs = map2 (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=max (n, k)].Unary i)"]
+        (* The constraint i ≤ n + k is theoretically not redundant
+           because n, k in principle could be negative. *)
+        [2,"∃n, k.
+  δ = ((Unary n, Unary k) → ∃i[i ≤ n + k ∧ i=max (n, k)].Unary i)"]
     );
 
   "list map2 with postfix expanded" >::
@@ -1988,8 +2053,8 @@ let rec filter_zip = fun f ->
       | False -> zs"
         [2,"∃n, k, a, b.
   δ =
-    ((a → b → Bool) → (List (a, n), List (b, k)) → ∃i[i ≤ n ∧
-       i ≤ k ∧ 0 ≤ i].List ((a, b), i))"]
+    ((a → b → Bool) → (List (a, n), List (b, k)) → ∃i[0 ≤ i ∧
+       i ≤ k ∧ i ≤ n].List ((a, b), i))"]
     );
 
   "list filter-map2 with postfix" >::
@@ -2013,8 +2078,8 @@ let rec filter_map2 = fun p f ->
         [2,"∃n, k, a.
   δ =
     ((a → a → Bool) → (a → a → a) →
-       (List (a, n), List (a, k)) → ∃i[i≤max (n, k) ∧ n ≤ k + i ∧
-       k ≤ n + i].List (a, i))"]
+       (List (a, n), List (a, k)) → ∃i[k ≤ n + i ∧ n ≤ k + i ∧
+       i≤max (n, k)].List (a, i))"]
     );
 
   "list filter-map2 with filter postfix mono" >::
@@ -2049,8 +2114,8 @@ let rec filter_map2 =
       | False -> zs"
         [2,"∃n, k.
   δ =
-    ((List n, List k) → ∃i[i≤max (n, k) ∧ i ≤ n + k ∧
-       0 ≤ i].List i)"]
+    ((List n, List k) → ∃i[0 ≤ i ∧ i ≤ n + k ∧
+       i≤max (k, n)].List i)"]
     );
 
   "non-num no postcond list filter-map2 with filter postfix" >::
@@ -2149,8 +2214,8 @@ let rec filter_map2 = fun p q r f g h ->
   δ =
     ((b → c → Bool) → (b → Bool) → (c → Bool) →
        (b → c → a) → (b → a) → (c → a) →
-       (List (b, n), List (c, k)) → ∃i[i≤max (k, n) ∧ i ≤ n + k ∧
-       0 ≤ i].List (a, i))"]
+       (List (b, n), List (c, k)) → ∃i[0 ≤ i ∧ i ≤ n + k ∧
+       i≤max (k, n)].List (a, i))"]
     );
 
   "list map2 with filter postfix" >::
@@ -2180,8 +2245,8 @@ let rec map2_filter = fun q r f g h ->
         [2,"∃n, k, a, b, c.
   δ =
     ((b → Bool) → (c → Bool) → (b → c → a) → (b → a) →
-       (c → a) → (List (b, n), List (c, k)) → ∃i[i≤max (n, k) ∧
-       min (k, n)≤i ∧ i ≤ n + k ∧ 0 ≤ i].List (a, i))"]
+       (c → a) → (List (b, n), List (c, k)) → ∃i[0 ≤ i ∧
+       i ≤ n + k ∧ min (n, k)≤i ∧ i≤max (k, n)].List (a, i))"]
     );
 
   "avl_tree--height" >::
@@ -2291,8 +2356,8 @@ let rotr = efunction (* hl = hr + 3 *)
 "
         [2,"∃n, a.
   δ =
-    ((Avl (a, n + 3), a, Avl (a, n)) → ∃k[k ≤ n + 4 ∧
-       n + 3 ≤ k].Avl (a, k)) ∧
+    ((Avl (a, n + 3), a, Avl (a, n)) → ∃k[n + 3 ≤ k ∧
+       k ≤ n + 4].Avl (a, k)) ∧
   0 ≤ n"];
     );
 
@@ -2332,8 +2397,8 @@ let rotr = efunction
 "
         [2,"∃n, a.
   δ =
-    ((Avl (a, n + 3), a, Avl (a, n)) → ∃k[k ≤ n + 4 ∧
-       n + 3 ≤ k].Avl (a, k)) ∧
+    ((Avl (a, n + 3), a, Avl (a, n)) → ∃k[n + 3 ≤ k ∧
+       k ≤ n + 4].Avl (a, k)) ∧
   0 ≤ n"];
     );
 
@@ -2374,8 +2439,8 @@ let rotr = efunction
 "
         [2,"∃n, a.
   δ =
-    ((Avl (a, n + 3), a, Avl (a, n)) → ∃k[k ≤ n + 4 ∧
-       n + 3 ≤ k].Avl (a, k)) ∧
+    ((Avl (a, n + 3), a, Avl (a, n)) → ∃k[n + 3 ≤ k ∧
+       k ≤ n + 4].Avl (a, k)) ∧
   0 ≤ n"];
     );
 
@@ -2795,8 +2860,8 @@ let rec remove_min_binding = efunction
 (* The inequality [k + 2 ≤ 2 n] corresponds to the fact [n=1 ==> k=0]. *)
         [2,"∃n, a.
   δ =
-    (Avl (a, n) → ∃k[k + 2 ≤ 2 n ∧ k ≤ n ∧
-       n ≤ k + 1].Avl (a, k)) ∧
+    (Avl (a, n) → ∃k[n ≤ k + 1 ∧ k ≤ n ∧
+       k + 2 ≤ 2 n].Avl (a, k)) ∧
   1 ≤ n"];
     );
 
@@ -2841,8 +2906,8 @@ let rec remove_min_binding = efunction
 (* The inequality [k + 2 ≤ 2 n] corresponds to the fact [n=1 ==> k=0]. *)
         [2,"∃n, a.
   δ =
-    (Avl (a, n) → ∃k[k + 2 ≤ 2 n ∧ k ≤ n ∧
-       n ≤ k + 1].Avl (a, k)) ∧
+    (Avl (a, n) → ∃k[n ≤ k + 1 ∧ k ≤ n ∧
+       k + 2 ≤ 2 n].Avl (a, k)) ∧
   1 ≤ n"];
     );
 
@@ -2895,8 +2960,8 @@ let merge = efunction
 "
         [2,"∃n, k, a.
   δ =
-    ((Avl (a, n), Avl (a, k)) → ∃i[i≤max (k + 1, n + 1) ∧ k ≤ i ∧
-       i ≤ n + k ∧ n ≤ i].Avl (a, i)) ∧
+    ((Avl (a, n), Avl (a, k)) → ∃i[n ≤ i ∧ k ≤ i ∧
+       i ≤ n + k ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
   n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
@@ -2949,8 +3014,8 @@ let merge = efunction
 "
         [2,"∃n, k, a.
   δ =
-    ((Avl (a, n), Avl (a, k)) → ∃i[i≤max (k + 1, n + 1) ∧ k ≤ i ∧
-       i ≤ n + k ∧ n ≤ i].Avl (a, i)) ∧
+    ((Avl (a, n), Avl (a, k)) → ∃i[n ≤ i ∧ k ≤ i ∧
+       i ≤ n + k ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
   n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
@@ -3003,8 +3068,8 @@ let merge = efunction
 "
         [2,"∃n, k, a.
   δ =
-    ((Avl (a, n), Avl (a, k)) → ∃i[i≤max (k + 1, n + 1) ∧ k ≤ i ∧
-       i ≤ n + k ∧ n ≤ i].Avl (a, i)) ∧
+    ((Avl (a, n), Avl (a, k)) → ∃i[n ≤ i ∧ k ≤ i ∧
+       i ≤ n + k ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
   n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
@@ -3119,7 +3184,7 @@ let rec remove = fun x -> efunction
 "
         [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃k[0 ≤ k ∧ n ≤ k + 1 ∧
+    (a → Avl (a, n) → ∃k[n ≤ k + 1 ∧ 0 ≤ k ∧
        k ≤ n].Avl (a, k))"];
     );
 
@@ -3179,7 +3244,7 @@ let rec remove = fun x -> efunction
 "
         [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃k[0 ≤ k ∧ n ≤ k + 1 ∧
+    (a → Avl (a, n) → ∃k[n ≤ k + 1 ∧ 0 ≤ k ∧
        k ≤ n].Avl (a, k))"];
     );
 

@@ -23,5 +23,5 @@ external val compare : ∀a. a → a → LinOrder
 external val equal : ∀a. a → a → Bool
 
 val sortRange :
-   ∀i, k, n, a[n + k ≤ i ∧ 0 ≤ n ∧ 1 ≤ i].
+   ∀i, k, n, a[1 ≤ i ∧ 0 ≤ n ∧ k + n ≤ i].
    Array (a, i) → Num n → Num k → ()

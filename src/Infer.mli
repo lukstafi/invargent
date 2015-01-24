@@ -84,11 +84,13 @@ val simplify :
 (** {2 Postprocessing and printing} *)
 
 val separate_subst :
-  ?avoid:Defs.VarSet.t -> ?keep_uni:bool ->
+  ?avoid:Defs.VarSet.t -> ?keep:Defs.VarSet.t -> ?bvs:Defs.VarSet.t ->
+  ?keep_uni:bool -> apply:bool ->
   Defs.quant_ops -> Terms.formula ->
   Terms.subst * Terms.formula
 val separate_sep_subst :
-  ?avoid:Defs.VarSet.t -> ?keep_uni:bool ->
+  ?avoid:Defs.VarSet.t -> ?keep:Defs.VarSet.t -> ?bvs:Defs.VarSet.t ->
+  ?keep_uni:bool -> apply:bool ->
   Defs.quant_ops -> Terms.sep_formula ->
   Terms.subst * Terms.sep_formula
 

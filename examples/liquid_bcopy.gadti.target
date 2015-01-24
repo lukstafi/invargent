@@ -17,7 +17,7 @@ external val prod : Int → Int → Int
 external val int0 : Int
 
 val bcopy_aux :
-   ∀i, j, k, n, a[k ≤ j ∧ k ≤ i ∧ 0 ≤ n].
+   ∀i, j, k, n, a[0 ≤ n ∧ k ≤ i ∧ k ≤ j].
    Array (a, j) → Array (a, i) → (Num n, Num k) → ()
 
 val bcopy : ∀k, n, a[k ≤ n]. Array (a, k) → Array (a, n) → ()

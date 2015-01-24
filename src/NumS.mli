@@ -75,9 +75,10 @@ val abd :
 (** For uniformity, we return an empty list as introduced variables. *)
 val disjelim :
   Defs.quant_ops -> target_vs:Defs.VarSet.t -> preserve:Defs.VarSet.t ->
-  bvs:Defs.VarSet.t -> param_bvs:Defs.VarSet.t -> initstep:bool ->
+  bvs:Defs.VarSet.t -> param_bvs:Defs.VarSet.t ->
+  guess:bool -> initstep:bool ->
   (NumDefs.formula * NumDefs.formula) list ->
-  Defs.var_name list * NumDefs.formula
+  Defs.var_name list * (NumDefs.formula * NumDefs.formula)
 
 (** Eliminate provided variables from the substitution part of solved
     form and generally simplify the formula, but do not perform
@@ -133,7 +134,8 @@ val negation_elim :
   (NumDefs.formula * Defs.loc) list ->
   NumDefs.formula
 val separate_subst :
-  Defs.quant_ops -> ?no_csts:bool -> ?keep:Defs.VarSet.t -> NumDefs.formula ->
-  Terms.subst * NumDefs.formula
+  Defs.quant_ops -> ?no_csts:bool -> ?keep:Defs.VarSet.t ->
+  ?bvs:Defs.VarSet.t -> apply:bool -> NumDefs.formula ->
+  Terms.subst * (Defs.var_name * NumDefs.term) list * NumDefs.formula
 
 val transitive_cl : Defs.quant_ops -> NumDefs.formula -> NumDefs.formula

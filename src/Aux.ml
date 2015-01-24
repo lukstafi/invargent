@@ -330,6 +330,7 @@ let union_merge_f (type a) (type b) (type c)
   aux [] (l1, l2)
 
 let list_inter a b = List.filter (fun e -> List.mem e b) a
+let list_interq a b = List.filter (fun e -> List.memq e b) a
 let list_diff a b = List.filter (fun e -> not (List.mem e b)) a
 let list_remove a b = List.filter (fun e -> e <> a) b
 

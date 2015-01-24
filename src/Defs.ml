@@ -8,6 +8,7 @@
 let nodeadcode = ref true
 let force_nodeadcode = ref false
 let deadcode_flag = ref false
+let guess_from_postcond = ref true
 
 open Lexing
 open Aux

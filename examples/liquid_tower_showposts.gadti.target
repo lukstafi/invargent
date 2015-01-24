@@ -35,5 +35,5 @@ external showpiece : Int → Int → ()
 (** We use [i + 1 <= sz - 1] instead of [i <= sz - 1] to make inference
     harder. *)
 val showposts :
-  ∀i, k, n[i ≤ n + 1 ∧ i ≤ k + 1 ∧ 0 ≤ i].
+  ∀i, k, n[0 ≤ i ∧ i ≤ k + 1 ∧ i ≤ n + 1].
   Array (Int, i) → Array (Int, k) → Array (Int, n) → ()

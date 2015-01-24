@@ -236,14 +236,7 @@ let taut_atom_or_undir_opti = function
   | Eq (t1, t2, _) -> t1 = t2
   | Leq (t1, t2, _) -> t1 = t2
   | Subopti (t1, t2, _)
-  | Opti (t1, t2, _) ->
-    match direct_opti t1 t2 with
-    | None -> true
-    | Some (v, s, (Add [] | Lin (0, _, _)),
-            (Add [] | Lin (0, _, _))) -> true
-    | Some (v, s, Lin (1, 1, v2), _) when v = v2 -> true
-    | Some (v, s, _, Lin (1, 1, v2)) when v = v2 -> true
-    | _ -> false
+  | Opti (t1, t2, _) -> direct_opti t1 t2 = None
 
 let pr_atom ppf = function
   | Eq (t1, t2, _) ->

@@ -26,4 +26,4 @@ external val div2 : ∀n. Num (2 n) → Num n
 
 val bsearch :
    ∀n, a[0 ≤ n + 1].
-   a → Array (a, n + 1) → ∃k[k ≤ n ∧ 0 ≤ k + 1].Num k
+   a → Array (a, n + 1) → ∃k[0 ≤ k + 1 ∧ k ≤ n].Num k

@@ -11,5 +11,5 @@ external val array_set :
 external val array_length : ∀n, a[0 ≤ n]. Array (a, n) → Num n
 
 val swap_interval :
-   ∀i, j, k, n, a[n + i ≤ j ∧ k + i ≤ j ∧ 0 ≤ k ∧ 0 ≤ n ∧
-   1 ≤ j]. Array (a, j) → Num n → Num k → Num i → ()
+   ∀i, j, k, n, a[1 ≤ j ∧ 0 ≤ n ∧ 0 ≤ k ∧ i + k ≤ j ∧
+   i + n ≤ j]. Array (a, j) → Num n → Num k → Num i → ()

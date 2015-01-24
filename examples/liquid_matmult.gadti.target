@@ -34,8 +34,8 @@ external val mult : Int → Int → Int
 external val int0 : Int
 
 val fillar :
-   ∀k, n[0 ≤ k ∧ 0 ≤ n]. Matrix (n, k) → (() → Int) → ()
+   ∀k, n[0 ≤ n ∧ 0 ≤ k]. Matrix (n, k) → (() → Int) → ()
 
 val matmul :
-   ∀i, j, k, n[j ≤ n ∧ 0 ≤ j ∧ 0 ≤ i ∧ 0 ≤ k].
-   Matrix (i, j) → Matrix (n, k) → Matrix (i, k)
+   ∀i, j, k, n[0 ≤ n ∧ 0 ≤ k ∧ 0 ≤ j ∧ j ≤ i].
+   Matrix (n, j) → Matrix (i, k) → Matrix (n, k)

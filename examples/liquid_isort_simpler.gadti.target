@@ -27,5 +27,5 @@ external swap :
    Array (a, i) → Num k → Num n → ()
 
 val insertSort :
-   ∀i, k, n, a[n + k ≤ i ∧ 0 ≤ k].
+   ∀i, k, n, a[0 ≤ k ∧ k + n ≤ i].
    Array (a, i) → Num k → Num n → ()

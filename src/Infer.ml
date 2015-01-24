@@ -97,7 +97,8 @@ let pr_rbrs5 ppf brs =
       pr_formula prem pr_formula concl) ppf brs
 
 
-let separate_sep_subst ?(avoid=VarSet.empty) ?(keep_uni=false)
+let separate_sep_subst ?(avoid=VarSet.empty) ?keep ?bvs
+    ?(keep_uni=false) ~apply
     q {cnj_typ; cnj_num; cnj_ord; cnj_so} =
   let filter sb =
     if keep_uni && VarSet.is_empty avoid
@@ -107,7 +108,8 @@ let separate_sep_subst ?(avoid=VarSet.empty) ?(keep_uni=false)
         (fun (v,_) -> not (VarSet.mem v avoid) &&
                       (keep_uni || not (q.uni_v v))) sb in
   let sb_ty = filter cnj_typ in
-  let sb_num, cnj_num = NumS.separate_subst q cnj_num in
+  let sb_num, _, cnj_num =
+    NumS.separate_subst q ?keep ?bvs ~apply cnj_num in
   let sb_num = filter sb_num in
   let sb_ord, cnj_ord = OrderS.separate_subst q cnj_ord in
   let sb_ord = filter sb_ord in
@@ -116,9 +118,9 @@ let separate_sep_subst ?(avoid=VarSet.empty) ?(keep_uni=false)
   sb, {cnj_typ=[]; cnj_num; cnj_ord;
        cnj_so=subst_formula more_sb cnj_so}
 
-let separate_subst ?(avoid=VarSet.empty) ?(keep_uni=false) q phi =
+let separate_subst ?avoid ?keep ?bvs ?(keep_uni=false) ~apply q phi =
   let sb, {cnj_typ; cnj_num; cnj_ord; cnj_so} =
-    separate_sep_subst ~avoid ~keep_uni q
+    separate_sep_subst ?avoid ?keep ?bvs ~keep_uni ~apply q
       (solve ~use_quants:false q phi) in
   assert (cnj_typ=[]);
   sb, NumS.formula_of_sort cnj_num @
@@ -199,8 +201,9 @@ let phantom_enumeration_arg : (cns_name, cns_name list option array) Hashtbl.t
 exception Not_enum
 let extract_phantom_enumerations = function
   | TypConstr _ | PrimTyp _ | LetRecVal _ | LetVal _ -> ()
-  | ValConstr (_, _, _, phi, _, name, args, loc) ->
-    let sb, _ = separate_subst empty_q phi in
+  | ValConstr (_, _, vs, phi, _, name, args, loc) ->
+    let sb, _ =
+      separate_subst ~bvs:(vars_of_list vs) ~apply:false empty_q phi in
     let args =
       Array.map (fun v -> subst_typ sb (TVar v)) (Array.of_list args) in
     let enums =
@@ -800,7 +803,8 @@ let annotate_expr q res_sb chi_sb nice_sb e : texpr =
       try List.find (fun (k,_) -> List.mem k ns) chi_sb
       with Not_found -> assert false in
     let nice_sb, (vs, phi) = nice_ans ~sb:nice_sb ans in
-    let sb, phi = separate_subst q phi in
+    let sb, phi =
+      separate_subst ~bvs:(vars_of_list vs) ~apply:true q phi in
     let res, _ = List.assoc delta sb in
     let vs = VarSet.inter
         (VarSet.union (fvs_formula phi) (fvs_typ res))
@@ -924,7 +928,8 @@ let infer_prog solver prog =
          *]*)
          let extydec =
            ITypConstr (None, ety_n, List.map var_sort pvs, loc) in
-         let sb, phi = separate_subst q phi in
+         let sb, phi =
+           separate_subst ~bvs:(vars_of_list vs) ~apply:true q phi in
          let ty = List.map (subst_typ sb) ty in
          let pvs = List.map
              (fun v -> try fst (List.assoc v sb) with Not_found -> TVar v)
@@ -944,9 +949,10 @@ let infer_prog solver prog =
         | _, PrimTyp (docu, n, sorts, expansion, lc) ->
           [IPrimTyp (docu, n, sorts, expansion, lc)]
         | _, ValConstr (docu, name, vs, phi, args, c_n, c_args, lc) ->
-          let sb, phi = separate_subst empty_q phi in
-          (*[* Format.printf "ValConstr: n=%s sb=%a@\n%!"
-            (cns_str name) pr_subst sb; *]*)
+          let sb, phi =
+            separate_subst ~bvs:(vars_of_list vs) ~apply:true empty_q phi in
+          (*[* Format.printf "ValConstr: n=%s@ sb=%a@ phi=%a@\n%!"
+            (cns_str name) pr_subst sb pr_formula phi; *]*)
           let args = List.map (subst_typ sb) args in
           let c_args = List.map
             (fun v -> try fst (List.assoc v sb) with Not_found -> TVar v)
@@ -989,8 +995,12 @@ let infer_prog solver prog =
           let nice_sb, (vs, phi) =
             try nice_ans (List.assoc chi_id sb_chi)
             with Not_found -> assert false in
-          let sb_res, phi_res = separate_subst q phi_res in
-          let more_sb, phi = separate_subst q phi in
+          let sb_res, phi_res =
+            separate_subst ~bvs:(vars_of_list (vs @ bvs))
+              ~apply:true q phi_res in
+          let more_sb, phi =
+            separate_subst ~bvs:(vars_of_list (vs @ bvs))
+              ~apply:true q phi in
           let sb = update_sb ~more_sb sb_res in
           let e = annotate_expr q sb sb_chi nice_sb e
           and tests = List.map (annotate_expr q sb sb_chi nice_sb) tests in
@@ -1054,7 +1064,8 @@ let infer_prog solver prog =
              pr_cnstrnt cn; *]*)
           let q, phi, sb_chi = solver ~new_ex_types ~preserve cn in
           let elim_extypes = !elim_cell in
-          let sb, phi = separate_subst q phi in
+          let sb, phi =
+            separate_subst ~bvs:preserve ~apply:true q phi in
           let res = subst_typ sb t in
           let gvs = VarSet.union (fvs_formula phi) (fvs_typ res) in
           (*[* Format.printf "LetVal: res=%a@ gvs=%a@ phi=%a@\n%!"
@@ -1071,7 +1082,8 @@ let infer_prog solver prog =
           let top_sch = gvs, phi, res in
           let e = annotate_expr q sb sb_chi nice_sb e in
           let exphi = subst_formula sb exphi in
-          let exsb, exphi = separate_subst q exphi in
+          let exsb, exphi =
+            separate_subst ~bvs:(add_vars gvs preserve) ~apply:true q exphi in
           let exsb = update_sb ~more_sb:exsb sb in
           let ex_items =
             update_new_ex_types q new_ex_types sb sb_chi in
@@ -1103,7 +1115,9 @@ let infer_prog solver prog =
               let res = subst_typ exsb res in
               let gvs, phi = prepare_scheme phi res in
               let exvs, exphi = prepare_scheme exphi res in
-              let more_sb, exphi = separate_subst q exphi in
+              let more_sb, exphi =
+                separate_subst
+                  ~bvs:(VarSet.union exvs gvs) ~apply:true q exphi in
               let sb = update_sb ~more_sb sb in
               let exvs = VarSet.diff exvs (vars_of_list [delta; delta']) in
               let gvs = VarSet.diff gvs (vars_of_list [delta; delta']) in

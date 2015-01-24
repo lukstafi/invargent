@@ -31,10 +31,10 @@ val print_row : ∀n. Num n → Int → ()
 val print_queens : ∀k, n[n ≤ k]. Array (Int, k) → Num n → ()
 
 val solved :
-   ∀k, n[n + 1 ≤ k ∧ 0 ≤ n]. Array (Int, k) → Num n → Bool
+   ∀k, n[0 ≤ n ∧ n + 1 ≤ k]. Array (Int, k) → Num n → Bool
 
 val loop :
-   ∀i, k, n[k ≤ i ∧ n + 1 ≤ i ∧ 0 ≤ n].
+   ∀i, k, n[0 ≤ n ∧ n + 1 ≤ i ∧ k ≤ i].
    Array (Int, i) → Num k → Num n → ()
 
 val queens : ∀n[1 ≤ n]. Num n → ()

@@ -17,6 +17,9 @@ val nodeadcode : bool ref
     min, max predicates are treated as disjunctions, and are expanded
     to DNF in premises. Default [false]. *)
 val force_nodeadcode : bool ref
+(** If [guess_from_postcond=false], do not perform abductive guessing
+    during constraint generalization. Default [true]. *)
+val guess_from_postcond : bool ref
 val deadcode_flag : bool ref
 
 (** Source location for reporting parsing and inference problems. *)

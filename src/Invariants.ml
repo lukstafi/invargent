@@ -507,6 +507,7 @@ let split do_postcond ~avs ans negchi_locs ~bvs ~cand_bvs q =
 
 (** Eliminate provided variables if they do not contribute to
     constraints and generally simplify the formula. *)
+(* FIXME: cleanup, also see FIXME at converge *)
 let simplify q_ops ~bvs ?keepvs ?guard ?initstep (vs, cnj) =
   let vs = vars_of_list vs in
   (*[* Format.printf "simplify: keepvs=%a@ vs=%a@ cnj=%a@\n%!"
@@ -546,7 +547,7 @@ let simplify q_ops ~bvs ?keepvs ?guard ?initstep (vs, cnj) =
         | _ -> assert false)
       sb in
   let ty_ans = subst_sb ~sb ty_ans in
-  (* We "cheat": eliminate variables introduced earlier, so that
+  (* We "cheat": eliminate variables introduced later, so that
      convergence check has easier job (i.e. just syntactic). *)
   let ty_sb, ty_ans = List.partition
       (function
@@ -561,14 +562,15 @@ let simplify q_ops ~bvs ?keepvs ?guard ?initstep (vs, cnj) =
   (*[* Format.printf "simplify: vs=%a@ sb=%a@ ty_sb=%a@\n%!" pr_vars vs
     pr_subst sb pr_subst ty_sb; *]*)
   let ty_ans = update_sb ~more_sb:ty_sb ty_ans in
-  let ty_ans =
+  let ty_ans, keepvs' =
     match keepvs with
-    | None -> ty_ans
+    | None -> ty_ans, VarSet.empty
     | Some keepvs ->
-      List.filter (fun (v, _) -> VarSet.mem v keepvs) ty_ans in
-  let num_sb, num_ans =
-    NumS.separate_subst q num_ans in
-  let num_sb, more_num_ans =
+      List.filter (fun (v, _) -> VarSet.mem v keepvs) ty_ans, keepvs in
+  let num_sb, num_nsb, num_ans =
+    NumS.separate_subst q ~keep:(VarSet.diff keepvs' vs) ~bvs
+      ~no_csts:true ~apply:true num_ans in
+  (*let num_sb, more_num_ans =
     match keepvs with
     | None ->
       List.partition
@@ -576,7 +578,24 @@ let simplify q_ops ~bvs ?keepvs ?guard ?initstep (vs, cnj) =
         num_sb
     | Some keepvs ->
       List.partition (fun (v,_) -> not (VarSet.mem v keepvs)) num_sb in
-  let num_ans = NumS.sort_of_subst more_num_ans @ num_ans in
+  let num_ans = NumS.sort_of_subst more_num_ans @ num_ans in*)
+  (* We "cheat": eliminate variables introduced later, so that
+     convergence check has easier job (i.e. just syntactic). *)
+  let num_sb = List.map
+      (function
+        | v, (TVar v2, lc) when v < v2 -> v2, (TVar v, lc)
+        | v, (Alien (Num_term (NumDefs.Lin (1, 1, v2))), lc) when v < v2 ->
+          v2, (TVar v, lc)
+        | sv -> sv)
+      num_sb
+  and num_nsb = List.map
+      (function
+        | v, NumDefs.Lin (1, 1, v2) when v < v2 -> v2, NumDefs.Lin (1, 1, v)
+        | sv -> sv)                  
+      num_nsb in
+  (*[* Format.printf "simplify:@\nnum_sb=%a@\nnum_ans0=%a@\n%!"
+    pr_subst num_sb NumDefs.pr_formula num_ans; *]*)
+  let num_ans = List.map (NumDefs.nsubst_atom num_nsb) num_ans in
   let guard = map_opt guard
     (fun cnj -> (sep_formulas cnj).cnj_num) in
   let localvs =
@@ -649,6 +668,7 @@ let prune_redund q_ops ?localvs ?guard ~initstep (vs, cnj) =
 
 (* Rename the new solution to match variables of the old solution. *)
 (* TODO: ugly, rewrite or provide a medium-level description. *)
+(* FIXME: coordinate with NumS.disjelim_simplify. *)
 let converge q_ops ~initstep ?guard ~check_only
     (vs1, cnj1) (vs2, cnj2) =
   (*[* Format.printf
@@ -794,7 +814,7 @@ let empty_disc = {at_typ=[],[]; at_num=[]; at_ord=[]; at_so=()}
 let empty_dl = {at_typ=[]; at_num=[]; at_ord=[]; at_so=()}
 
 (* Captures where the repeat step is/are. *)
-let disj_step = [|1; 1; 2; 4|]
+let disj_step = [|1; 1; 2; 3; 4|]
 
 let solve q_ops new_ex_types exty_res_chi brs =
   timeout_flag := false;
@@ -1095,17 +1115,19 @@ let solve q_ops new_ex_types exty_res_chi brs =
                  (*[* Format.printf "@\n%!"; *]*)
                  (* [usb] is additional abductive the answer. *)
                  let up_of_anchor v = upward_of v anchor in
-                 let usb, (g_vs, g_ans) =
+                 let g_abd, (g_vs, g_ans) =
                    DisjElim.disjelim q_ops (* ?old_delta *)
                      ~bvs ~param_bvs (* ~preserve *)
                      ~up_of_anchor
-                     ~do_num:(disj_step.(1) <= iter_no) ~initstep
+                     ~do_num:(disj_step.(1) <= iter_no)
+                     ~guess:((iter_no < disj_step.(3)))
+                     ~initstep
                      ~residuum:(if !use_solution_in_postcond
                                 then ans1_res else []) cnjs in
                  (*[* Format.printf
                    "solve-3: disjelim pre-simpl g_ans=%a@\n%!"
                    pr_formula g_ans; *]*)
-                 abdsjelim := to_formula usb @ !abdsjelim;
+                 abdsjelim := g_abd @ !abdsjelim;
                  let ans = g_vs, g_ans in
                  i,
                  (* FIXME: unnecessary? *)
@@ -1132,9 +1154,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
         (* 4a *)
         (* Collected invariants, for filtering postconditions. *)
         let lift_ex_types cmp_v i (g_vs, g_ans) =
-          let localvs = vars_of_list g_vs in
-          let keepvs =
-            add_vars [delta; delta'] (VarSet.union localvs bvs) in
+          (* let keepvs =
+            add_vars [delta; delta'] (VarSet.union localvs bvs) in *)
           (*[* Format.printf
             "lift_ex_types: g_vs=%a@ init g_ans=%a@\n%!"
             pr_vars (vars_of_list g_vs) pr_formula g_ans;
@@ -1142,21 +1163,15 @@ let solve q_ops new_ex_types exty_res_chi brs =
           (* 3 *)
           let fvs = VarSet.diff (fvs_formula g_ans)
               (vars_of_list [delta; delta']) in
+          let localvs = VarSet.inter (vars_of_list g_vs) fvs in
           let anchor =
             try Hashtbl.find q.chiK_anchor i
             with Not_found -> assert false in
-          let e_vs = VarSet.filter
-              (fun v -> not (upward_of v anchor)) fvs in
-          (* FIXME: disappearing substitution? *)
-          let _, (_, g_ans) =
-            if initstep then [], (VarSet.elements e_vs, g_ans)
-            else vsimplify q_ops ~bvs ~keepvs ~initstep
-                (VarSet.elements e_vs, g_ans) in
+          let pvs, e_vs = VarSet.partition
+              (fun v -> upward_of v anchor) fvs in
           (* [e_vs] does not contain [chi_vs] while [fvs] may have
              eliminated variables. *)
-          let allvs = VarSet.diff (fvs_formula g_ans)
-              (vars_of_list [delta; delta']) in
-          let pvs = VarSet.diff allvs localvs in
+          let pvs = VarSet.diff pvs localvs in
           let pvs = VarSet.elements pvs in
           (* FIXME: ensure universal variables are eliminated? *)
           let pvs, uvs = List.partition
@@ -1168,12 +1183,13 @@ let solve q_ops new_ex_types exty_res_chi brs =
             Eqty (tdelta', tpar, dummy_loc)
             :: g_ans in
           (*[* Format.printf
-            "lift_ex_types: fvs=%a@ pvs=%a@ uvs=%a@ tpar=%a@ \
-             g_ans=%a@ allvs=%a@ phi=%a@\n%!"
+            "lift_ex_types: anchor=%s@ fvs=%a@ pvs=%a@ uvs=%a@ tpar=%a@ \
+             g_ans=%a@ e_vs=%a@ phi=%a@\n%!" (var_str anchor)
             pr_vars fvs pr_vars (vars_of_list pvs) pr_vars (vars_of_list uvs)
-            pr_ty tpar pr_formula g_ans pr_vars allvs pr_formula phi;
+            pr_ty tpar pr_formula g_ans pr_vars e_vs pr_formula phi;
           *]*)
-          tpar, (VarSet.elements allvs, phi) in
+          (* FIXME: g_vs should be ignored? *)
+          tpar, (VarSet.elements e_vs, phi) in
         (* 4b *)
         let rn_sb, g_rol = rev_fold_map2
             (fun rn_acc (i,ans1) (j,ans2) ->
@@ -1186,7 +1202,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                let rn_sb, tpar, ans2 =
                  converge q.op ~guard
                    ~initstep
-                   ~check_only:(iter_no < disj_step.(3)) ans1 ans2 in
+                   ~check_only:(iter_no < disj_step.(4)) ans1 ans2 in
 
                (*[* Format.printf "solve.loop-dK: final@ tpar=%a@ ans2=%a@\n%!"
                  pr_ty tpar pr_ans ans2; *]*)
@@ -1433,7 +1449,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
           else q.op.Defs.cmp_v v1 v2 in
         let q_op = {q.op with cmp_v} in
         (* FIXME: after splitting there are more bvs? *)
-        Infer.separate_subst ~avoid:bvs q_op ans_res in
+        Infer.separate_subst ~avoid:bvs ~bvs ~apply:false q_op ans_res in
       (* Do not substitute in postconditions -- they do not have free
                  variables! *)
       unfinished_postcond_flag := false;
@@ -1513,7 +1529,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                             unify ~use_quants:false ~sb q.op
                               [Eqty (target, source, lc)] in
                           let sb, more_dans = Infer.separate_sep_subst
-                              ~keep_uni:true q.op target_cnj in
+                              ~keep_uni:true ~apply:true q.op target_cnj in
                           let more_cnj =
                             to_formula
                               (List.filter
@@ -1579,12 +1595,12 @@ let solve q_ops new_ex_types exty_res_chi brs =
              let vs' = dvs @ vs in
              (* FIXME: perhaps filter-out atoms contained upstream *)
              (* FIXME: after splitting there are more bvs? *)
-             let num_sb, (_, ans') = simplify q.op ~bvs (vs', dans @ ans) in
+             let sb, (_, ans') = simplify q.op ~bvs (vs', dans @ ans) in
              (*[* Format.printf
                "solve-loop-10: vs=%a@ ans=%a@ chi%d(.)=@ %a@\n%!"
                pr_vars (vars_of_list vs) pr_formula ans i
                pr_ans (vs', ans'); *]*)
-             num_sb, (i, (vs', ans')))
+             sb, (i, (vs', ans')))
           sol1 in
       let new_sbs, sol2 = List.split sol2 in
       (* FIXME: is it possible to have non-disjoint domains of [new_sbs]? *)
@@ -1690,7 +1706,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
         else q.op.Defs.cmp_v v1 v2 in
       {q.op with cmp_v} in
     let ans_sb, _ =
-      Infer.separate_subst q_op ans_res in
+      Infer.separate_subst ~bvs ~apply:false q_op ans_res in
     (*[* Format.printf "solve: final@\nans_res=%a@\nans_sb=%a@\n%!"
       pr_formula ans_res pr_subst ans_sb;
     *]*)
@@ -1732,7 +1748,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
                chi_i (String.concat ","
                         (List.map (string_of_int % fst) rol)); *]*)
              [], [] in
-         let sb, rphi = Infer.separate_subst q_op phi in
+         let sb, rphi =
+           Infer.separate_subst ~bvs:(vars_of_list (chi_vs @ pvs))
+             ~apply:true q_op phi in
          let sb = update_sb ~more_sb:ans_sb sb in
          let sb = List.map
              (function

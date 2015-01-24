@@ -7,7 +7,7 @@
 *)
 open OUnit
 
-let debug = ref (* true *)false
+let debug = ref (*[* true *]*)false
 
 let input_file file =
   let f = open_in file in
@@ -76,14 +76,31 @@ let test_case ?(test_annot=false) ?richer_answers ?more_general_num
      then assert_equal ~printer:(fun x->x)
          (input_file (file^".ml.target"))
          (input_file (file^".ml"))
-   with (Defs.Report_toplevel _ | Terms.Contradiction _
-        | Terms.NoAnswer _) as exn ->
+   with
+   | (Defs.Report_toplevel _ | Terms.Contradiction _
+     | Terms.NoAnswer _) as exn ->
      ignore (Format.flush_str_formatter ());
      Terms.pr_exception Format.str_formatter exn;
      let msg = Format.flush_str_formatter () in
      Format.printf "@\n%s@\n%!"  msg;
      Printexc.print_backtrace stdout;
-     assert_failure msg);
+     Abduction.richer_answers := old_richer_answers;
+     NumS.more_general := old_more_general_num;
+     Abduction.prefer_guess := old_prefer_guess;
+     NumS.abd_rotations := old_abd_rotations;
+     NumS.abd_timeout_count := old_num_abd_timeout;
+     NumS.abd_fail_timeout_count := old_num_abd_fail_timeout;
+     Defs.nodeadcode := old_nodeadcode;
+     assert_failure msg
+   | exn ->
+     Abduction.richer_answers := old_richer_answers;
+     NumS.more_general := old_more_general_num;
+     Abduction.prefer_guess := old_prefer_guess;
+     NumS.abd_rotations := old_abd_rotations;
+     NumS.abd_timeout_count := old_num_abd_timeout;
+     NumS.abd_fail_timeout_count := old_num_abd_fail_timeout;
+     Defs.nodeadcode := old_nodeadcode;
+     raise exn);
   Abduction.richer_answers := old_richer_answers;
   NumS.more_general := old_more_general_num;
   Abduction.prefer_guess := old_prefer_guess;
@@ -120,7 +137,7 @@ let tests = "InvarGenT" >::: [
            test_case "equal_assert" ());
       "binary_plus" >::
         (fun () ->
-           skip_if !debug "debug";
+           (* skip_if !debug "debug"; *)
            test_case "binary_plus" ());
       "binary_plus-harder" >::
         (fun () ->
@@ -494,7 +511,6 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_heapsort_heapify_simpler3" ());
       "liquid_heapsort-heapify" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_heapsort_heapify" ());
       "liquid_heapsort-heapsort-simpler" >::

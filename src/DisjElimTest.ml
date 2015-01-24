@@ -31,7 +31,7 @@ let test_case msg test result =
       in *)
     let usb, (vs, ans) = DisjElim.disjelim q ~target ~initstep:false
         ~bvs:VarSet.empty ~param_bvs:VarSet.empty (* ~preserve *)
-        ~up_of_anchor:(fun _ -> true) ~do_num:true
+        ~up_of_anchor:(fun _ -> true) ~do_num:true ~guess:true
         ~residuum:[]
         (List.map (fun (p, c) -> p, p @ c) brs) in
     ignore (Format.flush_str_formatter ());
