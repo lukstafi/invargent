@@ -137,7 +137,7 @@ let tests = "InvarGenT" >::: [
            test_case "equal_assert" ());
       "binary_plus" >::
         (fun () ->
-           (* skip_if !debug "debug"; *)
+           skip_if !debug "debug";
            test_case "binary_plus" ());
       "binary_plus-harder" >::
         (fun () ->

@@ -275,9 +275,16 @@ let simplify_dsjelim q initstep ~target ~param_bvs vs ans =
      ty_ans=%a@ num_ans=%a@\n%!"
     (var_str target) pr_vars target_vs pr_subst ans.at_typ
     NumDefs.pr_formula ans.at_num;  *]*)
+  let ty_ans = List.map
+      (function
+        | v, (TVar v2, lc)
+          when VarSet.mem v param_bvs && not (VarSet.mem v2 param_bvs) ->
+          v2, (TVar v, lc)
+        | sv -> sv)
+      ans.at_typ in
   let ty_sb, ty_ans = List.partition
       (fun (v,_) -> not (VarSet.mem v target_vs) || List.mem v vs)
-      ans.at_typ in
+      ty_ans in
   let ty_ans = to_formula ty_ans in
   (* Opti atoms are privileged because, like equations, they are
      functional relations. *)
