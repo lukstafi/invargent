@@ -851,10 +851,21 @@
     numerical joint abduction (default 10).
 
     <item*|<verbatim|-affine_penalty>>How much to penalize an abduction
-    candidate inequality for containing a constant term (default 1). Too
+    candidate inequality for containing a constant term (default 4). Too
     small a value may lead to divergence, e.g. in some examples abduction
     will pick an answer <math|a+1>, which in the following step will force an
     answer <math|a+2>, then <math|a+3>, etc.
+
+    <item*|<verbatim|-complexity_penalty>>How much to penalize an abduction
+    candidate inequality for complexity of its coefficients; the coefficient
+    of either the linear or power scaling of the coefficients (default 2.0).
+
+    <item*|<verbatim|-abd_lin_thres_scaling>>Scale the complexity cost of
+    coefficients linearly with a jump of the given height after coefficient 1
+    (default 2.0).
+
+    <item*|<strong|<verbatim|-abd_pow_scaling>>>Scale the complexity cost of
+    coefficients according to the given power.
 
     <item*|<verbatim|-more_general_num>>Filter out less general abduction
     candidate atoms (does not guarantee overall more general answers). The

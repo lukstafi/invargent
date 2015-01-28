@@ -34,16 +34,13 @@ external val plus : Int → Int → Int
 
 external val int0 : Int
 
-val heapify :
-   ∀i, k, n, a[0 ≤ n ∧ i ≤ k].
+external heapify :
+   ∀i, k, n, a[i ≤ k ∧ n + 1 ≤ i ∧ 0 ≤ n].
    Num i → Array (a, k) → Num n → ()
 
-val buildheap : ∀k, n, a[k ≤ n]. Num k → Array (a, n) → ()
+external buildheap :
+   ∀k, n, a[k ≤ n ∧ 0 ≤ k]. Num k → Array (a, n) → ()
 
 val heapsort :
-   ∀i, k, n, a[k ≤ n ∧ i ≤ k].
+   ∀i, k, n, a[0 ≤ k ∧ k ≤ n ∧ i ≤ n].
    Num i → Num k → Array (a, n) → ()
-
-val print_array :
-   ∀i, k, n[k ≤ i ∧ 0 ≤ n].
-   Array (String, i) → Num n → Num k → ()

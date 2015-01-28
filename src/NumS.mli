@@ -32,11 +32,19 @@ val revert_csts : bool ref
     belonging to some formula in the discard list. Default [2]. *)
 val discard_penalty : int ref
 (** How much to penalize an abduction candidate inequality for
-    containing a constant term. Default [1]. *)
+    containing a constant term. Default [4]. *)
 val affine_penalty : int ref
+(** How much to penalize for complexity; the coefficient $a$ in the
+    description of {!complexity_scale}. Default [2.0]. *)
+val complexity_penalty : float ref
 (** Filter out less general abduction candidate atoms (does not
     guarantee overall more general answers). Default [false]. *)
 val more_general : bool ref
+(** How to scale coefficients when computing complexity: either by
+    raising to the given power i.e. [a*k^b], or by linear scaling with
+    a jump at the given threshold with the given height
+    i.e. $a*k + a*1_{b<=k}$. Default [`LinThres (2, 2.0)]. *)
+val complexity_scale : [`LinThres of int * float | `Pow of float] ref
 (** Twice as many angles of rotation are tried out for *)
 val disjelim_rotations : int ref
 (** How many opti atoms: [x = min(a, b)], [x = max(a, b)] in a
@@ -45,6 +53,8 @@ val max_opti_postcond : int ref
 (** How many subopti atoms: [min(a, b) <= x], [x <= max(a, b)] in a
     postcondition. *)
 val max_subopti_postcond : int ref
+(* TODO: export more knobs, i.e. global reference variables; also add their
+   command-line interfaces in [InvarGenT.main]. *)
 
 val num_of : Terms.typ -> NumDefs.term
 val sort_formula : Terms.formula -> NumDefs.formula

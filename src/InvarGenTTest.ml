@@ -503,6 +503,7 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_heapsort_heapify_simpler" ());
       "liquid_heapsort-heapify-simpler2" >::
         (fun () ->
+           (* todo "FIXME: time (worst)"; *)
            skip_if !debug "debug";
            test_case "liquid_heapsort_heapify_simpler2" ());
       "liquid_heapsort-heapify-simpler3" >::
@@ -515,17 +516,14 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_heapsort_heapify" ());
       "liquid_heapsort-heapsort-simpler" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_heapsort_heapsort_simpler" ());
       "liquid_heapsort-heapsort" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_heapsort_heapsort" ());
       "liquid_heapsort" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_heapsort" ());
       "liquid_fft" >::

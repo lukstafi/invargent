@@ -33,6 +33,8 @@ let encourage_not_yet_bounded = ref 1
 let discourage_equations_1 = ref 4
 let discourage_equations_2 = ref 4
 let implied_ineqn_penalty = ref 0.0
+let abd_scoring = ref `Sum
+let complexity_scale = ref (`LinThres (2, 2.0)) (* (`Pow 2.0) *)
 let preserve_params = ref (* false *)true
 let max_opti_postcond = ref 5
 let max_subopti_postcond = ref 5
@@ -81,6 +83,14 @@ let w_size (vars, cst, _) =
       (fun acc (_, coef) -> if coef =/ !/0 then acc else acc + 1) 0 vars
 
 let w_complexity1 bvs vars =
+  let update =
+    match !complexity_scale with
+    | `Pow pow_scale ->
+      fun kk -> float_of_int kk ** pow_scale *. !complexity_penalty
+    | `LinThres (thres, step) ->
+      fun kk ->
+        if kk < thres then float_of_int kk *. !complexity_penalty
+        else float_of_int kk *. !complexity_penalty +. step in
   int_of_float
     (List.fold_left
        (fun acc (v, k) ->
@@ -90,7 +100,7 @@ let w_complexity1 bvs vars =
               abs (Big_int.int_of_big_int (Ratio.numerator_ratio r)) +
                 abs (Big_int.int_of_big_int
                        (Ratio.denominator_ratio r)) - 1 in
-            acc -. float_of_int kk *. !complexity_penalty
+            acc -. update kk
           else acc)
        0. vars)
 
@@ -259,10 +269,15 @@ let norm_by_gcd (vars, _, _ as w) =
   | (_, k)::vars1 ->
     let denom k =
       Big_int.abs_big_int (Ratio.denominator_ratio (ratio_of_num k)) in
-    let norm = List.fold_left
+    let norm_d = List.fold_left
         (fun acc (_, k) -> Big_int.gcd_big_int acc (denom k))
         (denom k) vars1 in
-    mult (num_of_big_int norm) w
+    let nom k =
+      Big_int.abs_big_int (Ratio.numerator_ratio (ratio_of_num k)) in
+    let norm_n = List.fold_left
+        (fun acc (_, k) -> Big_int.gcd_big_int acc (nom k))
+        (nom k) vars1 in
+    mult (num_of_big_int norm_d // num_of_big_int norm_n) w
 
 let norm_by_lcd (vars, cst, _ as w) =
   let denom k =
@@ -515,13 +530,15 @@ let unexpand_sides ~cmp_v ((lhs, rhs), lc) =
   diff ~cmp_v (norm_w ~cmp_v (unpack lhs)) (norm_w ~cmp_v (unpack rhs))
 
 let expand_atom equ (_,_,loc as w) =
-  let left, right = expand_sides w in
+  let left, right = expand_sides (norm_by_gcd w) in
   if equ then Eq (left, right, loc) else Leq (left, right, loc)
 
 let expand_opti ((_,_,lc1) as w1, (_,_,lc2 as w2)) =
-  Opti (expand_w w1, expand_w w2, loc_union lc1 lc2)
+  Opti (expand_w (norm_by_gcd w1), expand_w (norm_by_gcd w2),
+        loc_union lc1 lc2)
 let expand_subopti ((_,_,lc1) as w1, (_,_,lc2 as w2)) =
-  Subopti (expand_w w1, expand_w w2, loc_union lc1 lc2)
+  Subopti (expand_w (norm_by_gcd w1), expand_w (norm_by_gcd w2),
+           loc_union lc1 lc2)
 
 let extract_v_subst v (vars, cst, loc) =
   let j, vars = pop_assoc v vars in
@@ -1548,15 +1565,23 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of ~bvs ~discard_ineqs
                  | Eq_w w -> [w; mult !/(-1) w]
                  | Opti_w (w1, w2) | Subopti_w (w1, w2)-> [w1; w2])
                new_viol @ new_ineqn in
-           let score =
-             List.fold_left
-               (fun (acc : int) w' -> acc + w_value w w')
-               (if new_eqn = [] then 0 else ~- !discourage_equations_2)
-               (* [new_ineqn] should already contain [w] *)
+           let scores = List.map
+               (w_value w)
                (new_eqn @ List.map (mult !/(-1)) new_eqn @
-                  new_ineqn)
-             - int_of_float (!implied_ineqn_penalty *. float_of_int
-                                 (List.length new_ineqn - 1)) in
+               (* [new_ineqn] should already contain [w] *)
+                  new_ineqn) in
+           let i2f = float_of_int and f2i = int_of_float in
+           let score =
+             (if new_eqn = [] then 0 else ~- !discourage_equations_2) +
+             (if !abd_scoring = `Sum then List.fold_left (+) 0 scores
+              else if !abd_scoring = `Min then maximum ~leq:(>=) scores
+              else if !abd_scoring = `Max then maximum ~leq:(<=) scores
+              else if !abd_scoring = `Avg then
+                f2i (i2f (List.fold_left (+) 0 scores) /.
+                       i2f (List.length new_ineqn))
+              else assert false)
+             - f2i (!implied_ineqn_penalty *.
+                      i2f (List.length new_ineqn - 1)) in
            (*[* Format.printf
              "abd_cands:@ w=%a@ new_eqn=%a@ new_ineqn=%a@ total score=%i@\n%!"
              pr_w w pr_eqn new_eqn pr_ineqn new_ineqn score; *]*)

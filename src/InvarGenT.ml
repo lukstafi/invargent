@@ -67,6 +67,12 @@ let process_file ?(do_sig=false) ?(do_ml=false)
       Some res)
   else None
 
+let set_pow_scaling v =
+  NumS.complexity_scale := `Pow v
+
+let set_lin_thres_scaling v =
+  NumS.complexity_scale := `LinThres (2, v)
+
 let main () =
   let do_ml = ref true
   and do_sig = ref true
@@ -120,7 +126,15 @@ let main () =
     "Limit on backtracking steps in numerical joint abduction (default 10)";
     "-affine_penalty", Arg.Set_int NumS.affine_penalty,
     "How much to penalize an abduction candidate inequality for \
-     containing a constant term (default 1)";
+     containing a constant term (default 4)";
+    "-complexity_penalty", Arg.Set_float NumS.complexity_penalty,
+    "How much to penalize for complexity; the coefficient of either \
+     the linear (default) or power scaling (default 2.0)";
+    "-abd_lin_thres_scaling", Arg.Float set_lin_thres_scaling,
+    "Scale the complexity cost of coefficients linearly with a jump of \
+     the given height after coefficient 1 (default 2.0)";
+    "-abd_pow_scaling", Arg.Float set_pow_scaling,
+    "Scale the complexity cost of coefficients according to the given power";
     "-more_general_num", Arg.Set NumS.more_general,
     "Filter out less general numerical abduction candidate atoms";
     "-no_num_abduction", Arg.Set Abduction.no_num_abduction,

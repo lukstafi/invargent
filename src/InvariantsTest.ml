@@ -3239,7 +3239,7 @@ let merge = efunction
 
   "avl_tree--merge4" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "avl_tree--merge3"
 "datatype Avl : type * num
 datacons Empty : ∀a. Avl (a, 0)

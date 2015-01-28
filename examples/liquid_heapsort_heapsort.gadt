@@ -43,6 +43,4 @@ let heapsort maxx size data =
       heapify i data 0;
       loop (i - 1)
     else () in
-      (*withtype {i:int | i < n} <max(i,0)> => int(i) -> unit*)
   loop (maxx - 1)
-(*withtype {n:nat} float heap(n) -> unit*)
