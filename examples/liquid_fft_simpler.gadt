@@ -32,16 +32,17 @@ external let plus : Float → Float → Float = "(+.)"
 external let mult : Float → Float → Float = "( *. )"
 external let div : Float → Float → Float = "( /. )"
 external let fl0 : Float = "0.0"
-external let fl05 : Float = "0.5"
+external let fl0 : Float = "0.5"
 external let fl1 : Float = "1.0"
 external let fl2 : Float = "2.0"
 external let fl3 : Float = "3.0"
 external let fl4 : Float = "4.0"
-external let pi : Float = "4.0 * atan 1.0"
-external let two_pi : Float = "8.0 * atan 1.0"
+external let pi : Float = "4.0 *. atan 1.0"
+external let two_pi : Float = "8.0 *. atan 1.0"
 
 
-let fft px py n = (* n must be a power of 2! *)
+let fft_part1 px py n = (* n must be a power of 2! *)
+  assert num 2 <= n;
   let rec loop n2 n4 =
     if n2 <= 2 then () else (* the case n2 = 2 is treated below *)
     let e = div two_pi (n2f n2) in
@@ -102,79 +103,4 @@ let fft px py n = (* n must be a power of 2! *)
       loop2 j (2 * n2) in
     forbod 1; 
     loop (div2 n2) (div2 n4) in
-  loop n (div4 n);
-
-  let rec loop1 i0 i1 id =
-    if n + 1 <= i1 then () else
-    let r1 = array_get px i0 in
-    array_set px i0 (plus r1 (array_get px i1));
-    array_set px i1 (minus r1 (array_get px i1));
-    let r1 = array_get py i0 in
-    array_set py i0 (plus r1 (array_get py i1));
-    array_set py i1 (minus r1 (array_get py i1));
-    loop1 (i0 + id) (i1 + id) id in
-  let rec loop2 is id =
-    if n <= is then () else (
-      loop1 is (is + 1) id;
-      loop2 (2 * id - 1) (4 * id)) in
-  loop2 1 4;
-
-  (* lukstafi: this seems to be a placeholder? *)
-  let rec loop1 j k =
-    if j <= k then j + k else loop1 (j - k) (div2 k) in
-
-  let rec loop2 i j =
-    if n <= i then () else (
-      if j <= i then () else (
-        let xt = array_get px j in
-        array_set px j (array_get px i); array_set px i (xt);
-        let xt = array_get py j in
-        array_set py j (array_get py i); array_set py i (xt));
-      loop2 (i + 1) (loop1 j (div2 n))) in
-  loop2 1 1; n
-
-let ffttest np =
-  let enp = float_of_int np in
-  let n2 = div2 np in
-  let npm = n2 - 1 in
-  let pxr = array_make (np+1) fl0 in
-  let pxi = array_make (np+1) fl0 in
-  let t = div pi enp in
-  array_set pxr 1 (mult (minus enp fl1) fl05);
-  array_set pxi 1 (fl0);
-  array_set pxr (n2+1) (neg (mult fl1 fl05));
-  array_set pxi (n2+1) fl0;
-  let forbod i =
-    if i <= npm then
-      let j = np - i in
-      array_set pxr (i+1) (neg (mult fl1 fl05));
-      array_set pxr (j+1) (neg (mult fl1 fl05));
-      let z = mult t (n2f i) in
-      let y = mult (div (cos z) (sin z)) fl05 in
-      array_set pxi (i+1) (neg y); array_set pxi (j+1) (y)
-    else () in
-  forbod 1;
-  ignore (fft pxr pxi np);
-  let rec loop i zr zi kr ki =
-    if np <= i then (zr, zi) else
-      let a = abs (minus (array_get pxr (i+1)) (n2f i)) in
-      let b = less zr a in
-      let zr = if b then a else zr in
-      let kr = if b then i else kr in
-      let a = abs (array_get pxi (i+1)) in
-      let b = less zi a in
-      let zi = if b then a else zi in
-      let ki = if b then i else ki in
-       loop (i+1) zr zi kr ki
-  in
-  let zz = loop 0 fl0 fl0 0 0 in
-  let zr = fst zz in
-  let zi = snd zz in
-  let zm = if less (abs zr) (abs zi) then zi else zr in
-  (*in print_float zm; print_newline ()*) zm
-
-let rec loop_np i np =
-  if 17 <= i then () else
-  ( ignore (ffttest np); loop_np (i + 1) (2 * np) )
-
-let doit _ = loop_np 4 16
+  loop n (div4 n)

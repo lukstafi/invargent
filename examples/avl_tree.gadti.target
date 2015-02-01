@@ -28,17 +28,17 @@ val singleton : ∀a. a → Avl (a, 1)
 
 val rotr :
    ∀k, n, a[0 ≤ n ∧ n + 2 ≤ k ∧ k ≤ n + 3].
-   Avl (a, k) → a → Avl (a, n) → ∃n[n ≤ k + 1 ∧
-     k ≤ n].Avl (a, n)
+   Avl (a, k) → a → Avl (a, n) → ∃n[k ≤ n ∧
+     n ≤ k + 1].Avl (a, n)
 
 val rotl :
    ∀k, n, a[0 ≤ k ∧ n ≤ k + 3 ∧ k + 2 ≤ n].
-   Avl (a, k) → a → Avl (a, n) → ∃k[n ≤ k ∧
-     k ≤ n + 1].Avl (a, k)
+   Avl (a, k) → a → Avl (a, n) → ∃k[k ≤ n + 1 ∧
+     n ≤ k].Avl (a, k)
 
 val add :
    ∀n, a.
-   a → Avl (a, n) → ∃k[1 ≤ k ∧ n ≤ k ∧ k ≤ n + 1].Avl (a, k)
+   a → Avl (a, n) → ∃k[k ≤ n + 1 ∧ n ≤ k ∧ 1 ≤ k].Avl (a, k)
 
 val mem : ∀n, a. a → Avl (a, n) → Bool
 
@@ -55,4 +55,4 @@ val merge :
 
 val remove :
    ∀n, a.
-   a → Avl (a, n) → ∃k[n ≤ k + 1 ∧ 0 ≤ k ∧ k ≤ n].Avl (a, k)
+   a → Avl (a, n) → ∃k[n ≤ k + 1 ∧ k ≤ n ∧ 0 ≤ k].Avl (a, k)

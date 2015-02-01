@@ -503,7 +503,7 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_heapsort_heapify_simpler" ());
       "liquid_heapsort-heapify-simpler2" >::
         (fun () ->
-           (* todo "FIXME: time (worst)"; *)
+           (* TODO: improve time *)
            skip_if !debug "debug";
            test_case "liquid_heapsort_heapify_simpler2" ());
       "liquid_heapsort-heapify-simpler3" >::
@@ -526,14 +526,29 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "liquid_heapsort" ());
+      "liquid_fft_simpler" >::
+        (fun () ->
+           todo "FIXME";
+           skip_if !debug "debug";
+           test_case "liquid_fft_simpler" ());
       "liquid_fft" >::
         (fun () ->
-           todo "TODO";
+           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_fft" ());
+      "liquid_simplex_step_2" >::
+        (fun () ->
+           (* TODO: add invariant cleanup for top-level pattern-match let *)
+           skip_if !debug "debug";
+           test_case "liquid_simplex_step_2" ());
+      "liquid_simplex_step_3" >::
+        (fun () ->
+           todo "FIXME";
+           skip_if !debug "debug";
+           test_case "liquid_simplex_step_3" ());
       "liquid_simplex" >::
         (fun () ->
-           todo "TODO";
+           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_simplex" ());
       "liquid_gauss" >::

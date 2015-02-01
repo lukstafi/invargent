@@ -1,0 +1,55 @@
+external type Matrix : num * num =
+  "(float, Bigarray.float64_elt, Bigarray.c_layout) Bigarray.Array2.t"
+external let matrix_make :
+  ∀n, k [0≤n ∧ 0≤k]. Num n → Num k → Matrix (n, k) =
+  "fun a b -> Bigarray.Array2.create Bigarray.float64 Bigarray.c_layout a b"
+external let matrix_get :
+  ∀n, k, i, j [0≤i ∧ i+1≤n ∧ 0≤j ∧ j+1≤k].
+   Matrix (n, k) → Num i → Num j → Float = "Bigarray.Array2.get"
+external let matrix_set :
+  ∀n, k, i, j [0≤i ∧ i+1≤n ∧ 0≤j ∧ j+1≤k].
+   Matrix (n, k) → Num i → Num j → Float → () = "Bigarray.Array2.set"
+external let matrix_dim1 :
+  ∀n, k [0≤n ∧ 0≤k]. Matrix (n, k) → Num n = "Bigarray.Array2.dim1"
+external let matrix_dim2 :
+  ∀n, k [0≤n ∧ 0≤k]. Matrix (n, k) → Num k = "Bigarray.Array2.dim2"
+
+external let n2f : ∀n. Num n → Float = "float_of_int"
+external let equal : ∀a. a → a → Bool = "fun x y -> x = y"
+external let leq : ∀a. a → a → Bool = "fun x y -> x <= y"
+external let less : ∀a. a → a → Bool = "fun x y -> x < y"
+
+external let minus : Float → Float → Float = "(-.)"
+external let plus : Float → Float → Float = "(+.)"
+external let mult : Float → Float → Float = "( *. )"
+external let div : Float → Float → Float = "( /. )"
+external let fl0 : Float = "0.0"
+
+let snd = function _, x -> x
+
+let rec is_neg_aux arr2 n j =
+  if j + 2 <= n then
+    if less (matrix_get arr2 0 j) fl0 then True
+    else is_neg_aux arr2 n (j+1)
+  else False
+
+let is_neg arr2 n = is_neg_aux arr2 n 1
+
+(* step 2 *)
+let unb1, unb2 =
+  let rec unb12 =
+    let rec unb1 arr2 m n i j =
+      if j + 2 <= n then
+        if less (matrix_get arr2 0 j) fl0
+        then snd unb12 arr2 m n (i+1) j
+        else unb1 arr2 m n 0 (j+1)
+      else False in
+
+    unb1,
+    fun arr2 m n i j ->
+      if i + 1 <= m then
+        if less (matrix_get arr2 i j) fl0
+        then snd unb12 arr2 m n (i+1) j
+        else unb1 arr2 m n 0 (j+1)
+      else True in
+  unb12

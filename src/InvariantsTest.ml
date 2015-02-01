@@ -343,7 +343,7 @@ n23
        skip_if !debug "debug";
        test_case "absolute value by subtraction"
          "let abs = efunction x -> eif 0 <= x then x else 0 - x"
-         [2, "∃n. δ = (Num n → ∃k[k=max (n, -n)].Num k)"]
+         [2, "∃n. δ = (Num n → ∃k[k=max (-n, n)].Num k)"]
     );
 
   "eval" >::
@@ -1386,7 +1386,7 @@ let rec map =
     | LCons (x, xs) ->
       let ys = map xs in
       LCons (f x, ys)"
-        [2,"∃n. δ = (List n → ∃k[k=max (0, n)].List k)"];
+        [2,"∃n. δ = (List n → ∃k[k=max (n, 0)].List k)"];
     );
 
   "map not existential poly" >::
@@ -1403,7 +1403,7 @@ let rec map = fun f ->
       let ys = map f xs in
       LCons (f x, ys)"
         [2,"∃n, a, b.
-  δ = ((a → b) → List (a, n) → ∃k[k=max (0, n)].List (b, k))"];
+  δ = ((a → b) → List (a, n) → ∃k[k=max (n, 0)].List (b, k))"];
     );
 
   "map not existential instance" >::
@@ -1423,7 +1423,7 @@ let rec map =
     | LCons (x, xs) ->
       let ys = map xs in
       LCons (f x, ys)"
-        [2,"∃n. δ = (List (Foo, n) → ∃k[k=max (n, 0)].List (Bar, k))"];
+        [2,"∃n. δ = (List (Foo, n) → ∃k[k=max (0, n)].List (Bar, k))"];
     );
 
   "filter mono" >::
@@ -1901,7 +1901,7 @@ let rec zip =
     | UCons xs, UCons ys ->
       let zs = zip (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (n, k)].Unary i)"]
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (k, n)].Unary i)"]
     );
 
   "unary minimum asserted 1" >::
@@ -1985,7 +1985,7 @@ let rec zip =
       let zs = zip (xs, ys) in
       LCons ((x, y), zs)"
         [2,"∃n, k, a, b.
-  δ = ((List (a, n), List (b, k)) → ∃i[i=min (n, k)].List ((a, b), i))"]
+  δ = ((List (a, n), List (b, k)) → ∃i[i=min (k, n)].List ((a, b), i))"]
     );
 
   "unary maximum expanded" >::
@@ -2007,7 +2007,7 @@ let rec map2 =
         (* The constraint i ≤ n + k is theoretically not redundant
            because n, k in principle could be negative. *)
         [2,"∃n, k.
-  δ = ((Unary n, Unary k) → ∃i[i ≤ n + k ∧ i=max (n, k)].Unary i)"]
+  δ = ((Unary n, Unary k) → ∃i[i ≤ n + k ∧ i=max (k, n)].Unary i)"]
     );
 
   "list map2 with postfix expanded" >::
@@ -2031,7 +2031,7 @@ let rec map2 = fun f ->
         [2,"∃n, k, a.
   δ =
     ((a → a → a) → (List (a, n), List (a, k)) → ∃i[i ≤ n + k ∧
-       i=max (n, k)].List (a, i))"]
+       i=max (k, n)].List (a, i))"]
     );
 
 
@@ -2286,7 +2286,7 @@ let create = fun l x r ->
         [2,"∃n, k, a.
   δ =
     (Avl (a, k) → a → Avl (a, n) →
-       ∃i[i=max (n + 1, k + 1)].Avl (a, i)) ∧
+       ∃i[i=max (k + 1, n + 1)].Avl (a, i)) ∧
   0 ≤ n ∧ 0 ≤ k ∧ n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
@@ -2502,8 +2502,8 @@ let rotr = fun l x r -> (* hl = hr + 3 *)
 "
         [2,"∃n, k, a.
   δ =
-    (Avl (a, k) → a → Avl (a, n) → ∃n[n ≤ k + 1 ∧
-       k ≤ n].Avl (a, n)) ∧
+    (Avl (a, k) → a → Avl (a, n) → ∃n[k ≤ n ∧
+       n ≤ k + 1].Avl (a, n)) ∧
   0 ≤ n ∧ n + 2 ≤ k ∧ k ≤ n + 3"];
     );
 
@@ -2586,8 +2586,8 @@ let rotl = efunction
 "
         [2,"∃n, a.
   δ =
-    ((Avl (a, n), a, Avl (a, n + 3)) → ∃k[n + 3 ≤ k ∧
-       k ≤ n + 4].Avl (a, k)) ∧
+    ((Avl (a, n), a, Avl (a, n + 3)) → ∃k[k ≤ n + 4 ∧
+       n + 3 ≤ k].Avl (a, k)) ∧
   0 ≤ n"];
     );
 
@@ -2728,8 +2728,8 @@ let rec add = fun x -> efunction
 "
 [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃k[n ≤ k ∧ k ≤ n + 1 ∧
-       1 ≤ k].Avl (a, k))"];
+    (a → Avl (a, n) → ∃k[k ≤ n + 1 ∧ 1 ≤ k ∧
+       n ≤ k].Avl (a, k))"];
     );
 
   "avl_tree--add" >::
@@ -2830,8 +2830,8 @@ let rec add = fun x -> efunction
 "
         [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃k[n ≤ k ∧ k ≤ n + 1 ∧
-       1 ≤ k].Avl (a, k))"];
+    (a → Avl (a, n) → ∃k[k ≤ n + 1 ∧ 1 ≤ k ∧
+       n ≤ k].Avl (a, k))"];
     );
 
   "avl_tree--add-harder" >::
@@ -3345,7 +3345,7 @@ let rec remove = fun x -> efunction
 "
         [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃k[n ≤ k + 1 ∧ k ≤ n ∧
+    (a → Avl (a, n) → ∃k[k ≤ n ∧ n ≤ k + 1 ∧
        0 ≤ k].Avl (a, k))"];
     );
 
@@ -3405,7 +3405,7 @@ let rec remove = fun x -> efunction
 "
         [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃k[n ≤ k + 1 ∧ k ≤ n ∧
+    (a → Avl (a, n) → ∃k[k ≤ n ∧ n ≤ k + 1 ∧
        0 ≤ k].Avl (a, k))"];
     );
 
@@ -3522,8 +3522,8 @@ let rec remove = fun x -> efunction
 "
         [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃k[k ≤ n ∧ 0 ≤ k ∧
-       n ≤ k + 1].Avl (a, k))"];
+    (a → Avl (a, n) → ∃k[0 ≤ k ∧ n ≤ k + 1 ∧
+       k ≤ n].Avl (a, k))"];
     );
 
 

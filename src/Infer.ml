@@ -622,9 +622,14 @@ let constr_gen_expr gamma e t =
         try Hashtbl.find ex_type_chi ety_id
         with Not_found -> assert false in
       let cn, e = aux gamma t (Lam ((), cls, loc)) in
-      Ex (vars_of_list [a0],
-          cn_and (A [RetType (t, t0, loc);
-                     PredVarU (chi_id, t0, loc)]) cn),
+      let a1 = fresh_typ_var () in
+      let t1 = TVar a1 in
+      let cn_ex =
+        Ex (vars_of_list [a1],
+            (A [RetType (t, t0, loc);
+                Eqty (t0, TCons (Extype ety_id, [t1]), loc);
+                PredVarU (chi_id, t1, loc)])) in
+      Ex (vars_of_list [a0], cn_and cn_ex cn),
       e
 
   and aux_cl count gamma t1 t2 (p, guards, e) =
@@ -1342,46 +1347,63 @@ let normalize q cn =
            (* 3 *)
            List.iter
              (function
+               | RetType (t, TVar a, _) ->
+                 let i =
+                   try Hashtbl.find v_exty a
+                   with Not_found -> assert false in
+                 (*[* Format.printf
+                   "dsj-chi-exty: [3] t=%a a=%s i=%d@\n%!"
+                   pr_ty t (var_str a) i; *]*)
+                 (match return_type t with
+                  | TVar v -> Hashtbl.replace v_exty v i
+                  | _ -> assert false);
+                 (match return_type (subst_typ sb t) with
+                  | TVar v -> Hashtbl.replace v_exty v i
+                  | _ -> assert false)
+               | _ -> ()) concl;
+           (* 4 *)
+           List.iter
+             (function
                | PredVarU (i, TVar b, _)
                  when Hashtbl.mem chi_rec i && not (Hashtbl.mem v_chi b) ->
                  (*[* Format.printf
-                   "dsj-chi-exty: [3] b=%s i=%d@\n%!"
+                   "dsj-chi-exty: [4] b=%s i=%d@\n%!"
                    (var_str b) i; *]*)
                  Hashtbl.add v_chi b i
                (* | NotEx _ -> assert false *)
                | _ -> ()) (prem @ concl);
-           (* 4 *)
+           (* 5 *)
            List.iter (fun (v, (t, _)) ->
                match return_type t with
                | TVar w when Hashtbl.mem v_chi v &&
                              not (Hashtbl.mem v_chi w)->
                  (*[* Format.printf
-                   "dsj-chi-exty: [4] v=%s w=%s i=%d@\n%!"
+                   "dsj-chi-exty: [5] v=%s w=%s i=%d@\n%!"
                    (var_str v) (var_str w) (Hashtbl.find v_chi v); *]*)
                  Hashtbl.add v_chi w (Hashtbl.find v_chi v)
                | _ -> ())
              sb;
-           (* 5 *)
+           (* 6 *)
            Hashtbl.iter
              (fun b i ->
                 if Hashtbl.mem v_exty b &&
                    not (Hashtbl.mem chi_exty i)
                 then (
                   (*[* Format.printf
-                    "dsj-chi-exty: [5] b=%s i=%d->j=%d@\n%!"
+                    "dsj-chi-exty: [6] b=%s i=%d->j=%d@\n%!"
                     (var_str b) i (Hashtbl.find v_exty b); *]*)
                   let exty = Hashtbl.find v_exty b in
                   Hashtbl.add exty_res_chi exty i;
                   Hashtbl.add chi_exty i exty))
              v_chi;
-           (* 6 *)
+           (* 7 *)
            Hashtbl.iter
              (fun b i ->
                 if Hashtbl.mem chi_exty i &&
                    not (Hashtbl.mem v_exty b)
                 then (
                   (*[* Format.printf
-                    "dsj-chi-exty: [6] b=%s i=%d->j=%d@\n%!"
+                    "dsj-chi-exty: [7] b=%s i=%d->j=%d@\n%!"
                     (var_str b) i (Hashtbl.find chi_exty i); *]*)
                   Hashtbl.replace v_exty b (Hashtbl.find chi_exty i)))
              v_chi;
@@ -1452,7 +1474,7 @@ let normalize q cn =
   (* Takes the result of [flat_dsj], returns the [sol] part of one
      of the disjuncts as Left (calls trigger first), or the filtered
      disjuncts as Right. *)
-  let solve_dsj step (guard_cnj, dsjs, e_impls, e_disjs) =
+  let solve_dsj forced (guard_cnj, dsjs, e_impls, e_disjs) =
     let sb =
       (* TODO: optimize by precomputing unifiers for guard_cnj and
          e_cnj separately, before calling [solve_dsj]. *)
@@ -1524,12 +1546,12 @@ let normalize q cn =
     | [cn, c_impls, prem, trigger] ->
       (*[* Format.printf "dsj-test: selected\n%a@\n%!"
         pr_cnstrnt cn; *]*)
-      trigger ();
+      forced := false; trigger ();
       Left (guard_cnj, c_impls, prem, e_impls, e_disjs)
-    | (cn, c_impls, prem, trigger)::_ when step > 0 ->
+    | (cn, c_impls, prem, trigger)::_ when !forced ->
       (*[* Format.printf "dsj-test: forced selected\n%a@\n%!"
         pr_cnstrnt cn; *]*)
-      trigger ();
+      forced := false; trigger ();
       Left (guard_cnj, c_impls, prem, e_impls, e_disjs)
     | _ ->
       Right (guard_cnj, dsjs, e_impls, e_disjs) in
@@ -1549,25 +1571,30 @@ let normalize q cn =
     let dsjs = List.map flat_dsj dsjs in
     let brs = simplify_brs brs in
     brs, dsjs in
-  let rec loop step (brs, dsj_brs) =
+  let rec loop (brs, dsj_brs) =
     (*[* Format.printf
-      "normalize-loop: init step=%d #dsj_brs=%d@\n%!"
-      step (List.length dsj_brs);
+      "normalize-loop: init #brs=%d #dsj_brs=%d@\n%!"
+      (List.length brs) (List.length dsj_brs);
     *]*)
-    let more_brs, dsj_brs = partition_map (solve_dsj step) dsj_brs in
+    let more_brs, dsj_brs = partition_map (solve_dsj (ref false)) dsj_brs in
+    (*[* if more_brs = [] then Format.printf
+      "normalize-loop: forcing #dsj_brs'=%d@\n%!" (List.length dsj_brs);
+    *]*)
+    let more_brs, dsj_brs =
+      if more_brs = [] then partition_map (solve_dsj (ref true)) dsj_brs
+      else more_brs, dsj_brs in
     let more_brs, more_dsj = prepare_brs (concat_brs more_brs) in
     let dsj_brs =
       more_dsj @ dsj_brs in
     (*[* Format.printf
-      "normalize-loop: step=%d #dsj_brs=%d brs=@\n%a@\nmore_brs=@\n%a@\n%!"
-      step (List.length dsj_brs) pr_brs brs pr_brs more_brs;
+      "normalize-loop: completed #brs=%d #dsj_brs=%d \
+       brs=@\n%a@\nmore_brs=@\n%a@\n%!"
+      (List.length brs) (List.length dsj_brs) pr_brs brs pr_brs more_brs;
     *]*)
-    if more_brs = [] then brs, dsj_brs
-    else loop step (more_brs @ brs, dsj_brs) in
+    if more_brs = [] || dsj_brs = [] then more_brs @ brs, dsj_brs
+    else loop (more_brs @ brs, dsj_brs) in
   let sol0 = flat_cn [] [] cn in
-  let brs_dsj_brs = ref (prepare_brs sol0) in
-  for i=0 to 1 do brs_dsj_brs := loop i !brs_dsj_brs done;
-  let brs, dsj_brs = !brs_dsj_brs in
+  let brs, dsj_brs = loop (prepare_brs sol0) in
   assert (dsj_brs = []);
   (*[* Format.printf "normalize: done@\n%!"; *]*)
   exty_res_chi, brs
