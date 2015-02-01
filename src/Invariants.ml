@@ -200,11 +200,27 @@ let sb_PredB q posi psb (i, t1, t2, lc) =
      with Not_found -> [])
   | _ -> []
 
+let sb_PredB_par q psb (i, t2) =
+  try
+    let vs, phi = List.assoc i psb in
+    (*[* Format.printf
+      "sb_chiK_par: chi%d(%s,%a)=@ %a@\n%!"
+      i (var_str b) pr_ty t2 pr_ans (vs,phi); *]*)
+    (* We need to replace delta' so we use sb_phi_binary. *)
+    sb_phi_binary t2 t2 phi
+  with Not_found -> []
+
 let sb_brs_PredB q rol par brs = List.map
   (fun (nonrec, chi_pos, chiK_neg, chiK_pos, prem, concl) ->
     nonrec, chi_pos, chiK_pos,
     concat_map (sb_PredB q false rol) chiK_neg @ prem,
-    concat_map (sb_PredB q true par) chiK_pos @ concl)
+    (* This will only substitute the unary chiK predicates. *)
+    concat_map (sb_PredB_par q par) chi_pos @
+    (* The below substitution roughly equivalent effect to the above
+       substitution -- the above fixes parameters once globally, the
+       commented-out fixes the same parameters for each case. *)
+    (* concat_map (sb_PredB q true par) chiK_pos @ *)
+      concl)
   brs
 
 let sb_atom_pred q posi rol sol = function
