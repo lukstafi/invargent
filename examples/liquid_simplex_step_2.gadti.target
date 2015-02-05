@@ -45,14 +45,11 @@ val is_neg :
    ∀i, k, n[1 ≤ k ∧ n ≤ i + 1]. Matrix (k, i) → Num n → Bool
 
 val unb1 :
-   ∀i4, j4, k4, l6, m1, m4, n1, n4[l6 ≤ j4 ∧ i4 ≤ m4 + 1 ∧
-   m4 ≤ k4 + i4 ∧ m4 ≤ i4 ∧ 0 ≤ k4 + 1 ∧ 1 ≤ n1 + j4 ∧
-   1 ≤ j4 ∧ m1 ≤ n1 + j4 ∧ 0 ≤ n1 + j4 ∧ 0 ≤ j4 ∧ 0 ≤ n4].
-   Matrix (j4, m4) → Num l6 → Num i4 → Num k4 → Num n4 → Bool
+   ∀i4, j4, k4, l1, l4, m4, n4, n7[n7 ≤ m4 ∧ j4 ≤ l4 + 1 ∧
+   1 ≤ m4 ∧ l1 ≤ n4 + i4 ∧ 0 ≤ i4 + 1 ∧ 0 ≤ k4].
+   Matrix (m4, l4) → Num n7 → Num j4 → Num i4 → Num k4 → Bool
 
 val unb2 :
-   ∀i1, j1, j4, k1, l3, m1, n1[1 ≤ n1 + j4 ∧ m1 ≤ n1 + j4 ∧
-   0 ≤ n1 + j4 ∧ n1 + 1 ≤ m1 ∧ 1 ≤ m1 ∧ n1 ≤ m1 ∧
-   0 ≤ m1 ∧ n1 + 1 ≤ l3 ∧ 1 ≤ l3 ∧ m1 ≤ l3 ∧
-   l3 ≤ m1 + 1 ∧ i1 ≤ j1 ∧ 0 ≤ k1 ∧ 0 ≤ n1].
-   Matrix (j1, m1) → Num i1 → Num l3 → Num k1 → Num n1 → Bool
+   ∀i1, i4, j1, k1, l1, m1, n4[l1 ≤ n4 + i4 ∧ n4 ≤ l1 + 1 ∧
+   k1 + 1 ≤ l1 ∧ 1 ≤ l1 ∧ j1 ≤ m1 ∧ 0 ≤ i1 ∧ 0 ≤ k1].
+   Matrix (m1, l1) → Num j1 → Num n4 → Num i1 → Num k1 → Bool

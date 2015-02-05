@@ -543,14 +543,26 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_simplex_step_2" ());
       "liquid_simplex_step_3" >::
         (fun () ->
-           todo "FIXME";
+           (* Ideally, we would like to introduce a precondition that
+              j <= j' + 1, but InvarGenT only guesses required invariants. *)
+           todo "too hard for InvarGenT 2.0";
            skip_if !debug "debug";
            test_case "liquid_simplex_step_3" ());
+      "liquid_simplex_step_3a" >::
+        (fun () ->
+           todo "FIXME";
+           skip_if !debug "debug";
+           test_case "liquid_simplex_step_3a" ());
       "liquid_simplex" >::
         (fun () ->
            todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_simplex" ());
+      "liquid_simplex-harder" >::
+        (fun () ->
+           todo "too hard for InvarGenT 2.0";
+           skip_if !debug "debug";
+           test_case "liquid_simplex_harder" ());
       "liquid_gauss" >::
         (fun () ->
            todo "TODO";

@@ -263,6 +263,22 @@ let disjelim_typ q ~bvs ~target (* ~preserve *) brs =
         at_so = ()} in
       usb, avs, ty_ans @ eqv_ans, eqs
 
+let dissociate cnj_typ =
+  let alien_vs = ref [] in
+  let alien_eqs = ref [] in
+  let rec purge = function
+    | t when typ_sort t <> Type_sort ->
+      let n = fresh_var (typ_sort t) in
+      (* Alien vars become abduction answer vars. *)
+      alien_eqs := (n, (subst_typ !alien_eqs t, dummy_loc)):: !alien_eqs;
+      alien_vs := n :: !alien_vs;
+      TVar n
+    | TCons (n, tys) -> TCons (n, List.map purge tys)
+    | Fun (t1, t2) -> Fun (purge t1, purge t2)
+    | TVar _ as t -> t
+    | Alien _ -> assert false in
+  let res = map_in_subst purge cnj_typ in
+  !alien_vs, !alien_eqs, res
 
 (* FIXME: too much mess together with [disjelim] *)
 let simplify_dsjelim q initstep ~target ~param_bvs vs ans =
@@ -362,7 +378,7 @@ let disjelim q ?target ~bvs ~param_bvs (* ~preserve *) (* ~old_local *)
          try Some (solve ~use_quants:false q prem,
                    solve ~use_quants:false q br)
          with Contradiction _ -> None) brs in
-  if brs = [] then [], ([], [])
+  if brs = [] then false, [], ([], [])
   else
     let residuum =
       solve ~use_quants:false q residuum in
@@ -390,6 +406,7 @@ let disjelim q ?target ~bvs ~param_bvs (* ~preserve *) (* ~old_local *)
       (fun (v, (t, lc)) ->
         (try List.assoc v lift_rn with Not_found -> v),
         (hvsubst_typ lift_rn t, lc)) ty_ans in
+    let dissoc_vs, dissoc_eqs, usb = dissociate usb in
     if do_num
     then
       let eqs_num =
@@ -444,12 +461,15 @@ let disjelim q ?target ~bvs ~param_bvs (* ~preserve *) (* ~old_local *)
         initstep NumDefs.pr_formula num_abd; *]*)
       (* (4) *)
       (* Dooes not simplify redundancy. *)
-      to_formula usb (* @
-        (if initstep then [] else NumS.formula_of_sort num_abd) *),
-      simplify_dsjelim q initstep ~target ~param_bvs (num_avs @ avs)
+      dissoc_vs <> [],
+      to_formula usb
+      (* @ (if initstep then [] else NumS.formula_of_sort num_abd) *),
+      simplify_dsjelim q initstep ~target ~param_bvs
+        (dissoc_vs @ num_avs @ avs)
         {at_typ=ty_ans; at_num=num_ans; at_ord=ord_ans; at_so=()}
     else
+      dissoc_vs <> [],
       to_formula usb,
-      simplify_dsjelim q initstep ~target ~param_bvs avs
+      simplify_dsjelim q initstep ~target ~param_bvs
+        (dissoc_vs @ avs)
         {at_typ=ty_ans; at_num=[]; at_ord=[]; at_so=()}
-

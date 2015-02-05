@@ -22,11 +22,14 @@ let revert_csts = ref true(* false *)
 let discard_penalty = ref 2
 let more_general = ref (* true *)false
 let general_reward = ref 2
-let affine_penalty = ref 4
+let affine_penalty = ref (* 4 *)3
+let affine_threshold = ref 2
+let affine_thresh_penalty = ref 2
 let reward_constrn = ref 2
 let complexity_penalty = ref 2.0
 let reward_locality = ref 3
 let multi_levels_penalty = ref 4
+let locality_vars_penalty = ref 6
 let discourage_upper_bound = ref 6
 let discourage_already_bounded = ref 4
 let encourage_not_yet_bounded = ref 1
@@ -1476,7 +1479,11 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of ~bvs ~discard_ineqs
   (* Promote candidates introducing constraints on unconstrained
      variables. Otherwise, penalize for size. *)
   let w_value orig_w (vars, cst, lc as w) =
-    let cst_value = if cst =/ !/0 then 0 else ~- !affine_penalty in
+    let cst_value =
+      if cst =/ !/0 then 0
+      else ~- !affine_penalty -
+             (if cst </ !/ !affine_threshold then 0
+              else !affine_thresh_penalty) in
     let discard_value =
       if WSet.mem w discard_ineqs then ~- !discard_penalty else 0 in
     let minimal =
@@ -1491,12 +1498,19 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of ~bvs ~discard_ineqs
       | (v, _)::tl ->
         if List.for_all (fun (v2, _) -> qcmp_v v v2 = Same_params) tl
         then !reward_locality
-        else if List.exists
+        else
+          (if List.exists
             (fun (v2, _) ->
                upward_of v2 v && List.exists
                  (fun (v3, _) -> upward_of v3 v2) tl) tl
-        then ~- !multi_levels_penalty
-        else 0 in
+           then ~- !multi_levels_penalty
+           else 0) +
+            !locality_vars_penalty *
+              List.fold_left
+                (fun acc (v2, _) ->
+                   if qcmp_v v v2 <> Same_params then acc - 1
+                   else acc)
+                1 tl in
     let bound =
       match vars with
       | [v, k] ->

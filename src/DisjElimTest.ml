@@ -29,7 +29,7 @@ let test_case msg test result =
     (* let preserve = List.fold_left VarSet.union VarSet.empty
         (List.map (fun (prem,concl) -> fvs_formula (prem@concl)) brs)
       in *)
-    let usb, (vs, ans) = DisjElim.disjelim q ~target ~initstep:false
+    let _, usb, (vs, ans) = DisjElim.disjelim q ~target ~initstep:false
         ~bvs:VarSet.empty ~param_bvs:VarSet.empty (* ~preserve *)
         ~up_of_anchor:(fun _ -> true) ~do_num:true ~guess:true
         ~residuum:[]

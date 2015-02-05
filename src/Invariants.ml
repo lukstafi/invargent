@@ -204,8 +204,8 @@ let sb_PredB_par q psb (i, t2) =
   try
     let vs, phi = List.assoc i psb in
     (*[* Format.printf
-      "sb_chiK_par: chi%d(%s,%a)=@ %a@\n%!"
-      i (var_str b) pr_ty t2 pr_ans (vs,phi); *]*)
+      "sb_chiK_par: chi%d(%a)=@ %a@\n%!"
+      i pr_ty t2 pr_ans (vs,phi); *]*)
     (* We need to replace delta' so we use sb_phi_binary. *)
     sb_phi_binary t2 t2 phi
   with Not_found -> []
@@ -1020,12 +1020,13 @@ let solve q_ops new_ex_types exty_res_chi brs =
     let verif_brs = map_some
         (fun (nonrec, chi_pos, chiK, prem, _) ->
            let allconcl = concat_map
-               (fun (_,_,_,prem2,concl2) ->
+               (fun (_, _, _, prem2, concl2) ->
                   (*[* Format.printf
                     "solve-verif_brs: subformula? %b@\nprem2=%a@\nprem=%a@\n%!"
                     (subformula prem2 prem)
                     pr_formula prem2 pr_formula prem; *]*)
-                  if subformula prem2 prem then concl2 else [])
+                  if subformula prem2 prem
+                  then concl2 else [])
                brs1 in
            (* Even though a correct program should not have dead
               cases other than dead code -- [prem] unsatisfiable --
@@ -1036,7 +1037,12 @@ let solve q_ops new_ex_types exty_res_chi brs =
                  (satisfiable q ([], NumS.empty_state)
                     (prem @ allconcl));
                false
-             with Contradiction _ -> true in
+             with Contradiction _ (*[* as e *]*) ->
+               (*[* Format.printf
+                 "verif_brs: dead premise case: prem=@ %a@\nallconcl=@ \
+                  %a@\nexc=@ %a@\n%!"
+                 pr_formula prem pr_formula allconcl pr_exception e; *]*)
+               true in
            if dead_case then None
            else
              Some (nonrec, chi_pos, chiK, prem, allconcl))
@@ -1050,8 +1056,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
     let guard = concat_map
         (fun (_,(_,cnj)) -> cnj) sol1 in
     let initstep = iter_no < disj_step.(2) in
-    let sol1, brs1, abdsjelim, g_rol =
-      if iter_no < disj_step.(0) then sol1, brs1, [], rol1
+    let sol1, brs1, abdsjelim, dissoc_abdsj, g_rol =
+      if iter_no < disj_step.(0) then sol1, brs1, [], false, rol1
       else
         (* 2 *)
         (* The [t2] arguments should become equal in the solution! *)
@@ -1072,6 +1078,10 @@ let solve q_ops new_ex_types exty_res_chi brs =
                          *]*)
                          i, (prem, phi))
                       chiK_pos
+                  (*[* else if chiK_pos <> [] then (
+                    Format.printf "chiK: skipped %a@\n%!" pr_ints
+                      (ints_of_list
+                         (List.map (fun (i,_,_,_) -> i) chiK_pos)); []) *]*)
                   else [])
                verif_brs) in
         let g_rol = g_collect (disj_step.(2) <= iter_no) in
@@ -1091,6 +1101,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
           with Not_found -> VarSet.empty in *)
         let bvs = bparams iter_no in    (* for [disjelim] *)
         let abdsjelim = ref [] in
+        let dissoc_abdsj = ref false in
         let g_rol = List.map
             (fun (i, (_, old_ans)) ->
                let anchor =
@@ -1131,7 +1142,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                  (*[* Format.printf "@\n%!"; *]*)
                  (* [usb] is additional abductive the answer. *)
                  let up_of_anchor v = upward_of v anchor in
-                 let g_abd, (g_vs, g_ans) =
+                 let dissoc, g_abd, (g_vs, g_ans) =
                    DisjElim.disjelim q_ops (* ?old_delta *)
                      ~bvs ~param_bvs (* ~preserve *)
                      ~up_of_anchor
@@ -1140,6 +1151,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                      ~initstep
                      ~residuum:(if !use_solution_in_postcond
                                 then ans1_res else []) cnjs in
+                 dissoc_abdsj := !dissoc_abdsj || dissoc;
                  (*[* Format.printf
                    "solve-3: disjelim pre-simpl g_ans=%a@\n%!"
                    pr_formula g_ans; *]*)
@@ -1288,7 +1300,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
         (*[* Format.printf
           "solve: substituting postconds at step 5@\n%!"; *]*)
         let brs1 = sb_brs_PredB q g_rol g_par brs0 in
-        sol1, brs1, abdsjelim, g_rol in
+        sol1, brs1, abdsjelim, !dissoc_abdsj, g_rol in
     (*[* Format.printf
       "solve-loop: iter_no=%d -- ex. brs substituted@\n%!"
       iter_no; *]*)
@@ -1657,10 +1669,11 @@ let solve q_ops new_ex_types exty_res_chi brs =
               i pr_formula ans2 pr_formula ans1 (subformula ans1 ans2); *]*)
             subformula ans1 ans2)
           rol1 rol2 in
-      let finished = not !unfinished_postcond_flag &&
+      let finished = not dissoc_abdsj && not !unfinished_postcond_flag &&
                      finished1 && finished2 && finished3 in
-      (*[* Format.printf "solve-loop: finished 1=%b, 2=%b, 3=%b, r=%b@\n%!"
-        finished1 finished2 finished3 finished; *]*)
+      (*[* Format.printf "solve-loop: dissoc_abdsj=%b \
+                           finished 1=%b, 2=%b, 3=%b, r=%b@\n%!"
+        dissoc_abdsj finished1 finished2 finished3 finished; *]*)
       if iter_no >= disj_step.(2) && finished
       then                              (* final solution *)
         Aux.Right (ans_res, rol2, sol2)
