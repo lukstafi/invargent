@@ -88,7 +88,8 @@ val disjelim :
   bvs:Defs.VarSet.t -> param_bvs:Defs.VarSet.t ->
   guess:bool -> initstep:bool ->
   (NumDefs.formula * NumDefs.formula) list ->
-  Defs.var_name list * (NumDefs.formula * NumDefs.formula)
+  Defs.var_name list * NumDefs.formula * NumDefs.formula *
+    NumDefs.formula list
 
 (** Eliminate provided variables from the substitution part of solved
     form and generally simplify the formula, but do not perform

@@ -74,6 +74,8 @@ let add_vars l vs =
 let no_vs = VarSet.empty
 let vars_of_map f l =
   List.fold_left (fun acc x -> VarSet.union acc (f x)) VarSet.empty l
+let var_subset vs1 vs2 =
+  VarSet.for_all (fun v -> VarSet.mem v vs2) vs1
 
 module VarMap =
   Map.Make (struct type t = var_name let compare = Pervasives.compare end)

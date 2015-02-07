@@ -59,6 +59,7 @@ val vars_of_list : var_name list -> VarSet.t
 val add_vars : var_name list -> VarSet.t -> VarSet.t
 val no_vs : VarSet.t
 val vars_of_map : ('a -> VarSet.t) -> 'a list -> VarSet.t
+val var_subset : VarSet.t -> VarSet.t -> bool
 
 module VarMap : (Map.S with type key = var_name)
 val varmap_of_list : (var_name * 'a) list -> 'a VarMap.t

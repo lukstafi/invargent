@@ -41,7 +41,7 @@ let tests = "NumS" >::: [
             VarSet.empty brs in
         let bvs = VarSet.empty in
         let param_bvs = VarSet.empty in
-        let vs, (_, ans) = disjelim q ~target_vs:preserve
+        let vs, _, ans, _ = disjelim q ~target_vs:preserve
             ~guess:false ~initstep:false ~preserve ~param_bvs ~bvs brs in
         let ans = prune_redundant q ~initstep:true ans in
         ignore (Format.flush_str_formatter ());
@@ -78,7 +78,7 @@ let tests = "NumS" >::: [
         let bvs = VarSet.empty in
         let param_bvs = VarSet.empty in
         max_subopti_postcond := 10;
-        let vs, (_, ans) = disjelim q ~target_vs:preserve
+        let vs, _, ans, _ = disjelim q ~target_vs:preserve
             ~guess:false ~initstep:false ~preserve ~bvs ~param_bvs brs in
         max_subopti_postcond := old_max_subopti_postcond;
         ignore (Format.flush_str_formatter ());
@@ -116,7 +116,7 @@ let tests = "NumS" >::: [
         let bvs = VarSet.empty in
         let param_bvs = VarSet.empty in
         max_subopti_postcond := 10;
-        let vs, (_, ans) = disjelim q ~target_vs:preserve
+        let vs, _, ans, _ = disjelim q ~target_vs:preserve
             ~guess:false ~initstep:false ~preserve ~bvs ~param_bvs brs in
         max_subopti_postcond := old_max_subopti_postcond;
         ignore (Format.flush_str_formatter ());
@@ -153,7 +153,7 @@ let tests = "NumS" >::: [
             VarSet.empty brs in
         let bvs = VarSet.empty in
         let param_bvs = VarSet.empty in
-        let vs, (_, ans) = disjelim q ~target_vs:preserve
+        let vs, _, ans, _ = disjelim q ~target_vs:preserve
             ~guess:false ~initstep:false ~preserve ~bvs ~param_bvs brs in
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
@@ -189,7 +189,7 @@ let tests = "NumS" >::: [
             VarSet.empty brs in
         let bvs = VarSet.empty in
         let param_bvs = VarSet.empty in
-        let vs, (_, ans) = disjelim q ~target_vs:preserve
+        let vs, _, ans, _ = disjelim q ~target_vs:preserve
             ~guess:false ~initstep:false ~preserve ~bvs ~param_bvs brs in
         disjelim_rotations := old_disjelim_rotations;
         ignore (Format.flush_str_formatter ());

@@ -17,7 +17,7 @@ let abductive_disjelim = ref false(* true *)
 let int_pruning = ref false(* true *)
 let strong_int_pruning = ref false
 let passing_ineq_trs = ref false
-let no_subopti_of_cst = ref true
+let no_subopti_of_cst = ref true(* false *)
 let revert_csts = ref true(* false *)
 let discard_penalty = ref 2
 let more_general = ref (* true *)false
@@ -2974,7 +2974,7 @@ let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
     (pr_line_list "| " pr_ineqs) (List.map snd polytopes)
     (pr_line_list "| " pr_ineqn) faces
     (pr_line_list "| " pr_eqn) (List.map WSet.elements equations); *]*)
-  let polytopes =
+  let ptopes =
     if !abductive_disjelim
     then List.map2
         (fun ptope ptope_faces ->
@@ -3010,7 +3010,7 @@ let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
                  (solve ~strict:true ~eqs ~ineqs ~ineqn ~cmp_v ~cmp_w q.uni_v);
              false
            with Terms.Contradiction _ -> true)
-        polytopes in
+        ptopes in
     (*[* Format.printf "NumS.disjelim-check: res=%b face=%a@\n%!"
       res pr_w face; *]*)
     res in
@@ -3128,7 +3128,7 @@ let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
          let eqn = eqn_of_eqs eqs in
          let eqn = eqn @ List.map (mult !/(-1)) eqn in
          ineq_transitive_cl ~cmp_v (List.map expand_sides_cst eqn))
-      polytopes in
+      ptopes in
   (*[* let pr_hasheqs ppf h =
     let eqs = Hashtbl.fold
         (fun (lhs, rhs) (cst, lc) eqs ->
@@ -3366,10 +3366,10 @@ let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
   List.map expand_opti optis @
     List.map expand_subopti suboptis @
     List.map (expand_atom true) (more_eqn @ common_equations)
-  @ List.map (expand_atom false) (more_ineqn @ ineqn)
+  @ List.map (expand_atom false) (more_ineqn @ ineqn),
+  List.map (eqineq_to_num_formula % un_ans) polytopes
 
-let cleanup ~preserve (abd_cnj, cnj) =
-  abd_cnj,
+let cleanup ~preserve cnj =
   List.filter
     (fun c ->
        VarSet.exists (fun p -> VarSet.mem p preserve) (fvs_atom c))
@@ -3383,15 +3383,15 @@ let disjelim q ~target_vs ~preserve ~bvs ~param_bvs ~guess ~initstep brs =
   match brs with
   | [] -> assert false
   | [br] ->
-    [],
-    cleanup ~preserve
-      (disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
-         ~guess ~initstep [br; br])
+    let abd_cnj, cnj, dsj_brs =
+      disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
+         ~guess ~initstep [br; br] in
+    [], abd_cnj, cleanup ~preserve cnj, dsj_brs
   | _ ->
-    [],
-    cleanup ~preserve
-      (disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
-         ~guess ~initstep brs)
+    let abd_cnj, cnj, dsj_brs =
+      disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
+         ~guess ~initstep brs in
+    [], abd_cnj, cleanup ~preserve cnj, dsj_brs
 
 let simplify q ?(keepvs=VarSet.empty) ?localvs ?(guard=[]) elimvs cnj =
   (*[* Format.printf "NumS.simplify: elimvs=%s;@\ncnj=@ %a@\n%!"

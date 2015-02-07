@@ -335,7 +335,7 @@ let separate_subst q cnj =
   if cnj = [] then [], [] else failwith "Order.separate_subst: TODO"
 
 let disjelim q ~target_vs ~preserve ~initstep brs =
-  [], []                                (* TODO *)
+  [], [], [], []                        (* TODO *)
 
 let initstep_heur q cnj =
   cnj                                   (* TODO *)

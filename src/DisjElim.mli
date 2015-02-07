@@ -21,4 +21,5 @@ val disjelim :
   (* preserve:Defs.VarSet.t -> *) up_of_anchor:(Defs.var_name -> bool) ->
   do_num:bool -> guess:bool -> initstep:bool -> residuum:Terms.formula ->
   (Terms.formula * Terms.formula) list ->
-  bool * Terms.formula * (Defs.var_name list * Terms.formula)
+  bool * Terms.formula * (Defs.var_name list * Terms.formula) *
+    Terms.formula list

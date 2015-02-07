@@ -378,7 +378,7 @@ let disjelim q ?target ~bvs ~param_bvs (* ~preserve *) (* ~old_local *)
          try Some (solve ~use_quants:false q prem,
                    solve ~use_quants:false q br)
          with Contradiction _ -> None) brs in
-  if brs = [] then false, [], ([], [])
+  if brs = [] then false, [], ([], []), []
   else
     let residuum =
       solve ~use_quants:false q residuum in
@@ -448,10 +448,12 @@ let disjelim q ?target ~bvs ~param_bvs (* ~preserve *) (* ~old_local *)
           (fun (prem, a) b -> prem, residuum_num @ a @ b) brs_num eqs_num in
       let ord_brs = List.map2
           (fun (prem, a) b -> prem, residuum_ord @ a @ b) brs_ord eqs_ord in
-      let num_avs, (num_abd, num_ans) = NumS.disjelim q ~target_vs
+      let num_avs, num_abd, num_ans, num_dsj_brs =
+        NumS.disjelim q ~target_vs
           ~preserve:keep_for_simpl ~bvs ~param_bvs
           ~guess ~initstep num_brs in
-      let ord_avs, ord_ans = OrderS.disjelim q ~target_vs
+      let ord_avs, ord_abd, ord_ans, ord_dsj_brs =
+        OrderS.disjelim q ~target_vs
           ~preserve:keep_for_simpl ~initstep ord_brs in
       (*[* Format.printf
         "disjelim: before simpl@ vs=%a@ ty_ans=%a@ num_ans=%a@\n\
@@ -466,10 +468,14 @@ let disjelim q ?target ~bvs ~param_bvs (* ~preserve *) (* ~old_local *)
       (* @ (if initstep then [] else NumS.formula_of_sort num_abd) *),
       simplify_dsjelim q initstep ~target ~param_bvs
         (dissoc_vs @ num_avs @ avs)
-        {at_typ=ty_ans; at_num=num_ans; at_ord=ord_ans; at_so=()}
+        {at_typ=ty_ans; at_num=num_ans; at_ord=ord_ans; at_so=()},
+      (* TODO: when need arises, number the origianl branches and
+         multiply-out branches with the same key in Num and in Order. *)
+      List.map NumS.formula_of_sort num_dsj_brs
     else
       dissoc_vs <> [],
       to_formula usb,
       simplify_dsjelim q initstep ~target ~param_bvs
         (dissoc_vs @ avs)
-        {at_typ=ty_ans; at_num=[]; at_ord=[]; at_so=()}
+        {at_typ=ty_ans; at_num=[]; at_ord=[]; at_so=()},
+      []
