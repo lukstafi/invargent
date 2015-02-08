@@ -17,7 +17,7 @@ let abductive_disjelim = ref false(* true *)
 let int_pruning = ref false(* true *)
 let strong_int_pruning = ref false
 let passing_ineq_trs = ref false
-let no_subopti_of_cst = ref true(* false *)
+let subopti_of_cst = ref `No_sides
 let revert_csts = ref true(* false *)
 let discard_penalty = ref 2
 let more_general = ref (* true *)false
@@ -3220,7 +3220,10 @@ let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
       pr_w_formula (List.map wf_of_choice suboptis); *]*)      
     match c with
     | Left (([], _, _), _, _) -> suboptis
-    | Left (([_], _, _), _, _) when !no_subopti_of_cst -> suboptis
+    | Left (([_], _, _), _, _)
+      when initstep || !subopti_of_cst = `No_sides -> suboptis
+    | Left (([_, s], _, _), _, _)
+      when !subopti_of_cst = `Left_side && s >=/ !/0 -> suboptis
     | Left (w, _, _) ->
       if List.exists
           (function
@@ -3236,8 +3239,14 @@ let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
               | Right (w2, w3, _, _, _) ->
                 not (atomic_impl ~cmp_v (Leq_w w) (Subopti_w (w2, w3))))
             suboptis
-    | Right (([_], _, _), _, _, _, _) when !no_subopti_of_cst -> suboptis
-    | Right (_, ([_], _, _), _, _, _) when !no_subopti_of_cst -> suboptis
+    | Right (([_], _, _), _, _, _, _)
+      when initstep || !subopti_of_cst = `No_sides -> suboptis
+    | Right (_, ([_], _, _), _, _, _)
+      when initstep || !subopti_of_cst = `No_sides -> suboptis
+    | Right (([_, s], _, _), _, _, _, _)
+      when !subopti_of_cst = `Left_side && s >=/ !/0 -> suboptis
+    | Right (_, ([_, s], _, _), _, _, _)
+      when !subopti_of_cst = `Left_side && s >=/ !/0 -> suboptis
     | Right (w1, w2, _, _, _) ->
       if List.exists
           (function

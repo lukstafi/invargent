@@ -23,7 +23,7 @@ val strong_int_pruning : bool ref
 val passing_ineq_trs : bool ref
 (** Do not create subopti atoms of the form [k<=max(C,..)] etc. where
     [C] is a constant (default true). *)
-val no_subopti_of_cst : bool ref
+val subopti_of_cst : [`No_sides | `Left_side | `Both_sides] ref
 (** Replace variable=constant equations by variable=variable equations
     in initial abduction candidates to promote generality of
     answers. Default [true]. *)

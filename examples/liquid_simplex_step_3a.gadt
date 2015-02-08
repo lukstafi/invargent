@@ -1,8 +1,8 @@
 external type Matrix : num * num =
-  "(int, Bigarray.int_elt, Bigarray.c_layout) Bigarray.Array2.t"
+  "(float, Bigarray.float64_elt, Bigarray.c_layout) Bigarray.Array2.t"
 external let matrix_make :
   ∀n, k [0≤n ∧ 0≤k]. Num n → Num k → Matrix (n, k) =
-  "fun a b -> Bigarray.Array2.create Bigarray.int Bigarray.c_layout a b"
+  "fun a b -> Bigarray.Array2.create Bigarray.float64 Bigarray.c_layout a b"
 external let matrix_get :
   ∀n, k, i, j [0≤i ∧ i+1≤n ∧ 0≤j ∧ j+1≤k].
    Matrix (n, k) → Num i → Num j → Float = "Bigarray.Array2.get"
@@ -14,7 +14,7 @@ external let matrix_dim1 :
 external let matrix_dim2 :
   ∀n, k [0≤n ∧ 0≤k]. Matrix (n, k) → Num k = "Bigarray.Array2.dim2"
 
-external let n2f : ∀n. Num n → Float = "fun i -> i"
+external let n2f : ∀n. Num n → Float = "fun i -> float_of_int i"
 external let equal : ∀a. a → a → Bool = "fun x y -> x = y"
 external let leq : ∀a. a → a → Bool = "fun x y -> x <= y"
 external let less : ∀a. a → a → Bool = "fun x y -> x < y"

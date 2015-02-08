@@ -9,3 +9,4 @@ Place for TODOs/FIXMEs, especially if not expressed in other places. See README.
 * FIXME: check consistency of the order of `w` variables throughout `NumS`.
 * FIXME: optimize solved form of numerical inequalities by only storing GLB and LUB constants.
 * FIXME: ater fallback, there is arity mismatch for parameters when computing verif_brs.
+* TODO: fix problems with allowing min/max atoms with a constant as one of min/max arguments.

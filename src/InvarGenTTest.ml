@@ -550,7 +550,6 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_simplex_step_3" ());
       "liquid_simplex_step_3a" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_simplex_step_3a" ());
       "liquid_simplex" >::

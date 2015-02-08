@@ -1243,7 +1243,6 @@ let solve q_ops new_ex_types exty_res_chi brs =
                  converge q.op ~guard
                    ~initstep
                    ~check_only:(iter_no < disj_step.(4)) ans1 ans2 in
-
                (*[* Format.printf "solve.loop-dK: final@ tpar=%a@ ans2=%a@\n%!"
                  pr_ty tpar pr_ans ans2; *]*)
                (* No [b] "owns" these formal parameters. Their instances
@@ -1251,6 +1250,10 @@ let solve q_ops new_ex_types exty_res_chi brs =
                rn_sb @ rn_acc, ((i, tpar), (i, ans2, g_brs)))
             [] (List.rev rol1) (List.rev g_rol_brs) in
         let tpars, g_rol_brs = List.split g_rol in
+        let g_rol_brs = List.map
+            (fun (i, ans2, g_brs) ->
+               let g_brs = List.map (subst_formula rn_sb) g_brs in
+               i, ans2, g_brs) g_rol_brs in
         let g_rol = List.map (fun (i, ans2, _) -> i, ans2) g_rol_brs in
         (* FIXME: recheck this definition of [g_par] *)
         let g_par = get_g_par g_rol in
