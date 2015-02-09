@@ -34,18 +34,37 @@ external is_neg_aux :
 external is_neg :
    ∀i, k, n[1 ≤ k ∧ n ≤ i + 1]. Matrix (k, i) → Num n → Bool
 
+external enter_var :
+  ∀i, j, n, m[0 ≤ m ∧ 1 ≤ i ∧ 0 ≤ n ∧ n + 1 ≤ j].
+  Matrix (i, j) → Num n → Float → Num m →
+    ∃l[0 ≤ l ∧ l≤max (j + (-1), n)].Num l
+
 let main_step3_test a =
   let m = matrix_dim1 a in
   let n = matrix_dim2 a in
 
-  (* step 3 *)
+  (* step 4 *)
 
-  let rec enter_var arr2 n j c j' =
-    eif j' + 2 <= n then
-      let c' = matrix_get arr2 0 j' in
-      eif less c' c then enter_var arr2 n j' c' (j'+1)
-      else enter_var arr2 n j c (j'+1)
-    else j in
+  let rec depart_var j i r i' =
+    eif i' + 1 <= m then
+      let c' = matrix_get a i' j in
+      eif less fl0 c' then
+        let r' = div (matrix_get a i' (n + (-1))) c' in
+        eif less r' r then depart_var j i' r' (i'+1)
+        else depart_var j i r (i'+1)
+      else depart_var j i r (i'+1)
+    else i in
 
-  let j = enter_var a n 1 (matrix_get a 0 1) 2 in
-  matrix_get a 0 j
+  (* step 5 *)
+
+  let rec init_ratio j i =
+    eif i + 1 <= m then
+      let c = matrix_get a i j in
+      eif less fl0 c then i, div (matrix_get a i (n + (-1))) c
+      else init_ratio j (i+1)
+    else runtime_failure "init_ratio: no variable found" in
+
+  let j = enter_var a 1 (matrix_get a 0 1) 2 in
+  let i, r = init_ratio j 1 in
+  let i = depart_var j i r (i+1) in
+  matrix_get a i j

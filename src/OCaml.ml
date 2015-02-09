@@ -139,6 +139,8 @@ let postprocess elim_extypes e =
                 aux e)
              cls, loc)
     | AssertFalse _ as e -> e
+    | RuntimeFailure (e, loc) ->
+      RuntimeFailure (aux e, loc)
     (* Assertions are statically guaranteed to hold. *)
     | AssertLeq (_, _, e, _) | AssertEqty (_, _, e, _) -> aux e
     | Letrec (docu, ann, x, e1, e2, loc) ->
@@ -202,11 +204,12 @@ let pr_expr funtys lettys ppf =
         (!num_is ^ "_of_int", "add_" ^ !num_is ^ " (",
          "mult_" ^ !num_is ^ " (", ") (", ")") in
   let export_bool = [true, "true"; false, "false"] in
+  let export_runtime_failure = "failwith" in
   let pr_ann =
     if funtys || lettys
     then pr_annot_full lettys else pr_annot_rec in
   pr_expr ?export_num ~export_if ~export_bool ~export_progseq
-    pr_ann ppf
+    ~export_runtime_failure pr_ann ppf
 
 let pr_rhs_docu ppf = function
   | None -> ()

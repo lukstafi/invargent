@@ -77,6 +77,15 @@
     existentially quantified type. \ Concrete syntax: e.g. <verbatim|let v =
     f e >...<verbatim| in >... Constructor: <verbatim|Letin>.
 
+    <item*|<verbatim|AssertFalse>>Check unreachability statically by negating
+    the premise of the clause with <verbatim|assert false> on the
+    right-hand-side.
+
+    <item*|<verbatim|RuntimeFailure>>Fail at runtime with the given text
+    message. Only needed for introducing existential types, because a
+    user-defined equivalent of <verbatim|runtime_failure> would introduce a
+    spurious branch for generalization.
+
     <item*|<verbatim|AssertLeq>><math|<with|math-font-series|bold|assert num
     >m\<leqslant\>n;e>: add the inequality to the constraints. Concrete
     syntax: <verbatim|assert num m \<less\>= n; <math|\<ldots\>>>
@@ -143,10 +152,10 @@
   function>|<cell|<math|\<lambda\><around*|(|p<rsub|1>.\<lambda\><around*|(|p<rsub|2>.e|)>|)>>>|<cell|<verbatim|fun
   (p1,p2) p3 -\<gtr\> e>>|<cell|<verbatim|Lam(<math|\<ldots\>>)>>>|<row|<cell|branching
   function>|<cell|<math|\<lambda\><around*|(|p<rsub|1>.e<rsub|1>\<ldots\>p<rsub|n>.e<rsub|n>|)>>>|<cell|<verbatim|function
-  p1-\<gtr\>e1 \| >...<verbatim| \| pn-\<gtr\>en>>|<cell|<verbatim|Lam(<math|\<ldots\>>)>>>|<row|<cell|cond.
+  p1-\<gtr\>e1 \|>...<verbatim|\| pn-\<gtr\>en>>|<cell|<verbatim|Lam(<math|\<ldots\>>)>>>|<row|<cell|cond.
   branch>|<cell|<math|p<with|math-font-series|bold| when
   >\<wedge\><rsub|i\<in\>\<b-2\>>m<rsub|i>\<leqslant\>n<rsub|i>.e>>|<cell|<verbatim|p
-  when m1\<less\>=n1 && m2\<less\>=n2 -\<gtr\>
+  when m1\<less\>=n1 && <math|\<ldots\>> -\<gtr\>
   e>>|<cell|<verbatim|Lam(<math|\<ldots\>>)>>>|<row|<cell|pattern
   match>|<cell|<math|\<lambda\><around*|(|p<rsub|1>.e<rsub|1>\<ldots\>p<rsub|n>.e<rsub|n>|)>
   e>>|<cell|<verbatim|match e with p1-\<gtr\>e1 \|
@@ -165,14 +174,16 @@
   in e2>>|<cell|<verbatim|Letrec>>>|<row|<cell|definition>|<cell|<math|<with|math-font-series|bold|let>
   p=e<rsub|1> <with|math-font-series|bold|in> e<rsub|2>>>|<cell|<verbatim|let
   p1,p2 = e1 in e2>>|<cell|<verbatim|Letin>>>|<row|<cell|asserting dead
-  br.>|<cell|<math|\<b-F\>>>|<cell|<verbatim|assert
-  false>>|<cell|<verbatim|AssertFalse>>>|<row|<cell|assert equal
-  types>|<cell|<math|<with|math-font-series|bold|assert type
+  br.>|<cell|<math|<with|math-font-series|bold|assert
+  false>>>|<cell|<verbatim|assert false>>|<cell|<verbatim|AssertFalse>>>|<row|<cell|assert
+  equal types>|<cell|<math|<with|math-font-series|bold|assert type
   >e<rsub|1><wide|=|\<dot\>>e<rsub|2>;e<rsub|3>>>|<cell|<verbatim|assert type
   e1 = e2; e3>>|<cell|<verbatim|AssertEqty>>>|<row|<cell|assert
   inequality>|<cell|<math|<with|math-font-series|bold|assert num
   >e<rsub|1>\<leqslant\>e<rsub|2>;e<rsub|3>>>|<cell|<verbatim|assert num e1
-  \<less\>= e2; e3>>|<cell|<verbatim|AssertLeq>>>>>>
+  \<less\>= e2; e3>>|<cell|<verbatim|AssertLeq>>>|<row|<cell|runtime
+  failure>|<cell|<math|<with|math-font-series|bold|runtime failure>
+  s>>|<cell|<verbatim|runtime_failure s>>|<cell|<verbatim|RuntimeFailure>>>>>>
 
   There are also variants of the if-then-else clause syntax supporting
   <math|<with|math-font-series|bold|when>> conditions:

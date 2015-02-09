@@ -800,7 +800,8 @@ type discarded =
   (TermAbd.answer list, NumDefs.formula list,
    OrderDefs.formula list, unit) sep_sorts
 
-let abd q ~bvs ~xbvs ~upward_of ?(iter_no=2) ~discard brs neg_brs =
+let abd q ~bvs ~xbvs ~upward_of ~nonparam_vars
+    ?(iter_no=2) ~discard brs neg_brs =
   let dissociate = iter_no <= 0 in
   (* Do not change the order and no. of branches afterwards. *)
   (*[* Format.printf "abd: iter_no=%d prepare branches@\n%!" iter_no; *]*)
@@ -1000,7 +1001,8 @@ let abd q ~bvs ~xbvs ~upward_of ?(iter_no=2) ~discard brs neg_brs =
     else
       try
         (* [tvs] includes alien variables! *)
-        NumS.abd q ~bvs ~xbvs ~upward_of ~discard:discard.at_num ~iter_no
+        NumS.abd q ~bvs ~xbvs ~upward_of ~nonparam_vars
+          ~discard:discard.at_num ~iter_no
           (* [true] means non-recursive *)
           ((true, [], [], neg_num_res)::brs_num)
       with

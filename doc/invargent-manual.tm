@@ -581,12 +581,20 @@
   in e2>>>|<row|<cell|definition>|<cell|<math|<with|math-font-series|bold|let>
   p=e<rsub|1> <with|math-font-series|bold|in> e<rsub|2>>>|<cell|<verbatim|let
   p1,p2 = e1 in e2>>>|<row|<cell|asserting dead
-  br.>|<cell|<math|\<b-F\>>>|<cell|<verbatim|assert
-  false>>>|<row|<cell|assert equal types>|<cell|<math|<with|math-font-series|bold|assert
-  type >\<tau\><rsub|e<rsub|1>><wide|=|\<dot\>>\<tau\><rsub|e<rsub|2>>;e<rsub|3>>>|<cell|<verbatim|assert
+  br.>|<cell|<math|<with|math-font-series|bold|assert
+  false>>>|<cell|<verbatim|assert false>>>|<row|<cell|runtime
+  failure>|<cell|<math|<with|math-font-series|bold|runtime failure>
+  s>>|<cell|<verbatim|runtime_failure s>>>|<row|<cell|assert equal
+  types>|<cell|<math|<with|math-font-series|bold|assert type
+  >\<tau\><rsub|e<rsub|1>><wide|=|\<dot\>>\<tau\><rsub|e<rsub|2>>;e<rsub|3>>>|<cell|<verbatim|assert
   type e1 = e2; e3>>>|<row|<cell|assert inequality>|<cell|<math|<with|math-font-series|bold|assert
   num >e<rsub|1>\<leqslant\>e<rsub|2>;e<rsub|3>>>|<cell|<verbatim|assert num
   e1 \<less\>= e2; e3>>>>>>
+
+  A built-in fail at runtime with the given text message is only needed for
+  introducing existential types, because a user-defined equivalent of
+  <verbatim|runtime_failure> would introduce a spurious branch for
+  generalization.
 
   Toplevel expressions (corresponding to structure items in OCaml) introduce
   types, type and value constructors, global variables with given type

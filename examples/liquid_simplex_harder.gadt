@@ -1,0 +1,155 @@
+external type Matrix : num * num =
+  "(int, Bigarray.int_elt, Bigarray.c_layout) Bigarray.Array2.t"
+external let matrix_make :
+  ∀n, k [0≤n ∧ 0≤k]. Num n → Num k → Matrix (n, k) =
+  "fun a b -> Bigarray.Array2.create Bigarray.int Bigarray.c_layout a b"
+external let matrix_get :
+  ∀n, k, i, j [0≤i ∧ i+1≤n ∧ 0≤j ∧ j+1≤k].
+   Matrix (n, k) → Num i → Num j → Float = "Bigarray.Array2.get"
+external let matrix_set :
+  ∀n, k, i, j [0≤i ∧ i+1≤n ∧ 0≤j ∧ j+1≤k].
+   Matrix (n, k) → Num i → Num j → Float → () = "Bigarray.Array2.set"
+external let matrix_dim1 :
+  ∀n, k [0≤n ∧ 0≤k]. Matrix (n, k) → Num n = "Bigarray.Array2.dim1"
+external let matrix_dim2 :
+  ∀n, k [0≤n ∧ 0≤k]. Matrix (n, k) → Num k = "Bigarray.Array2.dim2"
+
+external let n2f : ∀n. Num n → Float = "fun i -> i"
+external let equal : ∀a. a → a → Bool = "fun x y -> x = y"
+external let leq : ∀a. a → a → Bool = "fun x y -> x <= y"
+external let less : ∀a. a → a → Bool = "fun x y -> x < y"
+
+external let minus : Float → Float → Float = "(-.)"
+external let plus : Float → Float → Float = "(+.)"
+external let mult : Float → Float → Float = "( *. )"
+external let div : Float → Float → Float = "( /. )"
+external let fl0 : Float = "0.0"
+
+let snd = function _, x -> x
+
+let rec is_neg_aux arr2 n j =
+  if j + 2 <= n then
+    if less (matrix_get arr2 0 j) fl0 then True
+    else is_neg_aux arr2 n (j+1)
+  else False
+
+let is_neg arr2 n = is_neg_aux arr2 n 1
+
+(* step 2 *)
+let unb1, unb2 =
+  let rec unb12 =
+    let rec unb1 arr2 m n i j =
+      if j + 2 <= n then
+        if less (matrix_get arr2 0 j) fl0
+        then snd unb12 arr2 m n (i+1) j
+        else unb1 arr2 m n 0 (j+1)
+      else False in
+
+    unb1,
+    fun arr2 m n i j ->
+      if i + 1 <= m then
+        if less (matrix_get arr2 i j) fl0
+        then snd unb12 arr2 m n (i+1) j
+        else unb1 arr2 m n 0 (j+1)
+      else True in
+  unb12
+
+(* step 3 *)
+
+let rec enter_var arr2 n j c j' =
+  if j' + 2 <= n then
+    let c' = matrix_get arr2 0 j' in
+    if less c' c then enter_var arr2 n j' c' (j'+1)
+    else enter_var arr2 n j c (j'+1)
+  else j
+
+(* step 4 *)
+
+let rec depart_var arr2 m n j i r i' =
+  if i' + 1 <= m then
+    let c' = matrix_get arr2 i' j in
+    if less fl0 c' then
+      let r' = div (matrix_get arr2 i' (n-1)) c' in
+      if less r' r then depart_var arr2 m n j i' r' (i'+1)
+      else depart_var arr2 m n j i r (i'+1)
+    else depart_var arr2 m n j i r (i'+1)
+  else i
+
+(* lukstafi: commented out in the original *)
+(*let rec init_ratio_left arr2 m n j i =
+  if i < m then
+    let c = matrix_get arr2 i j in
+      if c > 0.0 then i
+      else init_ratio_left arr2 m n j (i+1)
+  else assert false
+
+let rec init_ratio_right arr2 m n j i =
+  if i < m then
+    let c = matrix_get arr2 i j in
+      if c > 0.0 then (matrix_get arr2 i (n-1)) /. c
+      else init_ratio_right arr2 m n j (i+1)
+  else assert false
+*)
+
+let rec init_ratio arr2 m n j i =
+  if i + 1 <= m then
+    let c = matrix_get arr2 i j in
+    if less fl0 c then i, div (matrix_get arr2 i (n-1)) c
+    else init_ratio arr2 m n j (i+1)
+  else assert false
+
+(* step 5 *)
+
+let rec norm_aux arr2 n i c j =
+  if j + 1 <= n then (
+    matrix_set arr2 i j (div (matrix_get arr2 i j) c);
+    norm_aux arr2 n i c (j+1))
+  else ()
+
+let norm arr2 n i j =
+  let c = matrix_get arr2 i j in
+  norm_aux arr2 n i c 1
+
+let rec row_op_aux1 arr2 n i i' c j =
+  if j + 1 <= n then
+    matrix_set arr2 i' j
+      (minus (matrix_get arr2 i' j)
+        (mult (matrix_get arr2 i j) c));
+    row_op_aux1 arr2 n i i' c (j+1)
+  else ()
+
+let row_op_aux2 arr2 n i i' j =
+  row_op_aux1 arr2 n i i' (matrix_get arr2 i' j) 1
+
+let rec row_op_aux3 arr2 m n i j i' =
+  if i' + 1 <= m then
+    if equal i' i then (
+      row_op_aux2 arr2 n i i' j;
+      row_op_aux3 arr2 m n i j (i'+1))
+    else row_op_aux3 arr2 m n i j (i'+1)
+  else ()
+
+let row_op arr2 m n i j =
+  norm arr2 n i j;
+  row_op_aux3 arr2 m n i j 0
+
+let rec simplex arr2 m n =
+  if is_neg arr2 n then
+    if unb1 arr2 m n 0 1 then () (* assert false *)
+    else
+      let j = enter_var arr2 n 1 (matrix_get arr2 0 1) 2 in
+      (*let i = init_ratio_left arr2 m n j 1 in
+      let r = init_ratio_right arr2 m n j 1 in*)
+      let i, r = init_ratio arr2 m n j 1 in
+      let i = depart_var arr2 m n j i r (i+1) in
+      row_op arr2 m n i j;
+      simplex arr2 m n
+  else ()
+
+let main a =
+  let m = matrix_dim1 a in
+  let n = matrix_dim2 a in
+  if 2 <= m then
+    if 3 <= n then simplex a m n
+    else assert false
+  else assert false

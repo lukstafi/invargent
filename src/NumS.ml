@@ -30,6 +30,7 @@ let complexity_penalty = ref 2.0
 let reward_locality = ref 3
 let multi_levels_penalty = ref 4
 let locality_vars_penalty = ref 6
+let nonparam_vars_penalty = ref 6
 let discourage_upper_bound = ref 6
 let discourage_already_bounded = ref 4
 let encourage_not_yet_bounded = ref 1
@@ -1408,7 +1409,8 @@ let revert_cst cmp_v uni_v eqn =
    bounded by a constant. [d_ineqn] and [d_ineqs] represent the same
    inequalities, but [d_ineqs] is normalized and completed
    wrt. transitivity. *)
-let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of ~bvs ~discard_ineqs
+let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of
+    ~bvs ~nonparam_vars ~discard_ineqs
     ~eqs_acc0 ~ineqs_acc0 ~optis_acc ~suboptis_acc
     ~b_ineqs ~bh_ineqs ~d_ineqn ~d_ineqs
     (vars, cst, lc as w) =
@@ -1510,7 +1512,14 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of ~bvs ~discard_ineqs
                 (fun acc (v2, _) ->
                    if qcmp_v v v2 <> Same_params then acc - 1
                    else acc)
-                1 tl in
+                1 tl +
+            !nonparam_vars_penalty *
+              List.fold_left
+                (fun acc (v2, _) ->
+                   if VarSet.mem v2 nonparam_vars then acc - 1
+                   else acc)
+                (* We exclude the head variable from contributing. *)
+                0 tl in
     let bound =
       match vars with
       | [v, k] ->
@@ -1613,7 +1622,8 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of ~bvs ~discard_ineqs
 exception Omit_trans
 (* We currently do not measure satisfiability of negative constraints. *)
 (* TODO: guess equalities between parameters. *)
-let abd_simple ~qcmp_v ~cmp_w ~upward_of cmp_v uni_v ~bvs ~discard ~validate
+let abd_simple ~qcmp_v ~cmp_w ~upward_of cmp_v uni_v
+    ~bvs ~nonparam_vars ~discard ~validate
     ~neg_validate:_
     skip (eqs_i, ineqs_i, optis_i, suboptis_i)
     (opti_lhs, (d_eqn, d_ineqn), (c_eqn, c_ineqn, c_optis, c_suboptis)) =
@@ -1915,7 +1925,8 @@ let abd_simple ~qcmp_v ~cmp_w ~upward_of cmp_v uni_v ~bvs ~discard ~validate
        | Leq_w w ->
          let w = subst_if_qv ~uni_v ~bvs ~cmp_v rev_sb w in
          let cands =
-           abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of ~bvs
+           abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of
+             ~bvs ~nonparam_vars
              ~discard_ineqs ~eqs_acc0 ~ineqs_acc0 ~optis_acc ~suboptis_acc
              ~b_ineqs ~bh_ineqs ~d_ineqn:d_ineqn' ~d_ineqs w in
          (*[* Format.printf "NumS.abd_simple: [%d] 7. c0s=@ %a@\n%!"
@@ -1999,7 +2010,8 @@ module NumAbd = struct
     qcmp_v : (var_name -> var_name -> var_scope);
     upward_of : var_name -> var_name -> bool;
     uni_v : (var_name -> bool);
-    bvs : VarSet.t}
+    bvs : VarSet.t;
+    nonparam_vars : VarSet.t}
   type answer = accu
   type discarded = w list * w list * optis * suboptis
   (** "LHS" variables of opti atoms, premise, conclusion. *)
@@ -2009,9 +2021,10 @@ module NumAbd = struct
   let abd_fail_timeout = abd_fail_timeout_count
   let abd_fail_flag = abd_fail_flag
 
-  let abd_simple {qcmp_v; cmp_w; cmp_v; uni_v; bvs; upward_of}
+  let abd_simple
+      {qcmp_v; cmp_w; cmp_v; uni_v; bvs; nonparam_vars; upward_of}
       ~discard ~validate ~neg_validate acc br =
-    abd_simple ~qcmp_v ~cmp_w cmp_v ~upward_of uni_v ~bvs
+    abd_simple ~qcmp_v ~cmp_w cmp_v ~upward_of uni_v ~bvs ~nonparam_vars
       ~discard ~validate ~neg_validate 0 acc br
 
   let extract_ans ans = ans
@@ -2099,7 +2112,7 @@ let subst_chi chi_sb pos_chi =
 
 (* FIXME: eliminate optis from premise, but first try simplifying
    them with both premise and conclusion of a branch. *)
-let abd q ~bvs ~xbvs ~upward_of ~discard ?(iter_no=2) brs =
+let abd q ~bvs ~xbvs ~upward_of ~nonparam_vars ~discard ?(iter_no=2) brs =
   abd_timeout_flag := false;
   let cmp_v = make_cmp q in
   let cmp_w (vars1,cst1,_) (vars2,cst2,_) =
@@ -2334,7 +2347,7 @@ let abd q ~bvs ~xbvs ~upward_of ~discard ?(iter_no=2) brs =
       unproc_brs in
   let ans = JCA.abd
       {cmp_v; cmp_w; NumAbd.qcmp_v = q.cmp_v;
-       upward_of; uni_v = q.uni_v; bvs}
+       upward_of; uni_v = q.uni_v; bvs; nonparam_vars}
       ~discard ~validate ~neg_validate ([], [], [], []) brs in
   [], elim_uni @ ans_to_num_formula ans
 

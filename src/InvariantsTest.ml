@@ -1901,7 +1901,7 @@ let rec zip =
     | UCons xs, UCons ys ->
       let zs = zip (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (k, n)].Unary i)"]
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (n, k)].Unary i)"]
     );
 
   "unary minimum asserted 1" >::
@@ -1922,7 +1922,7 @@ let rec zip =
       let zs = zip (xs, ys) in
       UCons zs"
         [2,"∃n, k. δ = ((Unary n, Unary k) → \
-            ∃i[i=min (k, n)].Unary i) ∧ 0 ≤ k"]
+            ∃i[i=min (n, k)].Unary i) ∧ 0 ≤ k"]
     );
 
   "unary minimum asserted 2" >::
@@ -1942,7 +1942,7 @@ let rec zip =
     | UCons xs, UCons ys ->
       let zs = zip (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (k, n)].Unary i) \
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (n, k)].Unary i) \
             ∧ 0 ≤ k"]
     );
 
@@ -1964,7 +1964,7 @@ let rec zip =
     | UCons xs, UCons ys ->
       let zs = zip (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (k, n)].Unary i) ∧
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (n, k)].Unary i) ∧
   0 ≤ n ∧ 0 ≤ k"]
     );
 
@@ -1985,7 +1985,7 @@ let rec zip =
       let zs = zip (xs, ys) in
       LCons ((x, y), zs)"
         [2,"∃n, k, a, b.
-  δ = ((List (a, n), List (b, k)) → ∃i[i=min (k, n)].List ((a, b), i))"]
+  δ = ((List (a, n), List (b, k)) → ∃i[i=min (n, k)].List ((a, b), i))"]
     );
 
   "unary maximum expanded" >::
@@ -2463,8 +2463,8 @@ let rotr = efunction
 "
         [2,"∃n, a.
   δ =
-    ((Avl (a, n + 3), a, Avl (a, n)) → ∃k[n + 3 ≤ k ∧
-       k ≤ n + 4].Avl (a, k)) ∧
+    ((Avl (a, n + 3), a, Avl (a, n)) → ∃k[k ≤ n + 4 ∧
+       n + 3 ≤ k].Avl (a, k)) ∧
   0 ≤ n"];
     );
 
@@ -3284,8 +3284,8 @@ let merge = efunction
 "
         [2,"∃n, k, a.
   δ =
-    ((Avl (a, n), Avl (a, k)) → ∃i[n ≤ i ∧ k ≤ i ∧
-       i ≤ n + k ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
+    ((Avl (a, n), Avl (a, k)) → ∃i[n ≤ i ∧ i ≤ n + k ∧
+       k ≤ i ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
   n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 

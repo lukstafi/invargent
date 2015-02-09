@@ -552,6 +552,19 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "liquid_simplex_step_3a" ());
+      "liquid_simplex_step_4" >::
+        (fun () ->
+           todo "FIXME"; (* "too hard for current InvarGenT"; ? *)
+           skip_if !debug "debug";
+           test_case "liquid_simplex_step_4" ());
+      "liquid_simplex_step_4a" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "liquid_simplex_step_4a" ());
+      "liquid_simplex_step_5a" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "liquid_simplex_step_5a" ());
       "liquid_simplex" >::
         (fun () ->
            todo "FIXME";

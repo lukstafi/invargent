@@ -98,6 +98,7 @@ rule token = parse
   | ';'         { SEMICOLON }
   | "assert"    { ASSERT }
   | "false"     { FALSE }
+  | "runtime_failure" { RUNTIME_FAILURE }
   | "test"      { TEST }
   | "and"       { AND }
   | "&&"        { LOGAND }

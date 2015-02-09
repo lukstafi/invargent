@@ -33,7 +33,7 @@ let add_cnames l vs =
   List.fold_right CNames.add l vs
 
 let init_types = cnames_of_list
-    [tuple; numtype; CNam "Int"; booltype; stringtype]
+    [tuple; numtype; CNam "Int"; CNam "Float"; booltype; stringtype]
 
 type lc = loc
 
@@ -64,6 +64,7 @@ type ('a, 'b) expr =
 | Letrec of string option * 'a * string * ('a, 'b) expr * ('a, 'b) expr * loc
 | Letin of string option * pat * ('a, 'b) expr * ('a, 'b) expr * loc
 | AssertFalse of loc
+| RuntimeFailure of ('a, 'b) expr * loc
 | AssertLeq of ('a, 'b) expr * ('a, 'b) expr * ('a, 'b) expr * loc
 | AssertEqty of ('a, 'b) expr * ('a, 'b) expr * ('a, 'b) expr * loc
 
@@ -103,6 +104,7 @@ let rec equal_expr x y = match x, y with
   | Letin (_, x, a, b, _), Letin (_, y, c, d, _) ->
     equal_pat x y && equal_expr a c && equal_expr b d
   | AssertFalse _, AssertFalse _ -> true
+  | RuntimeFailure (s, _), RuntimeFailure (t, _) -> equal_expr s t
   | AssertLeq (a, b, c, _), AssertLeq (d, e, f, _) ->
     equal_expr a d && equal_expr b e && equal_expr c f
   | AssertEqty (a, b, c, _), AssertEqty (d, e, f, _) ->
@@ -128,6 +130,7 @@ let expr_loc = function
   | Letrec (_, _, _, _, _, loc)
   | Letin (_, _, _, _, loc)
   | AssertFalse loc
+  | RuntimeFailure (_, loc)
   | AssertLeq (_, _, _, loc)
   | AssertEqty (_, _, _, loc)
     -> loc
@@ -204,6 +207,8 @@ let fuse_exprs =
     | (String _ as e), f
     | (AssertFalse _ as e), f ->
       assert (e==f); e
+    | RuntimeFailure (s, lc1), RuntimeFailure (t, lc2) ->
+      assert (lc1==lc2); RuntimeFailure (aux s t, lc1)
     | _ -> assert false
 
   and combine es fs = List.map2 aux es fs
@@ -880,7 +885,7 @@ type ('a, 'b) pr_expr_annot =
   | LetInNode of 'b
 
 let pr_expr ?export_num ?export_if ?export_bool ?export_progseq
-    pr_ann ppf exp =
+    ?export_runtime_failure pr_ann ppf exp =
   let rec aux ppf = function
     | Var (s, _) -> fprintf ppf "%s" s
     | String (s, _) -> fprintf ppf "\"%s\"" s
@@ -1003,6 +1008,10 @@ let pr_expr ?export_num ?export_if ?export_bool ?export_progseq
         pr_pat pat aux exp
         aux range
     | AssertFalse _ -> fprintf ppf "assert false"
+    | RuntimeFailure (s, _) ->
+      (match export_runtime_failure with
+       | None -> fprintf ppf "@[<2>(runtime_failure@ %a)@]" aux s
+       | Some fname -> fprintf ppf "@[<2>(%s@ %a)@]" fname aux s)
     | AssertLeq (e1, e2, range, _) ->
       fprintf ppf "@[<0>assert@[<2>@ %a@ ≤@ %a@];@ %a@]"
         aux e1 aux e2
@@ -1707,6 +1716,8 @@ let parser_last_typ = ref 0
 let parser_last_num = ref 0
 
 let ty_unit = TCons (tuple, [])
+let ty_string = TCons (stringtype, [])
+
 let builtin_gamma = [
   (let a = VNam (Type_sort, "a") in let va = TVar a in
    builtin_progseq, ([a], [], Fun (ty_unit, Fun (va, va))));

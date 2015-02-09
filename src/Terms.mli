@@ -61,6 +61,7 @@ type ('a, 'b) expr =
 | Letrec of string option * 'a * string * ('a, 'b) expr * ('a, 'b) expr * lc
 | Letin of string option * pat * ('a, 'b) expr * ('a, 'b) expr * lc
 | AssertFalse of lc
+| RuntimeFailure of ('a, 'b) expr * lc
 | AssertLeq of ('a, 'b) expr * ('a, 'b) expr * ('a, 'b) expr * lc
 | AssertEqty of ('a, 'b) expr * ('a, 'b) expr * ('a, 'b) expr * lc
 
@@ -360,6 +361,8 @@ val ex_type_chi : (int, int) Hashtbl.t
 val all_ex_types : (int * lc) list ref
 
 val builtin_gamma : (string * typ_scheme) list
+val ty_unit : typ
+val ty_string : typ
 
 val fresh_typ_var : unit -> Defs.var_name
 val fresh_num_var : unit -> Defs.var_name
@@ -386,6 +389,7 @@ val pr_expr :
   ?export_if:(string * string * string) ->
   ?export_bool:((bool * string) list) ->
   ?export_progseq:(string * string * string) ->
+  ?export_runtime_failure:string ->
   (Format.formatter -> ('a, 'b) pr_expr_annot -> unit) ->
   Format.formatter -> ('a, 'b) expr -> unit
 val pr_uexpr : Format.formatter -> uexpr -> unit

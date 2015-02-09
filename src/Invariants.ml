@@ -836,7 +836,7 @@ let empty_disc = {at_typ=[],[]; at_num=[]; at_ord=[]; at_so=()}
 let empty_dl = {at_typ=[]; at_num=[]; at_ord=[]; at_so=()}
 
 (* Captures where the repeat step is/are. *)
-let disj_step = [|1; 1; 2; 3; 4|]
+let disj_step = [|1; 1; 2; 3; 6|]
 
 let solve q_ops new_ex_types exty_res_chi brs =
   timeout_flag := false;
@@ -988,7 +988,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
     pr_ints (ints_of_list (List.map fst rolT))
     pr_ints (ints_of_list (List.map fst solT)); *]*)
   (*[* Format.printf "chiK_anchor:";
-    Hashtbl.iter (fun k v -> Format.printf "@ %d->%s" k (var_str v))
+  Hashtbl.iter (fun k v -> Format.printf "@ %d->%s" k (var_str v))
     q.chiK_anchor; Format.printf "@\n%!"; *]*)
   let rec loop iter_no discard rol1 sol1 ans1_res =
     (* 1 *)
@@ -1083,14 +1083,14 @@ let solve q_ops new_ex_types exty_res_chi brs =
                            "chiK: i=%d@ t1=%a@ t2=%a@ prem=%a@\nphi=%a@\n%!"
                            i pr_ty t1 pr_ty t2
                            pr_formula prem pr_formula phi;
-                          *]*)
+                         *]*)
                          i, (prem, phi))
                       chiK_pos
                       (*[* else if chiK_pos <> [] then (
-                        Format.printf "chiK: skipped %a@\n%!" pr_ints
-                          (ints_of_list
-                             (List.map (fun (i,_,_,_) -> i)
-                                chiK_pos)); []) *]*)
+                    Format.printf "chiK: skipped %a@\n%!" pr_ints
+                      (ints_of_list
+                         (List.map (fun (i,_,_,_) -> i)
+                            chiK_pos)); []) *]*)
                   else [])
                verif_brs) in
         let g_rol = g_collect (disj_step.(2) <= iter_no) in
@@ -1143,7 +1143,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                      (fun v ->
                         let b1 = try q.find_b_of_v v with Not_found -> v in
                         (*[*
-                          Format.printf "@ v=%s b1=%s up=%b ren=%b,"
+                        Format.printf "@ v=%s b1=%s up=%b ren=%b,"
                           (var_str v) (var_str b1)
                           (upward_of b1 anchor) (q.param_renaming v); *]*)
                         upward_of b1 anchor && not (q.param_renaming v))
@@ -1190,7 +1190,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
         (*[* Format.printf
           "solve: iter_no=%d@\nabdsjelim=%a@\n@\ng_rol.A=%a@\n%!"
           iter_no pr_formula abdsjelim pr_chi_subst g_rol;
-         *]*)
+        *]*)
         (* 4a *)
         (* Collected invariants, for filtering postconditions. *)
         let lift_ex_types cmp_v i (g_vs, g_ans) =
@@ -1199,7 +1199,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
           (*[* Format.printf
             "lift_ex_types: g_vs=%a@ init g_ans=%a@\n%!"
             pr_vars (vars_of_list g_vs) pr_formula g_ans;
-           *]*)
+          *]*)
           (* 3 *)
           let fvs = VarSet.diff (fvs_formula g_ans)
               (vars_of_list [delta; delta']) in
@@ -1227,7 +1227,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
              g_ans=%a@ e_vs=%a@ phi=%a@\n%!" (var_str anchor)
             pr_vars fvs pr_vars (vars_of_list pvs) pr_vars (vars_of_list uvs)
             pr_ty tpar pr_formula g_ans pr_vars e_vs pr_formula phi;
-           *]*)
+          *]*)
           (* FIXME: g_vs should be ignored? *)
           tpar, (VarSet.elements e_vs, phi) in
         (* 4b *)
@@ -1327,6 +1327,19 @@ let solve q_ops new_ex_types exty_res_chi brs =
         neg_cns in
     let bvs = bparams iter_no in
     let recbvs = q.get_recbvs () in
+    let nonparam_vars =
+      List.fold_left
+        (fun bvs b ->
+           try
+             let chi = q.find_chi b in
+             if q.is_chiK chi then (
+               (*[* Format.printf
+                 "solve: nonparam_vs += %s -> %a@\n%!"
+                 (var_str b) pr_vars (Hashtbl.find q.b_vs b); *]*)
+               VarSet.union bvs (Hashtbl.find q.b_vs b))
+             else bvs
+           with Not_found -> bvs)
+        VarSet.empty q.negbs in
     let early_chiKbs =
       if iter_no>0 || !early_postcond_abd then VarSet.empty
       else VarSet.diff (bparams 1) bvs in
@@ -1346,7 +1359,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                          i (var_str b)
                          pr_vars (vars_of_list (List.map fst renaming))
                          pr_vars (vars_of_list (List.map snd renaming));
-                        *]*)
+                       *]*)
                        i, renaming
                      with Not_found -> i, [])
                   | _ -> assert false)
@@ -1370,7 +1383,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
     let answer =
       try
         let cand_bvs, alien_eqs, (vs, ans) =
-          Abduction.abd q.op ~bvs ~xbvs ~upward_of ~iter_no
+          Abduction.abd q.op ~bvs ~xbvs ~upward_of ~nonparam_vars ~iter_no
             ~discard brs1 neg_cns1 in
         (*[* Format.printf
           "solve: iter_no=%d abd answer=@ %a@\n%!"
@@ -1422,7 +1435,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
         (*[* Format.printf
           "Fallback: iter_no=%d; sort=%s;@ error=@\n%a@\n%!"
           iter_no (sort_str sort) pr_exception e;
-         *]*)
+        *]*)
         Aux.Left (sort, e) in
     match answer with
     | Aux.Left _ as e -> e
@@ -1618,11 +1631,18 @@ let solve q_ops new_ex_types exty_res_chi brs =
                  (*[* Format.printf
                    "Invariants: iter_no=%d postcond-forced \
                     abduction:@\n%!" iter_no; *]*)
-                 let _, alien_eqs, (vs, dans_ans) =
-                   Abduction.abd q'.op ~bvs:recbvs ~xbvs ~upward_of ~iter_no
-                     ~discard brs [] in
-                 assert (alien_eqs = []); assert (vs = []);
-                 postcond_forcing := dans_ans @ !postcond_forcing);
+                 try
+                   let _, alien_eqs, (vs, dans_ans) =
+                     Abduction.abd q'.op ~bvs:recbvs ~xbvs ~nonparam_vars
+                       ~upward_of ~iter_no ~discard brs [] in
+                   assert (alien_eqs = []); assert (vs = []);
+                   postcond_forcing := dans_ans @ !postcond_forcing
+                 with
+                 | (NoAnswer _ | Contradiction _) (*[* as e *]*) ->
+                   (*[* Format.printf
+                     "Postcond-abd-ans: failed iter_no=%d;@ error=@\n%a@\n%!"
+                     iter_no pr_exception e; *]*)
+                   ());
                let pvs = fvs_typ tpar in
                (* TODO: the precautionary step seems unnecessary:
                   localvs=dvs. *)
@@ -1787,7 +1807,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
       Infer.separate_subst ~bvs ~apply:false q_op ans_res in
     (*[* Format.printf "solve: final@\nans_res=%a@\nans_sb=%a@\n%!"
       pr_formula ans_res pr_subst ans_sb;
-     *]*)
+    *]*)
     (* Substitute the solutions for existential types. *)
     let etys_sb = List.map
         (fun (ex_i,_) ->
@@ -1855,7 +1875,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
            pr_vars (vars_of_list chi_vs) pr_ty rty
            pr_vars allvs pr_vars (vars_of_list pvs)
            pr_formula rphi pr_formula phi;
-          *]*)
+         *]*)
          let ety_n = Extype ex_i in
          Hashtbl.replace sigma ety_n
            (VarSet.elements allvs, rphi, [rty], ety_n, pvs)) new_ex_types;

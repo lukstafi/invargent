@@ -37,6 +37,9 @@ val affine_penalty : int ref
 (** How much to penalize for complexity; the coefficient $a$ in the
     description of {!complexity_scale}. Default [2.0]. *)
 val complexity_penalty : float ref
+(** How much to penalize for variables that are not parameters but
+    instead instances from use sites of existential types. Default [6]. *)
+val nonparam_vars_penalty : int ref
 (** Filter out less general abduction candidate atoms (does not
     guarantee overall more general answers). Default [false]. *)
 val more_general : bool ref
@@ -76,6 +79,7 @@ val abd :
   bvs:Defs.VarSet.t ->
   xbvs:(int * Defs.VarSet.t) list ->
   upward_of:(Defs.var_name -> Defs.var_name -> bool) ->
+  nonparam_vars:Defs.VarSet.t ->
   discard:NumDefs.formula list ->
   ?iter_no:int ->
   (bool * (int * (Defs.var_name * Defs.var_name) list) list *

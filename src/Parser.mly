@@ -160,7 +160,7 @@ let expand_if_syntax_bool is_ex cond e1 e2 case1_lc case2_lc lc =
 %token FUNCTION EFUNCTION FUN MATCH EMATCH WITH WHEN IF EIF THEN ELSE
 %token NUM TYPE ORDER
 %token LESSEQUAL
-%token ASSERT FALSE TEST
+%token ASSERT FALSE RUNTIME_FAILURE TEST
 %token DATACONS DATATYPE EXTERNAL LONGARROW DOUBLEARROW
 %token EOF
 
@@ -360,6 +360,8 @@ expr:
             (get_loc ()) }
   | ASSERT FALSE
       { AssertFalse (get_loc ()) }
+  | RUNTIME_FAILURE expr
+      { RuntimeFailure ($2, get_loc ()) }
   | ASSERT NUM expr LESSEQUAL expr SEMICOLON expr
       { AssertLeq ($3, $5, $7, get_loc ()) }
   | ASSERT TYPE expr EQUAL expr SEMICOLON expr

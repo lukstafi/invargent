@@ -24,6 +24,7 @@ external let plus : Float → Float → Float = "(+.)"
 external let mult : Float → Float → Float = "( *. )"
 external let div : Float → Float → Float = "( /. )"
 external let fl0 : Float = "0.0"
+external let fl1 : Float = "1.0"
 
 external snd : ∀a, b. (b, a) → a
 
@@ -38,14 +39,17 @@ let main_step3_test a =
   let m = matrix_dim1 a in
   let n = matrix_dim2 a in
 
-  (* step 3 *)
+  (* step 4 *)
 
-  let rec enter_var arr2 n j c j' =
-    eif j' + 2 <= n then
-      let c' = matrix_get arr2 0 j' in
-      eif less c' c then enter_var arr2 n j' c' (j'+1)
-      else enter_var arr2 n j c (j'+1)
-    else j in
+  let rec depart_var j i r i' =
+    eif i' + 1 <= m then
+      let c' = matrix_get a i' j in
+      eif less fl0 c' then
+        let r' = div (matrix_get a i' (n + (-1))) c' in
+        eif less r' r then depart_var j i' r' (i'+1)
+        else depart_var j i r (i'+1)
+      else depart_var j i r (i'+1)
+    else i in
 
-  let j = enter_var a n 1 (matrix_get a 0 1) 2 in
-  matrix_get a 0 j
+  let i = depart_var 3 1 fl1 2 in
+  matrix_get a i 1

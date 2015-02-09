@@ -137,7 +137,8 @@ let ex_intro_elim e =
     | ExLam _ -> true
     | Letrec (_, _, _, _, e2, _) -> aux e2
     | Letin (_, _, _, e2, _) -> true
-    | AssertFalse _ -> false
+    | AssertFalse _ -> true
+    | RuntimeFailure _ -> true
     | AssertLeq (_, _, e, _)
     | AssertEqty (_, _, e, _) -> aux e in
   aux e
@@ -183,6 +184,7 @@ let normalize_expr e =
     | _, Letin (docu, p, e1, e2, lc) ->
       Letin (docu, p, aux None e1, aux k' e2, lc)
     | _, (AssertFalse _ as e) -> e
+    | _, RuntimeFailure (e, lc) -> RuntimeFailure (aux None e, lc)
     | _, AssertLeq (e1, e2, range, lc) ->
       AssertLeq (e1, e2, aux k' range, lc)
     | _, AssertEqty (e1, e2, range, lc) ->
@@ -469,7 +471,7 @@ let constr_gen_expr gamma e t =
           cn_and cn (A [Eqty (t, rt, loc)])),
       NumCoef (x, e, loc)
     | String (_, loc) as e ->
-      A [Eqty (TCons (stringtype, []), t, loc)],
+      A [Eqty (ty_string, t, loc)],
       e
     | Cons (CNam "Tuple", args, loc) ->
       let argvs =
@@ -526,8 +528,13 @@ let constr_gen_expr gamma e t =
       Ex (vars_of_list [a1; a2], cn),
       Lam ([a1, a2], cls, loc)
     | AssertFalse loc as e -> A [CFalse loc], e
-    | Letin (_, _, AssertFalse _, e2, loc) ->
+    | RuntimeFailure (e, loc) ->
+      let cn, e = aux gamma ty_string e in
+      cn, RuntimeFailure (e, loc)
+    | Letin (_, _, AssertFalse _, _, loc) ->
       A [CFalse loc], AssertFalse loc
+    | Letin (_, _, (RuntimeFailure _ as e1), _, _) ->
+      aux gamma t e1
     | AssertLeq (e1, e2, e3, loc) ->
       let a1 = fresh_var Num_sort in
       let t1 = TVar a1 in
@@ -876,6 +883,9 @@ let annotate_expr q res_sb chi_sb nice_sb e : texpr =
       VarSet.union evs1 evs2,
       Letin (docu, p, e1, e2, lc)
     | AssertFalse lc -> VarSet.empty, AssertFalse lc
+    | RuntimeFailure (e, lc) ->
+      let evs, e = aux nice_sb e in
+      evs, RuntimeFailure (e, lc)
     | AssertLeq (e1, e2, e3, lc) ->
       let evs1, e1 = aux nice_sb e1
       and evs2, e2 = aux nice_sb e2
