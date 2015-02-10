@@ -1,0 +1,152 @@
+type num = int
+type matrix =
+  (float, Bigarray.float64_elt, Bigarray.c_layout) Bigarray.Array2.t
+let matrix_make :
+  (*0 ≤ n ∧ 0 ≤ k*) ((* n *) num -> (* k *) num -> (* n, k *) matrix) =
+  fun a b -> Bigarray.Array2.create Bigarray.float64 Bigarray.c_layout a b
+let matrix_get :
+  (*0 ≤ i ∧ i + 1 ≤ n ∧ 0 ≤ j ∧ j + 1 ≤ k*)
+  ((* n, k *) matrix -> (* i *) num -> (* j *) num -> float) =
+  Bigarray.Array2.get
+let matrix_set :
+  (*0 ≤ i ∧ i + 1 ≤ n ∧ 0 ≤ j ∧ j + 1 ≤ k*)
+  ((* n, k *) matrix -> (* i *) num -> (* j *) num -> float -> unit) =
+  Bigarray.Array2.set
+let matrix_dim1 :
+  (*0 ≤ n ∧ 0 ≤ k*) ((* n, k *) matrix -> (* n *) num) =
+  Bigarray.Array2.dim1
+let matrix_dim2 :
+  (*0 ≤ n ∧ 0 ≤ k*) ((* n, k *) matrix -> (* k *) num) =
+  Bigarray.Array2.dim2
+let n2f : ((* n *) num -> float) = float_of_int
+let equal : ('a -> 'a -> bool) = fun x y -> x = y
+let leq : ('a -> 'a -> bool) = fun x y -> x <= y
+let less : ('a -> 'a -> bool) = fun x y -> x < y
+let minus : (float -> float -> float) = (-.)
+let plus : (float -> float -> float) = (+.)
+let mult : (float -> float -> float) = ( *. )
+let div : (float -> float -> float) = ( /. )
+let fl0 : float = 0.0
+let rec is_neg_aux :
+  (*type i k n [0 ≤ n ∧ 1 ≤ k ∧
+    0 ≤ i].*) ((* k, i *) matrix -> (* n *) num -> bool) =
+  (fun a j ->
+    (if j + 2 <= matrix_dim2 a then
+    (if less (matrix_get a 0 j) fl0 then true else is_neg_aux a (j + 1)) else
+    false))
+let is_neg
+  : (*type k n [1 ≤ n ∧ 0 ≤ k].*) ((* n, k *) matrix -> bool) =
+  (fun a -> is_neg_aux a 1)
+let rec unb1 :
+  (*type i j k n [0 ≤ n ∧ 0 ≤ k + 1 ∧ 1 ≤ i ∧
+    0 ≤ j].*) ((* i, j *) matrix -> (* k *) num -> (* n *) num -> bool) =
+  (fun a i j ->
+    let rec unb2 :
+    (*type k1 l m n1 [0 ≤ m ∧ 0 ≤ l ∧ 0 ≤ n1 ∧
+      m + 1 ≤ k1].*) ((* n1, k1 *) matrix -> (* l *) num -> (* m *) num ->
+                         bool)
+    =
+    (fun a i j ->
+      (if i + 1 <= matrix_dim1 a then
+      (if less (matrix_get a i j) fl0 then unb2 a (i + 1) j else
+      unb1 a 0 (j + 1)) else true)) in
+    (if j + 2 <= matrix_dim2 a then
+    (if less (matrix_get a 0 j) fl0 then unb2 a (i + 1) j else
+    unb1 a 0 (j + 1)) else false))
+let rec norm_aux :
+  (*type i j k n [0 ≤ n ∧ 0 ≤ k ∧ k + 1 ≤ i ∧
+    0 ≤ j].*) ((* i, j *) matrix -> (* k *) num -> float -> (* n *) num ->
+                  unit) =
+  (fun a i c j ->
+    (if j + 1 <= matrix_dim2 a then
+    (matrix_set a i j (div (matrix_get a i j) c) ; norm_aux a i c (j + 1))
+    else ()))
+let rec norm :
+  (*type i j k n [0 ≤ n ∧ 0 ≤ k ∧ k + 1 ≤ i ∧
+    n + 1 ≤ j].*) ((* i, j *) matrix -> (* k *) num -> (* n *) num -> unit) =
+  (fun a i j -> let c = matrix_get a i j in norm_aux a i c 1)
+let rec row_op_aux1 :
+  (*type i j k m n [0 ≤ n ∧ 0 ≤ k ∧ 0 ≤ i ∧ i + 1 ≤ j ∧
+    k + 1 ≤ j ∧
+    0 ≤ m].*) ((* j, m *) matrix -> (* i *) num -> (* k *) num -> float ->
+                  (* n *) num -> unit) =
+  (fun a i i' c j ->
+    (if j + 1 <= matrix_dim2 a then
+    (matrix_set a i' j
+       (minus (matrix_get a i' j) (mult (matrix_get a i j) c))
+    ; row_op_aux1 a i i' c (j + 1)) else ()))
+let rec row_op_aux2 :
+  (*type i j k m n [0 ≤ n ∧ 0 ≤ k ∧ 0 ≤ i ∧ i + 1 ≤ j ∧
+    k + 1 ≤ j ∧
+    n + 1 ≤ m].*) ((* j, m *) matrix -> (* i *) num -> (* k *) num ->
+                      (* n *) num -> unit) =
+  (fun a i i' j -> row_op_aux1 a i i' (matrix_get a i' j) 1)
+let rec row_op_aux3 :
+  (*type i j k m n [0 ≤ k ∧ 0 ≤ i ∧ 0 ≤ j ∧
+    k + 1 ≤ m].*) ((* j, m *) matrix -> (* i *) num -> (* k *) num ->
+                      (* n *) num -> unit) =
+  (fun a i j i' ->
+    (if i' + 1 <= matrix_dim1 a then
+    (if i <= i'&& i' <= i then
+    (row_op_aux2 a i i' j ; row_op_aux3 a i j (i' + 1)) else
+    row_op_aux3 a i j (i' + 1)) else ()))
+let rec row_op :
+  (*type i j k n [0 ≤ n ∧ 0 ≤ k ∧ k + 1 ≤ i ∧
+    n + 1 ≤ j].*) ((* i, j *) matrix -> (* k *) num -> (* n *) num -> unit) =
+  (fun a i j -> (norm a i j ; row_op_aux3 a i j 0))
+type ex7 =
+  | Ex7 : (*∀'k, 'n[k + 1 ≤ n ∧ 0 ≤ k].*)((* k *) num * float) ->
+    (* n *) ex7
+type ex5 =
+  | Ex5 : (*∀'i, 'k, 'n[0 ≤ k ∧ k≤max (n + -1, i)].*)(* k *) num ->
+    (* n, i *) ex5
+type ex2 =
+  | Ex2 : (*∀'i, 'k, 'n[0 ≤ k ∧ k≤max (n + -1, i)].*)(* k *) num ->
+    (* n, i *) ex2
+let rec simplex :
+  (*type k n [1 ≤ n ∧ 2 ≤ k].*) ((* n, k *) matrix -> unit) =
+  (fun a ->
+    let rec enter_var :
+    (*type i j [0 ≤ j ∧
+      0 ≤ i].*) ((* i *) num -> float -> (* j *) num -> (* k, i *) ex2)
+    =
+    (fun j c j' ->
+      (if j' + 2 <= matrix_dim2 a then
+      let c' = matrix_get a 0 j' in
+      (if less c' c then
+      let Ex2 xcase = enter_var j' c' (j' + 1) in Ex2 xcase else
+      let Ex2 xcase = enter_var j c (j' + 1) in Ex2 xcase) else
+      let xcase = j in Ex2 xcase)) in
+    let rec depart_var :
+    (*type l m n1 [0 ≤ l ∧ 0 ≤ n1 ∧ n1 + 1 ≤ k ∧
+      0 ≤ m].*) ((* n1 *) num -> (* m *) num -> float -> (* l *) num ->
+                    (* n, m *) ex5)
+    =
+    (fun j i r i' ->
+      (if i' + 1 <= matrix_dim1 a then
+      let c' = matrix_get a i' j in
+      (if less fl0 c' then
+      let r' = div (matrix_get a i' (matrix_dim2 a + -1)) c' in
+      (if less r' r then
+      let Ex5 xcase = depart_var j i' r' (i' + 1) in Ex5 xcase else
+      let Ex5 xcase = depart_var j i r (i' + 1) in Ex5 xcase) else
+      let Ex5 xcase = depart_var j i r (i' + 1) in Ex5 xcase) else
+      let xcase = i in Ex5 xcase)) in
+    let rec init_ratio :
+    (*type i1 k1 [0 ≤ k1 ∧ 0 ≤ i1 ∧
+      i1 + 1 ≤ k].*) ((* i1 *) num -> (* k1 *) num -> (* n *) ex7)
+    =
+    (fun j i ->
+      (if i + 1 <= matrix_dim1 a then
+      let c = matrix_get a i j in
+      (if less fl0 c then
+      let xcase = (i, div (matrix_get a i (matrix_dim2 a + -1)) c) in
+      Ex7 xcase else let Ex7 xcase = init_ratio j (i + 1) in Ex7 xcase) else
+      (failwith "init_ratio: no variable found"))) in
+    (if is_neg a then
+    (if unb1 a 0 1 then () else
+    let Ex2 j = enter_var 1 (matrix_get a 0 1) 2 in
+    let Ex7 (i, r) = init_ratio j 1 in
+    let Ex5 i = depart_var j i r (i + 1) in (row_op a i j ; simplex a)) else
+    ()))
+

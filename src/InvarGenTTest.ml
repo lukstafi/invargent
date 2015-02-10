@@ -607,7 +607,7 @@ let tests = "InvarGenT" >::: [
       "liquid_simplex" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case "liquid_simplex" ());
+           test_case ~test_annot:true "liquid_simplex" ());
       "liquid_simplex-harder" >::
         (fun () ->
            skip_if !debug "debug";
