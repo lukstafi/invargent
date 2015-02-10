@@ -129,16 +129,19 @@ let main () =
      containing a constant term (default 4)";
     "-complexity_penalty", Arg.Set_float NumS.complexity_penalty,
     "How much to penalize for complexity; the coefficient of either \
-     the linear (default) or power scaling (default 2.0)";
+     the linear (default) or power scaling (default 2.5)";
     "-abd_lin_thres_scaling", Arg.Float set_lin_thres_scaling,
     "Scale the complexity cost of coefficients linearly with a jump of \
      the given height after coefficient 1 (default 2.0)";
     "-abd_pow_scaling", Arg.Float set_pow_scaling,
     "Scale the complexity cost of coefficients according to the given power";
+    "-prefer_source_bound", Arg.Set NumS.prefer_source_bound,
+    "Prefer a zero-indexed array/matrix/etc. bound coming from outer \
+     scope, to inequality between two local parameters";
     "-more_general_num", Arg.Set NumS.more_general,
     "Filter out less general numerical abduction candidate atoms";
     "-no_num_abduction", Arg.Set Abduction.no_num_abduction,
-    "Turn off numerical abduction; will not ensure correctness.";
+    "Turn off numerical abduction; will not ensure correctness";
     "-postcond_rotations", Arg.Set_int NumS.disjelim_rotations,
     "In postconditions, check coefficients from 1/N to N (default 3)";
     "-postcond_opti_limit", Arg.Set_int NumS.max_opti_postcond,

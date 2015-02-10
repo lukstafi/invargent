@@ -10,3 +10,4 @@ Place for TODOs/FIXMEs, especially if not expressed in other places. See README.
 * FIXME: optimize solved form of numerical inequalities by only storing GLB and LUB constants.
 * FIXME: ater fallback, there is arity mismatch for parameters when computing verif_brs.
 * TODO: fix problems with allowing min/max atoms with a constant as one of min/max arguments.
+* FIXME: parsing of subtraction in types and expressions, e.g. "n - 1".

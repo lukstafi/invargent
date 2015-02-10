@@ -35,11 +35,14 @@ val discard_penalty : int ref
     containing a constant term. Default [4]. *)
 val affine_penalty : int ref
 (** How much to penalize for complexity; the coefficient $a$ in the
-    description of {!complexity_scale}. Default [2.0]. *)
+    description of {!complexity_scale}. Default [2.5]. *)
 val complexity_penalty : float ref
 (** How much to penalize for variables that are not parameters but
     instead instances from use sites of existential types. Default [6]. *)
 val nonparam_vars_penalty : int ref
+(** Prefer a zero-indexed array/matrix/etc. bound coming from outer
+    scope, to inequality between two local parameters. *)
+val prefer_source_bound : bool ref
 (** Filter out less general abduction candidate atoms (does not
     guarantee overall more general answers). Default [false]. *)
 val more_general : bool ref

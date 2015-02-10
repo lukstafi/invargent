@@ -1,0 +1,65 @@
+external type Matrix : num * num =
+  "(float, Bigarray.float64_elt, Bigarray.c_layout) Bigarray.Array2.t"
+external let matrix_make :
+  ∀n, k [0≤n ∧ 0≤k]. Num n → Num k → Matrix (n, k) =
+  "fun a b -> Bigarray.Array2.create Bigarray.float64 Bigarray.c_layout a b"
+external let matrix_get :
+  ∀n, k, i, j [0≤i ∧ i+1≤n ∧ 0≤j ∧ j+1≤k].
+   Matrix (n, k) → Num i → Num j → Float = "Bigarray.Array2.get"
+external let matrix_set :
+  ∀n, k, i, j [0≤i ∧ i+1≤n ∧ 0≤j ∧ j+1≤k].
+   Matrix (n, k) → Num i → Num j → Float → () = "Bigarray.Array2.set"
+external let matrix_dim1 :
+  ∀n, k [0≤n ∧ 0≤k]. Matrix (n, k) → Num n = "Bigarray.Array2.dim1"
+external let matrix_dim2 :
+  ∀n, k [0≤n ∧ 0≤k]. Matrix (n, k) → Num k = "Bigarray.Array2.dim2"
+
+external let n2f : ∀n. Num n → Float = "fun i -> float_of_int i"
+external let equal : ∀a. a → a → Bool = "fun x y -> x = y"
+external let leq : ∀a. a → a → Bool = "fun x y -> x <= y"
+external let less : ∀a. a → a → Bool = "fun x y -> x < y"
+
+external let minus : Float → Float → Float = "(-.)"
+external let plus : Float → Float → Float = "(+.)"
+external let mult : Float → Float → Float = "( *. )"
+external let div : Float → Float → Float = "( /. )"
+external let fl0 : Float = "0.0"
+
+external snd : ∀a, b. (b, a) → a
+
+external is_neg_aux :
+   ∀i, j, k, n[0 ≤ n ∧ 1 ≤ i ∧ k ≤ j + 1].
+   Matrix (i, j) → Num k → Num n → Bool
+
+external is_neg :
+   ∀i, k, n[1 ≤ k ∧ n ≤ i + 1]. Matrix (k, i) → Num n → Bool
+
+external enter_var :
+  ∀i, j, n, m[0 ≤ m ∧ 1 ≤ i ∧ 0 ≤ n ∧ n + 1 ≤ j].
+  Matrix (i, j) → Num n → Float → Num m →
+    ∃l[0 ≤ l ∧ l≤max (j + (-1), n)].Num l
+
+external depart_var :
+  ∀i, j, k, n, m[0 ≤ m ∧ 0 ≤ k ∧ k + 1 ≤ j ∧ 0 ≤ n].
+  Matrix (i, j) → Num k → Num n → Float → Num m →
+    ∃l[0 ≤ l ∧ l + 1 ≤ n + j ∧ l≤max (i + (-1), n)].Num l
+
+external init_ratio :
+  ∀i, j, k, n[0 ≤ n ∧ 0 ≤ k ∧ k + 1 ≤ j].
+  Matrix (i, j) → Num k → Num n →
+    ∃l[0 ≤ l ∧ l + 1 ≤ i].(Num l, Float)
+
+external norm :
+   ∀i, j, k, n[0 ≤ n ∧ 0 ≤ k ∧ k + 1 ≤ i ∧ n + 1 ≤ j].
+   Matrix (i, j) → Num k → Num n → ()
+
+let rec row_op_aux1 a i i' c j =
+  if j + 1 <= matrix_dim2 a then
+    matrix_set a i' j
+      (minus (matrix_get a i' j)
+        (mult (matrix_get a i j) c));
+    row_op_aux1 a i i' c (j+1)
+  else ()
+
+let rec row_op_aux2 a i i' j =
+  row_op_aux1 a i i' (matrix_get a i' j) 1

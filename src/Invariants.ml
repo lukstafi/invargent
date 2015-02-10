@@ -6,11 +6,14 @@
     @since Mar 2013
 *)
 let early_postcond_abd = ref true(* false *)
-let timeout_count = ref 7
+(* Should be greater than the last disj_step. *)
+let timeout_count = ref 8
 let timeout_flag = ref false
 let unfinished_postcond_flag = ref false
 let use_prior_discards = ref (* false *)true
 let use_solution_in_postcond = ref false (* true *)
+(* Captures where the repeat step is/are. *)
+let disj_step = [|1; 1; 2; 3; 6|]
 
 open Defs
 open Terms
@@ -834,9 +837,6 @@ let neg_constrns = ref true
 
 let empty_disc = {at_typ=[],[]; at_num=[]; at_ord=[]; at_so=()}
 let empty_dl = {at_typ=[]; at_num=[]; at_ord=[]; at_so=()}
-
-(* Captures where the repeat step is/are. *)
-let disj_step = [|1; 1; 2; 3; 6|]
 
 let solve q_ops new_ex_types exty_res_chi brs =
   timeout_flag := false;

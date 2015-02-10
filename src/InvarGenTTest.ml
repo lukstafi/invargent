@@ -18,7 +18,7 @@ let input_file file =
   Buffer.contents buf
 
 let test_case ?(test_annot=false) ?richer_answers ?more_general_num
-    ?prefer_guess ?abd_rotations ?num_abd_timeout
+    ?prefer_guess ?prefer_source_bound ?abd_rotations ?num_abd_timeout
     ?num_abd_fail_timeout ?nodeadcode file () =
   if !debug then Printexc.record_backtrace true;
   let ntime = Sys.time () in
@@ -45,6 +45,11 @@ let test_case ?(test_annot=false) ?richer_answers ?more_general_num
   (match prefer_guess with
    | None -> ()
    | Some prefer_guess -> Abduction.prefer_guess := prefer_guess);
+  let old_prefer_source_bound = !NumS.prefer_source_bound in
+  (match prefer_source_bound with
+   | None -> ()
+   | Some prefer_source_bound ->
+     NumS.prefer_source_bound := prefer_source_bound);
   let old_abd_rotations = !NumS.abd_rotations in
   (match abd_rotations with
    | None -> ()
@@ -87,6 +92,7 @@ let test_case ?(test_annot=false) ?richer_answers ?more_general_num
      Abduction.richer_answers := old_richer_answers;
      NumS.more_general := old_more_general_num;
      Abduction.prefer_guess := old_prefer_guess;
+     NumS.prefer_source_bound := old_prefer_source_bound;
      NumS.abd_rotations := old_abd_rotations;
      NumS.abd_timeout_count := old_num_abd_timeout;
      NumS.abd_fail_timeout_count := old_num_abd_fail_timeout;
@@ -96,6 +102,7 @@ let test_case ?(test_annot=false) ?richer_answers ?more_general_num
      Abduction.richer_answers := old_richer_answers;
      NumS.more_general := old_more_general_num;
      Abduction.prefer_guess := old_prefer_guess;
+     NumS.prefer_source_bound := old_prefer_source_bound;
      NumS.abd_rotations := old_abd_rotations;
      NumS.abd_timeout_count := old_num_abd_timeout;
      NumS.abd_fail_timeout_count := old_num_abd_fail_timeout;
@@ -104,6 +111,7 @@ let test_case ?(test_annot=false) ?richer_answers ?more_general_num
   Abduction.richer_answers := old_richer_answers;
   NumS.more_general := old_more_general_num;
   Abduction.prefer_guess := old_prefer_guess;
+  NumS.prefer_source_bound := old_prefer_source_bound;
   NumS.abd_rotations := old_abd_rotations;
   NumS.abd_timeout_count := old_num_abd_timeout;
   NumS.abd_fail_timeout_count := old_num_abd_fail_timeout;
@@ -538,9 +546,12 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_fft" ());
       "liquid_simplex_step_2" >::
         (fun () ->
-           (* TODO: add invariant cleanup for top-level pattern-match let *)
            skip_if !debug "debug";
            test_case "liquid_simplex_step_2" ());
+      "liquid_simplex_step_2a" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case ~prefer_source_bound:true "liquid_simplex_step_2a" ());
       "liquid_simplex_step_3" >::
         (fun () ->
            (* Ideally, we would like to introduce a precondition that
@@ -551,7 +562,7 @@ let tests = "InvarGenT" >::: [
       "liquid_simplex_step_3a" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case "liquid_simplex_step_3a" ());
+           test_case ~prefer_source_bound:true "liquid_simplex_step_3a" ());
       "liquid_simplex_step_4" >::
         (fun () ->
            todo "FIXME"; (* "too hard for current InvarGenT"; ? *)
@@ -560,21 +571,48 @@ let tests = "InvarGenT" >::: [
       "liquid_simplex_step_4a" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case "liquid_simplex_step_4a" ());
+           test_case ~prefer_source_bound:true "liquid_simplex_step_4a" ());
       "liquid_simplex_step_5a" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case "liquid_simplex_step_5a" ());
+           test_case ~prefer_source_bound:true "liquid_simplex_step_5a" ());
+      "liquid_simplex_step_6a_1" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case ~prefer_source_bound:true "liquid_simplex_step_6a_1" ());
+      "liquid_simplex_step_6_2" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "liquid_simplex_step_6_2" ());
+      "liquid_simplex_step_6a_2" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case ~prefer_source_bound:true "liquid_simplex_step_6a_2" ());
+      "liquid_simplex_step_6_3" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "liquid_simplex_step_6_3" ());
+      "liquid_simplex_step_6a_3" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case ~prefer_source_bound:true "liquid_simplex_step_6a_3" ());
+      "liquid_simplex_step_6a" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "liquid_simplex_step_6a" ());
+      "liquid_simplex_step_7a" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "liquid_simplex_step_7a" ());
       "liquid_simplex" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_simplex" ());
       "liquid_simplex-harder" >::
         (fun () ->
-           todo "too hard for InvarGenT 2.0";
            skip_if !debug "debug";
-           test_case "liquid_simplex_harder" ());
+           (* Can take over 170 seconds. *)
+           test_case ~prefer_source_bound:true "liquid_simplex_harder" ());
       "liquid_gauss" >::
         (fun () ->
            todo "TODO";

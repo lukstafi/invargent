@@ -35,18 +35,24 @@ let rec is_neg_aux arr2 n j =
 
 let is_neg arr2 n = is_neg_aux arr2 n 1
 
-(* step 2 *)
+let main_step6_test a =
+  let m = matrix_dim1 a in
+  let n = matrix_dim2 a in
 
-let rec unb1 a i j =
-  let rec unb2 a i j =
-    if i + 1 <= matrix_dim1 a then
-      if less (matrix_get a i j) fl0
-      then unb2 a (i+1) j
-      else unb1 a 0 (j+1)
-    else True in
+  (* step 2 *)
 
-  if j + 2 <= matrix_dim2 a then
-    if less (matrix_get a 0 j) fl0
-    then unb2 a (i+1) j
-    else unb1 a 0 (j+1)
-  else False
+  let rec unb1 i j =
+    let rec unb2 i j =
+      if i + 1 <= m then
+        if less (matrix_get a i j) fl0
+        then unb2 (i+1) j
+        else unb1 0 (j+1)
+      else True in
+
+    if j + 2 <= n then
+      if less (matrix_get a 0 j) fl0
+      then unb2 (i+1) j
+      else unb1 0 (j+1)
+    else False in
+
+  unb1 0 1

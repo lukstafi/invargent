@@ -35,13 +35,13 @@ external val div : Float → Float → Float
 
 external val fl0 : Float
 
-external snd : ∀a, b. (b, a) → a
+val snd : ∀a, b. (b, a) → a
 
-external is_neg_aux :
+val is_neg_aux :
    ∀i, j, k, n[0 ≤ n ∧ 1 ≤ i ∧ k ≤ j + 1].
    Matrix (i, j) → Num k → Num n → Bool
 
-external is_neg :
+val is_neg :
    ∀i, k, n[1 ≤ k ∧ n ≤ i + 1]. Matrix (k, i) → Num n → Bool
 
-val main_step3_test : ∀k, n[1 ≤ n ∧ 3 ≤ k]. Matrix (n, k) → Float
+val main_step6_test : ∀k, n[1 ≤ n ∧ 1 ≤ k]. Matrix (n, k) → Bool

@@ -45,11 +45,5 @@ val is_neg :
    ∀i, k, n[1 ≤ k ∧ n ≤ i + 1]. Matrix (k, i) → Num n → Bool
 
 val unb1 :
-   ∀i4, j4, k4, l1, l4, m4, n4, n7[n7 ≤ m4 ∧ j4 ≤ l4 + 1 ∧
-   1 ≤ m4 ∧ l1 ≤ n4 + i4 ∧ 0 ≤ i4 + 1 ∧ 0 ≤ k4].
-   Matrix (m4, l4) → Num n7 → Num j4 → Num i4 → Num k4 → Bool
-
-val unb2 :
-   ∀i1, i4, j1, k1, l1, m1, n4[l1 ≤ n4 + i4 ∧ n4 ≤ l1 + 1 ∧
-   k1 + 1 ≤ l1 ∧ 1 ≤ l1 ∧ j1 ≤ m1 ∧ 0 ≤ i1 ∧ 0 ≤ k1].
-   Matrix (m1, l1) → Num j1 → Num n4 → Num i1 → Num k1 → Bool
+   ∀i, j, k, n[0 ≤ n ∧ 0 ≤ k + 1 ∧ 1 ≤ i ∧ 0 ≤ j].
+   Matrix (i, j) → Num k → Num n → Bool

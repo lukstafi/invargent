@@ -592,7 +592,7 @@
   e1 \<less\>= e2; e3>>>>>>
 
   A built-in fail at runtime with the given text message is only needed for
-  introducing existential types, because a user-defined equivalent of
+  introducing existential types: a user-defined equivalent of
   <verbatim|runtime_failure> would introduce a spurious branch for
   generalization.
 
@@ -866,7 +866,7 @@
 
     <item*|<verbatim|-complexity_penalty>>How much to penalize an abduction
     candidate inequality for complexity of its coefficients; the coefficient
-    of either the linear or power scaling of the coefficients (default 2.0).
+    of either the linear or power scaling of the coefficients (default 2.5).
 
     <item*|<verbatim|-abd_lin_thres_scaling>>Scale the complexity cost of
     coefficients linearly with a jump of the given height after coefficient 1
@@ -874,6 +874,12 @@
 
     <item*|<strong|<verbatim|-abd_pow_scaling>>>Scale the complexity cost of
     coefficients according to the given power.
+
+    <item*|<verbatim|-prefer_source_bound>>Prefer a zero-indexed
+    array/matrix/etc. bound coming from outer scope, to inequality between
+    two local parameters. In numerical abduction heuristic, such bounds are
+    usually doubly penalized: for having a constant, and non-locality of
+    parameters.
 
     <item*|<verbatim|-more_general_num>>Filter out less general abduction
     candidate atoms (does not guarantee overall more general answers). The

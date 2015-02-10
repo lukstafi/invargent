@@ -14,7 +14,7 @@ external let matrix_dim1 :
 external let matrix_dim2 :
   ∀n, k [0≤n ∧ 0≤k]. Matrix (n, k) → Num k = "Bigarray.Array2.dim2"
 
-external let n2f : ∀n. Num n → Float = "float_of_int"
+external let n2f : ∀n. Num n → Float = "fun i -> float_of_int i"
 external let equal : ∀a. a → a → Bool = "fun x y -> x = y"
 external let leq : ∀a. a → a → Bool = "fun x y -> x <= y"
 external let less : ∀a. a → a → Bool = "fun x y -> x < y"
@@ -25,67 +25,33 @@ external let mult : Float → Float → Float = "( *. )"
 external let div : Float → Float → Float = "( /. )"
 external let fl0 : Float = "0.0"
 
-let main_test a =
+external snd : ∀a, b. (b, a) → a
+
+external is_neg_aux :
+   ∀i, j, k, n[0 ≤ n ∧ 1 ≤ i ∧ k ≤ j + 1].
+   Matrix (i, j) → Num k → Num n → Bool
+
+external is_neg :
+   ∀i, k, n[1 ≤ k ∧ n ≤ i + 1]. Matrix (k, i) → Num n → Bool
+
+external enter_var :
+  ∀i, j, n, m[0 ≤ m ∧ 1 ≤ i ∧ 0 ≤ n ∧ n + 1 ≤ j].
+  Matrix (i, j) → Num n → Float → Num m →
+    ∃l[0 ≤ l ∧ l≤max (j + (-1), n)].Num l
+
+external depart_var :
+  ∀i, j, k, n, m[0 ≤ m ∧ 0 ≤ k ∧ k + 1 ≤ j ∧ 0 ≤ n].
+  Matrix (i, j) → Num k → Num n → Float → Num m →
+    ∃l[0 ≤ l ∧ l + 1 ≤ n + j ∧ l≤max (i + (-1), n)].Num l
+
+external init_ratio :
+  ∀i, j, k, n[0 ≤ n ∧ 0 ≤ k ∧ k + 1 ≤ j].
+  Matrix (i, j) → Num k → Num n →
+    ∃l[0 ≤ l ∧ l + 1 ≤ i].(Num l, Float)
+
+let main_step6_test a =
   let m = matrix_dim1 a in
   let n = matrix_dim2 a in
-
-  (* step 1 *)
-
-  let rec is_neg_aux j =
-    if j + 2 <= n then
-      if less (matrix_get a 0 j) fl0 then True
-      else is_neg_aux (j+1)
-    else False in
-
-  let is_neg = is_neg_aux 1 in
-
-  (* step 2 *)
-
-  let rec unb1 i j =
-    let rec unb2 i j =
-      if i + 1 <= m then
-        if less (matrix_get a i j) fl0
-        then unb2 (i+1) j
-        else unb1 0 (j+1)
-      else True in
-
-    if j + 2 <= n then
-      if less (matrix_get a 0 j) fl0
-      then unb2 (i+1) j
-      else unb1 0 (j+1)
-    else False in
-
-  (* step 3 *)
-
-  let rec enter_var j c j' =
-    eif j' + 2 <= n then
-      let c' = matrix_get a 0 j' in
-      eif less c' c then enter_var j' c' (j'+1)
-      else enter_var j c (j'+1)
-    else j in
-
-  (* step 4 *)
-
-  let rec depart_var j i r i' =
-    eif i' + 1 <= m then
-      let c' = matrix_get a i' j in
-      eif less fl0 c' then
-        let r' = div (matrix_get a i' (n + (-1))) c' in
-        eif less r' r then depart_var j i' r' (i'+1)
-        else depart_var j i r (i'+1)
-      else depart_var j i r (i'+1)
-    else i in
-
-  (* step 5 *)
-
-  let rec init_ratio j i =
-    eif i + 1 <= m then
-      let c = matrix_get a i j in
-      eif less fl0 c then i, div (matrix_get a i (n + (-1))) c
-      else init_ratio j (i+1)
-    else runtime_failure "init_ratio: no variable found" in
-
-  (* step 6 *)
 
   let rec norm_aux i c j =
     if j + 1 <= n then (
@@ -120,17 +86,7 @@ let main_test a =
     norm i j;
     row_op_aux3 i j 0 in
 
-  (* step 7 *)
-
-  let rec simplex () =
-    if is_neg then
-      if unb1 0 1 then () (* assert false *)
-      else
-        let j = enter_var 1 (matrix_get a 0 1) 2 in
-        let i, r = init_ratio j 1 in
-        let i = depart_var j i r (i+1) in
-        row_op i j;
-        simplex ()
-    else () in
-
-  simplex ()
+  let j = enter_var a 1 (matrix_get a 0 1) 2 in
+  let i, r = init_ratio a j 1 in
+  let i = depart_var a j i r (i+1) in
+  row_op i j
