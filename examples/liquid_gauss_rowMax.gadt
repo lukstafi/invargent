@@ -38,77 +38,32 @@ external let fabs : Float → Float = "abs_float"
 external let fl0 : Float = "0.0"
 external let fl1 : Float = "1.0"
 
-let getRow data i =
-  let stride = matrix_dim2 data in
-  let rowData = array_make stride fl0 in
-  let rec extract j =
-    if j + 1 <= stride then (
-      array_set rowData j (matrix_get data i j);
-      (* lukstafi: the call below missing in the original source? *)
-      extract (j + 1))
-    else () in
-  extract 0;
-  rowData
+external getRow :
+  ∀n, k, i [0 ≤ k ∧ 0 ≤ i ∧ i + 1 ≤ n].
+  Matrix (n, k) → Num i → Array (Float, k)
 
-let putRow data i row =
-  let stride = array_length row in
-  let rec put j =
-    if j + 1 <= stride then (
-      matrix_set data i j (array_get row j);
-      (* lukstafi: the call below missing in the original source? *)
-      put (j + 1))
-    else () in
-  put 0
+external putRow :
+  ∀n, k, i, j [0 ≤ j ∧ 0 ≤ i ∧ i + 1 ≤ n ∧ j ≤ k].
+  Matrix (n, k) → Num i → Array (Float, j) → ()
 
-let rowSwap data i j =
-  let temp = getRow data i in
-  putRow data i (getRow data j);
-  putRow data j temp
+external rowSwap :
+  ∀i, j, k, n[0 ≤ n ∧ 0 ≤ k ∧ k + 1 ≤ i ∧ n + 1 ≤ i ∧ 0 ≤ j].
+  Matrix (i, j) → Num k → Num n → ()
 
-let norm r n i =
-  let x = array_get r i in
-  array_set r i fl1;
-  let rec loop k =
-    if k + 1 <= n then (
-      array_set r k (div (array_get r k) x);
-      loop (k+1))
-    else () in
-  loop (i+1)
+external norm :
+  ∀i, k, n[0 ≤ n ∧ n + 1 ≤ i ∧ k ≤ i].
+  Array (Float, i) → Num k → Num n → ()
 
-let rowElim r s n i =
-  let x = array_get s i in
-  array_set s i fl0;
-  let rec loop k =
-    if k + 1 <= n then (
-      array_set s k (minus (array_get s k) (mult x (array_get r k)));
-      loop (k+1))
-    else () in
-  loop (i+1)
+external rowElim :
+  ∀i, k, n[0 ≤ k ∧ k + 1 ≤ i ∧ n ≤ i].
+  Array (Float, i) → Num n → Num k → ()
 
-let gauss data =
-  let n = matrix_dim1 data in
-
-  let rec rowMax i =
-    let x = fabs (matrix_get data i i) in
-    let rec loop j x mx =
-      eif j + 1 <= n then
-        let y = fabs (matrix_get data j i) in
-        eif (less x y) then loop (j+1) y j
-        else loop (j+1) x mx
-      else mx in
-    loop (i+1) x i in
-
-  let rec loop1 i =
-    if i + 1 <= n then
-      let mx = rowMax i in
-      norm (getRow data mx) (n+1) i;
-      rowSwap data i mx;
-      let rec loop2 j =
-        if j + 1 <= n then (
-          rowElim (getRow data i) (getRow data j) (n+1) i;
-          loop2 (j+1))
-        else () in
-      loop2 (i+1);
-      loop1 (i+1)
-    else () in
-  loop1 0
+let rowMax data m i =
+  let x = fabs (matrix_get data i i) in
+  let rec loop j x mx =
+    eif j + 1 <= m then
+      let y = fabs (matrix_get data j i) in
+      eif (less x y) then loop (j+1) y j
+      else loop (j+1) x mx
+    else mx in
+  loop (i+1) x i

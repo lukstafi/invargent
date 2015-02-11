@@ -41,7 +41,7 @@ val heapify :
 val buildheap : ∀k, n, a[k ≤ n]. Num k → Array (a, n) → ()
 
 val heapsort :
-   ∀i, k, n, a[k ≤ n ∧ i ≤ k].
+   ∀i, k, n, a[k ≤ n ∧ i ≤ n].
    Num i → Num k → Array (a, n) → ()
 
 val print_array :

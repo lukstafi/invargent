@@ -881,6 +881,12 @@
     usually doubly penalized: for having a constant, and non-locality of
     parameters.
 
+    <item*|<verbatim|-concl_abd_penalty>>Penalize abductive guess when the
+    supporting argument comes from the partial answer, instead of from the
+    current premise (default 4). Guesses involving the partial answer are
+    less secure, for example they depend on the order in which the constraint
+    to explain is being processed.
+
     <item*|<verbatim|-more_general_num>>Filter out less general abduction
     candidate atoms (does not guarantee overall more general answers). The
     filtering is currently not performed by default to save on computational

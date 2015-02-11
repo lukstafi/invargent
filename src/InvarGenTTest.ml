@@ -534,16 +534,6 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "liquid_heapsort" ());
-      "liquid_fft_simpler" >::
-        (fun () ->
-           todo "FIXME";
-           skip_if !debug "debug";
-           test_case "liquid_fft_simpler" ());
-      "liquid_fft" >::
-        (fun () ->
-           todo "FIXME";
-           skip_if !debug "debug";
-           test_case "liquid_fft" ());
       "liquid_simplex_step_2" >::
         (fun () ->
            skip_if !debug "debug";
@@ -551,7 +541,7 @@ let tests = "InvarGenT" >::: [
       "liquid_simplex_step_2a" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~prefer_source_bound:true "liquid_simplex_step_2a" ());
+           test_case "liquid_simplex_step_2a" ());
       "liquid_simplex_step_3" >::
         (fun () ->
            (* Ideally, we would like to introduce a precondition that
@@ -562,7 +552,7 @@ let tests = "InvarGenT" >::: [
       "liquid_simplex_step_3a" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~prefer_source_bound:true "liquid_simplex_step_3a" ());
+           test_case "liquid_simplex_step_3a" ());
       "liquid_simplex_step_4" >::
         (fun () ->
            todo "FIXME"; (* "too hard for current InvarGenT"; ? *)
@@ -571,15 +561,15 @@ let tests = "InvarGenT" >::: [
       "liquid_simplex_step_4a" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~prefer_source_bound:true "liquid_simplex_step_4a" ());
+           test_case "liquid_simplex_step_4a" ());
       "liquid_simplex_step_5a" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~prefer_source_bound:true "liquid_simplex_step_5a" ());
+           test_case "liquid_simplex_step_5a" ());
       "liquid_simplex_step_6a_1" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~prefer_source_bound:true "liquid_simplex_step_6a_1" ());
+           test_case "liquid_simplex_step_6a_1" ());
       "liquid_simplex_step_6_2" >::
         (fun () ->
            skip_if !debug "debug";
@@ -587,7 +577,8 @@ let tests = "InvarGenT" >::: [
       "liquid_simplex_step_6a_2" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~prefer_source_bound:true "liquid_simplex_step_6a_2" ());
+           test_case ~prefer_source_bound:true
+             "liquid_simplex_step_6a_2" ());
       "liquid_simplex_step_6_3" >::
         (fun () ->
            skip_if !debug "debug";
@@ -595,7 +586,7 @@ let tests = "InvarGenT" >::: [
       "liquid_simplex_step_6a_3" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~prefer_source_bound:true "liquid_simplex_step_6a_3" ());
+           test_case "liquid_simplex_step_6a_3" ());
       "liquid_simplex_step_6a" >::
         (fun () ->
            skip_if !debug "debug";
@@ -612,17 +603,42 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            (* Can take over 170 seconds. *)
-           test_case ~prefer_source_bound:true "liquid_simplex_harder" ());
+           test_case "liquid_simplex_harder" ());
+      "liquid_gauss_rowSwap" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "liquid_gauss_rowSwap" ());
+      "liquid_gauss_rowMax" >::
+        (fun () ->
+           (* The unuseful type inferred is correct, but we want better. *)
+           todo "Beyond the scope of InvarGenT 2.0";
+           skip_if !debug "debug";
+           test_case "liquid_gauss_rowMax" ());
+      "liquid_gauss_rowMax_2" >::
+        (fun () ->
+           todo "FIXME";
+           skip_if !debug "debug";
+           test_case "liquid_gauss_rowMax_2" ());
+      "liquid_gauss_simpler" >::
+        (fun () ->
+           todo "FIXME";
+           skip_if !debug "debug";
+           test_case "liquid_gauss_simpler" ());
       "liquid_gauss" >::
         (fun () ->
-           todo "TODO";
+           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_gauss" ());
-      "liquid_qsort" >::
+      "liquid_fft_simpler" >::
         (fun () ->
-           todo "TODO";
+           todo "Analysis postponed after InvarGenT 2.0";
            skip_if !debug "debug";
-           test_case "liquid_qsort" ());
+           test_case "liquid_fft_simpler" ());
+      "liquid_fft" >::
+        (fun () ->
+           todo "Analysis postponed after InvarGenT 2.0";
+           skip_if !debug "debug";
+           test_case "liquid_fft" ());
     ]
 
 let () =

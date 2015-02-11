@@ -35,6 +35,7 @@ let abduct_source_bonus = ref 0
 (* special_source_bonus is used only when prefer_source_bound is true. *)
 let special_source_bonus = ref 7
 let prefer_source_bound = ref false
+let concl_abd_penalty = ref 4
 let discourage_upper_bound = ref 6
 let discourage_already_bounded = ref 4
 let encourage_not_yet_bounded = ref 1
@@ -1425,21 +1426,36 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of
   let cands_vs =
     concat_map
       (fun ((v, coef), vars1) ->
-         (*[* Format.printf "NumS.abd_cands: trying v=%s@\n%!" (var_str v)
-           ; *]*)
+         (*[* Format.printf
+           "NumS.abd_cands: trying v=%s@\n%!" (var_str v); *]*)
          try
            let lhs, rhs = Hashtbl.find d_ineqs v in
            (* No change of sign for c because it stays on the same side. *)
            let c = mult (!/1 // abs_num coef) (vars1, cst, lc) in
            let ohs = if coef </ !/0 then lhs else rhs in
-           let res = List.map (fun d ->
+           (*[* Format.printf "NumS.abd_cands: c=%a@\n%!"
+             pr_w c; *]*)
+           List.map (fun d ->
+               let from_d =
+                 if !concl_abd_penalty > 0 then
+                   (* TODO: this can be optimized: e.g. compute the
+                      d_ineqn abductions directly. *)
+                   let v_w = [v, !/1], !/0, dummy_loc in
+                   let d_w =
+                     if coef </ !/0 then diff ~cmp_v d v_w
+                     else  diff ~cmp_v v_w d in
+                   List.exists (equal_w ~cmp_v d_w) d_ineqn
+                 else true (* here we don't care *) in
                (* Change of sign for d only when it moves to right side. *)
-               if coef </ !/0 then false, norm_by_gcd (diff ~cmp_v c d)
-               else false, norm_by_gcd (sum_w ~cmp_v c d))
-               (WSet.elements ohs) in
-           (*[* Format.printf "NumS.abd_cands: c=%a@ res=@ %a@\n%!"
-             pr_w c pr_ineqn res; *]*)
-           res
+               let res =
+                 if coef </ !/0
+                 then Some from_d, norm_by_gcd (diff ~cmp_v c d)
+                 else Some from_d, norm_by_gcd (sum_w ~cmp_v c d) in
+               (*[* Format.printf
+                 "NumS.abd_cands: from_d=%b@ res=%a@\n%!"
+                 from_d pr_w (snd res); *]*)
+               res)
+             (WSet.elements ohs)
          with Not_found -> [])
       (one_out vars) in
   let cands_cst =
@@ -1455,14 +1471,16 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of
                "NumS.abd_cands: trying s=%d@ c=%a;@ d=%a;@ res=%a@\n%!"
                s pr_w c pr_w d pr_w (if s > 0 then diff ~cmp_v d c
                                      else diff ~cmp_v c d); *]*)
-             if s > 0 then Some (false, norm_by_gcd (diff ~cmp_v d c))
-             else Some (false, norm_by_gcd (diff ~cmp_v c d)))
+             if s > 0
+             then Some (Some true, norm_by_gcd (diff ~cmp_v d c))
+             else Some (Some true, norm_by_gcd (diff ~cmp_v c d)))
         d_ineqn in
   let cands = List.filter
       (no_scope_viol ~cmp_v:qcmp_v ~upward_of ~bvs % snd)
-      (* Remember whether [w] is the source or an abduced inequality. *)
-      ((true, w) :: cands_cst @ cands_vs) in
-  (*[* Format.printf "abd_cands: filtered@ %a@\n%!" pr_ineqn cands; *]*)
+      (* Remember whether [w] is the source (None) or an abduced inequality. *)
+      ((None, w) :: cands_cst @ cands_vs) in
+  (*[* Format.printf "abd_cands: filtered@ %a@\n%!" pr_ineqn
+    (List.map snd cands); *]*)
   let less (x_ineqs, (_, x)) (y_ineqs, (_, y)) =
     (*[* let res = *]*)
     implies_ineq ~cmp_v ~cmp_w y_ineqs x &&
@@ -1483,7 +1501,7 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of
     else [] in
   (*[* if !more_general
     then Format.printf "abd_cands: minimal@ %a@\n%!"
-      pr_ineqn minimal_cands; *]*)
+      pr_ineqn (List.map snd minimal_cands); *]*)
   (* Promote candidates introducing constraints on unconstrained
      variables. Otherwise, penalize for size. *)
   let w_value is_orig orig_w (vars, cst, lc as w) =
@@ -1495,6 +1513,7 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of
     let discard_value =
       if WSet.mem w discard_ineqs then ~- !discard_penalty else 0 in
     let minimal =
+      (* FIXME: not sure if physical comparison works. *)
       if List.exists (fun (_, w') -> w' == orig_w) minimal_cands
       then
         if !more_general && equal_w ~cmp_v orig_w w
@@ -1583,7 +1602,7 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of
       complexity + constraining + minimal in
   let cands =
     map_some
-      (fun (source, (vars, cst, _ as w)) ->
+      (fun (prem_abduced, (vars, cst, _ as w)) ->
          try
            (* [new_eqn, new_ineqn] are used to determine the variables
               contributed to the answer and evaluate the candidate. *)
@@ -1609,7 +1628,8 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of
              | [] -> assert false in
            let i2f = float_of_int and f2i = int_of_float in
            let special_bonus () =
-             if source && cst =/ !/1 && List.tl score_ineqn = [] then
+             if prem_abduced = None &&
+                cst =/ !/1 && List.tl score_ineqn = [] then
                let nonlocal_pair =
                  match vars with
                  | (v, _)::(v2, _)::[] -> upward_of v2 v
@@ -1620,8 +1640,10 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of
              !implied_ineqn_compensation *
                (List.length score_ineqn - 1) in
            let score =
+             (if prem_abduced = Some false then ~- !concl_abd_penalty
+              else 0) +
              (if !prefer_source_bound then special_bonus () else 0) +
-               (if source then !abduct_source_bonus else 0) +
+               (if prem_abduced = None then !abduct_source_bonus else 0) +
                (if new_eqn = [] then 0 else ~- !discourage_equations_2) +
                (if !abd_scoring = `Sum then List.fold_left (+) 0 scores
                 else if !abd_scoring = `Min then maximum ~leq:(>=) scores
@@ -1632,9 +1654,10 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of
                 else assert false)
              + implied_ineqn_correction in
            (*[* Format.printf
-             "abd_cands:@ w=%a@ source=%b@ new_eqn=%a@ \
+             "abd_cands:@ w=%a@ source=%b prem_abduced=%b@ new_eqn=%a@ \
               new_ineqn=%a@\nimplied correction=%i@\ntotal score=%i@\n%!"
-             pr_w w source pr_eqn new_eqn pr_ineqn new_ineqn
+             pr_w w (prem_abduced = None) (prem_abduced = Some true)
+             pr_eqn new_eqn pr_ineqn new_ineqn
              implied_ineqn_correction score; *]*)
            Some (score, (acc, w))
          with Terms.Contradiction _ (*[* as e *]*)->

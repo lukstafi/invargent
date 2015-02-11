@@ -41,8 +41,11 @@ val complexity_penalty : float ref
     instead instances from use sites of existential types. Default [6]. *)
 val nonparam_vars_penalty : int ref
 (** Prefer a zero-indexed array/matrix/etc. bound coming from outer
-    scope, to inequality between two local parameters. *)
+    scope, to inequality between two local parameters. Default [false]. *)
 val prefer_source_bound : bool ref
+(** Penalize abductive guess when the supporting argument comes from
+    the partial answer, instead of from the current premise. Default [4]. *)
+val concl_abd_penalty : int ref
 (** Filter out less general abduction candidate atoms (does not
     guarantee overall more general answers). Default [false]. *)
 val more_general : bool ref

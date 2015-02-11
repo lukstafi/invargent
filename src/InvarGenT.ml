@@ -138,6 +138,9 @@ let main () =
     "-prefer_source_bound", Arg.Set NumS.prefer_source_bound,
     "Prefer a zero-indexed array/matrix/etc. bound coming from outer \
      scope, to inequality between two local parameters";
+    "-concl_abd_penalty", Arg.Set_int NumS.concl_abd_penalty,
+    "Penalize abductive guess when the supporting argument comes from \
+     the partial answer, instead of from the current premise (default 4)";
     "-more_general_num", Arg.Set NumS.more_general,
     "Filter out less general numerical abduction candidate atoms";
     "-no_num_abduction", Arg.Set Abduction.no_num_abduction,
