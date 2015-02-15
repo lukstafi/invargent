@@ -80,13 +80,13 @@ let tests = "NumS" >::: [
         max_subopti_postcond := 10;
         let vs, _, ans, _ = disjelim q ~target_vs:preserve
             ~guess:false ~initstep:false ~preserve ~bvs ~param_bvs brs in
+        let ans = prune_redundant q ~initstep:false ans in
         max_subopti_postcond := old_max_subopti_postcond;
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
         assert_equal ~printer:(fun x -> x)
-          "∃. min (n4, n3)≤n2 ∧ n1≤max (n4, n3) ∧ n2≤max (n4, n1) ∧
-  n2≤max (n4, n3) ∧ min (n4, n3)≤n1 ∧ min (n4, n2)≤n1 ∧ n2 = n1"
+          "∃. n2 = n1 ∧ min (n3, n4)≤n2 ∧ n2≤max (n3, n4)"
           (Format.flush_str_formatter ())
       with (Report_toplevel _ | Terms.Contradiction _) as exn ->
         max_subopti_postcond := old_max_subopti_postcond;
@@ -118,13 +118,13 @@ let tests = "NumS" >::: [
         max_subopti_postcond := 10;
         let vs, _, ans, _ = disjelim q ~target_vs:preserve
             ~guess:false ~initstep:false ~preserve ~bvs ~param_bvs brs in
+        let ans = prune_redundant q ~initstep:false ans in
         max_subopti_postcond := old_max_subopti_postcond;
         ignore (Format.flush_str_formatter ());
         Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
           (pr_sep_list "," pr_tyvar) vs pr_formula ans;
         assert_equal ~printer:(fun x -> x)
-          "∃. min (n2, n1)≤n3 ∧ n3≤max (n2, n1) ∧ n4≤max (n2, n1) ∧
-  n4≤max (n2, n3) ∧ min (n2, n1)≤n4 ∧ n4 = n3"
+          "∃. n4 = n3 ∧ n3≤max (n1, n2) ∧ min (n1, n2)≤n3"
           (Format.flush_str_formatter ())
       with (Report_toplevel _ | Terms.Contradiction _) as exn ->
         max_subopti_postcond := old_max_subopti_postcond;

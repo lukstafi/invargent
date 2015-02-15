@@ -95,13 +95,13 @@ let rec row_op :
     n + 1 ≤ j].*) ((* i, j *) matrix -> (* k *) num -> (* n *) num -> unit) =
   (fun a i j -> (norm a i j ; row_op_aux3 a i j 0))
 type ex7 =
-  | Ex7 : (*∀'k, 'n[k + 1 ≤ n ∧ 0 ≤ k].*)((* k *) num * float) ->
-    (* n *) ex7
+  | Ex7 : (*∀'i, 'k, 'n[k ≤ i ∧ i + 1 ≤ n].*)((* i *) num * float) ->
+    (* n, k *) ex7
 type ex5 =
-  | Ex5 : (*∀'i, 'k, 'n[0 ≤ k ∧ k≤max (n + -1, i)].*)(* k *) num ->
+  | Ex5 : (*∀'i, 'k, 'n[0 ≤ k ∧ k≤max (i, n + -1)].*)(* k *) num ->
     (* n, i *) ex5
 type ex2 =
-  | Ex2 : (*∀'i, 'k, 'n[0 ≤ k ∧ k≤max (n + -1, i)].*)(* k *) num ->
+  | Ex2 : (*∀'i, 'k, 'n[0 ≤ k ∧ k≤max (i, n + -1)].*)(* k *) num ->
     (* n, i *) ex2
 let rec simplex :
   (*type k n [1 ≤ n ∧ 2 ≤ k].*) ((* n, k *) matrix -> unit) =
@@ -134,7 +134,7 @@ let rec simplex :
       let xcase = i in Ex5 xcase)) in
     let rec init_ratio :
     (*type i1 k1 [0 ≤ k1 ∧ 0 ≤ i1 ∧
-      i1 + 1 ≤ k].*) ((* i1 *) num -> (* k1 *) num -> (* n *) ex7)
+      i1 + 1 ≤ k].*) ((* i1 *) num -> (* k1 *) num -> (* n, k1 *) ex7)
     =
     (fun j i ->
       (if i + 1 <= matrix_dim1 a then

@@ -132,12 +132,12 @@ let map_some2 f l1 l2 =
   List.rev (maps_f [] (l1, l2))
 
 let split_map f l =
-  let rec map_f (xs, ys as acc) = function
-    | [] -> acc
+  let rec map_f xs ys = function
+    | [] -> List.rev xs, List.rev ys
     | a::l ->
       let x, y = f a in
-      map_f (x::xs, y::ys) l in
-  map_f ([], []) l
+      map_f (x::xs) (y::ys) l in
+  map_f [] [] l
 
 let list_some = function
   | Some a -> [a]
@@ -415,6 +415,16 @@ let partition_map f l =
 let map_choice f g = function
   | Left e -> Left (f e)
   | Right e -> Right (g e)
+
+let partition_map_some f l =
+  let rec split laux raux = function
+    | [] -> List.rev laux, List.rev raux
+    | hd::tl ->
+        match f hd with
+          | None -> split laux raux tl
+          | Some (Left e) -> split (e::laux) raux tl
+          | Some (Right e) -> split laux (e::raux) tl in
+  split [] [] l
 
 
 let assoc_all x l =

@@ -38,28 +38,12 @@ external let fabs : Float → Float = "abs_float"
 external let fl0 : Float = "0.0"
 external let fl1 : Float = "1.0"
 
-external getRow :
-  ∀n, k, i [0 ≤ k ∧ 0 ≤ i ∧ i + 1 ≤ n].
-  Matrix (n, k) → Num i → Array (Float, k)
-
-external putRow :
-  ∀n, k, i, j [0 ≤ j ∧ 0 ≤ i ∧ i + 1 ≤ n ∧ j ≤ k].
-  Matrix (n, k) → Num i → Array (Float, j) → ()
-
-external rowSwap :
-  ∀i, j, k, n[0 ≤ n ∧ 0 ≤ k ∧ k + 1 ≤ i ∧ n + 1 ≤ i ∧ 0 ≤ j].
-  Matrix (i, j) → Num k → Num n → ()
-
-external norm :
-  ∀i, k, n[0 ≤ n ∧ n + 1 ≤ i ∧ k ≤ i].
-  Array (Float, i) → Num k → Num n → ()
-
-let rowMax data m i =
-  let x = fabs (matrix_get data i i) in
-  let rec loop j x mx =
-    eif j + 1 <= m then
-      let y = fabs (matrix_get data j i) in
-      eif (less x y) then loop (j+1) y j
-      else loop (j+1) x mx
-    else mx in
-  loop (i+1) x i
+let rowElim r s n i =
+  let x = array_get s i in
+  array_set s i fl0;
+  let rec loop k =
+    if k + 1 <= n then (
+      array_set s k (minus (array_get s k) (mult x (array_get r k)));
+      loop (k+1))
+    else () in
+  loop (i+1)

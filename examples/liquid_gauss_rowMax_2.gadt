@@ -54,10 +54,6 @@ external norm :
   ∀i, k, n[0 ≤ n ∧ n + 1 ≤ i ∧ k ≤ i].
   Array (Float, i) → Num k → Num n → ()
 
-external rowElim :
-  ∀i, k, n[0 ≤ k ∧ k + 1 ≤ i ∧ n ≤ i].
-  Array (Float, i) → Num n → Num k → ()
-
 let rowMax data i =
   let x = fabs (matrix_get data i i) in
   let rec loop j x mx =

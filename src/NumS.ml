@@ -29,6 +29,7 @@ let reward_constrn = ref 2
 let complexity_penalty = ref 2.5
 let reward_locality = ref 3
 let multi_levels_penalty = ref 4
+let escaping_var_penalty = ref 4
 let locality_vars_penalty = ref 6
 let nonparam_vars_penalty = ref 6
 let abduct_source_bonus = ref 0
@@ -49,6 +50,7 @@ let max_opti_postcond = ref 5
 let max_subopti_postcond = ref 5
 let opti_postcond_reward = ref 5
 let primary_only_target = ref true
+let excuse_case_by_common = ref (* true *)false
 
 let abd_fail_flag = ref false
 let abd_timeout_flag = ref false
@@ -1535,6 +1537,16 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of
                      (fun (v3, _) -> upward_of v3 v2) tl) tl
              then ~- !multi_levels_penalty
              else 0) +
+            (if List.exists
+                (* TODO: use the "original" of v *)
+                (fun (v2, _) ->
+                   (*[* Format.printf
+                     "w_val_cmp: v=%s -- v2=%s is upw=%b cmp(v2,v)=%s@\n%!"
+                     (var_str v) (var_str v2) (upward_of v2 v)
+                     (var_scope_str (qcmp_v v2 v)); *]*)
+                   not (upward_of v2 v) && qcmp_v v2 v <> Same_params) tl
+             then ~- !escaping_var_penalty
+             else 0) +
               !locality_vars_penalty *
                 List.fold_left
                   (fun acc (v2, _) ->
@@ -2594,8 +2606,8 @@ let keep_nonredund ~cmp_v ~cmp_w ineqs l =
     | [] -> ineqs, acc, drop
     | a::l ->
       (*[* Format.printf
-        "NumS.keep_nonredund: a=@ %a@\nacc=@ %a@\n%!"
-        pr_ineq a pr_ineqn acc; *]*)    
+        "NumS.keep_nonredund: a=@ %a@\nacc=@ %a@\ndrop=@ %a@\n%!"
+        pr_ineq a pr_ineqn acc pr_ineqn drop; *]*)    
       if strict_sat ~cmp_v ~cmp_w ineqs ~strict:(mult !/(-1) a) l
       then loop (project ~cmp_v ~cmp_w ineqs [a]) (a::acc) drop l
       else loop ineqs acc (a::drop) l in
@@ -2952,55 +2964,58 @@ let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
       brs in
   let verif_polytopes, polytopes = List.split polytopes in
   let validate common_eqn common_ineqn (w1, w2 as o) =
+    (* let g = !guess_from_postcond && guess in *)
     let ineq = diff ~cmp_v w1 w2 in
     let n_ineq = mult !/(-1) ineq in
     let verif is_n is_p eqs ineqs optis suboptis =
-      let ineqn =
-        (if is_n then n_ineq else ineq)::
-          (if is_p then common_ineqn else []) in
-      (*[* Format.printf
-        "verif: n=%b prem=%b@ ineq=%a@ ineqs=%a@\n%!" is_n is_p pr_ineqn ineqn
-        pr_ineqs ineqs; *]*)
-      try
-        ignore (solve ~eqs ~ineqs ~optis ~suboptis ~eqn:common_eqn ~ineqn
-                  ~cmp_v ~cmp_w q.uni_v);
-        true
-      with Terms.Contradiction _ -> false in
+      if is_p && not !excuse_case_by_common then true
+      else
+        let ineqn =
+          (if is_n then n_ineq else ineq)::
+            (if is_p then common_ineqn else []) in
+        (*[* Format.printf
+          "verif: n=%b prem=%b@ ineq=%a@ ineqs=%a@\n%!" is_n is_p
+          pr_ineqn ineqn pr_ineqs ineqs; *]*)
+        try
+          ignore (solve ~eqs ~ineqs ~optis ~suboptis ~eqn:common_eqn ~ineqn
+                    ~cmp_v ~cmp_w q.uni_v);
+          true
+        with Terms.Contradiction _ -> false in
 
     (*[* Format.printf
       "NumS.disjelim-validate: testing ineq=%a@ o=%a@\ncommon=%a@\n%!"
       pr_ineqn [ineq] pr_subopti o pr_ineqn common_ineqn; *]*)
-    let holds_left =
-      List.for_all2(* exists2 *)
-        (fun (p_eqs, p_ineqs, p_optis, p_suboptis) (eqs, ineqs) ->
-           (*[* Format.printf
-             "NumS.disjelim-validate: pos start_branch@\n%!"; let res = *]*)
-             not (verif false true p_eqs p_ineqs p_optis p_suboptis) ||
-             verif false false eqs ineqs [] []
-             (*[* in Format.printf
-             "NumS.disjelim-validate: branch res=%b@\n%!" res; res *]*)
-        )
-        verif_polytopes polytopes in
-    let holds_right =
-      List.for_all2(* exists2 *)
-        (fun (p_eqs, p_ineqs, p_optis, p_suboptis) (eqs, ineqs) ->
-           (*[* Format.printf
-             "NumS.disjelim-validate: neg start_branch@\n%!"; let res = *]*)
-             not (verif true true p_eqs p_ineqs p_optis p_suboptis) ||
-             verif true false eqs ineqs [] []
-             (*[* in Format.printf
-             "NumS.disjelim-validate: branch res=%b@\n%!" res; res *]*)
-        )
-        verif_polytopes polytopes in
+    let prefer_left, weak_left, holds_left, fails_left =
+      let pn, fn =
+        List.fold_left2
+          (fun (pn, fn) (p_eqs, p_ineqs, p_optis, p_suboptis) (eqs, ineqs) ->
+             if
+               not (verif false true p_eqs p_ineqs p_optis p_suboptis) ||
+               verif false false eqs ineqs [] []
+             then pn+1, fn else pn, fn+1)
+          (0, 0) verif_polytopes polytopes in
+      (*[* Format.printf "holds_left: pn=%d fn=%d@\n%!" pn fn; *]*)
+      pn > fn, pn >= fn, fn = 0, pn = 0 in
+    let prefer_right, weak_right, holds_right, fails_right =
+      let pn, fn =
+        List.fold_left2
+        (fun (pn, fn) (p_eqs, p_ineqs, p_optis, p_suboptis) (eqs, ineqs) ->
+             if
+               not (verif true true p_eqs p_ineqs p_optis p_suboptis) ||
+               verif true false eqs ineqs [] []
+             then pn+1, fn else pn, fn+1)
+        (0, 0) verif_polytopes polytopes in
+      (*[* Format.printf "holds_right: pn=%d fn=%d@\n%!" pn fn; *]*)
+      pn > fn, pn >= fn, fn = 0, pn = 0 in
     (*[* Format.printf
       "NumS.disjelim-validate: left=%b right=%b ineq=%a@\n%!"
       holds_left holds_right pr_ineqn [ineq];
-    *]*)
-    if holds_left = holds_right then Left o
+     *]*)
     (* If w1 <= w2 and (w1 <= 0 \/ w2 <= 0), then w1 <= 0 *)
-    else if holds_left then Right (ineq, w1)
-    else if holds_right then Right (n_ineq, w2)
-    else assert false in
+    if weak_left && weak_right then Some (Left o)
+    else if holds_left then Some (Right (ineq, w1))
+    else if holds_right then Some (Right (n_ineq, w2))
+    else None in
   (* Now restore non-redundancy needed for convex hull algo. *)
   let faces, equations = split_map
       (fun (eqs, ineqs) ->
@@ -3025,6 +3040,9 @@ let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
          let faces =
            ineqs @ eq_sides @ List.map (mult !/(-1)) eq_sides in
          let _, res, _ = keep_nonredund ~cmp_v ~cmp_w [] faces in
+         (*[* Format.printf
+           "ptop-ineqs=%a@\nptop-faces=%a@\nptop-res=%a@\n%!"
+           pr_ineqn ineqs pr_ineqn faces pr_ineqn res; *]*)
          res, wset_of_list eq_sides)
       polytopes in
   let common_faces =
@@ -3201,8 +3219,8 @@ let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
         (fun (lhs, rhs) (cst, lc) eqs ->
            Eq (Add [lhs; expand_cst cst], rhs, lc)::eqs) h [] in
     pr_formula ppf eqs in
-  Format.printf "NumS.disjelim: brs_eqs=@\n%a@\n%!"
-    (pr_line_list "| " pr_hasheqs) brs_eqs; *]*)  
+    Format.printf "NumS.disjelim: brs_eqs=@\n%a@\n%!"
+    (pr_line_list "| " pr_hasheqs) brs_eqs; *]*)
   (* Transitive closure of resulting equations and inequalities. *)
   let result = List.map expand_sides_cst result in
   let result = ineq_transitive_cl ~cmp_v result in
@@ -3224,7 +3242,7 @@ let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
     Format.fprintf ppf "%a:@ %s" pr_atom (Eq (w_lhs, w_rhs, w_lc))
       (String.concat "," (List.map string_of_int
                             (Ints.elements inds))) in
-  Format.printf "NumS.disjelim: opt_cands=@\n%a@\n%!"
+    Format.printf "NumS.disjelim: opt_cands=@\n%a@\n%!"
     (pr_line_list "| " pr_opt_cand) opt_cands; *]*)  
   let allbrs =
     ints_of_list (List.mapi (fun i _ -> i) brs_eqs) in
@@ -3236,7 +3254,7 @@ let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
   (*[* let unexpand_opti (dsj1, dsj2) =
     unexpand_sides_cst ~cmp_v dsj1, unexpand_sides_cst ~cmp_v dsj2 in
   Format.printf "NumS.disjelim: initial optis=@\n%a@\n%!"
-    pr_optis (List.map unexpand_opti optis); *]*)  
+    pr_optis (List.map unexpand_opti optis); *]*)
   let optis = List.map
       (fun (dsj1, dsj2) ->
          unexpand_sides_cst ~cmp_v dsj1,
@@ -3254,13 +3272,11 @@ let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
   (*[* Format.printf "NumS.disjelim: optis=@\n%a@\n%!"
     pr_optis optis; *]*)
   let optis, opt_eqn =
-    if !guess_from_postcond && guess
-    then partition_map
-        (validate common_equations ineqn) optis
-    else optis, [] in
+    partition_map_some
+        (validate common_equations ineqn) optis in
   let abd_eqn, more_eqn = List.split opt_eqn in
   (*[* Format.printf "NumS.disjelim: case-filtered optis=@\n%a@\n%!"
-    pr_optis optis; *]*)  
+    pr_optis optis; *]*)
   let optis =
     List.map snd
       (List.sort (fun (x, _) (y, _) -> y - x)
@@ -3279,10 +3295,10 @@ let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
       faces in
   let add_subopti_cand c suboptis =
     (*[*
-    let wf_of_choice = function
+      let wf_of_choice = function
       | Left (w,_,_)->Leq_w w
       | Right (w1,w2,_,_,_) -> Subopti_w (w1,w2) in
-    Format.printf "add_subopti: c=%a@\nsuboptis=%a@\n%!"
+      Format.printf "add_subopti: c=%a@\nsuboptis=%a@\n%!"
       pr_w_atom (wf_of_choice c)
       pr_w_formula (List.map wf_of_choice suboptis); *]*)      
     match c with
@@ -3346,10 +3362,10 @@ let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
       List.fold_left
         (fun suboptis ptope ->
            (*[* let left, right = partition_choice suboptis in
-           let left = List.map fst3 left in
-           let right = List.map
+             let left = List.map fst3 left in
+             let right = List.map
                (fun (w1, w2, _, _, lc) -> w1, w2) right in
-           Format.printf
+             Format.printf
              "NumS.disjelim: subopti step@\nleft=%a;@ right=%a@\nptope=%a@\n%!"
              pr_ineqn left pr_suboptis right
              (pr_transitive_cl ~cmp_v) ptope; *]*)
@@ -3418,12 +3434,10 @@ let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
         | Right (w1, w2, w1_key, w2_key, lc) -> Some (w1, w2))
       suboptis in
   (*[* Format.printf "NumS.disjelim: initial suboptis=@\n%a@\n%!"
-    pr_suboptis suboptis; *]*)  
+    pr_suboptis suboptis; *]*)
   let suboptis, opt_ineqn =
-    if !guess_from_postcond && guess
-    then partition_map
-        (validate common_equations ineqn) suboptis
-    else suboptis, [] in
+    partition_map_some
+        (validate common_equations ineqn) suboptis in
   (*[* Format.printf "NumS.disjelim: case-filtered suboptis=@\n%a@\n%!"
     pr_suboptis suboptis; *]*)  
   let abd_ineqn, more_ineqn = List.split opt_ineqn in
@@ -3756,8 +3770,8 @@ let separate_subst_aux q ~no_csts ~keep ~bvs ~apply cnj =
   let cmp_v v1 v2 =
     let c1 = VarSet.mem v1 keep and c2 = VarSet.mem v2 keep in
     if c1 && c2 then cmp_v v1 v2
-    else if c1 then -1
-    else if c2 then 1
+    else if c1 then 1
+    else if c2 then -1
     else cmp_v v1 v2 in
   let cmp_w (vars1,_,_) (vars2,_,_) =
     match vars1, vars2 with
@@ -3789,11 +3803,19 @@ let separate_subst_aux q ~no_csts ~keep ~bvs ~apply cnj =
            vars
          @ [ov, ([], cst, olc)])
       c_eqn in
+  let c_eqs = List.map
+      (function
+        | v1, ((v2, k)::vars, cst, lc)
+          when VarSet.mem v1 keep && not (VarSet.mem v2 keep) ->
+          v2, mult (!/(-1) // k) ((v1, !/(-1))::vars, cst, lc)
+        | sv -> sv)
+      c_eqs in
   let eqs, more_eqs = List.partition
       (fun (v,_) -> not (VarSet.mem v keep)) (c_eqs @ eqs) in
   let sb, eqs = expand_subst ~keep ~bvs eqs in
-  (*[* Format.printf "NumS.separate_subst:@ eq-keys=%a@ sb=%a@\n%!"
-    pr_vars (vars_of_list (List.map fst eqs))
+  (*[* Format.printf
+    "NumS.separate_subst: no_csts=%b@ eq-keys=%a@ sb=%a@\n%!"
+    no_csts pr_vars (vars_of_list (List.map fst eqs))
     pr_num_subst sb; *]*)
   if not apply
   then

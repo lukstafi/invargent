@@ -1386,7 +1386,7 @@ let rec map =
     | LCons (x, xs) ->
       let ys = map xs in
       LCons (f x, ys)"
-        [2,"∃n. δ = (List n → ∃k[k=max (n, 0)].List k)"];
+        [2,"∃n. δ = (List n → ∃.List n)"];
     );
 
   "map not existential poly" >::
@@ -1402,8 +1402,7 @@ let rec map = fun f ->
     | LCons (x, xs) ->
       let ys = map f xs in
       LCons (f x, ys)"
-        [2,"∃n, a, b.
-  δ = ((a → b) → List (a, n) → ∃k[k=max (n, 0)].List (b, k))"];
+        [2,"∃n, a, b. δ = ((a → b) → List (a, n) → ∃.List (b, n))"];
     );
 
   "map not existential instance" >::
@@ -1423,7 +1422,7 @@ let rec map =
     | LCons (x, xs) ->
       let ys = map xs in
       LCons (f x, ys)"
-        [2,"∃n. δ = (List (Foo, n) → ∃k[k=max (0, n)].List (Bar, k))"];
+        [2,"∃n. δ = (List (Foo, n) → ∃.List (Bar, n))"];
     );
 
   "filter mono" >::
@@ -1901,7 +1900,7 @@ let rec zip =
     | UCons xs, UCons ys ->
       let zs = zip (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (n, k)].Unary i)"]
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (k, n)].Unary i)"]
     );
 
   "unary minimum asserted 1" >::
@@ -2677,8 +2676,8 @@ let rec add = fun x -> efunction
 "
         [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃k[n ≤ k ∧ k ≤ n + 1 ∧
-       1 ≤ k].Avl (a, k))"];
+    (a → Avl (a, n) → ∃k[n ≤ k ∧ 1 ≤ k ∧
+       k ≤ n + 1].Avl (a, k))"];
     );
 
   "avl_tree--add-simple2" >::
@@ -2779,8 +2778,8 @@ let rec add = fun x -> efunction
 "
         [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃k[n ≤ k ∧ k ≤ n + 1 ∧
-       1 ≤ k].Avl (a, k))"];
+    (a → Avl (a, n) → ∃k[n ≤ k ∧ 1 ≤ k ∧
+       k ≤ n + 1].Avl (a, k))"];
     );
 
   "avl_tree--add2" >::
@@ -2879,8 +2878,8 @@ let rec add = fun x -> efunction
 "
         [2,"∃n, a.
   δ =
-    (a → Avl (a, n) → ∃k[1 ≤ k ∧ n ≤ k ∧
-       k ≤ n + 1].Avl (a, k))"];
+    (a → Avl (a, n) → ∃k[k ≤ n + 1 ∧ 1 ≤ k ∧
+       n ≤ k].Avl (a, k))"];
     );
 
   "avl_tree--remove_min_binding-simple" >::
@@ -3070,8 +3069,8 @@ let merge = efunction
 "
         [2,"∃n, k, a.
   δ =
-    ((Avl (a, n), Avl (a, k)) → ∃i[n ≤ i ∧ k ≤ i ∧
-       i ≤ n + k ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
+    ((Avl (a, n), Avl (a, k)) → ∃i[n ≤ i ∧ i ≤ n + k ∧
+       k ≤ i ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
   n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
@@ -3124,8 +3123,8 @@ let merge = efunction
 "
         [2,"∃n, k, a.
   δ =
-    ((Avl (a, n), Avl (a, k)) → ∃i[n ≤ i ∧ k ≤ i ∧
-       i ≤ n + k ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
+    ((Avl (a, n), Avl (a, k)) → ∃i[n ≤ i ∧ i ≤ n + k ∧
+       k ≤ i ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
   n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
@@ -3178,8 +3177,8 @@ let merge = efunction
 "
         [2,"∃n, k, a.
   δ =
-    ((Avl (a, n), Avl (a, k)) → ∃i[n ≤ i ∧ k ≤ i ∧
-       i ≤ n + k ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
+    ((Avl (a, n), Avl (a, k)) → ∃i[n ≤ i ∧ i ≤ n + k ∧
+       k ≤ i ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
   n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
@@ -3240,7 +3239,7 @@ let merge = efunction
   "avl_tree--merge4" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case "avl_tree--merge3"
+       test_case "avl_tree--merge4"
 "datatype Avl : type * num
 datacons Empty : ∀a. Avl (a, 0)
 datacons Node :
@@ -3284,15 +3283,15 @@ let merge = efunction
 "
         [2,"∃n, k, a.
   δ =
-    ((Avl (a, n), Avl (a, k)) → ∃i[n ≤ i ∧ i ≤ n + k ∧
-       k ≤ i ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
+    ((Avl (a, n), Avl (a, k)) → ∃i[n ≤ i ∧ k ≤ i ∧
+       i ≤ n + k ∧ i≤max (k + 1, n + 1)].Avl (a, i)) ∧
   n ≤ k + 2 ∧ k ≤ n + 2"];
     );
 
   "avl_tree--remove-simple" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case ~no_num_abduction:true "avl_tree--remove"
+       test_case ~no_num_abduction:true "avl_tree--remove-simple"
 "datatype Avl : type * num
 datacons Empty : ∀a. Avl (a, 0)
 datacons Node :

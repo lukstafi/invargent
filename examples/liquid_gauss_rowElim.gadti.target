@@ -17,6 +17,18 @@ external val matrix_dim1 :
 external val matrix_dim2 :
    ∀n, k[0 ≤ n ∧ 0 ≤ k]. Matrix (n, k) → Num k
 
+datatype Array : type * num
+
+external val array_make : ∀n, a[0 ≤ n]. Num n → a → Array (a, n)
+
+external val array_get :
+   ∀n, k, a[0 ≤ k ∧ k + 1 ≤ n]. Array (a, n) → Num k → a
+
+external val array_set :
+   ∀n, k, a[0 ≤ k ∧ k + 1 ≤ n]. Array (a, n) → Num k → a → ()
+
+external val array_length : ∀n, a[0 ≤ n]. Array (a, n) → Num n
+
 external val n2f : ∀n. Num n → Float
 
 external val equal : ∀a. a → a → Bool
@@ -33,15 +45,12 @@ external val mult : Float → Float → Float
 
 external val div : Float → Float → Float
 
+external val fabs : Float → Float
+
 external val fl0 : Float
 
-external snd : ∀a, b. (b, a) → a
+external val fl1 : Float
 
-external is_neg_aux :
-   ∀i, j, k, n[0 ≤ n ∧ 1 ≤ i ∧ k ≤ j + 1].
-   Matrix (i, j) → Num k → Num n → Bool
-
-external is_neg :
-   ∀i, k, n[1 ≤ k ∧ n ≤ i + 1]. Matrix (k, i) → Num n → Bool
-
-val main_step3_test : ∀k, n[1 ≤ n ∧ 3 ≤ k]. Matrix (n, k) → Float
+val rowElim :
+   ∀i, j, k, n[0 ≤ n ∧ n + 1 ≤ i ∧ k ≤ i ∧ k ≤ j].
+   Array (Float, j) → Array (Float, i) → Num k → Num n → ()

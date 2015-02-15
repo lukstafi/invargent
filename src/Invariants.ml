@@ -7,13 +7,13 @@
 *)
 let early_postcond_abd = ref true(* false *)
 (* Should be greater than the last disj_step. *)
-let timeout_count = ref 8
+let timeout_count = ref 11
 let timeout_flag = ref false
 let unfinished_postcond_flag = ref false
 let use_prior_discards = ref (* false *)true
 let use_solution_in_postcond = ref false (* true *)
 (* Captures where the repeat step is/are. *)
-let disj_step = [|1; 1; 2; 3; 6|]
+let disj_step = [|1; 1; 2; 3; 4; 6|]
 
 open Defs
 open Terms
@@ -990,6 +990,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
   (*[* Format.printf "chiK_anchor:";
   Hashtbl.iter (fun k v -> Format.printf "@ %d->%s" k (var_str v))
     q.chiK_anchor; Format.printf "@\n%!"; *]*)
+  let initstep = ref true in
+  let fallback_postcond = ref false in
   let rec loop iter_no discard rol1 sol1 ans1_res =
     (* 1 *)
     (*[* Format.printf
@@ -1061,7 +1063,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
        variable lifting? *)
     let guard = concat_map
         (fun (_,(_,cnj)) -> cnj) sol1 in
-    let initstep = iter_no < disj_step.(2) in
+    let old_initstep = !initstep in
+    initstep := !fallback_postcond || iter_no < disj_step.(2);
+    fallback_postcond := false;
     let sol1, brs1, abdsjelim, dissoc_abdsj, g_rol, g_rol_brs =
       if iter_no < disj_step.(0)
       then sol1, brs1, [], false, rol1,
@@ -1093,12 +1097,12 @@ let solve q_ops new_ex_types exty_res_chi brs =
                             chiK_pos)); []) *]*)
                   else [])
                verif_brs) in
-        let g_rol = g_collect (disj_step.(2) <= iter_no) in
+        let g_rol = g_collect (not !initstep) in
         (*[* Format.printf
           "g_rol: g_collect keys %a@\n%!"
           pr_ints (ints_of_list (List.map fst g_rol)); *]*)
         let g_rol_all =
-          if iter_no < disj_step.(2) then lazy (g_collect true)
+          if !initstep then lazy (g_collect true)
           else lazy [] in
         (* 2 *)
         (* let dsj_preserve exchi =
@@ -1117,8 +1121,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
                  try Hashtbl.find q.chiK_anchor i
                  with Not_found -> assert false in
                (*[* Format.printf
-                 "solve: iter_no=%d approaching disjelim for %d, \
-                  #brs=%d of %d, anchor=%s@\n%!" iter_no i
+                 "solve: iter_no=%d initstep/fallback=%b disjelim \
+                  for %d,@ #brs=%d of %d, anchor=%s@\n%!" iter_no
+                 !initstep i
                  (try List.length (List.assoc i g_rol)
                   with Not_found -> 0)
                  (try List.length (List.assoc i (Lazy.force g_rol_all))
@@ -1156,8 +1161,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
                      ~bvs ~param_bvs (* ~preserve *)
                      ~up_of_anchor
                      ~do_num:(disj_step.(1) <= iter_no)
-                     ~guess:((iter_no < disj_step.(3)))
-                     ~initstep
+                     ~guess:((iter_no < disj_step.(4)))
+                     ~initstep:!initstep
                      ~residuum:(if !use_solution_in_postcond
                                 then ans1_res else []) cnjs in
                  dissoc_abdsj := !dissoc_abdsj || dissoc;
@@ -1168,7 +1173,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
                  let ans = g_vs, g_ans in
                  i,
                  (* FIXME: unnecessary? *)
-                 (if initstep
+                 (if !initstep
                   then connected [delta] ans
                   else ans),
                  g_brs
@@ -1241,8 +1246,10 @@ let solve q_ops new_ex_types exty_res_chi brs =
                let _ (* tpar *), ans2 = lift_ex_types q.op i ans2 in
                let rn_sb, tpar, ans2 =
                  converge q.op ~guard
-                   ~initstep
-                   ~check_only:(iter_no < disj_step.(4)) ans1 ans2 in
+                   ~initstep:!initstep
+                   ~check_only:(!initstep || old_initstep ||
+                                iter_no < disj_step.(5))
+                   ans1 ans2 in
                (*[* Format.printf "solve.loop-dK: final@ tpar=%a@ ans2=%a@\n%!"
                  pr_ty tpar pr_ans ans2; *]*)
                (* No [b] "owns" these formal parameters. Their instances
@@ -1632,16 +1639,18 @@ let solve q_ops new_ex_types exty_res_chi brs =
                    "Invariants: iter_no=%d postcond-forced \
                     abduction:@\n%!" iter_no; *]*)
                  try
-                   let _, alien_eqs, (vs, dans_ans) =
-                     Abduction.abd q'.op ~bvs:recbvs ~xbvs ~nonparam_vars
-                       ~upward_of ~iter_no ~discard brs [] in
-                   assert (alien_eqs = []); assert (vs = []);
-                   postcond_forcing := dans_ans @ !postcond_forcing
+                   if iter_no >= disj_step.(3) then
+                     let _, alien_eqs, (vs, dans_ans) =
+                       Abduction.abd q'.op ~bvs:recbvs ~xbvs ~nonparam_vars
+                         ~upward_of ~iter_no ~discard brs [] in
+                     assert (alien_eqs = []); assert (vs = []);
+                     postcond_forcing := dans_ans @ !postcond_forcing
                  with
                  | (NoAnswer _ | Contradiction _) (*[* as e *]*) ->
                    (*[* Format.printf
                      "Postcond-abd-ans: failed iter_no=%d;@ error=@\n%a@\n%!"
                      iter_no pr_exception e; *]*)
+                   fallback_postcond := true;
                    ());
                let pvs = fvs_typ tpar in
                (* TODO: the precautionary step seems unnecessary:
@@ -1740,10 +1749,11 @@ let solve q_ops new_ex_types exty_res_chi brs =
           rol1 rol2 in
       let finished = not dissoc_abdsj && not !unfinished_postcond_flag &&
                      finished1 && finished2 && finished3 in
-      (*[* Format.printf "solve-loop: dissoc_abdsj=%b \
-                           finished 1=%b, 2=%b, 3=%b, r=%b@\n%!"
-        dissoc_abdsj finished1 finished2 finished3 finished; *]*)
-      if iter_no >= disj_step.(2) && finished
+      (*[* Format.printf "solve-loop: dissoc_abdsj=%b initstep=%b \
+        old_initstep=%b@ finished 1=%b, 2=%b, 3=%b, r=%b@\n%!"
+        dissoc_abdsj !initstep old_initstep
+        finished1 finished2 finished3 finished; *]*)
+      if not !initstep && finished
       then                              (* final solution *)
         Aux.Right (ans_res, rol2, sol2)
         (* Do at least three iterations: 0, 1, 2. *)

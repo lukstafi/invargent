@@ -55,9 +55,7 @@ let buildheap size data =
       heapify size data i;
       loop (i - 1))
     else () in
-(*withtype {i:int | i < n} <max(i+1,0)> => int(i) -> unit*)
-    loop (div2 size - 1)
-(*withtype {n:nat} float heap(n) -> unit*)
+  loop (div2 size - 1)
 
 let heapsort maxx size data =
   buildheap size data;
@@ -77,7 +75,4 @@ let print_array data i j =
       print (array_get data k);
       loop (k + 1))
     else () in
-        (*withtype {k:int | i <= k <= j} <j-k> => int(k) -> unit*)
   loop i
-(*withtype {n:nat, i:int, j:int | 0 <= i <= j <= n} <j-i> =>
-         string array(n) * int(i) * int(j) -> unit*)

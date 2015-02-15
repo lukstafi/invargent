@@ -36,6 +36,7 @@ Goals -- version targets may be reassigned:
 - [x] if-then-else syntax. (v2.0)
 - [-] New sort: order. (v2.1)
 - [#] Order sort example: binomial heap. (v2.1)
+- [ ] Datatype-level invariants shared by all constructors of a datatype. (v2.1)
 - [ ] Solver directives in .gadt source code -- exposing the options available from the command-line interface. (v2.1)
 - [ ] Or-patterns `p1 | p2` introducing disjunctions in premises, either eliminated by disjunction elimination or expanded by implication clause duplication -- depending on user-level option; preserved in exported code. (v2.1)
 - [ ] Meta-automatic mode: retry with modified user-level parameter settings if inference fails. (v2.1)

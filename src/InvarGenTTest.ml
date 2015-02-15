@@ -508,7 +508,8 @@ let tests = "InvarGenT" >::: [
       "liquid_heapsort-heapify-simpler" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case "liquid_heapsort_heapify_simpler" ());
+           test_case ~prefer_source_bound:true
+             "liquid_heapsort_heapify_simpler" ());
       "liquid_heapsort-heapify-simpler2" >::
         (fun () ->
            (* TODO: improve time *)
@@ -552,7 +553,9 @@ let tests = "InvarGenT" >::: [
       "liquid_simplex_step_3a" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case "liquid_simplex_step_3a" ());
+           (* Type in target is slightly less general than most general type:
+              ∀k, n[1 ≤ n ∧ 3 ≤ k]. Matrix (n, k) → Float *)
+           test_case ~prefer_source_bound:true "liquid_simplex_step_3a" ());
       "liquid_simplex_step_4" >::
         (fun () ->
            todo "FIXME"; (* "too hard for current InvarGenT"; ? *)
@@ -602,12 +605,16 @@ let tests = "InvarGenT" >::: [
       "liquid_simplex-harder" >::
         (fun () ->
            skip_if !debug "debug";
-           (* Can take over 170 seconds. *)
+           (* Can take over 220 seconds. *)
            test_case "liquid_simplex_harder" ());
       "liquid_gauss_rowSwap" >::
         (fun () ->
            skip_if !debug "debug";
            test_case "liquid_gauss_rowSwap" ());
+      "liquid_gauss_rowElim" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "liquid_gauss_rowElim" ());
       "liquid_gauss_rowMax" >::
         (fun () ->
            (* The unuseful type inferred is correct, but we want better. *)
@@ -616,7 +623,6 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_gauss_rowMax" ());
       "liquid_gauss_rowMax_2" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_gauss_rowMax_2" ());
       "liquid_gauss_simpler" >::
