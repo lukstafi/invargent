@@ -18,7 +18,8 @@ let input_file file =
   Buffer.contents buf
 
 let test_case ?(test_annot=false) ?richer_answers ?more_general_num
-    ?prefer_guess ?prefer_source_bound ?abd_rotations ?num_abd_timeout
+    ?prefer_guess ?prefer_bound_to_local ?prefer_bound_to_outer
+    ?abd_rotations ?num_abd_timeout
     ?num_abd_fail_timeout ?nodeadcode file () =
   if !debug then Printexc.record_backtrace true;
   let ntime = Sys.time () in
@@ -45,11 +46,16 @@ let test_case ?(test_annot=false) ?richer_answers ?more_general_num
   (match prefer_guess with
    | None -> ()
    | Some prefer_guess -> Abduction.prefer_guess := prefer_guess);
-  let old_prefer_source_bound = !NumS.prefer_source_bound in
-  (match prefer_source_bound with
+  let old_prefer_bound_to_local = !NumS.prefer_bound_to_local in
+  (match prefer_bound_to_local with
    | None -> ()
-   | Some prefer_source_bound ->
-     NumS.prefer_source_bound := prefer_source_bound);
+   | Some prefer_bound_to_local ->
+     NumS.prefer_bound_to_local := prefer_bound_to_local);
+  let old_prefer_bound_to_outer = !NumS.prefer_bound_to_outer in
+  (match prefer_bound_to_outer with
+   | None -> ()
+   | Some prefer_bound_to_outer ->
+     NumS.prefer_bound_to_outer := prefer_bound_to_outer);
   let old_abd_rotations = !NumS.abd_rotations in
   (match abd_rotations with
    | None -> ()
@@ -92,7 +98,8 @@ let test_case ?(test_annot=false) ?richer_answers ?more_general_num
      Abduction.richer_answers := old_richer_answers;
      NumS.more_general := old_more_general_num;
      Abduction.prefer_guess := old_prefer_guess;
-     NumS.prefer_source_bound := old_prefer_source_bound;
+     NumS.prefer_bound_to_local := old_prefer_bound_to_local;
+     NumS.prefer_bound_to_outer := old_prefer_bound_to_outer;
      NumS.abd_rotations := old_abd_rotations;
      NumS.abd_timeout_count := old_num_abd_timeout;
      NumS.abd_fail_timeout_count := old_num_abd_fail_timeout;
@@ -102,7 +109,8 @@ let test_case ?(test_annot=false) ?richer_answers ?more_general_num
      Abduction.richer_answers := old_richer_answers;
      NumS.more_general := old_more_general_num;
      Abduction.prefer_guess := old_prefer_guess;
-     NumS.prefer_source_bound := old_prefer_source_bound;
+     NumS.prefer_bound_to_local := old_prefer_bound_to_local;
+     NumS.prefer_bound_to_outer := old_prefer_bound_to_outer;
      NumS.abd_rotations := old_abd_rotations;
      NumS.abd_timeout_count := old_num_abd_timeout;
      NumS.abd_fail_timeout_count := old_num_abd_fail_timeout;
@@ -111,7 +119,8 @@ let test_case ?(test_annot=false) ?richer_answers ?more_general_num
   Abduction.richer_answers := old_richer_answers;
   NumS.more_general := old_more_general_num;
   Abduction.prefer_guess := old_prefer_guess;
-  NumS.prefer_source_bound := old_prefer_source_bound;
+  NumS.prefer_bound_to_local := old_prefer_bound_to_local;
+  NumS.prefer_bound_to_outer := old_prefer_bound_to_outer;
   NumS.abd_rotations := old_abd_rotations;
   NumS.abd_timeout_count := old_num_abd_timeout;
   NumS.abd_fail_timeout_count := old_num_abd_fail_timeout;
@@ -508,7 +517,7 @@ let tests = "InvarGenT" >::: [
       "liquid_heapsort-heapify-simpler" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~prefer_source_bound:true
+           test_case ~prefer_bound_to_local:true
              "liquid_heapsort_heapify_simpler" ());
       "liquid_heapsort-heapify-simpler2" >::
         (fun () ->
@@ -555,7 +564,7 @@ let tests = "InvarGenT" >::: [
            skip_if !debug "debug";
            (* Type in target is slightly less general than most general type:
               ∀k, n[1 ≤ n ∧ 3 ≤ k]. Matrix (n, k) → Float *)
-           test_case ~prefer_source_bound:true "liquid_simplex_step_3a" ());
+           test_case ~prefer_bound_to_local:true "liquid_simplex_step_3a" ());
       "liquid_simplex_step_4" >::
         (fun () ->
            todo "FIXME"; (* "too hard for current InvarGenT"; ? *)
@@ -580,7 +589,7 @@ let tests = "InvarGenT" >::: [
       "liquid_simplex_step_6a_2" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~prefer_source_bound:true
+           test_case ~prefer_bound_to_local:true
              "liquid_simplex_step_6a_2" ());
       "liquid_simplex_step_6_3" >::
         (fun () ->
@@ -627,9 +636,8 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_gauss_rowMax_2" ());
       "liquid_gauss_simpler" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
-           test_case "liquid_gauss_simpler" ());
+           test_case ~prefer_bound_to_outer:true "liquid_gauss_simpler" ());
       "liquid_gauss" >::
         (fun () ->
            todo "FIXME";

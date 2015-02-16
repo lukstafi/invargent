@@ -800,7 +800,7 @@ type discarded =
   (TermAbd.answer list, NumDefs.formula list,
    OrderDefs.formula list, unit) sep_sorts
 
-let abd q ~bvs ~xbvs ~upward_of ~nonparam_vars
+let abd q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of ~nonparam_vars
     ?(iter_no=2) ~discard brs neg_brs =
   let dissociate = iter_no <= 0 in
   (* Do not change the order and no. of branches afterwards. *)
@@ -1001,7 +1001,7 @@ let abd q ~bvs ~xbvs ~upward_of ~nonparam_vars
     else
       try
         (* [tvs] includes alien variables! *)
-        NumS.abd q ~bvs ~xbvs ~upward_of ~nonparam_vars
+        NumS.abd q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of ~nonparam_vars
           ~discard:discard.at_num ~iter_no
           (* [true] means non-recursive *)
           ((true, [], [], neg_num_res)::brs_num)

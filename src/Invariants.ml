@@ -62,6 +62,7 @@ let new_q q_ops =
   let v_b = Hashtbl.create 16 in
   let recbvs = ref VarSet.empty in
   let param_ren = Hashtbl.create 16 in
+  let orig_ren = Hashtbl.create 16 in
   let get_recbvs () = !recbvs in
   let param_renaming v =
     Hashtbl.mem param_ren v in
@@ -88,18 +89,21 @@ let new_q q_ops =
       Hashtbl.add b_chi b i;
       q.add_b_vs_of b [delta, b])
   and add_b_vs_of b rvs =
-    assert (Hashtbl.mem b_chi b);
+    let b_is_chiK =
+      try is_chiK (find_chi b)
+      (* Not_found means we're adding "virtual" variables to anchor. *)
+      with Not_found -> Hashtbl.replace posi_b b (); true in
     let qvs = try Hashtbl.find b_qvs b with Not_found -> [] in
     let rvs = List.filter
       (fun (_,v) -> not (List.mem v qvs)) rvs in
     let vs = List.map snd rvs in
     let vss = vars_of_list vs in
-    if not (positive_b b) && not (is_chiK (find_chi b))
+    if not (positive_b b) && not b_is_chiK
     then recbvs := VarSet.union vss !recbvs;
-    if not (positive_b b) && is_chiK (find_chi b)
+    if not (positive_b b) && b_is_chiK
     then List.iter
         (fun (o, v) ->
-           (* FIXME: also include existential type variables. *)
+           Hashtbl.add orig_ren v o;
            if VarSet.mem o !recbvs then Hashtbl.add param_ren v ())
         rvs;
     List.iter (fun v -> q_ops.same_as v b; Hashtbl.replace v_b v b) vs;
@@ -111,12 +115,12 @@ let new_q q_ops =
       Hashtbl.replace b_vs b (VarSet.union ovs vss);
       let orenaming = Hashtbl.find b_renaming b in
       Hashtbl.replace b_renaming b (rvs @ orenaming);
-      Hashtbl.replace b_qvs b (vs @ qvs);
+      Hashtbl.replace b_qvs b (vs @ qvs)
     with Not_found ->
       (* FIXME: b_vs contains b, but b_qvs doesn't, right? *)
       Hashtbl.add b_vs b (vars_of_list (b::vs));
       Hashtbl.add b_renaming b rvs;
-      Hashtbl.add b_qvs b vs;
+      Hashtbl.add b_qvs b vs
   and q = {
     op = q_ops; cmp_v = q_ops.cmp_v; uni_v = q_ops.uni_v;
     add_b_vs_of; allchi = Ints.empty; chiK_anchor;
@@ -124,7 +128,8 @@ let new_q q_ops =
     add_bchi; find_b; find_b_of_v; find_chi; is_chiK;
     positive_b; negbs = []; get_recbvs; param_renaming;
     recover_escaping = Hashtbl.create 8;
-  } in q
+  } in
+  q, orig_ren
 
 let modify_q ~uni_vars q =
   let q_uni = q.uni_v in
@@ -850,7 +855,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
            pr_formula prem pr_formula concl pr_exception e;
     )
     brs; *]*)
-  let q = new_q q_ops in
+  (* Also returns the growing renaming of use-site arguments to
+     postcondition parameters. *)
+  let q, orig_ren = new_q q_ops in
   (* Unfortunately we cannot delegate [upward_of] directly to [q.op] *)
   let upward_of v1 v2 =
     let b1 = try q.find_b_of_v v1 with Not_found -> v1 in
@@ -1202,8 +1209,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
           (* let keepvs =
              add_vars [delta; delta'] (VarSet.union localvs bvs) in *)
           (*[* Format.printf
-            "lift_ex_types: g_vs=%a@ init g_ans=%a@\n%!"
-            pr_vars (vars_of_list g_vs) pr_formula g_ans;
+            "lift_ex_types: i=%d g_vs=%a@ init g_ans=%a@\n%!"
+            i pr_vars (vars_of_list g_vs) pr_formula g_ans;
           *]*)
           (* 3 *)
           let fvs = VarSet.diff (fvs_formula g_ans)
@@ -1214,6 +1221,12 @@ let solve q_ops new_ex_types exty_res_chi brs =
             with Not_found -> assert false in
           let pvs, e_vs = VarSet.partition
               (fun v -> upward_of v anchor) fvs in
+          (*[* Format.printf
+            "starting add_b_vs_of anchor=%s@ e_vs=%a@\n%!"
+          (var_str anchor) pr_vars e_vs; *]*)
+          let e_vs = VarSet.elements e_vs in
+          if e_vs <> [] then
+            q.add_b_vs_of anchor (List.map (fun v->v,v) e_vs);
           (* [e_vs] does not contain [chi_vs] while [fvs] may have
              eliminated variables. *)
           let pvs = VarSet.diff pvs localvs in
@@ -1231,10 +1244,11 @@ let solve q_ops new_ex_types exty_res_chi brs =
             "lift_ex_types: anchor=%s@ fvs=%a@ pvs=%a@ uvs=%a@ tpar=%a@ \
              g_ans=%a@ e_vs=%a@ phi=%a@\n%!" (var_str anchor)
             pr_vars fvs pr_vars (vars_of_list pvs) pr_vars (vars_of_list uvs)
-            pr_ty tpar pr_formula g_ans pr_vars e_vs pr_formula phi;
+            pr_ty tpar pr_formula g_ans
+            pr_vars (vars_of_list e_vs) pr_formula phi;
           *]*)
           (* FIXME: g_vs should be ignored? *)
-          tpar, (VarSet.elements e_vs, phi) in
+          tpar, (e_vs, phi) in
         (* 4b *)
         let rn_sb, g_rol = rev_fold_map2
             (fun rn_acc (i, ans1) (j, ans2, g_brs) ->
@@ -1327,7 +1341,10 @@ let solve q_ops new_ex_types exty_res_chi brs =
     (*[* Format.printf
       "solve-loop: iter_no=%d -- ex. brs substituted@\n%!"
       iter_no; *]*)
-    (*[* Format.printf "brs=@ %a@\n%!" Infer.pr_rbrs5 brs1; *]*)
+    (*[* Format.printf "orig_ren=@ %a@\nbrs=@ %a@\n%!"
+      pr_subst (renaming_sb (Hashtbl.fold (fun k v sb -> (k, v)::sb)
+                               orig_ren []))
+      Infer.pr_rbrs5 brs1; *]*)
     (* 7a *)
     let neg_cns1 = List.map
         (fun (prem,loc) -> sb_formula_pred q false g_rol sol1 prem, loc)
@@ -1390,7 +1407,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
     let answer =
       try
         let cand_bvs, alien_eqs, (vs, ans) =
-          Abduction.abd q.op ~bvs ~xbvs ~upward_of ~nonparam_vars ~iter_no
+          Abduction.abd q.op ~bvs ~xbvs ~orig_ren
+            ~b_of_v:q.find_b_of_v ~upward_of
+            ~nonparam_vars ~iter_no
             ~discard brs1 neg_cns1 in
         (*[* Format.printf
           "solve: iter_no=%d abd answer=@ %a@\n%!"
@@ -1559,8 +1578,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
                  if iter_no=0 && not !early_postcond_abd then []
                  else List.filter (not % q.positive_b) (q.find_b i) in
                let ds = List.map (fun b-> b, List.assoc b ans_sol) bs in
-               let dans = List.map
-                   (fun (b, (dvs, dans)) ->
+               let dvs, dans = fold_map
+                   (fun dvs0 (b, (dvs, dans)) ->
                       (*[* Format.printf
                         "solve-loop-9: chi%d(%s)=@ %a@ +@ %a@\n%!"
                         i (var_str b) pr_ans (dvs,dans) pr_ans
@@ -1612,10 +1631,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
                         pr_subst sb pr_formula (subst_formula sb dans); *]*)
                       let dvs = List.filter
                           (fun v -> not (List.mem_assoc v sb)) dvs in
-                      dvs, subst_formula sb dans)
-                   ds in
-               let dvs, dans = List.split dans in
-               let dvs = gvs @ List.concat dvs in
+                      dvs @ dvs0, subst_formula sb dans)
+                   [] ds in
+               let dvs = gvs @ dvs in
                let dans = List.concat dans in
                if dans <> [] then (
                  unfinished_postcond_flag := true;
@@ -1628,6 +1646,9 @@ let solve q_ops new_ex_types exty_res_chi brs =
                    pr_vars dvs pr_formula dans; *]*)
                  let uvs = VarSet.diff dvs recbvs in
                  let q' = modify_q ~uni_vars:uvs q in
+                 (*[* Format.printf
+                   "postcond-forced: g_brs before filtering:@\n%a@\n%!"
+                   (pr_line_list "| " pr_formula) g_brs; *]*)
                  let brs = List.map
                      (fun br ->
                         let br_vs = fvs_formula br in
@@ -1642,7 +1663,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
                    if iter_no >= disj_step.(3) then
                      let _, alien_eqs, (vs, dans_ans) =
                        Abduction.abd q'.op ~bvs:recbvs ~xbvs ~nonparam_vars
-                         ~upward_of ~iter_no ~discard brs [] in
+                         ~orig_ren ~b_of_v:q.find_b_of_v ~upward_of
+                         ~iter_no ~discard brs [] in
                      assert (alien_eqs = []); assert (vs = []);
                      postcond_forcing := dans_ans @ !postcond_forcing
                  with

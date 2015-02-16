@@ -33,9 +33,12 @@ let escaping_var_penalty = ref 4
 let locality_vars_penalty = ref 6
 let nonparam_vars_penalty = ref 6
 let abduct_source_bonus = ref 0
-(* special_source_bonus is used only when prefer_source_bound is true. *)
+(* special_source_bonus is used only when prefer_bound_to_local is true. *)
 let special_source_bonus = ref 7
-let prefer_source_bound = ref false
+(* uplevel_penalty is used only when prefer_bound_to_outer is true. *)
+let uplevel_penalty = ref 9
+let prefer_bound_to_local = ref false
+let prefer_bound_to_outer = ref false
 let concl_abd_penalty = ref 4
 let discourage_upper_bound = ref 6
 let discourage_already_bounded = ref 4
@@ -1416,7 +1419,7 @@ let revert_cst cmp_v uni_v eqn =
    bounded by a constant. [d_ineqn] and [d_ineqs] represent the same
    inequalities, but [d_ineqs] is normalized and completed
    wrt. transitivity. *)
-let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of
+let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~orig_ren ~b_of_v ~upward_of
     ~bvs ~nonparam_vars ~discard_ineqs
     ~eqs_acc0 ~ineqs_acc0 ~optis_acc ~suboptis_acc
     ~b_ineqs ~bh_ineqs ~d_ineqn ~d_ineqs
@@ -1501,6 +1504,11 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of
              ineqs, sw) cands in
       List.map snd (minimal ~less cands)
     else [] in
+  let down_v, skip_uplevel =
+    match vars with
+    | [v, _; v2, _] -> v, upward_of v2 v && cst =/ !/1
+    | (v, _)::_ -> v, false
+    | _ -> assert false in
   (*[* if !more_general
     then Format.printf "abd_cands: minimal@ %a@\n%!"
       pr_ineqn (List.map snd minimal_cands); *]*)
@@ -1531,22 +1539,32 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of
           if List.for_all (fun (v2, _) -> qcmp_v v v2 = Same_params) tl
           then !reward_locality
           else
+            let v_orig =
+              try Hashtbl.find orig_ren v with Not_found -> v in
             (if List.exists
                 (fun (v2, _) ->
                    upward_of v2 v && List.exists
                      (fun (v3, _) -> upward_of v3 v2) tl) tl
              then ~- !multi_levels_penalty
              else 0) +
-            (if List.exists
-                (* TODO: use the "original" of v *)
-                (fun (v2, _) ->
-                   (*[* Format.printf
-                     "w_val_cmp: v=%s -- v2=%s is upw=%b cmp(v2,v)=%s@\n%!"
-                     (var_str v) (var_str v2) (upward_of v2 v)
-                     (var_scope_str (qcmp_v v2 v)); *]*)
-                   not (upward_of v2 v) && qcmp_v v2 v <> Same_params) tl
-             then ~- !escaping_var_penalty
-             else 0) +
+              (if List.exists
+                  (* Here we use the "original" of v *)
+                  (fun (v2, _) ->
+                     (*[*
+                       let b1 = try b_of_v v_orig
+                       with Not_found -> v_orig in
+                       let b2 = try b_of_v v2 with Not_found -> v2 in
+                       Format.printf
+                       "w_val_cmp: v=%s o=%s p=%s -- v2=%s p2=%s is upw=%b \
+                        cmp(v2,v)=%s@\n%!"
+                       (var_str v) (var_str v_orig) (var_str b1)
+                       (var_str v2) (var_str b2)
+                       (upward_of v2 v_orig)
+                       (var_scope_str (qcmp_v v2 v_orig)); *]*)
+                     not (upward_of v2 v_orig) &&
+                     qcmp_v v2 v_orig <> Same_params) tl
+               then ~- !escaping_var_penalty
+               else 0) +
               !locality_vars_penalty *
                 List.fold_left
                   (fun acc (v2, _) ->
@@ -1632,9 +1650,13 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of
                new_viol @
                new_eqn @ List.map (mult !/(-1)) new_eqn @
                new_ineqn in
-           (* The last one above is equal to [w]. *)
+           (* The last one above is equal to [w], list reversed below. *)
+           let score_ineqn = List.fold_left
+               (fun acc w ->
+                  if List.exists (equal_w ~cmp_v w) acc then acc else w::acc)
+               [] score_ineqn in
            let scores =
-             match List.rev score_ineqn with
+             match score_ineqn with
              | hd::tl ->
                w_value true w hd :: List.map (w_value false w) tl
              | [] -> assert false in
@@ -1651,10 +1673,22 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of
            let implied_ineqn_correction =
              !implied_ineqn_compensation *
                (List.length score_ineqn - 1) in
+           let uplevel_score =
+             if !prefer_bound_to_outer && skip_uplevel
+             then match vars with
+               | [v, _; _] ->
+                 (*[* Format.printf "uplevel: down_v=%s v=%s up=%b@\n%!"
+                   (var_str down_v) (var_str v) (upward_of v down_v); *]*)
+                 if upward_of v down_v then ~- !uplevel_penalty else 0
+               | [] -> ~- !uplevel_penalty
+               (* Three variables or more: interestingness bonus. *)
+               | _ -> 0
+             else 0 in
            let score =
              (if prem_abduced = Some false then ~- !concl_abd_penalty
               else 0) +
-             (if !prefer_source_bound then special_bonus () else 0) +
+               (if !prefer_bound_to_local then special_bonus () else 0) +
+               uplevel_score +
                (if prem_abduced = None then !abduct_source_bonus else 0) +
                (if new_eqn = [] then 0 else ~- !discourage_equations_2) +
                (if !abd_scoring = `Sum then List.fold_left (+) 0 scores
@@ -1667,10 +1701,11 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of
              + implied_ineqn_correction in
            (*[* Format.printf
              "abd_cands:@ w=%a@ source=%b prem_abduced=%b@ new_eqn=%a@ \
-              new_ineqn=%a@\nimplied correction=%i@\ntotal score=%i@\n%!"
+              new_ineqn=%a@\nimplied correction=%i uplevel score=%i\
+              @\ntotal score=%i@\n%!"
              pr_w w (prem_abduced = None) (prem_abduced = Some true)
              pr_eqn new_eqn pr_ineqn new_ineqn
-             implied_ineqn_correction score; *]*)
+             implied_ineqn_correction uplevel_score score; *]*)
            Some (score, (acc, w))
          with Terms.Contradiction _ (*[* as e *]*)->
            (*[* Format.printf
@@ -1685,7 +1720,8 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of
 exception Omit_trans
 (* We currently do not measure satisfiability of negative constraints. *)
 (* TODO: guess equalities between parameters. *)
-let abd_simple ~qcmp_v ~cmp_w ~upward_of cmp_v uni_v
+let abd_simple ~qcmp_v ~cmp_w
+    ~orig_ren ~b_of_v ~upward_of cmp_v uni_v
     ~bvs ~nonparam_vars ~discard ~validate
     ~neg_validate:_
     skip (eqs_i, ineqs_i, optis_i, suboptis_i)
@@ -1988,7 +2024,7 @@ let abd_simple ~qcmp_v ~cmp_w ~upward_of cmp_v uni_v
        | Leq_w w ->
          let w = subst_if_qv ~uni_v ~bvs ~cmp_v rev_sb w in
          let cands =
-           abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~upward_of
+           abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~orig_ren ~b_of_v ~upward_of
              ~bvs ~nonparam_vars
              ~discard_ineqs ~eqs_acc0 ~ineqs_acc0 ~optis_acc ~suboptis_acc
              ~b_ineqs ~bh_ineqs ~d_ineqn:d_ineqn' ~d_ineqs w in
@@ -2074,7 +2110,9 @@ module NumAbd = struct
     cmp_v : (var_name -> var_name -> int);
     cmp_w : (w -> w -> int);
     qcmp_v : (var_name -> var_name -> var_scope);
+    b_of_v : var_name -> var_name;
     upward_of : var_name -> var_name -> bool;
+    orig_ren : (var_name, var_name) Hashtbl.t;
     uni_v : (var_name -> bool);
     bvs : VarSet.t;
     nonparam_vars : VarSet.t}
@@ -2088,9 +2126,11 @@ module NumAbd = struct
   let abd_fail_flag = abd_fail_flag
 
   let abd_simple
-      {qcmp_v; cmp_w; cmp_v; uni_v; bvs; nonparam_vars; upward_of}
+      {qcmp_v; cmp_w; cmp_v; uni_v; bvs; nonparam_vars;
+       b_of_v; orig_ren; upward_of}
       ~discard ~validate ~neg_validate acc br =
-    abd_simple ~qcmp_v ~cmp_w cmp_v ~upward_of uni_v ~bvs ~nonparam_vars
+    abd_simple ~qcmp_v ~cmp_w cmp_v ~orig_ren ~b_of_v ~upward_of
+      uni_v ~bvs ~nonparam_vars
       ~discard ~validate ~neg_validate 0 acc br
 
   let extract_ans ans = ans
@@ -2176,9 +2216,14 @@ let subst_chi chi_sb pos_chi =
       optis @ acc_optis, suboptis @ acc_suboptis)
     ([], [], [], []) pos_chi
 
+let empty_renaming = Hashtbl.create 0
+let empty_b_of_v v = v
+
 (* FIXME: eliminate optis from premise, but first try simplifying
    them with both premise and conclusion of a branch. *)
-let abd q ~bvs ~xbvs ~upward_of ~nonparam_vars ~discard ?(iter_no=2) brs =
+let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
+    ~upward_of ~nonparam_vars
+    ~discard ?(iter_no=2) brs =
   abd_timeout_flag := false;
   let cmp_v = make_cmp q in
   let cmp_w (vars1,cst1,_) (vars2,cst2,_) =
@@ -2412,7 +2457,7 @@ let abd q ~bvs ~xbvs ~upward_of ~nonparam_vars ~discard ?(iter_no=2) brs =
            (List.map (expand_atom true) concl_eqs))
       unproc_brs in
   let ans = JCA.abd
-      {cmp_v; cmp_w; NumAbd.qcmp_v = q.cmp_v;
+      {cmp_v; cmp_w; NumAbd.qcmp_v = q.cmp_v; orig_ren; b_of_v;
        upward_of; uni_v = q.uni_v; bvs; nonparam_vars}
       ~discard ~validate ~neg_validate ([], [], [], []) brs in
   [], elim_uni @ ans_to_num_formula ans

@@ -82,6 +82,8 @@ val abd :
   Defs.quant_ops ->
   bvs:Defs.VarSet.t ->
   xbvs:(int * Defs.VarSet.t) list ->
+  ?orig_ren:((Defs.var_name, Defs.var_name) Hashtbl.t) ->
+  ?b_of_v:(Defs.var_name -> Defs.var_name) ->
   upward_of:(Defs.var_name -> Defs.var_name -> bool) ->
   nonparam_vars:Defs.VarSet.t ->
   ?iter_no:int ->

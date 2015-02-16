@@ -42,7 +42,11 @@ val complexity_penalty : float ref
 val nonparam_vars_penalty : int ref
 (** Prefer a zero-indexed array/matrix/etc. bound coming from outer
     scope, to inequality between two local parameters. Default [false]. *)
-val prefer_source_bound : bool ref
+val prefer_bound_to_local : bool ref
+(** Prefer a zero-indexed array/matrix/etc. bound coming from outer
+    scope, to inequality between two outer scope parameters.
+    Default [false]. *)
+val prefer_bound_to_outer : bool ref
 (** Penalize abductive guess when the supporting argument comes from
     the partial answer, instead of from the current premise. Default [4]. *)
 val concl_abd_penalty : int ref
@@ -84,6 +88,8 @@ val abd :
   Defs.quant_ops ->
   bvs:Defs.VarSet.t ->
   xbvs:(int * Defs.VarSet.t) list ->
+  ?orig_ren:(Defs.var_name, Defs.var_name) Hashtbl.t ->
+  ?b_of_v:(Defs.var_name -> Defs.var_name) ->
   upward_of:(Defs.var_name -> Defs.var_name -> bool) ->
   nonparam_vars:Defs.VarSet.t ->
   discard:NumDefs.formula list ->

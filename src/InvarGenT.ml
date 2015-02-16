@@ -135,9 +135,12 @@ let main () =
      the given height after coefficient 1 (default 2.0)";
     "-abd_pow_scaling", Arg.Float set_pow_scaling,
     "Scale the complexity cost of coefficients according to the given power";
-    "-prefer_source_bound", Arg.Set NumS.prefer_source_bound,
+    "-prefer_bound_to_local", Arg.Set NumS.prefer_bound_to_local,
     "Prefer a zero-indexed array/matrix/etc. bound coming from outer \
      scope, to inequality between two local parameters";
+    "-prefer_bound_to_outer", Arg.Set NumS.prefer_bound_to_outer,
+    "Prefer a zero-indexed array/matrix/etc. bound coming from outer \
+     scope, to inequality between two outer scope parameters";
     "-concl_abd_penalty", Arg.Set_int NumS.concl_abd_penalty,
     "Penalize abductive guess when the supporting argument comes from \
      the partial answer, instead of from the current premise (default 4)";
