@@ -640,9 +640,13 @@ let tests = "InvarGenT" >::: [
            test_case ~prefer_bound_to_outer:true "liquid_gauss_simpler" ());
       "liquid_gauss" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_gauss" ());
+      "liquid_gauss_harder" >::
+        (fun () ->
+           todo "too hard for current numerical abudction";
+           skip_if !debug "debug";
+           test_case "liquid_gauss_harder" ());
       "liquid_fft_simpler" >::
         (fun () ->
            todo "Analysis postponed after InvarGenT 2.0";
