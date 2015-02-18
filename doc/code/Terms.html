@@ -39,7 +39,18 @@ Data structures and printing for InvarGenT.
 </div>
 <hr width="100%">
 
-<pre><span id="VALshow_extypes"><span class="keyword">val</span> show_extypes</span> : <code class="type">bool Pervasives.ref</code></pre><br>
+<pre><span id="VALshow_extypes"><span class="keyword">val</span> show_extypes</span> : <code class="type">bool Pervasives.ref</code></pre><div class="info ">
+If <code class="code">show_extypes = true</code>, print existential type definitions in
+    <code class="code">gadti</code> signatures. Default <code class="code">false</code>.
+<p>
+If <code class="code">parse_if_as_integer = true</code>, parse <code class="code">if a &lt;= b then c else d</code>
+    as <code class="code">match () with _ when a &lt;= b -&gt; c | _ when b+1 &lt;= a -&gt; d</code>, otherwise
+    as <code class="code">match () with _ when a &lt;= b -&gt; c | _ -&gt; d</code>. Multi-conjunction
+    <code class="code">if</code> clauses are always parsed with the <code class="code">else</code> branch without the
+    <code class="code">when</code> clause. Default <code class="code">true</code>.<br>
+</div>
+
+<pre><span id="VALparse_if_as_integer"><span class="keyword">val</span> parse_if_as_integer</span> : <code class="type">bool Pervasives.ref</code></pre><br>
 <h2 id="2_Definitions">Definitions</h2><br>
 
 <pre><span id="VALdebug"><span class="keyword">val</span> debug</span> : <code class="type">bool Pervasives.ref</code></pre>
@@ -65,6 +76,7 @@ Data structures and printing for InvarGenT.
 <pre><span id="VALnumtype"><span class="keyword">val</span> numtype</span> : <code class="type"><a href="Terms.html#TYPEcns_name">cns_name</a></code></pre>
 <pre><span id="VALbooltype"><span class="keyword">val</span> booltype</span> : <code class="type"><a href="Terms.html#TYPEcns_name">cns_name</a></code></pre>
 <pre><span id="VALstringtype"><span class="keyword">val</span> stringtype</span> : <code class="type"><a href="Terms.html#TYPEcns_name">cns_name</a></code></pre>
+<pre><span id="VALbuiltin_progseq"><span class="keyword">val</span> builtin_progseq</span> : <code class="type">string</code></pre>
 <pre><span class="keyword">module</span> <a href="Terms.CNames.html">CNames</a>: <code class="type">Set.S</code><code class="type">  with type elt = cns_name</code></pre>
 <pre><span id="VALcnames_of_list"><span class="keyword">val</span> cnames_of_list</span> : <code class="type"><a href="Terms.html#TYPEcns_name">cns_name</a> list -> CNames.t</code></pre>
 <pre><span id="VALadd_cnames"><span class="keyword">val</span> add_cnames</span> : <code class="type"><a href="Terms.html#TYPEcns_name">cns_name</a> list -> CNames.t -> CNames.t</code></pre>
@@ -138,6 +150,13 @@ Data structures and printing for InvarGenT.
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
+<code><span id="TYPEELTexpr.NumCoef"><span class="constructor">NumCoef</span></span> <span class="keyword">of</span> <code class="type">int * ('a, 'b) <a href="Terms.html#TYPEexpr">expr</a> * <a href="Terms.html#TYPElc">lc</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
 <code><span id="TYPEELTexpr.String"><span class="constructor">String</span></span> <span class="keyword">of</span> <code class="type">string * <a href="Terms.html#TYPElc">lc</a></code></code></td>
 
 </tr>
@@ -194,6 +213,13 @@ Data structures and printing for InvarGenT.
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
+<code><span id="TYPEELTexpr.RuntimeFailure"><span class="constructor">RuntimeFailure</span></span> <span class="keyword">of</span> <code class="type">('a, 'b) <a href="Terms.html#TYPEexpr">expr</a> * <a href="Terms.html#TYPElc">lc</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
 <code><span id="TYPEELTexpr.AssertLeq"><span class="constructor">AssertLeq</span></span> <span class="keyword">of</span> <code class="type">('a, 'b) <a href="Terms.html#TYPEexpr">expr</a> * ('a, 'b) <a href="Terms.html#TYPEexpr">expr</a> * ('a, 'b) <a href="Terms.html#TYPEexpr">expr</a> * <a href="Terms.html#TYPElc">lc</a></code></code></td>
 
 </tr>
@@ -223,6 +249,13 @@ Data structures and printing for InvarGenT.
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
 <code><span id="TYPEELTalien_subterm.Num_term"><span class="constructor">Num_term</span></span> <span class="keyword">of</span> <code class="type">NumDefs.term</code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTalien_subterm.Order_term"><span class="constructor">Order_term</span></span> <span class="keyword">of</span> <code class="type">OrderDefs.term</code></code></td>
 
 </tr></table>
 
@@ -268,6 +301,13 @@ Data structures and printing for InvarGenT.
 <td align="left" valign="top" >
 <code><span id="TYPEELTalien_atom.Num_atom"><span class="constructor">Num_atom</span></span> <span class="keyword">of</span> <code class="type">NumDefs.atom</code></code></td>
 
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTalien_atom.Order_atom"><span class="constructor">Order_atom</span></span> <span class="keyword">of</span> <code class="type">OrderDefs.atom</code></code></td>
+
 </tr></table>
 
 
@@ -306,6 +346,13 @@ Data structures and printing for InvarGenT.
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
 <code><span id="TYPEELTatom.NotEx"><span class="constructor">NotEx</span></span> <span class="keyword">of</span> <code class="type"><a href="Terms.html#TYPEtyp">typ</a> * <a href="Terms.html#TYPElc">lc</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTatom.RetType"><span class="constructor">RetType</span></span> <span class="keyword">of</span> <code class="type"><a href="Terms.html#TYPEtyp">typ</a> * <a href="Terms.html#TYPEtyp">typ</a> * Defs.loc</code></code></td>
 
 </tr>
 <tr>
@@ -514,6 +561,13 @@ Set <code class="code">extype_id</code> and <code class="code">predvar_id</code>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
+<code><span id="TYPEELTstruct_item.PrimTyp"><span class="constructor">PrimTyp</span></span> <span class="keyword">of</span> <code class="type">string option * <a href="Terms.html#TYPEcns_name">cns_name</a> * Defs.sort list * string * <a href="Terms.html#TYPElc">lc</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
 <code><span id="TYPEELTstruct_item.ValConstr"><span class="constructor">ValConstr</span></span> <span class="keyword">of</span> <code class="type">string option * <a href="Terms.html#TYPEcns_name">cns_name</a> * Defs.var_name list * <a href="Terms.html#TYPEformula">formula</a><br>        * <a href="Terms.html#TYPEtyp">typ</a> list * <a href="Terms.html#TYPEcns_name">cns_name</a> * Defs.var_name list * <a href="Terms.html#TYPElc">lc</a></code></code></td>
 
 </tr>
@@ -557,6 +611,13 @@ Set <code class="code">extype_id</code> and <code class="code">predvar_id</code>
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
+<code><span id="TYPEELTannot_item.IPrimTyp"><span class="constructor">IPrimTyp</span></span> <span class="keyword">of</span> <code class="type">string option * <a href="Terms.html#TYPEcns_name">cns_name</a> * Defs.sort list * string * <a href="Terms.html#TYPElc">lc</a></code></code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code><span class="keyword">|</span></code></td>
+<td align="left" valign="top" >
 <code><span id="TYPEELTannot_item.IValConstr"><span class="constructor">IValConstr</span></span> <span class="keyword">of</span> <code class="type">string option * <a href="Terms.html#TYPEcns_name">cns_name</a> * Defs.var_name list * <a href="Terms.html#TYPEformula">formula</a><br>        * <a href="Terms.html#TYPEtyp">typ</a> list * <a href="Terms.html#TYPEcns_name">cns_name</a> * <a href="Terms.html#TYPEtyp">typ</a> list * <a href="Terms.html#TYPElc">lc</a></code></code></td>
 
 </tr>
@@ -594,7 +655,8 @@ Represents both signature items and annotated structure items to
 <pre><span id="VALfvs_typs"><span class="keyword">val</span> fvs_typs</span> : <code class="type"><a href="Terms.html#TYPEtyp">typ</a> list -> Defs.VarSet.t</code></pre>
 <pre><span id="VALfvs_atom"><span class="keyword">val</span> fvs_atom</span> : <code class="type"><a href="Terms.html#TYPEatom">atom</a> -> Defs.VarSet.t</code></pre>
 <pre><span id="VALfvs_formula"><span class="keyword">val</span> fvs_formula</span> : <code class="type"><a href="Terms.html#TYPEformula">formula</a> -> Defs.VarSet.t</code></pre>
-<pre><span id="VALformula_loc"><span class="keyword">val</span> formula_loc</span> : <code class="type"><a href="Terms.html#TYPEformula">formula</a> -> <a href="Terms.html#TYPElc">lc</a></code></pre><br>
+<pre><span id="VALformula_loc"><span class="keyword">val</span> formula_loc</span> : <code class="type"><a href="Terms.html#TYPEformula">formula</a> -> <a href="Terms.html#TYPElc">lc</a></code></pre>
+<pre><span id="VALprim_constr_var"><span class="keyword">val</span> prim_constr_var</span> : <code class="type"><a href="Terms.html#TYPEatom">atom</a> -> Defs.var_name option</code></pre><br>
 <h3 id="3_Formulas">Formulas</h3><br>
 
 <pre><span id="VALatom_loc"><span class="keyword">val</span> atom_loc</span> : <code class="type"><a href="Terms.html#TYPEatom">atom</a> -> <a href="Terms.html#TYPElc">lc</a></code></pre>
@@ -623,6 +685,13 @@ Represents both signature items and annotated structure items to
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
+<code><span id="TYPEELTsep_formula.cnj_ord">cnj_ord</span>&nbsp;: <code class="type">OrderDefs.formula</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
 <code><span id="TYPEELTsep_formula.cnj_so">cnj_so</span>&nbsp;: <code class="type"><a href="Terms.html#TYPEformula">formula</a></code>;</code></td>
 
 </tr></table>
@@ -635,7 +704,7 @@ We could define <code class="code">sep_formula = (subst, NumDefs.formula formula
 </div>
 
 
-<pre><code><span id="TYPEsep_sorts"><span class="keyword">type</span> <code class="type">('a, 'b, 'c)</code> sep_sorts</span> = {</code></pre><table class="typetable">
+<pre><code><span id="TYPEsep_sorts"><span class="keyword">type</span> <code class="type">('a, 'b, 'c, 'd)</code> sep_sorts</span> = {</code></pre><table class="typetable">
 <tr>
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
@@ -654,7 +723,14 @@ We could define <code class="code">sep_formula = (subst, NumDefs.formula formula
 <td align="left" valign="top" >
 <code>&nbsp;&nbsp;</code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTsep_sorts.at_so">at_so</span>&nbsp;: <code class="type">'c</code>;</code></td>
+<code><span id="TYPEELTsep_sorts.at_ord">at_ord</span>&nbsp;: <code class="type">'c</code>;</code></td>
+
+</tr>
+<tr>
+<td align="left" valign="top" >
+<code>&nbsp;&nbsp;</code></td>
+<td align="left" valign="top" >
+<code><span id="TYPEELTsep_sorts.at_so">at_so</span>&nbsp;: <code class="type">'d</code>;</code></td>
 
 </tr></table>
 }
@@ -754,22 +830,23 @@ Register variable as <code class="code">NotEx</code>.
 <p>
 <code class="code">use_quants</code> whether to check for quantifier violations. <code class="code">bvs</code> are
     variables that are parameters of invariants (or are candidates for
-    such in the partial answer). <code class="code">pms</code> are parameters to be ignored
-    from quantifier violations, but should already be right-most in
-    the quantifier. The first element of returned triple is the
-    unifier, the second are numeric constraints including equations,
-    the third one are predicate variables and <code class="code">NotEx</code> atoms. The
-    substitution is not applied to the third element atoms!<br>
+    such in the partial answer). The first element of returned triple
+    is the unifier, the second are numeric constraints including
+    equations, the third one are predicate variables and <code class="code">NotEx</code>
+    atoms. The substitution is not applied to the third element
+    atoms!<br>
 </div>
 
-<pre><span id="VALunify"><span class="keyword">val</span> unify</span> : <code class="type">?use_quants:bool -><br>       ?bvs:Defs.VarSet.t -><br>       ?pms:Defs.VarSet.t -><br>       ?sb:<a href="Terms.html#TYPEsubst">subst</a> -> Defs.quant_ops -> <a href="Terms.html#TYPEatom">atom</a> list -> <a href="Terms.html#TYPEsep_formula">sep_formula</a></code></pre>
+<pre><span id="VALunify"><span class="keyword">val</span> unify</span> : <code class="type">?use_quants:bool -><br>       ?bvs:Defs.VarSet.t -><br>       ?sb:<a href="Terms.html#TYPEsubst">subst</a> -> Defs.quant_ops -> <a href="Terms.html#TYPEatom">atom</a> list -> <a href="Terms.html#TYPEsep_formula">sep_formula</a></code></pre>
+<pre><span id="VALsolve_retypes"><span class="keyword">val</span> solve_retypes</span> : <code class="type">?use_quants:bool -><br>       ?bvs:Defs.VarSet.t -><br>       sb:<a href="Terms.html#TYPEsubst">subst</a> -> Defs.quant_ops -> <a href="Terms.html#TYPEatom">atom</a> list -> <a href="Terms.html#TYPEsep_formula">sep_formula</a></code></pre>
+<pre><span id="VALsolve"><span class="keyword">val</span> solve</span> : <code class="type">?use_quants:bool -><br>       ?bvs:Defs.VarSet.t -><br>       ?sb:<a href="Terms.html#TYPEsubst">subst</a> -> Defs.quant_ops -> <a href="Terms.html#TYPEatom">atom</a> list -> <a href="Terms.html#TYPEsep_formula">sep_formula</a></code></pre>
 <pre><span id="VALto_formula"><span class="keyword">val</span> to_formula</span> : <code class="type"><a href="Terms.html#TYPEsubst">subst</a> -> <a href="Terms.html#TYPEformula">formula</a></code></pre><div class="info ">
 Find the atoms in the formula which are valid substitutions.<br>
 </div>
 
-<pre><span id="VALsubst_of_cnj"><span class="keyword">val</span> subst_of_cnj</span> : <code class="type">?elim_uni:bool -> Defs.quant_ops -> <a href="Terms.html#TYPEformula">formula</a> -> <a href="Terms.html#TYPEsubst">subst</a></code></pre>
-<pre><span id="VALcombine_sbs"><span class="keyword">val</span> combine_sbs</span> : <code class="type">?use_quants:bool -><br>       ?bvs:Defs.VarSet.t -><br>       ?pms:Defs.VarSet.t -><br>       Defs.quant_ops -><br>       ?more_phi:<a href="Terms.html#TYPEformula">formula</a> -> <a href="Terms.html#TYPEsubst">subst</a> list -> <a href="Terms.html#TYPEsep_formula">sep_formula</a></code></pre>
-<pre><span id="VALsubst_solved"><span class="keyword">val</span> subst_solved</span> : <code class="type">?use_quants:bool -><br>       ?bvs:Defs.VarSet.t -><br>       ?pms:Defs.VarSet.t -><br>       Defs.quant_ops -> <a href="Terms.html#TYPEsubst">subst</a> -> cnj:<a href="Terms.html#TYPEsubst">subst</a> -> <a href="Terms.html#TYPEsep_formula">sep_formula</a></code></pre>
+<pre><span id="VALsubst_of_cnj"><span class="keyword">val</span> subst_of_cnj</span> : <code class="type">?elim_uni:bool -><br>       Defs.quant_ops -> <a href="Terms.html#TYPEformula">formula</a> -> <a href="Terms.html#TYPEsubst">subst</a> * <a href="Terms.html#TYPEformula">formula</a></code></pre>
+<pre><span id="VALcombine_sbs"><span class="keyword">val</span> combine_sbs</span> : <code class="type">?use_quants:bool -><br>       ?bvs:Defs.VarSet.t -><br>       Defs.quant_ops -><br>       ?more_phi:<a href="Terms.html#TYPEformula">formula</a> -> <a href="Terms.html#TYPEsubst">subst</a> list -> <a href="Terms.html#TYPEsep_formula">sep_formula</a></code></pre>
+<pre><span id="VALsubst_solved"><span class="keyword">val</span> subst_solved</span> : <code class="type">?use_quants:bool -><br>       ?bvs:Defs.VarSet.t -><br>       Defs.quant_ops -> <a href="Terms.html#TYPEsubst">subst</a> -> cnj:<a href="Terms.html#TYPEsubst">subst</a> -> <a href="Terms.html#TYPEsep_formula">sep_formula</a></code></pre>
 <pre><span id="VALcleanup"><span class="keyword">val</span> cleanup</span> : <code class="type">Defs.quant_ops -><br>       Defs.var_name list -> <a href="Terms.html#TYPEsubst">subst</a> -> Defs.var_name list * <a href="Terms.html#TYPEsubst">subst</a></code></pre><br>
 <h2 id="2_Globaltables">Global tables</h2><br>
 
@@ -777,7 +854,11 @@ Find the atoms in the formula which are valid substitutions.<br>
 
 
 <pre><span id="VALsigma"><span class="keyword">val</span> sigma</span> : <code class="type"><a href="Terms.html#TYPEsigma">sigma</a></code></pre>
+<pre><span id="VALex_type_chi"><span class="keyword">val</span> ex_type_chi</span> : <code class="type">(int, int) Hashtbl.t</code></pre>
 <pre><span id="VALall_ex_types"><span class="keyword">val</span> all_ex_types</span> : <code class="type">(int * <a href="Terms.html#TYPElc">lc</a>) list Pervasives.ref</code></pre>
+<pre><span id="VALbuiltin_gamma"><span class="keyword">val</span> builtin_gamma</span> : <code class="type">(string * <a href="Terms.html#TYPEtyp_scheme">typ_scheme</a>) list</code></pre>
+<pre><span id="VALty_unit"><span class="keyword">val</span> ty_unit</span> : <code class="type"><a href="Terms.html#TYPEtyp">typ</a></code></pre>
+<pre><span id="VALty_string"><span class="keyword">val</span> ty_string</span> : <code class="type"><a href="Terms.html#TYPEtyp">typ</a></code></pre>
 <pre><span id="VALfresh_typ_var"><span class="keyword">val</span> fresh_typ_var</span> : <code class="type">unit -> Defs.var_name</code></pre>
 <pre><span id="VALfresh_num_var"><span class="keyword">val</span> fresh_num_var</span> : <code class="type">unit -> Defs.var_name</code></pre>
 <pre><span id="VALfresh_var"><span class="keyword">val</span> fresh_var</span> : <code class="type">Defs.sort -> Defs.var_name</code></pre>
@@ -852,7 +933,7 @@ Find the atoms in the formula which are valid substitutions.<br>
 
 
 
-<pre><span id="VALpr_expr"><span class="keyword">val</span> pr_expr</span> : <code class="type">?export_num:string * string * string * string -><br>       ?export_if:string * string * string -><br>       ?export_bool:(bool * string) list -><br>       (Format.formatter -> ('a, 'b) <a href="Terms.html#TYPEpr_expr_annot">pr_expr_annot</a> -> unit) -><br>       Format.formatter -> ('a, 'b) <a href="Terms.html#TYPEexpr">expr</a> -> unit</code></pre>
+<pre><span id="VALpr_expr"><span class="keyword">val</span> pr_expr</span> : <code class="type">?export_num:string * string * string * string * string -><br>       ?export_if:string * string * string -><br>       ?export_bool:(bool * string) list -><br>       ?export_progseq:string * string * string -><br>       ?export_runtime_failure:string -><br>       (Format.formatter -> ('a, 'b) <a href="Terms.html#TYPEpr_expr_annot">pr_expr_annot</a> -> unit) -><br>       Format.formatter -> ('a, 'b) <a href="Terms.html#TYPEexpr">expr</a> -> unit</code></pre>
 <pre><span id="VALpr_uexpr"><span class="keyword">val</span> pr_uexpr</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEuexpr">uexpr</a> -> unit</code></pre>
 <pre><span id="VALpr_iexpr"><span class="keyword">val</span> pr_iexpr</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEiexpr">iexpr</a> -> unit</code></pre>
 <pre><span id="VALpr_atom"><span class="keyword">val</span> pr_atom</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEatom">atom</a> -> unit</code></pre>
@@ -860,6 +941,7 @@ Find the atoms in the formula which are valid substitutions.<br>
 <pre><span id="VALpr_ty"><span class="keyword">val</span> pr_ty</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEtyp">typ</a> -> unit</code></pre>
 <pre><span id="VALpr_alien_ty"><span class="keyword">val</span> pr_alien_ty</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEalien_subterm">alien_subterm</a> -> unit</code></pre>
 <pre><span id="VALpr_sort"><span class="keyword">val</span> pr_sort</span> : <code class="type">Format.formatter -> Defs.sort -> unit</code></pre>
+<pre><span id="VALpr_cns"><span class="keyword">val</span> pr_cns</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEcns_name">cns_name</a> -> unit</code></pre>
 <pre><span id="VALpr_typscheme"><span class="keyword">val</span> pr_typscheme</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEtyp_scheme">typ_scheme</a> -> unit</code></pre>
 <pre><span id="VALpr_ans"><span class="keyword">val</span> pr_ans</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEanswer">answer</a> -> unit</code></pre>
 <pre><span id="VALpr_subst"><span class="keyword">val</span> pr_subst</span> : <code class="type">Format.formatter -> <a href="Terms.html#TYPEsubst">subst</a> -> unit</code></pre>

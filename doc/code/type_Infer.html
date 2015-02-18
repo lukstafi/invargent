@@ -22,7 +22,9 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">A</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Terms</span>.formula<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">And</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Infer</span>.cnstrnt&nbsp;list<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Impl</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Terms</span>.formula&nbsp;*&nbsp;<span class="constructor">Infer</span>.cnstrnt<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Or</span>&nbsp;<span class="keyword">of</span>&nbsp;(<span class="constructor">Infer</span>.cnstrnt&nbsp;*&nbsp;(unit&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit))&nbsp;list<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Or</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Defs</span>.var_name&nbsp;*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;*&nbsp;<span class="constructor">Infer</span>.cnstrnt&nbsp;*&nbsp;<span class="constructor">Terms</span>.formula&nbsp;*&nbsp;(unit&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit))&nbsp;list&nbsp;*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Infer</span>.cnstrnt<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">All</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;*&nbsp;<span class="constructor">Infer</span>.cnstrnt<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="keywordsign">|</span>&nbsp;<span class="constructor">Ex</span>&nbsp;<span class="keyword">of</span>&nbsp;<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;*&nbsp;<span class="constructor">Infer</span>.cnstrnt<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;cn_and&nbsp;:&nbsp;<span class="constructor">Infer</span>.cnstrnt&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Infer</span>.cnstrnt&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Infer</span>.cnstrnt<br>
@@ -60,15 +62,22 @@
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;normalize&nbsp;:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Defs</span>.quant_ops&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Infer</span>.cnstrnt&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(int,&nbsp;int)&nbsp;<span class="constructor">Hashtbl</span>.t&nbsp;*&nbsp;<span class="constructor">Infer</span>.branch&nbsp;list<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;phantom_enumeration&nbsp;:&nbsp;(<span class="constructor">Terms</span>.cns_name,&nbsp;<span class="constructor">Terms</span>.cns_name&nbsp;list)&nbsp;<span class="constructor">Hashtbl</span>.t<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;simplify&nbsp;:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Defs</span>.quant_ops&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Infer</span>.branch&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Infer</span>.branch&nbsp;list<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;separate_subst&nbsp;:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;?avoid:<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;?keep:<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;?bvs:<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;?keep_uni:bool&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;apply:bool&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Defs</span>.quant_ops&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Terms</span>.formula&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Terms</span>.subst&nbsp;*&nbsp;<span class="constructor">Terms</span>.formula<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;separate_sep_subst&nbsp;:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;?avoid:<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;?keep:<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;?bvs:<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;?keep_uni:bool&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;apply:bool&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Defs</span>.quant_ops&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Terms</span>.sep_formula&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Terms</span>.subst&nbsp;*&nbsp;<span class="constructor">Terms</span>.sep_formula<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;pr_cnstrnt&nbsp;:&nbsp;<span class="constructor">Format</span>.formatter&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Infer</span>.cnstrnt&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;pr_brs&nbsp;:&nbsp;<span class="constructor">Format</span>.formatter&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Infer</span>.branch&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
@@ -78,9 +87,12 @@
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Format</span>.formatter&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(bool&nbsp;*&nbsp;<span class="constructor">Terms</span>.formula&nbsp;*&nbsp;<span class="constructor">Terms</span>.formula)&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;pr_rbrs4&nbsp;:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Format</span>.formatter&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;(bool&nbsp;*&nbsp;<span class="keywordsign">'</span>a&nbsp;*&nbsp;<span class="constructor">Terms</span>.formula&nbsp;*&nbsp;<span class="constructor">Terms</span>.formula)&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
+&nbsp;&nbsp;&nbsp;&nbsp;(bool&nbsp;*&nbsp;<span class="keywordsign">'</span>a&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.formula&nbsp;*&nbsp;<span class="constructor">Terms</span>.formula)&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;pr_rbrs5&nbsp;:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Format</span>.formatter&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;(bool&nbsp;*&nbsp;<span class="keywordsign">'</span>a&nbsp;*&nbsp;<span class="keywordsign">'</span>b&nbsp;*&nbsp;<span class="constructor">Terms</span>.formula&nbsp;*&nbsp;<span class="constructor">Terms</span>.formula)&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
+&nbsp;&nbsp;&nbsp;&nbsp;(bool&nbsp;*&nbsp;(int&nbsp;*&nbsp;<span class="constructor">Terms</span>.typ)&nbsp;list&nbsp;*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(int&nbsp;*&nbsp;<span class="constructor">Terms</span>.typ&nbsp;*&nbsp;<span class="constructor">Terms</span>.typ&nbsp;*&nbsp;<span class="constructor">Terms</span>.lc)&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.atom&nbsp;list&nbsp;*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Terms</span>.atom&nbsp;list)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;reset_state&nbsp;:&nbsp;unit&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit<br>
 <span class="keyword">end</span></code></body></html>

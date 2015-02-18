@@ -37,6 +37,18 @@ Solving second-order i.e. formula variables for InvarGenT.
 <pre><span id="VALtimeout_count"><span class="keyword">val</span> timeout_count</span> : <code class="type">int Pervasives.ref</code></pre>
 <pre><span id="VALtimeout_flag"><span class="keyword">val</span> timeout_flag</span> : <code class="type">bool Pervasives.ref</code></pre>
 <pre><span id="VALunfinished_postcond_flag"><span class="keyword">val</span> unfinished_postcond_flag</span> : <code class="type">bool Pervasives.ref</code></pre>
+<pre><span id="VALuse_prior_discards"><span class="keyword">val</span> use_prior_discards</span> : <code class="type">bool Pervasives.ref</code></pre><div class="info ">
+Breakdown of steps through the main iteration to achieve
+    convergence, counting from 0. The iteration:
+<p>
+
+    * <code class="code">disj_step.(0)</code> is 
+    * <code class="code">disj_step.(1)</code> is 
+    * <code class="code">disj_step.(2)</code> is 
+    * <code class="code">disj_step.(3)</code> is when convergence of postconditions is enforced.<br>
+</div>
+
+<pre><span id="VALdisj_step"><span class="keyword">val</span> disj_step</span> : <code class="type">int array</code></pre>
 <pre><span id="TYPEchi_subst"><span class="keyword">type</span> <code class="type"></code>chi_subst</span> = <code class="type">(int * (Defs.var_name list * <a href="Terms.html#TYPEformula">Terms.formula</a>)) list</code> </pre>
 
 

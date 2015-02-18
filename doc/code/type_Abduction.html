@@ -23,6 +23,8 @@
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;fail_timeout_count&nbsp;:&nbsp;int&nbsp;<span class="constructor">Pervasives</span>.ref<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;no_alien_prem&nbsp;:&nbsp;bool&nbsp;<span class="constructor">Pervasives</span>.ref<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;no_num_abduction&nbsp;:&nbsp;bool&nbsp;<span class="constructor">Pervasives</span>.ref<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;guess_eqs_nonvar&nbsp;:&nbsp;bool&nbsp;<span class="constructor">Pervasives</span>.ref<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;prefer_guess&nbsp;:&nbsp;bool&nbsp;<span class="constructor">Pervasives</span>.ref<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;neg_before_abd&nbsp;:&nbsp;bool&nbsp;<span class="constructor">Pervasives</span>.ref<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;num_neg_since&nbsp;:&nbsp;int&nbsp;<span class="constructor">Pervasives</span>.ref<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;abd_fail_flag&nbsp;:&nbsp;bool&nbsp;<span class="constructor">Pervasives</span>.ref<br>
@@ -30,10 +32,11 @@
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;abd_simple&nbsp;:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Defs</span>.quant_ops&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;?without_quant:unit&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;obvs:<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;bvs:<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;pms:<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;dissociate:bool&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;validate:(<span class="constructor">Defs</span>.var_name&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit)&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;neg_validate:(<span class="constructor">Defs</span>.var_name&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int)&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;discard:(<span class="constructor">Defs</span>.var_name&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst)&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;int&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Defs</span>.var_name&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst&nbsp;<span class="keywordsign">-&gt;</span><br>
@@ -44,19 +47,28 @@
 &nbsp;&nbsp;&nbsp;&nbsp;bvs:<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;?dissociate:bool&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;validate:(<span class="constructor">Defs</span>.var_name&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;unit)&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;neg_validate:(<span class="constructor">Defs</span>.var_name&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;int)&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;discard:(<span class="constructor">Defs</span>.var_name&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst)&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;(<span class="constructor">Terms</span>.sep_formula&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst)&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst&nbsp;*&nbsp;<span class="constructor">Defs</span>.var_name&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst&nbsp;*<br>
 &nbsp;&nbsp;&nbsp;&nbsp;(<span class="constructor">Terms</span>.sep_formula&nbsp;*&nbsp;<span class="constructor">Terms</span>.sep_formula)&nbsp;list<br>
 &nbsp;&nbsp;<span class="keyword">type</span>&nbsp;discarded&nbsp;=<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;((<span class="constructor">Defs</span>.var_name&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst)&nbsp;list,&nbsp;<span class="constructor">NumDefs</span>.formula&nbsp;list,&nbsp;unit)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;((<span class="constructor">Defs</span>.var_name&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst)&nbsp;list,&nbsp;<span class="constructor">NumDefs</span>.formula&nbsp;list,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">OrderDefs</span>.formula&nbsp;list,&nbsp;unit)<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Terms</span>.sep_sorts<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;abd&nbsp;:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Defs</span>.quant_ops&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;bvs:<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;xbvs:(int&nbsp;*&nbsp;<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t)&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;?orig_ren:(<span class="constructor">Defs</span>.var_name,&nbsp;<span class="constructor">Defs</span>.var_name)&nbsp;<span class="constructor">Hashtbl</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;?b_of_v:(<span class="constructor">Defs</span>.var_name&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Defs</span>.var_name)&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;upward_of:(<span class="constructor">Defs</span>.var_name&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Defs</span>.var_name&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;bool)&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;nonparam_vars:<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;?iter_no:int&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;discard:<span class="constructor">Abduction</span>.discarded&nbsp;<span class="keywordsign">-&gt;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;(bool&nbsp;*&nbsp;<span class="constructor">Terms</span>.formula&nbsp;*&nbsp;<span class="constructor">Terms</span>.formula)&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;(bool&nbsp;*&nbsp;(int&nbsp;*&nbsp;(<span class="constructor">Defs</span>.var_name&nbsp;*&nbsp;<span class="constructor">Defs</span>.var_name)&nbsp;list)&nbsp;list&nbsp;*<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Terms</span>.formula&nbsp;*&nbsp;<span class="constructor">Terms</span>.formula)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;(<span class="constructor">Terms</span>.formula&nbsp;*&nbsp;<span class="constructor">Defs</span>.loc)&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;*&nbsp;<span class="constructor">Terms</span>.subst&nbsp;*&nbsp;(<span class="constructor">Defs</span>.var_name&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.formula)<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;abd_mockup_num&nbsp;:<br>

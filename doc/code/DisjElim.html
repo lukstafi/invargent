@@ -37,14 +37,13 @@ Disjunction elimination for InvarGenT.
 
 <pre><span id="VALmore_existential"><span class="keyword">val</span> more_existential</span> : <code class="type">bool Pervasives.ref</code></pre><div class="info ">
 Allow more general argument types by inferring more existential
-    result type. Default value <code class="code">false</code>.<br>
+    result type. Default value <code class="code">false</code>.
+<p>
+If <code class="code">drop_csts=true</code>, drop assignments of existential variables to
+    constants during initial steps of main algorithm, as long as the
+    variables are constrained in other atoms of the answer. Default
+    <code class="code">true</code>.<br>
 </div>
 
-<pre><span id="VALdisjelim"><span class="keyword">val</span> disjelim</span> : <code class="type">Defs.quant_ops -><br>       bvs:Defs.VarSet.t -><br>       preserve:Defs.VarSet.t -><br>       do_num:bool -><br>       initstep:bool -><br>       <a href="Terms.html#TYPEformula">Terms.formula</a> list -> <a href="Terms.html#TYPEsubst">Terms.subst</a> * (Defs.var_name list * <a href="Terms.html#TYPEatom">Terms.atom</a> list)</code></pre>
-<pre><span id="VALinitstep_heur"><span class="keyword">val</span> initstep_heur</span> : <code class="type">Defs.quant_ops -><br>       validate:(<a href="Terms.html#TYPEformula">Terms.formula</a> -> unit) -> <a href="Terms.html#TYPEanswer">Terms.answer</a> -> <a href="Terms.html#TYPEanswer">Terms.answer</a></code></pre><div class="info ">
-Filter out "suspicious" and invalid atoms of a formula. <code class="code">validate</code>
-    should raise <code class="code">Contradiction</code> when a result is
-    incorrect. Currently: first removes min/max atoms comparing a
-    variable to a constant, then performs a greedy search for valid atoms.<br>
-</div>
-</body></html>
+<pre><span id="VALdrop_csts"><span class="keyword">val</span> drop_csts</span> : <code class="type">bool Pervasives.ref</code></pre>
+<pre><span id="VALdisjelim"><span class="keyword">val</span> disjelim</span> : <code class="type">Defs.quant_ops -><br>       ?target:Defs.var_name -><br>       bvs:Defs.VarSet.t -><br>       param_bvs:Defs.VarSet.t -><br>       up_of_anchor:(Defs.var_name -> bool) -><br>       do_num:bool -><br>       guess:bool -><br>       initstep:bool -><br>       residuum:<a href="Terms.html#TYPEformula">Terms.formula</a> -><br>       (<a href="Terms.html#TYPEformula">Terms.formula</a> * <a href="Terms.html#TYPEformula">Terms.formula</a>) list -><br>       bool * <a href="Terms.html#TYPEformula">Terms.formula</a> * (Defs.var_name list * <a href="Terms.html#TYPEformula">Terms.formula</a>) *<br>       <a href="Terms.html#TYPEformula">Terms.formula</a> list</code></pre></body></html>

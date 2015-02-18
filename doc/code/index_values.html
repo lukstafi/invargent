@@ -52,6 +52,10 @@
 <tr><td align="left"><br>B</td></tr>
 <tr><td><a href="Terms.html#VALbooltype">booltype</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
+<tr><td><a href="Terms.html#VALbuiltin_gamma">builtin_gamma</a> [<a href="Terms.html">Terms</a>]</td>
+<td></td></tr>
+<tr><td><a href="Terms.html#VALbuiltin_progseq">builtin_progseq</a> [<a href="Terms.html">Terms</a>]</td>
+<td></td></tr>
 <tr><td align="left"><br>C</td></tr>
 <tr><td><a href="Terms.html#VALc_subst_typ">c_subst_typ</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
@@ -95,7 +99,11 @@ Connected component(s) of the hypergraph spanned on variables,
 <tr><td align="left"><br>D</td></tr>
 <tr><td><a href="Terms.html#VALdebug">debug</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
+<tr><td><a href="Invariants.html#VALdisj_step">disj_step</a> [<a href="Invariants.html">Invariants</a>]</td>
+<td></td></tr>
 <tr><td><a href="DisjElim.html#VALdisjelim">disjelim</a> [<a href="DisjElim.html">DisjElim</a>]</td>
+<td></td></tr>
+<tr><td><a href="DisjElim.html#VALdrop_csts">drop_csts</a> [<a href="DisjElim.html">DisjElim</a>]</td>
 <td></td></tr>
 <tr><td align="left"><br>E</td></tr>
 <tr><td><a href="Invariants.html#VALearly_postcond_abd">early_postcond_abd</a> [<a href="Invariants.html">Invariants</a>]</td>
@@ -103,6 +111,8 @@ Connected component(s) of the hypergraph spanned on variables,
 <tr><td><a href="Terms.html#VALenc_funtype">enc_funtype</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
 <tr><td><a href="Terms.html#VALeq_atom">eq_atom</a> [<a href="Terms.html">Terms</a>]</td>
+<td></td></tr>
+<tr><td><a href="Terms.html#VALex_type_chi">ex_type_chi</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
 <tr><td><a href="Terms.html#VALexpr_loc">expr_loc</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
@@ -141,6 +151,13 @@ Connected component(s) of the hypergraph spanned on variables,
 <td></td></tr>
 <tr><td><a href="Terms.html#VALfvs_typs">fvs_typs</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
+<tr><td align="left"><br>G</td></tr>
+<tr><td><a href="Abduction.html#VALguess_eqs_nonvar">guess_eqs_nonvar</a> [<a href="Abduction.html">Abduction</a>]</td>
+<td><div class="info">
+<code class="code">prefer_guess=true</code> tries to guess equality-between-parameters
+    before considering other candidate abduction answer atoms.
+</div>
+</td></tr>
 <tr><td align="left"><br>H</td></tr>
 <tr><td><a href="Terms.html#VALhvsubst_formula">hvsubst_formula</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
@@ -157,11 +174,6 @@ Connected component(s) of the hypergraph spanned on variables,
 <td></td></tr>
 <tr><td><a href="Terms.html#VALinit_types">init_types</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
-<tr><td><a href="DisjElim.html#VALinitstep_heur">initstep_heur</a> [<a href="DisjElim.html">DisjElim</a>]</td>
-<td><div class="info">
-Filter out "suspicious" and invalid atoms of a formula.
-</div>
-</td></tr>
 <tr><td align="left"><br>M</td></tr>
 <tr><td><a href="Terms.html#VALmap_in_subst">map_in_subst</a> [<a href="Terms.html">Terms</a>]</td>
 <td><div class="info">
@@ -207,10 +219,9 @@ The <code class="code">fvs</code> argument only lists additional variable names 
 </td></tr>
 <tr><td><a href="Abduction.html#VALno_num_abduction">no_num_abduction</a> [<a href="Abduction.html">Abduction</a>]</td>
 <td><div class="info">
-<code class="code">neg_before_abd=false</code> moves numerical negation elimination till
-    after numerical abduction, with possibly better determination of
-    negative facts, but worse availability of the negative
-    facts.
+<code class="code">guess_eqs_nonvar=true</code> means the only guess equations <code class="code">x=y</code> tried
+    are for <code class="code">x=s</code>, <code class="code">y=t</code> in either the premise or conclusion of
+    abduction problem where neither <code class="code">s</code> nor <code class="code">t</code> are variables.
 </div>
 </td></tr>
 <tr><td><a href="Infer.html#VALnormalize">normalize</a> [<a href="Infer.html">Infer</a>]</td>
@@ -233,6 +244,8 @@ Normalization
 <tr><td><a href="Terms.html#VALnumtype">numtype</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
 <tr><td align="left"><br>P</td></tr>
+<tr><td><a href="Terms.html#VALparse_if_as_integer">parse_if_as_integer</a> [<a href="Terms.html">Terms</a>]</td>
+<td></td></tr>
 <tr><td><a href="Terms.html#VALparser_last_num">parser_last_num</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
 <tr><td><a href="Terms.html#VALparser_last_typ">parser_last_typ</a> [<a href="Terms.html">Terms</a>]</td>
@@ -245,6 +258,12 @@ Normalization
 <td></td></tr>
 <tr><td><a href="Terms.html#VALpat_loc">pat_loc</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
+<tr><td><a href="Infer.html#VALphantom_enumeration">phantom_enumeration</a> [<a href="Infer.html">Infer</a>]</td>
+<td><div class="info">
+Contains information about phantom enumerations,
+    i.e.
+</div>
+</td></tr>
 <tr><td><a href="Terms.html#VALpr_alien_ty">pr_alien_ty</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
 <tr><td><a href="Terms.html#VALpr_ans">pr_ans</a> [<a href="Terms.html">Terms</a>]</td>
@@ -252,6 +271,8 @@ Normalization
 <tr><td><a href="Terms.html#VALpr_atom">pr_atom</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
 <tr><td><a href="Infer.html#VALpr_brs">pr_brs</a> [<a href="Infer.html">Infer</a>]</td>
+<td></td></tr>
+<tr><td><a href="Terms.html#VALpr_cns">pr_cns</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
 <tr><td><a href="Infer.html#VALpr_cnstrnt">pr_cnstrnt</a> [<a href="Infer.html">Infer</a>]</td>
 <td></td></tr>
@@ -301,12 +322,22 @@ Normalization
 <td></td></tr>
 <tr><td><a href="Terms.html#VALpredvar_id">predvar_id</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
+<tr><td><a href="Abduction.html#VALprefer_guess">prefer_guess</a> [<a href="Abduction.html">Abduction</a>]</td>
+<td><div class="info">
+<code class="code">neg_before_abd=false</code> moves numerical negation elimination till
+    after numerical abduction, with possibly better determination of
+    negative facts, but worse availability of the negative
+    facts.
+</div>
+</td></tr>
 <tr><td><a href="Infer.html#VALprenexize">prenexize</a> [<a href="Infer.html">Infer</a>]</td>
 <td><div class="info">
 Returns a map from existential type to the unary predicate variable
     in which it will appear as result type.
 </div>
 </td></tr>
+<tr><td><a href="Terms.html#VALprim_constr_var">prim_constr_var</a> [<a href="Terms.html">Terms</a>]</td>
+<td></td></tr>
 <tr><td align="left"><br>R</td></tr>
 <tr><td><a href="Terms.html#VALregister_notex">register_notex</a> [<a href="Terms.html">Terms</a>]</td>
 <td><div class="info">
@@ -364,14 +395,25 @@ Substitutions of variables <code class="code">delta</code> and <code class="code
 <tr><td><a href="Infer.html#VALseparate_subst">separate_subst</a> [<a href="Infer.html">Infer</a>]</td>
 <td></td></tr>
 <tr><td><a href="Terms.html#VALshow_extypes">show_extypes</a> [<a href="Terms.html">Terms</a>]</td>
-<td></td></tr>
+<td><div class="info">
+If <code class="code">show_extypes = true</code>, print existential type definitions in
+    <code class="code">gadti</code> signatures.
+</div>
+</td></tr>
 <tr><td><a href="Terms.html#VALsigma">sigma</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
 <tr><td><a href="Infer.html#VALsimplify">simplify</a> [<a href="Infer.html">Infer</a>]</td>
-<td></td></tr>
+<td><div class="info">
+Eliminate shared conclusions.
+</div>
+</td></tr>
 <tr><td><a href="Abduction.html#VALskip_kind">skip_kind</a> [<a href="Abduction.html">Abduction</a>]</td>
 <td></td></tr>
 <tr><td><a href="Invariants.html#VALsolve">solve</a> [<a href="Invariants.html">Invariants</a>]</td>
+<td></td></tr>
+<tr><td><a href="Terms.html#VALsolve">solve</a> [<a href="Terms.html">Terms</a>]</td>
+<td></td></tr>
+<tr><td><a href="Terms.html#VALsolve_retypes">solve_retypes</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
 <tr><td><a href="Terms.html#VALstringtype">stringtype</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
@@ -412,6 +454,10 @@ Find the atoms in the formula which are valid substitutions.
 </div>
 </td></tr>
 <tr><td><a href="Terms.html#VALtuple">tuple</a> [<a href="Terms.html">Terms</a>]</td>
+<td></td></tr>
+<tr><td><a href="Terms.html#VALty_string">ty_string</a> [<a href="Terms.html">Terms</a>]</td>
+<td></td></tr>
+<tr><td><a href="Terms.html#VALty_unit">ty_unit</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
 <tr><td><a href="Terms.html#VALtyp_down">typ_down</a> [<a href="Terms.html">Terms</a>]</td>
 <td></td></tr>
@@ -457,6 +503,12 @@ Return a store cell where triggers will put which existentials are
 <tr><td><a href="Terms.html#VALupdate_sep">update_sep</a> [<a href="Terms.html">Terms</a>]</td>
 <td><div class="info">
 Separate atoms into their sorts.
+</div>
+</td></tr>
+<tr><td><a href="Invariants.html#VALuse_prior_discards">use_prior_discards</a> [<a href="Invariants.html">Invariants</a>]</td>
+<td><div class="info">
+Breakdown of steps through the main iteration to achieve
+    convergence, counting from 0.
 </div>
 </td></tr>
 <tr><td align="left"><br>V</td></tr>

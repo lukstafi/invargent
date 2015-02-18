@@ -67,7 +67,7 @@ Inferring and normalizing formulas for InvarGenT.
 <td align="left" valign="top" >
 <code><span class="keyword">|</span></code></td>
 <td align="left" valign="top" >
-<code><span id="TYPEELTcnstrnt.Or"><span class="constructor">Or</span></span> <span class="keyword">of</span> <code class="type">(<a href="Infer.html#TYPEcnstrnt">cnstrnt</a> * (unit -> unit)) list</code></code></td>
+<code><span id="TYPEELTcnstrnt.Or"><span class="constructor">Or</span></span> <span class="keyword">of</span> <code class="type">Defs.var_name<br>        * (Defs.VarSet.t * <a href="Infer.html#TYPEcnstrnt">cnstrnt</a> * <a href="Terms.html#TYPEformula">Terms.formula</a> * (unit -> unit)) list<br>        * <a href="Infer.html#TYPEcnstrnt">cnstrnt</a></code></code></td>
 
 </tr>
 <tr>
@@ -129,15 +129,26 @@ Returns a map from existential type to the unary predicate variable
 </div>
 
 <pre><span id="VALnormalize"><span class="keyword">val</span> normalize</span> : <code class="type">Defs.quant_ops -> <a href="Infer.html#TYPEcnstrnt">cnstrnt</a> -> (int, int) Hashtbl.t * <a href="Infer.html#TYPEbranch">branch</a> list</code></pre>
-<pre><span id="VALsimplify"><span class="keyword">val</span> simplify</span> : <code class="type">Defs.VarSet.t -> Defs.quant_ops -> <a href="Infer.html#TYPEbranch">branch</a> list -> <a href="Infer.html#TYPEbranch">branch</a> list</code></pre><br>
+<pre><span id="VALphantom_enumeration"><span class="keyword">val</span> phantom_enumeration</span> : <code class="type">(<a href="Terms.html#TYPEcns_name">Terms.cns_name</a>, <a href="Terms.html#TYPEcns_name">Terms.cns_name</a> list) Hashtbl.t</code></pre><div class="info ">
+Contains information about phantom enumerations,
+    i.e. alternatives to a datatype parameter's nullary concrete type
+    excluded by an <code class="code">assert false</code> pattern-matching branch.
+    If the value for an is an empty list, the entry is not a phantom
+    enumeration.<br>
+</div>
+
+<pre><span id="VALsimplify"><span class="keyword">val</span> simplify</span> : <code class="type">Defs.VarSet.t -> Defs.quant_ops -> <a href="Infer.html#TYPEbranch">branch</a> list -> <a href="Infer.html#TYPEbranch">branch</a> list</code></pre><div class="info ">
+Eliminate shared conclusions. Solve <code class="code">RetType</code> constraints.<br>
+</div>
+<br>
 <h2 id="2_Postprocessingandprinting">Postprocessing and printing</h2><br>
 
-<pre><span id="VALseparate_subst"><span class="keyword">val</span> separate_subst</span> : <code class="type">?avoid:Defs.VarSet.t -><br>       ?keep_uni:bool -><br>       Defs.quant_ops -> <a href="Terms.html#TYPEformula">Terms.formula</a> -> <a href="Terms.html#TYPEsubst">Terms.subst</a> * <a href="Terms.html#TYPEformula">Terms.formula</a></code></pre>
-<pre><span id="VALseparate_sep_subst"><span class="keyword">val</span> separate_sep_subst</span> : <code class="type">?avoid:Defs.VarSet.t -><br>       ?keep_uni:bool -><br>       Defs.quant_ops -> <a href="Terms.html#TYPEsep_formula">Terms.sep_formula</a> -> <a href="Terms.html#TYPEsubst">Terms.subst</a> * <a href="Terms.html#TYPEsep_formula">Terms.sep_formula</a></code></pre>
+<pre><span id="VALseparate_subst"><span class="keyword">val</span> separate_subst</span> : <code class="type">?avoid:Defs.VarSet.t -><br>       ?keep:Defs.VarSet.t -><br>       ?bvs:Defs.VarSet.t -><br>       ?keep_uni:bool -><br>       apply:bool -> Defs.quant_ops -> <a href="Terms.html#TYPEformula">Terms.formula</a> -> <a href="Terms.html#TYPEsubst">Terms.subst</a> * <a href="Terms.html#TYPEformula">Terms.formula</a></code></pre>
+<pre><span id="VALseparate_sep_subst"><span class="keyword">val</span> separate_sep_subst</span> : <code class="type">?avoid:Defs.VarSet.t -><br>       ?keep:Defs.VarSet.t -><br>       ?bvs:Defs.VarSet.t -><br>       ?keep_uni:bool -><br>       apply:bool -><br>       Defs.quant_ops -> <a href="Terms.html#TYPEsep_formula">Terms.sep_formula</a> -> <a href="Terms.html#TYPEsubst">Terms.subst</a> * <a href="Terms.html#TYPEsep_formula">Terms.sep_formula</a></code></pre>
 <pre><span id="VALpr_cnstrnt"><span class="keyword">val</span> pr_cnstrnt</span> : <code class="type">Format.formatter -> <a href="Infer.html#TYPEcnstrnt">cnstrnt</a> -> unit</code></pre>
 <pre><span id="VALpr_brs"><span class="keyword">val</span> pr_brs</span> : <code class="type">Format.formatter -> <a href="Infer.html#TYPEbranch">branch</a> list -> unit</code></pre>
 <pre><span id="VALpr_rbrs"><span class="keyword">val</span> pr_rbrs</span> : <code class="type">Format.formatter -> (<a href="Terms.html#TYPEformula">Terms.formula</a> * <a href="Terms.html#TYPEformula">Terms.formula</a>) list -> unit</code></pre>
 <pre><span id="VALpr_rbrs3"><span class="keyword">val</span> pr_rbrs3</span> : <code class="type">Format.formatter -> (bool * <a href="Terms.html#TYPEformula">Terms.formula</a> * <a href="Terms.html#TYPEformula">Terms.formula</a>) list -> unit</code></pre>
-<pre><span id="VALpr_rbrs4"><span class="keyword">val</span> pr_rbrs4</span> : <code class="type">Format.formatter -> (bool * 'a * <a href="Terms.html#TYPEformula">Terms.formula</a> * <a href="Terms.html#TYPEformula">Terms.formula</a>) list -> unit</code></pre>
-<pre><span id="VALpr_rbrs5"><span class="keyword">val</span> pr_rbrs5</span> : <code class="type">Format.formatter -><br>       (bool * 'a * 'b * <a href="Terms.html#TYPEformula">Terms.formula</a> * <a href="Terms.html#TYPEformula">Terms.formula</a>) list -> unit</code></pre>
+<pre><span id="VALpr_rbrs4"><span class="keyword">val</span> pr_rbrs4</span> : <code class="type">Format.formatter -><br>       (bool * 'a list * <a href="Terms.html#TYPEformula">Terms.formula</a> * <a href="Terms.html#TYPEformula">Terms.formula</a>) list -> unit</code></pre>
+<pre><span id="VALpr_rbrs5"><span class="keyword">val</span> pr_rbrs5</span> : <code class="type">Format.formatter -><br>       (bool * (int * <a href="Terms.html#TYPEtyp">Terms.typ</a>) list *<br>        (int * <a href="Terms.html#TYPEtyp">Terms.typ</a> * <a href="Terms.html#TYPEtyp">Terms.typ</a> * <a href="Terms.html#TYPElc">Terms.lc</a>) list * <a href="Terms.html#TYPEatom">Terms.atom</a> list *<br>        <a href="Terms.html#TYPEatom">Terms.atom</a> list)<br>       list -> unit</code></pre>
 <pre><span id="VALreset_state"><span class="keyword">val</span> reset_state</span> : <code class="type">unit -> unit</code></pre></body></html>
