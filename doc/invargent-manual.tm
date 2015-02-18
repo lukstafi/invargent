@@ -13,13 +13,13 @@
   to type systems that deal with data-types. Type systems with GADTs
   introduce the ability to reason about return type by case analysis of the
   input value, while keeping the benefits of a simple semantics of types, for
-  example deciding equality can be very simple. Existential types hide some
-  information conveyed in a type, usually when that information cannot be
-  reconstructed in the type system. A part of the type will often fail to be
-  expressible in the simple language of types, when the dependence on the
-  input to the program is complex. GADTs express existential types by using
-  local type variables for the hidden parts of the type encapsulated in a
-  GADT.
+  example deciding equality between types can be very simple. Existential
+  types hide some information conveyed in a type, usually when that
+  information cannot be reconstructed in the type system. A part of the type
+  will often fail to be expressible in the simple language of types, when the
+  dependence on the input to the program is complex. GADTs express
+  existential types by using local type variables for the hidden parts of the
+  type encapsulated in a GADT.
 
   The InvarGenT type system for GADTs differs from more pragmatic approaches
   in mainstream functional languages in that we do not require any type
@@ -67,7 +67,7 @@
   In examples here we use Unicode characters. For ASCII equivalents, take a
   quick look at the tables in the following section.
 
-  We start simple, with a function that can compute a value from a
+  We start with a simple example, a function that can compute a value from a
   representation of an expression -- a ready to use value whether it be
   <verbatim|Int> or <verbatim|Bool>. Prior to the introduction of GADT types,
   we could only implement a function <verbatim|eval : <math|\<forall\>>a.
@@ -145,21 +145,22 @@
   The syntax <verbatim|external let> allows us to name an OCaml library
   function or give an OCaml definition which we opt-out from translating to
   InvarGenT. Such a definition will be verified against the rest of the
-  program when InvarGenT calls <verbatim|ocamlc -c> (or Haskell in the
-  future) to verify the exported code. Another variant of <verbatim|external>
-  (omitting the <verbatim|let> keyword) exports a value using
-  <verbatim|external> in OCaml code, which is OCaml source declaration of the
-  foreign function interface of OCaml. When we are not interested in linking
-  and running the exported code, we can omit the part starting with the
-  <verbatim|=> sign. The exported code will reuse the name in the FFI
-  definition: <verbatim|external f : >...<verbatim| = "f">.
+  program when InvarGenT calls <verbatim|ocamlc -c> to verify the exported
+  code. Another variant of <verbatim|external> (omitting the <verbatim|let>
+  keyword) exports a value using <verbatim|external> in OCaml code, which is
+  OCaml source declaration of the foreign function interface of OCaml. When
+  we are not interested in linking and running the exported code, we can omit
+  the part starting with the <verbatim|=> sign. The exported code will reuse
+  the name in the FFI definition: <verbatim|external f : >...<verbatim| =
+  "f">.
 
-  The type inferred is <verbatim|eval : <math|\<forall\>>a. Term
-  a<math|\<rightarrow\>>a>. GADTs make it possible to reveal that
-  <verbatim|IsZero x> is a <verbatim|Term Bool> and therefore the result of
-  <verbatim|eval> should in its case be <verbatim|Bool>, <verbatim|Plus (x,
-  y)> is a <verbatim|Term Num> and the result of <verbatim|eval> should in
-  its case be <verbatim|Num>, etc. The <verbatim|if/eif<math|\<ldots\>>then<math|\<ldots\>>else<math|\<ldots\>>>
+  The type inferred for the above example is <verbatim|eval :
+  <math|\<forall\>>a. Term a<math|\<rightarrow\>>a>. GADTs make it possible
+  to reveal that <verbatim|IsZero x> is a <verbatim|Term Bool> and therefore
+  the result of <verbatim|eval> should in its case be <verbatim|Bool>,
+  <verbatim|Plus (x, y)> is a <verbatim|Term Num> and the result of
+  <verbatim|eval> should in its case be <verbatim|Num>, etc. The
+  <verbatim|if/eif<math|\<ldots\>>then<math|\<ldots\>>else<math|\<ldots\>>>
   syntax is a syntactic sugar for <verbatim|match<math|/>ematch
   <math|\<ldots\>> with True -\<gtr\> <math|\<ldots\>> \| False -\<gtr\>
   <math|\<ldots\>>>, and any such expressions are exported using
@@ -427,15 +428,14 @@
 
   We get <verbatim|filter<math|:\<forall\>>n,
   a.(a<math|\<rightarrow\>>Bool)<math|\<rightarrow\>>List (a,
-  n)<math|\<rightarrow\>> <math|\<exists\>>k[0<math|\<leq\>>n
-  <math|\<wedge\>> 0<math|\<leq\>>k <math|\<wedge\>> k<math|\<leq\>>n].List
-  (a, k)>. Note that we need to use both <verbatim|efunction> and
-  <verbatim|eif> above, since every use of <verbatim|function>,
-  <verbatim|match> or <verbatim|if> will force the types of its branches to
-  be equal. In particular, for lists with length the resulting length would
-  have to be the same in each branch. If the constraint cannot be met, as for
-  <verbatim|filter> with either <verbatim|function> or <verbatim|if>, the
-  code will not type-check.
+  n)<math|\<rightarrow\>> <math|\<exists\>>k[0<math|\<leq\>>k
+  <math|\<wedge\>> k<math|\<leq\>>n].List (a, k)>. Note that we need to use
+  both <verbatim|efunction> and <verbatim|eif> above, since every use of
+  <verbatim|function>, <verbatim|match> or <verbatim|if> will force the types
+  of its branches to be equal. In particular, for lists with length the
+  resulting length would have to be the same in each branch. If the
+  constraint cannot be met, as for <verbatim|filter> with either
+  <verbatim|function> or <verbatim|if>, the code will not type-check.
 
   A more complex example that computes bitwise <em|or> -- <verbatim|ub>
   stands for ``upper bound'':
@@ -617,6 +617,11 @@
   test>|<cell|<verbatim|let rec f =>...<verbatim| test e1; >...<verbatim|;
   en>>>>>>
 
+  Toplevel non-recursive <verbatim|let> definitions are polymorphic as an
+  exception. In expressions, <verbatim|let<math|\<ldots\>>in> definitions are
+  monomorphic, one should use the <verbatim|let rec<math|\<ldots\>>in> syntax
+  to get a polymorphic <verbatim|let>-binding.
+
   Tests list expressions of type <verbatim|Bool> that at runtime have to
   evaluate to <verbatim|True>. Type inference is affected by the constraints
   generated to typecheck the expressions.
@@ -693,20 +698,20 @@
   <verbatim|-inform> option:
 
   <\code>
-    $ ./invargent -inform examples/binomial_heap_nonrec.gadt
+    $ ./invargent -inform examples/avl_tree.gadt
   </code>
 
-  In some situations, hopefully unlikely for simple programs, the default
-  parameters of the solver algorithms do not suffice. Consider this example,
-  where we use <verbatim|-full_annot> to generate type annotations on
-  <verbatim|function> and <verbatim|let>..<verbatim|in> nodes in the
-  <verbatim|.ml> file, in addition to annotations on <verbatim|let rec>
-  nodes:
+  Below we demonstrate what happens with insufficiently high parameter
+  setting. Consider this example, where we use <verbatim|-full_annot> to
+  generate type annotations on <verbatim|function> and
+  <verbatim|let>..<verbatim|in> nodes in the <verbatim|.ml> file, in addition
+  to annotations on <verbatim|let rec> nodes:
 
   <\code>
-    $ ./invargent -inform -full_annot examples/equal_assert.gadt
+    $ ./invargent -inform -term_abduction_timeout 100
+    examples/equal_assert.gadt
 
-    File "examples/equal_assert.gadt", line 20, characters 5-103:
+    File "examples/equal_assert.gadt", line 19, characters 24-38:
 
     No answer in type: term abduction failed
 
@@ -720,24 +725,7 @@
   The <verbatim|Perhaps increase> suggestions are generated only when the
   corresponding limit has actually been exceeded. Remember however that the
   limits will often be exceeded for erroneus programs which should not
-  type-check. Here the default number of steps till term abduction timeout,
-  which is just <verbatim|700> to speed up failing for actually erroneous
-  programs, is too low. The complete output with timeout increased:
-
-  <\code>
-    $ ./invargent -inform -full_annot -term_abduction_timeout 4000 \\
-    examples/<no-break>equal_assert.gadt
-
-    val equal : <math|\<forall\>>a, b. (Ty a, Ty b) <math|\<rightarrow\>> a
-    <math|\<rightarrow\>> b <math|\<rightarrow\>> Bool
-
-    InvarGenT: Generated file examples/equal_assert.gadti
-
-    InvarGenT: Generated file examples/equal_assert.ml
-
-    InvarGenT: Command "ocamlc -c examples/equal_assert.ml" exited with code
-    0
-  </code>
+  type-check.
 
   To understand the intent of the solver parameters, we need a rough
   ``birds-eye view'' understanding of how InvarGenT works. The invariants and
@@ -746,9 +734,9 @@
   computations are traditional tools used for solving recursive equations
   over an ordered structure. In case of implicational constraints that are
   generated for type inference with GADTs, constraint abduction is a form of
-  LUB computation. <em|Disjunction elimination> is our term for computing the
-  GLB wrt. strength for formulas that are conjunctions of atoms. We want the
-  invariants of recursive definitions -- i.e. the types of recursive
+  LUB computation. <em|Constraint generalization> is our term for computing
+  the GLB wrt. strength for formulas that are conjunctions of atoms. We want
+  the invariants of recursive definitions -- i.e. the types of recursive
   functions and formulas constraining their type variables -- to be as weak
   as possible, to make the use of the corresponding definitions as easy as
   possible. The weaker the invariant, the more general the type of
@@ -757,7 +745,7 @@
   <verbatim|efunction> expressions and formulas constraining their type
   variables -- we want the strongest possible solutions, because stronger
   postcondition provides more information at use sites of a definition.
-  Therefore we use GLB, disjunction elimination, but only if existential
+  Therefore we use GLB, constraint generalization, but only if existential
   types have been introduced by <verbatim|efunction> or <verbatim|ematch>.
 
   Below we discuss all of the InvarGenT options.
@@ -845,7 +833,8 @@
     equation or inequality that does not conflict with other branches, but is
     equivalent to the conclusion equation/inequality. This parameter decides
     what range of coefficients is tried. If the highest coefficient in
-    correct answer is greater, abduction might fail.
+    correct answer is greater, abduction might fail. However, it often
+    succeeds because of other mechanisms used by the abduction algorithm.
 
     <item*|<verbatim|-num_prune_at>>Keep less than <math|N> elements in
     abduction sums (default 6). By elements here we mean distinct variables
@@ -1011,28 +1000,127 @@
     <verbatim|.ml> file.
   </description>
 
-  Let us see an example where a parameter allowing the solver do more search
-  is needed:
+  Let us have a look at test-suite examples that need a non-default parameter
+  setting.
 
   <\code>
-    $ ./invargent -inform -num_abduction_rotations 4
-    examples/flatten_quadrs.gadt
+    $ ./invargent -inform examples/non_pointwise_leq.gadt
 
-    val flatten_quadrs :
+    File "examples/non_pointwise_leq.gadt", line 12, characters 14-60:
 
-    \ \ <math|\<forall\>>n, a. List ((a, a, a, a), n) <math|\<rightarrow\>>
-    List (a, 4 n)
+    No answer in type: Answers do not converge
 
-    InvarGenT: Generated file examples/flatten_quadrs.gadti
+    \;
 
-    InvarGenT: Generated file examples/flatten_quadrs.ml
+    Perhaps increase the -iterations_timeout parameter or try the
+    -more_existential option.
 
-    InvarGenT: Command "ocamlc -c examples/flatten_quadrs.ml" exited with
-    code 0
+    $ ./invargent -inform -prefer_guess examples/non_pointwise_leq.gadt
+
+    val leq : <math|\<forall\>>a. Nat a <math|\<rightarrow\>> NatLeq (a, a)
+
+    InvarGenT: Generated file examples/non_pointwise_leq.gadti
+
+    InvarGenT: Generated file examples/non_pointwise_leq.ml
+
+    InvarGenT: Command "ocamlc -w -25 -c examples/non_pointwise_leq.ml"
+    exited with code 0
   </code>
 
-  Based on user feedback, we will likely increase the default values of
-  parameters in a future version.
+  Other examples that need the <verbatim|-prefer_guess> option:
+  <verbatim|non_pointwise_zip1_simpler.gadt>,
+  <verbatim|non_pointwise_zip1_simpler2.gadt>,
+  <verbatim|non_pointwise_zip1_modified.gadt>. On the other hand,
+  <verbatim|non_pointwise_zip1.gadt> is inferred with default settings.
+
+  <\code>
+    $ ./invargent -inform examples/liquid_heapsort_heapify_simpler.gadt
+
+    val heapify :
+
+    \ \ <math|\<forall\>>k, n, a[0 <math|\<leqslant\>> n <math|\<wedge\>> n +
+    1 <math|\<leqslant\>> k].
+
+    \ \ Num k <math|\<rightarrow\>> Array (a, k) <math|\<rightarrow\>> Num n
+    <math|\<rightarrow\>> ()
+
+    InvarGenT: Generated file examples/liquid_heapsort_heapify_simpler.gadti
+
+    InvarGenT: Generated file examples/liquid_heapsort_heapify_simpler.ml
+
+    InvarGenT: Command "ocamlc -w -25 -c examples/liquid_heapsort_heapify_simpler.ml"
+    exited with code 0
+
+    $ ./invargent -inform -prefer_bound_to_local \\
+    examples/liquid_heapsort_heapify_simpler.gadt
+
+    val heapify :
+
+    \ \ <math|\<forall\>>i, k, n, a[0 <math|\<leqslant\>> n <math|\<wedge\>>
+    n + 1 <math|\<leqslant\>> i <math|\<wedge\>> i <math|\<leqslant\>> k].
+
+    \ \ Num i <math|\<rightarrow\>> Array (a, k) <math|\<rightarrow\>> Num n
+    <math|\<rightarrow\>> ()
+
+    InvarGenT: Generated file examples/liquid_heapsort_heapify_simpler.gadti
+
+    InvarGenT: Generated file examples/liquid_heapsort_heapify_simpler.ml
+
+    InvarGenT: Command "ocamlc -w -25 -c examples/liquid_heapsort_heapify_simpler.ml"
+    exited with code 0
+  </code>
+
+  Above, the type inferred with default parameter setting is insufficiently
+  general. Other examples that need the <verbatim|-prefer_bound_to_local>
+  option: <verbatim|liquid_simplex_step_3a.gadt>,
+  <verbatim|liquid_simplex_step_6a_2.gadt>.
+
+  <\code>
+    $ ./invargent -inform examples/pointwise_zip2_harder.gadt
+
+    val zip2 : <math|\<forall\>>a, b. Zip2 (a, b) <math|\<rightarrow\>> a
+    <math|\<rightarrow\>> b
+
+    InvarGenT: Generated file examples/pointwise_zip2_harder.gadti
+
+    InvarGenT: Generated file examples/pointwise_zip2_harder.ml
+
+    File "examples/pointwise_zip2_harder.ml", line 19, characters 21-32:
+
+    Error: This kind of expression is not allowed as right-hand side of `let
+    rec'
+
+    InvarGenT: Command "ocamlc -w -25 -c examples/pointwise_zip2_harder.ml"
+    exited with code 2
+
+    InvarGenT: Regenerated file examples/pointwise_zip2_harder.ml
+
+    File "examples/pointwise_zip2_harder.ml", line 21, characters 21-32:
+
+    Error: This kind of expression is not allowed as right-hand side of `let
+    rec'
+
+    InvarGenT: Command "ocamlc -w -25 -c examples/pointwise_zip2_harder.ml"
+    exited with code 2
+
+    $ ./invargent -inform -no_ml examples/pointwise_zip2_harder.gadt
+
+    val zip2 : <math|\<forall\>>a, b. Zip2 (a, b) <math|\<rightarrow\>> a
+    <math|\<rightarrow\>> b
+
+    InvarGenT: Generated file examples/pointwise_zip2_harder.gadti
+  </code>
+
+  The example <verbatim|pointwise_zip2_harder.gadt> is not compatible with
+  the pass-by-value semantics. We can avoid the complaint of the OCaml
+  compiler by passing either the <verbatim|-no_ml> flag or the
+  <verbatim|-no_verif> flag. More interestingly, we can notice that the file
+  <verbatim|pointwise_zip2_harder.ml> is generated twice. This happens
+  because InvarGenT, noticing the failure, generates an OCaml source with
+  more type information, as if the <verbatim|-full_annot> option was used.
+
+  Unfortunately, inference fails for some examples regardless of parameters
+  setting. We discuss them in the next section.
 
   <section|Limitations of Current InvarGenT Inference>
 
@@ -1073,139 +1161,206 @@
   inference can incorporate heuristics for special cases, and can be modified
   to do a more exhaustive search.
 
-  The following example illustrates a limitation of our numerical abduction
-  algorithm that is not intrinsic to the numerical abduction problem. I.e. it
-  might be fixed by a smarter algorithm.
+  The example <verbatim|pointwise_head.gadt> fails because of the limitations
+  of the <verbatim|type> sort in representing disequalities.
 
   <\code>
-    datatype Elem
+    datatype Z
 
-    datatype List : num
+    datatype S : type
 
-    datacons LNil : List 0
+    datatype List : type * num
 
-    datacons LCons : <math|\<forall\>>n [0<math|\<leq\>>n]. Elem * List n
-    <math|\<longrightarrow\>> List (n+1)
+    datacons LNil : <math|\<forall\>>a. List(a, Z)
 
-    external length : <math|\<forall\>>n. List n <math|\<rightarrow\>> Num n
-    = "length"
+    datacons LCons : <math|\<forall\>>a, b. a * List(a, b)
+    <math|\<longrightarrow\>> List(a, S b)
 
     \;
 
-    let rec append =
+    let head = function
 
-    \ \ function
+    \ \ \| LCons (x, _) -\> x
 
-    \ \ \ \ \| LNil -\<gtr\>
-
-    \ \ \ \ \ \ (function l when (length l + 1) \<less\>= 0 -\<gtr\> assert
-    false \| l -\<gtr\> l)
-
-    \ \ \ \ \| LCons (x, xs) -\<gtr\>
-
-    \ \ \ \ \ \ (function l when (length l + 1) \<less\>= 0 -\<gtr\> assert
-    false
-
-    \ \ \ \ \ \ \| l -\<gtr\> LCons (x, append xs l))
+    \ \ \| LNil -\> assert false
   </code>
 
-  The expected type is <verbatim|append : <math|\<forall\>>a, n,
-  k[0<math|\<leq\>>k]. List n<math|\<rightarrow\>>List
-  k<math|\<rightarrow\>>List (n+k)>. When our algorithm discovers that the
-  result is <math|n+k>, rather than <math|n>, it is already committed to
-  requiring that the result is no less than <math|1>. The answers on
-  successive iterations of the main algorithm do not converge: if the length
-  of the tail has to be at least one, then the length of the input list has
-  to be at least two, etc.
+  If we omit the <verbatim|LNil> branch, we get the technically correct but
+  inadequate type <verbatim|<math|\<forall\>>a, b. List(a, b)
+  <math|\<rightarrow\>> a>, because the type system does not guarantee
+  exhaustiveness of the pattern matching. The intended type is
+  <verbatim|<math|\<forall\>>a, b. List(a, S b) <math|\<rightarrow\>> a>.
 
-  The following example is a natural variant of a function from the
-  <verbatim|avl_tree.gadt> example.
+  The example <verbatim|non_pointwise_fd_comp_harder.gadt> is inferred an
+  insufficiently general type <verbatim|<math|\<forall\>>a, b. FunDesc (b, b)
+  <math|\<rightarrow\>> FunDesc (b, a) <math|\<rightarrow\>> FunDesc (b, a)>.
 
   <\code>
-    let rec add = fun x -\<gtr\> efunction
+    datatype FunDesc : type * type
 
-    \ \ \| Empty -\<gtr\> Node (Empty, x, Empty, 1)
+    datacons FDI : <math|\<forall\>>a. FunDesc (a, a)
 
-    \ \ \| Node (l, y, r, h) -\<gtr\>
+    datacons FDC : <math|\<forall\>>a, b. b <math|\<longrightarrow\>> FunDesc
+    (a, b)
 
-    \ \ \ \ ematch compare x y with
+    datacons FDG : <math|\<forall\>>a, b. (a <math|\<rightarrow\>> b)
+    <math|\<longrightarrow\>> FunDesc (a, b)
 
-    \ \ \ \ \| EQ -\<gtr\> Node (l, x, r, h)
+    external fd_fun : <math|\<forall\>>a, b. FunDesc (a, b)
+    <math|\<rightarrow\>> a <math|\<rightarrow\>> b
 
-    \ \ \ \ \| LT -\<gtr\>
+    \;
 
-    \ \ \ \ \ \ let l' = add x l in
+    let fd_comp fd1 fd2 =
 
-    \ \ \ \ \ \ (ematch height l', height r with
+    \ \ let o f g x = f (g x) in
 
-    \ \ \ \ \ \ \ \| hl', hr when hl' \<less\>= hr+2 -\<gtr\> create l' y r
+    \ \ match fd1 with
 
-    \ \ \ \ \ \ \ \| hl', hr when hr+3 \<less\>= hl' -\<gtr\> rotr l' y r)
+    \ \ \ \ \| FDI -\> fd2
 
-    \ \ \ \ \| GT -\<gtr\>
+    \ \ \ \ \| FDC b -\>\ 
 
-    \ \ \ \ \ \ let r' = add x r in
+    \ \ \ \ \ \ (match fd2 with
 
-    \ \ \ \ \ \ (ematch height r', height l with
+    \ \ \ \ \ \ \ \ \| FDI -\> fd1
 
-    \ \ \ \ \ \ \ \| hr', hl when hr' \<less\>= hl+2 -\<gtr\> create l y r'
+    \ \ \ \ \ \ \ \ \| FDC c -\> FDC (fd_fun fd2 b)
 
-    \ \ \ \ \ \ \ \| hr', hl when hl+3 \<less\>= hr' -\<gtr\> rotl l y r')
+    \ \ \ \ \ \ \ \ \| FDG g -\> FDC (fd_fun fd2 b))
+
+    \ \ \ \ \| FDG f -\>
+
+    \ \ \ \ \ \ (match fd2 with
+
+    \ \ \ \ \ \ \ \ \| FDI -\> fd1
+
+    \ \ \ \ \ \ \ \ \| FDC c -\> FDC c
+
+    \ \ \ \ \ \ \ \ \| FDG g -\> FDG (o (fd_fun fd2) f))
   </code>
 
-  The difference with the function in the <verbatim|avl_tree.gadt> file
-  amounts to computing <verbatim|height r>, resp. <verbatim|height l> near
-  the places where they are used. The inference fails because of lack of
-  sharing of information about <verbatim|l> due to facts about <verbatim|l' =
-  add x l>, resp. about <verbatim|r> due to facts about <verbatim|r' = add x
-  r>, with the other branch. The limits on information sharing between
-  pattern matching branches can also manifest in more mundane situations.
-  Compare for example the sources <verbatim|pointwise_extract.gadt> and
-  <verbatim|pointwise_extract2.gadt> from the examples directory. Type
-  inference fails for the latter example, which has functions as bodies of
-  pattern matching branches, rather than deconstructing a variable introduced
-  only once. More sophisticated algorithms might mitigate these shortcomings
-  in future versions of InvarGenT.
+  This happens because the second argument <verbatim|fd2> is not expanded
+  when <verbatim|fd1> is equal to <verbatim|FDI>. Type inference cannot carry
+  out the different reasoning steps leading to the more general type.
 
-  We end with an example where there is little hope of improvement. The
-  <verbatim|rotr> and <verbatim|rotl> functions in <verbatim|avl_tree.gadt>
-  use assertions to convey the preconditions. Ideally, we would like to be
-  able to simply write an implementation similar to the following one:
+  In the example <verbatim|liquid_bsearch2_harder4.gadt> it turns out to be
+  too hard to infer the full postcondition.
 
   <\code>
-    let rotr = fun l x r -\<gtr\>
+    datatype Array : type * num
 
-    \ \ \ \ ematch l with
+    external let array_make :
 
-    \ \ \ \ \| Empty -\<gtr\> assert false
+    \ \ <math|\<forall\>>n, a [0<math|\<leqslant\>>n]. Num n
+    <math|\<rightarrow\>> a <math|\<rightarrow\>> Array (a, n) = "fun a b
+    -\<gtr\> Array.make a b"
 
-    \ \ \ \ \| Node (ll, lx, lr, _) -\<gtr\>
+    external let array_get :
 
-    \ \ \ \ \ \ (ematch height ll, height lr with
+    <math|\<forall\>>n, k, a [0<math|\<leqslant\>>k <math|\<wedge\>>
+    k+1<math|\<leqslant\>>n]. Array (a, n) <math|\<rightarrow\>> Num k
+    <math|\<rightarrow\>> a = "fun a b -\<gtr\> Array.get a b"
 
-    \ \ \ \ \ \ \| m, n when n \<less\>= m -\<gtr\>
+    external let array_length :
 
-    \ \ \ \ \ \ \ \ let r' = create lr x r in
+    \ \ <math|\<forall\>>n, a [0<math|\<leqslant\>>n]. Array (a, n)
+    <math|\<rightarrow\>> Num n = "fun a -\<gtr\> Array.length a"
 
-    \ \ \ \ \ \ \ \ create ll lx r'
+    datatype LinOrder
 
-    \ \ \ \ \ \ \| m, n when m+1 \<less\>= n -\<gtr\>
+    datacons LE : LinOrder
 
-    \ \ \ \ \ \ \ \ (ematch lr with
+    datacons GT : LinOrder
 
-    \ \ \ \ \ \ \ \ \| Empty -\<gtr\> assert false
+    datacons EQ : LinOrder
 
-    \ \ \ \ \ \ \ \ \| Node (lrl, lrx, lrr, _) -\<gtr\>
+    external let compare : <math|\<forall\>>a. a <math|\<rightarrow\>> a
+    <math|\<rightarrow\>> LinOrder =
 
-    \ \ \ \ \ \ \ \ \ \ let l' = create ll lx lrl in
+    \ \ "fun a b -\> let c = Pervasives.compare a b in
 
-    \ \ \ \ \ \ \ \ \ \ let r' = create lrr x r in
+    \ \ \ \ \ \ \ \ \ \ \ \ \ \ if c \< 0 then LE else if c \> 0 then GT else
+    EQ"
 
-    \ \ \ \ \ \ \ \ \ \ create l' lrx r'))
+    external let equal : <math|\<forall\>>a. a <math|\<rightarrow\>> a
+    <math|\<rightarrow\>> Bool = "fun a b -\<gtr\> a = b"
+
+    external let div2 : <math|\<forall\>>n. Num (2 n) <math|\<rightarrow\>>
+    Num n = "fun x -\<gtr\> x / 2"
+
+    \;
+
+    let bsearch key vec =
+
+    \ \ let rec look key vec lo hi =
+
+    \ \ \ \ eif lo \<= hi then
+
+    \ \ \ \ \ \ \ \ let m = div2 (hi + lo) in
+
+    \ \ \ \ \ \ \ \ let x = array_get vec m in
+
+    \ \ \ \ \ \ \ \ ematch compare key x with
+
+    \ \ \ \ \ \ \ \ \ \ \| LE -\> look key vec lo (m + (-1))
+
+    \ \ \ \ \ \ \ \ \ \ \| GT -\> look key vec (m + 1) hi
+
+    \ \ \ \ \ \ \ \ \ \ \| EQ -\> eif equal key x then m else -1
+
+    \ \ \ \ else -1 in
+
+    \ \ look key vec 0 (array_length vec + (-1))
   </code>
 
-  Unfortunately, it seems it would require too much ``guesswork'' from the
-  inference algorithms.
+  \ We get the result type <verbatim|<math|\<exists\>>n[0 <math|\<leqslant\>>
+  n + 1].Num n> instead of <verbatim|<math|\<exists\>>k[k <math|\<leqslant\>>
+  n <math|\<wedge\>> 0 <math|\<leqslant\>> k + 1].Num k>. The inference of
+  the intended type succeeds after we introduce an appropriate assertion,
+  e.g. <verbatim|assert num -1 \<= hi>.
+
+  The example <verbatim|liquid_tower_harder.gadt> creates too complex an
+  abduction problem at a late iteration of the type inference problem.
+  Paradoxically, the example is harder than <verbatim|liquid_tower.gadt>,
+  despite the latter performing a joint inference of all the functions. The
+  <verbatim|liquid_tower.gadt> example leads to more parameter sharing and
+  thus easier abduction problems.
+
+  Examples <verbatim|liquid_simplex_step_3.gadt>,
+  <verbatim|liquid_simplex_step_4.gadt> and
+  <verbatim|liquid_gauss_rowMax.gadt> result in uninformative, empty
+  postconditions, because to tell more would require inspecting the behavior
+  of the respective function across recursive calls. To save space, we list
+  just the function definition from <verbatim|liquid_simplex_step_3.gadt>:
+
+  <\code>
+    let rec enter_var arr2 n j c j' =
+
+    \ \ eif j' + 2 \<= n then
+
+    \ \ \ \ let c' = matrix_get arr2 0 j' in
+
+    \ \ \ \ eif less c' c then enter_var arr2 n j' c' (j'+1)
+
+    \ \ \ \ else enter_var arr2 n j c (j'+1)
+
+    \ \ else j
+  </code>
+
+  Fortunately, if the function is used in the same toplevel definition in
+  which it is defined, use-site requirements facilitate the inference of the
+  intended postcondition.
+
+  The example <verbatim|liquid_gauss_harder.gadt> poses too big a challenge
+  for InvarGenT. To get the example <verbatim|liquid_gauss.gadt> that passes
+  inference, we needed to modify it in two ways. One was streamlining one of
+  the nested definitions, to not introduce another, unnecessary level of
+  nesting. The other was to relax the constraint on the processed portion of
+  the matrix, coming from the restriction on the matrix size intended in the
+  original source of the <verbatim|liquid_gauss_harder.gadt> example. In
+  <verbatim|liquid_gauss.gadt>, the whole matrix is processed and the
+  inferred type is most general.
 </body>
 
 <\initial>

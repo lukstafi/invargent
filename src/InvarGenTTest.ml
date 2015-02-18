@@ -17,7 +17,8 @@ let input_file file =
    with End_of_file -> ());
   Buffer.contents buf
 
-let test_case ?(test_annot=false) ?richer_answers ?more_general_num
+let test_case ?(test_annot=false) ?(do_ml=true)
+    ?richer_answers ?more_general_num
     ?prefer_guess ?prefer_bound_to_local ?prefer_bound_to_outer
     ?abd_rotations ?num_abd_timeout
     ?num_abd_fail_timeout ?nodeadcode file () =
@@ -76,7 +77,7 @@ let test_case ?(test_annot=false) ?richer_answers ?more_general_num
   (try
      let verif_res =
        (*[* Format.printf "test_case: file=%s@\n%!" file; *]*)
-       InvarGenT.process_file ~do_sig:true ~do_ml:true
+       InvarGenT.process_file ~do_sig:true ~do_ml
          ~full_annot:test_annot (file^".gadt") in
      assert_equal ~printer:(fun x->x)
        (input_file (file^".gadti.target"))
@@ -160,7 +161,7 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            todo "currently requiring expanded arguments";
            skip_if !debug "debug";
-           test_case "binary_plus-harder" ());
+           test_case "binary_plus_harder" ());
       "flatten_pairs" >::
         (fun () ->
            skip_if !debug "debug";
@@ -168,7 +169,7 @@ let tests = "InvarGenT" >::: [
       "flatten_quadrs" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~abd_rotations:4 "flatten_quadrs" ());
+           test_case "flatten_quadrs" ());
       "equational_reas" >::
         (fun () ->
            skip_if !debug "debug";
@@ -241,29 +242,27 @@ let tests = "InvarGenT" >::: [
       "pointwise-zip2-simpler1" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case "pointwise_zip2-simpler1" ());
+           test_case "pointwise_zip2_simpler1" ());
       "pointwise-zip2-simpler2" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case "pointwise_zip2-simpler2" ());
+           test_case "pointwise_zip2_simpler2" ());
       "pointwise-zip2-simpler3" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case "pointwise_zip2-simpler3" ());
+           test_case "pointwise_zip2_simpler3" ());
       "pointwise-zip2-simpler4" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case "pointwise_zip2-simpler4" ());
+           test_case "pointwise_zip2_simpler4" ());
       "pointwise-zip2" >::
         (fun () ->
-           (* This test is close enough. *)
            skip_if !debug "debug";
            test_case "pointwise_zip2" ());
       "pointwise-zip2-harder" >::
         (fun () ->
-           todo "too hard but not call-by-value";
            skip_if !debug "debug";
-           test_case "pointwise_zip2-harder" ());
+           test_case ~do_ml:false "pointwise_zip2_harder" ());
       "pointwise-avl_rotl" >::
         (fun () ->
            skip_if !debug "debug";
@@ -295,7 +294,7 @@ let tests = "InvarGenT" >::: [
       "non_outsidein-rx" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case "non_outsidein-rx" ());
+           test_case "non_outsidein_rx" ());
       "non_pointwise-split" >::
         (fun () ->
            skip_if !debug "debug";
@@ -319,11 +318,11 @@ let tests = "InvarGenT" >::: [
       "avl_delmin-simpler" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case "avl_delmin-simpler" ());
+           test_case "avl_delmin_simpler" ());
       "non_pointwise-avl_delmin-modified" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case "non_pointwise_avl_delmin-modified" ());
+           test_case "non_pointwise_avl_delmin_modified" ());
       "non_pointwise-avl_delmin" >::
         (fun () ->
            skip_if !debug "debug";
@@ -344,19 +343,19 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            todo "currently requiring expanded arguments";
            skip_if !debug "debug";
-           test_case "non_pointwise_fd_comp-harder" ());
+           test_case "non_pointwise_fd_comp_harder" ());
       "non_pointwise-zip1-simpler" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~prefer_guess:true "non_pointwise_zip1-simpler" ());
+           test_case ~prefer_guess:true "non_pointwise_zip1_simpler" ());
       "non_pointwise-zip1-simpler2" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~prefer_guess:true "non_pointwise_zip1-simpler2" ());
+           test_case ~prefer_guess:true "non_pointwise_zip1_simpler2" ());
       "non_pointwise-zip1-modified" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~prefer_guess:true "non_pointwise_zip1-modified" ());
+           test_case ~prefer_guess:true "non_pointwise_zip1_modified" ());
       "non_pointwise-zip1" >::
         (fun () ->
            skip_if !debug "debug";
@@ -377,16 +376,6 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "avl_tree" ());
-      "binomial_heap-ins_tree" >::
-        (fun () ->
-           todo "TODO";
-           skip_if !debug "debug";
-           test_case "binomial_heap-ins_tree" ());
-      "binomial_heap-merge" >::
-        (fun () ->
-           todo "TODO";
-           skip_if !debug "debug";
-           test_case "binomial_heap-merge" ());
       "binomial_heap" >::
         (fun () ->
            todo "TODO";
@@ -468,7 +457,7 @@ let tests = "InvarGenT" >::: [
       "liquid_isort-simpler3" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~more_general_num:true "liquid_isort_simpler3" ());
+           test_case "liquid_isort_simpler3" ());
       "liquid_isort-simpler" >::
         (fun () ->
            skip_if !debug "debug";
@@ -567,7 +556,7 @@ let tests = "InvarGenT" >::: [
            test_case ~prefer_bound_to_local:true "liquid_simplex_step_3a" ());
       "liquid_simplex_step_4" >::
         (fun () ->
-           todo "FIXME"; (* "too hard for current InvarGenT"; ? *)
+           todo "too hard for current InvarGenT";
            skip_if !debug "debug";
            test_case "liquid_simplex_step_4" ());
       "liquid_simplex_step_4a" >::
@@ -637,7 +626,7 @@ let tests = "InvarGenT" >::: [
       "liquid_gauss_simpler" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~prefer_bound_to_outer:true "liquid_gauss_simpler" ());
+           test_case "liquid_gauss_simpler" ());
       "liquid_gauss" >::
         (fun () ->
            skip_if !debug "debug";
