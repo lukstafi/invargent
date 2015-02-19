@@ -25,7 +25,7 @@ let general_reward = ref 2
 let affine_penalty = ref (* 4 *)3
 let affine_threshold = ref 2
 let affine_thresh_penalty = ref 2
-let reward_constrn = ref 2
+let reward_constrn = ref 2 (* (-1) *)
 let complexity_penalty = ref 2.5
 let reward_locality = ref 3
 let multi_levels_penalty = ref 4
@@ -39,6 +39,7 @@ let special_source_bonus = ref 7
 let uplevel_penalty = ref 9
 let prefer_bound_to_local = ref false
 let prefer_bound_to_outer = ref false
+let only_off_by_1 = ref false
 let concl_abd_penalty = ref 4
 let discourage_upper_bound = ref 6
 let discourage_already_bounded = ref 4
@@ -1506,7 +1507,8 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~orig_ren ~b_of_v ~upward_of
     else [] in
   let down_v, skip_uplevel =
     match vars with
-    | [v, _; v2, _] -> v, upward_of v2 v && cst =/ !/1
+    | [v, _; v2, _] -> v, upward_of v2 v &&
+                          (not !only_off_by_1 || cst =/ !/1)
     | (v, _)::_ -> v, false
     | _ -> assert false in
   (*[* if !more_general
@@ -1663,7 +1665,8 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~orig_ren ~b_of_v ~upward_of
            let i2f = float_of_int and f2i = int_of_float in
            let special_bonus () =
              if prem_abduced = None &&
-                cst =/ !/1 && List.tl score_ineqn = [] then
+                (not !only_off_by_1 || cst =/ !/1) &&
+                List.tl score_ineqn = [] then
                let nonlocal_pair =
                  match vars with
                  | (v, _)::(v2, _)::[] -> upward_of v2 v
@@ -2080,6 +2083,9 @@ let abd_simple ~qcmp_v ~cmp_w
           ()
       done; None
     with Result (ans_eqs, ans_ineqs, ans_optis, ans_suboptis) ->
+      (*[* Format.printf "NumS.abd_simple: result:\
+             @\neqs=@ %a@\nineqs=@ %a@\n%!"
+        pr_w_subst ans_eqs pr_ineqs ans_ineqs; *]*)
       Some (ans_eqs, ans_ineqs, ans_optis, ans_suboptis)
   with (* failed premise/\conclusion *)
   | Terms.Contradiction _ -> None

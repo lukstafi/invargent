@@ -864,16 +864,20 @@
     <item*|<strong|<verbatim|-abd_pow_scaling>>>Scale the complexity cost of
     coefficients according to the given power.
 
-    <item*|<verbatim|-prefer_bound_to_local>>Prefer a zero-indexed
-    array/matrix/etc. bound coming from outer scope, to inequality between
-    two local parameters. In numerical abduction heuristic, such bounds are
-    usually doubly penalized: for having a constant, and non-locality of
-    parameters.
+    <item*|<verbatim|-prefer_bound_to_local>>Prefer a bound coming from outer
+    scope, to inequality between two local parameters. In numerical abduction
+    heuristic, such bounds are usually doubly penalized: for having a
+    constant, and non-locality of parameters.
 
-    <item*|<verbatim|-prefer_bound_to_outer>>Prefer a zero-indexed
-    array/matrix/etc. bound coming from outer scope, to inequality between
-    two outer scope parameters. Outer-scope constraints sometimes lead to an
-    answer not general enough.
+    <item*|<verbatim|-prefer_bound_to_outer>>Prefer a bound coming from outer
+    scope, to inequality between two outer scope parameters. Outer-scope
+    constraints sometimes lead to an answer not general enough.
+
+    <item*|<verbatim|-only_off_by_1>>Limit the effect of
+    <verbatim|-prefer_bound_to_local> and
+    <verbatim|-<no-break>prefer_bound_to_outer> to inequalities with a
+    constant 1. This corresponds to an upper bound of an index into a
+    zero-indexed array/matrix/etc.
 
     <item*|<verbatim|-concl_abd_penalty>>Penalize abductive guess when the
     supporting argument comes from the partial answer, instead of from the

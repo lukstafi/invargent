@@ -1,0 +1,75 @@
+datatype Array : type * num
+external let array_make :
+  ∀n, a [0≤n]. Num n → a → Array (a, n) = "fun a b -> Array.make a b"
+external let array_get :
+  ∀n, k, a [0≤k ∧ k+1≤n]. Array (a, n) → Num k → a = "fun a b -> Array.get a b"
+external let array_set :
+  ∀n, k, a [0≤k ∧ k+1≤n]. Array (a, n) → Num k → a → () =
+  "fun a b c -> Array.set a b c"
+external let array_length :
+  ∀n, a [0≤n]. Array (a, n) → Num n = "fun a -> Array.length a"
+
+external let n2i : ∀n. Num n → Int = "fun i -> i"
+external let equal : ∀a. a → a → Bool = "fun x y -> x = y"
+external let leq : ∀a. a → a → Bool = "fun x y -> x <= y"
+
+external let print : String → () = "print_string"
+external let string_make : Int → String → String =
+  "fun n s -> String.make n s.[0]"
+external let string_of_int : Int → String = "string_of_int"
+
+external let abs : Int → Int = "fun i -> if i < 0 then ~-i else i"
+external let minus : Int → Int → Int = "(-)"
+external let plus : Int → Int → Int = "(+)"
+external let int0 : Int = "0"
+
+let play sz =
+  let leftPost = array_make sz int0 in
+  let middlePost = array_make sz int0 in
+  let rightPost = array_make sz int0 in
+
+  let initialize post =
+    let rec init_rec i =
+      if i + 1 <= sz - 1 then (
+        array_set post i (n2i (i+1));
+        init_rec (i+1))
+      else () in
+    init_rec 0 in
+
+  let showpiece n =
+    let rec r_rec i =
+      if leq (plus i (n2i 2)) n then (
+        print " "; r_rec (plus i (n2i 1)))
+      else () in
+    let rec r2_rec j =
+      if leq (plus j (n2i 1)) (n2i sz)
+      then (print "#"; r2_rec (plus j (n2i 1)))
+      else () in
+    r_rec (n2i 1);
+    r2_rec (plus n (n2i 1)) in
+
+  let showposts () =
+    let rec show_rec i =
+      if i + 1 <= sz - 1 then (
+        showpiece (array_get leftPost i); print " ";
+        showpiece (array_get middlePost i); print " ";
+        showpiece (array_get rightPost i); print "\n";
+        show_rec (i+1))
+      else () in
+    show_rec 0; print "\n" in
+
+  initialize leftPost;
+  let rec move n source s post p post' p' =
+    assert num s + n <= sz;
+    if n <= 1 then (
+      array_set post (p - 1) (array_get source s);
+      array_set source s int0; showposts ())
+    else (
+      move (n - 1) source s post' p' post p;
+      array_set post (p - 1) (array_get source (s + n - 1));
+      array_set source (s + n - 1) int0;
+      showposts ();
+      move (n - 1) post' ((p' - n) + 1) post (p - 1) source (s + n)) in
+
+  showposts ();
+  move sz leftPost 0 rightPost sz middlePost sz

@@ -127,6 +127,9 @@ let main () =
     "-affine_penalty", Arg.Set_int NumS.affine_penalty,
     "How much to penalize an abduction candidate inequality for \
      containing a constant term (default 4)";
+    "-reward_constrn", Arg.Set_int NumS.reward_constrn,
+    "How much to reward introducing a constraint on so-far \
+     unconstrained varialbe, or penalize if negative (default 2)";
     "-complexity_penalty", Arg.Set_float NumS.complexity_penalty,
     "How much to penalize for complexity; the coefficient of either \
      the linear (default) or power scaling (default 2.5)";
@@ -136,11 +139,14 @@ let main () =
     "-abd_pow_scaling", Arg.Float set_pow_scaling,
     "Scale the complexity cost of coefficients according to the given power";
     "-prefer_bound_to_local", Arg.Set NumS.prefer_bound_to_local,
-    "Prefer a zero-indexed array/matrix/etc. bound coming from outer \
-     scope, to inequality between two local parameters";
+    "Prefer a bound coming from outer scope, to inequality between \
+     two local parameters";
     "-prefer_bound_to_outer", Arg.Set NumS.prefer_bound_to_outer,
-    "Prefer a zero-indexed array/matrix/etc. bound coming from outer \
-     scope, to inequality between two outer scope parameters";
+    "Prefer a bound coming from outer scope, to inequality between \
+     two outer scope parameters";
+    "-only_off_by_1", Arg.Set NumS.only_off_by_1,
+    "Limit the effect of -prefer_bound_to_local and \
+     -prefer_bound_to_outer to inequalities with a constant 1";
     "-concl_abd_penalty", Arg.Set_int NumS.concl_abd_penalty,
     "Penalize abductive guess when the supporting argument comes from \
      the partial answer, instead of from the current premise (default 4)";

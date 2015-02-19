@@ -34,19 +34,25 @@ val discard_penalty : int ref
 (** How much to penalize an abduction candidate inequality for
     containing a constant term. Default [4]. *)
 val affine_penalty : int ref
+(** How much to reward introducing a constraint on so-far
+    unconstrained varialbe (or penalize, if negative). Default [2]. *)
+val reward_constrn : int ref
 (** How much to penalize for complexity; the coefficient $a$ in the
     description of {!complexity_scale}. Default [2.5]. *)
 val complexity_penalty : float ref
 (** How much to penalize for variables that are not parameters but
     instead instances from use sites of existential types. Default [6]. *)
 val nonparam_vars_penalty : int ref
-(** Prefer a zero-indexed array/matrix/etc. bound coming from outer
-    scope, to inequality between two local parameters. Default [false]. *)
+(** Prefer bound coming from outer scope, to inequality between two
+    local parameters. Default [false]. *)
 val prefer_bound_to_local : bool ref
-(** Prefer a zero-indexed array/matrix/etc. bound coming from outer
-    scope, to inequality between two outer scope parameters.
-    Default [false]. *)
+(** Prefer a bound coming from outer scope, to inequality between two
+    outer scope parameters. Default [false]. *)
 val prefer_bound_to_outer : bool ref
+(** Limit the effect of [prefer_bound_to_local] and
+    [prefer_bound_to_outer] to inequalities with a constant 1. This
+    corresponds to an upper bound of zero-indexed array/matrix/etc. *)
+val only_off_by_1 : bool ref
 (** Penalize abductive guess when the supporting argument comes from
     the partial answer, instead of from the current premise. Default [4]. *)
 val concl_abd_penalty : int ref

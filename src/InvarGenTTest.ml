@@ -20,6 +20,7 @@ let input_file file =
 let test_case ?(test_annot=false) ?(do_ml=true)
     ?richer_answers ?more_general_num
     ?prefer_guess ?prefer_bound_to_local ?prefer_bound_to_outer
+    ?only_off_by_1 ?reward_constrn
     ?abd_rotations ?num_abd_timeout
     ?num_abd_fail_timeout ?nodeadcode file () =
   if !debug then Printexc.record_backtrace true;
@@ -57,6 +58,16 @@ let test_case ?(test_annot=false) ?(do_ml=true)
    | None -> ()
    | Some prefer_bound_to_outer ->
      NumS.prefer_bound_to_outer := prefer_bound_to_outer);
+  let old_only_off_by_1 = !NumS.only_off_by_1 in
+  (match only_off_by_1 with
+   | None -> ()
+   | Some only_off_by_1 ->
+     NumS.only_off_by_1 := only_off_by_1);
+  let old_reward_constrn = !NumS.reward_constrn in
+  (match reward_constrn with
+   | None -> ()
+   | Some reward_constrn ->
+     NumS.reward_constrn := reward_constrn);
   let old_abd_rotations = !NumS.abd_rotations in
   (match abd_rotations with
    | None -> ()
@@ -101,6 +112,8 @@ let test_case ?(test_annot=false) ?(do_ml=true)
      Abduction.prefer_guess := old_prefer_guess;
      NumS.prefer_bound_to_local := old_prefer_bound_to_local;
      NumS.prefer_bound_to_outer := old_prefer_bound_to_outer;
+     NumS.only_off_by_1 := old_only_off_by_1;
+     NumS.reward_constrn := old_reward_constrn;
      NumS.abd_rotations := old_abd_rotations;
      NumS.abd_timeout_count := old_num_abd_timeout;
      NumS.abd_fail_timeout_count := old_num_abd_fail_timeout;
@@ -112,6 +125,8 @@ let test_case ?(test_annot=false) ?(do_ml=true)
      Abduction.prefer_guess := old_prefer_guess;
      NumS.prefer_bound_to_local := old_prefer_bound_to_local;
      NumS.prefer_bound_to_outer := old_prefer_bound_to_outer;
+     NumS.only_off_by_1 := old_only_off_by_1;
+     NumS.reward_constrn := old_reward_constrn;
      NumS.abd_rotations := old_abd_rotations;
      NumS.abd_timeout_count := old_num_abd_timeout;
      NumS.abd_fail_timeout_count := old_num_abd_fail_timeout;
@@ -122,6 +137,8 @@ let test_case ?(test_annot=false) ?(do_ml=true)
   Abduction.prefer_guess := old_prefer_guess;
   NumS.prefer_bound_to_local := old_prefer_bound_to_local;
   NumS.prefer_bound_to_outer := old_prefer_bound_to_outer;
+  NumS.only_off_by_1 := old_only_off_by_1;
+  NumS.reward_constrn := old_reward_constrn;
   NumS.abd_rotations := old_abd_rotations;
   NumS.abd_timeout_count := old_num_abd_timeout;
   NumS.abd_fail_timeout_count := old_num_abd_fail_timeout;
@@ -490,6 +507,11 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "liquid_tower_simpler" ());
+      "liquid_tower_asserted" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case ~prefer_bound_to_local:true
+             ~reward_constrn:(-1) "liquid_tower_asserted" ());
       "liquid_tower" >::
         (fun () ->
            skip_if !debug "debug";
@@ -553,7 +575,8 @@ let tests = "InvarGenT" >::: [
            skip_if !debug "debug";
            (* Type in target is slightly less general than most general type:
               ∀k, n[1 ≤ n ∧ 3 ≤ k]. Matrix (n, k) → Float *)
-           test_case ~prefer_bound_to_local:true "liquid_simplex_step_3a" ());
+           test_case ~prefer_bound_to_local:true
+             ~only_off_by_1:true "liquid_simplex_step_3a" ());
       "liquid_simplex_step_4" >::
         (fun () ->
            todo "too hard for current InvarGenT";
@@ -627,10 +650,25 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "liquid_gauss_simpler" ());
+      "liquid_gauss_simpler_asserted" >::
+        (fun () ->
+           todo "FIXME";
+           skip_if !debug "debug";
+           test_case "liquid_gauss_simpler_asserted" ());
       "liquid_gauss" >::
         (fun () ->
            skip_if !debug "debug";
            test_case "liquid_gauss" ());
+      "liquid_gauss_asserted" >::
+        (fun () ->
+           todo "FIXME";
+           skip_if !debug "debug";
+           test_case "liquid_gauss_asserted" ());
+      "liquid_gauss_harder_asserted" >::
+        (fun () ->
+           todo "too hard for current numerical abudction";
+           skip_if !debug "debug";
+           test_case "liquid_gauss_harder_asserted" ());
       "liquid_gauss_harder" >::
         (fun () ->
            todo "too hard for current numerical abudction";
