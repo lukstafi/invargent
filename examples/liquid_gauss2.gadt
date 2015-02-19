@@ -1,0 +1,112 @@
+external type Matrix : num * num =
+  "(float, Bigarray.float64_elt, Bigarray.c_layout) Bigarray.Array2.t"
+external let matrix_make :
+  ∀n, k [0≤n ∧ 0≤k]. Num n → Num k → Matrix (n, k) =
+  "fun a b -> Bigarray.Array2.create Bigarray.float64 Bigarray.c_layout a b"
+external let matrix_get :
+  ∀n, k, i, j [0≤i ∧ i+1≤n ∧ 0≤j ∧ j+1≤k].
+   Matrix (n, k) → Num i → Num j → Float = "Bigarray.Array2.get"
+external let matrix_set :
+  ∀n, k, i, j [0≤i ∧ i+1≤n ∧ 0≤j ∧ j+1≤k].
+   Matrix (n, k) → Num i → Num j → Float → () = "Bigarray.Array2.set"
+external let matrix_dim1 :
+  ∀n, k [0≤n ∧ 0≤k]. Matrix (n, k) → Num n = "Bigarray.Array2.dim1"
+external let matrix_dim2 :
+  ∀n, k [0≤n ∧ 0≤k]. Matrix (n, k) → Num k = "Bigarray.Array2.dim2"
+
+datatype Array : type * num
+external let array_make :
+  ∀n, a [0≤n]. Num n → a → Array (a, n) = "fun a b -> Array.make a b"
+external let array_get :
+  ∀n, k, a [0≤k ∧ k+1≤n]. Array (a, n) → Num k → a = "fun a b -> Array.get a b"
+external let array_set :
+  ∀n, k, a [0≤k ∧ k+1≤n]. Array (a, n) → Num k → a → () =
+  "fun a b c -> Array.set a b c"
+external let array_length :
+  ∀n, a [0≤n]. Array (a, n) → Num n = "fun a -> Array.length a"
+
+external let n2f : ∀n. Num n → Float = "float_of_int"
+external let equal : ∀a. a → a → Bool = "fun x y -> x = y"
+external let leq : ∀a. a → a → Bool = "fun x y -> x <= y"
+external let less : ∀a. a → a → Bool = "fun x y -> x < y"
+
+external let minus : Float → Float → Float = "(-.)"
+external let plus : Float → Float → Float = "(+.)"
+external let mult : Float → Float → Float = "( *. )"
+external let div : Float → Float → Float = "( /. )"
+external let fabs : Float → Float = "abs_float"
+external let fl0 : Float = "0.0"
+external let fl1 : Float = "1.0"
+
+let getRow data i =
+  let stride = matrix_dim2 data in
+  let rowData = array_make stride fl0 in
+  let rec extract j =
+    if j + 1 <= stride then (
+      array_set rowData j (matrix_get data i j);
+      (* lukstafi: the call below missing in the original source? *)
+      extract (j + 1))
+    else () in
+  extract 0;
+  rowData
+
+let putRow data i row =
+  let stride = array_length row in
+  let rec put j =
+    if j + 1 <= stride then (
+      matrix_set data i j (array_get row j);
+      (* lukstafi: the call below missing in the original source? *)
+      put (j + 1))
+    else () in
+  put 0
+
+let rowSwap data i j =
+  let temp = getRow data i in
+  putRow data i (getRow data j);
+  putRow data j temp
+
+let norm r n i =
+  let x = array_get r i in
+  array_set r i fl1;
+  let rec loop k =
+    if k + 1 <= n then (
+      array_set r k (div (array_get r k) x);
+      loop (k+1))
+    else () in
+  loop (i+1)
+
+let rowElim r s n i =
+  let x = array_get s i in
+  array_set s i fl0;
+  let rec loop k =
+    if k + 1 <= n then (
+      array_set s k (minus (array_get s k) (mult x (array_get r k)));
+      loop (k+1))
+    else () in
+  loop (i+1)
+
+let gauss data =
+  let n = matrix_dim1 data in
+
+  let rec rowMax i j x mx =
+    eif j + 1 <= n then
+      let y = fabs (matrix_get data j i) in
+      eif (less x y) then rowMax i (j+1) y j
+      else rowMax i (j+1) x mx
+    else mx in
+
+  let rec loop1 i =
+    if i + 1 <= n then
+      let x = fabs (matrix_get data i i) in
+      let mx = rowMax i (i+1) x i in
+      norm (getRow data mx) (n+1) i;
+      rowSwap data i mx;
+      let rec loop2 j =
+        if j + 1 <= n then (
+          rowElim (getRow data i) (getRow data j) (n+1) i;
+          loop2 (j+1))
+        else () in
+      loop2 (i+1);
+      loop1 (i+1)
+    else () in
+  loop1 0

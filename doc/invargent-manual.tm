@@ -819,6 +819,10 @@
     abduction. This makes it faster but less likely to find the correct
     solution.
 
+    <item*|<verbatim|-convergence_step>>The iteration at which to start
+    truncating postconditions by only keeping atoms present in the previous
+    iteration, to force convergence (default 8).
+
     <item*|<verbatim|-early_postcond_abd>>Include postconditions from
     recursive calls in abduction from the start. We do not derive
     requirements put on postconditions by recursive calls on first iteration.
@@ -853,6 +857,10 @@
     will pick an answer <math|a+1>, which in the following step will force an
     answer <math|a+2>, then <math|a+3>, etc.
 
+    <item*|<verbatim|-reward_constrn>>How much to reward introducing a
+    constraint on so-far unconstrained varialbe, or penalize if negative
+    (default 2).
+
     <item*|<verbatim|-complexity_penalty>>How much to penalize an abduction
     candidate inequality for complexity of its coefficients; the coefficient
     of either the linear or power scaling of the coefficients (default 2.5).
@@ -878,6 +886,12 @@
     <verbatim|-<no-break>prefer_bound_to_outer> to inequalities with a
     constant 1. This corresponds to an upper bound of an index into a
     zero-indexed array/matrix/etc.
+
+    <item*|<verbatim|-same_with_assertions>>Do not treat definitions with
+    positive assertions (<verbatim|assert num>, <verbatim|assert type>)
+    specially. The special treatment is currently equivalent to passing
+    <verbatim|-<no-break>reward_constrn -1> and
+    <verbatim|-prefer_bound_to_local>.
 
     <item*|<verbatim|-concl_abd_penalty>>Penalize abductive guess when the
     supporting argument comes from the partial answer, instead of from the
@@ -1004,8 +1018,8 @@
     <verbatim|.ml> file.
   </description>
 
-  Let us have a look at test-suite examples that need a non-default parameter
-  setting.
+  Let us have a look at tests from the <verbatim|examples> direcotory that
+  need a non-default parameter setting.
 
   <\code>
     $ ./invargent -inform examples/non_pointwise_leq.gadt
@@ -1017,7 +1031,7 @@
     \;
 
     Perhaps increase the -iterations_timeout parameter or try the
-    -more_existential option.
+    -more_existential option or -prefer_guess option.
 
     $ ./invargent -inform -prefer_guess examples/non_pointwise_leq.gadt
 
@@ -1037,47 +1051,52 @@
   <verbatim|non_pointwise_zip1_modified.gadt>. On the other hand,
   <verbatim|non_pointwise_zip1.gadt> is inferred with default settings.
 
+  The response from the system does not always include an option which would
+  make the inference succeed.
+
   <\code>
-    $ ./invargent -inform examples/liquid_heapsort_heapify_simpler.gadt
+    $ ./invargent -inform examples/liquid_simplex_step_3a.gadt
 
-    val heapify :
+    File "examples/liquid_simplex_step_3a.gadt", line 7, characters 49-1651:
 
-    \ \ <math|\<forall\>>k, n, a[0 <math|\<leqslant\>> n <math|\<wedge\>> n +
-    1 <math|\<leqslant\>> k].
+    No answer in type: Answers do not converge
 
-    \ \ Num k <math|\<rightarrow\>> Array (a, k) <math|\<rightarrow\>> Num n
-    <math|\<rightarrow\>> ()
+    \;
 
-    InvarGenT: Generated file examples/liquid_heapsort_heapify_simpler.gadti
+    Perhaps do not pass the -no_dead_code flag.
 
-    InvarGenT: Generated file examples/liquid_heapsort_heapify_simpler.ml
+    Perhaps increase the -iterations_timeout parameter or try one of the
+    options: -<no-break>more_existential, -prefer_guess,
+    -prefer_bound_to_local.
 
-    InvarGenT: Command "ocamlc -w -25 -c examples/liquid_heapsort_heapify_simpler.ml"
-    exited with code 0
+    Perhaps some definition is used with requirements on
 
-    $ ./invargent -inform -prefer_bound_to_local \\
-    examples/liquid_heapsort_heapify_simpler.gadt
+    its inferred postcondition not warranted by the definition.
 
-    val heapify :
+    $ ./invargent -inform -prefer_bound_to_local -only_off_by_1 \\
 
-    \ \ <math|\<forall\>>i, k, n, a[0 <math|\<leqslant\>> n <math|\<wedge\>>
-    n + 1 <math|\<leqslant\>> i <math|\<wedge\>> i <math|\<leqslant\>> k].
+    examples/liquid_simplex_step_3a.gadt
 
-    \ \ Num i <math|\<rightarrow\>> Array (a, k) <math|\<rightarrow\>> Num n
-    <math|\<rightarrow\>> ()
+    val main_step3_test : <math|\<forall\>>k, n[1 <math|\<leqslant\>> n
+    <math|\<wedge\>> 3 <math|\<leqslant\>> k]. Matrix (n, k)
+    <math|\<rightarrow\>> Float
 
-    InvarGenT: Generated file examples/liquid_heapsort_heapify_simpler.gadti
+    InvarGenT: Generated file examples/liquid_simplex_step_3a.gadti
 
-    InvarGenT: Generated file examples/liquid_heapsort_heapify_simpler.ml
+    InvarGenT: Generated file examples/liquid_simplex_step_3a.ml
 
-    InvarGenT: Command "ocamlc -w -25 -c examples/liquid_heapsort_heapify_simpler.ml"
+    File "examples/liquid_simplex_step_3a.ml", line 43, characters 8-9:
+
+    Warning 26: unused variable m.
+
+    InvarGenT: Command "ocamlc -w -25 -c examples/liquid_simplex_step_3a.ml"
     exited with code 0
   </code>
 
-  Above, the type inferred with default parameter setting is insufficiently
-  general. Other examples that need the <verbatim|-prefer_bound_to_local>
-  option: <verbatim|liquid_simplex_step_3a.gadt>,
-  <verbatim|liquid_simplex_step_6a_2.gadt>.
+  The other examples that need the <verbatim|-prefer_bound_to_local> option,
+  but not the <verbatim|-<no-break>only_off_by_1> option:
+  <verbatim|liquid_simplex_step_6a_2.gadt>,
+  <verbatim|liquid_tower_harder.gadt>.
 
   <\code>
     $ ./invargent -inform examples/pointwise_zip2_harder.gadt
@@ -1322,14 +1341,8 @@
   n + 1].Num n> instead of <verbatim|<math|\<exists\>>k[k <math|\<leqslant\>>
   n <math|\<wedge\>> 0 <math|\<leqslant\>> k + 1].Num k>. The inference of
   the intended type succeeds after we introduce an appropriate assertion,
-  e.g. <verbatim|assert num -1 \<= hi>.
-
-  The example <verbatim|liquid_tower_harder.gadt> creates too complex an
-  abduction problem at a late iteration of the type inference problem.
-  Paradoxically, the example is harder than <verbatim|liquid_tower.gadt>,
-  despite the latter performing a joint inference of all the functions. The
-  <verbatim|liquid_tower.gadt> example leads to more parameter sharing and
-  thus easier abduction problems.
+  e.g. <verbatim|assert num -1 \<= hi>. Alternatively, we could include a use
+  case for <verbatim|bsearch> where the full postcondition is required.
 
   Examples <verbatim|liquid_simplex_step_3.gadt>,
   <verbatim|liquid_simplex_step_4.gadt> and
@@ -1357,14 +1370,16 @@
   intended postcondition.
 
   The example <verbatim|liquid_gauss_harder.gadt> poses too big a challenge
-  for InvarGenT. To get the example <verbatim|liquid_gauss.gadt> that passes
-  inference, we needed to modify it in two ways. One was streamlining one of
-  the nested definitions, to not introduce another, unnecessary level of
-  nesting. The other was to relax the constraint on the processed portion of
-  the matrix, coming from the restriction on the matrix size intended in the
-  original source of the <verbatim|liquid_gauss_harder.gadt> example. In
+  for InvarGenT. To get it pass the inference, we streamline one of the
+  nested definitions, to not introduce another, unnecessary level of nesting.
+  This gives the example <verbatim|liquid_gauss2.gadt>, which needs to be run
+  with the option <verbatim|-prefer_bound_to_local>. Additionally, we can
+  relax the constraint on the processed portion of the matrix, coming from
+  the restriction on the matrix size intended in the original source of the
+  <verbatim|liquid_gauss_harder.gadt> example. In
   <verbatim|liquid_gauss.gadt>, the whole matrix is processed and the
-  inferred type is most general.
+  inferred type is most general, under the default settings -- no need to
+  pass any options to InvarGenT.
 </body>
 
 <\initial>

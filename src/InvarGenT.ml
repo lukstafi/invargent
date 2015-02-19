@@ -14,13 +14,13 @@ open Defs
 open Terms
 open Aux
 
-let solver ~new_ex_types ~preserve cn =
+let solver ~uses_pos_assertions ~new_ex_types ~preserve cn =
   let q_ops, cn = Infer.prenexize cn in
   (*[* Format.printf "solver: cn=@\n%a@\n%!" Infer.pr_cnstrnt cn; *]*)
   let exty_res_of_chi, brs = Infer.normalize q_ops cn in
   (*[* Format.printf "solver: normalized=@\n%a@\n%!" Infer.pr_brs brs; *]*)
   let brs = Infer.simplify preserve q_ops brs in
-  Invariants.solve q_ops new_ex_types exty_res_of_chi brs
+  Invariants.solve ~uses_pos_assertions q_ops new_ex_types exty_res_of_chi brs
 
 let process_file ?(do_sig=false) ?(do_ml=false)
     ?(verif_ml=true) ?(full_annot=false) fname =
@@ -80,6 +80,8 @@ let main () =
   and full_annot = ref false in
   let num_is_mod s =
     OCaml.num_is := s; OCaml.num_is_mod := true in
+  let set_convergence_step i =
+    Invariants.disj_step.(5) <- i in
   let cli = [
     "-inform", Arg.Set Infer.inform_toplevel,
     "Print type schemes of toplevel definitions as they are inferred";
@@ -114,6 +116,10 @@ let main () =
     "Do not include alien (e.g. numerical) premise info in term abduction";
     "-early_num_abduction", Arg.Set NumS.early_num_abduction,
     "Include recursive branches in numerical abduction from the start";
+    "-convergence_step", Arg.Int set_convergence_step,
+    "The iteration at which to start truncating postconditions to only \
+     keep atoms present in the previous iteration, to force \
+     convergence (default 8)";
     "-early_postcond_abd", Arg.Set Invariants.early_postcond_abd,
     "Include postconditions from recursive calls in abduction from the start";
     "-num_abduction_rotations", Arg.Set_int NumS.abd_rotations,
@@ -147,6 +153,9 @@ let main () =
     "-only_off_by_1", Arg.Set NumS.only_off_by_1,
     "Limit the effect of -prefer_bound_to_local and \
      -prefer_bound_to_outer to inequalities with a constant 1";
+    "-same_with_assertions", Arg.Set Invariants.same_with_assertions,
+    "Do not treat definitions with positive assertions (assert num, \
+     assert type) specially";
     "-concl_abd_penalty", Arg.Set_int NumS.concl_abd_penalty,
     "Penalize abductive guess when the supporting argument comes from \
      the partial answer, instead of from the current premise (default 4)";
@@ -214,8 +223,9 @@ let main () =
     if !NumS.abd_fail_flag then Format.printf
         "Perhaps increase the -num_abduction_fail parameter.@\n%!";
     if !Invariants.timeout_flag then Format.printf
-        "Perhaps increase the -iterations_timeout parameter or try the \
-         -more_existential option.@\n%!";
+        "Perhaps increase the -iterations_timeout parameter or try one \
+         of the options: \
+         -more_existential, -prefer_guess, -prefer_bound_to_local.@\n%!";
     if !Invariants.unfinished_postcond_flag then Format.printf
         "Perhaps some definition is used with requirements on@ its \
          inferred postcondition not warranted by the definition.@\n%!";

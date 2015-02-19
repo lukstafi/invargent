@@ -69,7 +69,8 @@ let test_common ?more_general ?more_existential ?no_num_abduction
   (match prefer_guess with
    | None -> () | Some prefer_guess -> Abduction.prefer_guess := prefer_guess);
   let _, res, sol =
-    Invariants.solve q_ops new_ex_types exty_res_of_chi brs in
+    Invariants.solve ~uses_pos_assertions:!Infer.uses_pos_assertions
+      q_ops new_ex_types exty_res_of_chi brs in
   Defs.nodeadcode := old_nodeadcode;
   Defs.guess_from_postcond := old_guess_from_postcond;
   Defs.force_nodeadcode := old_force_nodeadcode;
@@ -1900,7 +1901,7 @@ let rec zip =
     | UCons xs, UCons ys ->
       let zs = zip (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (k, n)].Unary i)"]
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (n, k)].Unary i)"]
     );
 
   "unary minimum asserted 1" >::
@@ -1963,7 +1964,7 @@ let rec zip =
     | UCons xs, UCons ys ->
       let zs = zip (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (n, k)].Unary i) ∧
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (k, n)].Unary i) ∧
   0 ≤ n ∧ 0 ≤ k"]
     );
 
@@ -1984,7 +1985,7 @@ let rec zip =
       let zs = zip (xs, ys) in
       LCons ((x, y), zs)"
         [2,"∃n, k, a, b.
-  δ = ((List (a, n), List (b, k)) → ∃i[i=min (n, k)].List ((a, b), i))"]
+  δ = ((List (a, n), List (b, k)) → ∃i[i=min (k, n)].List ((a, b), i))"]
     );
 
   "unary maximum expanded" >::
@@ -2246,8 +2247,8 @@ let rec map2_filter = fun q r f g h ->
         [2,"∃n, k, a, b, c.
   δ =
     ((b → Bool) → (c → Bool) → (b → c → a) → (b → a) →
-       (c → a) → (List (b, n), List (c, k)) → ∃i[0 ≤ i ∧
-       i ≤ n + k ∧ min (n, k)≤i ∧ i≤max (k, n)].List (a, i))"]
+       (c → a) → (List (b, n), List (c, k)) → ∃i[i ≤ n + k ∧
+       0 ≤ i ∧ i≤max (n, k) ∧ min (n, k)≤i].List (a, i))"]
     );
 
   "avl_tree--height" >::

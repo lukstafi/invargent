@@ -510,17 +510,15 @@ let tests = "InvarGenT" >::: [
       "liquid_tower_asserted" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~prefer_bound_to_local:true
-             ~reward_constrn:(-1) "liquid_tower_asserted" ());
+           test_case "liquid_tower_asserted" ());
       "liquid_tower" >::
         (fun () ->
            skip_if !debug "debug";
            test_case "liquid_tower" ());
       "liquid_tower_harder" >::
         (fun () ->
-           todo "too hard for current numerical abduction";
            skip_if !debug "debug";
-           test_case "liquid_tower_harder" ());
+           test_case ~prefer_bound_to_local:true "liquid_tower_harder" ());
       "liquid_matmult" >::
         (fun () ->
            skip_if !debug "debug";
@@ -528,8 +526,7 @@ let tests = "InvarGenT" >::: [
       "liquid_heapsort-heapify-simpler" >::
         (fun () ->
            skip_if !debug "debug";
-           test_case ~prefer_bound_to_local:true
-             "liquid_heapsort_heapify_simpler" ());
+           test_case "liquid_heapsort_heapify_simpler" ());
       "liquid_heapsort-heapify-simpler2" >::
         (fun () ->
            (* TODO: improve time *)
@@ -652,21 +649,22 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_gauss_simpler" ());
       "liquid_gauss_simpler_asserted" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_gauss_simpler_asserted" ());
       "liquid_gauss" >::
         (fun () ->
            skip_if !debug "debug";
            test_case "liquid_gauss" ());
+      "liquid_gauss2" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case ~prefer_bound_to_local:true "liquid_gauss2" ());
       "liquid_gauss_asserted" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_gauss_asserted" ());
       "liquid_gauss_harder_asserted" >::
         (fun () ->
-           todo "too hard for current numerical abudction";
            skip_if !debug "debug";
            test_case "liquid_gauss_harder_asserted" ());
       "liquid_gauss_harder" >::

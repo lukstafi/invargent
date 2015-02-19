@@ -12,8 +12,9 @@ let timeout_flag = ref false
 let unfinished_postcond_flag = ref false
 let use_prior_discards = ref (* false *)true
 let use_solution_in_postcond = ref false (* true *)
+let same_with_assertions = ref false
 (* Captures where the repeat step is/are. *)
-let disj_step = [|1; 1; 2; 3; 4; 6|]
+let disj_step = [|1; 1; 2; 3; 4; (* 6 *)8|]
 
 open Defs
 open Terms
@@ -843,8 +844,15 @@ let neg_constrns = ref true
 let empty_disc = {at_typ=[],[]; at_num=[]; at_ord=[]; at_so=()}
 let empty_dl = {at_typ=[]; at_num=[]; at_ord=[]; at_so=()}
 
-let solve q_ops new_ex_types exty_res_chi brs =
+let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
   timeout_flag := false;
+  let old_reward_constrn = !NumS.reward_constrn in
+  let old_prefer_bound_to_local = !NumS.prefer_bound_to_local in
+  (*[* Format.printf
+    "solve: old_reward_constrn=%d, uses_pos_assertions=%b@\n%!"
+    old_reward_constrn uses_pos_assertions; *]*)
+  if uses_pos_assertions && not !same_with_assertions
+  then (NumS.reward_constrn := -1; NumS.prefer_bound_to_local := true);
   (* DEBUG *)
   (*[* List.iter
     (fun (prem,concl) ->
@@ -1808,6 +1816,8 @@ let solve q_ops new_ex_types exty_res_chi brs =
             (!unfinished_postcond @
                unfinished1 @ unfinished2 @ unfinished3) in
         timeout_flag := true;
+        NumS.reward_constrn := old_reward_constrn;
+        NumS.prefer_bound_to_local := old_prefer_bound_to_local;
         raise (NoAnswer (Type_sort, "Answers do not converge", None, loc))
       else finish rol2 sol2 in
   match loop 0 empty_dl rolT solT [] with
@@ -1911,5 +1921,7 @@ let solve q_ops new_ex_types exty_res_chi brs =
          let ety_n = Extype ex_i in
          Hashtbl.replace sigma ety_n
            (VarSet.elements allvs, rphi, [rty], ety_n, pvs)) new_ex_types;
+    NumS.reward_constrn := old_reward_constrn;
+    NumS.prefer_bound_to_local := old_prefer_bound_to_local;
     (*[* Format.printf "solve: returning@\n%!"; *]*)
     q.op, ans_res, sol

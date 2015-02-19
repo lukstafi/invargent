@@ -50,8 +50,11 @@ type solution =
     (int * (Defs.var_name list * Terms.formula)) list
 val infer_prog_mockup :
   program -> (int * Defs.loc) list * Defs.VarSet.t * cnstrnt
+
+(** Exported only for testing purposes. *)
+val uses_pos_assertions : bool ref
 val infer_prog :
-  (new_ex_types:(int * Defs.loc) list ->
+  (uses_pos_assertions:bool -> new_ex_types:(int * Defs.loc) list ->
    preserve:Defs.VarSet.t -> cnstrnt -> solution) ->
   program ->
   (string * Terms.typ_scheme) list * Terms.annot_item list

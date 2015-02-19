@@ -429,6 +429,8 @@ let impl prem concl =
 
 let letin_count = ref 0
 
+let uses_pos_assertions = ref false
+
 let constr_gen_expr gamma e t =
   let elim_extype = ref [] and preserve = ref [] in
   let rec aux gamma t e : cnstrnt * iexpr =
@@ -536,6 +538,7 @@ let constr_gen_expr gamma e t =
     | Letin (_, _, (RuntimeFailure _ as e1), _, _) ->
       aux gamma t e1
     | AssertLeq (e1, e2, e3, loc) ->
+      uses_pos_assertions := true;
       let a1 = fresh_var Num_sort in
       let t1 = TVar a1 in
       let a2 = fresh_var Num_sort in
@@ -552,6 +555,7 @@ let constr_gen_expr gamma e t =
       Ex (vars_of_list [a1; a2], cn),
       AssertLeq (e1, e2, e3, loc)
     | AssertEqty (e1, e2, e3, loc) ->
+      uses_pos_assertions := true;
       let a1 = fresh_typ_var () in
       let t1 = TVar a1 in
       let a2 = fresh_typ_var () in
@@ -998,6 +1002,7 @@ let infer_prog solver prog =
           let pat_loc = match it with
             | LetVal (_, PVar (_, lc), _, _, _) -> Some lc
             | _ -> None in
+          uses_pos_assertions := false;
           let chi_id, _, cn, e, tests, elim_cells, preserve =
             constr_gen_letrec ~nonrec:(pat_loc<>None)
               !gamma x e sig_cn t tests in
@@ -1005,7 +1010,9 @@ let infer_prog solver prog =
              pr_cnstrnt cn; *]*)
           let preserve = add_vars preserve
               (VarSet.union (fvs_typ t) (fvs_formula sig_cn)) in
-          let q, phi_res, sb_chi = solver ~new_ex_types ~preserve cn in
+          let q, phi_res, sb_chi =
+            solver ~uses_pos_assertions:!uses_pos_assertions
+              ~new_ex_types ~preserve cn in
           let elim_extypes = concat_map (!) elim_cells in
           let nice_sb, (vs, phi) =
             try nice_ans (List.assoc chi_id sb_chi)
@@ -1063,6 +1070,7 @@ let infer_prog solver prog =
               let ta = TVar a in
               VarSet.singleton a, [], [], ta
             | Some (vs, phi, t) -> VarSet.empty, vs, phi, t in
+          uses_pos_assertions := false;
           let bs, exphi, env, cn, (p, e), elim_cell, preserve =
             constr_gen_let !gamma p e t in
           (*[* Format.printf "LetVal: p=%a@\ninit_cn=%a@\n%!" pr_pat p
@@ -1077,7 +1085,9 @@ let infer_prog solver prog =
             if VarSet.is_empty avs then cn else Ex (avs, cn) in
           (*[* Format.printf "LetVal: p=%a@\ncn=%a@\n%!" pr_pat p
              pr_cnstrnt cn; *]*)
-          let q, phi, sb_chi = solver ~new_ex_types ~preserve cn in
+          let q, phi, sb_chi = solver
+              ~uses_pos_assertions:!uses_pos_assertions
+              ~new_ex_types ~preserve cn in
           let elim_extypes = !elim_cell in
           let sb, phi =
             separate_subst ~bvs:preserve ~apply:true q phi in
