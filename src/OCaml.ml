@@ -257,6 +257,17 @@ let pr_ty_wildcards ppf sorts =
     fprintf ppf "(%a) "
       (pr_sep_list "," (fun ppf _ -> fprintf ppf "_")) sorts
 
+let type_var_names = "abcdefghijklmnopqrstuvwxyz"
+
+let pr_ty_vars ppf sorts =
+  match List.filter ((=) Type_sort) sorts with
+  | [] -> ()
+  | [s] -> fprintf ppf "'a "
+  | sorts ->
+    fprintf ppf "(%a) "
+      (pr_sep_list "," (fun ppf v -> fprintf ppf "%c" v))
+      (List.mapi (fun i _ -> String.get type_var_names i) sorts)
+
 let cns_typ =
   typ_fold {(typ_make_fold CNames.union CNames.empty)
             with fold_tcons =
@@ -265,6 +276,7 @@ let cns_typ =
 
 let builtin_type = function
   | CNam "Array" -> true
+  | CNam "Ref" -> true
   | _ -> false
 
 let rec pr_struct_items ~funtys ~lettys constrs ppf defined defining prog =
@@ -341,7 +353,7 @@ let rec pr_struct_items ~funtys ~lettys constrs ppf defined defining prog =
      | Some doc -> fprintf ppf "(**%s*)@\n" doc);
       fprintf ppf "@[<2>%s %a%a@ =@ %s@]@\n"
         (if CNames.is_empty defining then "type" else "and")
-        pr_ty_wildcards sorts pr_tycns c_n expansion;
+        pr_ty_vars sorts pr_tycns c_n expansion;
     let defining = CNames.diff (CNames.remove c_n defining) defined in
     (*[*
     Format.printf "OCaml-pr_struct_items:@ defining'=%s@\n%!"

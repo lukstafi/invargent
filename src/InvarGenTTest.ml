@@ -20,7 +20,7 @@ let input_file file =
 let test_case ?(test_annot=false) ?(do_ml=true)
     ?richer_answers ?more_general_num
     ?prefer_guess ?prefer_bound_to_local ?prefer_bound_to_outer
-    ?only_off_by_1 ?reward_constrn
+    ?only_off_by_1 ?same_with_assertions ?reward_constrn
     ?abd_rotations ?num_abd_timeout
     ?num_abd_fail_timeout ?nodeadcode file () =
   if !debug then Printexc.record_backtrace true;
@@ -63,6 +63,11 @@ let test_case ?(test_annot=false) ?(do_ml=true)
    | None -> ()
    | Some only_off_by_1 ->
      NumS.only_off_by_1 := only_off_by_1);
+  let old_same_with_assertions = !Invariants.same_with_assertions in
+  (match same_with_assertions with
+   | None -> ()
+   | Some same_with_assertions ->
+     Invariants.same_with_assertions := same_with_assertions);
   let old_reward_constrn = !NumS.reward_constrn in
   (match reward_constrn with
    | None -> ()
@@ -113,6 +118,7 @@ let test_case ?(test_annot=false) ?(do_ml=true)
      NumS.prefer_bound_to_local := old_prefer_bound_to_local;
      NumS.prefer_bound_to_outer := old_prefer_bound_to_outer;
      NumS.only_off_by_1 := old_only_off_by_1;
+     Invariants.same_with_assertions := old_same_with_assertions;
      NumS.reward_constrn := old_reward_constrn;
      NumS.abd_rotations := old_abd_rotations;
      NumS.abd_timeout_count := old_num_abd_timeout;
@@ -126,6 +132,7 @@ let test_case ?(test_annot=false) ?(do_ml=true)
      NumS.prefer_bound_to_local := old_prefer_bound_to_local;
      NumS.prefer_bound_to_outer := old_prefer_bound_to_outer;
      NumS.only_off_by_1 := old_only_off_by_1;
+     Invariants.same_with_assertions := old_same_with_assertions;
      NumS.reward_constrn := old_reward_constrn;
      NumS.abd_rotations := old_abd_rotations;
      NumS.abd_timeout_count := old_num_abd_timeout;
@@ -138,6 +145,7 @@ let test_case ?(test_annot=false) ?(do_ml=true)
   NumS.prefer_bound_to_local := old_prefer_bound_to_local;
   NumS.prefer_bound_to_outer := old_prefer_bound_to_outer;
   NumS.only_off_by_1 := old_only_off_by_1;
+  Invariants.same_with_assertions := old_same_with_assertions;
   NumS.reward_constrn := old_reward_constrn;
   NumS.abd_rotations := old_abd_rotations;
   NumS.abd_timeout_count := old_num_abd_timeout;
@@ -672,16 +680,25 @@ let tests = "InvarGenT" >::: [
            todo "too hard for current numerical abudction";
            skip_if !debug "debug";
            test_case "liquid_gauss_harder" ());
+      "liquid_fft_ffor" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "liquid_fft_ffor" ());
       "liquid_fft_simpler" >::
         (fun () ->
-           todo "Analysis postponed after InvarGenT 2.0";
            skip_if !debug "debug";
-           test_case "liquid_fft_simpler" ());
+           test_case ~same_with_assertions:true
+             "liquid_fft_simpler" ());
       "liquid_fft" >::
         (fun () ->
-           todo "Analysis postponed after InvarGenT 2.0";
+           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_fft" ());
+      "liquid_fft_expanded" >::
+        (fun () ->
+           todo "FIXME";
+           skip_if !debug "debug";
+           test_case "liquid_fft_expanded" ());
     ]
 
 let () =

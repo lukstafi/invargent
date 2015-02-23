@@ -1,0 +1,7 @@
+datatype Bounded : num * num
+datacons Index : ∀n,k,i [n≤i ∧ i≤k]. Num i ⟶ Bounded (n, k)
+
+let ffor s d body =
+  let rec loop i =
+    if i <= d then (body (Index i); loop (i + 1)) else () in
+  loop s

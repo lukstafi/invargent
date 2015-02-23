@@ -37,28 +37,37 @@ external let fl1 : Float = "1.0"
 external let fl2 : Float = "2.0"
 external let fl3 : Float = "3.0"
 external let fl4 : Float = "4.0"
-external let pi : Float = "4.0 * atan 1.0"
-external let two_pi : Float = "8.0 * atan 1.0"
+external let pi : Float = "4.0 *. atan 1.0"
+external let two_pi : Float = "8.0 *. atan 1.0"
 
+datatype Bounded : num * num
+datacons Index : ∀i, k, n[n ≤ i ∧ i ≤ k].Num i ⟶ Bounded (n, k)
+datacons IndexScope : ∀i, k, n[n ≤ i ∧ i ≤ k].
+  Num n * Num i * Num k ⟶ Bounded (n, k)
+external ffor : ∀k, n. Num k → Num n → (Bounded (k, n) → ()) → ()
 
-let fft px py n = (* n must be a power of 2! *)
+datatype Ref : type
+external let ref : ∀a. a → Ref a = "ref"
+external let asgn : ∀a. Ref a → a → () = "( := )"
+external let deref : ∀a. Ref a → a = "(!)"
+
+let fft px py = (* n must be a power of 2! *)
+  let n = array_length px + (-1) in
   let rec loop n2 n4 =
     if n2 <= 2 then () else (* the case n2 = 2 is treated below *)
     let e = div two_pi (n2f n2) in
     let e3 = mult fl3 e in
-    let rec forbod j = 
+    let a = ref fl0 in
+    let a3 = ref fl0 in
+    let rec forbod j' =
+    match j' with Index j ->
     (*for j = 1 to n4 do*)
-      (* lukstafi: this appears to be a placeholder? *)
-      let a = fl0 in
-      let a3 = fl0 in
-      let cc1 = cos a in
-      let ss1 = sin a in
-      let cc3 = cos a3 in
-      let ss3 = sin a3 in
-      let a = plus a e in
-      (* we know literally nothing about a, a3 *)
-      (* so not carrying them through the loop is sound *)
-      let a3 = plus a3 e3 in
+      let cc1 = cos (deref a) in
+      let ss1 = sin (deref a) in
+      let cc3 = cos (deref a3) in
+      let ss3 = sin (deref a3) in
+      asgn a (plus (deref a) e);
+      asgn a3 (plus (deref a3) e);
       let rec loop1 i0 i1 i2 i3 id =
         if n + 1 <= i3 then () else (* out_of_bounds *)
         let g_px_i0 = array_get px i0 in
@@ -91,16 +100,15 @@ let fft px py n = (* n must be a power of 2! *)
         array_set py i3 (minus (mult r2 cc3) (mult s3 ss3));
         loop1 (i0 + id) (i1 + id) (i2 + id) (i3 + id) id in
       let rec loop2 is id =
-        if n <= is then
-          if j + 1 <= n4 then forbod (j + 1) else ()
+        if n <= is then ()
         else (
           let i1 = is + n4 in
           let i2 = i1 + n4 in
           let i3 = i2 + n4 in
           loop1 is i1 i2 i3 id;
-          loop2 (2 * id - n2 + j) (4 * id)) in
+          loop2 (2 * id + j - n2) (4 * id)) in
       loop2 j (2 * n2) in
-    forbod 1; 
+    ffor 1 n4 forbod; 
     loop (div2 n2) (div2 n4) in
   loop n (div4 n);
 
@@ -116,12 +124,12 @@ let fft px py n = (* n must be a power of 2! *)
   let rec loop2 is id =
     if n <= is then () else (
       loop1 is (is + 1) id;
-      loop2 (2 * id - 1) (4 * id)) in
+      loop2 (2 * id + (-1)) (4 * id)) in
   loop2 1 4;
 
-  (* lukstafi: this seems to be a placeholder? *)
   let rec loop1 j k =
-    if j <= k then j + k else loop1 (j - k) (div2 k) in
+    eif j <= k then j + k
+    else loop1 (j - k) (div2 k) in
 
   let rec loop2 i j =
     if n <= i then () else (
@@ -130,51 +138,6 @@ let fft px py n = (* n must be a power of 2! *)
         array_set px j (array_get px i); array_set px i (xt);
         let xt = array_get py j in
         array_set py j (array_get py i); array_set py i (xt));
-      loop2 (i + 1) (loop1 j (div2 n))) in
+      let j' = loop1 j (div2 n) in
+      loop2 (i + 1) j') in
   loop2 1 1; n
-
-let ffttest np =
-  let enp = float_of_int np in
-  let n2 = div2 np in
-  let npm = n2 - 1 in
-  let pxr = array_make (np+1) fl0 in
-  let pxi = array_make (np+1) fl0 in
-  let t = div pi enp in
-  array_set pxr 1 (mult (minus enp fl1) fl05);
-  array_set pxi 1 (fl0);
-  array_set pxr (n2+1) (neg (mult fl1 fl05));
-  array_set pxi (n2+1) fl0;
-  let forbod i =
-    if i <= npm then
-      let j = np - i in
-      array_set pxr (i+1) (neg (mult fl1 fl05));
-      array_set pxr (j+1) (neg (mult fl1 fl05));
-      let z = mult t (n2f i) in
-      let y = mult (div (cos z) (sin z)) fl05 in
-      array_set pxi (i+1) (neg y); array_set pxi (j+1) (y)
-    else () in
-  forbod 1;
-  ignore (fft pxr pxi np);
-  let rec loop i zr zi kr ki =
-    if np <= i then (zr, zi) else
-      let a = abs (minus (array_get pxr (i+1)) (n2f i)) in
-      let b = less zr a in
-      let zr = if b then a else zr in
-      let kr = if b then i else kr in
-      let a = abs (array_get pxi (i+1)) in
-      let b = less zi a in
-      let zi = if b then a else zi in
-      let ki = if b then i else ki in
-       loop (i+1) zr zi kr ki
-  in
-  let zz = loop 0 fl0 fl0 0 0 in
-  let zr = fst zz in
-  let zi = snd zz in
-  let zm = if less (abs zr) (abs zi) then zi else zr in
-  (*in print_float zm; print_newline ()*) zm
-
-let rec loop_np i np =
-  if 17 <= i then () else
-  ( ignore (ffttest np); loop_np (i + 1) (2 * np) )
-
-let doit _ = loop_np 4 16
