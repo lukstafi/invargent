@@ -87,12 +87,11 @@ let rowElim r s n i =
 
 let gauss data =
   let n = matrix_dim1 data in
-  assert num n + 1 <= matrix_dim2 data;
-  assert num matrix_dim2 data <= n + 1;
 
-  let rec rowMax i =
+  let rec rowMax = efunction i ->
     let x = fabs (matrix_get data i i) in
     let rec loop j x mx =
+      assert num mx + 1 <= n;
       eif j + 1 <= n then
         let y = fabs (matrix_get data j i) in
         eif (less x y) then loop (j+1) y j

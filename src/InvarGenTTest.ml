@@ -673,12 +673,11 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_gauss_asserted" ());
       "liquid_gauss_harder_asserted" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_gauss_harder_asserted" ());
       "liquid_gauss_harder" >::
         (fun () ->
-           todo "FIXME";
+           todo "Too hard for current InvarGenT";
            skip_if !debug "debug";
            test_case "liquid_gauss_harder" ());
       "liquid_fft_ffor" >::

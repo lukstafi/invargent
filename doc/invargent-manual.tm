@@ -1142,6 +1142,12 @@
   because InvarGenT, noticing the failure, generates an OCaml source with
   more type information, as if the <verbatim|-full_annot> option was used.
 
+  The example <verbatim|liquid_fft_simpler.gadt> contains assertions, but
+  despite them is nearly as hard as <verbatim|liquid_fft.gadt>. It needs the
+  option <verbatim|-same_with_assertions> to not switch to settings tuned for
+  cases where assertions capture the harder aspects of the invariants to
+  infer.
+
   Unfortunately, inference fails for some examples regardless of parameters
   setting. We discuss them in the next section.
 
@@ -1376,10 +1382,16 @@
   with the option <verbatim|-prefer_bound_to_local>. Additionally, we can
   relax the constraint on the processed portion of the matrix, coming from
   the restriction on the matrix size intended in the original source of the
-  <verbatim|liquid_gauss_harder.gadt> example. In
-  <verbatim|liquid_gauss.gadt>, the whole matrix is processed and the
-  inferred type is most general, under the default settings -- no need to
-  pass any options to InvarGenT.
+  FFT examples. In <verbatim|liquid_gauss.gadt>, the whole matrix is
+  processed and the inferred type is most general, under the default settings
+  -- no need to pass any options to InvarGenT. The reason
+  <verbatim|liquid_gauss_harder.gadt> is too difficult for InvarGenT is that
+  the nesting interferes with the propagation of use-site constraints to the
+  postcondition of the nested definition (the <verbatim|loop> inside
+  <verbatim|rowMax>). Inference works for
+  <verbatim|liquid_gauss_harder_asserted.gadt>, because the assertion
+  provides the required information to infer the <verbatim|rowMax> invariants
+  directly.
 </body>
 
 <\initial>

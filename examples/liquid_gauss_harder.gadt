@@ -88,7 +88,7 @@ let rowElim r s n i =
 let gauss data =
   let n = matrix_dim1 data in
 
-  let rec rowMax i =
+  let rec rowMax = efunction i ->
     let x = fabs (matrix_get data i i) in
     let rec loop j x mx =
       eif j + 1 <= n then
