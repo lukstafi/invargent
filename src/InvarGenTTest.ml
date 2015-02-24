@@ -673,11 +673,12 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_gauss_asserted" ());
       "liquid_gauss_harder_asserted" >::
         (fun () ->
+           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_gauss_harder_asserted" ());
       "liquid_gauss_harder" >::
         (fun () ->
-           todo "too hard for current numerical abudction";
+           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_gauss_harder" ());
       "liquid_fft_ffor" >::
@@ -686,19 +687,15 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_fft_ffor" ());
       "liquid_fft_simpler" >::
         (fun () ->
+           (* Can take over 180 seconds. *)
            skip_if !debug "debug";
            test_case ~same_with_assertions:true
              "liquid_fft_simpler" ());
       "liquid_fft" >::
         (fun () ->
-           todo "FIXME";
+           (* Can take over 180 seconds. *)
            skip_if !debug "debug";
            test_case "liquid_fft" ());
-      "liquid_fft_expanded" >::
-        (fun () ->
-           todo "FIXME";
-           skip_if !debug "debug";
-           test_case "liquid_fft_expanded" ());
     ]
 
 let () =

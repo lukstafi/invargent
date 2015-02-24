@@ -42,8 +42,6 @@ external let two_pi : Float = "8.0 *. atan 1.0"
 
 datatype Bounded : num * num
 datacons Index : ∀i, k, n[n ≤ i ∧ i ≤ k].Num i ⟶ Bounded (n, k)
-datacons IndexScope : ∀i, k, n[n ≤ i ∧ i ≤ k].
-  Num n * Num i * Num k ⟶ Bounded (n, k)
 external ffor : ∀k, n. Num k → Num n → (Bounded (k, n) → ()) → ()
 
 external let ref : ∀a. a → Ref a = "fun a -> ref a"

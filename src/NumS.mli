@@ -63,7 +63,7 @@ val more_general : bool ref
     raising to the given power i.e. [a*k^b], or by linear scaling with
     a jump at the given threshold with the given height
     i.e. $a*k + a*1_{b<=k}$. Default [`LinThres (2, 2.0)]. *)
-val complexity_scale : [`LinThres of int * float | `Pow of float] ref
+val complexity_scale : [`LinThres of float * float | `Pow of float] ref
 (** Twice as many angles of rotation are tried out for *)
 val disjelim_rotations : int ref
 (** How many opti atoms: [x = min(a, b)], [x = max(a, b)] in a

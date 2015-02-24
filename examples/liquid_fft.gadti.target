@@ -1,128 +1,73 @@
-(*
-(*
-** by: Dave Edelblute, edelblut@cod.nosc.mil, 05 Jan 1993
-** Modified: R. Mayer to work with hist benchmark routines.
-** Translated from C to de Caml: Hongwei Xi, 07 Nov 1998
-*)
+datatype Array : type * num
 
-let pi = 3.14159265358979323846 in
-let two_pi = 2 * pi in
+external val array_make : ∀n, a[0 ≤ n]. Num n → a → Array (a, n)
 
-let{n:int | n >= 2} fft px py n = (* n must be a power of 2! *)
-  let rec{n2:nat} loop n2 n4 =
-    if le_int n2 2 then () else (* the case n2 = 2 is treated below *)
-    let e = two_pi /. (float_of_int n2) in let e3 = 3.0 *. e in
-    let a = ref 0.0 and a3 = ref 0.0 in
-    for j = 1 to n4 do
-      let cc1 = cos !a and ss1 = sin !a and cc3 = cos !a3 and ss3 = sin !a3 in
-      let none_ = a := !a +. e and none_ = a3 := !a3 +. e3 in
-      let rec loop1 i0 i1 i2 i3 id =
-        if gt_int i3 n then () else (* out_of_bounds *)
-        let r1 = px..(i0) -. px..(i2)
-        and none_ = Array.set px i0 (px..(i0) +. px..(i2))
-        and r2 = px..(i1) -. px..(i3)
-        and none_ = Array.set px i1 (px..(i1) +. px..(i3))
-        and s1 = py..(i0) -. py..(i2)
-        and none_ = Array.set py i0 (py..(i0) +. py..(i2))
-        and s2 = py..(i1) -. py..(i3)
-        and none_ = Array.set py i1 (py..(i1) +. py..(i3) in)
-        let s3 = r1 -. s2 and r1 = r1 +. s2
-        and s2 = r2 -. s1 and r2 = r2 +. s1 in
-        let none_ = px..(i2) <- r1 *. cc1 -. s2 *. ss1
-        and none_ = py..(i2) <- (-. s2) *. cc1 -. r1 *. ss1
-        and none_ = px..(i3) <- s3 *. cc3 +. r2 *. ss3
-        and none_ = py..(i3) <- r2 *. cc3 -. s3 *. ss3 in
-        loop1 (i0 + id) (i1 + id) (i2 + id) (i3 + id) id
-      withtype {i0:nat}{i1:int}{i2:int}{i3:int | i0 <= i1 <= i2 <= i3}{id:nat}
-               int(i0) -> int(i1) -> int(i2) -> int(i3) -> int(id) -> unit in
-      let rec loop2 is id =
-        if is >= n then () else begin
-          let i1 = is + n4 in
-          let i2 = i1 + n4 in
-          let i3 = i2 + n4 in
-          loop1 is i1 i2 i3 id;
-          loop2 (2 * id - n2 + j) (4 * id)
-        end
-      withtype {is:nat}{id:nat | id >= n2} int(is) -> int(id) -> unit in
-      loop2 j (2 * n2)
-    done; loop (n2 / 2) (n4 / 2)
-    withtype int(n2) -> int -> unit in
-    loop n (n / 4);
+external val array_get :
+   ∀n, k, a[0 ≤ k ∧ k + 1 ≤ n]. Array (a, n) → Num k → a
 
-    let rec loop1 i0 i1 id =
-      if gt_int i1 n then () else
-      let r1 = px..(i0) in
-      let none_ = px..(i0) <- r1 +. px..(i1)
-      and none_ = px..(i1) <- r1 -. px..(i1) in
-      let r1 = py..(i0) in
-      let none_ = py..(i0) <- r1 +. py..(i1)
-      and none_ = py..(i1) <- r1 -. py..(i1) in
-      loop1 (i0 + id) (i1 + id) id
-    withtype {i0:nat}{i1:int | i0 <= i1} int(i0) -> int(i1) -> {id:nat} int(id) -> unit in
-    let rec loop2 is id =
-      if is >= n then () else begin
-        loop1 is (is + 1) id;
-        loop2 (2 * id - 1) (4 * id)
-      end
-    withtype {is:nat}{id:nat | id >= 4} int(is) -> int(id) -> unit in
-    loop2 1 4;
+external val array_set :
+   ∀n, k, a[0 ≤ k ∧ k + 1 ≤ n]. Array (a, n) → Num k → a → ()
 
-    let rec loop1 j k =
-      if ge_int k j then j + k else loop1 (j - k) (k / 2)
-    withtype {j:nat}{k:nat | k <= n / 2} int(j) -> int(k) -> [i:nat | i <= n] int(i) in
-    let rec loop2 i j =
-      if i >= n then () else begin
-        if ge_int i j then () else begin
-          let xt = px..(j) in px..(j) <- px..(i); Array.get px i <- xt;
-          let xt = Array.get py j in Array.get py j <- Array.get py i; Array.get py i <- xt;
-        end;
-        loop2 (i + 1) (loop1 j (n / 2))
-      end
-    withtype {i:nat} int(i) -> {j:nat | j <= n} int(j) -> unit in
-    loop2 1 1; n
-withtype float vect(n+1) -> float vect(n+1) -> int(n) -> int(n)
-;;
+external val array_length : ∀n, a[0 ≤ n]. Array (a, n) → Num n
 
-let fabs r = if r >. 0.0 then r else (-. r)
-;;
+external val n2i : ∀n. Num n → Int
 
-let ffttest np =
-  let none_ = print_int np and none_ = print_string "... " in
-  let enp = float_of_int np and n2 = np / 2 in
-  let npm = n2 - 1
-  and pxr = make_vect (np+1) 0.0
-  and pxi = make_vect (np+1) 0.0
-  and t = pi /. enp in
-  let none_ = Array.get pxr 1 <- (enp -. 1.0) *. 0.5
-  and none_ = Array.get pxi 1 <- 0.0
-  and none_ = pxr..(n2+1) <- (-. 0.5)
-  and none_ = pxi..(n2+1) <- 0.0 in
-  for i = 1 to npm do
-    let j = np - i in
-    let none_ = pxr..(i+1) <- (-. 0.5) and none_ = pxr..(j+1) <- (-. 0.5) in
-    let z = t *. (float_of_int i) in
-    let y = 0.5 *. cos(z) /. sin(z) in
-    pxi..(i+1) <-  (-. y); pxi..(j+1) <- y
-  done;
-  fft pxr pxi np;
-  let rec loop i zr zi kr ki =
-    if ge_int i np then (zr, zi) else
-    let a = fabs(pxr..(i+1) -. (float_of_int i)) in
-    let (zr, kr) = if zr <. a then (a, i) else (zr, kr) in
-    let a = fabs(pxi..(i+1)) in
-    let (zi, ki) = if zi <. a then (a, i) else (zi, ki) in
-    loop (i+1) zr zi kr ki
-  withtype {i:nat} int(i)  -> float -> float -> int -> int -> float * float in
-  let (zr, zi) = loop 0 0.0 0.0 0 0 in
-  let zm = if fabs zr <. fabs zi then zi else zr
-  in print_float zm; print_newline ()
-withtype {np:int | np >= 2} int(np) -> unit
-;;
+external val div2 : ∀n. Num (2 n) → Num n
 
-let rec loop_np i np =
-  if i > 16 then () else begin ffttest np; loop_np (i + 1) (np * 2) end
-withtype int -> {np:int | np >= 2} int(np) -> unit
-;;
+external val div4 : ∀n. Num (4 n) → Num n
 
-let doit () = loop_np 4 16;;
-*)
+external val n2f : ∀n. Num n → Float
+
+external val equal : ∀a. a → a → Bool
+
+external val leq : ∀a. a → a → Bool
+
+external val less : ∀a. a → a → Bool
+
+external val abs : Float → Float
+
+external val cos : Float → Float
+
+external val sin : Float → Float
+
+external val neg : Float → Float
+
+external val minus : Float → Float → Float
+
+external val plus : Float → Float → Float
+
+external val mult : Float → Float → Float
+
+external val div : Float → Float → Float
+
+external val fl0 : Float
+
+external val fl05 : Float
+
+external val fl1 : Float
+
+external val fl2 : Float
+
+external val fl3 : Float
+
+external val fl4 : Float
+
+external val pi : Float
+
+external val two_pi : Float
+
+datatype Bounded : num * num
+
+datacons Index : ∀i, k, n[n ≤ i ∧ i ≤ k].Num i ⟶ Bounded (n, k)
+
+external ffor : ∀k, n. Num k → Num n → (Bounded (k, n) → ()) → ()
+
+external val ref : ∀a. a → Ref a
+
+external val asgn : ∀a. Ref a → a → ()
+
+external val deref : ∀a. Ref a → a
+
+val fft :
+   ∀k, n[1 ≤ n ∧ n + 1 ≤ k].
+   Array (Float, n + 1) → Array (Float, k) → Num n

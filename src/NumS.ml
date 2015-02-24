@@ -32,6 +32,8 @@ let multi_levels_penalty = ref 4
 let escaping_var_penalty = ref 4
 let locality_vars_penalty = ref 6
 let nonparam_vars_penalty = ref 6
+let no_prem_var_penalty = ref 6
+let no_prem_penalty_derived_only = ref true
 let abduct_source_bonus = ref 0
 (* special_source_bonus is used only when prefer_bound_to_local is true. *)
 let special_source_bonus = ref 7
@@ -43,6 +45,7 @@ let only_off_by_1 = ref false
 let concl_abd_penalty = ref 4
 let discourage_upper_bound = ref 6
 let discourage_already_bounded = ref 4
+let upper_bound_outer_penalty = ref 5
 let implied_by_prem_penalty = ref 0
 let implicit_eq_penalty = ref 10
 let encourage_not_yet_bounded = ref 2
@@ -50,7 +53,7 @@ let discourage_equations_1 = ref 4
 let discourage_equations_2 = ref 4
 let implied_ineqn_compensation = ref 1
 let abd_scoring = ref `Sum
-let complexity_scale = ref (`LinThres (2, 2.0)) (* (`Pow 2.0) *)
+let complexity_scale = ref (`LinThres (2.0, 2.0)) (* (`Pow 2.0) *)
 let preserve_params = ref false(* true *)
 let preserve_only_target = ref false(* true *)
 let max_opti_postcond = ref 5
@@ -104,20 +107,19 @@ let w_complexity1 bvs vars =
   let update =
     match !complexity_scale with
     | `Pow pow_scale ->
-      fun kk -> float_of_int kk ** pow_scale *. !complexity_penalty
+      fun kk -> kk ** pow_scale *. !complexity_penalty
     | `LinThres (thres, step) ->
       fun kk ->
-        if kk < thres then float_of_int kk *. !complexity_penalty
-        else float_of_int kk *. !complexity_penalty +. step in
+        if kk < thres then kk *. !complexity_penalty
+        else kk *. !complexity_penalty +. step in
   int_of_float
     (List.fold_left
        (fun acc (v, k) ->
-          if VarSet.mem v bvs then
-            let r = Num.ratio_of_num k in
-            let kk =
-              abs (Big_int.int_of_big_int (Ratio.numerator_ratio r)) +
-                abs (Big_int.int_of_big_int
-                       (Ratio.denominator_ratio r)) - 1 in
+          if VarSet.mem v bvs && k <>/ !/0 then
+            let r = Ratio.float_of_ratio (Num.ratio_of_num k) in
+            let r' =
+              Ratio.float_of_ratio (Num.ratio_of_num (!/1 // k)) in
+            let kk = max (abs_float r) (abs_float r') in
             acc -. update kk
           else acc)
        0. vars)
@@ -1433,8 +1435,10 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~orig_ren ~b_of_v ~upward_of
     ~b_ineqs ~bh_ineqs ~d_ineqn ~d_ineqs
     (vars, cst, lc as w) =
   (*[* Format.printf
-    "NumS.abd_cands: w=%a@ bvs=%a@\nd_ineqs=%a@ d_ineqn=%a@\nbh_ineqs=@ %a@\n%!"
-    pr_w w pr_vars bvs pr_ineqs (hashtbl_to_assoc d_ineqs) pr_ineqn d_ineqn
+    "NumS.abd_cands: w=%a@ bvs=%a@\nnonparam_vars=%a@\n\
+     d_ineqs=%a@ d_ineqn=%a@\nbh_ineqs=@ %a@\n%!"
+    pr_w w pr_vars bvs pr_vars nonparam_vars
+    pr_ineqs (hashtbl_to_assoc d_ineqs) pr_ineqn d_ineqn
     pr_ineqs (hashtbl_to_assoc bh_ineqs); *]*)
   let cands_vs =
     concat_map
@@ -1512,6 +1516,7 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~orig_ren ~b_of_v ~upward_of
              ineqs, sw) cands in
       List.map snd (minimal ~less cands)
     else [] in
+  let prem_vars = vars_of_map fvs_w d_ineqn in
   let down_v, skip_uplevel =
     match vars with
     | [v, _; v2, _] -> v, upward_of v2 v &&
@@ -1580,6 +1585,12 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~orig_ren ~b_of_v ~upward_of
                      if qcmp_v v v2 <> Same_params then acc - 1
                      else acc)
                   1 tl +
+              !upper_bound_outer_penalty *
+                List.fold_left
+                  (fun acc (v2, k2) ->
+                     if upward_of v2 v_orig && k2 >/ !/0 then acc - 1
+                     else acc)
+                  0 tl +
               !nonparam_vars_penalty *
                 List.fold_left
                   (fun acc (v2, _) ->
@@ -1709,38 +1720,46 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~orig_ren ~b_of_v ~upward_of
              if List.exists
                  (fun d_w -> taut_w true (sum_w ~cmp_v w d_w)) d_ineqn
              then ~- !implicit_eq_penalty else 0 in
-             let concl_abd_score =
-               if prem_abduced = Some false then ~- !concl_abd_penalty
-               else 0 in
-             let bound_vs_local =
-               if !prefer_bound_to_local then special_bonus () else 0 in
-             let score =
-               concl_abd_score + bound_vs_local +
-                 uplevel_score + implied_by_prem_score +
-                 implicit_eq_score +
-                 (if prem_abduced = None then !abduct_source_bonus else 0) +
-                 (if new_eqn = [] then 0 else ~- !discourage_equations_2) +
-                 (if !abd_scoring = `Sum then List.fold_left (+) 0 scores
-                  else if !abd_scoring = `Min then maximum ~leq:(>=) scores
-                  else if !abd_scoring = `Max then maximum ~leq:(<=) scores
-                  else if !abd_scoring = `Avg then
-                    f2i (i2f (List.fold_left (+) 0 scores) /.
-                           i2f (List.length new_ineqn))
-                  else assert false)
-               + implied_ineqn_correction in
-             (*[* Format.printf
-               "abd_cands:@ w=%a@ source=%b prem_abduced=%b@ new_eqn=%a@ \
-                new_ineqn=%a@\nconcl_abd_score=%i@ \
-                implied correction=%i@ uplevel score=%i@ \
-                bound vs local=%d@ implied ineq penalty=%d@ \
-                implicit eq penalty=%d@\n\
-                total score=%i@\n%!"
-               pr_w w (prem_abduced = None) (prem_abduced = Some true)
-               pr_eqn new_eqn pr_ineqn new_ineqn concl_abd_score
-               implied_ineqn_correction uplevel_score
-               bound_vs_local implied_by_prem_score implicit_eq_score
-               score; *]*)
-             Some (score, (acc, w))
+           let concl_abd_score =
+             if prem_abduced = Some false then ~- !concl_abd_penalty
+             else 0 in
+           let no_prem_vars_score =
+             if !no_prem_penalty_derived_only && prem_abduced = None
+             then 0
+             else if
+               List.exists (fun (v, _) -> VarSet.mem v prem_vars) vars
+             then 0 else ~- !no_prem_var_penalty in
+           let bound_vs_local =
+             if !prefer_bound_to_local then special_bonus () else 0 in
+           let score =
+             concl_abd_score + bound_vs_local +
+               uplevel_score + implied_by_prem_score +
+               implicit_eq_score + no_prem_vars_score +
+               (if prem_abduced = None then !abduct_source_bonus else 0) +
+               (if new_eqn = [] then 0 else ~- !discourage_equations_2) +
+               (if !abd_scoring = `Sum then List.fold_left (+) 0 scores
+                else if !abd_scoring = `Min then maximum ~leq:(>=) scores
+                else if !abd_scoring = `Max then maximum ~leq:(<=) scores
+                else if !abd_scoring = `Avg then
+                  f2i (i2f (List.fold_left (+) 0 scores) /.
+                         i2f (List.length new_ineqn))
+                else assert false)
+             + implied_ineqn_correction in
+           (*[* Format.printf
+             "abd_cands:@ w=%a@ source=%b prem_abduced=%b@ new_eqn=%a@ \
+              new_ineqn=%a@\nconcl_abd_score=%i@ \
+              no_prem_vars_score=%i@ \
+              implied correction=%i@ uplevel score=%i@ \
+              bound vs local=%d@ implied ineq penalty=%d@ \
+              implicit eq penalty=%d@\n\
+              total score=%i@\n%!"
+             pr_w w (prem_abduced = None) (prem_abduced = Some true)
+             pr_eqn new_eqn pr_ineqn new_ineqn concl_abd_score
+             no_prem_vars_score
+             implied_ineqn_correction uplevel_score
+             bound_vs_local implied_by_prem_score implicit_eq_score
+             score; *]*)
+           Some (score, (acc, w))
          with
          | Terms.Contradiction _ (*[* as e *]*)->
            (*[* Format.printf
@@ -2071,9 +2090,11 @@ let abd_simple ~qcmp_v ~cmp_w
              ~discard_ineqs ~eqs_acc0 ~ineqs_acc0 ~optis_acc ~suboptis_acc
              ~b_ineqs ~bh_ineqs ~d_ineqn:d_ineqn' ~d_ineqs w in
          (*[* Format.printf
-           "NumS.abd_simple: [%d] 7. c0s=@ %a@\na=%a@\neqs_acc0=%a@\n\
+           "NumS.abd_simple: [%d] 7. choice=%b \
+            c0s=@ %a@\na=%a@\neqs_acc0=%a@\n\
             rev_sb=%a@\n%!"
-           ddepth pr_ineqn (List.map snd cands) pr_w_atom a
+           ddepth (List.length cands > 1)
+           pr_ineqn (List.map snd cands) pr_w_atom a
            pr_w_subst eqs_acc0 pr_w_subst rev_sb; *]*)
          List.iter try_trans_ineq cands
        | _ ->

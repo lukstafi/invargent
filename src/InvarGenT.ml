@@ -71,7 +71,7 @@ let set_pow_scaling v =
   NumS.complexity_scale := `Pow v
 
 let set_lin_thres_scaling v =
-  NumS.complexity_scale := `LinThres (2, v)
+  NumS.complexity_scale := `LinThres (2.0, v)
 
 let main () =
   let do_ml = ref true

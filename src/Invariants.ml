@@ -13,6 +13,7 @@ let unfinished_postcond_flag = ref false
 let use_prior_discards = ref (* false *)true
 let use_solution_in_postcond = ref false (* true *)
 let same_with_assertions = ref false
+let drop_crossparam_at_2 = ref true
 (* Captures where the repeat step is/are. *)
 let disj_step = [|1; 1; 2; 3; 4; (* 6 *)8|]
 
@@ -1009,6 +1010,25 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
   let fallback_postcond = ref false in
   let rec loop iter_no discard rol1 sol1 ans1_res =
     (* 1 *)
+    let dropped_from_sol = ref false in
+    let sol1 =
+      if !drop_crossparam_at_2 && iter_no = 2 then
+        List.map
+          (fun (i, (vs, cnj)) ->
+             i,
+             (vs,
+              List.filter
+               (fun c ->
+                  let cvs = fvs_atom c in
+                  let res =
+                    atom_sort c <> Type_sort &&
+                    VarSet.exists (fun v1 ->
+                         VarSet.exists (fun v2 -> upward_of v1 v2)
+                           cvs) cvs in
+                  if res then dropped_from_sol := true;
+                  not res)
+               cnj)) sol1
+      else sol1 in
     (*[* Format.printf
       "solve: substituting invariants at step 1@\n%!"; *]*)
     let brs0 = sb_brs_PredU q sol1 brs in
@@ -1778,10 +1798,11 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
             subformula ans1 ans2)
           rol1 rol2 in
       let finished = not dissoc_abdsj && not !unfinished_postcond_flag &&
+                     not !dropped_from_sol &&
                      finished1 && finished2 && finished3 in
       (*[* Format.printf "solve-loop: dissoc_abdsj=%b initstep=%b \
-        old_initstep=%b@ finished 1=%b, 2=%b, 3=%b, r=%b@\n%!"
-        dissoc_abdsj !initstep old_initstep
+        old_initstep=%b@ dropped=%b@ finished 1=%b, 2=%b, 3=%b, r=%b@\n%!"
+        dissoc_abdsj !initstep old_initstep !dropped_from_sol
         finished1 finished2 finished3 finished; *]*)
       if not !initstep && finished
       then                              (* final solution *)

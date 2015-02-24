@@ -42,13 +42,10 @@ external let two_pi : Float = "8.0 *. atan 1.0"
 
 datatype Bounded : num * num
 datacons Index : ∀i, k, n[n ≤ i ∧ i ≤ k].Num i ⟶ Bounded (n, k)
-datacons IndexScope : ∀i, k, n[n ≤ i ∧ i ≤ k].
-  Num n * Num i * Num k ⟶ Bounded (n, k)
 external ffor : ∀k, n. Num k → Num n → (Bounded (k, n) → ()) → ()
 
-datatype Ref : type
-external let ref : ∀a. a → Ref a = "ref"
-external let asgn : ∀a. Ref a → a → () = "( := )"
+external let ref : ∀a. a → Ref a = "fun a -> ref a"
+external let asgn : ∀a. Ref a → a → () = "fun a b -> a := b"
 external let deref : ∀a. Ref a → a = "(!)"
 
 let fft px py = (* n must be a power of 2! *)
