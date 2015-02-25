@@ -22,6 +22,7 @@ external let n2f : ∀n. Num n → Float = "float_of_int"
 external let equal : ∀a. a → a → Bool = "fun x y -> x = y"
 external let leq : ∀a. a → a → Bool = "fun x y -> x <= y"
 external let less : ∀a. a → a → Bool = "fun x y -> x < y"
+external let ignore : ∀a. a → () = "ignore"
 
 external let abs : Float → Float = "abs_float"
 external let cos : Float → Float = "cos"
@@ -42,7 +43,11 @@ external let two_pi : Float = "8.0 *. atan 1.0"
 
 datatype Bounded : num * num
 datacons Index : ∀i, k, n[n ≤ i ∧ i ≤ k].Num i ⟶ Bounded (n, k)
-external ffor : ∀k, n. Num k → Num n → (Bounded (k, n) → ()) → ()
+
+let ffor s d body =
+  let rec loop i =
+    if i <= d then (body (Index i); loop (i + 1)) else () in
+  loop s
 
 external let ref : ∀a. a → Ref a = "fun a -> ref a"
 external let asgn : ∀a. Ref a → a → () = "fun a b -> a := b"
@@ -50,8 +55,6 @@ external let deref : ∀a. Ref a → a = "(!)"
 
 let fft px py = (* n must be a power of 2! *)
   let n = array_length px + (-1) in
-  assert num n + 1 <= array_length py;
-  assert num array_length py <= n + 1;
   let rec loop n2 n4 =
     if n2 <= 2 then () else (* the case n2 = 2 is treated below *)
     let e = div two_pi (n2f n2) in
@@ -140,3 +143,47 @@ let fft px py = (* n must be a power of 2! *)
       let j' = loop1 j (div2 n) in
       loop2 (i + 1) j') in
   loop2 1 1; n
+
+let ffttest np =
+  let enp = n2f np in
+  let n2 = div2 np in
+  let npm = n2 - 1 in
+  let pxr = array_make (np+1) fl0 in
+  let pxi = array_make (np+1) fl0 in
+  let t = div pi enp in
+  array_set pxr 1 (mult (minus enp fl1) fl05);
+  array_set pxi 1 (fl0);
+  array_set pxr (n2+1) (neg (mult fl1 fl05));
+  array_set pxi (n2+1) fl0;
+  let rec forbod i =
+    if i <= npm then
+      let j = np - i in
+      array_set pxr (i+1) (neg (mult fl1 fl05));
+      array_set pxr (j+1) (neg (mult fl1 fl05));
+      let z = mult t (n2f i) in
+      let y = mult (div (cos z) (sin z)) fl05 in
+      array_set pxi (i+1) (neg y); array_set pxi (j+1) (y)
+    else () in
+  forbod 1;
+  ignore (fft pxr pxi);
+  (* lukstafi: kr and ki are placeholders? *)
+  let rec loop i zr zi kr ki =
+    if np <= i then (zr, zi) else
+      let a = abs (minus (array_get pxr (i+1)) (n2f i)) in
+      let b = less zr a in
+      let zr = if b then a else zr in
+      let kr = eif b then i else kr in
+      let a = abs (array_get pxi (i+1)) in
+      let b = less zi a in
+      let zi = if b then a else zi in
+      let ki = eif b then i else ki in
+      loop (i+1) zr zi kr ki in
+  let zr, zi = loop 0 fl0 fl0 0 0 in
+  let zm = if less (abs zr) (abs zi) then zi else zr in
+  (*in print_float zm; print_newline ()*) zm
+
+let rec loop_np i np =
+  if 17 <= i then () else
+  ( ignore (ffttest np); loop_np (i + 1) (2 * np) )
+
+let doit _ = loop_np 4 16

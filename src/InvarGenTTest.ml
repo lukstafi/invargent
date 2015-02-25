@@ -8,6 +8,7 @@
 open OUnit
 
 let debug = ref (*[* true *]*)false
+let short_tests_only = ref false
 
 let input_file file =
   let f = open_in file in
@@ -631,7 +632,7 @@ let tests = "InvarGenT" >::: [
       "liquid_simplex-harder" >::
         (fun () ->
            skip_if !debug "debug";
-           (* Can take over 220 seconds. *)
+           skip_if !short_tests_only "long test: 220s";
            test_case "liquid_simplex_harder" ());
       "liquid_gauss_rowSwap" >::
         (fun () ->
@@ -686,15 +687,30 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_fft_ffor" ());
       "liquid_fft_simpler" >::
         (fun () ->
-           (* Can take over 180 seconds. *)
            skip_if !debug "debug";
+           skip_if !short_tests_only "long test: 180s";
            test_case ~same_with_assertions:true
              "liquid_fft_simpler" ());
       "liquid_fft" >::
         (fun () ->
-           (* Can take over 180 seconds. *)
            skip_if !debug "debug";
+           skip_if !short_tests_only "long test: 190s";
            test_case "liquid_fft" ());
+      "liquid_fft_tests" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case "liquid_fft_tests" ());
+      "liquid_fft_full" >::
+        (fun () ->
+           skip_if !debug "debug";
+           skip_if !short_tests_only "long test: 195s";
+           test_case "liquid_fft_full" ());
+      "liquid_fft_full_asserted" >::
+        (fun () ->
+           skip_if !debug "debug";
+           skip_if !short_tests_only "long test: 210s";
+           test_case ~same_with_assertions:true
+             "liquid_fft_full_asserted" ());
     ]
 
 let () =

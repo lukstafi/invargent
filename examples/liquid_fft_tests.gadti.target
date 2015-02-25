@@ -1,0 +1,81 @@
+datatype Array : type * num
+
+external val array_make : ∀n, a[0 ≤ n]. Num n → a → Array (a, n)
+
+external val array_get :
+   ∀n, k, a[0 ≤ k ∧ k + 1 ≤ n]. Array (a, n) → Num k → a
+
+external val array_set :
+   ∀n, k, a[0 ≤ k ∧ k + 1 ≤ n]. Array (a, n) → Num k → a → ()
+
+external val array_length : ∀n, a[0 ≤ n]. Array (a, n) → Num n
+
+external val n2i : ∀n. Num n → Int
+
+external val div2 : ∀n. Num (2 n) → Num n
+
+external val div4 : ∀n. Num (4 n) → Num n
+
+external val n2f : ∀n. Num n → Float
+
+external val equal : ∀a. a → a → Bool
+
+external val leq : ∀a. a → a → Bool
+
+external val less : ∀a. a → a → Bool
+
+external val ignore : ∀a. a → ()
+
+external val abs : Float → Float
+
+external val cos : Float → Float
+
+external val sin : Float → Float
+
+external val neg : Float → Float
+
+external val minus : Float → Float → Float
+
+external val plus : Float → Float → Float
+
+external val mult : Float → Float → Float
+
+external val div : Float → Float → Float
+
+external val fl0 : Float
+
+external val fl05 : Float
+
+external val fl1 : Float
+
+external val fl2 : Float
+
+external val fl3 : Float
+
+external val fl4 : Float
+
+external val pi : Float
+
+external val two_pi : Float
+
+datatype Bounded : num * num
+
+datacons Index : ∀i, k, n[n ≤ i ∧ i ≤ k].Num i ⟶ Bounded (n, k)
+
+external ffor : ∀k, n. Num k → Num n → (Bounded (k, n) → ()) → ()
+
+external val ref : ∀a. a → Ref a
+
+external val asgn : ∀a. Ref a → a → ()
+
+external val deref : ∀a. Ref a → a
+
+external fft :
+   ∀k, n[1 ≤ n ∧ n + 1 ≤ k].
+   Array (Float, n + 1) → Array (Float, k) → Num n
+
+val ffttest : ∀n[2 ≤ n]. Num n → Float
+
+val loop_np : ∀k, n[2 ≤ n]. Num k → Num n → ()
+
+val doit : ∀a. a → ()

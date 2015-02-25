@@ -1142,11 +1142,12 @@
   because InvarGenT, noticing the failure, generates an OCaml source with
   more type information, as if the <verbatim|-full_annot> option was used.
 
-  The example <verbatim|liquid_fft_simpler.gadt> contains assertions, but
-  despite them is nearly as hard as <verbatim|liquid_fft.gadt>. It needs the
-  option <verbatim|-same_with_assertions> to not switch to settings tuned for
-  cases where assertions capture the harder aspects of the invariants to
-  infer.
+  The examples <verbatim|liquid_fft_simpler.gadt> and
+  <verbatim|liquid_fft_full_asserted.gadt> contain assertions, but are nearly
+  as hard as <verbatim|liquid_fft.gadt>, <verbatim|liquid_fft_full.gadt>
+  respectively. They need the option <verbatim|-same_with_assertions> to not
+  switch to settings tuned for cases where assertions capture the harder
+  aspects of the invariants to infer.
 
   Unfortunately, inference fails for some examples regardless of parameters
   setting. We discuss them in the next section.

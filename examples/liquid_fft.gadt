@@ -64,7 +64,7 @@ let fft px py = (* n must be a power of 2! *)
       let cc3 = cos (deref a3) in
       let ss3 = sin (deref a3) in
       asgn a (plus (deref a) e);
-      asgn a3 (plus (deref a3) e);
+      asgn a3 (plus (deref a3) e3);
       let rec loop1 i0 i1 i2 i3 id =
         if n + 1 <= i3 then () else (* out_of_bounds *)
         let g_px_i0 = array_get px i0 in

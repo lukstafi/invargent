@@ -1,0 +1,98 @@
+(*
+** by: Dave Edelblute, edelblut@cod.nosc.mil, 05 Jan 1993
+** Translated from C to de Caml: Hongwei Xi, 07 Nov 1998
+** Modified: R. Mayer to work with hist benchmark routines.
+** Translated to InvarGenT: Lukasz Stafiniak, 30 Jan 2015
+*)
+datatype Array : type * num
+external let array_make :
+  ∀n, a [0≤n]. Num n → a → Array (a, n) = "fun a b -> Array.make a b"
+external let array_get :
+  ∀n, k, a [0≤k ∧ k+1≤n]. Array (a, n) → Num k → a = "fun a b -> Array.get a b"
+external let array_set :
+  ∀n, k, a [0≤k ∧ k+1≤n]. Array (a, n) → Num k → a → () =
+  "fun a b c -> Array.set a b c"
+external let array_length :
+  ∀n, a [0≤n]. Array (a, n) → Num n = "fun a -> Array.length a"
+
+external let n2i : ∀n. Num n → Int = "fun i -> i"
+external let div2 : ∀n. Num (2 n) → Num n = "fun i -> i / 2"
+external let div4 : ∀n. Num (4 n) → Num n = "fun i -> i / 4"
+external let n2f : ∀n. Num n → Float = "float_of_int"
+external let equal : ∀a. a → a → Bool = "fun x y -> x = y"
+external let leq : ∀a. a → a → Bool = "fun x y -> x <= y"
+external let less : ∀a. a → a → Bool = "fun x y -> x < y"
+external let ignore : ∀a. a → () = "ignore"
+
+external let abs : Float → Float = "abs_float"
+external let cos : Float → Float = "cos"
+external let sin : Float → Float = "sin"
+external let neg : Float → Float = "(~-.)"
+external let minus : Float → Float → Float = "(-.)"
+external let plus : Float → Float → Float = "(+.)"
+external let mult : Float → Float → Float = "( *. )"
+external let div : Float → Float → Float = "( /. )"
+external let fl0 : Float = "0.0"
+external let fl05 : Float = "0.5"
+external let fl1 : Float = "1.0"
+external let fl2 : Float = "2.0"
+external let fl3 : Float = "3.0"
+external let fl4 : Float = "4.0"
+external let pi : Float = "4.0 *. atan 1.0"
+external let two_pi : Float = "8.0 *. atan 1.0"
+
+datatype Bounded : num * num
+datacons Index : ∀i, k, n[n ≤ i ∧ i ≤ k].Num i ⟶ Bounded (n, k)
+external ffor : ∀k, n. Num k → Num n → (Bounded (k, n) → ()) → ()
+
+external let ref : ∀a. a → Ref a = "fun a -> ref a"
+external let asgn : ∀a. Ref a → a → () = "fun a b -> a := b"
+external let deref : ∀a. Ref a → a = "(!)"
+
+external fft :
+   ∀k, n[1 ≤ n ∧ n + 1 ≤ k].
+   Array (Float, n + 1) → Array (Float, k) → Num n
+
+let ffttest np =
+  let enp = n2f np in
+  let n2 = div2 np in
+  let npm = n2 - 1 in
+  let pxr = array_make (np+1) fl0 in
+  let pxi = array_make (np+1) fl0 in
+  let t = div pi enp in
+  array_set pxr 1 (mult (minus enp fl1) fl05);
+  array_set pxi 1 (fl0);
+  array_set pxr (n2+1) (neg (mult fl1 fl05));
+  array_set pxi (n2+1) fl0;
+  let rec forbod i =
+    if i <= npm then
+      let j = np - i in
+      array_set pxr (i+1) (neg (mult fl1 fl05));
+      array_set pxr (j+1) (neg (mult fl1 fl05));
+      let z = mult t (n2f i) in
+      let y = mult (div (cos z) (sin z)) fl05 in
+      array_set pxi (i+1) (neg y); array_set pxi (j+1) (y)
+    else () in
+  forbod 1;
+  ignore (fft pxr pxi);
+  (* lukstafi: kr and ki are placeholders? *)
+  let rec loop i zr zi kr ki =
+    if np <= i then (zr, zi) else
+      let a = abs (minus (array_get pxr (i+1)) (n2f i)) in
+      let b = less zr a in
+      let zr = if b then a else zr in
+      let kr = eif b then i else kr in
+      let a = abs (array_get pxi (i+1)) in
+      let b = less zi a in
+      let zi = if b then a else zi in
+      let ki = eif b then i else ki in
+      loop (i+1) zr zi kr ki in
+  let zr, zi = loop 0 fl0 fl0 0 0 in
+  let zm = if less (abs zr) (abs zi) then zi else zr in
+  (*in print_float zm; print_newline ()*) zm
+
+let rec loop_np i np =
+  if 17 <= i then () else
+  ( ignore (ffttest np); loop_np (i + 1) (2 * np) )
+
+let doit _ = loop_np 4 16
