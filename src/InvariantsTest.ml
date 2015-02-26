@@ -597,6 +597,61 @@ No answer in type: term abduction failed
         "δ = (Erk (List a, List (List String), a) → List (List String))" *)
     );
 
+  "simple existential" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "simple existential"
+"datatype Z
+datatype S : type
+datatype Unary : type
+datacons Zero : Unary Z
+datacons Succ : ∀a. Unary a ⟶ Unary (S a)
+
+let rec incr = efunction
+  | Zero -> Succ Zero
+  | Succ x ->
+    let y = incr x in Succ y
+"
+        [2,"∃a. δ = (Unary a → ∃a.Unary (S a))"];
+    );
+
+  "simple universal" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "simple existential"
+"datatype Z
+datatype S : type
+datatype Unary : type
+datacons Zero : Unary Z
+datacons Succ : ∀a. Unary a ⟶ Unary (S a)
+
+let rec incr = function
+  | Zero -> Succ Zero
+  | Succ x ->
+    let y = incr x in Succ y
+"
+        [1,"∃a. δ = (Unary a → Unary (S a))"];
+    );
+
+  "simple existential 2" >::
+    (fun () ->
+       skip_if !debug "debug";
+       test_case "simple existential 2"
+"datatype Z
+datatype I : type
+datatype O : type
+datatype IOZ : type
+datacons Baz : IOZ Z
+datacons Foo : ∀a. IOZ a ⟶ IOZ (O a)
+datacons Bar : ∀a. IOZ a ⟶ IOZ (I a)
+
+let rec foobar = efunction
+  | Baz -> Bar Baz
+  | Foo x -> foobar x
+  | Bar x -> let y = foobar x in Bar y
+"
+        [2,"∃a. δ = (IOZ a → ∃a.IOZ (I a))"];
+    );
 
   "map mono" >::
     (fun () ->

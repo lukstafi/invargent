@@ -20,7 +20,8 @@ module type ABD_PARAMS = sig
   val abd_fail_flag : bool ref
   val abd_simple :
     args -> discard:discarded list ->
-    validate:(answer -> unit) -> neg_validate:(answer -> int) ->
+    validate:(VarSet.t -> answer -> unit) ->
+    neg_validate:(answer -> int) ->
     accu -> branch -> accu option
   val extract_ans : accu -> answer
   val discard_ans : accu -> discarded

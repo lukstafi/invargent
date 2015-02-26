@@ -52,7 +52,7 @@ val abd_simple :
   obvs:Defs.VarSet.t ->
   bvs:Defs.VarSet.t ->
   dissociate:bool ->
-  validate:((Defs.var_name list * Terms.subst) -> unit) ->
+  validate:(Defs.VarSet.t -> (Defs.var_name list * Terms.subst) -> unit) ->
   neg_validate:((Defs.var_name list * Terms.subst) -> int) ->
   discard:((Defs.var_name list * Terms.subst) list) ->
   int ->
@@ -63,7 +63,7 @@ val abd_typ :
   Defs.quant_ops ->
   bvs:Defs.VarSet.t ->
   ?dissociate:bool ->
-  validate:((Defs.var_name list * Terms.subst) -> unit) ->
+  validate:(Defs.VarSet.t -> (Defs.var_name list * Terms.subst) -> unit) ->
   neg_validate:((Defs.var_name list * Terms.subst) -> int) ->
   discard:((Defs.var_name list * Terms.subst) list) ->
   (Terms.sep_formula * Terms.subst) list ->

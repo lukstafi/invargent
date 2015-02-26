@@ -15,7 +15,7 @@ let use_solution_in_postcond = ref false (* true *)
 let same_with_assertions = ref false
 let drop_crossparam_at_2 = ref true
 (* Captures where the repeat step is/are. *)
-let disj_step = [|1; 1; 2; 3; 4; (* 6 *)8|]
+let disj_step = [|1; 1; 2; 3; 4; 8|]
 
 open Defs
 open Terms
