@@ -3034,7 +3034,7 @@ let rec remove_min_binding = efunction
   "avl_tree--remove_min_binding-harder" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case "avl_tree--remove_min_binding"
+       test_case "avl_tree--remove_min_binding-harder"
 "datatype Avl : type * num
 datacons Empty : ∀a. Avl (a, 0)
 datacons Node :
