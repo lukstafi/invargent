@@ -143,8 +143,7 @@ let w_complexity2 bvs (vars, cst, _) =
        else acc + !opti_postcond_reward)
     cc vars
 
-(* Assumes [vars1] and [vars2] are in the same order. *)
-let compare_w (vars1, cst1, _) (vars2, cst2, _) =
+let compare_comb vars1 vars2 =
   let rec loop = function
     | [], [] -> 0
     | [], _ -> -1
@@ -156,9 +155,13 @@ let compare_w (vars1, cst1, _) (vars2, cst2, _) =
         let c = compare_num k1 k2 in
         if c <> 0 then c
         else loop (vars1, vars2) in
+  loop (vars1, vars2)
+
+(* Assumes [vars1] and [vars2] are in the same order. *)
+let compare_w (vars1, cst1, _) (vars2, cst2, _) =
   let c = compare_num cst1 cst2 in
   if c <> 0 then c
-  else loop (vars1, vars2)
+  else compare_comb vars1 vars2
 
 module WSet = Set.Make (struct type t = w let compare = compare_w end)
 let add_to_wset l ws = List.fold_right WSet.add l ws
@@ -176,7 +179,54 @@ let wset_partition_map f ws =
       | Right r -> wl, r::wr)
     ws ([], [])
 
-type ineqs = (var_name * (WSet.t * WSet.t)) list
+module CombMap = Map.Make (struct type t = (var_name * num) list
+                           let compare = compare_comb end)
+type affine = (num * loc) CombMap.t
+let affine_to_ineqn af =
+  CombMap.fold (fun vars (cst, lc) acc -> (vars, cst, lc)::acc)
+    af []
+let affine_add ~is_lhs (vars, cst, lc) af =
+  try
+    let cst', _ = CombMap.find vars af in
+    let cmp = if is_lhs then (</) else (>/) in
+    if cmp cst' cst then CombMap.add vars (cst, lc) af else af
+  with Not_found -> CombMap.add vars (cst, lc) af
+let affine_mem ~is_lhs (vars, cst, _) af =
+  try
+    let cst', _ = CombMap.find vars af in
+    if is_lhs then cst' >=/ cst else cst' <=/ cst
+  with Not_found -> false
+let affine_empty = CombMap.empty
+let affine_partition_map f af =
+  CombMap.fold (fun vars (cst, lc) (wl, wr) ->
+      match f (vars, cst, lc) with
+      | Left l -> l::wl, wr
+      | Right r -> wl, r::wr)
+    af ([], [])
+let affine_union ~is_lhs af1 af2 =
+  let cmp = if is_lhs then (</) else (>/) in
+  CombMap.merge
+    (fun vars b1 b2 ->
+       match b1, b2 with
+       | None, None -> None
+       | Some _, None -> b1
+       | None, Some _ -> b2
+       | Some (cst1, _), Some (cst2, _) ->
+         if cmp cst1 cst2 then b2 else b1)
+    af1 af2
+let affine_of_list ~is_lhs ineqn =
+  List.fold_left (fun acc w -> affine_add ~is_lhs w acc) affine_empty ineqn
+let affine_map ~is_lhs f af =
+  let ineqn = affine_to_ineqn af in
+  affine_of_list ~is_lhs (List.map f ineqn)
+let affine_map_to_list f af =
+  CombMap.fold (fun vars (cst, lc) ws -> f (vars, cst, lc) :: ws) af []
+let add_to_affine ~is_lhs l af =
+  List.fold_right (affine_add ~is_lhs) l af
+let affine_exists f af =
+  CombMap.exists (fun vars (cst, lc) -> f (vars, cst, lc)) af
+
+type ineqs = (var_name * (affine * affine)) list
 type optis = (w * w) list
 type suboptis = (w * w) list
 
@@ -195,9 +245,11 @@ let pr_w_subst ppf sb =
   Format.fprintf ppf "@[<2>%a@]" (pr_sep_list "," pr_sw) sb
 
 let pr_ineq ppf (v, (wl, wr)) =
+  let wl = affine_to_ineqn wl
+  and wr = affine_to_ineqn wr in
   Format.fprintf ppf "@[<2>[%a]@ ≤@ %s@ ≤@ [%a]@]"
-    (pr_sep_list ";" pr_w) (WSet.elements wl) (var_str v)
-    (pr_sep_list ";" pr_w) (WSet.elements wr)
+    (pr_sep_list ";" pr_w) wl (var_str v)
+    (pr_sep_list ";" pr_w) wr
 
 let pr_ineqs ppf (ineqs : ineqs) =
   pr_sep_list "," pr_ineq ppf ineqs
@@ -349,9 +401,11 @@ let unsubst sb =
 (* FIXME: no need to sort the variables? *)
 let unsolve (ineqs : ineqs) : w list = concat_map
   (fun (v, (left, right)) ->
-    wset_map_to_list (fun (vars, cst, loc) -> (v, !/(-1))::vars, cst, loc)
+    let left = affine_to_ineqn left
+    and right = affine_to_ineqn right in
+    List.map (fun (vars, cst, loc) -> (v, !/(-1))::vars, cst, loc)
       left @
-      wset_map_to_list (fun rhs ->
+      List.map (fun rhs ->
           let vars, cst, loc = mult !/(-1) rhs in
           (v, !/1)::vars, cst, loc)
         right)
@@ -837,6 +891,24 @@ let trans_wset ~cmp_v ineqs is_left wn =
       proj (WSet.add w acc) (more @ wn) in
   proj WSet.empty wn
 
+let trans_affine ~cmp_v (ineqs : ineqs) ~is_lhs wn =
+  let rec proj acc wn =
+    match wn with
+    | [] -> acc
+    | ([], _, _ as w)::wn -> proj (affine_add ~is_lhs w acc) wn
+    | ((v,k)::vars, cst, loc as w)::wn ->
+      let left, right =
+        try List.assoc v ineqs
+        with Not_found -> affine_empty, affine_empty in
+      let is_left = if k </ !/0 then not is_lhs else is_lhs in
+      let more = if is_left then left else right in
+      let w1 = vars, cst, loc in
+      let more =
+        List.map (fun w2 -> sum_w ~cmp_v (mult k w2) w1)
+          (affine_to_ineqn more) in
+      proj (affine_add ~is_lhs w acc) (more @ wn) in
+  proj affine_empty wn
+
 type quant_viol_response =
     Store_viol of VarSet.t | Fail_viol of VarSet.t | Ignore_viol
 
@@ -850,15 +922,18 @@ let solve_aux ~use_quants ?(strict=false)
   let eqs =
     if eqs' = [] then eqs else subst_eqs ~cmp_v ~sb:eqs' eqs @ eqs' in
   let eqs_implicits = ref [] in
-  let subst_side_ineq v sb ohs w =
+  let subst_side_ineq ~is_lhs v sb ohs w =
     let vars, cst, lc as w' = subst_w ~cmp_v sb w in
-    if WSet.mem w' ohs
+    if affine_mem ~is_lhs:(not is_lhs) w' ohs
     then eqs_implicits := ((v,!/(-1))::vars,cst,lc) :: !eqs_implicits;
     w' in
   let ineqs = if eqs' = [] then ineqs else List.map
       (fun (v,(wl,wr)) -> v,
-        (wset_map (subst_side_ineq v eqs' wr) wl,
-         wset_map (subst_side_ineq v eqs' wl) wr)) ineqs in
+        (affine_map ~is_lhs:true
+           (subst_side_ineq ~is_lhs:true v eqs' wr) wl,
+         affine_map ~is_lhs:false
+           (subst_side_ineq ~is_lhs:false v eqs' wl) wr))
+      ineqs in
   let more_eqn, more_ineqn, more_optis, more_suboptis =
     split_flatten ~cmp_v cnj in
   let more_eqn', more_ineqn', more_optis', more_suboptis' =
@@ -937,8 +1012,10 @@ let solve_aux ~use_quants ?(strict=false)
   let ineqs = if eqn=[] then ineqs else
       List.map (fun (v, (wl, wr)) ->
         v,
-        (wset_map (subst_side_ineq v eqn wr) wl,
-         wset_map (subst_side_ineq v eqn wl) wr)) ineqs in
+        (affine_map ~is_lhs:true
+           (subst_side_ineq ~is_lhs:true v eqn wr) wl,
+         affine_map ~is_lhs:false
+           (subst_side_ineq ~is_lhs:false v eqn wl) wr)) ineqs in
   (*[* Format.printf "NumS.solve: simplified eqn=@ %a@\n%!"
     pr_w_subst eqn; *]*)
   let more_ineqn =
@@ -946,8 +1023,8 @@ let solve_aux ~use_quants ?(strict=false)
       (fun (v, w) ->
         try
           let left, right = List.assoc v ineqs in
-          wset_map_to_list (fun lhs -> diff ~cmp_v lhs w) left @
-            wset_map_to_list (fun rhs -> diff ~cmp_v w rhs) right
+          affine_map_to_list (fun lhs -> diff ~cmp_v lhs w) left @
+            affine_map_to_list (fun rhs -> diff ~cmp_v w rhs) right
         with Not_found -> [])
       eqn in
   let ineqn = List.sort cmp_w (more_ineqn @ ineqn) in
@@ -973,22 +1050,24 @@ let solve_aux ~use_quants ?(strict=false)
       "NumS.solve-project:@\nineqs=%a@\nimplicits=%a@\nineqn0=@ %a@\n%!"
       pr_ineqs ineqs pr_eqn implicits pr_ineqn ineqn0; *]*)  
     let handle_proj v k vars cst loc ineqn =
-      let trans_wset = trans_wset ~cmp_v ineqs in
+      let trans_affine = trans_affine ~cmp_v ineqs in
       let (left, right), ineqs =
         try pop_assoc v ineqs
-        with Not_found -> (WSet.empty, WSet.empty), ineqs in
+        with Not_found -> (affine_empty, affine_empty), ineqs in
       let ineq_l, ineq_r, (more_ineqn, more_implicits) =
         (* Change sides wrt. to variable [v]. *)
         let ohs = mult (!/(-1) // k) (vars, cst, loc) in
         if k >/ !/0
         then
-          (if not strict && WSet.mem ohs right then [], [], ([], [])
+          (if not strict && affine_mem ~is_lhs:false ohs right
+           then [], [], ([], [])
            else [], [ohs],
-                wset_partition_map (fun lhs -> project v lhs ohs) left)
+                affine_partition_map (fun lhs -> project v lhs ohs) left)
         else
-          (if not strict && WSet.mem ohs left then [], [], ([], [])
+          (if not strict && affine_mem ~is_lhs:true ohs left
+           then [], [], ([], [])
            else [ohs], [],
-                wset_partition_map (fun rhs -> project v ohs rhs) right) in
+                affine_partition_map (fun rhs -> project v ohs rhs) right) in
       (*[* Format.printf
         "NumS.solve-project: try v=%s@\nmore_ineqn=@ %a@\nmore_impl=@ %a@\n%!"
         (var_str v) pr_ineqn more_ineqn pr_eqn more_implicits; *]*)  
@@ -1011,8 +1090,10 @@ let solve_aux ~use_quants ?(strict=false)
       let ineqn =
         merge_one_nonredund ~cmp_v ~cmp_w (List.sort cmp_w more_ineqn) ineqn in
       let more_ineqs =
-        v, (WSet.union (trans_wset true ineq_l) left,
-            WSet.union (trans_wset false ineq_r) right) in
+        v, (affine_union ~is_lhs:true
+              (trans_affine ~is_lhs:true ineq_l) left,
+            affine_union ~is_lhs:false
+              (trans_affine ~is_lhs:false ineq_r) right) in
       (*[* Format.printf
         "NumS.solve-project: res v=%s@\nmore_ineqn=@ %a@\nineqs_v=@ %a@\n%!"
         (var_str v) pr_ineqn more_ineqn pr_ineqs [more_ineqs]; *]*)  
@@ -1037,8 +1118,8 @@ let solve_aux ~use_quants ?(strict=false)
         try
           let lhs, rhs = List.assoc v ineqs in
           let ohs = mult (!/(-1) // k) (vars, cst, loc) in
-          if k >/ !/0 then WSet.mem ohs rhs
-          else WSet.mem ohs lhs
+          if k >/ !/0 then affine_mem ~is_lhs:false ohs rhs
+          else affine_mem ~is_lhs:true ohs lhs
         with Not_found -> false in
       if not old_ineq then
         quant_viol_cnj := Leq_w w :: !quant_viol_cnj;
@@ -1275,19 +1356,21 @@ let implies_ineq ~cmp_v ~cmp_w ineqs ineq =
     else diff ~cmp_v lhs rhs in
   let rec proj (ineqs : ineqs) ineqn0 =
     let handle_proj v k vars cst loc ineqn =
-      let trans_wset = trans_wset ~cmp_v ineqs in
+      let trans_affine = trans_affine ~cmp_v ineqs in
       let (left, right), ineqs =
         try pop_assoc v ineqs
-        with Not_found -> (WSet.empty, WSet.empty), ineqs in
+        with Not_found -> (affine_empty, affine_empty), ineqs in
       let ineq_l, ineq_r, more_ineqn =
         (* Change sides wrt. to variable [v]. *)
         let ohs = mult (!/(-1) // k) (vars, cst, loc) in
         if k >/ !/0
         then
-          [], [ohs], wset_map (fun lhs -> project v lhs ohs) left
+          [], [ohs], affine_map ~is_lhs:true
+            (fun lhs -> project v lhs ohs) left
         else
-          [ohs], [], wset_map (fun rhs -> project v ohs rhs) right in
-      let more_ineqn = WSet.elements more_ineqn in
+          [ohs], [], affine_map ~is_lhs:false
+            (fun rhs -> project v ohs rhs) right in
+      let more_ineqn = affine_to_ineqn more_ineqn in
       (*[* Format.printf
         "NumS.impl-project: try v=%s@\nmore_ineqn=@ %a@\n%!"
         (var_str v) pr_ineqn more_ineqn; *]*)  
@@ -1306,8 +1389,10 @@ let implies_ineq ~cmp_v ~cmp_w ineqs ineq =
       let ineqn =
         merge_one_nonredund ~cmp_v ~cmp_w (List.sort cmp_w more_ineqn) ineqn in
       let more_ineqs =
-        v, (WSet.union (trans_wset true ineq_l) left,
-            WSet.union (trans_wset false ineq_r) right) in
+        v, (affine_union ~is_lhs:true
+              (trans_affine ~is_lhs:true ineq_l) left,
+            affine_union ~is_lhs:false
+              (trans_affine ~is_lhs:false ineq_r) right) in
       (*[* Format.printf
         "NumS.impl-project: res v=%s@\nmore_ineqn=@ %a@\nineqs_v=@ %a@\n%!"
         (var_str v) pr_ineqn more_ineqn pr_ineqs [more_ineqs]; *]*)  
@@ -1380,11 +1465,11 @@ let complete_ineqs ~cmp_v ineqs =
             let c = mult (!/(-1) // coef) (vars1, cst, lc) in
             let lhs, rhs =
               try Hashtbl.find res v
-              with Not_found -> WSet.empty, WSet.empty in
+              with Not_found -> affine_empty, affine_empty in
             if coef </ !/0 then
-              Hashtbl.replace res v (WSet.add c lhs, rhs)
+              Hashtbl.replace res v (affine_add ~is_lhs:true c lhs, rhs)
             else
-              Hashtbl.replace res v (lhs, WSet.add c rhs))
+              Hashtbl.replace res v (lhs, affine_add ~is_lhs:false c rhs))
          (one_out vars))
     ineqn;
   res
@@ -1473,7 +1558,7 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~orig_ren ~b_of_v ~upward_of
                  "NumS.abd_cands: from_d=%b@ res=%a@\n%!"
                  from_d pr_w (snd res); *]*)
                res)
-             (WSet.elements ohs)
+             (affine_to_ineqn ohs)
          with Not_found -> [])
       (one_out vars) in
   let cands_cst =
@@ -1607,8 +1692,8 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~orig_ren ~b_of_v ~upward_of
         let bounded =
           try
             let lhs, rhs = Hashtbl.find bh_ineqs v in
-            k >/ !/0 && WSet.exists (fun (vars,_,_) -> vars=[]) lhs ||
-            k </ !/0 && WSet.exists (fun (vars,_,_) -> vars=[]) rhs
+            k >/ !/0 && CombMap.exists (fun vars _ -> vars=[]) lhs ||
+            k </ !/0 && CombMap.exists (fun vars _ -> vars=[]) rhs
           with Not_found -> false in
         if bounded then ~- !discourage_already_bounded
         else !encourage_not_yet_bounded
@@ -1619,9 +1704,9 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~orig_ren ~b_of_v ~upward_of
           try
             let lhs, rhs = Hashtbl.find bh_ineqs v in
             k >/ !/0 &&
-            WSet.exists (equal_w ~cmp_v w') lhs ||
+            affine_exists (equal_w ~cmp_v w') lhs ||
             k </ !/0 &&
-            WSet.exists (equal_w ~cmp_v w') rhs
+            affine_exists (equal_w ~cmp_v w') rhs
           with Not_found -> false in
         if bounded then ~- !discourage_equations_1 else 0
       | _ -> 0 in
@@ -1635,8 +1720,8 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~orig_ren ~b_of_v ~upward_of
            try
              let lhs, rhs = Hashtbl.find bh_ineqs v in
              if VarSet.mem v bvs &&
-                (k >/ !/0 && WSet.is_empty rhs ||
-                 k </ !/0 && WSet.is_empty lhs)
+                (k >/ !/0 && CombMap.is_empty rhs ||
+                 k </ !/0 && CombMap.is_empty lhs)
              then acc + !reward_constrn
              else acc
            with Not_found -> acc)
@@ -2640,16 +2725,16 @@ let project ~cmp_v ~cmp_w ineqs ineqn =
     | ((v,k)::vars, cst, loc)::ineqn ->
       let (left, right), ineqs =
         try pop_assoc v ineqs
-        with Not_found -> (WSet.empty, WSet.empty), ineqs in
+        with Not_found -> (affine_empty, affine_empty), ineqs in
       let ineq_l, ineq_r, more_ineqn = 
         let ohs = mult (!/(-1) // k) (vars, cst, loc) in
         if k >/ !/0
         then
           [], [ohs],
-          wset_map_to_list (fun lhs -> diff ~cmp_v lhs ohs) left
+          affine_map_to_list (fun lhs -> diff ~cmp_v lhs ohs) left
         else
           [ohs], [],
-          wset_map_to_list (fun rhs -> diff ~cmp_v ohs rhs) right
+          affine_map_to_list (fun rhs -> diff ~cmp_v ohs rhs) right
       in
       let more_ineqn = List.filter
         (function
@@ -2662,13 +2747,15 @@ let project ~cmp_v ~cmp_w ineqs ineqn =
       let ineqn =
         merge cmp_w (List.sort cmp_w more_ineqn) ineqn in
       let ineqs =
-        (v, (add_to_wset ineq_l left, add_to_wset ineq_r right))::ineqs in
+        (v, (add_to_affine ~is_lhs:true ineq_l left,
+             add_to_affine ~is_lhs:false ineq_r right))::ineqs in
       proj ineqs ineqn in
   proj ineqs ineqn
 
 exception Not_satisfiable
 
-let strict_sat ~cmp_v ~cmp_w ineqs ~strict:(vars,cst,lc as ineq) ineqn =
+let strict_sat ~cmp_v ~cmp_w (ineqs : ineqs)
+    ~strict:(vars,cst,lc as ineq) ineqn =
   (*[* Format.printf
     "NumS.strict-sat: test strict=%a@\nineqs=@ %a@\nineqn=@ %a@\n%!"
      pr_ineq ineq pr_ineqs ineqs pr_ineqn ineqn; *]*)  
@@ -2684,24 +2771,26 @@ let strict_sat ~cmp_v ~cmp_w ineqs ~strict:(vars,cst,lc as ineq) ineqn =
     | ((v,k)::vars, cst, loc)::ineqn ->
       let (left, right), ineqs =
         try pop_assoc v ineqs
-        with Not_found -> (WSet.empty, WSet.empty), ineqs in
+        with Not_found -> (affine_empty, affine_empty), ineqs in
       let ohs = mult (!/(-1) // k) (vars, cst, loc) in
       let ineq_l, ineq_r, more_ineqn = 
         if k >/ !/0
         then
-          (if not strict && WSet.mem ohs right then [], [], []
+          (if not strict && affine_mem ~is_lhs:false ohs right
+           then [], [], []
            else [], [ohs],
-                wset_map_to_list (fun lhs -> diff ~cmp_v lhs ohs) left)
+                affine_map_to_list (fun lhs -> diff ~cmp_v lhs ohs) left)
         else
-          (if not strict && WSet.mem ohs left then [], [], []
+          (if not strict && affine_mem ~is_lhs:true ohs left
+           then [], [], []
            else [ohs], [],
-                wset_map_to_list (fun rhs -> diff ~cmp_v ohs rhs) right)
+                affine_map_to_list (fun rhs -> diff ~cmp_v ohs rhs) right)
       in
       (*[* Format.printf
         "NumS.strict-sat-proj: v=%s k=%s@ ohs=%a@\nleft=@ \
          %a@\nright=@ %a@\nmore_ineqn=@ %a@\nrem_ineqn=@ %a@\n%!"
         (var_str v) (string_of_num k) pr_w ohs pr_eqn
-        (WSet.elements left) pr_eqn (WSet.elements right)
+        (affine_to_ineqn left) pr_eqn (affine_to_ineqn right)
         pr_ineqn more_ineqn pr_ineqn ineqn; *]*)  
       let more_ineqn = List.filter
         (function
@@ -2715,7 +2804,8 @@ let strict_sat ~cmp_v ~cmp_w ineqs ~strict:(vars,cst,lc as ineq) ineqn =
       let ineqn =
         merge cmp_w (List.sort cmp_w more_ineqn) ineqn in
       let ineqs =
-        (v, (add_to_wset ineq_l left, add_to_wset ineq_r right))::ineqs in
+        (v, (add_to_affine ~is_lhs:true ineq_l left,
+             add_to_affine ~is_lhs:false ineq_r right))::ineqs in
       proj strict ineqs ineqn in
   let res =
     try

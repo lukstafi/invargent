@@ -347,7 +347,8 @@
   use a value of an existential type, we have to bind it with a
   <verbatim|let>..<verbatim|in> expression. Otherwise, the existential type
   will not be unpacked. An existential type will be automatically unpacked
-  before being ``repackaged'' as another existential type.
+  before being ``repackaged'' as another existential type. In the following
+  artificial example, we abstract away the particular resulting location.
 
   <\code>
     datatype Room
@@ -391,7 +392,98 @@
   </code>
 
   We get <verbatim|find_castle<math|:\<forall\>>a. Place
-  a<math|\<rightarrow\>> <math|\<exists\>>b. Castle b>.
+  a<math|\<rightarrow\>> <math|\<exists\>>b. Castle b>. Next consider a
+  slightly less artificial, toy example of computer hardware configuration.
+  It illustrates many aspects of existential types in InvarGenT. We introduce
+  functions <verbatim|config_mem_board> and <verbatim|config_gpu> as
+  external, i.e., ones whose definition is not type-checked by InvarGenT.
+  Their types illustrate that existential types can be used in type
+  annotations. Types <verbatim|Slow> and <verbatim|Fast>, although declared
+  as data-types, are phantom types, i.e. are not inhabited and convey
+  information as parameters of other types.
+
+  <\code>
+    datatype Slow \ datatype Fast \ datatype Budget
+
+    datacons Small : Budget \ datacons Medium : Budget \ datacons Large :
+    Budget
+
+    datatype Memory : type \ datacons Best_mem : Memory Fast
+
+    datatype Motherboard : type \ datacons Best_board : Motherboard Fast
+
+    external config_mem_board : Budget <math|\<rightarrow\>>
+    <math|\<exists\>>a. (Memory a, Motherboard a)
+
+    datatype CPU : type
+
+    datacons FastCPU : CPU Fast \ datacons SlowCPU : CPU Slow
+
+    datatype GPU : type
+
+    datacons FastGPU : GPU Fast \ datacons SlowGPU : GPU Slow
+
+    external config_gpu : Budget <math|\<rightarrow\>> <math|\<exists\>>a.
+    GPU a
+
+    datatype PC : type * type * type * type
+
+    datacons PC :
+
+    \ \ <math|\<forall\>>a,b,c,r. CPU a * GPU b * Memory c * Motherboard r
+    <math|\<longrightarrow\>> PC (a,b,c,r)
+
+    datatype Usecase \ datacons Gaming : Usecase
+
+    datacons Scientific : Usecase \ datacons Office : Usecase
+
+    \;
+
+    let budget_to_cpu = efunction
+
+    \ \ \| Small -\<gtr\> SlowCPU \| Medium -\<gtr\> FastCPU \| Large
+    -\<gtr\> FastCPU
+
+    let usecase_to_gpu budget = efunction
+
+    \ \ \| Gaming -\<gtr\> FastGPU \| Scientific -\<gtr\> FastGPU
+
+    \ \ \| Office -\<gtr\> config_gpu budget
+
+    let rec configure = efunction
+
+    \ \ \| Small, Gaming -\<gtr\> configure (Small, Office)
+
+    \ \ \| Large, Gaming -\<gtr\> PC (FastCPU, FastGPU, Best_mem, Best_board)
+
+    \ \ \| budget, usecase -\<gtr\>
+
+    \ \ \ \ let mem, board = config_mem_board budget in
+
+    \ \ \ \ let cpu = budget_to_cpu budget in
+
+    \ \ \ \ let gpu = usecase_to_gpu budget usecase in
+
+    \ \ \ \ PC (cpu, gpu, mem, board)
+  </code>
+
+  InvarGenT infers the following types:
+
+  <\code>
+    budget_to_cpu : Size <math|\<rightarrow\>> <math|\<exists\>>a.CPU a
+
+    usecase_to_gpu : Usecase <math|\<rightarrow\>> <math|\<exists\>>a.GPU a
+
+    configure : (Size, Usecase) <math|\<rightarrow\>> <math|\<exists\>>a, b,
+    c.PC (a, b, c, c)
+  </code>
+
+  The definition of <verbatim|configure> illustrates explicit elimination of
+  existential types by <verbatim|let>..<verbatim|in> definitions: by design,
+  inlining of <verbatim|cpu> or <verbatim|gpu> definitions would make the
+  function not typeable. The call to <verbatim|config_gpu> and the recursive
+  call to <verbatim|configure> illustrate implicit elimination of existential
+  types in return positions.
 
   A more practical existential type example:
 
@@ -411,7 +503,7 @@
 
     \;
 
-    let rec filter = fun f -\>
+    let rec filter f =
 
     \ \ efunction LNil -\> LNil
 

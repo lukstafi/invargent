@@ -64,11 +64,11 @@ val rowSwap :
    0 ≤ j]. Matrix (i, j) → Num k → Num n → ()
 
 val norm :
-   ∀i, k, n[0 ≤ n ∧ n + 1 ≤ i ∧ k ≤ i].
+   ∀i, k, n[0 ≤ n ∧ k ≤ i ∧ n + 1 ≤ i].
    Array (Float, i) → Num k → Num n → ()
 
 val rowElim :
-   ∀i, j, k, n[0 ≤ n ∧ n + 1 ≤ i ∧ k ≤ i ∧ k ≤ j].
+   ∀i, j, k, n[0 ≤ n ∧ k ≤ i ∧ n + 1 ≤ i ∧ k ≤ j].
    Array (Float, j) → Array (Float, i) → Num k → Num n → ()
 
-val gauss : ∀k, n[0 ≤ n ∧ 1 ≤ k ∧ n ≤ k]. Matrix (n, k) → ()
+val gauss : ∀k, n[0 ≤ n ∧ n ≤ k ∧ 1 ≤ k]. Matrix (n, k) → ()

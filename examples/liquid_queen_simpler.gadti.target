@@ -34,7 +34,7 @@ val solved :
    ∀k, n[0 ≤ n ∧ n + 1 ≤ k]. Array (Int, k) → Num n → Bool
 
 val loop :
-   ∀i, k, n[0 ≤ n ∧ n + 1 ≤ i ∧ k ≤ i].
+   ∀i, k, n[0 ≤ n ∧ k ≤ i ∧ n + 1 ≤ i].
    Array (Int, i) → Num k → Num n → ()
 
 val queens : ∀n[1 ≤ n]. Num n → ()

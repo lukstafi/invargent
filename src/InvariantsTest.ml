@@ -1942,7 +1942,7 @@ let rec link = function
 
   "unary minimum expanded" >::
     (fun () ->
-       skip_if !debug "debug";
+       (* skip_if !debug "debug"; *)
        test_case "unary minimum expanded"
 "datatype Unary : num
 datacons UNil : Unary 0
@@ -2342,7 +2342,7 @@ let create = fun l x r ->
   δ =
     (Avl (a, k) → a → Avl (a, n) →
        ∃i[i=max (k + 1, n + 1)].Avl (a, i)) ∧
-  0 ≤ n ∧ 0 ≤ k ∧ n ≤ k + 2 ∧ k ≤ n + 2"];
+  0 ≤ n ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ k ≤ n + 2"];
     );
 
   "avl_tree--create2" >::
@@ -2364,7 +2364,7 @@ let create = fun l x r ->
   δ =
     (Avl (a, k) → a → Avl (a, n) →
        ∃i[i=max (n + 1, k + 1)].Avl (a, i)) ∧
-  0 ≤ n ∧ 0 ≤ k ∧ n ≤ k + 2 ∧ k ≤ n + 2"];
+  0 ≤ n ∧ n ≤ k + 2 ∧ 0 ≤ k ∧ k ≤ n + 2"];
     );
 
   "avl_tree--singleton" >::
@@ -2566,7 +2566,7 @@ let rotr = fun l x r -> (* hl = hr + 3 *)
   "avl_tree--rotl-simple" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case "avl_tree--rotl"
+       test_case "avl_tree--rotl-simple"
 "datatype Avl : type * num
 datacons Empty : ∀a. Avl (a, 0)
 datacons Node :
@@ -2608,7 +2608,7 @@ let rotl = efunction (* hl + 3 = hr *)
   "avl_tree--rotl-simple2" >::
     (fun () ->
        skip_if !debug "debug";
-       test_case "avl_tree--rotl"
+       test_case "avl_tree--rotl-simple2"
 "datatype Avl : type * num
 datacons Empty : ∀a. Avl (a, 0)
 datacons Node :
@@ -2682,7 +2682,7 @@ let rotl = fun l x r -> (* hl + 3 = hr *)
   δ =
     (Avl (a, k) → a → Avl (a, n) → ∃k[k ≤ n + 1 ∧
        n ≤ k].Avl (a, k)) ∧
-  0 ≤ k ∧ n ≤ k + 3 ∧ k + 2 ≤ n"];
+  n ≤ k + 3 ∧ 0 ≤ k ∧ k + 2 ≤ n"];
     );
 
   "avl_tree--add-simple" >::
@@ -2980,8 +2980,8 @@ let rec remove_min_binding = efunction
 (* The inequality [k + 2 ≤ 2 n] corresponds to the fact [n=1 ==> k=0]. *)
         [2,"∃n, a.
   δ =
-    (Avl (a, n) → ∃k[n ≤ k + 1 ∧ k ≤ n ∧
-       k + 2 ≤ 2 n].Avl (a, k)) ∧
+    (Avl (a, n) → ∃k[n ≤ k + 1 ∧ k + 2 ≤ 2 n ∧
+       k ≤ n].Avl (a, k)) ∧
   1 ≤ n"];
     );
 
@@ -3026,8 +3026,8 @@ let rec remove_min_binding = efunction
 (* The inequality [k + 2 ≤ 2 n] corresponds to the fact [n=1 ==> k=0]. *)
         [2,"∃n, a.
   δ =
-    (Avl (a, n) → ∃k[n ≤ k + 1 ∧ k ≤ n ∧
-       k + 2 ≤ 2 n].Avl (a, k)) ∧
+    (Avl (a, n) → ∃k[n ≤ k + 1 ∧ k + 2 ≤ 2 n ∧
+       k ≤ n].Avl (a, k)) ∧
   1 ≤ n"];
     );
 
@@ -3071,8 +3071,8 @@ let rec remove_min_binding = efunction
 (* The inequality [k + 2 ≤ 2 n] corresponds to the fact [n=1 ==> k=0]. *)
         [2,"∃n, a.
   δ =
-    (Avl (a, n) → ∃k[n ≤ k + 1 ∧ k ≤ n ∧
-       k + 2 ≤ 2 n].Avl (a, k)) ∧
+    (Avl (a, n) → ∃k[n ≤ k + 1 ∧ k + 2 ≤ 2 n ∧
+       k ≤ n].Avl (a, k)) ∧
   1 ≤ n"];
     );
 
