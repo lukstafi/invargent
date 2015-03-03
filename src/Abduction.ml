@@ -250,7 +250,6 @@ let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
     *]*)
     let {cnj_typ=concl; _} =
       subst_solved ~use_quants:false q ans0 ~cnj:concl in
-    let ans0_vs = vars_of_list (List.map fst ans0) in
     (*[* Format.printf
       "abd_simple: skip=%d,@ bvs=@ %a;@ vs=@ %s;@ ans0=@ %a@ \
        --@\n@[<2>%a@ ⟹@ %a@]@\n%!"
@@ -659,10 +658,6 @@ let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
         let {cnj_typ=ans; cnj_num; cnj_so=_} =
           unify ~bvs q (to_formula ans) in
         assert (cnj_num = []);
-        let ans1_vs = vars_of_list (List.map fst ans) in
-        let all_new_vs =
-          connecteds_vs (VarSet.diff ans1_vs ans0_vs) ans0 in
-        validate all_new_vs (vs, ans);
         (*[* Format.printf
           "abd_simple: Final validation passed@\nans=%a@\n%!"
           pr_subst ans; *]*)
