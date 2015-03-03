@@ -2374,10 +2374,10 @@ let subst_chi chi_sb pos_chi =
 let empty_renaming = Hashtbl.create 0
 let empty_b_of_v v = v
 
-let fvs_br (_, _, _, (d_eqn, d_ineqn),
+let fvs_br_concl (_, _, _, _,
             (c_eqn, c_ineqn, c_optis, c_suboptis)) =
   VarSet.union
-    (vars_of_map (vars_of_map fvs_w) [d_eqn; d_ineqn; c_eqn; c_ineqn])
+    (vars_of_map (vars_of_map fvs_w) [c_eqn; c_ineqn])
     (vars_of_map (vars_of_map fvs_2w) [c_optis; c_suboptis])
 
 let fvs_sep_w_formula (c_eqn, c_ineqn, c_optis, c_suboptis) =
@@ -2526,7 +2526,7 @@ let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
          else
            let brs_n = List.length res in
            let brs_r = ref brs_n in
-           List.map (fun br -> br, (fvs_br br, brs_r, brs_n, br)) res)
+           List.map (fun br -> br, (fvs_br_concl br, brs_r, brs_n, br)) res)
       brs in
   let brs, validate_brs = List.split brs in
   (*[* Format.printf "NumS.abd: brs processing past merging@\n%!"; *]*)

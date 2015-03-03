@@ -892,10 +892,7 @@ let abd q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of ~nonparam_vars
         neg_brs in
   let verif_brs = List.map2
       (fun (prem, concl_ty) (_, _, _, concl_num) ->
-         VarSet.union (fvs_sb prem.cnj_typ)
-           (VarSet.union (NumDefs.fvs_formula prem.cnj_num)
-              (VarSet.union (fvs_sb concl_ty)
-                 (NumDefs.fvs_formula concl_num))),
+         VarSet.union (fvs_sb concl_ty) (NumDefs.fvs_formula concl_num),
          prem, concl_ty, concl_num)
       brs_typ brs_num in
   let validate added_vs (vs, ans) =
