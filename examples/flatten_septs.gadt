@@ -1,0 +1,9 @@
+datatype List : type * num
+datacons LNil : ∀a. List(a, 0)
+datacons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+
+let rec flatten_septs =
+  function LNil -> LNil
+    | LCons ((a, b, c, d, e, f, g), l) ->
+      LCons (a, LCons (b, LCons (c, LCons (d,
+      LCons (e, LCons (f, LCons (g, flatten_septs l)))))))

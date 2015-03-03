@@ -794,16 +794,12 @@
   </code>
 
   Below we demonstrate what happens with insufficiently high parameter
-  setting. Consider this example, where we use <verbatim|-full_annot> to
-  generate type annotations on <verbatim|function> and
-  <verbatim|let>..<verbatim|in> nodes in the <verbatim|.ml> file, in addition
-  to annotations on <verbatim|let rec> nodes:
+  setting. Consider this example:
 
   <\code>
-    $ ./invargent -inform -term_abduction_timeout 100
-    examples/equal_assert.gadt
+    $ ./invargent -inform examples/flatten_septs.gadt
 
-    File "examples/equal_assert.gadt", line 19, characters 24-38:
+    File "examples/flatten_septs.gadt", line 8, characters 6-104:
 
     No answer in type: term abduction failed
 
@@ -812,12 +808,45 @@
     Perhaps increase the -term_abduction_timeout parameter.
 
     Perhaps increase the -term_abduction_fail parameter.
+
+    $ ./invargent -inform -term_abduction_timeout 3000
+    examples/flatten_septs.gadt
+
+    File "examples/flatten_septs.gadt", line 3, characters 26-261:
+
+    No answer in num: numerical abduction failed
+
+    \;
+
+    Perhaps do not pass the -no_dead_code flag.
+
+    Perhaps increase the -num_abduction_timeout parameter.
+
+    Perhaps increase the -num_abduction_fail parameter.
+
+    $ ./invargent -inform -term_abduction_timeout 3000
+    -num_abduction_rotations 4 \\
+
+    \ \ examples/flatten_septs.gadt
+
+    val flatten_septs :
+
+    \ \ <math|\<forall\>>n, a. List ((a, a, a, a, a, a, a), n)
+    <math|\<rightarrow\>> List (a, 7 n)
+
+    InvarGenT: Generated file examples/flatten_septs.gadti
+
+    InvarGenT: Generated file examples/flatten_septs.ml
+
+    InvarGenT: Command "ocamlc -w -25 -c examples/flatten_septs.ml" exited
+    with code 0
   </code>
 
   The <verbatim|Perhaps increase> suggestions are generated only when the
   corresponding limit has actually been exceeded. Remember however that the
   limits will often be exceeded for erroneus programs which should not
-  type-check.
+  type-check. Moreover, as illustrated above, other settings might be the
+  culprit.
 
   To understand the intent of the solver parameters, we need a rough
   ``birds-eye view'' understanding of how InvarGenT works. The invariants and
@@ -840,7 +869,9 @@
   Therefore we use GLB, constraint generalization, but only if existential
   types have been introduced by <verbatim|efunction> or <verbatim|ematch>.
 
-  Below we discuss all of the InvarGenT options.
+  Below we discuss all of the InvarGenT options. We use the technical term
+  <em|terms> to mean type shapes, types without the concern for the sort of
+  numbers (or other sorts to come in the future).
 
   <\description>
     <item*|<verbatim|-inform>>Print type schemes of toplevel definitions as
@@ -1111,7 +1142,14 @@
   </description>
 
   Let us have a look at tests from the <verbatim|examples> direcotory that
-  need a non-default parameter setting.
+  need a non-default parameter setting. The program
+  <verbatim|examples/flatten_septs.gadt> has already been shown above. It is
+  the only example that needs the <verbatim|-term_abduction_timeout> and
+  <verbatim|-num_abduction_rotations> settings. The need for
+  <verbatim|-num_abduction_rotations> comes from having an equation with
+  large coefficient in the answer. The need for
+  <verbatim|-term_abduction_timeout> comes from having bigger type shapes to
+  handle during term, i.e. type shape, abduction.
 
   <\code>
     $ ./invargent -inform examples/non_pointwise_leq.gadt

@@ -38,6 +38,12 @@ Solving second-order i.e. formula variables for InvarGenT.
 <pre><span id="VALtimeout_flag"><span class="keyword">val</span> timeout_flag</span> : <code class="type">bool Pervasives.ref</code></pre>
 <pre><span id="VALunfinished_postcond_flag"><span class="keyword">val</span> unfinished_postcond_flag</span> : <code class="type">bool Pervasives.ref</code></pre>
 <pre><span id="VALuse_prior_discards"><span class="keyword">val</span> use_prior_discards</span> : <code class="type">bool Pervasives.ref</code></pre><div class="info ">
+If <code class="code">true</code>, do not use specific heuristic settings for definitions
+    with assertions. Currently, when <code class="code">false</code>, <code class="code">NumS.reward_constrn</code>
+    is set to <code class="code">-1</code> for definitions with assertions.<br>
+</div>
+
+<pre><span id="VALsame_with_assertions"><span class="keyword">val</span> same_with_assertions</span> : <code class="type">bool Pervasives.ref</code></pre><div class="info ">
 Breakdown of steps through the main iteration to achieve
     convergence, counting from 0. The iteration:
 <p>
@@ -45,7 +51,9 @@ Breakdown of steps through the main iteration to achieve
     * <code class="code">disj_step.(0)</code> is 
     * <code class="code">disj_step.(1)</code> is 
     * <code class="code">disj_step.(2)</code> is 
-    * <code class="code">disj_step.(3)</code> is when convergence of postconditions is enforced.<br>
+    * <code class="code">disj_step.(3)</code> is 
+    * <code class="code">disj_step.(4)</code> is 
+    * <code class="code">disj_step.(5)</code> is when convergence of postconditions is enforced.<br>
 </div>
 
 <pre><span id="VALdisj_step"><span class="keyword">val</span> disj_step</span> : <code class="type">int array</code></pre>
@@ -53,4 +61,4 @@ Breakdown of steps through the main iteration to achieve
 
 
 <pre><span id="VALneg_constrns"><span class="keyword">val</span> neg_constrns</span> : <code class="type">bool Pervasives.ref</code></pre>
-<pre><span id="VALsolve"><span class="keyword">val</span> solve</span> : <code class="type">Defs.quant_ops -><br>       (int * Defs.loc) list -><br>       (int, int) Hashtbl.t -><br>       (<a href="Terms.html#TYPEformula">Terms.formula</a> * <a href="Terms.html#TYPEformula">Terms.formula</a>) list -><br>       Defs.quant_ops * <a href="Terms.html#TYPEformula">Terms.formula</a> * <a href="Invariants.html#TYPEchi_subst">chi_subst</a></code></pre></body></html>
+<pre><span id="VALsolve"><span class="keyword">val</span> solve</span> : <code class="type">uses_pos_assertions:bool -><br>       Defs.quant_ops -><br>       (int * Defs.loc) list -><br>       (int, int) Hashtbl.t -><br>       (<a href="Terms.html#TYPEformula">Terms.formula</a> * <a href="Terms.html#TYPEformula">Terms.formula</a>) list -><br>       Defs.quant_ops * <a href="Terms.html#TYPEformula">Terms.formula</a> * <a href="Invariants.html#TYPEchi_subst">chi_subst</a></code></pre></body></html>

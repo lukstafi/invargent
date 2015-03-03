@@ -7,7 +7,7 @@
 *)
 
 let early_num_abduction = ref (* false *)true
-let abd_rotations = ref (* 2 *)3
+let abd_rotations = ref (* 2 *)3(* 4 *)
 let abd_prune_at = ref (* 4 *)6(* 10 *)
 let abd_timeout_count = ref (* 500 *)1000(* 5000 *)(* 50000 *)
 let abd_fail_timeout_count = ref 20

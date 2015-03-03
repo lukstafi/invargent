@@ -20,7 +20,8 @@ let input_file file =
 
 let test_case ?(test_annot=false) ?(do_ml=true)
     ?richer_answers ?more_general_num
-    ?prefer_guess ?prefer_bound_to_local ?prefer_bound_to_outer
+    ?prefer_guess ?ty_abd_timeout
+    ?prefer_bound_to_local ?prefer_bound_to_outer
     ?only_off_by_1 ?same_with_assertions ?reward_constrn
     ?abd_rotations ?num_abd_timeout
     ?num_abd_fail_timeout ?nodeadcode file () =
@@ -49,6 +50,10 @@ let test_case ?(test_annot=false) ?(do_ml=true)
   (match prefer_guess with
    | None -> ()
    | Some prefer_guess -> Abduction.prefer_guess := prefer_guess);
+  let old_timeout_count = !Abduction.timeout_count in
+  (match ty_abd_timeout with
+   | None -> ()
+   | Some timeout_count -> Abduction.timeout_count := timeout_count);
   let old_prefer_bound_to_local = !NumS.prefer_bound_to_local in
   (match prefer_bound_to_local with
    | None -> ()
@@ -116,6 +121,7 @@ let test_case ?(test_annot=false) ?(do_ml=true)
      Abduction.richer_answers := old_richer_answers;
      NumS.more_general := old_more_general_num;
      Abduction.prefer_guess := old_prefer_guess;
+     Abduction.timeout_count := old_timeout_count;
      NumS.prefer_bound_to_local := old_prefer_bound_to_local;
      NumS.prefer_bound_to_outer := old_prefer_bound_to_outer;
      NumS.only_off_by_1 := old_only_off_by_1;
@@ -130,6 +136,7 @@ let test_case ?(test_annot=false) ?(do_ml=true)
      Abduction.richer_answers := old_richer_answers;
      NumS.more_general := old_more_general_num;
      Abduction.prefer_guess := old_prefer_guess;
+     Abduction.timeout_count := old_timeout_count;
      NumS.prefer_bound_to_local := old_prefer_bound_to_local;
      NumS.prefer_bound_to_outer := old_prefer_bound_to_outer;
      NumS.only_off_by_1 := old_only_off_by_1;
@@ -143,6 +150,7 @@ let test_case ?(test_annot=false) ?(do_ml=true)
   Abduction.richer_answers := old_richer_answers;
   NumS.more_general := old_more_general_num;
   Abduction.prefer_guess := old_prefer_guess;
+  Abduction.timeout_count := old_timeout_count;
   NumS.prefer_bound_to_local := old_prefer_bound_to_local;
   NumS.prefer_bound_to_outer := old_prefer_bound_to_outer;
   NumS.only_off_by_1 := old_only_off_by_1;
@@ -196,6 +204,11 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "flatten_quadrs" ());
+      "flatten_septs" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case ~ty_abd_timeout:3000
+             ~abd_rotations:4 "flatten_septs" ());
       "equational_reas" >::
         (fun () ->
            skip_if !debug "debug";

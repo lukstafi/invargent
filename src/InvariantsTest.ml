@@ -1942,7 +1942,7 @@ let rec link = function
 
   "unary minimum expanded" >::
     (fun () ->
-       (* skip_if !debug "debug"; *)
+       skip_if !debug "debug";
        test_case "unary minimum expanded"
 "datatype Unary : num
 datacons UNil : Unary 0

@@ -49,8 +49,10 @@
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(int&nbsp;*&nbsp;(<span class="constructor">Defs</span>.var_name&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.formula))&nbsp;list<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;infer_prog_mockup&nbsp;:<br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Infer</span>.program&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(int&nbsp;*&nbsp;<span class="constructor">Defs</span>.loc)&nbsp;list&nbsp;*&nbsp;<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;*&nbsp;<span class="constructor">Infer</span>.cnstrnt<br>
+&nbsp;&nbsp;<span class="keyword">val</span>&nbsp;uses_pos_assertions&nbsp;:&nbsp;bool&nbsp;<span class="constructor">Pervasives</span>.ref<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;infer_prog&nbsp;:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;(new_ex_types:(int&nbsp;*&nbsp;<span class="constructor">Defs</span>.loc)&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;(uses_pos_assertions:bool&nbsp;<span class="keywordsign">-&gt;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;new_ex_types:(int&nbsp;*&nbsp;<span class="constructor">Defs</span>.loc)&nbsp;list&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;preserve:<span class="constructor">Defs</span>.<span class="constructor">VarSet</span>.t&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Infer</span>.cnstrnt&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;<span class="constructor">Infer</span>.solution)&nbsp;<span class="keywordsign">-&gt;</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class="constructor">Infer</span>.program&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(string&nbsp;*&nbsp;<span class="constructor">Terms</span>.typ_scheme)&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.annot_item&nbsp;list<br>
 &nbsp;&nbsp;<span class="keyword">val</span>&nbsp;normalize_expr&nbsp;:&nbsp;<span class="constructor">Terms</span>.uexpr&nbsp;<span class="keywordsign">-&gt;</span>&nbsp;(int&nbsp;*&nbsp;<span class="constructor">Defs</span>.loc)&nbsp;list&nbsp;*&nbsp;<span class="constructor">Terms</span>.uexpr<br>

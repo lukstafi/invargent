@@ -70,62 +70,63 @@
 <\references>
   <\collection>
     <associate|1|<tuple|5.2|?>>
-    <associate|AlienSubterms|<tuple|3.3|9|invargent.tm>>
-    <associate|Details|<tuple|6.5|21|invargent.tm>>
+    <associate|AlienSubterms|<tuple|3.3|10|invargent.tm>>
+    <associate|CaptureEscParams|<tuple|4|21|invargent.tm>>
+    <associate|Details|<tuple|6.5|24|invargent.tm>>
     <associate|ImplSubst|<tuple|4|2>>
     <associate|Main Algo|<tuple|5.3|?>>
-    <associate|MainAlgo|<tuple|6|16|invargent.tm>>
-    <associate|MainAlgoBody|<tuple|6.3|18|invargent.tm>>
-    <associate|NegElim|<tuple|4.4|14|invargent.tm>>
-    <associate|NumConv|<tuple|4.2|12|invargent.tm>>
-    <associate|OptiAtoms|<tuple|5|15|invargent.tm>>
-    <associate|Rg|<tuple|4|19|invargent.tm>>
+    <associate|MainAlgo|<tuple|6|18|invargent.tm>>
+    <associate|MainAlgoBody|<tuple|6.3|21|invargent.tm>>
+    <associate|NegElim|<tuple|4.4|16|invargent.tm>>
+    <associate|NumConv|<tuple|4.2|14|invargent.tm>>
+    <associate|OptiAtoms|<tuple|5|17|invargent.tm>>
+    <associate|Rg|<tuple|3|21|invargent.tm>>
     <associate|SCAlinear|<tuple|3.4|10|invargent.tm>>
     <associate|SepProp|<tuple|5|3>>
     <associate|SepProp2|<tuple|6|?>>
     <associate|Skp|<tuple|1|18|invargent.tm>>
-    <associate|Skp1|<tuple|9|19|invargent.tm>>
+    <associate|Skp1|<tuple|9|22|invargent.tm>>
     <associate|SolSimpl|<tuple|9|12>>
     <associate|SolvedForm|<tuple|4|?>>
     <associate|SolvedFormProj|<tuple|7|?>>
     <associate|auto-1|<tuple|1|1|invargent.tm>>
-    <associate|auto-10|<tuple|3.3|9|invargent.tm>>
+    <associate|auto-10|<tuple|3.3|10|invargent.tm>>
     <associate|auto-11|<tuple|3.4|10|invargent.tm>>
-    <associate|auto-12|<tuple|4|11|invargent.tm>>
-    <associate|auto-13|<tuple|4.1|12|invargent.tm>>
-    <associate|auto-14|<tuple|4.2|12|invargent.tm>>
-    <associate|auto-15|<tuple|4.3|13|invargent.tm>>
-    <associate|auto-16|<tuple|4.4|14|invargent.tm>>
-    <associate|auto-17|<tuple|5|15|invargent.tm>>
-    <associate|auto-18|<tuple|5.1|15|invargent.tm>>
-    <associate|auto-19|<tuple|5.2|16|invargent.tm>>
+    <associate|auto-12|<tuple|4|13|invargent.tm>>
+    <associate|auto-13|<tuple|4.1|13|invargent.tm>>
+    <associate|auto-14|<tuple|4.2|14|invargent.tm>>
+    <associate|auto-15|<tuple|4.3|14|invargent.tm>>
+    <associate|auto-16|<tuple|4.4|16|invargent.tm>>
+    <associate|auto-17|<tuple|5|17|invargent.tm>>
+    <associate|auto-18|<tuple|5.1|17|invargent.tm>>
+    <associate|auto-19|<tuple|5.2|17|invargent.tm>>
     <associate|auto-2|<tuple|2|3|invargent.tm>>
-    <associate|auto-20|<tuple|5.3|16|invargent.tm>>
-    <associate|auto-21|<tuple|6|16|invargent.tm>>
-    <associate|auto-22|<tuple|6.1|16|invargent.tm>>
-    <associate|auto-23|<tuple|6.2|17|invargent.tm>>
-    <associate|auto-24|<tuple|6.3|18|invargent.tm>>
-    <associate|auto-25|<tuple|6.4|20|invargent.tm>>
-    <associate|auto-26|<tuple|6.5|21|invargent.tm>>
-    <associate|auto-27|<tuple|7|21|invargent.tm>>
-    <associate|auto-28|<tuple|7|22>>
-    <associate|auto-3|<tuple|2.1|4|invargent.tm>>
+    <associate|auto-20|<tuple|5.3|18|invargent.tm>>
+    <associate|auto-21|<tuple|6|18|invargent.tm>>
+    <associate|auto-22|<tuple|6.1|18|invargent.tm>>
+    <associate|auto-23|<tuple|6.2|18|invargent.tm>>
+    <associate|auto-24|<tuple|6.3|21|invargent.tm>>
+    <associate|auto-25|<tuple|6.4|23|invargent.tm>>
+    <associate|auto-26|<tuple|6.5|24|invargent.tm>>
+    <associate|auto-27|<tuple|7|24|invargent.tm>>
+    <associate|auto-28|<tuple|7|25>>
+    <associate|auto-3|<tuple|2.1|5|invargent.tm>>
     <associate|auto-4|<tuple|2.1.1|5|invargent.tm>>
-    <associate|auto-5|<tuple|2.2|5|invargent.tm>>
-    <associate|auto-6|<tuple|3|5|invargent.tm>>
+    <associate|auto-5|<tuple|2.2|6|invargent.tm>>
+    <associate|auto-6|<tuple|3|6|invargent.tm>>
     <associate|auto-7|<tuple|3.1|6|invargent.tm>>
-    <associate|auto-8|<tuple|3.1.1|8|invargent.tm>>
-    <associate|auto-9|<tuple|3.2|8|invargent.tm>>
-    <associate|bib-AbductionSolvMaher|<tuple|4|22>>
-    <associate|bib-AntiUnifAlg|<tuple|5|22>>
+    <associate|auto-8|<tuple|3.1.1|9|invargent.tm>>
+    <associate|auto-9|<tuple|3.2|9|invargent.tm>>
+    <associate|bib-AbductionSolvMaher|<tuple|4|25>>
+    <associate|bib-AntiUnifAlg|<tuple|5|25>>
     <associate|bib-AntiUnifInv|<tuple|2|4>>
     <associate|bib-AntiUnifPlotkin|<tuple|4|4>>
     <associate|bib-AntiUnifReynolds|<tuple|5|4>>
-    <associate|bib-ArithQuantElim|<tuple|1|22>>
-    <associate|bib-ConvexHull|<tuple|2|22>>
+    <associate|bib-ArithQuantElim|<tuple|1|25>>
+    <associate|bib-ConvexHull|<tuple|2|25>>
     <associate|bib-DBLP:conf/cccg/2000|<tuple|3|?>>
     <associate|bib-ESOP2014|<tuple|9|23>>
-    <associate|bib-PracticalGADTsInfer|<tuple|3|22>>
+    <associate|bib-PracticalGADTsInfer|<tuple|3|25>>
     <associate|bib-UnificationBaader|<tuple|1|4>>
     <associate|bib-disjelimTechRep|<tuple|6|23>>
     <associate|bib-invariantsTechRep2|<tuple|7|23>>
@@ -238,7 +239,7 @@
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-19>>
 
-      <with|par-left|<quote|1.5fn>|5.3<space|2spc>Disjunction elimination
+      <with|par-left|<quote|1.5fn>|5.3<space|2spc>Constraint generalization
       <datoms|<macro|x|<repeat|<arg|x>|<with|font-series|medium|<with|font-size|1|<space|0.2fn>.<space|0.2fn>>>>>|<htab|5mm>>
       <no-break><pageref|auto-20>>
 

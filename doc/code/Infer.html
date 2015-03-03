@@ -114,7 +114,11 @@ Return a store cell where triggers will put which existentials are
 
 
 <pre><span id="VALinfer_prog_mockup"><span class="keyword">val</span> infer_prog_mockup</span> : <code class="type"><a href="Infer.html#TYPEprogram">program</a> -> (int * Defs.loc) list * Defs.VarSet.t * <a href="Infer.html#TYPEcnstrnt">cnstrnt</a></code></pre>
-<pre><span id="VALinfer_prog"><span class="keyword">val</span> infer_prog</span> : <code class="type">(new_ex_types:(int * Defs.loc) list -><br>        preserve:Defs.VarSet.t -> <a href="Infer.html#TYPEcnstrnt">cnstrnt</a> -> <a href="Infer.html#TYPEsolution">solution</a>) -><br>       <a href="Infer.html#TYPEprogram">program</a> -> (string * <a href="Terms.html#TYPEtyp_scheme">Terms.typ_scheme</a>) list * <a href="Terms.html#TYPEannot_item">Terms.annot_item</a> list</code></pre>
+<pre><span id="VALuses_pos_assertions"><span class="keyword">val</span> uses_pos_assertions</span> : <code class="type">bool Pervasives.ref</code></pre><div class="info ">
+Exported only for testing purposes.<br>
+</div>
+
+<pre><span id="VALinfer_prog"><span class="keyword">val</span> infer_prog</span> : <code class="type">(uses_pos_assertions:bool -><br>        new_ex_types:(int * Defs.loc) list -><br>        preserve:Defs.VarSet.t -> <a href="Infer.html#TYPEcnstrnt">cnstrnt</a> -> <a href="Infer.html#TYPEsolution">solution</a>) -><br>       <a href="Infer.html#TYPEprogram">program</a> -> (string * <a href="Terms.html#TYPEtyp_scheme">Terms.typ_scheme</a>) list * <a href="Terms.html#TYPEannot_item">Terms.annot_item</a> list</code></pre>
 <pre><span id="VALnormalize_expr"><span class="keyword">val</span> normalize_expr</span> : <code class="type"><a href="Terms.html#TYPEuexpr">Terms.uexpr</a> -> (int * Defs.loc) list * <a href="Terms.html#TYPEuexpr">Terms.uexpr</a></code></pre><div class="info ">
 <h2 id="2_Normalization">Normalization</h2><br>
 </div>
