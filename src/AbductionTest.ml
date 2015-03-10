@@ -25,16 +25,17 @@ let br_simple lhs rhs =
   let {cnj_typ=rhs; _} = unify ~use_quants:false q rhs in
   lhs, rhs
 
-let test_simple lhs_m rhs_m ?(validate=(fun _ _ -> ())) skip res =
+let test_simple lhs_m rhs_m ?(validation=[]) skip res =
   let lhs = p_formula lhs_m and rhs = p_formula rhs_m in
   let lhs, rhs = br_simple lhs rhs in
   let neg_validate _ = 0 in
   let ans =
     match abd_simple q ~without_quant:()
       ~obvs:VarSet.empty ~bvs:VarSet.empty ~dissociate:false
-      ~validate ~neg_validate ~discard:[] skip ([],[]) (lhs, rhs) with
+      ~validation ~neg_validate ~discard:[] skip
+      ([], VarMap.empty) (lhs, rhs) with
     | None -> "none"
-    | Some (bvs, (vs, ans_typ)) ->
+    | Some ((bvs, (vs, ans_typ)), _) ->
       pr_to_str pr_formula
         (to_formula ans_typ) in
   let msg = "["^string_of_int skip^"] "^lhs_m^" ⟹ "^rhs_m in
@@ -58,7 +59,7 @@ let tests = "Abduction" >::: [
         test_simple lhs1 rhs1 0 "tb = td";
         test_simple lhs1 rhs1 1 "td = Int ∧
 tb = Int"; 
-        test_simple lhs1 rhs1 2 "tb = td";
+        test_simple lhs1 rhs1 2 "td = tb";
         test_simple lhs1 rhs1 3 "tb = Int";
         test_simple lhs1 rhs1 4 "ta = (Term tb)";
         test_simple lhs1 rhs1 5 "none";
@@ -76,8 +77,8 @@ tb = Int";
       Infer.reset_state ();
       try
         test_simple lhs1 rhs1 0 "tb = (G ta)";
-        test_simple lhs1 rhs1 1 "ta = A ∧
-tb = (G A)"; 
+        test_simple lhs1 rhs1 1 "tb = (G A) ∧
+ta = A"; 
         test_simple lhs1 rhs1 2 "tb = (G A)"; 
         test_simple lhs1 rhs1 3 "none";
       with (Defs.Report_toplevel _ | Terms.Contradiction _) as exn ->
@@ -103,7 +104,7 @@ tb = (G A)";
         let ans =
           try let cand_bvs, alien_eqs, vs, ans_typ, _ =
                 abd_typ q ~bvs
-                  ~validate:(fun _ _ -> ())
+                  ~validation:[]
                   ~neg_validate:(fun _ -> 0) ~discard:[]
                 [lhs0, rhs0; lhs1, rhs1] in
               pr_to_str pr_formula (to_formula ans_typ)

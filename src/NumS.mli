@@ -78,9 +78,11 @@ val max_subopti_postcond : int ref
 val num_of : Terms.typ -> NumDefs.term
 val sort_formula : Terms.formula -> NumDefs.formula
 val formula_of_sort : NumDefs.formula -> Terms.formula
+val sort_of_assoc :
+  (Defs.var_name * (Terms.typ * Defs.loc)) list -> NumDefs.formula
 val sort_of_subst : Terms.subst -> NumDefs.formula
 
-type subst = (Defs.var_name * (NumDefs.term * Defs.loc)) list
+type subst = (NumDefs.term * Defs.loc) Defs.VarMap.t
 
 val subst_num_formula : subst -> NumDefs.formula -> NumDefs.formula
 val subst_formula : Terms.subst -> NumDefs.formula -> NumDefs.formula
@@ -100,7 +102,7 @@ val abd :
   nonparam_vars:Defs.VarSet.t ->
   discard:NumDefs.formula list ->
   ?iter_no:int ->
-  (bool * (int * (Defs.var_name * Defs.var_name) list) list *
+  (bool * (int * Terms.hvsubst) list *
      NumDefs.formula * NumDefs.formula) list ->
   Defs.var_name list * NumDefs.formula
 
@@ -169,6 +171,6 @@ val negation_elim :
 val separate_subst :
   Defs.quant_ops -> ?no_csts:bool -> ?keep:Defs.VarSet.t ->
   ?bvs:Defs.VarSet.t -> apply:bool -> NumDefs.formula ->
-  Terms.subst * (Defs.var_name * NumDefs.term) list * NumDefs.formula
+  Terms.subst * NumDefs.term Defs.VarMap.t * NumDefs.formula
 
 val transitive_cl : Defs.quant_ops -> NumDefs.formula -> NumDefs.formula

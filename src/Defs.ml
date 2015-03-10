@@ -79,15 +79,29 @@ let var_subset vs1 vs2 =
 
 module VarMap =
   Map.Make (struct type t = var_name let compare = Pervasives.compare end)
-let varmap_of_list l =
+let varmap_of_assoc l =
   List.fold_right (uncurry VarMap.add) l VarMap.empty
+let varmap_to_assoc l =
+  VarMap.fold (fun v e acc -> (v, e)::acc) l []
 let add_to_varmap l vs =
   List.fold_right (uncurry VarMap.add) l vs
+let add_map_to_varmap f l vs =
+  List.fold_right (uncurry VarMap.add % f) l vs
 let empty_vmap = VarMap.empty
 let concat_varmap f vmap =
   VarMap.fold
     (fun v x acc -> List.rev_append (f v x) acc) vmap []
-    
+let varmap_merge sb1 sb2 =
+  VarMap.merge
+    (fun _ -> function Some _ as sv1 -> fun _ -> sv1
+                     | None -> fun sv2 -> sv2)
+    sb1 sb2
+let varmap_concat sbs =
+  List.fold_left varmap_merge VarMap.empty sbs
+let varmap_domain sb =
+  VarMap.fold (fun v _ vs -> VarSet.add v vs) sb VarSet.empty
+let varmap_codom sb =
+  VarMap.fold (fun _ e acc -> e::acc) sb []
 
 (** {2 Quantification} *)
 

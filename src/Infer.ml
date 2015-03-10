@@ -104,25 +104,25 @@ let separate_sep_subst ?(avoid=VarSet.empty) ?keep ?bvs
     if keep_uni && VarSet.is_empty avoid
     then sb
     else
-      List.filter
-        (fun (v,_) -> not (VarSet.mem v avoid) &&
-                      (keep_uni || not (q.uni_v v))) sb in
+      VarMap.filter
+        (fun v _ -> not (VarSet.mem v avoid) &&
+                    (keep_uni || not (q.uni_v v))) sb in
   let sb_ty = filter cnj_typ in
   let sb_num, _, cnj_num =
     NumS.separate_subst q ?keep ?bvs ~apply cnj_num in
   let sb_num = filter sb_num in
   let sb_ord, cnj_ord = OrderS.separate_subst q cnj_ord in
   let sb_ord = filter sb_ord in
-  let more_sb = sb_num @ sb_ord in
+  let more_sb = varmap_merge sb_num sb_ord in
   let sb = update_sb ~more_sb sb_ty in
-  sb, {cnj_typ=[]; cnj_num; cnj_ord;
+  sb, {cnj_typ=VarMap.empty; cnj_num; cnj_ord;
        cnj_so=subst_formula more_sb cnj_so}
 
 let separate_subst ?avoid ?keep ?bvs ?(keep_uni=false) ~apply q phi =
   let sb, {cnj_typ; cnj_num; cnj_ord; cnj_so} =
     separate_sep_subst ?avoid ?keep ?bvs ~keep_uni ~apply q
       (solve ~use_quants:false q phi) in
-  assert (cnj_typ=[]);
+  assert (VarMap.is_empty cnj_typ);
   sb, NumS.formula_of_sort cnj_num @
         OrderS.formula_of_sort cnj_ord @ cnj_so
 
@@ -324,16 +324,18 @@ let cn_and cn1 cn2 = And (flat_and cn1 @ flat_and cn2)
 
 let freshen_cns_scheme (vs, phi, argtys, c_n, c_args) =
   let env = List.map (fun v->v, freshen_var v) vs in
-  let argtys = List.map (hvsubst_typ env) argtys in
-  let phi = hvsubst_formula env phi in
+  let env_sb = varmap_of_assoc env in
+  let argtys = List.map (hvsubst_typ env_sb) argtys in
+  let phi = hvsubst_formula env_sb phi in
   let vs = List.map snd env in
   let c_args = List.map (flip List.assoc env) c_args in
   vs, phi, argtys, c_n, c_args
 
 let freshen_val_scheme (vs, phi, res) =
   let env = List.map (fun v->v, freshen_var v) vs in
-  let res = hvsubst_typ env res in
-  let phi = hvsubst_formula env phi in
+  let env_sb = varmap_of_assoc env in
+  let res = hvsubst_typ env_sb res in
+  let phi = hvsubst_formula env_sb phi in
   let vs = List.map snd env in
   vs, phi, res
 
@@ -821,7 +823,7 @@ let annotate_expr q res_sb chi_sb nice_sb e : texpr =
     let nice_sb, (vs, phi) = nice_ans ~sb:nice_sb ans in
     let sb, phi =
       separate_subst ~bvs:(vars_of_list vs) ~apply:true q phi in
-    let res, _ = List.assoc delta sb in
+    let res, _ = VarMap.find delta sb in
     let vs = VarSet.inter
         (VarSet.union (fvs_formula phi) (fvs_typ res))
         (vars_of_list vs) in
@@ -855,18 +857,18 @@ let annotate_expr q res_sb chi_sb nice_sb e : texpr =
         then
           let a1, a2 =
             try List.find
-                  (fun (a1,a2) -> List.mem_assoc a1 res_sb &&
-                                  List.mem_assoc a2 res_sb)
+                  (fun (a1,a2) -> VarMap.mem a1 res_sb &&
+                                  VarMap.mem a2 res_sb)
                   ann
             with Not_found ->
               (*[* Format.printf "a1s,a2s=%s@\nres_sb=%a@\nnice_sb=%a@\n%!"
                 (String.concat "; "
                    (List.map (fun (a1,a2)->var_str a1^","^var_str a2)
-                      ann))
+                      (varmap_to_assoc ann)))
                 pr_subst res_sb pr_hvsubst nice_sb; *]*)
               assert false in
-          let t1 = hvsubst_typ nice_sb (fst (List.assoc a1 res_sb))
-          and t2 = hvsubst_typ nice_sb (fst (List.assoc a2 res_sb)) in
+          let t1 = hvsubst_typ nice_sb (fst (VarMap.find a1 res_sb))
+          and t2 = hvsubst_typ nice_sb (fst (VarMap.find a2 res_sb)) in
           Some (t1, t2)
         else None in
       evs, Lam (ann, cls, lc)
@@ -938,7 +940,7 @@ let infer_prog solver prog =
          let nice_sb, (vs, phi) =
            nice_ans ~fvs:(fvs_typ (TCons (tuple,ty))) (vs, phi) in
          let pvs = List.map
-             (fun v -> try List.assoc v nice_sb with Not_found -> v)
+             (fun v -> try VarMap.find v nice_sb with Not_found -> v)
              pvs in
          let ty = List.map (hvsubst_typ nice_sb) ty in
          (*[* Format.printf
@@ -951,7 +953,7 @@ let infer_prog solver prog =
            separate_subst ~bvs:(vars_of_list vs) ~apply:true q phi in
          let ty = List.map (subst_typ sb) ty in
          let pvs = List.map
-             (fun v -> try fst (List.assoc v sb) with Not_found -> TVar v)
+             (fun v -> try fst (VarMap.find v sb) with Not_found -> TVar v)
              pvs in
          let vs = VarSet.inter
              (VarSet.union (fvs_formula phi) (fvs_typ (TCons (tuple, ty))))
@@ -974,7 +976,7 @@ let infer_prog solver prog =
             (cns_str name) pr_subst sb pr_formula phi; *]*)
           let args = List.map (subst_typ sb) args in
           let c_args = List.map
-            (fun v -> try fst (List.assoc v sb) with Not_found -> TVar v)
+            (fun v -> try fst (VarMap.find v sb) with Not_found -> TVar v)
             c_args in
           let vs = VarSet.inter (vars_of_list vs)
               (fvs_formula
@@ -1026,7 +1028,7 @@ let infer_prog solver prog =
           let sb = update_sb ~more_sb sb_res in
           let e = annotate_expr q sb sb_chi nice_sb e
           and tests = List.map (annotate_expr q sb sb_chi nice_sb) tests in
-          let res, _ = List.assoc delta sb in
+          let res, _ = VarMap.find delta sb in
           let gvs = VarSet.elements
               (VarSet.union (fvs_formula phi) (fvs_typ res)) in
           let escaping, gvs = List.partition
@@ -1158,7 +1160,7 @@ let infer_prog solver prog =
                 ITypConstr (None, ety_n, List.map var_sort pvs, loc) in
               let pts = List.map
                   (fun v ->
-                     try fst (List.assoc v sb) with Not_found -> TVar v)
+                     try fst (VarMap.find v sb) with Not_found -> TVar v)
                   pvs in
               let extydef = IValConstr
                   (None, ety_n, exvs, phi, [res], ety_n, pts, loc) in
@@ -1346,7 +1348,7 @@ let normalize q cn =
              try (unify (guard_cnj @ prem @ concl)).cnj_typ
              with Contradiction _ as e ->
                if !nodeadcode then (deadcode_flag := true; raise e)
-               else [] in
+               else VarMap.empty in
            let {cnj_typ=concl_typ; cnj_num=concl_num; cnj_so=concl_so} =
              unify concl in
            (*[* Format.printf "simplify_brs: passed unify@\n%!"; *]*)
@@ -1355,7 +1357,7 @@ let normalize q cn =
                (function NotEx _ -> false
                        | _ -> true) concl_so in
            (* 2 *)
-           List.iter (fun (v, (t, _)) ->
+           VarMap.iter (fun v (t, _) ->
                match return_type t with
                | TCons (Extype i, _) when not (Hashtbl.mem v_exty v) ->
                  (*[* Format.printf
@@ -1393,7 +1395,7 @@ let normalize q cn =
                (* | NotEx _ -> assert false *)
                | _ -> ()) (prem @ concl);
            (* 5 *)
-           List.iter (fun (v, (t, _)) ->
+           VarMap.iter (fun v (t, _) ->
                match return_type t with
                | TVar w when Hashtbl.mem v_chi v &&
                              not (Hashtbl.mem v_chi w)->
@@ -1484,9 +1486,9 @@ let normalize q cn =
       disjs,
     e_impls, e_disjs in
   let check_chi_exty =
-    List.for_all
-      (function
-        | v, (TCons (cn, _), _) when Hashtbl.mem v_exty v ->
+    VarMap.for_all
+      (fun v -> function
+        | (TCons (cn, _), _) when Hashtbl.mem v_exty v ->
           (*[* Format.printf "dsj-test: ex case =%s v=%s v_chi=%d@\n%!"
             (cns_str cn) (var_str v) (Hashtbl.find v_exty v); *]*)
           cn = Extype (Hashtbl.find v_exty v)
@@ -1501,7 +1503,7 @@ let normalize q cn =
       try (unify guard_cnj).cnj_typ
       with Contradiction _ as e ->
         if !nodeadcode then (deadcode_flag := true; raise e)
-        else [] in
+        else VarMap.empty in
     (*[* Format.printf "dsj-checking: init #dsjs=%d@ sb=%a@\n%!"
       (List.length dsjs) pr_subst sb; *]*)
     let first_exn = ref None in
@@ -1707,8 +1709,10 @@ let simplify preserve q brs =
       let {cnj_typ=c2_ty; cnj_num=c2_num; cnj_so=c2_so} =
         unify ~use_quants:false q cnj2 in
       (* TODO: use [Terms.subformula], [NumS.equivalent] etc. instead? *)
-      let c1_ty = List.map (fun (v,(t,_)) -> v,t) c1_ty
-      and c2_ty = List.map (fun (v,(t,_)) -> v,t) c2_ty
+      let c1_ty = List.map
+          (fun (v,(t,_)) -> v,t) (varmap_to_assoc c1_ty)
+      and c2_ty = List.map
+          (fun (v,(t,_)) -> v,t) (varmap_to_assoc c2_ty)
       and c1_num = NumDefs.replace_loc dummy_loc c1_num
       and c2_num = NumDefs.replace_loc dummy_loc c2_num
       and c1_so = replace_loc dummy_loc c1_so
@@ -1759,7 +1763,7 @@ let simplify preserve q brs =
          let more = map_some
            (fun (v1, t2, lc2) ->
              try
-               let t1, lc1 = List.assoc v1 concl.cnj_typ in
+               let t1, lc1 = VarMap.find v1 concl.cnj_typ in
                let t1 = return_type t1 in
                Some (Eqty (t1, t2, loc_union lc1 lc2))
              with Not_found -> None)

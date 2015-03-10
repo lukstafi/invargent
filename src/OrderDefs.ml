@@ -21,6 +21,11 @@ let rec fvs_term = function
   | OVar v -> VarSet.singleton v
   | Succ o -> fvs_term o
 
+let rec has_var_term v = function
+  | Zero | Top -> false
+  | OVar v2 -> v = v2
+  | Succ o -> has_var_term v o
+
 type atom =
   | Eq of term * term * Defs.loc
   | Leq of term * term * Defs.loc
@@ -92,7 +97,7 @@ let subst_term unbox sb t =
     | (Zero | Top) as i -> i
     | OVar v as t ->
       (try
-         let t, lc = List.assoc v sb in
+         let t, lc = VarMap.find v sb in
          unbox v lc t
        with Not_found -> t)
     | Succ o -> Succ (aux o) in
@@ -102,7 +107,7 @@ let osubst_term sb t =
   let rec aux = function
     | (Zero | Top) as i -> i
     | OVar v as t ->
-      (try fst (List.assoc v sb)
+      (try fst (VarMap.find v sb)
        with Not_found -> t)
     | Succ o -> Succ (aux o) in
   aux t
@@ -111,7 +116,7 @@ let hvsubst_term sb t =
   let rec aux = function
     | (Zero | Top) as i -> i
     | OVar v as t ->
-      (try OVar (List.assoc v sb)
+      (try OVar (VarMap.find v sb)
        with Not_found -> t)
     | Succ o -> Succ (aux o) in
   aux t

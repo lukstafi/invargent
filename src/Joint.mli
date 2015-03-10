@@ -16,15 +16,17 @@ module type ABD_PARAMS = sig
   type answer
   type discarded
   type branch
+  type br_state
+  type validation = (VarSet.t * br_state) list
   val abd_fail_timeout : int ref
   val abd_fail_flag : bool ref
   (** The variables passed to [validate] should be the variables of
       the atom whose addition to the partial answer is being validated. *)
   val abd_simple :
     args -> discard:discarded list ->
-    validate:(VarSet.t -> answer -> unit) ->
+    validation:validation ->
     neg_validate:(answer -> int) ->
-    accu -> branch -> accu option
+    accu -> branch -> (accu * validation) option
   val extract_ans : accu -> answer
   val discard_ans : accu -> discarded
   val concl_of_br : branch -> formula
@@ -38,7 +40,7 @@ val debug_dep : int ref
 module JointAbduction (P : ABD_PARAMS) : sig
   val abd :
     P.args -> discard:P.discarded list ->
-    validate:(VarSet.t -> P.answer -> unit) ->
+    P.validation ->
     neg_validate:(P.answer -> int) ->
     P.accu -> P.branch list -> P.accu
 end

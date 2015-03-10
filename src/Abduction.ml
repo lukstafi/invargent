@@ -33,8 +33,9 @@ let residuum q prem concl =
   let concl = to_formula concl in
   solve ~use_quants:false q (subst_formula prem concl)
 
+type t_validation = (VarSet.t * subst) list
 (* Result remembers the invariant parameters [bvs]. *)
-exception Result of VarSet.t * var_name list * subst
+exception Result of VarSet.t * var_name list * subst * t_validation
 
 let empty_q =
   {cmp_v = (fun _ _ -> Same_quant); uni_v = (fun _ -> false);
@@ -43,13 +44,10 @@ let empty_q =
 
 (* TODO: optimize use of [cleanup] *)
 
-type skip_kind = Superset_old_mod | Equ_old_mod
-let skip_kind = ref Superset_old_mod
-
 let rich_return_type_heur bvs ans cand =
-  let types = map_some
-    (fun (v,(t,_)) -> if VarSet.mem v bvs then Some t else None)
-    ans in
+  let types = VarMap.fold
+    (fun v (t,_) acc -> if VarSet.mem v bvs then t::acc else acc)
+    ans [] in
   let ret_vars = List.fold_left
       (fun vs t -> VarSet.union (fvs_typ (return_type t)) vs)
       VarSet.empty types in
@@ -67,8 +65,10 @@ let rich_return_type_heur bvs ans cand =
         Some (v2, (TVar v1, lc))
       | _ -> None)
     cand in
-  let b_sb = List.filter (fun (v,_) -> not (VarSet.mem v arg_vars)) sb in
-  if sb=[] && b_sb=[] then cand
+  let sb = varmap_of_assoc sb in
+  let b_sb = VarMap.filter
+      (fun v _ -> not (VarSet.mem v arg_vars)) sb in
+  if VarMap.is_empty sb && VarMap.is_empty b_sb then cand
   else List.map
       (function
         | v, (t, lc) as sx when VarSet.mem v bvs ->
@@ -110,11 +110,11 @@ let eq_mod_aliens t1 t2 =
   try aux t1 t2; true with Distinct -> false
 
 let implies_cnj mod_aliens ans c_ans =
-  List.for_all (fun (v,(t,_)) ->
+  VarMap.for_all (fun v (t,_) ->
     try
       if mod_aliens
-      then eq_mod_aliens (fst (List.assoc v ans)) (subst_typ ans t)
-      else fst (List.assoc v ans) = subst_typ ans t
+      then eq_mod_aliens (fst (VarMap.find v ans)) (subst_typ ans t)
+      else fst (VarMap.find v ans) = subst_typ ans t
     with Not_found -> false
   ) c_ans
 
@@ -133,6 +133,7 @@ let revert_uni q ~bvs ~dissociate ans prem cand =
         | v1, (TVar v2, loc) when univar v2 && not (univar v1) ->
           Some (v2, (TVar v1, loc))
         | _ -> None) cand in
+  let u_sb = varmap_of_assoc u_sb in
   let cand = List.map
       (fun (v, (t, lc)) ->
          let v, t =
@@ -195,18 +196,20 @@ let revert_uni q ~bvs ~dissociate ans prem cand =
            tu, (o, olc))
         (collect tu_sb) in
   (*[* Format.printf "revert_uni:@ prem=%a@ cand=%a@\n%!"
-    pr_subst prem pr_subst cand; *]*)
+    pr_subst (varmap_of_assoc prem) pr_subst (varmap_of_assoc cand); *]*)
   let cand =
     if !rich_return_type
     then rich_return_type_heur bvs ans cand
     else cand in
-  (*[* Format.printf "revert_uni: res=%a@\n%!" pr_subst cand; *]*)
+  (*[* Format.printf "revert_uni: res=%a@\n%!" pr_subst
+    (varmap_of_assoc cand); *]*)
   tu_sb @ c_sb, cand
 
 let cand_var_eqs q bvs cnj_typ =
   let cands = List.filter
       (function _, (TVar _, _) when !guess_eqs_nonvar -> false
-              | v, _ ->  VarSet.mem v bvs) cnj_typ in
+              | v, _ ->  VarSet.mem v bvs)
+      (varmap_to_assoc cnj_typ) in
   concat_map
     (fun ((v1,(t1,lc1)), (v2,(t2,lc2))) ->
        try
@@ -214,7 +217,7 @@ let cand_var_eqs q bvs cnj_typ =
          (* We also rely on the substitution to build the answer --
             without it, it would still need the equations v1=t1 and v2=t2. *)
          let sb = unify ~use_quants:false q [Eqty (t1, t2, loc)] in
-         (v1, (TVar v2, loc))::sb.cnj_typ
+         (v1, (TVar v2, loc))::varmap_to_assoc sb.cnj_typ
        with Contradiction _ -> [])
     (triangle cands)
 
@@ -225,16 +228,37 @@ let connected_vs target sb =
     (VarSet.singleton target) sb
 
 let connecteds_vs tvs sb =
-  List.fold_left
-    (fun acc (v, (s, _)) ->
+  VarMap.fold
+    (fun v (s, _) acc ->
        if VarSet.exists (fun v -> VarSet.mem v tvs) (fvs_typ s)
        then VarSet.add v acc else acc)
-    tvs sb
+    sb tvs
+
+(* FIXME: do we need to check the state of numerical constraints? *)
+let validate q validation added_vs x t lc =
+  List.map
+    (fun (br_vs, state as br) ->
+       if not (VarSet.is_empty (VarSet.inter added_vs br_vs))
+       then
+         try
+           let t', _ = VarMap.find x state in
+           let upd =
+             unify ~use_quants:false ~sb:state q [Eqty (t, t', lc)] in
+           VarSet.union added_vs br_vs, upd.cnj_typ
+         with Not_found ->
+           VarSet.union added_vs br_vs, VarMap.add x (t, lc) state
+       else br)
+    validation
+
+let assoc_to_formula sb =
+  List.fold_left
+    (fun acc (v, (t,loc)) -> Eqty (TVar v, t, loc)::acc) [] sb
+let renaming_sb = VarMap.map (fun w -> TVar w, dummy_loc)
 
 (* [obvs] stands for original [bvs], excluding candidates. *)
 (* FIXME: ensure that only upward parameters are escaping. *)
 let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
-    ~validate ~neg_validate ~discard skip (vs, ans0) (prem, concl) =
+    ~validation ~neg_validate ~discard skip (vs, ans0) (prem, concl) =
   let counter = ref 0 in
   let skip = ref skip in
   let skipped = ref [] in
@@ -257,19 +281,24 @@ let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
       pr_subst ans0 pr_subst prem.cnj_typ pr_subst concl; *]*)
     let prem_and ans =
       (* TODO: optimize, don't redo work *)
-      combine_sbs ~use_quants:false q [ans; prem.cnj_typ] in
-    let implies_concl vs ans =
-      let more_prem = prem_and ans in
+      let res =
+        unify ~use_quants:false q ~sb:prem.cnj_typ ans in
+      {cnj_typ = res.cnj_typ; cnj_num = prem.cnj_num @ res.cnj_num;
+       cnj_ord = prem.cnj_ord @ res.cnj_ord;
+       cnj_so = prem.cnj_so @ res.cnj_so} in
+    let implies_concl vs ans cand =
+      let more_prem = prem_and
+          (assoc_to_formula cand @ to_formula ans) in
       (* Add [impl_X] for new sort [X] below. *)
       let {cnj_typ=_; cnj_num=_; cnj_so=_} as res =
         residuum q more_prem.cnj_typ concl in
       let cnj = update_sep ~typ_updated:true ~more:res more_prem in
-      let impl_ty = res.cnj_typ = [] in
+      let impl_ty = VarMap.is_empty res.cnj_typ in
       let impl_num = is_right (NumS.satisfiable cnj.cnj_num) in
       (*[* Format.printf "abd_simple: implies? %b impl_num=%b@ \
     #res_ty=%d@\nans=@ %a@\nmore_prem=@ %a@\nconcl=@ %a@\nres_ty=@ %a@\n%!"
         (impl_ty && impl_num) impl_num
-        (List.length res.cnj_typ) pr_subst ans
+        (VarMap.cardinal res.cnj_typ) pr_subst ans
         pr_subst more_prem.cnj_typ pr_subst concl
         pr_subst res.cnj_typ; *]*)
       impl_ty && impl_num in
@@ -284,16 +313,17 @@ let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
         | _ ->
           false, List.hd init_cand, List.tl init_cand in
       aux [] init_cand in
-    let rec abstract deep c_sb repls bvs vs ans = function
+    let rec abstract deep c_sb repls bvs vs ans validation = function
       | [], [] ->
         (*[* let ddepth = incr Joint.debug_dep; !Joint.debug_dep in *]*)
         (*[* Format.printf
           "abd_simple-abstract: [%d] @ repls=%a@ @ bvs=%a@ vs=%s@ ans=%a@\n%!"
-          ddepth pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls)
+          ddepth pr_subst
+          (varmap_of_assoc (List.map (fun (x,y) -> y,(x,dummy_loc)) repls))
           pr_vars bvs
           (String.concat ","(List.map var_str vs))
           pr_subst ans; *]*)
-        if implies_concl vs ans then
+        if implies_concl vs ans [] then
           let _, clean_ans = cleanup q vs ans in
           (*[* Format.printf "abd_simple-abstract:@\nclean_ans=%a@\n%!"
             pr_subst clean_ans          (* skipped=%a@\n *)
@@ -302,17 +332,14 @@ let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
           let repeated =
             try
               let (*[*old_ans*]*) _ =
-                match !skip_kind with
-                | Superset_old_mod ->
                   List.find
                     (fun xs ->
-                       List.for_all (fun sx -> List.mem sx clean_ans) xs)
-                    !skipped
-                | Equ_old_mod ->
-                  List.find
-                    (fun xs ->
-                       List.for_all (fun sx -> List.mem sx clean_ans) xs
-                       && List.for_all (fun sx -> List.mem sx xs) clean_ans)
+                       try
+                         VarMap.for_all
+                           (fun x t ->
+                              let t' = VarMap.find x clean_ans in
+                              t' = t) xs
+                       with Not_found -> false)
                     !skipped in
               (*[* Format.printf
                 "skipping: [%d] ans=@ %a --@ old_ans=@ %a...@\n%!"
@@ -340,7 +367,7 @@ let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
               ddepth !skip !counter
               (String.concat ","(List.map var_str vs))
               pr_subst ans; *]*)
-            raise (Result (bvs, vs, ans)))
+            raise (Result (bvs, vs, ans, validation)))
       | guess_cand, full_cand ->
         let is_guess_cand = guess_cand <> [] in
         let is_p, (x, (t, lc) as sx), (guess_cand, full_cand as rem_cand) =
@@ -356,24 +383,26 @@ let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
           "abd_simple-abstract: [%d] @ repls=%a@ bvs=%a@ vs=%s@ \
            ans=%a@\nx=%s@ t=%a@ #guess_cand=%d@ #full_cand=%d@\n\
            guess_cand=%a@\nfull_cand=%a@\n%!"
-          ddepth pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls)
+          ddepth pr_subst
+          (varmap_of_assoc (List.map (fun (x,y) -> y,(x,dummy_loc)) repls))
           pr_vars bvs
           (String.concat ","(List.map var_str vs))
           pr_subst ans (var_str x) pr_ty t
           (List.length guess_cand) (List.length full_cand)
-          pr_subst guess_cand pr_subst full_cand; *]*)
+          pr_subst (varmap_of_assoc guess_cand)
+          pr_subst (varmap_of_assoc full_cand); *]*)
         let choice1 () =
           (* Choice 1: drop premise/conclusion atom from answer *)
-          if implies_concl vs (ans @ full_cand)
+          if implies_concl vs ans full_cand
           then (
             (*[* Format.printf
               "abd_simple: [%d] choice 1@ drop %s = %a@\n%!"
               ddepth (var_str x) pr_ty t; *]*)
             (*[* try *]*)
-              abstract deep c_sb repls bvs vs ans rem_cand
+              abstract deep c_sb repls bvs vs ans validation rem_cand
               (*[*; Format.printf "abd_simple: [%d] choice 1 failed@\n%!"
                 ddepth; *]*)               
-              (*[* with Result (bvs, vs, ans) as e ->
+              (*[* with Result (bvs, vs, ans, validation) as e ->
               Format.printf "abd_simple: [%d] preserve choice 1@ %s =@ %a@ -- returned@ ans=%a@\n%!"
                 ddepth (var_str x) pr_ty t pr_subst ans;
               raise e *]*) );
@@ -381,14 +410,15 @@ let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
             "abd_simple: [%d]@ recover after choice 1@ %s =@ %a@\n\
              guess_cand=%a@\nfull_cand=%a@\n%!"
             ddepth (var_str x) pr_ty t
-            pr_subst guess_cand pr_subst full_cand; *]*)
+            pr_subst (varmap_of_assoc guess_cand)
+            pr_subst (varmap_of_assoc full_cand); *]*)
           () in
         let choice6 () =
           (* Choice 6: preserve atom in a "generalized" form *)
           let (c6x, (c6t, c6lc) as c6sx) =
             if !revert_cst then x, (c_subst_typ c_sb t, lc)
             else sx in
-          if not !more_general && implies_concl vs (ans @ c6sx::full_cand)
+          if not !more_general && implies_concl vs ans (c6sx::full_cand)
           then (
             (*[* Format.printf
               "abd_simple: [%d]@ choice 6@ keep %s = %a@ (%s = %a)@\n%!"
@@ -408,12 +438,14 @@ let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
                 unify ~bvs:bvs' ~sb:ans
                   q [Eqty (TVar c6x, c6t, c6lc)] in
               (*[* Format.printf
-                "abd_simple: [%d] validate 6 ans'=@ %a@\n%!" ddepth pr_subst ans'; *]*)
-              validate all_new_vs (vs, ans');
+                "abd_simple: [%d] validate 6 ans'=@ %a@\n%!"
+                ddepth pr_subst ans'; *]*)
+              let validation =
+                validate q validation all_new_vs c6x c6t c6lc in
               (*[* Format.printf "abd_simple: [%d] choice 6 OK@\n%!" ddepth; *]*)
-              abstract deep c_sb repls bvs' vs ans' rem_cand
+              abstract deep c_sb repls bvs' vs ans' validation rem_cand
             with
-            (*[* | Result (bvs, vs, ans) as e ->
+            (*[* | Result (bvs, vs, ans, validation) as e ->
               (* FIXME: remove try-with case after debug over *)
               Format.printf "abd_simple: [%d]@ preserve choice 6@ %s =@ %a@ -- returned@ ans=%a@\n%!"
                 ddepth (var_str c6x)
@@ -434,8 +466,9 @@ let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
             if !revert_cst then x, (c_subst_typ c_sb t, lc)
             else sx in
           if !prefer_guess && is_guess_cand ||
-             neg_validate (vs, ans @ full_cand) >
-             neg_validate (vs, ans @ c6sx::full_cand)
+             (* TODO: only check if there are negative branches *)
+             neg_validate (vs, add_to_varmap full_cand ans) >
+             neg_validate (vs, add_to_varmap (c6sx::full_cand) ans)
           then (
             (*[* Format.printf
               "abd_simple: [%d] guess/negation=%b choice inversion@\n%!"
@@ -443,22 +476,26 @@ let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
             choice6 (); choice1 ())
           else (choice1 (); choice6 ()));
         step deep c_sb x lc {typ_sub=t; typ_ctx=[]} repls
-          is_p bvs vs ans rem_cand
-    and step deep c_sb x lc loc repls is_p bvs vs ans
+          is_p bvs vs ans validation rem_cand
+    and step deep c_sb x lc loc repls is_p bvs vs ans validation
         (_, full_cand as rem_cand) =
       incr counter; if !counter > !timeout_count then raise Timeout;
       (*[* let ddepth = incr Joint.debug_dep; !Joint.debug_dep in *]*)
       (*[* Format.printf
         "abd_simple-step: [%d] @ loc=%a@ repls=%a@ vs=%s@ ans=%a@ x=%s@ full_cand=%a@\n%!"
-        ddepth pr_ty (typ_out loc) pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls)
+        ddepth pr_ty (typ_out loc) pr_subst
+        (varmap_of_assoc (List.map (fun (x,y) -> y,(x,dummy_loc)) repls))
         (String.concat ","(List.map var_str vs))
-        pr_subst ans (var_str x) pr_subst full_cand; *]*)
+        pr_subst ans (var_str x) pr_subst
+        (varmap_of_assoc full_cand); *]*)
       (* Choice 2: remove subterm from answer *)
       let choice2 () =
         let a = fresh_var (typ_sort loc.typ_sub) in
         let repls' = (loc.typ_sub, a)::repls in
         (*[* Format.printf "abd_simple: [%d]@ choice 2@ repls'=@ %a@\n%!"
-          ddepth pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls'); *]*)
+          ddepth pr_subst
+          (varmap_of_assoc (List.map (fun (x,y) -> y,(x,dummy_loc))
+                              repls')); *]*)
         let vs' = a::vs in
         let loc' = {loc with typ_sub = TVar a} in
         let t' = typ_out loc' in
@@ -482,14 +519,16 @@ let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
              (*[* Format.printf
                "abd_simple: [%d] validate 2 ans=@ %a@\n%!" ddepth
                pr_subst ans; *]*)
-             validate all_new_vs (vs', ans');
+             let validation =
+               validate q validation all_new_vs x t' lc in
              (*[* Format.printf "abd_simple: [%d] choice 2 OK@\n%!"
                ddepth; *]*)
-             abstract deep c_sb repls' bvs' vs' ans' rem_cand
+             abstract deep c_sb repls' bvs' vs' ans' validation rem_cand
            with Contradiction _ ->
              ())
         | Some loc' ->
-          step deep c_sb x lc loc' repls' is_p bvs vs' ans rem_cand in
+          step deep c_sb x lc loc' repls' is_p bvs vs' ans
+            validation rem_cand in
       (* Choice 3: try subterms of the subterm *)
       let choice3 () =
         (*[* Format.printf
@@ -502,7 +541,8 @@ let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
           | Some loc ->
             (*[* Format.printf
               "abd_simple: [%d]@ choice 3@ try subterms@\n%!" ddepth; *]*)
-            step deep c_sb x lc loc repls is_p bvs vs ans rem_cand in
+            step deep c_sb x lc loc repls is_p bvs vs ans
+              validation rem_cand in
       (* Choice 4: preserve current premise/conclusion subterm for answer *)
       let choice4 () =
         match typ_next loc with
@@ -524,10 +564,13 @@ let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
                unify ~bvs:bvs' ~sb:ans
                  q [Eqty (TVar x, t, lc)] in
              (*[* Format.printf
-               "abd_simple: [%d] validate 4 ans=@ %a@\n%!" ddepth pr_subst ans; *]*)
-             validate all_new_vs (vs, ans);
+               "abd_simple: [%d] validate 4 ans=@ %a@\n%!"
+               ddepth pr_subst ans; *]*)
+             let validation =
+               validate q validation all_new_vs x t lc in
              (*[* Format.printf "abd_simple: [%d] choice 4 OK@\n%!" ddepth; *]*)
-             abstract deep c_sb repls bvs' vs ans rem_cand
+             abstract deep c_sb repls bvs' vs ans
+               validation rem_cand
            with Contradiction
                       (*[* (_, msg, Some (ty1, ty2), *]*) _ (*[* ) *]*) ->
              (*[*Format.printf
@@ -551,13 +594,16 @@ let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
              ())
         | Some loc ->
           (*[* Format.printf "abd_simple: [%d] neighbor loc@\n%!" ddepth; *]*)
-          step deep c_sb x lc loc repls is_p bvs vs ans rem_cand in
+          step deep c_sb x lc loc repls is_p bvs vs ans
+            validation rem_cand in
       (* Choice 5: match subterm with an earlier occurrence *)
       let choice5 () =
         let repl = assoc_all loc.typ_sub repls in
         (*[* Format.printf "abd_simple: [%d]@ choice 5 x=%s@ repls=@ %a@\n%!"
           ddepth (var_str x)
-          pr_subst (List.map (fun (x,y) -> y,(x,dummy_loc)) repls); *]*)
+          pr_subst
+          (varmap_of_assoc (List.map (fun (x,y) -> y,(x,dummy_loc))
+                              repls)); *]*)
         (*[* Format.printf "abd_simple: [%d]@ choice 5@ sub=@ %a@ repl=@ %s@\n%!"
           ddepth pr_ty loc.typ_sub
           (String.concat ", " (List.map var_str repl)); *]*)
@@ -591,40 +637,44 @@ let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
                   (*[* Format.printf
                     "abd_simple: [%d] validate 5 ans'=@ %a@\n%!"
                     ddepth pr_subst ans'; *]*)
-                  (*[*(try*]*)
-                  validate all_new_vs (vs, ans');
+                  let validation =
+                  (*[*try*]*)
+                    validate q validation all_new_vs x t' lc
                   (*[*with Terms.Contradiction _ as e ->
                        Format.printf
                        "abd_simple: [%d] @ c.5 validate failed:@\n%a@\n%!"
                            ddepth pr_exception e;
-                         raise e); *]*)
+                         raise e *]*) in
                   (*[* Format.printf "abd_simple: choice 5 OK@\n%!"; *]*)
                   (*[* Format.printf
                     "abd_simple: [%d]@ choice 5@ match earlier %s =@ %a@\n%!"
                     ddepth (var_str x) pr_ty t'; *]*)
-                  abstract deep c_sb repls bvs' vs ans' rem_cand
+                  abstract deep c_sb repls bvs' vs ans'
+                    validation rem_cand
                 with Contradiction _ ->
                   incr counter;
                   if !counter > !timeout_count then raise Timeout;
                   ())
              | Some loc' ->
-               step deep c_sb x lc loc' repls is_p bvs vs ans rem_cand)
+               step deep c_sb x lc loc' repls is_p bvs vs ans
+                 validation rem_cand)
           repl in
       if not deep then ()
       else if !more_general
       then (choice2 (); choice3 (); choice4 (); choice5 ())
       else (choice4 (); choice2 (); choice3 (); choice5 ())
     in
-    if implies_concl vs ans0 then Some (bvs, (vs, ans0))
+    if implies_concl vs ans0 [] then Some ((bvs, (vs, ans0)), validation)
     else
       let {cnj_typ; _} as prem_n_concl =
-        prem_and ((* ans @ *) concl) in
+        prem_and ((* ans @ *)to_formula concl) in
       (* FIXME: hmm... *)
       (* let cnj_typ = list_diff cnj_typ discard in *)
       let guess_cand = cand_var_eqs q bvs prem_n_concl.cnj_typ in
       let c_sb, init_cand =
         revert_uni q ~bvs ~dissociate ans0
-          prem.cnj_typ prem_n_concl.cnj_typ in
+          (varmap_to_assoc prem.cnj_typ)
+          (varmap_to_assoc prem_n_concl.cnj_typ) in
       (* From longest to shortest. *)
       (* FIXME: revert to shortest-to-longest, have better idea how
          to deal with badly dropped short atoms. *)
@@ -636,7 +686,8 @@ let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
           init_cand in
       (*[* Format.printf
         "abd_simple: before xcrosses filtering@\ninit=@ %a@\nguess=@ %a@\n%!"
-        pr_subst init_cand pr_subst guess_cand; *]*)
+        pr_subst (varmap_of_assoc init_cand)
+        pr_subst (varmap_of_assoc guess_cand); *]*)
       let filter_cand = List.filter
           (fun (v,(t,_)) ->
              not (VarSet.mem v bvs) ||
@@ -646,14 +697,17 @@ let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
       and guess_cand = filter_cand guess_cand in
       (*[* Format.printf
         "abd_simple: xcrosses filtered@\ninit=@ %a@\nguess=@ %a@\n%!"
-        pr_subst init_cand pr_subst guess_cand; *]*)
+        pr_subst (varmap_of_assoc init_cand)
+        pr_subst (varmap_of_assoc guess_cand); *]*)
       try
         if not !more_general
-        then abstract false c_sb [] bvs vs ans0 (guess_cand, init_cand);
+        then abstract false c_sb [] bvs vs ans0
+            validation (guess_cand, init_cand);
         (*[* Format.printf
           "abd_simple: starting full depth (choices 1-6)@\n%!"; *]*)
-        abstract true c_sb [] bvs vs ans0 (guess_cand, init_cand); None
-      with Result (bvs, vs, ans) ->
+        abstract true c_sb [] bvs vs ans0
+          validation (guess_cand, init_cand); None
+      with Result (bvs, vs, ans, validation) ->
         (*[* Format.printf "abd_simple: Final validation@\n%!"; *]*)
         let {cnj_typ=ans; cnj_num; cnj_so=_} =
           unify ~bvs q (to_formula ans) in
@@ -661,7 +715,7 @@ let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
         (*[* Format.printf
           "abd_simple: Final validation passed@\nans=%a@\n%!"
           pr_subst ans; *]*)
-        Some (bvs, cleanup q vs ans)
+        Some ((bvs, cleanup q vs ans), validation)
   with
   | Contradiction _ (*[* as e *]*) ->
     (*[* Format.printf
@@ -688,13 +742,15 @@ module TermAbd = struct
   type discarded = answer
   (* premise including alien premise, conclusion *)
   type branch = sep_formula * subst
+  type br_state = subst
+  type validation = t_validation
 
   let abd_fail_timeout = fail_timeout_count
   let abd_fail_flag = abd_fail_flag
 
-  let abd_simple (obvs, q, dissociate) ~discard ~validate ~neg_validate
+  let abd_simple (obvs, q, dissociate) ~discard ~validation ~neg_validate
       (bvs, acc) br =
-    abd_simple q ~obvs ~bvs ~dissociate ~validate ~neg_validate
+    abd_simple q ~obvs ~bvs ~dissociate ~validation ~neg_validate
         ~discard 0 acc br
 
   let extract_ans (bvs, vs_ans) = vs_ans
@@ -702,7 +758,7 @@ module TermAbd = struct
 
   let concl_of_br (prem, concl) = to_formula concl
 
-  let is_taut (vs, ans) = ans=[]
+  let is_taut (vs, ans) = VarMap.is_empty ans
 
   let pr_branch pp (prem, concl) =
     Format.fprintf pp "@[<2>%a@ ⟹@ %a@]"
@@ -713,18 +769,19 @@ end
 
 module JCA = Joint.JointAbduction (TermAbd)
 
-let abd_typ q ~bvs ?(dissociate=false) ~validate ~neg_validate ~discard
+let abd_typ q ~bvs ?(dissociate=false) ~validation ~neg_validate ~discard
     (brs : TermAbd.branch list) =
   (*[* Format.printf "abd_typ:@ bvs=@ %a@\n%!"
     pr_vars bvs; *]*)
   abd_timeout_flag := false;
   let alien_vs = ref [] in
-  let alien_eqs = ref [] in
+  let alien_eqs = ref VarMap.empty in
   let rec purge = function
     | t when typ_sort t <> Type_sort ->
       let n = fresh_var (typ_sort t) in
       (* Alien vars become abduction answer vars. *)
-      alien_eqs := (n, (subst_typ !alien_eqs t, dummy_loc)):: !alien_eqs;
+      alien_eqs :=
+        VarMap.add n (subst_typ !alien_eqs t, dummy_loc) !alien_eqs;
       alien_vs := n :: !alien_vs;
       TVar n
     | TCons (n, tys) -> TCons (n, List.map purge tys)
@@ -742,14 +799,14 @@ let abd_typ q ~bvs ?(dissociate=false) ~validate ~neg_validate ~discard
   (*[* Format.printf "abd_typ: alien_eqs=%a@\n%!"
     pr_subst !alien_eqs; *]*)
   let cand_bvs, (vs, ans) =
-    JCA.abd (bvs, q, dissociate) ~discard ~validate ~neg_validate
-      (bvs, ([], [])) brs in
+    JCA.abd (bvs, q, dissociate) ~discard validation ~neg_validate
+      (bvs, ([], VarMap.empty)) brs in
   (*[* Format.printf "abd_typ: result vs=%s@\nans=%a@\n%!"
     (String.concat ","(List.map var_str vs))
     pr_subst ans; *]*)
   let ans =
     if dissociate
-    then List.map (fun (v,(t,lc)) -> v, (purge t, lc)) ans
+    then VarMap.map (fun (t,lc) -> purge t, lc) ans
     else ans in
   let vs = !alien_vs @ vs in
   (*[* Format.printf "abd_typ: dissociated %b vs=%s@\nalien=@ %a@\nans=%a@\n%!"
@@ -768,7 +825,7 @@ let abd_typ q ~bvs ?(dissociate=false) ~validate ~neg_validate ~discard
           pr_subst prem.cnj_typ pr_subst concl
           pr_subst more_res.cnj_typ NumDefs.pr_formula more_res.cnj_num
           NumDefs.pr_formula more_prem.cnj_num; *]*)
-        assert (more_res.cnj_typ = []);
+        assert (VarMap.is_empty more_res.cnj_typ);
         (*let more_concl =
           combine_sbs ~use_quants:false q
             [prem.cnj_typ; concl; ans] in*)
@@ -810,25 +867,22 @@ let abd_mockup_num q ~bvs brs =
                  (NumDefs.fvs_formula concl_num))),
          prem, concl_ty, concl_num)
       brs_typ brs_num in
-  let validate added_vs (vs, ans) =
-    List.iter
+  let validation =
+    List.map
     (fun (br_vs, prem, concl_ty, concl_num) ->
-      if not (VarSet.is_empty (VarSet.inter added_vs br_vs))
-      then
         (* Do not use quantifiers, because premise is in the conjunction. *)
         (* TODO: after cleanup optimized in abd_simple, pass clean_ans
            and remove cleanup here *)
-        (* FIXME: is it needed? *)
-        let vs, ans = cleanup q vs ans in
-        let {cnj_typ=sb_ty; cnj_num=ans_num; cnj_so=_} =
-          combine_sbs q [prem.cnj_typ; concl_ty; ans] in
-        let cnj_num = ans_num @ prem.cnj_num @ concl_num in
-        ignore (NumS.satisfiable cnj_num))
+        let {cnj_typ=sb_ty; cnj_num=_(* ans_num *); cnj_so=_} =
+          combine_sbs q [prem.cnj_typ; concl_ty] in
+        (* let cnj_num = ans_num @ prem.cnj_num @ concl_num in *)
+        (* FIXME: need num state? *)
+        br_vs, (sb_ty (*, NumS.satisfiable cnj_num*)))
     verif_brs in
   let neg_validate _ = 0 in
   try
     let cand_bvs, alien_eqs, tvs, ans_typ, more_in_brs =
-      abd_typ q ~bvs ~validate ~neg_validate ~discard:[] brs_typ in
+      abd_typ q ~bvs ~validation ~neg_validate ~discard:[] brs_typ in
     Some (List.map2
             (fun (prem_num,concl_num) (more_p, more_c) ->
                prem_num @ more_p.cnj_num,
@@ -890,38 +944,18 @@ let abd q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of ~nonparam_vars
          VarSet.union (fvs_sb concl_ty) (NumDefs.fvs_formula concl_num),
          prem, concl_ty, concl_num)
       brs_typ brs_num in
-  let validate added_vs (vs, ans) =
-    List.iter
-      (fun (br_vs, prem, concl_ty, concl_num) ->
-         (*[* Format.printf
-           "validate-typ: added_vs=%a@ br_vs=%a@\n%!"
-           pr_vars added_vs pr_vars br_vs; *]*)
-         if !verif_all_brs ||
-            VarSet.exists (fun v -> VarSet.mem v br_vs) added_vs
-         then
-           (* Do not use quantifiers, because premise is in the conjunction. *)
-           (* TODO: after cleanup optimized in abd_simple, pass clean_ans
-              and remove cleanup here *)
-           let vs, ans = cleanup q vs ans in
-           (*[* Format.printf
-             "validate-typ: trying v-prem=@ %a@\nv-concl=@ \
-              %a@\nv-ans=@ %a@\n%!"
-             pr_subst prem.cnj_typ pr_subst concl_ty pr_subst ans; *]*)
-           let {cnj_typ=sb_ty; cnj_num=ans_num; cnj_so=_} =
-             combine_sbs ~use_quants:false q [prem.cnj_typ; concl_ty; ans] in
-           if not dissociate && not !no_num_abduction then
-             let cnj_num = ans_num @ prem.cnj_num @ concl_num in
-             (*[* Format.printf "validate-typ: sb_ty=@ %a@\ncnj_num=@ %a@\n%!"
-               pr_subst sb_ty NumDefs.pr_formula cnj_num; *]*)
-             (* TODO: optimize by mapping numerical branches into states
-                upfront. *)
-             let (*[* num_state *]*) _ =
-               (* It's like [satisfiable] because of [empty_q]. *)
-               NumS.holds empty_q VarSet.empty NumS.empty_state cnj_num in
-             (*[* Format.printf "validate-typ: num_state=@ %a@\n%!"
-               NumDefs.pr_formula (NumS.formula_of_state num_state); *]*)
-             ())
-      verif_brs in
+  let validation =
+    List.map
+    (fun (br_vs, prem, concl_ty, concl_num) ->
+        (* Do not use quantifiers, because premise is in the conjunction. *)
+        (* TODO: after cleanup optimized in abd_simple, pass clean_ans
+           and remove cleanup here *)
+        let {cnj_typ=sb_ty; cnj_num=_(* ans_num *); cnj_so=_} =
+          combine_sbs q [prem.cnj_typ; concl_ty] in
+        (* let cnj_num = ans_num @ prem.cnj_num @ concl_num in *)
+        (* FIXME: need num state? *)
+        br_vs, (sb_ty (*, NumS.satisfiable cnj_num*)))
+    verif_brs in
   (* TODO: could be optimized too. *)
   let neg_validate (vs, ans) =
     (* Returns the number of negative constraints not contradicted by
@@ -952,14 +986,16 @@ let abd q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of ~nonparam_vars
                  let enum =
                    List.filter
                      (fun name ->
-                        try validate (VarSet.singleton v)
-                              ([], [v, (TCons (name, []), loc)]); true
+                        try
+                          ignore (validate q validation
+                                    (VarSet.singleton v)
+                                    v (TCons (name, [])) loc); true
                         with Contradiction _ -> false)
                      enum in
                  if enum = [] then None
                  else Some (v, (enum, loc))
                | _ -> None)
-             cnj.cnj_typ)
+             (varmap_to_assoc cnj.cnj_typ))
         neg_cns_pre in
     (* Coordinate with other negative constraints, and select the
        unambiguous ones. *)
@@ -974,13 +1010,14 @@ let abd q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of ~nonparam_vars
         | v, [name], loc -> Some (v, (TCons (name, []), loc))
         | _ -> None)
       dsjs in
+  let neg_term = varmap_of_assoc neg_term in
   (*[* if !neg_before_abd && iter_no >= !term_neg_since then
     Format.printf "neg_term=%a@\n" pr_subst neg_term; *]*)
   (* We do not remove nonrecursive branches for types -- it will help
      other sorts do better validation. *)
   let cand_bvs, alien_eqs, tvs, ans_typ, more_in_brs =
     try
-      abd_typ q ~bvs ~dissociate ~validate ~neg_validate
+      abd_typ q ~bvs ~dissociate ~validation ~neg_validate
         ~discard:discard.at_typ
         ((sep_formulas [], neg_term)::brs_typ)
     with Suspect (cnj, lc) ->

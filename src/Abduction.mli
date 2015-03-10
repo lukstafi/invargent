@@ -5,8 +5,6 @@
     @author Lukasz Stafiniak lukstafi (AT) gmail.com
     @since Mar 2013
 *)
-type skip_kind = Superset_old_mod | Equ_old_mod
-val skip_kind : skip_kind ref
 
 (** [more_general=true] might produce a more general answer but is too
     costly; default [false]. *)
@@ -46,24 +44,26 @@ val num_neg_since : int ref
 val abd_fail_flag : bool ref
 val abd_timeout_flag : bool ref
 
+type t_validation = (Defs.VarSet.t * Terms.subst) list
+
 val abd_simple :
   Defs.quant_ops ->
   ?without_quant:unit ->
   obvs:Defs.VarSet.t ->
   bvs:Defs.VarSet.t ->
   dissociate:bool ->
-  validate:(Defs.VarSet.t -> (Defs.var_name list * Terms.subst) -> unit) ->
+  validation:t_validation ->
   neg_validate:((Defs.var_name list * Terms.subst) -> int) ->
   discard:((Defs.var_name list * Terms.subst) list) ->
   int ->
   Defs.var_name list * Terms.subst ->
   Terms.sep_formula * Terms.subst ->
-  (Defs.VarSet.t * (Defs.var_name list * Terms.subst)) option
+  ((Defs.VarSet.t * (Defs.var_name list * Terms.subst)) * t_validation) option
 val abd_typ :
   Defs.quant_ops ->
   bvs:Defs.VarSet.t ->
   ?dissociate:bool ->
-  validate:(Defs.VarSet.t -> (Defs.var_name list * Terms.subst) -> unit) ->
+  validation:t_validation ->
   neg_validate:((Defs.var_name list * Terms.subst) -> int) ->
   discard:((Defs.var_name list * Terms.subst) list) ->
   (Terms.sep_formula * Terms.subst) list ->
@@ -88,7 +88,7 @@ val abd :
   nonparam_vars:Defs.VarSet.t ->
   ?iter_no:int ->
   discard:discarded ->
-  (bool * (int * (Defs.var_name * Defs.var_name) list) list *
+  (bool * (int * Terms.hvsubst) list *
      Terms.formula * Terms.formula) list ->
   (Terms.formula * Defs.loc) list ->
   Defs.VarSet.t * Terms.subst *

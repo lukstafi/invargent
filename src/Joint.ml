@@ -16,13 +16,15 @@ module type ABD_PARAMS = sig
   type answer
   type discarded
   type branch
+  type br_state
+  type validation = (VarSet.t * br_state) list
   val abd_fail_timeout : int ref
   val abd_fail_flag : bool ref
   val abd_simple :
     args -> discard:discarded list ->
-    validate:(VarSet.t -> answer -> unit) ->
+    validation:validation ->
     neg_validate:(answer -> int) ->
-    accu -> branch -> accu option
+    accu -> branch -> (accu * validation) option
   val extract_ans : accu -> answer
   val discard_ans : accu -> discarded
   val concl_of_br : branch -> formula
@@ -35,16 +37,18 @@ let debug_dep = ref 0
 
 module JointAbduction (P : ABD_PARAMS) = struct
 
-  let abd args ~discard ~validate ~neg_validate init_acc brs =
+  let abd args ~discard (init_validation : P.validation) ~neg_validate
+      init_acc brs =
     P.abd_fail_flag := false;
     let culprit = ref None
     and best_done = ref (-1) in
-    let rec loop fails discard acc done_brs aside_brs = function
+    let rec loop fails discard acc (validation : P.validation)
+        done_brs aside_brs = function
       | [] ->
         let best =
           List.length done_brs > !best_done &&
           (best_done := List.length done_brs; true) in
-        check_aside fails best discard acc done_brs aside_brs
+        check_aside fails best discard acc validation done_brs aside_brs
       | br::more_brs ->
         (*[* let ddepth = incr debug_dep; !debug_dep in *]*)
         (*[* Format.printf
@@ -53,9 +57,11 @@ module JointAbduction (P : ABD_PARAMS) = struct
           ddepth (List.length discard) (List.length done_brs)
           (List.length aside_brs)
           (List.length more_brs) P.pr_branch br; *]*)
-        match P.abd_simple args ~discard ~validate ~neg_validate acc br with
-        | Some acc ->
-          loop fails discard acc (br::done_brs) aside_brs more_brs
+        match P.abd_simple args ~discard ~validation
+                ~neg_validate acc br with
+        | Some (acc, validation) ->
+          loop fails discard acc validation (br::done_brs)
+            aside_brs more_brs
         | None ->
           if fails > !P.abd_fail_timeout
           then (
@@ -71,9 +77,11 @@ module JointAbduction (P : ABD_PARAMS) = struct
                 (List.map atom_loc concl) in
             P.abd_fail_flag := true;
             raise (Suspect (concl, lc)));
-          loop (fails+1) discard acc done_brs (br::aside_brs) more_brs
+          loop (fails+1) discard acc validation done_brs
+            (br::aside_brs) more_brs
 
-    and check_aside fails best discard acc done_brs = function
+    and check_aside fails best discard acc (validation : P.validation)
+        done_brs = function
       | [] -> acc
       | br::aside_brs as all_aside ->
         (*[* let ddepth = incr debug_dep; !debug_dep in *]*)
@@ -81,9 +89,11 @@ module JointAbduction (P : ABD_PARAMS) = struct
           "abd-aside: [%d] #discard=%d, #done_brs=%d, #aside_brs=%d@\n%a@\n%!"
           ddepth (List.length discard) (List.length done_brs)
           (List.length aside_brs) P.pr_branch br; *]*)
-        match P.abd_simple args ~discard ~validate ~neg_validate acc br with
-        | Some acc ->
-          check_aside fails best discard acc (br::done_brs) aside_brs
+        match P.abd_simple args ~discard ~validation
+                ~neg_validate acc br with
+        | Some (acc, validation) ->
+          check_aside fails best discard acc validation (br::done_brs)
+            aside_brs
         | None ->
           if best then culprit := Some br;
           if P.is_taut (P.extract_ans acc) || fails > !P.abd_fail_timeout
@@ -101,11 +111,12 @@ module JointAbduction (P : ABD_PARAMS) = struct
             if fails > !P.abd_fail_timeout then P.abd_fail_flag := true;
             raise (Suspect (concl, lc)))
           else
-            loop (fails+1) (P.discard_ans acc::discard) init_acc [] []
+            loop (fails+1) (P.discard_ans acc::discard)
+              init_acc init_validation [] []
               (all_aside @ List.rev done_brs) in
 
     if brs = [] then init_acc
-    else loop 0 discard init_acc [] [] brs    
+    else loop 0 discard init_acc init_validation [] [] brs    
 
 end
 

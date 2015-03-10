@@ -31,11 +31,11 @@ type q_with_bvs = {
   is_chiK : int -> bool;
   (** Add local variables of [chi(b)] instance, paired with keys
       -- corresponding variables of formal [chi(delta)]. *)
-  add_b_vs_of : var_name -> (var_name * var_name) list -> unit;
+  add_b_vs_of : var_name -> hvsubst -> unit;
   b_vs : (var_name, VarSet.t) Hashtbl.t;
   b_qvs : (var_name, var_name list) Hashtbl.t;
   (** Renaming into [b_qvs], redundant but more idiot-proof *)
-  b_renaming : (var_name, (var_name * var_name) list) Hashtbl.t;
+  b_renaming : (var_name, hvsubst) Hashtbl.t;
   add_bchi : var_name -> int -> posi:bool -> chiK:bool -> unit;
   (** The [a0] variable at the introduction point of existential type. *)
   chiK_anchor : (int, var_name) Hashtbl.t;
@@ -89,22 +89,22 @@ let new_q q_ops =
       q.allchi <- Ints.add i q.allchi;
       Hashtbl.add chi_b i b;
       Hashtbl.add b_chi b i;
-      q.add_b_vs_of b [delta, b])
+      q.add_b_vs_of b (VarMap.singleton delta b))
   and add_b_vs_of b rvs =
     let b_is_chiK =
       try is_chiK (find_chi b)
       (* Not_found means we're adding "virtual" variables to anchor. *)
       with Not_found -> Hashtbl.replace posi_b b (); true in
     let qvs = try Hashtbl.find b_qvs b with Not_found -> [] in
-    let rvs = List.filter
-      (fun (_,v) -> not (List.mem v qvs)) rvs in
-    let vs = List.map snd rvs in
+    let rvs = VarMap.filter
+      (fun _ v -> not (List.mem v qvs)) rvs in
+    let vs = varmap_codom rvs in
     let vss = vars_of_list vs in
     if not (positive_b b) && not b_is_chiK
     then recbvs := VarSet.union vss !recbvs;
     if not (positive_b b) && b_is_chiK
-    then List.iter
-        (fun (o, v) ->
+    then VarMap.iter
+        (fun o v ->
            Hashtbl.add orig_ren v o;
            if VarSet.mem o !recbvs then Hashtbl.add param_ren v ())
         rvs;
@@ -116,7 +116,7 @@ let new_q q_ops =
       let ovs = Hashtbl.find b_vs b in
       Hashtbl.replace b_vs b (VarSet.union ovs vss);
       let orenaming = Hashtbl.find b_renaming b in
-      Hashtbl.replace b_renaming b (rvs @ orenaming);
+      Hashtbl.replace b_renaming b (varmap_merge rvs orenaming);
       Hashtbl.replace b_qvs b (vs @ qvs)
     with Not_found ->
       (* FIXME: b_vs contains b, but b_qvs doesn't, right? *)
@@ -139,8 +139,9 @@ let modify_q ~uni_vars q =
   let op = {q.op with uni_v} in
   {q with op; uni_v}  
 
-let renaming_sb =
-  List.map (fun (v,w) -> v, (TVar w, dummy_loc))
+let renaming_sb = VarMap.map (fun w -> TVar w, dummy_loc)
+let renaming_assoc sb = varmap_of_assoc
+    (List.map (fun (v, w) -> v, (TVar w, dummy_loc)) sb)
 
 (* Return renaming of [vs], creating fresh [rvs] pairs when
    needed and adding them as locals of [b] in [q].
@@ -148,21 +149,24 @@ let renaming_sb =
 let matchup_vars ~self_owned q b vs =
   let orvs =
     try Hashtbl.find q.b_renaming b with Not_found -> assert false in
-  let nvs = List.filter (fun v->not (List.mem_assoc v orvs)) vs in
+  let nvs = List.filter (fun v->not (VarMap.mem v orvs)) vs in
   let nrvs =
     if self_owned
     then List.map (fun v->v, v) nvs
     else List.map (fun v->v, freshen_var v) nvs in
+  let nrvs = varmap_of_assoc nrvs in
   (*[* Format.printf "matchup_vars: b=%s;@ vs=%s;@ orvs=%s;@ nrvs=%s@\n%!"
     (var_str b)
     (String.concat ", " (List.map var_str vs))
     (String.concat ", "
-       (List.map (fun (v,w)->var_str v^":="^var_str w) orvs))
+       (List.map (fun (v,w)->var_str v^":="^var_str w)
+          (varmap_to_assoc orvs)))
     (String.concat ", "
-       (List.map (fun (v,w)->var_str v^":="^var_str w) nrvs)); *]*)
+       (List.map (fun (v,w)->var_str v^":="^var_str w)
+          (varmap_to_assoc nrvs))); *]*)
   q.add_b_vs_of b nrvs;
   (* [orvs] stores a [delta] substitution, [delta] is absent from [vs] *)
-  nrvs @ orvs
+  varmap_merge nrvs orvs
 
 let sb_atom_PredU q posi psb = function
   | PredVarU (i, (TVar b as t), loc) ->
@@ -278,7 +282,7 @@ let pr_bchi_subst ppf chi_sb =
 
 type state = subst * NumS.state
 
-let empty_state : state = [], NumS.empty_state
+let empty_state : state = VarMap.empty, NumS.empty_state
 
 let holds q ~avs (ty_st, num_st) cnj =
   let {cnj_typ=ty_st; cnj_num; cnj_so=_} =
@@ -303,7 +307,7 @@ let implies q (ty_st, num_st) cnj =
     "Invariants.implies: cnj_typ=%a;@ res_ty=%a;@ res_num=%a@\n%!"
     pr_subst cnj_typ pr_subst res_ty NumDefs.pr_formula res_num; *]*)
   (*[* let res = *]*)
-  cnj_typ = [] && res_num = [] && NumS.implies_cnj num_st cnj_num
+  VarMap.is_empty cnj_typ && res_num = [] && NumS.implies_cnj num_st cnj_num
     (*[* in Format.printf "Invariants.implies: res=%b@\n%!" res; res *]*)
 
 (* 4, 6 *)
@@ -339,10 +343,12 @@ let strat q bvs b ans =
                       Some (TVar b, TVar bad), loc)));
          let avs = List.map freshen_var vs in
          let ans_r =
-           List.map2 (fun a b -> b, (TVar a, loc)) avs vs @ ans_r in
+           add_to_varmap
+             (List.map2 (fun a b -> b, (TVar a, loc)) avs vs)
+             ans_r in
          (VarSet.union pvs (vars_of_list vs), ans_r),
          (avs, subst_atom ans_r c))
-      (VarSet.empty, []) ans in
+      (VarSet.empty, VarMap.empty) ans in
   let avs, ans_l = List.split ans in
   List.concat avs, ans_l, ans_r
 
@@ -482,7 +488,7 @@ let split do_postcond ~avs ans negchi_locs ~bvs ~cand_bvs q =
            (*[* Format.printf "select: ans_l(%s)=@ %a@\n%!"
              (var_str b) pr_formula ans_l; *]*)
            (* Negatively occurring [b] "owns" these formal parameters *)
-           q.add_b_vs_of b (List.map (fun v->v,v) avs_p);
+           q.add_b_vs_of b (varmap_of_assoc (List.map (fun v->v,v) avs_p));
            bvs := add_vars avs_p !bvs;
            (* 10 *)
            let ans0 = List.assoc b sol in
@@ -508,7 +514,7 @@ let split do_postcond ~avs ans negchi_locs ~bvs ~cand_bvs q =
            VarSet.diff avs uvs)
         avss in
     (* 13 *)
-    let ans_p = List.concat ans_rs in
+    let ans_p = varmap_concat ans_rs in
     (*[* Format.printf "split: ans_p=@ %a@ --@ ans_res=@ %a@\n%!"
       pr_subst ans_p pr_formula ans_res; *]*)
     let ans_res = to_formula ans_p @ subst_formula ans_p ans_res in
@@ -559,12 +565,13 @@ let simplify q_ops ~bvs ?keepvs ?guard ?initstep (vs, cnj) =
       | v, (TVar v2, _) ->
         Format.printf "v=%s %s v2=%s;@ "
           (var_str v) (var_scope_str (q_ops.cmp_v v v2)) (var_str v2)
-      | _ -> ()) ty_ans;
+      | _ -> ())
+    (varmap_to_assoc ty_ans);
   Format.printf "@\n%!"; *]*)
   (* Remove "orphaned" variables. *)
-  let sb, ty_ans = List.partition
-      (function
-        | v, (TVar v2, _)
+  let sb, ty_ans = VarMap.partition
+      (fun v -> function
+        | (TVar v2, _)
           when q_ops.cmp_v v v2 = Same_params &&
                (VarSet.mem v vs || VarSet.mem v2 vs) &&
                not (VarSet.mem v vs && VarSet.mem v2 vs) -> true
@@ -577,20 +584,22 @@ let simplify q_ops ~bvs ?keepvs ?guard ?initstep (vs, cnj) =
                not (VarSet.mem v vs) -> sv
         | v, (TVar v2, lc) -> v2, (TVar v, lc)
         | _ -> assert false)
-      sb in
+      (varmap_to_assoc sb) in
+  let sb = varmap_of_assoc sb in
   let ty_ans = subst_sb ~sb ty_ans in
   (* We "cheat": eliminate variables introduced later, so that
      convergence check has easier job (i.e. just syntactic). *)
-  let ty_sb, ty_ans = List.partition
-      (function
-        | v, (TVar v2, _)
+  let ty_sb, ty_ans = VarMap.partition
+      (fun v -> function
+        | (TVar v2, _)
           when VarSet.mem v vs && VarSet.mem v2 vs && v < v2 -> true
         | _ -> false) ty_ans in
   let ty_sb = List.map
       (function
         | v, (TVar v2, lc) -> v2, (TVar v, lc)
         | _ -> assert false)
-      ty_sb in
+      (varmap_to_assoc ty_sb) in
+  let ty_sb = varmap_of_assoc ty_sb in
   (*[* Format.printf "simplify: vs=%a@ sb=%a@ ty_sb=%a@\n%!" pr_vars vs
     pr_subst sb pr_subst ty_sb; *]*)
   let ty_ans = update_sb ~more_sb:ty_sb ty_ans in
@@ -598,7 +607,7 @@ let simplify q_ops ~bvs ?keepvs ?guard ?initstep (vs, cnj) =
     match keepvs with
     | None -> ty_ans, VarSet.empty
     | Some keepvs ->
-      List.filter (fun (v, _) -> VarSet.mem v keepvs) ty_ans, keepvs in
+      VarMap.filter (fun v _ -> VarSet.mem v keepvs) ty_ans, keepvs in
   let num_sb, num_nsb, num_ans =
     NumS.separate_subst q ~keep:(VarSet.diff keepvs' vs) ~bvs
       ~no_csts:true ~apply:true num_ans in
@@ -619,12 +628,14 @@ let simplify q_ops ~bvs ?keepvs ?guard ?initstep (vs, cnj) =
         | v, (Alien (Num_term (NumDefs.Lin (1, 1, v2))), lc) when v < v2 ->
           v2, (TVar v, lc)
         | sv -> sv)
-      num_sb
+      (varmap_to_assoc num_sb)
   and num_nsb = List.map
       (function
         | v, NumDefs.Lin (1, 1, v2) when v < v2 -> v2, NumDefs.Lin (1, 1, v)
         | sv -> sv)                  
-      num_nsb in
+      (varmap_to_assoc num_nsb) in
+  let num_sb = varmap_of_assoc num_sb
+  and num_nsb = varmap_of_assoc num_nsb in
   (*[* Format.printf "simplify:@\nnum_sb=%a@\nnum_ans0=%a@\n%!"
     pr_subst num_sb NumDefs.pr_formula num_ans; *]*)
   let num_ans = List.map (NumDefs.nsubst_atom num_nsb) num_ans in
@@ -643,15 +654,15 @@ let simplify q_ops ~bvs ?keepvs ?guard ?initstep (vs, cnj) =
   let ty_sb, ty_ans =
     match keepvs with
     | Some keepvs ->
-      List.partition
-        (fun (v,_) -> VarSet.mem v vs || not (VarSet.mem v keepvs)) ty_ans
+      VarMap.partition
+        (fun v _ -> VarSet.mem v vs || not (VarSet.mem v keepvs)) ty_ans
     | None ->
-      List.partition (fun (v,_) -> VarSet.mem v vs) ty_ans in
+      VarMap.partition (fun v _ -> VarSet.mem v vs) ty_ans in
   let ans = to_formula ty_ans @ NumS.formula_of_sort num_ans' in
   let vs = VarSet.inter vs (fvs_formula ans) in
   (*[* Format.printf "simplify: vs=%a@ ty_sb=%a@ num_sb=%a@ ans=%a@\n%!"
     pr_vars vs pr_subst ty_sb pr_subst num_sb pr_formula ans; *]*)
-  ty_sb @ num_sb, (vs, ans)
+  varmap_merge ty_sb num_sb, (vs, ans)
 
 let vsimplify q_ops ~bvs ?keepvs ?guard ?initstep ans =
   let num_sb, (vs, ans) = simplify q_ops ~bvs ?keepvs ?guard ?initstep ans in
@@ -673,16 +684,17 @@ let prune_redund q_ops ?localvs ?guard ~initstep (vs, cnj) =
     unify ~use_quants:false q_ops cnj in
   (* We "cheat": eliminate variables introduced earlier, so that
      convergence check has easier job (i.e. just syntactic). *)
-  let ty_sb, ty_ans = List.partition
-      (function
-        | v, (TVar v2, _)
+  let ty_sb, ty_ans = VarMap.partition
+      (fun v -> function
+        | (TVar v2, _)
           when VarSet.mem v vs && VarSet.mem v2 vs && v < v2 -> true
         | _ -> false) ty_ans in
   let ty_sb = List.map
       (function
         | v, (TVar v2, lc) -> v2, (TVar v, lc)
         | _ -> assert false)
-      ty_sb in
+      (varmap_to_assoc ty_sb) in
+  let ty_sb = varmap_of_assoc ty_sb in
   let ty_ans = update_sb ~more_sb:ty_sb ty_ans in
   let guard = map_opt guard
     (fun cnj -> (sep_formulas cnj).cnj_num) in
@@ -690,8 +702,8 @@ let prune_redund q_ops ?localvs ?guard ~initstep (vs, cnj) =
     NumS.prune_redundant q_ops ?localvs ?guard ~initstep num_ans in
   (*[* Format.printf "prune-simplified:@\nnum_ans=%a@\n%!"
     NumDefs.pr_formula num_ans; *]*)
-  let ty_sb, ty_ans = List.partition
-      (fun (v,_) -> VarSet.mem v vs && v <> delta && v <> delta') ty_ans in
+  let ty_sb, ty_ans = VarMap.partition
+      (fun v _ -> VarSet.mem v vs && v <> delta && v <> delta') ty_ans in
   let ans = to_formula ty_ans @ NumS.formula_of_sort num_ans in
   let vs = VarSet.inter vs (fvs_formula ans) in
   (*[* Format.printf "prune-simplify: vs=%a@ ty_sb=%a@ ans=%a@\n%!"
@@ -718,9 +730,9 @@ let converge q_ops ~initstep ?guard ~check_only
                   | _ -> false) cnj
       with
       | Eqty (TVar v, tpar, lc) when v = delta' ->
-        tpar, lc, List.remove_assoc delta' c_ty
+        tpar, lc, VarMap.remove delta' c_ty
       | Eqty (tpar, TVar v, lc) when v = delta' ->
-        tpar, lc, List.remove_assoc delta' c_ty
+        tpar, lc, VarMap.remove delta' c_ty
       | _ -> assert false
     with Not_found -> TCons (tuple, []), dummy_loc, c_ty in
   let tpar_old, lc_old, c1_ty = recover_param c1_ty cnj1 in
@@ -730,19 +742,22 @@ let converge q_ops ~initstep ?guard ~check_only
   let pms_old = fvs_typ tpar_old and pms_new = fvs_typ tpar_new in
   let vs_old = VarSet.diff (vars_of_list vs1) pms_old in
   let vs_new = VarSet.diff (vars_of_list vs2) pms_new in
-  let valid_sb = map_some
-      (function
-        | v1, (TVar v2, _) as sx
-          when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new -> Some sx
-        | v2, (TVar v1, lc)
-          when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
-          Some (v1, (TVar v2, lc))
-        | _ -> None) in
+  let valid_sb sb =
+    varmap_of_assoc
+      (map_some
+         (function
+           | v1, (TVar v2, _) as sx
+             when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new -> Some sx
+           | v2, (TVar v1, lc)
+             when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
+             Some (v1, (TVar v2, lc))
+           | _ -> None) (varmap_to_assoc sb)) in
   let cmp (v1,_) (v2,_) = compare v1 v2 in
-  let c1_ty = List.sort cmp c1_ty and c2_ty = List.sort cmp c2_ty in
+  let c1_ty' = (* List.sort cmp *) varmap_to_assoc c1_ty
+  and c2_ty' = (* List.sort cmp *) varmap_to_assoc c2_ty in
   let cnj_tys = inter_merge cmp
       (fun (v,(t1,_)) (_,(t2,_)) ->
-         Eqty (t1,t2,dummy_loc)) c1_ty c2_ty in
+         Eqty (t1,t2,dummy_loc)) c1_ty' c2_ty' in
   let {cnj_typ=renaming; cnj_num=ren_num; cnj_so=_} =
     unify ~use_quants:false q_ops cnj_tys in
   (*[* Format.printf "converge: cnj_tys=%a@\nren_num=%a@\nrenaming1=%a@\n%!"
@@ -761,33 +776,35 @@ let converge q_ops ~initstep ?guard ~check_only
               else num (scale_term k j t) in
             Some (v, (t, lc))
           | _ -> None) in 
-  let valid_num =
-    map_some
-      NumDefs.(function
-          | Eq (Lin (j1,k1,v1), Lin (j2,k2,v2), lc)
-            when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
-            let t =
-              if j1=1 && k1=1 && j2=1 && k2=1 then TVar v2
-              else num (Lin (j2*k1,k2*j1,v2)) in
-            Some (v1, (t, lc))
-          | Eq (Lin (j2,k2,v2), Lin (j1,k1,v1), lc)
-            when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
-            let t =
-              if j1=1 && k1=1 && j2=1 && k2=1 then TVar v2
-              else num (Lin (j2*k1,k2*j1,v2)) in
-            Some (v1, (t, lc))
-          | _ -> None) in 
-  let valid_cn =
-      map_some
-        (function
-          | Eqty (TVar v1, (TVar v2 as t), lc)
-            when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
-            Some (v1, (t, lc))
-          | Eqty (TVar v2 as t, TVar v1, lc)
-            when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
-            Some (v1, (t, lc))
-          | _ -> None) in 
-  let renaming = valid_num ren_num @ valid_sb renaming in
+  let valid_num cnj =
+    varmap_of_assoc
+      (map_some
+         NumDefs.(function
+             | Eq (Lin (j1,k1,v1), Lin (j2,k2,v2), lc)
+               when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
+               let t =
+                 if j1=1 && k1=1 && j2=1 && k2=1 then TVar v2
+                 else num (Lin (j2*k1,k2*j1,v2)) in
+               Some (v1, (t, lc))
+             | Eq (Lin (j2,k2,v2), Lin (j1,k1,v1), lc)
+               when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
+               let t =
+                 if j1=1 && k1=1 && j2=1 && k2=1 then TVar v2
+                 else num (Lin (j2*k1,k2*j1,v2)) in
+               Some (v1, (t, lc))
+             | _ -> None) cnj) in 
+  let valid_cn cnj =
+    varmap_of_assoc
+      (map_some
+         (function
+           | Eqty (TVar v1, (TVar v2 as t), lc)
+             when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
+             Some (v1, (t, lc))
+           | Eqty (TVar v2 as t, TVar v1, lc)
+             when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
+             Some (v1, (t, lc))
+           | _ -> None) cnj) in 
+  let renaming = varmap_merge (valid_num ren_num) (valid_sb renaming) in
   (*[* Format.printf "converge: renaming2=%a@\n%!" pr_subst renaming; *]*)
   let c1_nr = List.sort cmp (v_notin_vs_num vs1 c1_num)
   and c2_nr = List.sort cmp (v_notin_vs_num vs2 c2_num) in
@@ -795,7 +812,7 @@ let converge q_ops ~initstep ?guard ~check_only
       (fun (v1,_) (v2,_) -> compare v1 v2)
       (fun (_,(t1,_)) (_,(t2,_)) -> Eqty (t1,t2,dummy_loc))
       c1_nr c2_nr in
-  let renaming = valid_cn num_ren @ renaming in
+  let renaming = varmap_merge (valid_cn num_ren) renaming in
   (*[* Format.printf
     "converge: pms_old=%a@ pms_new=%a@ vs_old=%a@ vs_new=%a@
     renaming3=%a@ old c2_ty=%a@ old c2_num=%a@\n%!"
@@ -805,7 +822,7 @@ let converge q_ops ~initstep ?guard ~check_only
   and c2_num = NumS.subst_formula renaming c2_num
   and vs2 = List.map
       (fun v ->
-         try match List.assoc v renaming with
+         try match VarMap.find v renaming with
            | TVar v2, _ -> v2 | _ -> assert false
          with Not_found -> v)
       vs2 in
@@ -814,7 +831,7 @@ let converge q_ops ~initstep ?guard ~check_only
   (*[* Format.printf "converge: initstep=%b localvs=%a@\n%!"
     initstep pr_vars localvs; *]*)
   let guard = map_opt guard
-    (fun cnj -> (sep_formulas cnj).cnj_num) in
+      (fun cnj -> (sep_formulas cnj).cnj_num) in
   let c_num =
     if check_only
     then NumS.prune_redundant q_ops ~localvs ?guard ~initstep c2_num
@@ -824,7 +841,7 @@ let converge q_ops ~initstep ?guard ~check_only
   let res_vs = fvs_formula res in
   let res_pms = map_some (fun v ->
       let v = 
-        try match List.assoc v renaming with
+        try match VarMap.find v renaming with
           | TVar v2, _ -> v2 | _ -> assert false
         with Not_found -> v in
       if VarSet.mem v res_vs then Some v else None)
@@ -842,7 +859,7 @@ let converge q_ops ~initstep ?guard ~check_only
 
 let neg_constrns = ref true
 
-let empty_disc = {at_typ=[],[]; at_num=[]; at_ord=[]; at_so=()}
+let empty_disc = {at_typ=[],VarMap.empty; at_num=[]; at_ord=[]; at_so=()}
 let empty_dl = {at_typ=[]; at_num=[]; at_ord=[]; at_so=()}
 
 let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
@@ -1018,16 +1035,16 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
              i,
              (vs,
               List.filter
-               (fun c ->
-                  let cvs = fvs_atom c in
-                  let res =
-                    atom_sort c <> Type_sort &&
-                    VarSet.exists (fun v1 ->
+                (fun c ->
+                   let cvs = fvs_atom c in
+                   let res =
+                     atom_sort c <> Type_sort &&
+                     VarSet.exists (fun v1 ->
                          VarSet.exists (fun v2 -> upward_of v1 v2)
                            cvs) cvs in
-                  if res then dropped_from_sol := true;
-                  not res)
-               cnj)) sol1
+                   if res then dropped_from_sol := true;
+                   not res)
+                cnj)) sol1
       else sol1 in
     (*[* Format.printf
       "solve: substituting invariants at step 1@\n%!"; *]*)
@@ -1077,7 +1094,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
            let dead_case =
              try
                ignore
-                 (satisfiable q ([], NumS.empty_state)
+                 (satisfiable q (VarMap.empty, NumS.empty_state)
                     (prem @ allconcl));
                false
              with Contradiction _ (*[* as e *]*) ->
@@ -1251,10 +1268,11 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
               (fun v -> upward_of v anchor) fvs in
           (*[* Format.printf
             "starting add_b_vs_of anchor=%s@ e_vs=%a@\n%!"
-          (var_str anchor) pr_vars e_vs; *]*)
+            (var_str anchor) pr_vars e_vs; *]*)
           let e_vs = VarSet.elements e_vs in
           if e_vs <> [] then
-            q.add_b_vs_of anchor (List.map (fun v->v,v) e_vs);
+            q.add_b_vs_of anchor
+              (varmap_of_assoc (List.map (fun v->v,v) e_vs));
           (* [e_vs] does not contain [chi_vs] while [fvs] may have
              eliminated variables. *)
           let pvs = VarSet.diff pvs localvs in
@@ -1296,8 +1314,8 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
                  pr_ty tpar pr_ans ans2; *]*)
                (* No [b] "owns" these formal parameters. Their instances
                   will be added to [q] by [sb_brs_pred]. *)
-               rn_sb @ rn_acc, ((i, tpar), (i, ans2, g_brs)))
-            [] (List.rev rol1) (List.rev g_rol_brs) in
+               varmap_merge rn_sb rn_acc, ((i, tpar), (i, ans2, g_brs)))
+            VarMap.empty (List.rev rol1) (List.rev g_rol_brs) in
         let tpars, g_rol_brs = List.split g_rol in
         let g_rol_brs = List.map
             (fun (i, ans2, g_brs) ->
@@ -1328,7 +1346,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
             (fun (i, (vs, old_phi)) ->
                let recover_escaping =
                  try Hashtbl.find q.recover_escaping i
-                 with Not_found -> [] in
+                 with Not_found -> VarMap.empty in
                let phi = subst_formula recover_escaping
                    (esb_formula old_phi) in
                let b =
@@ -1344,20 +1362,21 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
                    fvs in
                let nvs = List.filter
                    (fun v -> q.cmp_v b v = Left_of) fvs in
-               let nvs = List.map (fun v -> v, freshen_var v) nvs in
+               let nvs =
+                 varmap_of_assoc (List.map (fun v -> v, freshen_var v) nvs) in
                let escaping_sb = renaming_sb nvs in
                Hashtbl.replace q.recover_escaping
-                 i (escaping_sb @ recover_escaping);
+                 i (varmap_merge escaping_sb recover_escaping);
                let phi = subst_formula escaping_sb phi in
                (*[* Format.printf
                  "lift-params: i=%d@ vs=%a@ fvs=%a@ nvs=%a@ \
                   phi=%a@ phi'=%a@\n%!"
                  i pr_vars (vars_of_list vs)
                  pr_vars (vars_of_list fvs)
-                 pr_vars (vars_of_list (List.map snd nvs)) pr_formula old_phi
+                 pr_vars (vars_of_list (varmap_codom nvs)) pr_formula old_phi
                  pr_formula phi; *]*)
-               if nvs <> [] then q.add_b_vs_of b nvs;
-               i, (List.map snd nvs @ rvs @ vs, phi))
+               if not (VarMap.is_empty nvs) then q.add_b_vs_of b nvs;
+               i, (varmap_codom nvs @ rvs @ vs, phi))
             sol1 in
         (*[* Format.printf
           "solve: substituting invariants at step 5@\n%!"; *]*)
@@ -1370,8 +1389,8 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
       "solve-loop: iter_no=%d -- ex. brs substituted@\n%!"
       iter_no; *]*)
     (*[* Format.printf "orig_ren=@ %a@\nbrs=@ %a@\n%!"
-      pr_subst (renaming_sb (Hashtbl.fold (fun k v sb -> (k, v)::sb)
-                               orig_ren []))
+      pr_subst (renaming_assoc (Hashtbl.fold (fun k v sb -> (k, v)::sb)
+                                  orig_ren []))
       Infer.pr_rbrs5 brs1; *]*)
     (* 7a *)
     let neg_cns1 = List.map
@@ -1409,11 +1428,11 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
                        (*[* Format.printf
                          "sb_chi_pos: chi%d(%s)@ lvs=%a;@ rvs=%a@\n%!"
                          i (var_str b)
-                         pr_vars (vars_of_list (List.map fst renaming))
-                         pr_vars (vars_of_list (List.map snd renaming));
+                         pr_vars (varmap_domain renaming)
+                         pr_vars (vars_of_list (varmap_codom renaming));
                        *]*)
                        i, renaming
-                     with Not_found -> i, [])
+                     with Not_found -> i, VarMap.empty)
                   | _ -> assert false)
                chi_pos in
            let concl =
@@ -1429,8 +1448,14 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
       else (true, [], [], abdsjelim)::brs1 in
     let xbvs = Hashtbl.fold
         (fun x xvs acc ->
-           if q.positive_b x then acc
-           else (q.find_chi x, xvs)::acc)
+           try
+             (*[* Format.printf
+               "xbvs: x=%s xvs=%a@ %!"
+               (var_str x) pr_vars xvs;
+             Format.printf "b=%d@\n%!" (q.find_chi x); *]*)
+             (*if q.positive_b x then acc
+               else*) (q.find_chi x, xvs)::acc
+           with Not_found -> acc)
         q.b_vs [] in
     let answer =
       try
@@ -1495,7 +1520,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
     | Aux.Left _ as e -> e
     | Aux.Right (alien_eqs, ans_res, more_discard, ans_sol) ->
       let more_discard =
-        if alien_eqs = [] then more_discard
+        if VarMap.is_empty alien_eqs then more_discard
         else subst_formula alien_eqs more_discard in
       (* 11 *)
       let finish rol2 sol2 =
@@ -1631,9 +1656,9 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
                       let sb =
                         (* FIXME: what does this b_renaming do? *)
                         List.map (fun (v,w) -> w,v)
-                          (Hashtbl.find q.b_renaming b) in
+                          (varmap_to_assoc (Hashtbl.find q.b_renaming b)) in
                       let sb = List.filter (fun (v, w) -> v <> w) sb in
-                      let sb = renaming_sb ((b, delta)::sb) in
+                      let sb = renaming_assoc ((b, delta)::sb) in
                       let sb, dans =
                         match source, target with
                         | None, _ | _, None -> sb, dans
@@ -1644,10 +1669,10 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
                           let sb, more_dans = Infer.separate_sep_subst
                               ~keep_uni:true ~apply:true q.op target_cnj in
                           let more_cnj =
-                            to_formula
+                            assoc_to_formula
                               (List.filter
                                  (fun (v, _) -> VarSet.mem v source_vs)
-                                 sb) in
+                                 (varmap_to_assoc sb)) in
                           (*[* Format.printf
                             "solve-loop-9: target=%a@\ntarget_cnj=%a@\n%!"
                             pr_ty target pr_formula
@@ -1658,7 +1683,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
                         "solve-loop-9: renaming=@ %a@\ndans'=%a@\n%!"
                         pr_subst sb pr_formula (subst_formula sb dans); *]*)
                       let dvs = List.filter
-                          (fun v -> not (List.mem_assoc v sb)) dvs in
+                          (fun v -> not (VarMap.mem v sb)) dvs in
                       dvs @ dvs0, subst_formula sb dans)
                    [] ds in
                let dvs = gvs @ dvs in
@@ -1693,7 +1718,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
                        Abduction.abd q'.op ~bvs:recbvs ~xbvs ~nonparam_vars
                          ~orig_ren ~b_of_v:q.find_b_of_v ~upward_of
                          ~iter_no ~discard brs [] in
-                     assert (alien_eqs = []); assert (vs = []);
+                     assert (VarMap.is_empty alien_eqs); assert (vs = []);
                      postcond_forcing := dans_ans @ !postcond_forcing
                  with
                  | (NoAnswer _ | Contradiction _) (*[* as e *]*) ->
@@ -1746,7 +1771,8 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
                i (var_str b) pr_ans (dvs,dans) pr_ans (vs,ans); *]*)
              (* No need to substitute, because variables will be
                 freshened when predicate variable is instantiated. *)
-             let dans = subst_formula [b, (tdelta, dummy_loc)] dans in
+             let dans = subst_formula
+                 (VarMap.singleton b (tdelta, dummy_loc)) dans in
              let vs' = dvs @ vs in
              (* FIXME: perhaps filter-out atoms contained upstream *)
              (* FIXME: after splitting there are more bvs? *)
@@ -1760,7 +1786,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
           sol1 in
       let new_sbs, sol2 = List.split sol2 in
       (* FIXME: is it possible to have non-disjoint domains of [new_sbs]? *)
-      let new_sb = List.concat new_sbs in
+      let new_sb = varmap_concat new_sbs in
       (*[* Format.printf "Invariants.new_sb=%a@\n%!" pr_subst new_sb; *]*)
       let sol2 = List.map
           (fun (i, (vs, ans)) ->
@@ -1801,7 +1827,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
                      not !dropped_from_sol &&
                      finished1 && finished2 && finished3 in
       (*[* Format.printf "solve-loop: dissoc_abdsj=%b initstep=%b \
-        old_initstep=%b@ dropped=%b@ finished 1=%b, 2=%b, 3=%b, r=%b@\n%!"
+                           old_initstep=%b@ dropped=%b@ finished 1=%b, 2=%b, 3=%b, r=%b@\n%!"
         dissoc_abdsj !initstep old_initstep !dropped_from_sol
         finished1 finished2 finished3 finished; *]*)
       if not !initstep && finished
@@ -1917,7 +1943,9 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
              (function
                | v, (TVar v2, lc) when v2=delta || v2=delta' ->
                  v2, (TVar v, lc)
-               | sv -> sv) sb in
+               | sv -> sv)
+             (varmap_to_assoc sb) in
+         let sb = varmap_of_assoc sb in
          (* FIXME: shouln't we propagate [sb] to other answers? *)
          let rty = subst_typ sb ty
          and rphi = subst_formula sb rphi in
@@ -1925,7 +1953,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
             collect the free variables as actual parameters. *)
          let pvs =
            try
-             match fst (List.assoc delta' sb) with
+             match fst (VarMap.find delta' sb) with
              | TCons (t, args) when t=tuple ->
                concat_map
                  (fun a -> VarSet.elements (fvs_typ a)) args

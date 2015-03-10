@@ -62,10 +62,18 @@ val vars_of_map : ('a -> VarSet.t) -> 'a list -> VarSet.t
 val var_subset : VarSet.t -> VarSet.t -> bool
 
 module VarMap : (Map.S with type key = var_name)
-val varmap_of_list : (var_name * 'a) list -> 'a VarMap.t
+val varmap_of_assoc : (var_name * 'a) list -> 'a VarMap.t
+val varmap_to_assoc : 'a VarMap.t -> (var_name * 'a) list
 val add_to_varmap : (var_name * 'a) list -> 'a VarMap.t -> 'a VarMap.t
+val add_map_to_varmap :
+  ((var_name * 'a) -> (var_name * 'a)) ->
+  (var_name * 'a) list -> 'a VarMap.t -> 'a VarMap.t
 val empty_vmap : 'a VarMap.t
 val concat_varmap : (var_name -> 'a -> 'b list) -> 'a VarMap.t -> 'b list
+val varmap_merge : 'a VarMap.t -> 'a VarMap.t -> 'a VarMap.t
+val varmap_concat : 'a VarMap.t list -> 'a VarMap.t
+val varmap_domain : 'a VarMap.t -> VarSet.t
+val varmap_codom : 'a VarMap.t -> 'a list
 
 (** {2 Quantification} *)
 

@@ -24,6 +24,7 @@ type atom =
 type formula = atom list
 
 val fvs_term : term -> Defs.VarSet.t
+val has_var_term : Defs.var_name -> term -> bool
 val fvs_atom : atom -> Defs.VarSet.t
 val fvs_formula : formula -> Defs.VarSet.t
 val prim_constr_var : atom -> Defs.var_name option
@@ -35,18 +36,18 @@ val replace_loc : Defs.loc -> formula -> formula
 val eq_atom : atom -> atom -> bool
 val subst_term :
   (Defs.var_name -> Defs.loc -> 'a -> term) ->
-  (Defs.var_name * ('a * Defs.loc)) list ->
+  ('a * Defs.loc) Defs.VarMap.t ->
   term -> term
 val subst_atom :
   (Defs.var_name -> Defs.loc -> 'a -> term) ->
-  (Defs.var_name * ('a * Defs.loc)) list ->
+  ('a * Defs.loc) Defs.VarMap.t ->
   atom -> atom
 val nsubst_atom :
-  (Defs.var_name * term) list -> atom -> atom
+  term Defs.VarMap.t -> atom -> atom
 val hvsubst_term :
-  (Defs.var_name * Defs.var_name) list -> term -> term
+  Defs.var_name Defs.VarMap.t -> term -> term
 val hvsubst_atom :
-  (Defs.var_name * Defs.var_name) list -> atom -> atom
+  Defs.var_name Defs.VarMap.t -> atom -> atom
 val term_size : term -> int
 val atom_size : atom -> int
 val formula_size : formula -> int
@@ -66,8 +67,8 @@ val pr_term : Format.formatter -> term -> unit
 val pr_atom : Format.formatter -> atom -> unit
 val pr_formula : Format.formatter -> formula -> unit
 val pr_num_subst :
-  Format.formatter -> (Defs.var_name * (term * Defs.loc)) list -> unit
+  Format.formatter -> (term * Defs.loc) Defs.VarMap.t -> unit
 val pr_nsubst :
-  Format.formatter -> (Defs.var_name * term) list -> unit
+  Format.formatter -> term Defs.VarMap.t -> unit
 
 val term_no_parens : term -> bool

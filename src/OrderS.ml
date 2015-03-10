@@ -332,7 +332,8 @@ let solve ?use_quants ?strict
 *)
 
 let separate_subst q cnj =
-  if cnj = [] then [], [] else failwith "Order.separate_subst: TODO"
+  if cnj = [] then VarMap.empty, []
+  else failwith "Order.separate_subst: TODO"
 
 let disjelim q ~target_vs ~preserve ~initstep brs =
   [], [], [], []                        (* TODO *)

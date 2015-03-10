@@ -68,6 +68,7 @@ let antiunif q ~bvs ts =
               | TVar v -> Some (v, (t, dummy_loc))
               | _ -> None)
             ts in
+          let more_sb = varmap_of_assoc more_sb in
           let usb = update_sb ~more_sb usb in
           [], t, usb, gsb
         else if n <> None && List.for_all
@@ -86,7 +87,9 @@ let antiunif q ~bvs ts =
                        (fun t -> fresh_var (typ_sort t)) args in
                    let t = TCons (n, List.map (fun v->TVar v) vs) in
                    let usb =
-                     update_sb ~more_sb:[v, (t, dummy_loc)] usb in
+                     update_sb
+                       ~more_sb:(VarMap.singleton v (t, dummy_loc))
+                       usb in
                    let avs = vs @ avs in
                    usb, avs
                  | _ -> acc)
@@ -114,6 +117,7 @@ let antiunif q ~bvs ts =
           let more_sb = map_some
             (fun v -> if v=b then None else Some (v, (tb, dummy_loc)))
             vars in
+          let more_sb = varmap_of_assoc more_sb in
           let usb = update_sb ~more_sb usb in
           let ts = List.map (subst_typ usb) ts in
           aux usb gsb ts
@@ -137,7 +141,7 @@ let antiunif q ~bvs ts =
       let vs, ss, usb, gsb = auxn usb gsb (t1s::List.map List.tl ts) in
       v1s @ vs, s::ss, usb, gsb in
 
-  aux [] [] ts
+  aux VarMap.empty [] ts
 
 type a = var_name * (typ list * loc list)
 type b = var_name * (typ * loc)
@@ -148,6 +152,8 @@ module EqsSet =
                        Pervasives.compare (v1,t1) (v2,t2) end)
 let eqs_of_list l =
   List.fold_right EqsSet.add l EqsSet.empty
+let eqs_of_varmap l =
+  VarMap.fold (fun v sv acc -> EqsSet.add (v, sv) acc) l EqsSet.empty
 
 let pr_ty_brs ppf brs =
   pr_line_list "|  " pr_subst ppf brs
@@ -165,7 +171,7 @@ let disjelim_typ q ~bvs ~target (* ~preserve *) brs =
   | [] -> assert false
   | [br] ->
     let br = List.filter (fun (v,_) -> v = target) br in
-    [], [], br, empty_eqs
+    VarMap.empty, [], br, empty_eqs
   | br::more_brs ->
     (* (a) V *)
     let br =
@@ -176,7 +182,7 @@ let disjelim_typ q ~bvs ~target (* ~preserve *) brs =
       inter_merge
         cmp_k (fun (_,(ts,lcs)) (v,(t,lc)) -> v, (t::ts,lc::lcs)) in
     let gs = List.fold_left aux gs more_brs in
-    if gs = [] then [], [], [], empty_eqs
+    if gs = [] then VarMap.empty, [], [], empty_eqs
     else
       let gs = List.map
         (fun (v,(ts,lcs)) -> v, (List.rev ts, List.rev lcs)) gs in
@@ -186,7 +192,7 @@ let disjelim_typ q ~bvs ~target (* ~preserve *) brs =
           let ts = List.map (subst_typ usb) ts in
           let gvs,gt,usb',tss = antiunif q ~bvs ts in
           update_sb ~more_sb:usb' usb, (v, gvs, gt, tss, lcs))
-        [] gs in
+        VarMap.empty gs in
       let avs = concat_map (fun (_,vs,_,_, _) -> vs) gs in
       (* A set of sequences position-matched with branches. *)
       (* (c) D^u_i *)
@@ -258,19 +264,20 @@ let disjelim_typ q ~bvs ~target (* ~preserve *) brs =
       assert (List.for_all (fun br -> br=[]) eqs);
       let eqs = {
         at_typ = ty_eqs;
-        at_num = List.map NumS.sort_of_subst num_eqs;
+        at_num = List.map NumS.sort_of_assoc num_eqs;
         at_ord = List.map OrderS.sort_of_subst ord_eqs;
         at_so = ()} in
       usb, avs, ty_ans @ eqv_ans, eqs
 
 let dissociate cnj_typ =
   let alien_vs = ref [] in
-  let alien_eqs = ref [] in
+  let alien_eqs = ref VarMap.empty in
   let rec purge = function
     | t when typ_sort t <> Type_sort ->
       let n = fresh_var (typ_sort t) in
       (* Alien vars become abduction answer vars. *)
-      alien_eqs := (n, (subst_typ !alien_eqs t, dummy_loc)):: !alien_eqs;
+      alien_eqs :=
+        VarMap.add n (subst_typ !alien_eqs t, dummy_loc) !alien_eqs;
       alien_vs := n :: !alien_vs;
       TVar n
     | TCons (n, tys) -> TCons (n, List.map purge tys)
@@ -301,7 +308,7 @@ let simplify_dsjelim q initstep ~target ~param_bvs vs ans =
   let ty_sb, ty_ans = List.partition
       (fun (v,_) -> not (VarSet.mem v target_vs) || List.mem v vs)
       ty_ans in
-  let ty_ans = to_formula ty_ans in
+  let ty_ans = assoc_to_formula ty_ans in
   (* Opti atoms are privileged because, like equations, they are
      functional relations. *)
   (* let minmax_vs = map_some
@@ -322,19 +329,20 @@ let simplify_dsjelim q initstep ~target ~param_bvs vs ans =
   (*[* Format.printf "disjelim-simplify:@ non_sb_vs=%a@ num_sb=%a@ \
                        num_ans=%a@\n%!"
     pr_vars non_sb_vs pr_subst num_sb NumDefs.pr_formula num_ans; *]*)
-  let num_sb = List.filter
-      (fun (v, (t, _)) ->
+  let num_sb = VarMap.filter
+      (fun v (t, _) ->
          not !drop_csts ||
          not (VarSet.is_empty (fvs_typ t)) ||
          not (VarSet.mem v non_sb_vs))
       num_sb
-  and num_nsb = List.filter
-      (fun (v, t) ->
+  and num_nsb = VarMap.filter
+      (fun v t ->
          not !drop_csts ||
          not (VarSet.is_empty (NumDefs.fvs_term t)) ||
          not (VarSet.mem v non_sb_vs))
       num_nsb in
   let num_ans = List.map (NumDefs.nsubst_atom num_nsb) num_ans in
+  let ty_sb = varmap_of_assoc ty_sb in
   let sb = update_sb ~more_sb:num_sb ty_sb in
   let target_vs =
     VarSet.add target
@@ -358,7 +366,7 @@ let simplify_dsjelim q initstep ~target ~param_bvs vs ans =
       (ty_ans @ NumS.formula_of_sort num_ans) in
   let ans_vs = fvs_formula ans in
   let vs = List.filter
-      (fun v -> VarSet.mem v ans_vs && not (List.mem_assoc v ty_sb))
+      (fun v -> VarSet.mem v ans_vs && not (VarMap.mem v ty_sb))
       vs in
   (*[* Format.printf
     "disjelim-simplify: result@ target_vs=%a@ vs=%a@ ans=%a@\n%!"
@@ -390,7 +398,7 @@ let disjelim q ?target ~bvs ~param_bvs (* ~preserve *) (* ~old_local *)
     (* (2) *)
     let usb, avs, ty_ans, eqs =
       disjelim_typ q ~bvs ~target (* ~preserve *)
-        (List.map (fun (_, br) -> br.cnj_typ) brs) in
+        (List.map (fun (_, br) -> varmap_to_assoc br.cnj_typ) brs) in
     let target_vs =
       try fvs_typ (fst (List.assoc target ty_ans))
       with Not_found -> VarSet.empty in
@@ -400,11 +408,12 @@ let disjelim q ?target ~bvs ~param_bvs (* ~preserve *) (* ~old_local *)
     let lift_rn = List.map
         (fun v -> v, fresh_var (var_sort v))
         (VarSet.elements lift_vs) in
-    (*[* Format.printf "disjelim: lift_rn=%a@\n%!" pr_hvsubst lift_rn; *]*)
     let avs = map_append snd lift_rn avs in
+    let lift_rn = varmap_of_assoc lift_rn in
+    (*[* Format.printf "disjelim: lift_rn=%a@\n%!" pr_hvsubst lift_rn; *]*)
     let ty_ans = List.map
       (fun (v, (t, lc)) ->
-        (try List.assoc v lift_rn with Not_found -> v),
+        (try VarMap.find v lift_rn with Not_found -> v),
         (hvsubst_typ lift_rn t, lc)) ty_ans in
     let dissoc_vs, dissoc_eqs, usb = dissociate usb in
     if do_num

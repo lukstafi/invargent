@@ -20,6 +20,12 @@ let rec fvs_term = function
   | Lin (_, _, v) -> VarSet.singleton v
   | Add cmb -> vars_of_map fvs_term cmb
 
+let rec has_var_term v = function
+  | Cst _ -> false
+  | Lin (_, _, v2) -> v = v2
+  | Add cmb -> List.fold_left
+                 (fun acc t -> acc || has_var_term v t) false cmb
+
 type atom =
   | Eq of term * term * Defs.loc
   | Leq of term * term * Defs.loc
@@ -81,7 +87,7 @@ let subst_term unbox sb t =
     | Cst _ as i -> i
     | Lin (j, k, v) as t ->
       (try
-         let t, lc = List.assoc v sb in
+         let t, lc = VarMap.find v sb in
          scale_term j k (unbox v lc t)
        with Not_found -> t)
     | Add cmb -> Add (List.map aux cmb) in
@@ -92,7 +98,7 @@ let nsubst_term sb t =
     | Cst _ as i -> i
     | Lin (j, k, v) as t ->
       (try
-         scale_term j k (List.assoc v sb)
+         scale_term j k (VarMap.find v sb)
        with Not_found -> t)
     | Add cmb -> Add (List.map aux cmb) in
   aux t
@@ -101,7 +107,7 @@ let hvsubst_term sb t =
   let rec aux = function
     | Cst _ as i -> i
     | Lin (j, k, v) as t ->
-      (try Lin (j, k, List.assoc v sb)
+      (try Lin (j, k, VarMap.find v sb)
        with Not_found -> t)
     | Add cmb -> Add (List.map aux cmb) in
   aux t
@@ -269,11 +275,13 @@ let pr_formula ppf atoms =
   
 let pr_num_subst ppf sb =
   pr_sep_list ";" (fun ppf (v,(t,_)) ->
-    fprintf ppf "%s:=%a" (var_str v) pr_term t) ppf sb
+    fprintf ppf "%s:=%a" (var_str v) pr_term t) ppf
+    (varmap_to_assoc sb)
   
 let pr_nsubst ppf sb =
   pr_sep_list ";" (fun ppf (v,t) ->
-    fprintf ppf "%s:=%a" (var_str v) pr_term t) ppf sb
+    fprintf ppf "%s:=%a" (var_str v) pr_term t) ppf
+    (varmap_to_assoc sb)
 
 let term_no_parens = function
   | Lin (1, 1, _) | Cst _ -> true

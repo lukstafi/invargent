@@ -10,4 +10,4 @@ datacons Zero2 : ∀a. Zip2 (a, List a)
 
 datacons Succ2 : ∀a, b, c.Zip2 (a, b) ⟶ Zip2 (c → a, List c → b)
 
-val zipZ : ∀a, b. Zip2 (a, b) → b
+val zipZ : ∀a, b. Zip2 (b, a) → a

@@ -347,13 +347,22 @@ let fvs_alien_term = function
   | Num_term t -> NumDefs.fvs_term t
   | Order_term t -> OrderDefs.fvs_term t
 
+let has_var_alien_term v = function
+  | Num_term t -> NumDefs.has_var_term v t
+  | Order_term t -> OrderDefs.has_var_term v t
+
 let fvs_typ = typ_fold
     {(typ_make_fold VarSet.union VarSet.empty)
      with fold_tvar = (fun v -> VarSet.singleton v);
           fold_alien = fvs_alien_term}
 
-type subst = (var_name * (typ * loc)) list
-type hvsubst = (var_name * var_name) list
+let has_var_typ v = typ_fold
+    {(typ_make_fold (||) false)
+     with fold_tvar = (fun v2 -> v = v2);
+          fold_alien = (has_var_alien_term v)}
+
+type subst = (typ * loc) VarMap.t
+type hvsubst = var_name VarMap.t
 
 exception Contradiction of sort * string * (typ * typ) option * loc
 
@@ -392,10 +401,10 @@ let subst_alien_term sb = function
     Order_term (OrderDefs.subst_term order_v_unbox sb t)
 
 let subst_typ sb t =
-  if sb = [] then t
+  if VarMap.is_empty sb then t
   else typ_map
       {typ_id_map with
-       map_tvar = (fun v -> try fst (List.assoc v sb)
+       map_tvar = (fun v -> try fst (VarMap.find v sb)
                     with Not_found -> TVar v);
        map_alien = fun t -> Alien (subst_alien_term sb t)} t
 
@@ -406,7 +415,7 @@ let hvsubst_alien_term sb = function
 let hvsubst_typ sb =
   typ_map {typ_id_map with
            map_tvar = (fun v ->
-               TVar (try List.assoc v sb with Not_found -> v));
+               TVar (try VarMap.find v sb with Not_found -> v));
            map_alien = fun t -> Alien (hvsubst_alien_term sb t)}
 
 let subst_one v s t =
@@ -417,22 +426,42 @@ let subst_one v s t =
   !modif, res
 
 let subst_sb ~sb =
-  List.map (fun (w,(t,loc)) -> w, (subst_typ sb t, loc))
+  VarMap.map (fun (t, loc) -> subst_typ sb t, loc)
 
 let hvsubst_sb sb =
-  List.map (fun (w,(t,loc)) -> w, (hvsubst_typ sb t, loc))
+  VarMap.map (fun (t, loc) -> hvsubst_typ sb t, loc)
 
 let update_sb ~more_sb sb =
-  map_append (fun (w,(t,loc)) -> w, (subst_typ more_sb t, loc)) sb
-    more_sb
+  add_to_varmap (varmap_to_assoc more_sb)
+    (VarMap.map (fun (t, loc) -> subst_typ more_sb t, loc) sb)
 
-let revert_renaming =
-  List.map
-    (function
-      | v1, (TVar v2, lc) -> v2, (TVar v1, lc)
-      | v1, (Alien (Num_term (NumDefs.Lin (j,k,v2))), lc) ->
-        v2, (Alien (Num_term (NumDefs.Lin (k,j,v1))), lc)
-      | _ -> assert false)
+let update_one_sb x sx sb =
+  let more_sb = VarMap.singleton x sx in
+  VarMap.add x sx
+    (VarMap.map (fun (t, loc as st) ->
+         if has_var_typ x t
+         then subst_typ more_sb t, loc
+         else st) sb)
+
+let update_one_sb_check do_check f x sx sb =
+  if not do_check then update_one_sb x sx sb
+  else
+    let more_sb = VarMap.singleton x sx in
+    VarMap.add x sx
+      (VarMap.mapi (fun v (t, loc as st) ->
+         if has_var_typ x t
+         then (f v t loc; subst_typ more_sb t, loc)
+         else st) sb)
+
+let revert_renaming sb =
+  varmap_of_assoc
+    (List.map
+       (function
+         | v1, (TVar v2, lc) -> v2, (TVar v1, lc)
+         | v1, (Alien (Num_term (NumDefs.Lin (j,k,v2))), lc) ->
+           v2, (Alien (Num_term (NumDefs.Lin (k,j,v1))), lc)
+         | _ -> assert false)
+       (varmap_to_assoc sb))
 
 let c_subst_typ sb t =
   let rec aux t =
@@ -455,9 +484,8 @@ let n_subst_typ sb t =
     | Alien _ as n -> n in
   aux t
 
-
 let map_in_subst f =
-  List.map (fun (v,(t,lc)) -> v, (f t, lc))
+  VarMap.map (fun (t, lc) -> f t, lc)
 
 
 (** {3 Formulas} *)
@@ -644,12 +672,12 @@ let fvs_typs phi =
   List.fold_left VarSet.union VarSet.empty (List.map fvs_typ phi)
 
 let fvs_sb sb =
-  List.fold_left VarSet.union
-    (vars_of_list (List.map fst sb))
-    (List.map (fun (_,(t,_))->fvs_typ t) sb)
+  VarMap.fold
+    (fun v (t, _) acc -> VarSet.add v (VarSet.union (fvs_typ t) acc))
+    sb VarSet.empty
 
 let subst_formula sb phi =
-  if sb=[] then phi else List.map (subst_atom sb) phi
+  if VarMap.is_empty sb then phi else List.map (subst_atom sb) phi
 
 let hvsubst_formula sb phi =
   List.map (hvsubst_atom sb) phi
@@ -674,7 +702,7 @@ let sep_formulas cnj =
       function
       | (Eqty (TVar v, t, lc) | Eqty (t, TVar v, lc))
         when var_sort v = Type_sort ->
-        (v,(t,lc))::cnj_typ, cnj_num, cnj_ord, cnj_so
+        VarMap.add v (t,lc) cnj_typ, cnj_num, cnj_ord, cnj_so
       | Eqty (t1, t2, lc) when typ_sort t1 = Num_sort ->
         cnj_typ,
         NumDefs.Eq (num_unbox ~t2 lc t1, num_unbox ~t2:t1 lc t2, lc)
@@ -684,7 +712,7 @@ let sep_formulas cnj =
       | A (Order_atom a) -> cnj_typ, cnj_num, a::cnj_ord, cnj_so
       | (PredVarU _ | PredVarB _ | NotEx _ | CFalse _ | RetType _) as a ->
         cnj_typ, cnj_num, cnj_ord, a::cnj_so)
-    ([], [], [], []) cnj in
+    (VarMap.empty, [], [], []) cnj in
   {cnj_typ; cnj_num; cnj_ord; cnj_so}
 
 let sep_unsolved cnj =
@@ -712,8 +740,10 @@ let sep_unsolved cnj =
     ([], [], [], []) cnj in
   !new_notex, {at_typ; at_num; at_ord; at_so}
 
-let to_formula =
-  List.map (fun (v,(t,loc)) -> Eqty (TVar v, t, loc))
+let assoc_to_formula sb =
+  List.fold_left (fun acc (v, (t,loc)) -> Eqty (TVar v, t, loc)::acc) [] sb
+let to_formula sb =
+  VarMap.fold (fun v (t,loc) acc -> Eqty (TVar v, t, loc)::acc) sb []
 
 let unsep_formulas {cnj_typ; cnj_so; cnj_num} =
   cnj_so @ to_formula cnj_typ @ List.map (fun a -> A (Num_atom a)) cnj_num
@@ -726,7 +756,7 @@ let formula_loc phi =
     (List.map atom_loc phi)
 
 let subst_fo_formula sb phi =
-  if sb=[] then phi else List.map (subst_fo_atom sb) phi
+  if VarMap.is_empty sb then phi else List.map (subst_fo_atom sb) phi
 
 let sb_phi_unary arg = List.map (sb_atom_unary arg)
 
@@ -1136,11 +1166,13 @@ let pr_ans ppf = function
   
 let pr_subst ppf sb =
   pr_sep_list ";" (fun ppf (v,(t,_)) ->
-    fprintf ppf "%s:=%a" (var_str v) pr_ty t) ppf sb
+    fprintf ppf "%s:=%a" (var_str v) pr_ty t) ppf
+    (varmap_to_assoc sb)
   
 let pr_hvsubst ppf sb =
   pr_sep_list ";" (fun ppf (v,t) ->
-    fprintf ppf "%s:=%s" (var_str v) (var_str t)) ppf sb
+    fprintf ppf "%s:=%s" (var_str v) (var_str t)) ppf
+    (varmap_to_assoc sb)
 
   
 
@@ -1431,24 +1463,21 @@ let register_notex v = Hashtbl.add registered_notex_vars v ()
 let is_old_notex v = Hashtbl.mem registered_notex_vars v
 
 (** Separate type sort and number sort constraints,  *)
-let unify ?use_quants ?bvs ?(sb=[]) q cnj =
+let unify ?use_quants ?bvs ?(sb=VarMap.empty) q cnj =
   let use_quants, bvs =
     match use_quants, bvs with
-    | None, None -> assert false
+    | None, None -> (* assert false *)false, VarSet.empty
     | Some false, None -> false, VarSet.empty
     | Some true, None -> true, VarSet.empty
     | (None | Some true), Some bvs -> true, bvs
     | _ -> assert false in
   (*[* Format.printf "unify: bvs=%a@ cnj=@ %a@\n%!"
     pr_vars bvs pr_formula cnj; *]*)
-  let subst_one_sb v s = List.map
-      (fun (w,(t,loc)) ->
-         let modif, t' = subst_one v s t in
-         if use_quants && modif && quant_viol q bvs w t'
+  let check_quant_viol w t' loc =
+         if quant_viol q bvs w t'
          then raise
              (Contradiction (Type_sort, "Quantifier violation",
-                             Some (TVar w, t'), loc));
-         w, (t', loc)) in
+                             Some (TVar w, t'), loc)) in
   let new_notex, cnj = sep_unsolved cnj in
   let rec aux sb num_cn ord_cn = function
     | [] -> sb, num_cn, ord_cn
@@ -1494,10 +1523,14 @@ let unify ?use_quants ?bvs ?(sb=[]) q cnj =
                           Some (TVar v, t), loc))
       | (TVar v1 as tv1, (TVar v2 as tv2)) ->
         if q.cmp_v v1 v2 = Left_of
-        then aux ((v2, (tv1, loc))::subst_one_sb v2 tv1 sb) num_cn ord_cn cnj
-        else aux ((v1, (tv2, loc))::subst_one_sb v1 tv2 sb) num_cn ord_cn cnj
+        then aux (update_one_sb_check use_quants
+                    check_quant_viol v2 (tv1, loc) sb)
+            num_cn ord_cn cnj
+        else aux (update_one_sb_check use_quants
+                    check_quant_viol v1 (tv2, loc) sb) num_cn ord_cn cnj
       | (TVar v, t | t, TVar v) ->
-        aux ((v, (t, loc))::subst_one_sb v t sb) num_cn ord_cn cnj
+        aux (update_one_sb_check use_quants
+                    check_quant_viol v (t, loc) sb) num_cn ord_cn cnj
       | (TCons (f, f_args) as t1,
                               (TCons (g, g_args) as t2)) when f=g ->
         let more_cnj =
@@ -1523,7 +1556,8 @@ let unify ?use_quants ?bvs ?(sb=[]) q cnj =
         raise
           (Contradiction (Type_sort, "Type mismatch",
                           Some (t1, t2), loc)) in
-  let cnj_typ, cnj_num, cnj_ord = aux sb cnj.at_num cnj.at_ord cnj.at_typ in
+  let cnj_typ, cnj_num, cnj_ord =
+    aux sb cnj.at_num cnj.at_ord cnj.at_typ in
   if new_notex then List.iter
       (function
         | NotEx (t, loc) ->
@@ -1576,20 +1610,22 @@ let solve ?use_quants ?bvs ?sb q cnj =
              cnj_ord = res'.cnj_ord @ res.cnj_ord}
 
 let subst_of_cnj ?(elim_uni=false) q cnj =
-  partition_map
-    (function
-      | Eqty (TVar v, t, lc)
-        when (elim_uni || not (q.uni_v v))
-          && VarSet.for_all (fun v2 -> q.cmp_v v v2 <> Left_of)
-               (fvs_typ t) ->
-        Left (v,(t,lc))
-      | Eqty (t, TVar v, lc)
-        when (elim_uni || not (q.uni_v v))
-          && VarSet.for_all (fun v2 -> q.cmp_v v v2 <> Left_of)
-               (fvs_typ t) ->
-        Left (v,(t,lc))
-      | c -> Right c)
-    cnj
+  let sb, cnj =
+    partition_map
+      (function
+        | Eqty (TVar v, t, lc)
+          when (elim_uni || not (q.uni_v v))
+            && VarSet.for_all (fun v2 -> q.cmp_v v v2 <> Left_of)
+                 (fvs_typ t) ->
+          Left (v,(t,lc))
+        | Eqty (t, TVar v, lc)
+          when (elim_uni || not (q.uni_v v))
+            && VarSet.for_all (fun v2 -> q.cmp_v v v2 <> Left_of)
+                 (fvs_typ t) ->
+          Left (v,(t,lc))
+        | c -> Right c)
+      cnj in
+  varmap_of_assoc sb, cnj
 
 let combine_sbs ?use_quants ?bvs q ?(more_phi=[]) sbs =
   unify ?use_quants ?bvs q
@@ -1598,23 +1634,23 @@ let combine_sbs ?use_quants ?bvs q ?(more_phi=[]) sbs =
 let subst_solved ?use_quants ?bvs q sb ~cnj =
   let cnj = List.map
     (fun (v,(t,lc)) -> Eqty (subst_typ sb (TVar v), subst_typ sb t, lc))
-    cnj in
+    (varmap_to_assoc cnj) in
   unify ?use_quants ?bvs q cnj
 
 let cleanup q vs ans =
-  let clean, ans = partition_map
-    (function x, _ as sx when List.mem x vs -> Left sx
-    | y, (TVar x, lc) when List.mem x vs -> Left (x, (TVar y, lc))
-    | sy -> Right sy) ans in
+  let cmp_v v1 v2 =
+    let c1 = List.mem v1 vs and c2 = List.mem v2 vs in
+    if c1 && c2 then Same_quant
+    else if c1 then Right_of
+    else if c2 then Left_of
+    else q.cmp_v v1 v2 in
   (* TODO: could use [unify] by treating [vs] as [Downstream] in [q.cmp_v] *)
   let {cnj_typ=clean; cnj_num; cnj_so} =
-    unify ~use_quants:false q (to_formula clean) in
-  let sb, more_ans = List.partition
-    (function x, _ when List.mem x vs -> true
-    | _ -> false) clean in    
+    unify ~use_quants:false {q with cmp_v} (to_formula ans) in
+  let sb, ans = VarMap.partition
+    (fun x _ -> List.mem x vs) clean in
   assert (cnj_num = []);
   assert (cnj_so = []);
-  let ans = subst_sb ~sb (more_ans @ ans) in
   let ansvs = fvs_sb ans in
   List.filter (flip VarSet.mem ansvs) vs, ans
   
@@ -1653,17 +1689,17 @@ let nice_ans ?sb ?(fvs=VarSet.empty) (vs, phi) =
   let fvs = VarSet.union fvs (fvs_formula phi) in
   let fvs, sb =
     match sb with
-    | None -> fvs, []
-    | Some sb -> add_vars (List.map snd sb) fvs, sb in
+    | None -> fvs, VarMap.empty
+    | Some sb -> VarSet.union (varmap_domain sb) fvs, sb in
   let vs = List.filter
-      (fun v -> VarSet.mem v fvs || List.mem_assoc v sb) vs in
+      (fun v -> VarSet.mem v fvs || VarMap.mem v sb) vs in
   let allvs, rn = fold_map
       (fun fvs v ->
          let w = next_var fvs (var_sort v) in
          VarSet.add w fvs, (v, w))
       fvs vs in
   let rvs = List.map snd rn in
-  let sb = rn @ sb in
+  let sb = add_to_varmap rn sb in
   sb, (named_vs @ rvs, hvsubst_formula sb phi)
 
 let () = pr_exty :=
@@ -1671,10 +1707,12 @@ let () = pr_exty :=
     let vs, phi, ty, ety_n, pvs = Hashtbl.find sigma (Extype i) in
     let ty = match ty with [ty] -> ty | _ -> assert false in
     let sb =
-      try List.map2 (fun v t -> v, (t, dummy_loc)) pvs args
-      with Invalid_argument("List.map2") -> (* assert false *) [] in
+      try varmap_of_assoc
+            (List.map2 (fun v t -> v, (t, dummy_loc)) pvs args)
+      with Invalid_argument("List.map2") ->
+        (* assert false *) VarMap.empty in
     let phi, ty =
-      if sb=[] then phi, ty
+      if VarMap.is_empty sb then phi, ty
       else subst_formula sb phi, subst_typ sb ty in
     let evs = VarSet.elements
         (VarSet.diff (vars_of_list vs) (vars_of_list pvs)) in

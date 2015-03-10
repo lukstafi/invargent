@@ -213,8 +213,8 @@ val prim_constr_var : atom -> Defs.var_name option
 
 val atom_loc : atom -> lc
 
-type subst = (Defs.var_name * (typ * lc)) list
-type hvsubst = (Defs.var_name * Defs.var_name) list
+type subst = (typ * Defs.loc) Defs.VarMap.t
+type hvsubst = Defs.var_name Defs.VarMap.t
 
 type sep_formula = {
   cnj_typ : subst;
@@ -292,6 +292,7 @@ val hvsubst_typ : hvsubst -> typ -> typ
 val subst_sb : sb:subst -> subst -> subst
 val hvsubst_sb : hvsubst -> subst -> subst
 val update_sb : more_sb:subst -> subst -> subst
+val update_one_sb : Defs.var_name -> (typ * Defs.loc) -> subst -> subst
 (** [subst] must be a renaming of variables. *)
 val revert_renaming : subst -> subst
 (** Union/conjunction of sort-separated formulas, additionally
@@ -333,6 +334,7 @@ val solve :
   ?use_quants:bool -> ?bvs:Defs.VarSet.t ->
   ?sb:subst -> Defs.quant_ops ->
   atom list -> sep_formula
+val assoc_to_formula : (Defs.var_name * (typ * Defs.loc)) list -> formula
 val to_formula : subst -> formula
 (** Find the atoms in the formula which are valid substitutions. *)
 val subst_of_cnj :

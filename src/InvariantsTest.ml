@@ -148,7 +148,7 @@ let test_nonrec_case ?more_general ?more_existential
         ?guess_from_postcond msg test in
     let test_sol (v, result) =
       let res_sb, _ = Infer.separate_subst ~apply:false q res in
-      let ty = fst (List.assoc (VId (Type_sort, v)) res_sb) in
+      let ty = fst (VarMap.find (VId (Type_sort, v)) res_sb) in
       ignore (Format.flush_str_formatter ());
       Format.fprintf Format.str_formatter "%a" pr_ty ty;
       assert_equal ~printer:(fun x -> x)
