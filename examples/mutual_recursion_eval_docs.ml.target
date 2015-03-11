@@ -35,7 +35,7 @@ type ex3 =
     be easier to only expose the external one. *)
 let (calc, eval) (*: type a . ((calc -> ex3) * (a term -> a))*) =
   (** [eval] has to expose its "helper" function. *)
-  let rec eval : type b . ((calc -> ex3) * (b term -> b)) =
+  let rec eval : type a . ((calc -> ex3) * (a term -> a)) =
   let rec calc : (calc -> ex3) =
   ((function Lit i -> let xcase = i in Ex3 xcase
     | Plus (x, y) ->
@@ -58,7 +58,7 @@ let (calc, eval) (*: type a . ((calc -> ex3) * (a term -> a))*) =
         let Ex3 r = calc x in is_zero r
       | If (b, t, e) -> (if snd eval b then snd eval t else snd eval e)
       | Pair (x, y) -> (snd eval x, snd eval y)
-      | Fst p -> let ((x, y): (b * _)) = snd eval p in x
-      | Snd p -> let ((x, y): (_ * b)) = snd eval p in y): b term -> b)) in
+      | Fst p -> let ((x, y): (a * _)) = snd eval p in x
+      | Snd p -> let ((x, y): (_ * a)) = snd eval p in y): a term -> a)) in
   eval
 

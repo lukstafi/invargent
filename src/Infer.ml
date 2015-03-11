@@ -864,7 +864,7 @@ let annotate_expr q res_sb chi_sb nice_sb e : texpr =
               (*[* Format.printf "a1s,a2s=%s@\nres_sb=%a@\nnice_sb=%a@\n%!"
                 (String.concat "; "
                    (List.map (fun (a1,a2)->var_str a1^","^var_str a2)
-                      (varmap_to_assoc ann)))
+                      ann))
                 pr_subst res_sb pr_hvsubst nice_sb; *]*)
               assert false in
           let t1 = hvsubst_typ nice_sb (fst (VarMap.find a1 res_sb))

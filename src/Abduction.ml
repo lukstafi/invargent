@@ -12,7 +12,7 @@ let guess_eqs_nonvar = ref true
 let prefer_guess = ref false
 let neg_before_abd = ref true
 let num_neg_since = ref 1
-let term_neg_since = ref 1
+let term_neg_since = ref (* 1 *)0
 let more_general = ref false
 let richer_answers = ref false
 let no_num_abduction = ref false
@@ -201,9 +201,15 @@ let revert_uni q ~bvs ~dissociate ans prem cand =
     if !rich_return_type
     then rich_return_type_heur bvs ans cand
     else cand in
-  (*[* Format.printf "revert_uni: res=%a@\n%!" pr_subst
-    (varmap_of_assoc cand); *]*)
-  tu_sb @ c_sb, cand
+  let rev_sb = List.filter
+      (fun (lhs, (rhs, _)) -> not (VarSet.exists univar (fvs_typ rhs)))
+      (tu_sb @ c_sb) in
+  (*[* Format.printf "revert_uni: revert sb=@ %a@\nres=%a@\n%!"
+    (pr_sep_list "; "
+       (fun ppf (lhs,(rhs,_)) ->
+          Format.fprintf ppf "%a:=%a" pr_ty lhs pr_ty rhs)) rev_sb
+    pr_subst (varmap_of_assoc cand); *]*)
+  rev_sb, cand
 
 let cand_var_eqs q bvs cnj_typ =
   let cands = List.filter
@@ -960,13 +966,22 @@ let abd q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of ~nonparam_vars
   let neg_validate (vs, ans) =
     (* Returns the number of negative constraints not contradicted by
        the answer, i.e. the closer to 0 the better. *)
+    (*[* Format.printf "Abd.neg_validate: for ans=@ %a@\n%!"
+      pr_subst ans; *]*)
     List.fold_left
       (fun acc (cnj, _) ->
          acc +
            try
+             (*[* Format.printf
+               "Abd.neg_validate: checking cnj_typ=@ %a@\n%!"
+               pr_subst cnj.cnj_typ; *]*)
              ignore
-               (combine_sbs ~use_quants:false q [cnj.cnj_typ; ans]); 1
-           with Contradiction _ -> 0)
+               (combine_sbs ~use_quants:false q [cnj.cnj_typ; ans]);
+             (*[* Format.printf "not contradicted@\n%!"; *]*)
+             1
+           with Contradiction _ ->
+             (*[* Format.printf "success: contradicted@\n%!"; *]*)
+             0)
       0 neg_cns_pre in
   let neg_term =
     (* Select [bvs] variables equated with constructors participating in

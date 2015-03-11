@@ -257,7 +257,6 @@ let tests = "InvarGenT" >::: [
            test_case ~test_annot:true "equational_reas" ());
       "mutual_recursion_eval-annot" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case ~test_annot:true "mutual_recursion_eval_docs" ());
       "concat_strings-export" >::
@@ -343,13 +342,11 @@ let tests = "InvarGenT" >::: [
            test_case "non_pointwise_split" ());
       "non_pointwise-avl_small_rec" >::
         (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
+           skip_if !debug "debug";
            test_case "non_pointwise_avl_small_rec" ());
       "non_pointwise-avl_small" >::
         (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
+           skip_if !debug "debug";
            test_case "non_pointwise_avl_small" ());
       (* "non_pointwise-vary" >::
         (fun () ->
@@ -365,18 +362,15 @@ let tests = "InvarGenT" >::: [
            test_case "avl_delmin_simpler" ());
       "non_pointwise-avl_delmin-modified" >::
         (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
+           skip_if !debug "debug";
            test_case "non_pointwise_avl_delmin_modified" ());
       "non_pointwise-avl_delmin" >::
         (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
+           skip_if !debug "debug";
            test_case "non_pointwise_avl_delmin" ());
       "non_pointwise-avl_delmin2" >::
         (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
+           skip_if !debug "debug";
            test_case "non_pointwise_avl_delmin2" ());
       "non_pointwise-fd_comp" >::
         (fun () ->
@@ -672,6 +666,7 @@ let tests = "InvarGenT" >::: [
            test_case ~test_annot:true "liquid_simplex" ());
       "liquid_simplex-harder" >::
         (fun () ->
+           todo "FIXME";
            skip_if !debug "debug";
            skip_if !short_tests_only "long test: 53s";
            test_case "liquid_simplex_harder" ());
