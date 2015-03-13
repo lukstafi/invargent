@@ -23,6 +23,7 @@ module type ABD_PARAMS = sig
   val abd_simple :
     args -> discard:discarded list ->
     validation:validation ->
+    validate:(VarSet.t -> answer -> unit) ->    
     neg_validate:(answer -> int) ->
     accu -> branch -> (accu * validation) option
   val extract_ans : accu -> answer
@@ -37,7 +38,8 @@ let debug_dep = ref 0
 
 module JointAbduction (P : ABD_PARAMS) = struct
 
-  let abd args ~discard (init_validation : P.validation) ~neg_validate
+  let abd args ~discard (init_validation : P.validation)
+      ~validate ~neg_validate
       init_acc brs =
     P.abd_fail_flag := false;
     let culprit = ref None
@@ -58,7 +60,7 @@ module JointAbduction (P : ABD_PARAMS) = struct
           (List.length aside_brs)
           (List.length more_brs) P.pr_branch br; *]*)
         match P.abd_simple args ~discard ~validation
-                ~neg_validate acc br with
+                ~validate ~neg_validate acc br with
         | Some (acc, validation) ->
           loop fails discard acc validation (br::done_brs)
             aside_brs more_brs
@@ -90,7 +92,7 @@ module JointAbduction (P : ABD_PARAMS) = struct
           ddepth (List.length discard) (List.length done_brs)
           (List.length aside_brs) P.pr_branch br; *]*)
         match P.abd_simple args ~discard ~validation
-                ~neg_validate acc br with
+                ~validate ~neg_validate acc br with
         | Some (acc, validation) ->
           check_aside fails best discard acc validation (br::done_brs)
             aside_brs

@@ -44,7 +44,7 @@ val num_neg_since : int ref
 val abd_fail_flag : bool ref
 val abd_timeout_flag : bool ref
 
-type t_validation = (Defs.VarSet.t * Terms.subst) list
+type t_validation = (Defs.VarSet.t * (Terms.subst * NumS.state)) list
 
 val abd_simple :
   Defs.quant_ops ->

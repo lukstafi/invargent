@@ -815,6 +815,7 @@ let rec plus =
 
   "binary plus asserted" >::
     (fun () ->
+       todo "FIXE";
        skip_if !debug "debug";
        test_case "binary plus"
 "datatype Binary : num

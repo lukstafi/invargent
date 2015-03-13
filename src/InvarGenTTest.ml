@@ -202,7 +202,6 @@ let tests = "InvarGenT" >::: [
            test_case "flatten_pairs" ());
       "flatten_quadrs" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "flatten_quadrs" ());
       "flatten_septs" >::
@@ -440,12 +439,10 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_bcopy" ());
       "liquid_bsearch-simpler" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_bsearch_simpler" ());
       "liquid_bsearch" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_bsearch" ());
       "liquid_bsearch-harder" >::
@@ -463,22 +460,18 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_bsearch2_simpler2" ());
       "liquid_bsearch2" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_bsearch2" ());
       "liquid_bsearch2-harder1" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_bsearch2_harder1" ());
       "liquid_bsearch2-harder2" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_bsearch2_harder2" ());
       "liquid_bsearch2-harder3" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case ~test_annot:true "liquid_bsearch2_harder3" ());
       "liquid_bsearch2-harder4" >::
@@ -519,11 +512,11 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_isort" ());
       "liquid_isort-harder" >::
         (fun () ->
+           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_isort_harder" ());
       "liquid_vecswap_simpler" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_vecswap_simpler" ());
       "liquid_vecswap" >::
@@ -532,6 +525,7 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_vecswap" ());
       "liquid_isort-full" >::
         (fun () ->
+           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_isort_full" ());
       "liquid_tower_showposts" >::
@@ -544,7 +538,6 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_tower_simpler" ());
       "liquid_tower_asserted" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_tower_asserted" ());
       "liquid_tower" >::

@@ -33,7 +33,7 @@ let residuum q prem concl =
   let concl = to_formula concl in
   solve ~use_quants:false q (subst_formula prem concl)
 
-type t_validation = (VarSet.t * subst) list
+type t_validation = (VarSet.t * (subst * NumS.state)) list
 (* Result remembers the invariant parameters [bvs]. *)
 exception Result of VarSet.t * var_name list * subst * t_validation
 
@@ -243,16 +243,19 @@ let connecteds_vs tvs sb =
 (* FIXME: do we need to check the state of numerical constraints? *)
 let validate q validation added_vs x t lc =
   List.map
-    (fun (br_vs, state as br) ->
+    (fun (br_vs, (state_typ, state_num) as br) ->
        if not (VarSet.is_empty (VarSet.inter added_vs br_vs))
        then
          try
-           let t', _ = VarMap.find x state in
+           let t', _ = VarMap.find x state_typ in
            let upd =
-             unify ~use_quants:false ~sb:state q [Eqty (t, t', lc)] in
-           VarSet.union added_vs br_vs, upd.cnj_typ
+             unify ~use_quants:false ~sb:state_typ q [Eqty (t, t', lc)] in
+           let state_num =
+             NumS.satisfiable_exn ~state:state_num upd.cnj_num in
+           VarSet.union added_vs br_vs, (upd.cnj_typ, state_num)
          with Not_found ->
-           VarSet.union added_vs br_vs, VarMap.add x (t, lc) state
+           VarSet.union added_vs br_vs,
+           (VarMap.add x (t, lc) state_typ, state_num)
        else br)
     validation
 
@@ -748,13 +751,14 @@ module TermAbd = struct
   type discarded = answer
   (* premise including alien premise, conclusion *)
   type branch = sep_formula * subst
-  type br_state = subst
+  type br_state = subst * NumS.state
   type validation = t_validation
 
   let abd_fail_timeout = fail_timeout_count
   let abd_fail_flag = abd_fail_flag
 
-  let abd_simple (obvs, q, dissociate) ~discard ~validation ~neg_validate
+  let abd_simple (obvs, q, dissociate) ~discard ~validation
+      ~validate ~neg_validate
       (bvs, acc) br =
     abd_simple q ~obvs ~bvs ~dissociate ~validation ~neg_validate
         ~discard 0 acc br
@@ -804,8 +808,9 @@ let abd_typ q ~bvs ?(dissociate=false) ~validation ~neg_validate ~discard
     else brs in
   (*[* Format.printf "abd_typ: alien_eqs=%a@\n%!"
     pr_subst !alien_eqs; *]*)
+  let validate _ _ = () in
   let cand_bvs, (vs, ans) =
-    JCA.abd (bvs, q, dissociate) ~discard validation ~neg_validate
+    JCA.abd (bvs, q, dissociate) ~discard validation ~validate ~neg_validate
       (bvs, ([], VarMap.empty)) brs in
   (*[* Format.printf "abd_typ: result vs=%s@\nans=%a@\n%!"
     (String.concat ","(List.map var_str vs))
@@ -843,28 +848,28 @@ let abd_typ q ~bvs ?(dissociate=false) ~validation ~neg_validate ~discard
 let abd_mockup_num q ~bvs brs =
   (* Do not change the order and no. of branches afterwards. *)
   let brs_typ, brs_num = List.split
-    (map_some (fun (prem, concl) ->
-      let prems_opt =
-        try Some (unify ~use_quants:false q prem)
-        with Contradiction _ -> None in
-      match prems_opt with
-      | Some prem ->
-        if List.exists
-          (function CFalse _ -> true | _ -> false) prem.cnj_so
-        then None
-        else                          (* can raise Contradiction *)
-          let {cnj_typ=concl_typ; cnj_num=concl_num; cnj_so=concl_so} =
-            solve ~use_quants:false q concl in
-          List.iter (function
-          | CFalse loc ->
-            raise (Contradiction (Type_sort,
-                                  "assert false is possible", None, loc))
-          | _ -> ()) concl_so;
-          if not (is_right (NumS.satisfiable concl_num)) then None
-          else Some ((prem, concl_typ),
-                     (prem.cnj_num, concl_num))
-      | None -> None)
-       brs) in
+      (map_some (fun (prem, concl) ->
+           let prems_opt =
+             try Some (unify ~use_quants:false q prem)
+             with Contradiction _ -> None in
+           match prems_opt with
+           | Some prem ->
+             if List.exists
+                 (function CFalse _ -> true | _ -> false) prem.cnj_so
+             then None
+             else                          (* can raise Contradiction *)
+               let {cnj_typ=concl_typ; cnj_num=concl_num; cnj_so=concl_so} =
+                 solve ~use_quants:false q concl in
+               List.iter (function
+                   | CFalse loc ->
+                     raise (Contradiction (Type_sort,
+                                           "assert false is possible", None, loc))
+                   | _ -> ()) concl_so;
+               if not (is_right (NumS.satisfiable concl_num)) then None
+               else Some ((prem, concl_typ),
+                          (prem.cnj_num, concl_num))
+           | None -> None)
+          brs) in
   let verif_brs = List.map2
       (fun (prem, concl_ty) (_, concl_num) ->
          VarSet.union (fvs_sb prem.cnj_typ)
@@ -874,17 +879,18 @@ let abd_mockup_num q ~bvs brs =
          prem, concl_ty, concl_num)
       brs_typ brs_num in
   let validation =
-    List.map
-    (fun (br_vs, prem, concl_ty, concl_num) ->
-        (* Do not use quantifiers, because premise is in the conjunction. *)
-        (* TODO: after cleanup optimized in abd_simple, pass clean_ans
-           and remove cleanup here *)
-        let {cnj_typ=sb_ty; cnj_num=_(* ans_num *); cnj_so=_} =
-          combine_sbs q [prem.cnj_typ; concl_ty] in
-        (* let cnj_num = ans_num @ prem.cnj_num @ concl_num in *)
-        (* FIXME: need num state? *)
-        br_vs, (sb_ty (*, NumS.satisfiable cnj_num*)))
-    verif_brs in
+    map_some
+      (fun (br_vs, prem, concl_ty, concl_num) ->
+         (* Do not use quantifiers, because premise is in the conjunction. *)
+         (* TODO: after cleanup optimized in abd_simple, pass clean_ans
+            and remove cleanup here *)
+         try
+           let {cnj_typ=sb_ty; cnj_num=ans_num; cnj_so=_} =
+             combine_sbs q [prem.cnj_typ; concl_ty] in
+           let cnj_num = ans_num @ prem.cnj_num @ concl_num in
+           Some (br_vs, (sb_ty, NumS.satisfiable_exn cnj_num))
+         with Contradiction _ -> None)
+      verif_brs in
   let neg_validate _ = 0 in
   try
     let cand_bvs, alien_eqs, tvs, ans_typ, more_in_brs =
@@ -951,17 +957,19 @@ let abd q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of ~nonparam_vars
          prem, concl_ty, concl_num)
       brs_typ brs_num in
   let validation =
-    List.map
-    (fun (br_vs, prem, concl_ty, concl_num) ->
-        (* Do not use quantifiers, because premise is in the conjunction. *)
-        (* TODO: after cleanup optimized in abd_simple, pass clean_ans
-           and remove cleanup here *)
-        let {cnj_typ=sb_ty; cnj_num=_(* ans_num *); cnj_so=_} =
-          combine_sbs q [prem.cnj_typ; concl_ty] in
-        (* let cnj_num = ans_num @ prem.cnj_num @ concl_num in *)
-        (* FIXME: need num state? *)
-        br_vs, (sb_ty (*, NumS.satisfiable cnj_num*)))
-    verif_brs in
+    map_some
+      (fun (br_vs, prem, concl_ty, concl_num) ->
+         try
+           (* Do not use quantifiers, because premise is in the conjunction. *)
+           (* TODO: after cleanup optimized in abd_simple, pass clean_ans
+              and remove cleanup here *)
+           let {cnj_typ=sb_ty; cnj_num=ans_num; cnj_so=_} =
+             combine_sbs q [prem.cnj_typ; concl_ty] in
+           let cnj_num = ans_num @ prem.cnj_num @ concl_num in
+           (* FIXME: need num state? *)
+           Some (br_vs, (sb_ty, NumS.satisfiable_exn cnj_num))
+         with Contradiction _ -> None)
+      verif_brs in
   (* TODO: could be optimized too. *)
   let neg_validate (vs, ans) =
     (* Returns the number of negative constraints not contradicted by
