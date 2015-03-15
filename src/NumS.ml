@@ -63,6 +63,7 @@ let opti_postcond_reward = ref 5
 let primary_only_target = ref true
 let excuse_case_by_common = ref (* true *)false
 let verif_all_brs = ref false
+let verif_incremental = ref true(* false *)
 
 let abd_fail_flag = ref false
 let abd_timeout_flag = ref false
@@ -1979,31 +1980,29 @@ let subst_chi chi_sb pos_chi =
       optis @ acc_optis, suboptis @ acc_suboptis)
     ([], [], [], []) pos_chi
 
-(* Alternative approach, did not work well enough *)
-let subst_chi ~cmp_v ~bvs ~xbvs pos_chi a =
+let subst_chi_incr ~cmp_v ~bvs ~xbvs pos_chi a =
   let leq x y =
     (* let c = cmp_v x y in
        if c = Same_quant then VarSet.mem x bvs else c <> Right_of *)
     cmp_v x y >= 0 in
   let v = maximum ~leq (VarSet.elements (fvs_w_atom a)) in
   (*[* Format.printf
-    "subst_chi: pos_chi=%a@ xbvs=@ %a@\n%!" pr_ints
-    (ints_of_list (List.map fst pos_chi))
+    "subst_chi: v=%s pos_chi=%a@ xbvs=@ %a@\n%!" (var_str v)
+    pr_ints (ints_of_list (List.map fst pos_chi))
     (pr_sep_list
        "| " (fun ppf (i, vs) -> Format.fprintf ppf "%d->%a" i pr_vars vs))
     xbvs; *]*)
   List.fold_left
     (fun acc (i, renaming) ->
-       let xvs = try List.assoc i xbvs with Not_found -> assert false in
-       if VarSet.mem v xvs
+       if List.exists (fun (j, xvs) -> i=j && VarSet.mem v xvs) xbvs
        then rename_w_atom renaming a::acc
        else acc)
     [] pos_chi
 
-let validate ~cmp_v ~cmp_w uni_v ~bvs ~xbvs validation a =
+let validate_incr ~cmp_v ~cmp_w uni_v ~bvs ~xbvs validation a =
   let added_vs = fvs_w_atom a in
   (*[* Format.printf
-    "NumS.abd-validate:@ a=%a@\n%!" pr_w_atom a; *]*)
+    "NumS.abd-validate-incr:@ a=%a@\n%!" pr_w_atom a; *]*)
   (* TODO: introduce use-site substitutions *)
   try
     let validation =
@@ -2015,9 +2014,9 @@ let validate ~cmp_v ~cmp_w uni_v ~bvs ~xbvs validation a =
                       (dc_eqs, dc_ineqs, dc_optis, dc_suboptis)) as br) ->
           let prem_state =
             (*[* Format.printf
-              "NumS.abd-validate: brs_r=%d; brs_n=%d\
-               @\nd_eqs=%a@\nd_ineqs=%a\
-               @\nd_optis=%a@\nd_suboptis=%a@\n%!" !brs_r brs_n
+              "NumS.abd-validate-incr: brs_r=%d; brs_n=%d\
+               @\nv-d_eqs=%a@\nv-d_ineqs=%a\
+               @\nv-d_optis=%a@\nv-d_suboptis=%a@\n%!" !brs_r brs_n
               pr_w_subst d_eqs pr_ineqs d_ineqs
               pr_optis d_optis pr_suboptis d_suboptis; *]*)
             try
@@ -2028,17 +2027,28 @@ let validate ~cmp_v ~cmp_w uni_v ~bvs ~xbvs validation a =
             with Terms.Contradiction _ as e -> Left e in
           match prem_state with
           | Right (d_eqs, d_ineqs, d_optis, d_suboptis) ->
-            let u = subst_chi ~cmp_v ~bvs ~xbvs chi_pos a in
             (*[* Format.printf
-              "NumS.abd-validate: u=%a@\n%!" pr_w_formula u; *]*)
+              "v-d_eqs'=%a@\nv-d_ineqs'=%a@\n\
+               v-d_optis'=%a@\nv-d_suboptis'=%a@\n%!"
+              pr_w_subst d_eqs pr_ineqs d_ineqs pr_optis d_optis
+              pr_suboptis d_suboptis; *]*)
+            let u = subst_chi_incr ~cmp_v ~bvs ~xbvs chi_pos a in
+            (*[* Format.printf
+              "v-dc_eqs=%a@\nv-dc_ineqs=%a@\n\
+               v-dc_optis=%a@\nv-dc_suboptis=%a@\n%!"
+              pr_w_subst dc_eqs pr_ineqs dc_ineqs pr_optis dc_optis
+              pr_suboptis dc_suboptis; *]*)
+            (*[* Format.printf
+              "NumS.abd-validate-incr: trying u=%a@\n%!"
+              pr_w_formula u; *]*)
             let dc_eqs, dc_ineqs, dc_optis, dc_suboptis =
               solve ~eqs:dc_eqs ~ineqs:dc_ineqs
                 ~optis:dc_optis ~suboptis:dc_suboptis
                 ~cnj':(a::u)
                 ~cmp_v ~cmp_w uni_v in
             (*[* Format.printf
-              "dc_eqs'=%a@\ndc_ineqs'=%a@\n\
-               dc_optis'=%a@\ndc_suboptis'=%a@\n%!"
+              "v-dc_eqs'=%a@\nv-dc_ineqs'=%a@\n\
+               v-dc_optis'=%a@\nv-dc_suboptis'=%a@\n%!"
               pr_w_subst dc_eqs pr_ineqs dc_ineqs pr_optis dc_optis
               pr_suboptis dc_suboptis; *]*)
             (VarSet.union added_vs br_vs,
@@ -2046,13 +2056,16 @@ let validate ~cmp_v ~cmp_w uni_v ~bvs ~xbvs validation a =
               chi_pos, (d_eqs, d_ineqs, d_optis, d_suboptis),
               (dc_eqs, dc_ineqs, dc_optis, dc_suboptis)))
           | Left e ->
+            (*[* Format.printf
+              "NumS.abd-validate-incr: dead premise, brs_r=%d nodead=%b@\n%!"
+              !brs_r !nodeadcode; *]*)
             if !nodeadcode then (
               decr brs_r;
               if !brs_r <= 0 then (deadcode_flag := true; raise e)
               else br)
             else br)
         validation in
-    (*[* Format.printf "NumS.abd-validate: passed@\n%!"; *]*)
+    (*[* Format.printf "NumS.abd-validate-incr: passed@\n%!"; *]*)
     List.iter (fun (_, ((brs_r, brs_n), _, _, _)) -> brs_r := brs_n)
       validation;
     validation
@@ -2065,7 +2078,7 @@ let validate ~cmp_v ~cmp_w uni_v ~bvs ~xbvs validation a =
 (* TODO: guess equalities between parameters. *)
 let abd_simple ~qcmp_v ~cmp_w
     ~orig_ren ~b_of_v ~upward_of cmp_v uni_v
-    ~bvs ~xbvs ~nonparam_vars ~discard ~validation ~validate:_
+    ~bvs ~xbvs ~nonparam_vars ~discard ~validation ~validate
     ~neg_validate:_
     skip (eqs_i, ineqs_i, optis_i, suboptis_i)
     (opti_lhs, (d_eqn, d_ineqn), (c_eqn, c_ineqn, c_optis, c_suboptis)) =
@@ -2169,7 +2182,7 @@ let abd_simple ~qcmp_v ~cmp_w
       "NumS.abd_simple: reverted c_eqn0=@ %a@\n%!"
       pr_eqn c_eqn0; *]*)
     (* 4 *)
-    let rec loop valiation eq_trs
+    let rec loop validation eq_trs
         eqs_acc0 ineqs_acc0 optis_acc suboptis_acc
         c0eqn c0ineqn c0optis c0suboptis =
       (*[* let ddepth = incr debug_dep; !debug_dep in *]*)
@@ -2207,6 +2220,10 @@ let abd_simple ~qcmp_v ~cmp_w
         "NumS.abd_simple: [%d] 5.@ a=%a @\nd_eqn=@ %a@\nineqn=@ %a@\n%!"
         ddepth pr_w_atom a pr_eqn d_eqn pr_ineqn (c0ineqn @ d_ineqn);
       *]*)
+      (*[* Format.printf
+        "NumS.abd_simple: loop-validation-prems:@\n%a@\n%!"
+        (pr_line_list "| "
+           (fun ppf (_, (_, _, s, _)) -> pr_state ppf s)) validation; *]*)
       let b_eqs, b_ineqs, b_optis, b_suboptis =
         solve ~eqs:eqs_acc0 ~ineqs:ineqs_acc0
           ~eqn:(c0eqn @ d_eqn) ~ineqn:(c0ineqn @ d_ineqn)
@@ -2236,7 +2253,7 @@ let abd_simple ~qcmp_v ~cmp_w
           "NumS.abd_simple: [%d] loop at:@\neqs=@ %a@\nineqs=@ %a@\n%!"
           ddepth pr_w_subst eqs_acc0 pr_ineqs ineqs_acc0;
         *]*)
-        loop valiation eq_trs eqs_acc0
+        loop validation eq_trs eqs_acc0
           ineqs_acc0 optis_acc suboptis_acc c0eqn c0ineqn
           c0optis c0suboptis)
       else
@@ -2251,68 +2268,75 @@ let abd_simple ~qcmp_v ~cmp_w
       let try_trans validation
           (((eqs_acc, ineqs_acc, optis_acc, suboptis_acc),
             new_eqn, new_ineqn, _, _), optin, suboptin) =
-          if !aggressive_discard &&
-             List.exists
-               (fun (r_eqn, r_ineqn, r_optin, r_suboptin) ->
-                  List.exists (fun eqn ->
-                      let a'vs = fvs_w eqn in
-                      VarSet.cardinal a'vs > 1 &&
-                      VarSet.is_empty (VarSet.diff a'vs bvs) &&
-                      List.exists (equal_w ~cmp_v eqn) r_eqn)
-                    new_eqn ||
-                  List.exists (fun ineqn ->
-                      let a'vs = fvs_w ineqn in
-                      VarSet.cardinal a'vs > 1 &&
-                      VarSet.is_empty (VarSet.diff a'vs bvs) &&
-                      List.exists (equal_w ~cmp_v ineqn) r_ineqn)
-                    new_ineqn ||
-                  List.exists (fun optin ->
-                      let a'vs = fvs_2w optin in
-                      VarSet.cardinal a'vs > 1 &&
-                      VarSet.is_empty (VarSet.diff a'vs bvs) &&
-                      List.exists (equal_2w ~cmp_v optin) r_optin)
-                    optin ||
-                  List.exists (fun suboptin ->
-                      let a'vs = fvs_2w suboptin in
-                      VarSet.cardinal a'vs > 1 &&
-                      VarSet.is_empty (VarSet.diff a'vs bvs) &&
-                      List.exists (equal_2w ~cmp_v suboptin) r_suboptin)
-                    suboptin)
-               discard
-          then raise Omit_trans;
-          (*[* Format.printf
-            "NumS.abd_simple: [%d] 7a. validating a'=@ %a@ ...@\n%!"
-            ddepth pr_formula
-            (ans_to_num_formula
-               (eqs_acc, ineqs_acc, optis_acc, suboptis_acc));
-          *]*)
-          let all_new_vs =
-            VarSet.union (vars_of_map fvs_w new_eqn)
-              ((* VarSet.union *) (vars_of_map fvs_w new_ineqn)
-                 (* (VarSet.union (vars_of_map fvs_2w optin) *)
-                 (*    (vars_of_map fvs_2w suboptin)) *)) in
-          let new_vs = VarSet.inter bvs all_new_vs in
-          (*[* Format.printf
-            "NumS.abd_simple: [%d] approaching 7. new_vs=@ %a\
-             @ crosses=%b@\n%!"
-            ddepth pr_vars new_vs (crosses_xparams ~cmp_v:qcmp_v ~bvs new_vs);
-          *]*)
-          (* 7b *)
-          if crosses_xparams ~cmp_v:qcmp_v ~bvs new_vs then raise Omit_trans;
-          passes := true;
-          (*[* Format.printf
-            "NumS.abd_simple: [%d] 7a. validated@\n%!" ddepth; *]*)
-          (* 7d *)
-          (*[* Format.printf
-            "NumS.abd_simple: [%d] 7 OK@\n%!" ddepth; *]*)
-          (*[* Format.printf
-            "NumS.abd_simple: [%d] loop at:\
-             @\neqs=@ %a@\nineqs=@ %a@\n%!"
-            ddepth pr_w_subst eqs_acc pr_ineqs ineqs_acc;
-          *]*)
-          (* (try                         *)
-          loop valiation eq_trs eqs_acc ineqs_acc optis_acc suboptis_acc
-            c0eqn c0ineqn c0optis c0suboptis in
+        (*[* Format.printf
+          "NumS.abd_simple: trans-validation-prems:@\n%a@\n%!"
+          (pr_line_list "| "
+             (fun ppf (_, (_, _, s, _)) -> pr_state ppf s)) validation; *]*)
+        if !aggressive_discard &&
+           List.exists
+             (fun (r_eqn, r_ineqn, r_optin, r_suboptin) ->
+                List.exists (fun eqn ->
+                    let a'vs = fvs_w eqn in
+                    VarSet.cardinal a'vs > 1 &&
+                    VarSet.is_empty (VarSet.diff a'vs bvs) &&
+                    List.exists (equal_w ~cmp_v eqn) r_eqn)
+                  new_eqn ||
+                List.exists (fun ineqn ->
+                    let a'vs = fvs_w ineqn in
+                    VarSet.cardinal a'vs > 1 &&
+                    VarSet.is_empty (VarSet.diff a'vs bvs) &&
+                    List.exists (equal_w ~cmp_v ineqn) r_ineqn)
+                  new_ineqn ||
+                List.exists (fun optin ->
+                    let a'vs = fvs_2w optin in
+                    VarSet.cardinal a'vs > 1 &&
+                    VarSet.is_empty (VarSet.diff a'vs bvs) &&
+                    List.exists (equal_2w ~cmp_v optin) r_optin)
+                  optin ||
+                List.exists (fun suboptin ->
+                    let a'vs = fvs_2w suboptin in
+                    VarSet.cardinal a'vs > 1 &&
+                    VarSet.is_empty (VarSet.diff a'vs bvs) &&
+                    List.exists (equal_2w ~cmp_v suboptin) r_suboptin)
+                  suboptin)
+             discard
+        then raise Omit_trans;
+        (*[* Format.printf
+          "NumS.abd_simple: [%d] 7a. validating=%b a'=@ %a@ ...@\n%!"
+          ddepth (not !verif_incremental) pr_formula
+          (ans_to_num_formula
+             (eqs_acc, ineqs_acc, optis_acc, suboptis_acc));
+        *]*)
+        let all_new_vs =
+          VarSet.union (vars_of_map fvs_w new_eqn)
+            ((* VarSet.union *) (vars_of_map fvs_w new_ineqn)
+            (* (VarSet.union (vars_of_map fvs_2w optin) *)
+            (*    (vars_of_map fvs_2w suboptin)) *)) in
+        let new_vs = VarSet.inter bvs all_new_vs in
+        (*[* Format.printf
+          "NumS.abd_simple: [%d] approaching 7. new_vs=@ %a\
+           @ crosses=%b@\n%!"
+          ddepth pr_vars new_vs (crosses_xparams ~cmp_v:qcmp_v ~bvs new_vs);
+        *]*)
+        (* 7b *)
+        if crosses_xparams ~cmp_v:qcmp_v ~bvs new_vs then raise Omit_trans;
+        if not !verif_incremental then
+          ignore (validate all_new_vs
+                    (eqs_acc, ineqs_acc, optis_acc, suboptis_acc));
+        passes := true;
+        (*[* Format.printf
+          "NumS.abd_simple: [%d] 7a. validated@\n%!" ddepth; *]*)
+        (* 7d *)
+        (*[* Format.printf
+          "NumS.abd_simple: [%d] 7 OK@\n%!" ddepth; *]*)
+        (*[* Format.printf
+          "NumS.abd_simple: [%d] loop at:\
+           @\neqs=@ %a@\nineqs=@ %a@\n%!"
+          ddepth pr_w_subst eqs_acc pr_ineqs ineqs_acc;
+        *]*)
+        (* (try                         *)
+        loop validation eq_trs eqs_acc ineqs_acc optis_acc suboptis_acc
+          c0eqn c0ineqn c0optis c0suboptis in
       let try_trans_a a' =
         try
           (* 7a *)
@@ -2323,7 +2347,10 @@ let abd_simple ~qcmp_v ~cmp_w
           if not (no_scope_viol_atom ~cmp_v:qcmp_v ~upward_of ~bvs a')
           then raise Omit_trans;
           let validation =
-            validate ~cmp_v ~cmp_w uni_v ~bvs ~xbvs validation a' in
+            if !verif_incremental
+            then validate_incr
+                ~cmp_v ~cmp_w uni_v ~bvs ~xbvs validation a'
+            else validation in
           let eqn, ineqn, optin, suboptin = split_w_atom a' in
           (* [new_eqn, new_ineqn] are only used to determine the
              variables contributed to the answer. *)
@@ -2357,7 +2384,10 @@ let abd_simple ~qcmp_v ~cmp_w
           if not (no_scope_viol ~cmp_v:qcmp_v ~upward_of ~bvs w')
           then raise Omit_trans;
           let validation =
-            validate ~cmp_v ~cmp_w uni_v ~bvs ~xbvs validation (Leq_w w') in
+            if !verif_incremental
+            then validate_incr
+                ~cmp_v ~cmp_w uni_v ~bvs ~xbvs validation (Leq_w w')
+            else validation in
           try_trans validation (acc', [], [])
         (* with Contradiction _ -> ()) *)
         with
@@ -2412,6 +2442,10 @@ let abd_simple ~qcmp_v ~cmp_w
                  (Num_sort, no_pass_msg, None, dummy_loc))) in
 
     (* 2 *)
+    (*[* Format.printf
+      "NumS.abd_simple: init-validation-prems:@\n%a@\n%!"
+      (pr_line_list "| "
+         (fun ppf (_, (_, _, s, _)) -> pr_state ppf s)) validation; *]*)
     try
       for rot = 1 to !abd_rotations do
         let big_k = Array.init (rot - 1) (fun k -> !/(k+2)) in
@@ -2439,8 +2473,12 @@ let abd_simple ~qcmp_v ~cmp_w
       done; None
     with Result (ans_eqs, ans_ineqs, ans_optis, ans_suboptis, validation) ->
       (*[* Format.printf "NumS.abd_simple: result:\
-             @\neqs=@ %a@\nineqs=@ %a@\n%!"
+                           @\neqs=@ %a@\nineqs=@ %a@\n%!"
         pr_w_subst ans_eqs pr_ineqs ans_ineqs; *]*)
+      (*[* Format.printf
+        "NumS.abd_simple: result-validation-prems:@\n%a@\n%!"
+        (pr_line_list "| "
+           (fun ppf (_, (_, _, s, _)) -> pr_state ppf s)) validation; *]*)
       Some ((ans_eqs, ans_ineqs, ans_optis, ans_suboptis), validation)
   with (* failed premise/\conclusion *)
   | Terms.Contradiction _ -> None
@@ -2685,7 +2723,7 @@ let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
       brs in
   let brs, validate_brs = List.split brs in
   (*[* Format.printf "NumS.abd: brs processing past merging@\n%!"; *]*)
-  (* let validate added_vs (eqs, ineqs, optis, suboptis) =
+  let validate added_vs (eqs, ineqs, optis, suboptis) =
     let chi_sb = local_split ~cmp_v:q.cmp_v ~bvs ~xbvs
         (unsubst eqs) (unsolve ineqs) optis suboptis in
     (*[* Format.printf
@@ -2740,9 +2778,7 @@ let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
       List.iter (fun (_, brs_r, brs_n, _) -> brs_r := brs_n) validate_brs
     with e ->
       List.iter (fun (_, brs_r, brs_n, _) -> brs_r := brs_n) validate_brs;
-      raise e in*)
-  let validate _ _ = () in
-  (* Alternative approach not working well: *)
+      raise e in
   let validation =
     map_some
       (fun (br_vs, brs_r, brs_n,
@@ -2760,6 +2796,10 @@ let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
            Some (br_vs, ((brs_r, brs_n), chi_pos, prem, prem_n_concl))
          with Terms.Contradiction _ -> None)
       validate_brs in
+  (*[* Format.printf
+    "validation:@ %a@\n%!"
+    (pr_line_list "| "
+       (fun ppf (_, (_, _, _, s)) -> pr_state ppf s)) validation; *]*)
   (* We currently do not make use of negative constraints. *)
   let neg_validate _ = 0 in
   let brs, unproc_brs =

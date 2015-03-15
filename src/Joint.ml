@@ -44,7 +44,7 @@ module JointAbduction (P : ABD_PARAMS) = struct
     P.abd_fail_flag := false;
     let culprit = ref None
     and best_done = ref (-1) in
-    let rec loop fails discard acc (validation : P.validation)
+    let rec loop fails discard acc validation
         done_brs aside_brs = function
       | [] ->
         let best =
@@ -82,7 +82,7 @@ module JointAbduction (P : ABD_PARAMS) = struct
           loop (fails+1) discard acc validation done_brs
             (br::aside_brs) more_brs
 
-    and check_aside fails best discard acc (validation : P.validation)
+    and check_aside fails best discard acc validation
         done_brs = function
       | [] -> acc
       | br::aside_brs as all_aside ->

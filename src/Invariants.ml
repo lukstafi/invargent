@@ -1423,10 +1423,12 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
                   | TVar b ->
                     (try
                        let vs, _ = List.assoc i sol1 in
+                       (* Should not have variables not already in
+                          the quantifier. *)
                        let renaming =
-                         matchup_vars ~self_owned:false q b vs in
+                         matchup_vars ~self_owned:true(* false *) q b vs in
                        (*[* Format.printf
-                         "sb_chi_pos: chi%d(%s)@ lvs=%a;@ rvs=%a@\n%!"
+                         "br_chi_pos: chi%d(%s)@ lvs=%a;@ rvs=%a@\n%!"
                          i (var_str b)
                          pr_vars (varmap_domain renaming)
                          pr_vars (vars_of_list (varmap_codom renaming));
@@ -1450,11 +1452,13 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
         (fun x xvs acc ->
            try
              (*[* Format.printf
-               "xbvs: x=%s xvs=%a@ %!"
-               (var_str x) pr_vars xvs;
+               "xbvs: ? x=%s pos=%b xvs=%a@ %!"
+               (var_str x) (q.positive_b x) pr_vars xvs;
              Format.printf "b=%d@\n%!" (q.find_chi x); *]*)
-             (*if q.positive_b x then acc
-               else*) (q.find_chi x, xvs)::acc
+             (* FIXME: make sure to include postconditions with
+                original parameters. *)
+             if q.positive_b x then acc
+             else (q.find_chi x, xvs)::acc
            with Not_found -> acc)
         q.b_vs [] in
     let answer =

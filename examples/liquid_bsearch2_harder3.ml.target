@@ -30,9 +30,9 @@ let bsearch
   (fun key vec ->
     let Ex3 xcase =
     let rec look :
-    type (*i*) (*k*) (*n*) a (*0 ≤ n + 1 ∧ 0 ≤ k ∧
-    n + 1 ≤ i*). (a -> (a (* i *)) array -> (* k *) num -> (* n *) num ->
-                     (* n *) ex3)
+    type (*i*) (*j*) (*k*) b (*0 ≤ k + 1 ∧ 0 ≤ i ∧
+    k + 1 ≤ j*). (b -> (b (* j *)) array -> (* i *) num -> (* k *) num ->
+                     (* k *) ex3)
     =
     (fun key vec lo hi ->
       (if lo <= hi then
@@ -44,6 +44,6 @@ let bsearch
         | EQ ->
             (if equal key x then let xcase = m in Ex3 xcase else
             let xcase = -1 in Ex3 xcase))) :
-      (* n *) ex3) else let xcase = -1 in Ex3 xcase)) in
+      (* k *) ex3) else let xcase = -1 in Ex3 xcase)) in
     look key vec 0 (array_length vec + -1) in Ex4 xcase)
 

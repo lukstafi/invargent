@@ -820,9 +820,15 @@ let annotate_expr q res_sb chi_sb nice_sb e : texpr =
     let _, ans =
       try List.find (fun (k,_) -> List.mem k ns) chi_sb
       with Not_found -> assert false in
+    (*[* Format.printf
+      "annotate_expr-typ_sch: ans=@ %a@\n%!" pr_ans ans; *]*)
     let nice_sb, (vs, phi) = nice_ans ~sb:nice_sb ans in
+    (*[* Format.printf
+      "annotate_expr-typ_sch: phi=@ %a@\n%!" pr_formula phi; *]*)
     let sb, phi =
       separate_subst ~bvs:(vars_of_list vs) ~apply:true q phi in
+    (*[* Format.printf
+      "annotate_expr-typ_sch: sb=@ %a@\n%!" pr_subst sb; *]*)
     let res, _ = VarMap.find delta sb in
     let vs = VarSet.inter
         (VarSet.union (fvs_formula phi) (fvs_typ res))
@@ -1019,15 +1025,31 @@ let infer_prog solver prog =
           let nice_sb, (vs, phi) =
             try nice_ans (List.assoc chi_id sb_chi)
             with Not_found -> assert false in
+          (*[* Format.printf
+            "Infer: nice_sb=%a@\n%!" pr_hvsubst nice_sb; *]*)
+          (*[* Format.printf
+            "Infer: [1] phi_res=%a@\n%!"
+            pr_formula phi_res; *]*)
           let sb_res, phi_res =
             separate_subst ~bvs:(vars_of_list (vs @ bvs))
               ~apply:true q phi_res in
+          (*[* Format.printf
+            "Infer: [2] sb_res=%a@ phi_res=%a@\n%!"
+            pr_subst sb_res pr_formula phi_res; *]*)
+          (*[* Format.printf
+            "Infer: [3] phi=%a@\n%!"
+            pr_formula phi; *]*)
           let more_sb, phi =
             separate_subst ~bvs:(vars_of_list (vs @ bvs))
               ~apply:true q phi in
+          (*[* Format.printf
+            "Infer: [4] more_sb=%a@ phi=%a@\n%!"
+            pr_subst more_sb pr_formula phi; *]*)
           let sb = update_sb ~more_sb sb_res in
-          let e = annotate_expr q sb sb_chi nice_sb e
-          and tests = List.map (annotate_expr q sb sb_chi nice_sb) tests in
+          (*[* Format.printf
+            "Infer: [5] sb=%a@\n%!" pr_subst sb; *]*)
+          let e = annotate_expr q sb sb_chi nice_sb e in
+          let tests = List.map (annotate_expr q sb sb_chi nice_sb) tests in
           let res, _ = VarMap.find delta sb in
           let gvs = VarSet.elements
               (VarSet.union (fvs_formula phi) (fvs_typ res)) in
@@ -1091,8 +1113,14 @@ let infer_prog solver prog =
               ~uses_pos_assertions:!uses_pos_assertions
               ~new_ex_types ~preserve cn in
           let elim_extypes = !elim_cell in
+          (*[* Format.printf "Infer: solved.@\n%!"; *]*)
+          (*[* Format.printf
+            "Infer: [6] phi=%a@\n%!"
+            pr_formula phi; *]*)
           let sb, phi =
             separate_subst ~bvs:preserve ~apply:true q phi in
+          (*[* Format.printf
+            "Infer: [7] sb=%a@\n%!" pr_subst sb; *]*)
           let res = subst_typ sb t in
           let gvs = VarSet.union (fvs_formula phi) (fvs_typ res) in
           (*[* Format.printf "LetVal: res=%a@ gvs=%a@ phi=%a@\n%!"
@@ -1100,6 +1128,8 @@ let infer_prog solver prog =
           let gvs = VarSet.elements gvs in
           let nice_sb, (gvs, phi) =
             nice_ans ~fvs:(fvs_typ res) (gvs, phi) in
+          (*[* Format.printf
+            "Infer: [8] nice_sb=%a@\n%!" pr_hvsubst nice_sb; *]*)
           let sb = hvsubst_sb nice_sb sb in
           let res = hvsubst_typ nice_sb res in
           (*[* Format.printf
@@ -1109,8 +1139,13 @@ let infer_prog solver prog =
           let top_sch = gvs, phi, res in
           let e = annotate_expr q sb sb_chi nice_sb e in
           let exphi = subst_formula sb exphi in
+          (*[* Format.printf
+            "Infer: [9] exphi=%a@\n%!"
+            pr_formula exphi; *]*)
           let exsb, exphi =
             separate_subst ~bvs:(add_vars gvs preserve) ~apply:true q exphi in
+          (*[* Format.printf
+            "Infer: [10] exsb=%a@\n%!" pr_subst sb; *]*)
           let exsb = update_sb ~more_sb:exsb sb in
           let ex_items =
             update_new_ex_types q new_ex_types sb sb_chi in
@@ -1142,9 +1177,14 @@ let infer_prog solver prog =
               let res = subst_typ exsb res in
               let gvs, phi = prepare_scheme phi res in
               let exvs, exphi = prepare_scheme exphi res in
+              (*[* Format.printf
+                "Infer: [11] exphi=%a@\n%!"
+                pr_formula exphi; *]*)
               let more_sb, exphi =
                 separate_subst
                   ~bvs:(VarSet.union exvs gvs) ~apply:true q exphi in
+              (*[* Format.printf
+                "Infer: [12] more_sb=%a@\n%!" pr_subst sb; *]*)
               let sb = update_sb ~more_sb sb in
               let exvs = VarSet.diff exvs (vars_of_list [delta; delta']) in
               let gvs = VarSet.diff gvs (vars_of_list [delta; delta']) in

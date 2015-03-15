@@ -1690,7 +1690,7 @@ let nice_ans ?sb ?(fvs=VarSet.empty) (vs, phi) =
   let fvs, sb =
     match sb with
     | None -> fvs, VarMap.empty
-    | Some sb -> VarSet.union (varmap_domain sb) fvs, sb in
+    | Some sb -> add_vars (varmap_codom sb) fvs, sb in
   let vs = List.filter
       (fun v -> VarSet.mem v fvs || VarMap.mem v sb) vs in
   let allvs, rn = fold_map

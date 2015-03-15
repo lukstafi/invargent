@@ -52,7 +52,7 @@ let test_common ?more_general ?more_existential ?no_num_abduction
          i pr_vars (vars_of_list pvs) pr_vars (vars_of_list allvs)
          pr_ty ty pr_formula phi)
     !all_ex_types;
-  *]*)
+  (*]*)
   let old_more_general = !Abduction.more_general in
   (match more_general with
    | None -> ()
@@ -815,7 +815,6 @@ let rec plus =
 
   "binary plus asserted" >::
     (fun () ->
-       todo "FIXE";
        skip_if !debug "debug";
        test_case "binary plus"
 "datatype Binary : num

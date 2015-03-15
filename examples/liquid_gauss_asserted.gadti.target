@@ -71,4 +71,4 @@ val rowElim :
    ∀i, j, k, n[0 ≤ n ∧ k ≤ i ∧ n + 1 ≤ i ∧ k ≤ j].
    Array (Float, j) → Array (Float, i) → Num k → Num n → ()
 
-val gauss : ∀n[0 ≤ n]. Matrix (n, n + 1) → ()
+val gauss : ∀n[1 ≤ n]. Matrix (n, n + 1) → ()

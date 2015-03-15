@@ -206,7 +206,6 @@ let tests = "InvarGenT" >::: [
            test_case "flatten_quadrs" ());
       "flatten_septs" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case ~ty_abd_timeout:3000
              ~abd_rotations:4 "flatten_septs" ());
@@ -447,7 +446,6 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_bsearch" ());
       "liquid_bsearch-harder" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_bsearch_harder" ());
       "liquid_bsearch2-simpler" >::
@@ -485,7 +483,6 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_queen_simpler" ());
       "liquid_queen" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_queen" ());
       "liquid_isort-simpler1" >::
@@ -494,7 +491,6 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_isort_simpler1" ());
       "liquid_isort-simpler2" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_isort_simpler2" ());
       "liquid_isort-simpler3" >::
@@ -507,17 +503,16 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_isort_simpler" ());
       "liquid_isort" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_isort" ());
       "liquid_isort-harder" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_isort_harder" ());
       "liquid_vecswap_simpler" >::
         (fun () ->
-           skip_if !debug "debug";
+           todo "FIXME";
+           (* skip_if !debug "debug"; *)
            test_case "liquid_vecswap_simpler" ());
       "liquid_vecswap" >::
         (fun () ->
@@ -525,7 +520,6 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_vecswap" ());
       "liquid_isort-full" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_isort_full" ());
       "liquid_tower_showposts" >::
@@ -538,7 +532,8 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_tower_simpler" ());
       "liquid_tower_asserted" >::
         (fun () ->
-           skip_if !debug "debug";
+           todo "FIXME";
+           (* skip_if !debug "debug"; *)
            test_case "liquid_tower_asserted" ());
       "liquid_tower" >::
         (fun () ->
@@ -546,7 +541,8 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_tower" ());
       "liquid_tower_harder" >::
         (fun () ->
-           skip_if !debug "debug";
+           todo "FIXME";
+           (* skip_if !debug "debug"; *)
            test_case ~prefer_bound_to_local:true "liquid_tower_harder" ());
       "liquid_matmult" >::
         (fun () ->
@@ -570,12 +566,10 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_heapsort_heapify" ());
       "liquid_heapsort-heapsort-simpler" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_heapsort_heapsort_simpler" ());
       "liquid_heapsort-heapsort" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_heapsort_heapsort" ());
       "liquid_heapsort" >::
@@ -599,8 +593,7 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_simplex_step_3" ());
       "liquid_simplex_step_3a" >::
         (fun () ->
-           todo "FIXME";
-           skip_if !debug "debug";
+           (* skip_if !debug "debug"; *)
            (* Type in target is slightly less general than most general type:
               ∀k, n[1 ≤ n ∧ 3 ≤ k]. Matrix (n, k) → Float *)
            test_case ~prefer_bound_to_local:true
@@ -616,12 +609,10 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_simplex_step_4a" ());
       "liquid_simplex_step_5a" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_simplex_step_5a" ());
       "liquid_simplex_step_6a_1" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_simplex_step_6a_1" ());
       "liquid_simplex_step_6_2" >::
@@ -630,7 +621,6 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_simplex_step_6_2" ());
       "liquid_simplex_step_6a_2" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case ~prefer_bound_to_local:true
              "liquid_simplex_step_6a_2" ());
@@ -640,12 +630,10 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_simplex_step_6_3" ());
       "liquid_simplex_step_6a_3" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_simplex_step_6a_3" ());
       "liquid_simplex_step_6a" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_simplex_step_6a" ());
       "liquid_simplex_step_7a" >::
@@ -654,12 +642,10 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_simplex_step_7a" ());
       "liquid_simplex" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case ~test_annot:true "liquid_simplex" ());
       "liquid_simplex-harder" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            skip_if !short_tests_only "long test: 53s";
            test_case "liquid_simplex_harder" ());
@@ -687,8 +673,7 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_gauss_simpler" ());
       "liquid_gauss_simpler_asserted" >::
         (fun () ->
-           todo "FIXME";
-           skip_if !debug "debug";
+           (* skip_if !debug "debug"; *)
            test_case "liquid_gauss_simpler_asserted" ());
       "liquid_gauss" >::
         (fun () ->
@@ -697,17 +682,16 @@ let tests = "InvarGenT" >::: [
       "liquid_gauss2" >::
         (fun () ->
            todo "FIXME";
-           skip_if !debug "debug";
+           (* skip_if !debug "debug"; *)
            test_case ~prefer_bound_to_local:true "liquid_gauss2" ());
       "liquid_gauss_asserted" >::
         (fun () ->
-           todo "FIXME";
            skip_if !debug "debug";
            test_case "liquid_gauss_asserted" ());
       "liquid_gauss_harder_asserted" >::
         (fun () ->
            todo "FIXME";
-           skip_if !debug "debug";
+           (* skip_if !debug "debug"; *)
            test_case "liquid_gauss_harder_asserted" ());
       "liquid_gauss_harder" >::
         (fun () ->

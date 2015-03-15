@@ -44,4 +44,4 @@ external is_neg_aux :
 external is_neg :
    ∀i, k, n[1 ≤ k ∧ n ≤ i + 1]. Matrix (k, i) → Num n → Bool
 
-val main_step3_test : ∀k, n[1 ≤ n ∧ 2 ≤ k]. Matrix (n, k) → Float
+val main_step3_test : ∀k, n[1 ≤ n ∧ 3 ≤ k]. Matrix (n, k) → Float
