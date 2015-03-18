@@ -6,4 +6,4 @@ datacons LCons : ∀n, a[0 ≤ n].a * List (a, n) ⟶ List (a, n + 1)
 
 val filter :
    ∀n, a.
-   (a → Bool) → List (a, n) → ∃k[0 ≤ k ∧ k ≤ n].List (a, k)
+   (a → Bool) → List (a, n) → ∃k[k ≤ n ∧ 0 ≤ k].List (a, k)

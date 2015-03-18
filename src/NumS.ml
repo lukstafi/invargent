@@ -62,8 +62,8 @@ let max_subopti_postcond = ref 5
 let opti_postcond_reward = ref 5
 let primary_only_target = ref true
 let excuse_case_by_common = ref (* true *)false
-let verif_all_brs = ref false
-let verif_incremental = ref true(* false *)
+let verif_all_brs = ref false(* true *)
+let verif_incremental = ref (* true *)false
 
 let abd_fail_flag = ref false
 let abd_timeout_flag = ref false
@@ -102,7 +102,7 @@ let sort_of_subst sb = sort_of_assoc (varmap_to_assoc sb)
 
 let (!/) i = num_of_int i
 type w = (var_name * num) list * num * loc
-type w_subst = (var_name * w) list
+type w_subst = w VarMap.t
 
 let w_size (vars, cst, _) =
   (if cst =/ !/0 then 0 else 1) +
@@ -231,7 +231,7 @@ let add_to_affine ~is_lhs l af =
 let affine_exists f af =
   CombMap.exists (fun vars (cst, lc) -> f (vars, cst, lc)) af
 
-type ineqs = (var_name * (affine * affine)) list
+type ineqs = (affine * affine) VarMap.t
 type optis = (w * w) list
 type suboptis = (w * w) list
 
@@ -247,7 +247,8 @@ let pr_sw ppf (v, w) =
   Format.fprintf ppf "@[<2>%s@ =@ %a@]" (var_str v) pr_w w
 
 let pr_w_subst ppf sb =
-  Format.fprintf ppf "@[<2>%a@]" (pr_sep_list "," pr_sw) sb
+  Format.fprintf ppf "@[<2>%a@]" (pr_sep_list "," pr_sw)
+    (varmap_to_assoc sb)
 
 let pr_ineq ppf (v, (wl, wr)) =
   let wl = affine_to_ineqn wl
@@ -257,7 +258,10 @@ let pr_ineq ppf (v, (wl, wr)) =
     (pr_sep_list ";" pr_w) wr
 
 let pr_ineqs ppf (ineqs : ineqs) =
-  pr_sep_list "," pr_ineq ppf ineqs
+  pr_sep_list "," pr_ineq ppf (varmap_to_assoc ineqs)
+
+let pr_hineqs ppf ineqs =
+  pr_sep_list "," pr_ineq ppf (hashtbl_to_assoc ineqs)
 
 let pr_opti ppf (w1, w2) =
   Format.fprintf ppf "@[<2>opti(%a,@ %a)@]" pr_w w1 pr_w w2
@@ -401,11 +405,13 @@ let nonq_cmp_w (vars1,cst1,_) (vars2,cst2,_) =
   aux (vars1, vars2)
 
 let unsubst sb =
-  List.map (fun (v, (vars, cst, loc)) -> (v, !/(-1))::vars, cst, loc) sb
+  VarMap.fold
+    (fun v (vars, cst, loc) acc -> ((v, !/(-1))::vars, cst, loc)::acc)
+    sb []
 
 (* FIXME: no need to sort the variables? *)
-let unsolve (ineqs : ineqs) : w list = concat_map
-  (fun (v, (left, right)) ->
+let unsolve (ineqs : ineqs) : w list = concat_varmap
+  (fun v (left, right) ->
     let left = affine_to_ineqn left
     and right = affine_to_ineqn right in
     List.map (fun (vars, cst, loc) -> (v, !/(-1))::vars, cst, loc)
@@ -455,7 +461,7 @@ let flatten_formula ~cmp_v cnj = List.map (flatten ~cmp_v) cnj
 let subst_w ~cmp_v (eqs : w_subst) (vars, cst, loc : w) : w =
   let sums = List.map
     (fun (v,k) ->
-      try let vars, cst, _ = mult k (List.assoc v eqs) in vars, cst
+      try let vars, cst, _ = mult k (VarMap.find v eqs) in vars, cst
       with Not_found -> [v,k], !/0)
     vars in
   let vars, csts = List.split sums in
@@ -491,8 +497,8 @@ let subst_ineqs ~cmp_v eqs ineqs = List.map
         wset_map (subst_w ~cmp_v eqs) right))
   ineqs
 
-let subst_eqs ~cmp_v ~sb eqs = List.map
-  (fun (v, eq) -> v, subst_w ~cmp_v sb eq) eqs
+let subst_eqs ~cmp_v ~sb eqs = VarMap.map
+  (fun eq -> subst_w ~cmp_v sb eq) eqs
 
 let subst_one ~cmp_v (v, w) (vars, cst, loc as arg) =
   try
@@ -627,44 +633,46 @@ let extract_v_subst v (vars, cst, loc) =
   v, mult (!/(-1) // j) (vars, cst, loc)
 
 let expand_subst ~keep ~bvs eqs =
-  List.split
-    (List.map
-       (fun (v, (vars, cst, loc as w) as sw) ->
-          let w' = (v, !/(-1))::vars, cst, loc in
-          (*[* Format.printf "expand_subst: v=%s w=%a@ norm=%a@\n%!"
-            (var_str v) pr_w w pr_w
-            (norm_by_lcd ((v, !/(-1))::vars, cst, loc)); *]*)
-          if not (VarSet.mem v bvs) then (v, (expand_w w, loc)), sw
-          else match expand_sides
-                       (norm_by_lcd ((v, !/(-1))::vars, cst, loc)) with
-          | Lin (1, 1, v), t when not (VarSet.mem v keep) ->
-            (*[* Format.printf
-              "expand_subst: [1] v=%s t=%a@\n%!" (var_str v) pr_term t; *]*)
-            (v, (t, loc)), extract_v_subst v w'
-          | t, Lin (1, 1, v) when not (VarSet.mem v keep) ->
-            (*[* Format.printf
-              "expand_subst: [2] v=%s t=%a@\n%!" (var_str v) pr_term t; *]*)
-            (v, (t, loc)), extract_v_subst v w'
-          | _ when not (VarSet.mem v keep) ->
-            (*[* Format.printf
-              "expand_subst: [3] v=%s t=%a@\n%!" (var_str v)
-              pr_term (expand_w w); *]*)
-            (v, (expand_w w, loc)), sw
-          | _ ->
-            (*[* Format.printf
-              "expand_subst: [3] orig_v=%s orig_t=%a@\n%!" (var_str v)
-              pr_term (expand_w w); *]*)
-            let keep_vars, cands = List.partition
-                (fun (v, _) -> VarSet.mem v keep) vars in
-            match cands with
-            | [] -> (v, (expand_w w, loc)), sw
-            | (v, j)::vars ->
-              let w = mult (!/1 // j) (vars @ cands, cst, loc) in
+  let sb, sb' =
+    List.split
+      (List.map
+         (fun (v, (vars, cst, loc as w) as sw) ->
+            let w' = (v, !/(-1))::vars, cst, loc in
+            (*[* Format.printf "expand_subst: v=%s w=%a@ norm=%a@\n%!"
+              (var_str v) pr_w w pr_w
+              (norm_by_lcd ((v, !/(-1))::vars, cst, loc)); *]*)
+            if not (VarSet.mem v bvs) then (v, (expand_w w, loc)), sw
+            else match expand_sides
+                         (norm_by_lcd ((v, !/(-1))::vars, cst, loc)) with
+            | Lin (1, 1, v), t when not (VarSet.mem v keep) ->
+              (*[* Format.printf
+                "expand_subst: [1] v=%s t=%a@\n%!" (var_str v) pr_term t; *]*)
+              (v, (t, loc)), extract_v_subst v w'
+            | t, Lin (1, 1, v) when not (VarSet.mem v keep) ->
+              (*[* Format.printf
+                "expand_subst: [2] v=%s t=%a@\n%!" (var_str v) pr_term t; *]*)
+              (v, (t, loc)), extract_v_subst v w'
+            | _ when not (VarSet.mem v keep) ->
               (*[* Format.printf
                 "expand_subst: [3] v=%s t=%a@\n%!" (var_str v)
                 pr_term (expand_w w); *]*)
-              (v, (expand_w w, loc)), extract_v_subst v w')
-       eqs)
+              (v, (expand_w w, loc)), sw
+            | _ ->
+              (*[* Format.printf
+                "expand_subst: [3] orig_v=%s orig_t=%a@\n%!" (var_str v)
+                pr_term (expand_w w); *]*)
+              let keep_vars, cands = List.partition
+                  (fun (v, _) -> VarSet.mem v keep) vars in
+              match cands with
+              | [] -> (v, (expand_w w, loc)), sw
+              | (v, j)::vars ->
+                let w = mult (!/1 // j) (vars @ cands, cst, loc) in
+                (*[* Format.printf
+                  "expand_subst: [3] v=%s t=%a@\n%!" (var_str v)
+                  pr_term (expand_w w); *]*)
+                (v, (expand_w w, loc)), extract_v_subst v w')
+         (varmap_to_assoc eqs)) in
+  varmap_of_assoc sb, varmap_of_assoc sb'
 
 let expand_formula = List.map
     (function
@@ -698,7 +706,8 @@ let cnj_to_w_formula (eqn, ineqn, optis, suboptis) =
 let num_to_formula phi = List.map (fun a -> Terms.A (Terms.Num_atom a)) phi
 
 let eqn_of_eqs eqs =
-  List.map (fun (v,(vars,cst,loc)) -> (v,!/(-1))::vars,cst,loc) eqs
+  VarMap.fold
+    (fun v (vars,cst,loc) acc -> ((v,!/(-1))::vars,cst,loc)::acc) eqs []
 
 let eqineq_loc_union (eqn, ineqn) =
   List.fold_left loc_union dummy_loc
@@ -903,7 +912,7 @@ let trans_affine ~cmp_v (ineqs : ineqs) ~is_lhs wn =
     | ([], _, _ as w)::wn -> proj (affine_add ~is_lhs w acc) wn
     | ((v,k)::vars, cst, loc as w)::wn ->
       let left, right =
-        try List.assoc v ineqs
+        try VarMap.find v ineqs
         with Not_found -> affine_empty, affine_empty in
       let is_left = if k </ !/0 then not is_lhs else is_lhs in
       let more = if is_left then left else right in
@@ -925,19 +934,20 @@ let solve_aux ~use_quants ?(strict=false)
     | Store_viol bvs -> true, true, bvs
     | Fail_viol bvs -> false, true, bvs in
   let eqs =
-    if eqs' = [] then eqs else subst_eqs ~cmp_v ~sb:eqs' eqs @ eqs' in
+    if VarMap.is_empty eqs' then eqs
+    else varmap_merge (subst_eqs ~cmp_v ~sb:eqs' eqs) eqs' in
   let eqs_implicits = ref [] in
   let subst_side_ineq ~is_lhs v sb ohs w =
     let vars, cst, lc as w' = subst_w ~cmp_v sb w in
     if affine_mem ~is_lhs:(not is_lhs) w' ohs
     then eqs_implicits := ((v,!/(-1))::vars,cst,lc) :: !eqs_implicits;
     w' in
-  let ineqs = if eqs' = [] then ineqs else List.map
-      (fun (v,(wl,wr)) -> v,
-        (affine_map ~is_lhs:true
-           (subst_side_ineq ~is_lhs:true v eqs' wr) wl,
-         affine_map ~is_lhs:false
-           (subst_side_ineq ~is_lhs:false v eqs' wl) wr))
+  let ineqs = if VarMap.is_empty eqs' then ineqs else VarMap.mapi
+      (fun v (wl,wr) ->
+        affine_map ~is_lhs:true
+          (subst_side_ineq ~is_lhs:true v eqs' wr) wl,
+        affine_map ~is_lhs:false
+          (subst_side_ineq ~is_lhs:false v eqs' wl) wr)
       ineqs in
   let more_eqn, more_ineqn, more_optis, more_suboptis =
     split_flatten ~cmp_v cnj in
@@ -954,9 +964,12 @@ let solve_aux ~use_quants ?(strict=false)
   (*[* Format.printf "NumS.solve: start ineqn0=@ %a@\n%!"
     pr_ineqn ineqn0; *]*)
   assert (not strict || eqn = []);
-  let eqn = if eqs=[] then eqn else List.map (subst_w ~cmp_v eqs) eqn in
+  let eqn =
+    if VarMap.is_empty eqs then eqn
+    else List.map (subst_w ~cmp_v eqs) eqn in
   let ineqn0 =
-    if eqs=[] then ineqn0 else List.map (subst_w ~cmp_v eqs) ineqn0 in
+    if VarMap.is_empty eqs then ineqn0
+    else List.map (subst_w ~cmp_v eqs) ineqn0 in
   let optis1 = List.map (subst_w ~cmp_v eqs) (flat2 optis) in
   let ineqn = ineqn0 @ optis1 in
   (*[* Format.printf "NumS.solve: subst1 ineqn0=@ %a@\n%!"
@@ -1006,35 +1019,40 @@ let solve_aux ~use_quants ?(strict=false)
   (* [eqn0] and [ineqn0] store the unprocessed but substituted new
      equations and inequalities. *)
   let eqn0 = eqn in
-  let eqn = List.rev (elim [] eqn) in
+  let eqn = varmap_of_assoc (elim [] eqn) in
+  let new_eqvars =
+    VarSet.union (varmap_domain eqn) (varmap_domain eqs') in
   (*[* Format.printf "NumS.solve: solved eqn=@ %a@\n%!"
     pr_w_subst eqn; *]*)
-  let ineqn = if eqn=[] then ineqn else List.map (subst_w ~cmp_v eqn) ineqn in
+  let ineqn = if VarMap.is_empty eqn then ineqn
+    else List.map (subst_w ~cmp_v eqn) ineqn in
   (*[* Format.printf "NumS.solve: subst2 ineqn=@ %a@\n%!"
     pr_ineqn ineqn; *]*)
-  let eqs = if eqn=[] then eqs else subst_eqs ~cmp_v ~sb:eqn eqs in
+  let eqs = if VarMap.is_empty eqn then eqs
+    else subst_eqs ~cmp_v ~sb:eqn eqs in
   (* inequalities [left <= v] and [v <= right] *)
-  let ineqs = if eqn=[] then ineqs else
-      List.map (fun (v, (wl, wr)) ->
-        v,
-        (affine_map ~is_lhs:true
-           (subst_side_ineq ~is_lhs:true v eqn wr) wl,
-         affine_map ~is_lhs:false
-           (subst_side_ineq ~is_lhs:false v eqn wl) wr)) ineqs in
+  let ineqs = if VarMap.is_empty eqn then ineqs else
+      VarMap.mapi (fun v (wl, wr) ->
+        affine_map ~is_lhs:true
+          (subst_side_ineq ~is_lhs:true v eqn wr) wl,
+        affine_map ~is_lhs:false
+          (subst_side_ineq ~is_lhs:false v eqn wl) wr) ineqs in
   (*[* Format.printf "NumS.solve: simplified eqn=@ %a@\n%!"
     pr_w_subst eqn; *]*)
   let more_ineqn =
-    concat_map
-      (fun (v, w) ->
+    concat_varmap
+      (fun v w ->
         try
-          let left, right = List.assoc v ineqs in
+          let left, right = VarMap.find v ineqs in
           affine_map_to_list (fun lhs -> diff ~cmp_v lhs w) left @
             affine_map_to_list (fun rhs -> diff ~cmp_v w rhs) right
         with Not_found -> [])
       eqn in
+  let ineqs = VarMap.filter
+      (fun v _ -> not (VarSet.mem v new_eqvars)) ineqs in
   let ineqn = List.sort cmp_w (more_ineqn @ ineqn) in
   (*[* Format.printf "NumS.solve:@\neqs=%a@\nsimplified ineqn=@ %a@\n%!"
-    pr_w_subst (eqn @ eqs) pr_ineqn ineqn; *]*)
+    pr_w_subst (varmap_merge eqn eqs) pr_ineqn ineqn; *]*)
   let project v (vars, cst, loc as lhs) rhs =
     if equal_w ~cmp_v lhs rhs
     then
@@ -1056,9 +1074,9 @@ let solve_aux ~use_quants ?(strict=false)
       pr_ineqs ineqs pr_eqn implicits pr_ineqn ineqn0; *]*)  
     let handle_proj v k vars cst loc ineqn =
       let trans_affine = trans_affine ~cmp_v ineqs in
-      let (left, right), ineqs =
-        try pop_assoc v ineqs
-        with Not_found -> (affine_empty, affine_empty), ineqs in
+      let left, right =
+        try VarMap.find v ineqs
+        with Not_found -> affine_empty, affine_empty in
       let ineq_l, ineq_r, (more_ineqn, more_implicits) =
         (* Change sides wrt. to variable [v]. *)
         let ohs = mult (!/(-1) // k) (vars, cst, loc) in
@@ -1095,14 +1113,15 @@ let solve_aux ~use_quants ?(strict=false)
       let ineqn =
         merge_one_nonredund ~cmp_v ~cmp_w (List.sort cmp_w more_ineqn) ineqn in
       let more_ineqs =
-        v, (affine_union ~is_lhs:true
-              (trans_affine ~is_lhs:true ineq_l) left,
-            affine_union ~is_lhs:false
-              (trans_affine ~is_lhs:false ineq_r) right) in
+        affine_union ~is_lhs:true
+          (trans_affine ~is_lhs:true ineq_l) left,
+        affine_union ~is_lhs:false
+          (trans_affine ~is_lhs:false ineq_r) right in
       (*[* Format.printf
         "NumS.solve-project: res v=%s@\nmore_ineqn=@ %a@\nineqs_v=@ %a@\n%!"
-        (var_str v) pr_ineqn more_ineqn pr_ineqs [more_ineqs]; *]*)  
-      let ineqs = more_ineqs::ineqs in
+        (var_str v) pr_ineqn more_ineqn
+        pr_ineqs (VarMap.singleton v more_ineqs); *]*)  
+      let ineqs = VarMap.add v more_ineqs ineqs in
       proj ineqs (more_implicits @ implicits) ineqn in
     match ineqn0 with
     | [] -> ineqs, implicits
@@ -1121,7 +1140,7 @@ let solve_aux ~use_quants ?(strict=false)
         when storeable && quant_viol uni_v cmp_v ~storeable bvs v vars ->
       let old_ineq =
         try
-          let lhs, rhs = List.assoc v ineqs in
+          let lhs, rhs = VarMap.find v ineqs in
           let ohs = mult (!/(-1) // k) (vars, cst, loc) in
           if k >/ !/0 then affine_mem ~is_lhs:false ohs rhs
           else affine_mem ~is_lhs:true ohs lhs
@@ -1157,11 +1176,11 @@ let solve_aux ~use_quants ?(strict=false)
     else Some (Left (m, n)) in
   (*[* Format.printf "NumS.solve: solving optis...@\n%!"; *]*)
   let optis, more_implicits =
-    if eqn = [] then optis, []
+    if VarMap.is_empty eqn then optis, []
     else partition_choice (map_some propagate optis) in
   (*[* Format.printf "NumS.solve: solving suboptis...@\n%!"; *]*)
   let suboptis, more_ineqn =
-    if eqn = [] then suboptis, []
+    if VarMap.is_empty eqn then suboptis, []
     else partition_choice (map_some propagate suboptis) in
   (*[* Format.printf "NumS.solve: solving ineqs...@\nineqn=%a@\n%!"
     pr_ineqn ineqn; *]*)
@@ -1170,14 +1189,14 @@ let solve_aux ~use_quants ?(strict=false)
   (*[* Format.printf "NumS.solve: done@\nineqs=@ %a@\n%!"
     pr_ineqs ineqs; *]*)
   
-  (eqn @ eqs, ineqs,
+  (varmap_merge eqn eqs, ineqs,
    optis, suboptis), eqn0, ineqn0, WSet.elements (wset_of_list implicits),
   !quant_viol_cnj
 
 type num_solution = w_subst * ineqs * optis * suboptis
 
 let solve_get_eqn ~use_quants ?strict
-    ?(eqs=[]) ?(ineqs=[]) ?(eqs'=[])
+    ?(eqs=VarMap.empty) ?(ineqs=VarMap.empty) ?(eqs'=VarMap.empty)
     ?(optis=[]) ?(suboptis=[]) ?(eqn=[]) ?(ineqn=[]) ?(cnj=[]) ?(cnj'=[])
     ~cmp_v ~cmp_w uni_v =
   (*[* Format.printf
@@ -1206,10 +1225,12 @@ let solve_get_eqn ~use_quants ?strict
       loop
         (solve_aux ~use_quants ?strict ~eqs ~ineqs ~optis ~suboptis
            ~eqn:implicits
-           ~eqs':[] ~ineqn:[] ~cnj:[] ~cnj':[] ~cmp_v ~cmp_w uni_v)) in
-  if eqn=[] && (eqs=[] || eqs'=[]) && ineqn=[] && optis=[] &&
+           ~eqs':VarMap.empty
+           ~ineqn:[] ~cnj:[] ~cnj':[] ~cmp_v ~cmp_w uni_v)) in
+  if eqn=[] && (VarMap.is_empty eqs || VarMap.is_empty eqs') &&
+     ineqn=[] && optis=[] &&
      suboptis=[] && cnj=[] && cnj'=[]
-  then (eqs @ eqs', ineqs, [], []), [], [], [], []
+  then (varmap_merge eqs eqs', ineqs, [], []), [], [], [], []
   else
     let (eqs,ineqs,optis,suboptis as res) =
       loop (solve_aux ~use_quants ?strict ~eqs ~ineqs ~eqs' ~optis ~suboptis
@@ -1355,11 +1376,11 @@ let implies_discard ~cmp_v ~cmp_w uni_v ~bvs (eqs, ineqs, optis, suboptis)
     (c_eqn, c_ineqn, c_optis, c_suboptis) =
   let eqs' =
     if !abd_discard_param_only
-    then List.filter (fun (v, _) -> VarSet.mem v bvs) eqs
+    then VarMap.filter (fun v _ -> VarSet.mem v bvs) eqs
     else eqs in
   let ineqs' =
     if !abd_discard_param_only
-    then List.filter (fun (v, _) -> VarSet.mem v bvs) ineqs
+    then VarMap.filter (fun v _ -> VarSet.mem v bvs) ineqs
     else ineqs in
   let c_eqn' =
     if !abd_discard_param_only
@@ -1407,9 +1428,9 @@ let implies_ineq ~cmp_v ~cmp_w ineqs ineq =
   let rec proj (ineqs : ineqs) ineqn0 =
     let handle_proj v k vars cst loc ineqn =
       let trans_affine = trans_affine ~cmp_v ineqs in
-      let (left, right), ineqs =
-        try pop_assoc v ineqs
-        with Not_found -> (affine_empty, affine_empty), ineqs in
+      let left, right =
+        try VarMap.find v ineqs
+        with Not_found -> affine_empty, affine_empty in
       let ineq_l, ineq_r, more_ineqn =
         (* Change sides wrt. to variable [v]. *)
         let ohs = mult (!/(-1) // k) (vars, cst, loc) in
@@ -1439,14 +1460,15 @@ let implies_ineq ~cmp_v ~cmp_w ineqs ineq =
       let ineqn =
         merge_one_nonredund ~cmp_v ~cmp_w (List.sort cmp_w more_ineqn) ineqn in
       let more_ineqs =
-        v, (affine_union ~is_lhs:true
-              (trans_affine ~is_lhs:true ineq_l) left,
-            affine_union ~is_lhs:false
-              (trans_affine ~is_lhs:false ineq_r) right) in
+        affine_union ~is_lhs:true
+          (trans_affine ~is_lhs:true ineq_l) left,
+        affine_union ~is_lhs:false
+          (trans_affine ~is_lhs:false ineq_r) right in
       (*[* Format.printf
         "NumS.impl-project: res v=%s@\nmore_ineqn=@ %a@\nineqs_v=@ %a@\n%!"
-        (var_str v) pr_ineqn more_ineqn pr_ineqs [more_ineqs]; *]*)  
-      let ineqs = more_ineqs::ineqs in
+        (var_str v) pr_ineqn more_ineqn
+        pr_ineqs (VarMap.singleton v more_ineqs); *]*)  
+      let ineqs = VarMap.add v more_ineqs ineqs in
       proj ineqs ineqn in
     match ineqn0 with
     | [] -> ()
@@ -1506,8 +1528,8 @@ let trans_w_atom ~cmp_v tr = function
    [c]], output [[] <= a <= [b]; [a] <= b <= [c]; [b] <= c <= []]. *)
 let complete_ineqs ~cmp_v ineqs =
   let ineqn = unsolve ineqs in
-  let res = Hashtbl.create (List.length ineqs) in
-  List.iter (fun (v, v_ineqs) -> Hashtbl.add res v v_ineqs) ineqs;
+  let res = Hashtbl.create (VarMap.cardinal ineqs) in
+  VarMap.iter (fun v v_ineqs -> Hashtbl.add res v v_ineqs) ineqs;
   List.iter
     (fun (vars, cst, lc) ->
        List.iter
@@ -1536,7 +1558,7 @@ let revert_uni ~cmp_v ~cmp_w ~uni_v ~bvs eqn =
   let rev_sb, _, _, _ =
     (* Do not use quantifiers. *)
     solve ~eqn ~cmp_v ~cmp_w uni_v in
-  List.filter (fun (v, (vars, _, _)) ->
+  VarMap.filter (fun v (vars, _, _) ->
       uni_v v && not (VarSet.mem v bvs) &&
       not (List.exists (fun (v', _) ->
           uni_v v' && not (VarSet.mem v' bvs)) vars)) rev_sb
@@ -1577,8 +1599,8 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~orig_ren ~b_of_v ~upward_of
     "NumS.abd_cands: w=%a@ bvs=%a@\nnonparam_vars=%a@\n\
      d_ineqs=%a@ d_ineqn=%a@\nbh_ineqs=@ %a@\n%!"
     pr_w w pr_vars bvs pr_vars nonparam_vars
-    pr_ineqs (hashtbl_to_assoc d_ineqs) pr_ineqn d_ineqn
-    pr_ineqs (hashtbl_to_assoc bh_ineqs); *]*)
+    pr_hineqs d_ineqs pr_ineqn d_ineqn
+    pr_hineqs bh_ineqs; *]*)
   let cands_vs =
     concat_map
       (fun ((v, coef), vars1) ->
@@ -2097,7 +2119,7 @@ let abd_simple ~qcmp_v ~cmp_w
        conflicts with a live-code branch, should be discarded. *)
     let (d_eqs0, d_ineqs0, _, _), _, _, d_implicits, _ =
       (* TODO: could we speed up abduction by using Store_viol? *)
-      solve_get_eqn ~use_quants:Ignore_viol ~eqs:eqs_i ~eqs':[]
+      solve_get_eqn ~use_quants:Ignore_viol ~eqs:eqs_i ~eqs':VarMap.empty
         ~ineqs:ineqs_i ~eqn:d_eqn' ~ineqn:d_ineqn'
         ~optis:[] ~suboptis:[] ~cnj:[] ~cmp_v ~cmp_w uni_v in
     (*[* Format.printf
@@ -2545,7 +2567,7 @@ module NumAbd = struct
     num_to_formula (cnj_to_num_formula concl)
 
   let is_taut (eqs, ineqs, optis, suboptis) =
-    eqs=[] && ineqs=[] && optis=[] && suboptis=[]
+    VarMap.is_empty eqs && VarMap.is_empty ineqs && optis=[] && suboptis=[]
 
   let pr_branch pp (_, (d_eqn, d_ineqn),
                     (c_eqn, c_ineqn, c_optis, c_suboptis)) =
@@ -2556,7 +2578,8 @@ module NumAbd = struct
 
   let pr_ans pp (eqs, ineqs, optis, suboptis) =
     Format.fprintf pp "eqs=%a@\nineqs=%a@\noptis=%a@\nsuboptis=%a@\n%!"
-      pr_w_subst eqs pr_ineqs ineqs pr_optis optis pr_suboptis suboptis
+      pr_w_subst eqs pr_ineqs ineqs
+      pr_optis optis pr_suboptis suboptis
 end
 
 module JCA = Joint.JointAbduction (NumAbd)
@@ -2606,7 +2629,8 @@ let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
          try
            let (d_eqs,d_ineqs,d_optis,d_suboptis), _, _, d_opti_eqn, _ =
              solve_aux ~cmp_v ~cmp_w q.uni_v ~use_quants:Ignore_viol
-               ~eqs:[] ~ineqs:[] ~eqs':[] ~cnj:[] ~cnj':[]
+               ~eqs:VarMap.empty ~ineqs:VarMap.empty
+               ~eqs':VarMap.empty ~cnj:[] ~cnj':[]
                ~eqn:d_eqn ~ineqn:d_ineqn
                ~optis:d_optis ~suboptis:d_suboptis in
            (*[* Format.printf
@@ -2736,7 +2760,7 @@ let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
         (fun (br_vs, brs_r, (_ (*[* as brs_n *]*)),
               (_, chi_pos, _, (d_eqn, d_ineqn),
                (c_eqn, c_ineqn, c_optis, c_suboptis))) ->
-          if chi_pos <> [] ||
+          if !verif_all_brs || chi_pos <> [] ||
              VarSet.exists (fun v -> VarSet.mem v br_vs) added_vs
           then
             let prem_state =
@@ -2752,9 +2776,20 @@ let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
               with Terms.Contradiction _ as e -> Left e in
             match prem_state with
             | Right (eqs,ineqs,optis,suboptis) ->
+                (*[* Format.printf
+                  "v_eqs=%a@\nv_ineqs=%a@\nv_optis=%a@\nv_suboptis=%a@\n%!"
+                  pr_w_subst eqs pr_ineqs ineqs pr_optis optis
+                  pr_suboptis suboptis; *]*)
               let u_eqn, u_ineqn, u_optis, u_suboptis as u =
                 subst_chi chi_sb chi_pos in
-              if VarSet.exists (fun v -> VarSet.mem v br_vs) added_vs ||
+              (*[* Format.printf
+                "brc_eqn=%a@\nbrc_ineqn=%a@\nbrc_optis=%a@\n\
+                 brc_suboptis=%a@\n%!"
+                pr_eqn (u_eqn @ c_eqn) pr_ineqn (u_ineqn @ c_ineqn)
+                pr_optis (u_optis @ c_optis)
+                pr_suboptis (suboptis @ u_suboptis @ c_suboptis); *]*)
+              if !verif_all_brs ||
+                 VarSet.exists (fun v -> VarSet.mem v br_vs) added_vs ||
                  VarSet.exists (fun v -> VarSet.mem v br_vs)
                    (fvs_sep_w_formula u)
               then
@@ -2846,7 +2881,8 @@ let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
   let ans = JCA.abd
       {cmp_v; cmp_w; NumAbd.qcmp_v = q.cmp_v; orig_ren; b_of_v;
        upward_of; uni_v = q.uni_v; bvs; xbvs; nonparam_vars}
-      ~discard validation ~validate ~neg_validate ([], [], [], []) brs in
+      ~discard validation ~validate ~neg_validate
+      (VarMap.empty, VarMap.empty, [], []) brs in
   [], elim_uni @ ans_to_num_formula ans
 
 
@@ -2937,9 +2973,9 @@ let project ~cmp_v ~cmp_w ineqs ineqn =
     | [] -> ineqs
     | ([], cst, _)::ineqn (* when cst <=/ !/0 *) -> proj ineqs ineqn
     | ((v,k)::vars, cst, loc)::ineqn ->
-      let (left, right), ineqs =
-        try pop_assoc v ineqs
-        with Not_found -> (affine_empty, affine_empty), ineqs in
+      let left, right =
+        try VarMap.find v ineqs
+        with Not_found -> affine_empty, affine_empty in
       let ineq_l, ineq_r, more_ineqn = 
         let ohs = mult (!/(-1) // k) (vars, cst, loc) in
         if k >/ !/0
@@ -2961,8 +2997,9 @@ let project ~cmp_v ~cmp_w ineqs ineqn =
       let ineqn =
         merge cmp_w (List.sort cmp_w more_ineqn) ineqn in
       let ineqs =
-        (v, (add_to_affine ~is_lhs:true ineq_l left,
-             add_to_affine ~is_lhs:false ineq_r right))::ineqs in
+        VarMap.add v
+          (add_to_affine ~is_lhs:true ineq_l left,
+           add_to_affine ~is_lhs:false ineq_r right) ineqs in
       proj ineqs ineqn in
   proj ineqs ineqn
 
@@ -2983,9 +3020,9 @@ let strict_sat ~cmp_v ~cmp_w (ineqs : ineqs)
     | ([], cst, loc)::_ ->
       raise Not_satisfiable
     | ((v,k)::vars, cst, loc)::ineqn ->
-      let (left, right), ineqs =
-        try pop_assoc v ineqs
-        with Not_found -> (affine_empty, affine_empty), ineqs in
+      let left, right =
+        try VarMap.find v ineqs
+        with Not_found -> affine_empty, affine_empty in
       let ohs = mult (!/(-1) // k) (vars, cst, loc) in
       let ineq_l, ineq_r, more_ineqn = 
         if k >/ !/0
@@ -3018,8 +3055,10 @@ let strict_sat ~cmp_v ~cmp_w (ineqs : ineqs)
       let ineqn =
         merge cmp_w (List.sort cmp_w more_ineqn) ineqn in
       let ineqs =
-        (v, (add_to_affine ~is_lhs:true ineq_l left,
-             add_to_affine ~is_lhs:false ineq_r right))::ineqs in
+        VarMap.add v
+          (add_to_affine ~is_lhs:true ineq_l left,
+           add_to_affine ~is_lhs:false ineq_r right)
+          ineqs in
       proj strict ineqs ineqn in
   let res =
     try
@@ -3239,7 +3278,7 @@ let prune_redund ~cmp_v ~cmp_w guard_cnj cnj =
          [g_ineqn]) in
   (*[* Format.printf "NumS.prune_redund:@\ninit_ineqn=@ %a@\n%!"
     pr_ineqn init_ineqn; *]*)
-  let init_ineqs = project ~cmp_v ~cmp_w []
+  let init_ineqs = project ~cmp_v ~cmp_w VarMap.empty
       (List.sort cmp_w init_ineqn) in
   let init_ineqs_for_subopti = project ~cmp_v ~cmp_w init_ineqs
       (List.sort cmp_w ineqn) in
@@ -3381,14 +3420,14 @@ let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
                     "NumS.disjelim: substituted p_ineqs=@\n%a@\n%!"
                     pr_ineqs p_ineqs; *]*)
                   (* Simplify downto preserved variables. *)
-                  let eqs = List.filter
-                      (fun (v,_) -> VarSet.mem v preserved) eqs in
-                  let ineqs = List.filter
-                      (fun (v,_) -> VarSet.mem v preserved) ineqs in
-                  let p_eqs = List.filter
-                      (fun (v,_) -> VarSet.mem v preserved) p_eqs in
-                  let p_ineqs = List.filter
-                      (fun (v,_) -> VarSet.mem v preserved) p_ineqs in
+                  let eqs = VarMap.filter
+                      (fun v _ -> VarSet.mem v preserved) eqs in
+                  let ineqs = VarMap.filter
+                      (fun v _ -> VarSet.mem v preserved) ineqs in
+                  let p_eqs = VarMap.filter
+                      (fun v _ -> VarSet.mem v preserved) p_eqs in
+                  let p_ineqs = VarMap.filter
+                      (fun v _ -> VarSet.mem v preserved) p_ineqs in
                   (*[* Format.printf
                     "NumS.disjelim: success opti_choice=@\n%a@\n%!"
                     pr_w_formula opti_subopti; *]*)
@@ -3459,7 +3498,8 @@ let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
   let faces, equations = split_map
       (fun (eqs, ineqs) ->
          let eq_classes = collect ~cmp_k:(compare_w ~cmp_v)
-             (List.map (fun (v, rhs) -> rhs, v) eqs) in
+             (List.map (fun (v, rhs) -> rhs, v)
+                (varmap_to_assoc eqs)) in
          let eq_sides = concat_map
              (fun (rhs, lvs) ->
                 let ws =
@@ -3478,7 +3518,7 @@ let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
          let ineqs = unsolve ineqs in
          let faces =
            ineqs @ eq_sides @ List.map (mult !/(-1)) eq_sides in
-         let _, res, _ = keep_nonredund ~cmp_v ~cmp_w [] faces in
+         let _, res, _ = keep_nonredund ~cmp_v ~cmp_w VarMap.empty faces in
          (*[* Format.printf
            "ptop-ineqs=%a@\nptop-faces=%a@\nptop-res=%a@\n%!"
            pr_ineqn ineqs pr_ineqn faces pr_ineqn res; *]*)
@@ -3937,7 +3977,7 @@ let simplify q ?(keepvs=VarSet.empty) ?localvs ?(guard=[]) elimvs cnj =
   let eqs, ineqs, optis, suboptis =
     solve ~cnj ~cmp_v ~cmp_w q.uni_v in
   let eqs =
-    List.filter (fun (v,_) ->
+    VarMap.filter (fun v _ ->
         VarSet.mem v keepvs || not (VarSet.mem v elimvs)) eqs in
   (*let ineqs =
     List.filter (fun (v,_) ->
@@ -3997,7 +4037,7 @@ let converge q ?localvs ?(guard=[]) ~initstep cnj1 cnj2 =
 
 
 type state = w_subst * ineqs * optis * suboptis
-let empty_state = [], [], [], []
+let empty_state = VarMap.empty, VarMap.empty, [], []
 
 let formula_of_state (eqs, ineqs, optis, suboptis) =
   let cnj = expand_eqineqs eqs ineqs in
@@ -4115,10 +4155,8 @@ let negation_elim q ~bvs ~verif_cns neg_cns =
     let rev_sb, _, _, _ =
       (* Do not use quantifiers. *)
       solve ~cnj ~cmp_v ~cmp_w q.uni_v in
-    let rev_sb =
-      map_some (fun (v, w) ->
-          if uni_v v then Some (v, expand_w w) else None) rev_sb in
-    varmap_of_assoc rev_sb in
+    VarMap.map expand_w
+      (VarMap.filter (fun v _ -> uni_v v) rev_sb) in
   (* The formula will be conjoined to the branches. Note that the
           branch will be non-recursive.  *)
   let res = concat_map
@@ -4227,8 +4265,8 @@ let separate_subst_aux q ~no_csts ~keep ~bvs ~apply cnj =
         (function
           | v, ([], cst, lc) -> Left (cst, (v, lc))
           | eq -> Right eq)
-        eqs
-    else [], eqs in
+        (varmap_to_assoc eqs)
+    else [], varmap_to_assoc eqs in
   let c_eqn =
     collect ~cmp_k:Num.compare_num c_eqn in
   let leq (v1, _) (v2, _) = cmp_v v1 v2 >= 0 in
@@ -4252,11 +4290,11 @@ let separate_subst_aux q ~no_csts ~keep ~bvs ~apply cnj =
       c_eqs in
   let eqs, more_eqs = List.partition
       (fun (v,_) -> not (VarSet.mem v keep)) (c_eqs @ eqs) in
+  let eqs = varmap_of_assoc eqs in
   let sb, eqs = expand_subst ~keep ~bvs eqs in
-  let sb = varmap_of_assoc sb in
   (*[* Format.printf
     "NumS.separate_subst: no_csts=%b@ eq-keys=%a@ sb=%a@\n%!"
-    no_csts pr_vars (vars_of_list (List.map fst eqs))
+    no_csts pr_vars (varmap_domain eqs)
     pr_num_subst sb; *]*)
   if not apply
   then
@@ -4274,10 +4312,10 @@ let separate_subst_aux q ~no_csts ~keep ~bvs ~apply cnj =
     (*[* Format.printf "NumS.separate_subst: bvs=%a@ phi=%a@\n%!"
       pr_vars bvs pr_formula phi_num; *]*)
     let more_sb, _ =
-      expand_subst ~keep ~bvs more_eqs in
+      expand_subst ~keep ~bvs (varmap_of_assoc more_eqs) in
     let more = List.map
         (fun (v,(t,lc)) -> Eq (Lin (1,1,v), t, lc))
-        more_sb in
+        (varmap_to_assoc more_sb) in
     sb, more @ phi_num
          
 (* TODO: move to VarMap-based solutions? *)

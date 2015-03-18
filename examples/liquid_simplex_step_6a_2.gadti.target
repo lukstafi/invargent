@@ -59,4 +59,4 @@ external init_ratio :
    Matrix (i, j) → Num k → Num n → ∃l[0 ≤ l ∧
      l + 1 ≤ i].(Num l, Float)
 
-val main_step6_test : ∀k, n[1 ≤ n ∧ 2 ≤ k]. Matrix (n, k) → ()
+val main_step6_test : ∀k, n[2 ≤ k ∧ 1 ≤ n]. Matrix (n, k) → ()

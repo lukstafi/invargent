@@ -52,23 +52,23 @@ external val fl0 : Float
 external val fl1 : Float
 
 val getRow :
-   ∀i, k, n[0 ≤ n ∧ 0 ≤ k ∧ k + 1 ≤ i].
+   ∀i, k, n[k + 1 ≤ i ∧ 0 ≤ k ∧ 0 ≤ n].
    Matrix (i, n) → Num k → Array (Float, n)
 
 val putRow :
-   ∀i, j, k, n[0 ≤ n ∧ 0 ≤ k ∧ k + 1 ≤ i ∧ n ≤ j].
+   ∀i, j, k, n[n ≤ j ∧ k + 1 ≤ i ∧ 0 ≤ k ∧ 0 ≤ n].
    Matrix (i, j) → Num k → Array (Float, n) → ()
 
 val rowSwap :
-   ∀i, j, k, n[0 ≤ n ∧ 0 ≤ k ∧ k + 1 ≤ i ∧ n + 1 ≤ i ∧
-   0 ≤ j]. Matrix (i, j) → Num k → Num n → ()
+   ∀i, j, k, n[0 ≤ j ∧ n + 1 ≤ i ∧ k + 1 ≤ i ∧ 0 ≤ k ∧
+   0 ≤ n]. Matrix (i, j) → Num k → Num n → ()
 
 val norm :
-   ∀i, k, n[0 ≤ n ∧ k ≤ i ∧ n + 1 ≤ i].
+   ∀i, k, n[n + 1 ≤ i ∧ k ≤ i ∧ 0 ≤ n].
    Array (Float, i) → Num k → Num n → ()
 
 val rowElim :
-   ∀i, j, k, n[0 ≤ n ∧ k ≤ i ∧ n + 1 ≤ i ∧ k ≤ j].
+   ∀i, j, k, n[k ≤ j ∧ n + 1 ≤ i ∧ k ≤ i ∧ 0 ≤ n].
    Array (Float, j) → Array (Float, i) → Num k → Num n → ()
 
-val gauss : ∀k, n[1 ≤ n ∧ n + 1 ≤ k]. Matrix (n, k) → ()
+val gauss : ∀k, n[n + 1 ≤ k ∧ 1 ≤ n]. Matrix (n, k) → ()

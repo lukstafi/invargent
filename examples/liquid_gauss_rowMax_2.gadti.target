@@ -68,8 +68,8 @@ external norm :
    Array (Float, i) → Num k → Num n → ()
 
 val rowMax :
-   ∀i, j, k, m, n[0 ≤ i ∧ i + 1 ≤ j ∧ i + 1 ≤ m ∧ 0 ≤ k ∧
-   0 ≤ n].
+   ∀i, j, k, m, n[0 ≤ n ∧ 0 ≤ k ∧ i + 1 ≤ m ∧ i + 1 ≤ j ∧
+   0 ≤ i].
    Matrix (j, m) → Num i →
      (Num k → Float → Num n → ∃k[0 ≤ k ∧
         k≤max (n, j + -1)].Num k,

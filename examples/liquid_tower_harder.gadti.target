@@ -35,11 +35,11 @@ val initialize : ∀k, n[n ≤ k + 1]. Array (Int, k) → Num n → ()
 val showpiece : Int → Int → ()
 
 val showposts :
-   ∀i, k, n[1 ≤ k ∧ 0 ≤ i ∧ i ≤ k ∧ i ≤ n + 1].
+   ∀i, k, n[i ≤ n + 1 ∧ i ≤ k ∧ 0 ≤ i ∧ 1 ≤ k].
    Array (Int, i) → Array (Int, k) → Array (Int, n) → ()
 
 val move :
-   ∀i, j, k, m, n[n ≤ k ∧ 1 ≤ i ∧ i ≤ k ∧ 0 ≤ j ∧
-   j + 1 ≤ k ∧ 0 ≤ m ∧ j + m ≤ k ∧ m ≤ i ∧ m ≤ n + 1].
+   ∀i, j, k, m, n[m ≤ n + 1 ∧ m ≤ i ∧ j + m ≤ k ∧ 0 ≤ m ∧
+   j + 1 ≤ k ∧ 0 ≤ j ∧ i ≤ k ∧ 1 ≤ i ∧ n ≤ k].
    Num m → Array (Int, k) → Num j → Array (Int, k) → Num i →
      Array (Int, k) → Num n → ()

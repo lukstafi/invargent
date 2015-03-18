@@ -52,5 +52,5 @@ external val fl0 : Float
 external val fl1 : Float
 
 val rowElim :
-   ∀i, j, k, n[0 ≤ n ∧ k ≤ i ∧ n + 1 ≤ i ∧ k ≤ j].
+   ∀i, j, k, n[k ≤ j ∧ n + 1 ≤ i ∧ k ≤ i ∧ 0 ≤ n].
    Array (Float, j) → Array (Float, i) → Num k → Num n → ()

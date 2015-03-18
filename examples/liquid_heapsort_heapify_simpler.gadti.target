@@ -35,5 +35,5 @@ external val plus : Int → Int → Int
 external val int0 : Int
 
 val heapify :
-   ∀i, k, n, a[0 ≤ n ∧ n + 1 ≤ i ∧ i ≤ k].
+   ∀i, k, n, a[i ≤ k ∧ n + 1 ≤ i ∧ 0 ≤ n].
    Num i → Array (a, k) → Num n → ()

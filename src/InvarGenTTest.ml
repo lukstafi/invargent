@@ -511,8 +511,7 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_isort_harder" ());
       "liquid_vecswap_simpler" >::
         (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
+           skip_if !debug "debug";
            test_case "liquid_vecswap_simpler" ());
       "liquid_vecswap" >::
         (fun () ->
@@ -532,8 +531,7 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_tower_simpler" ());
       "liquid_tower_asserted" >::
         (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
+           skip_if !debug "debug";
            test_case "liquid_tower_asserted" ());
       "liquid_tower" >::
         (fun () ->
@@ -541,8 +539,7 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_tower" ());
       "liquid_tower_harder" >::
         (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
+           skip_if !debug "debug";
            test_case ~prefer_bound_to_local:true "liquid_tower_harder" ());
       "liquid_matmult" >::
         (fun () ->
@@ -593,7 +590,7 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_simplex_step_3" ());
       "liquid_simplex_step_3a" >::
         (fun () ->
-           (* skip_if !debug "debug"; *)
+           skip_if !debug "debug";
            (* Type in target is slightly less general than most general type:
               ∀k, n[1 ≤ n ∧ 3 ≤ k]. Matrix (n, k) → Float *)
            test_case ~prefer_bound_to_local:true
@@ -673,7 +670,7 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_gauss_simpler" ());
       "liquid_gauss_simpler_asserted" >::
         (fun () ->
-           (* skip_if !debug "debug"; *)
+           skip_if !debug "debug";
            test_case "liquid_gauss_simpler_asserted" ());
       "liquid_gauss" >::
         (fun () ->
@@ -681,8 +678,7 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_gauss" ());
       "liquid_gauss2" >::
         (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
+           skip_if !debug "debug";
            test_case ~prefer_bound_to_local:true "liquid_gauss2" ());
       "liquid_gauss_asserted" >::
         (fun () ->
@@ -690,8 +686,7 @@ let tests = "InvarGenT" >::: [
            test_case "liquid_gauss_asserted" ());
       "liquid_gauss_harder_asserted" >::
         (fun () ->
-           todo "FIXME";
-           (* skip_if !debug "debug"; *)
+           skip_if !debug "debug";
            test_case "liquid_gauss_harder_asserted" ());
       "liquid_gauss_harder" >::
         (fun () ->

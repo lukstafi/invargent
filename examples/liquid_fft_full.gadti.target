@@ -63,7 +63,7 @@ datatype Bounded : num * num
 datacons Index : ∀i, k, n[n ≤ i ∧ i ≤ k].Num i ⟶ Bounded (n, k)
 
 val ffor :
-   ∀i, j, k, n[j ≤ i ∧ k ≤ n].
+   ∀i, j, k, n[k ≤ n ∧ j ≤ i].
    Num n → Num j → (Bounded (k, i) → ()) → ()
 
 external val ref : ∀a. a → Ref a
@@ -73,7 +73,7 @@ external val asgn : ∀a. Ref a → a → ()
 external val deref : ∀a. Ref a → a
 
 val fft :
-   ∀k, n[1 ≤ n ∧ n + 1 ≤ k].
+   ∀k, n[n + 1 ≤ k ∧ 1 ≤ n].
    Array (Float, n + 1) → Array (Float, k) → Num n
 
 val ffttest : ∀n[2 ≤ n]. Num n → Float

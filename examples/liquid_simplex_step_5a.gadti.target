@@ -49,4 +49,4 @@ external enter_var :
    Matrix (i, j) → Num n → Float → Num m → ∃l[0 ≤ l ∧
      l≤max (j + -1, n)].Num l
 
-val main_step3_test : ∀k, n[1 ≤ n ∧ 2 ≤ k]. Matrix (n, k) → Float
+val main_step3_test : ∀k, n[2 ≤ k ∧ 1 ≤ n]. Matrix (n, k) → Float

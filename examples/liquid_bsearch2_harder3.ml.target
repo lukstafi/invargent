@@ -21,17 +21,17 @@ let compare : ('a -> 'a -> linOrder) =
 let equal : ('a -> 'a -> bool) = fun a b -> a = b
 let div2 : ((* 2 n *) num -> (* n *) num) = fun x -> x / 2
 type ex4 =
-  | Ex4 : (*∀'k, 'n[0 ≤ k + 1 ∧ k + 1 ≤ n].*)(* k *) num ->
+  | Ex4 : (*∀'k, 'n[k + 1 ≤ n ∧ 0 ≤ k + 1].*)(* k *) num ->
     (* n *) ex4
 type ex3 =
-  | Ex3 : (*∀'k, 'n[0 ≤ k + 1 ∧ k ≤ n].*)(* k *) num -> (* n *) ex3
+  | Ex3 : (*∀'k, 'n[k ≤ n ∧ 0 ≤ k + 1].*)(* k *) num -> (* n *) ex3
 let bsearch
   : type (*n*) a (*0 ≤ n*). (a -> (a (* n *)) array -> (* n *) ex4) =
   (fun key vec ->
     let Ex3 xcase =
     let rec look :
-    type (*i*) (*j*) (*k*) b (*0 ≤ k + 1 ∧ 0 ≤ i ∧
-    k + 1 ≤ j*). (b -> (b (* j *)) array -> (* i *) num -> (* k *) num ->
+    type (*i*) (*j*) (*k*) b (*k + 1 ≤ j ∧ 0 ≤ i ∧
+    0 ≤ k + 1*). (b -> (b (* j *)) array -> (* i *) num -> (* k *) num ->
                      (* k *) ex3)
     =
     (fun key vec lo hi ->

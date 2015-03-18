@@ -64,11 +64,11 @@ external norm :
    Matrix (i, j) → Num k → Num n → ()
 
 val row_op_aux1 :
-   ∀i, j, k, m, n[0 ≤ n ∧ 0 ≤ k ∧ 0 ≤ i ∧ i + 1 ≤ j ∧
-   k + 1 ≤ j ∧ 0 ≤ m].
+   ∀i, j, k, m, n[0 ≤ m ∧ k + 1 ≤ j ∧ i + 1 ≤ j ∧ 0 ≤ i ∧
+   0 ≤ k ∧ 0 ≤ n].
    Matrix (j, m) → Num i → Num k → Float → Num n → ()
 
 val row_op_aux2 :
-   ∀i, j, k, m, n[0 ≤ n ∧ 0 ≤ k ∧ 0 ≤ i ∧ i + 1 ≤ j ∧
-   k + 1 ≤ j ∧ n + 1 ≤ m].
+   ∀i, j, k, m, n[n + 1 ≤ m ∧ k + 1 ≤ j ∧ i + 1 ≤ j ∧
+   0 ≤ i ∧ 0 ≤ k ∧ 0 ≤ n].
    Matrix (j, m) → Num i → Num k → Num n → ()

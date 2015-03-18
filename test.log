@@ -1,36 +1,8 @@
-Compilation started at Tue Mar  3 18:24:59
+Compilation started at Wed Mar 18 02:26:37
 
 make testnative
 ocamlbuild src/Tests.native -lib nums -pkg oUnit --
 Warning: tag "package" does not expect a parameter, but is used with parameter "oUnit"
-/home/lukstafi/.opam/4.01.0/bin/ocamldep.opt -modules src/Abduction.ml > src/Abduction.ml.depends
-/home/lukstafi/.opam/4.01.0/bin/ocamldep.opt -modules src/NumS.ml > src/NumS.ml.depends
-/home/lukstafi/.opam/4.01.0/bin/ocamldep.opt -modules src/Joint.ml > src/Joint.ml.depends
-/home/lukstafi/.opam/4.01.0/bin/ocamldep.opt -modules src/Joint.mli > src/Joint.mli.depends
-/home/lukstafi/.opam/4.01.0/bin/ocamlc.opt -c -I /home/lukstafi/.opam/4.01.0/lib/oUnit -I /home/lukstafi/.opam/4.01.0/lib/ocaml -I src -o src/Joint.cmi src/Joint.mli
-/home/lukstafi/.opam/4.01.0/bin/ocamlopt.opt -c -I /home/lukstafi/.opam/4.01.0/lib/oUnit -I /home/lukstafi/.opam/4.01.0/lib/ocaml -I src -o src/Joint.cmx src/Joint.ml
-/home/lukstafi/.opam/4.01.0/bin/ocamlopt.opt -c -I /home/lukstafi/.opam/4.01.0/lib/oUnit -I /home/lukstafi/.opam/4.01.0/lib/ocaml -I src -o src/NumS.cmx src/NumS.ml
-/home/lukstafi/.opam/4.01.0/bin/ocamlopt.opt -c -I /home/lukstafi/.opam/4.01.0/lib/oUnit -I /home/lukstafi/.opam/4.01.0/lib/ocaml -I src -o src/Infer.cmx src/Infer.ml
-/home/lukstafi/.opam/4.01.0/bin/ocamlopt.opt -c -I /home/lukstafi/.opam/4.01.0/lib/oUnit -I /home/lukstafi/.opam/4.01.0/lib/ocaml -I src -o src/Abduction.cmx src/Abduction.ml
-+ /home/lukstafi/.opam/4.01.0/bin/ocamlopt.opt -c -I /home/lukstafi/.opam/4.01.0/lib/oUnit -I /home/lukstafi/.opam/4.01.0/lib/ocaml -I src -o src/Abduction.cmx src/Abduction.ml
-/home/lukstafi/.opam/4.01.0/bin/ocamlopt.opt -c -I /home/lukstafi/.opam/4.01.0/lib/oUnit -I /home/lukstafi/.opam/4.01.0/lib/ocaml -I src -o src/Lexer.cmx src/Lexer.ml
-/home/lukstafi/.opam/4.01.0/bin/ocamldep.opt -modules src/DisjElim.ml > src/DisjElim.ml.depends
-/home/lukstafi/.opam/4.01.0/bin/ocamlopt.opt -c -I /home/lukstafi/.opam/4.01.0/lib/oUnit -I /home/lukstafi/.opam/4.01.0/lib/ocaml -I src -o src/DisjElim.cmx src/DisjElim.ml
-/home/lukstafi/.opam/4.01.0/bin/ocamldep.opt -modules src/Invariants.ml > src/Invariants.ml.depends
-/home/lukstafi/.opam/4.01.0/bin/ocamldep.opt -modules src/OCaml.ml > src/OCaml.ml.depends
-/home/lukstafi/.opam/4.01.0/bin/ocamlopt.opt -c -I /home/lukstafi/.opam/4.01.0/lib/oUnit -I /home/lukstafi/.opam/4.01.0/lib/ocaml -I src -o src/Invariants.cmx src/Invariants.ml
-/home/lukstafi/.opam/4.01.0/bin/ocamlopt.opt -c -I /home/lukstafi/.opam/4.01.0/lib/oUnit -I /home/lukstafi/.opam/4.01.0/lib/ocaml -I src -o src/OCaml.cmx src/OCaml.ml
-/home/lukstafi/.opam/4.01.0/bin/ocamlopt.opt -c -I /home/lukstafi/.opam/4.01.0/lib/oUnit -I /home/lukstafi/.opam/4.01.0/lib/ocaml -I src -o src/InvarGenT.cmx src/InvarGenT.ml
-/home/lukstafi/.opam/4.01.0/bin/ocamlopt.opt -c -I /home/lukstafi/.opam/4.01.0/lib/oUnit -I /home/lukstafi/.opam/4.01.0/lib/ocaml -I src -o src/AbductionTest.cmx src/AbductionTest.ml
-/home/lukstafi/.opam/4.01.0/bin/ocamlopt.opt -c -I /home/lukstafi/.opam/4.01.0/lib/oUnit -I /home/lukstafi/.opam/4.01.0/lib/ocaml -I src -o src/DisjElimTest.cmx src/DisjElimTest.ml
-/home/lukstafi/.opam/4.01.0/bin/ocamlopt.opt -c -I /home/lukstafi/.opam/4.01.0/lib/oUnit -I /home/lukstafi/.opam/4.01.0/lib/ocaml -I src -o src/InferTest.cmx src/InferTest.ml
-/home/lukstafi/.opam/4.01.0/bin/ocamlopt.opt -c -I /home/lukstafi/.opam/4.01.0/lib/oUnit -I /home/lukstafi/.opam/4.01.0/lib/ocaml -I src -o src/InvarGenTTest.cmx src/InvarGenTTest.ml
-/home/lukstafi/.opam/4.01.0/bin/ocamlopt.opt -c -I /home/lukstafi/.opam/4.01.0/lib/oUnit -I /home/lukstafi/.opam/4.01.0/lib/ocaml -I src -o src/InvariantsTest.cmx src/InvariantsTest.ml
-/home/lukstafi/.opam/4.01.0/bin/ocamlopt.opt -c -I /home/lukstafi/.opam/4.01.0/lib/oUnit -I /home/lukstafi/.opam/4.01.0/lib/ocaml -I src -o src/NumSTest.cmx src/NumSTest.ml
-/home/lukstafi/.opam/4.01.0/bin/ocamlopt.opt -c -I /home/lukstafi/.opam/4.01.0/lib/oUnit -I /home/lukstafi/.opam/4.01.0/lib/ocaml -I src -o src/OrderSTest.cmx src/OrderSTest.ml
-/home/lukstafi/.opam/4.01.0/bin/ocamlopt.opt -c -I /home/lukstafi/.opam/4.01.0/lib/oUnit -I /home/lukstafi/.opam/4.01.0/lib/ocaml -I src -o src/TermsTest.cmx src/TermsTest.ml
-/home/lukstafi/.opam/4.01.0/bin/ocamlopt.opt -c -I /home/lukstafi/.opam/4.01.0/lib/oUnit -I /home/lukstafi/.opam/4.01.0/lib/ocaml -I src -o src/Tests.cmx src/Tests.ml
-/home/lukstafi/.opam/4.01.0/bin/ocamlopt.opt nums.cmxa -I /home/lukstafi/.opam/4.01.0/lib/oUnit -I /home/lukstafi/.opam/4.01.0/lib/ocaml unix.cmxa oUnit.cmxa src/Aux.cmx src/Defs.cmx src/NumDefs.cmx src/OrderDefs.cmx src/Terms.cmx src/Joint.cmx src/NumS.cmx src/OrderS.cmx src/Infer.cmx src/Abduction.cmx src/Parser.cmx src/Lexer.cmx src/AbductionTest.cmx src/DisjElim.cmx src/DisjElimTest.cmx src/InferTest.cmx src/Invariants.cmx src/OCaml.cmx src/InvarGenT.cmx src/InvarGenTTest.cmx src/InvariantsTest.cmx src/NumSTest.cmx src/OrderSTest.cmx src/TermsTest.cmx src/Tests.cmx -o src/Tests.native
 InvarGenT:0:Terms:0:parsing and printing ...
 ok
 InvarGenT:0:Terms:1:parsing existentials ...
@@ -58,9 +30,9 @@ ok
 InvarGenT:5:DisjElim:1:simplified eval ...
 ok
 InvarGenT:6:Invariants:0:simple eval ...
- t=0.013s ok
+ t=0.009s ok
 InvarGenT:6:Invariants:1:simple assert false ...
- t=0.002s ok
+ t=0.003s ok
 InvarGenT:6:Invariants:2:foo without when 1 ...
  t=0.001s ok
 InvarGenT:6:Invariants:3:foo without when 2 ...
@@ -68,27 +40,27 @@ InvarGenT:6:Invariants:3:foo without when 2 ...
 InvarGenT:6:Invariants:4:foo with when 1 ...
  t=0.004s ok
 InvarGenT:6:Invariants:5:foo with when 2 ...
- t=0.002s ok
+ t=0.003s ok
 InvarGenT:6:Invariants:6:deadcode foo ...
  t=0.002s ok
 InvarGenT:6:Invariants:7:deadcode foo fail ...
 ok
 InvarGenT:6:Invariants:8:abs ...
- t=0.011s ok
+ t=0.010s ok
 InvarGenT:6:Invariants:9:abs2 ...
- t=0.012s ok
+ t=0.011s ok
 InvarGenT:6:Invariants:10:eval ...
- t=0.090s ok
+ t=0.050s ok
 InvarGenT:6:Invariants:11:eval hard ...
- t=0.076s ok
+ t=0.046s ok
 InvarGenT:6:Invariants:12:equal1 wrong type ...
- t=0.226s ok
+ t=0.140s ok
 InvarGenT:6:Invariants:13:equal with test ...
- t=0.428s ok
+ t=0.251s ok
 InvarGenT:6:Invariants:14:equal with assert ...
- t=1.319s ok
+ t=2.158s ok
 InvarGenT:6:Invariants:15:equal with assert and test ...
- t=0.634s ok
+ t=1.216s ok
 InvarGenT:6:Invariants:16:SPJ non-principal 1 ...
  t=0.002s ok
 InvarGenT:6:Invariants:17:SPJ non-principal 2 ...
@@ -96,234 +68,234 @@ InvarGenT:6:Invariants:17:SPJ non-principal 2 ...
 InvarGenT:6:Invariants:18:TS infinitely non-principal ...
  t=0.002s ok
 InvarGenT:6:Invariants:19:TS non-principal subexpr ...
- t=0.003s ok
+ t=0.002s ok
 InvarGenT:6:Invariants:20:TS non-principal subexpr 2 ...
 ok
 InvarGenT:6:Invariants:21:simple existential ...
- t=0.019s ok
+ t=0.017s ok
 InvarGenT:6:Invariants:22:simple universal ...
  t=0.004s ok
 InvarGenT:6:Invariants:23:simple existential 2 ...
- t=0.033s ok
+ t=0.031s ok
 InvarGenT:6:Invariants:24:map mono ...
  t=0.006s ok
 InvarGenT:6:Invariants:25:append expanded ...
- t=0.019s ok
+ t=0.020s ok
 InvarGenT:6:Invariants:26:append asserted ...
  t=0.022s ok
 InvarGenT:6:Invariants:27:interleave ...
- t=0.015s ok
+ t=0.017s ok
 InvarGenT:6:Invariants:28:interleave 3 ...
- t=0.146s ok
+ t=0.133s ok
 InvarGenT:6:Invariants:29:binary increment ...
- t=0.008s ok
+ t=0.009s ok
 InvarGenT:6:Invariants:30:binary plus expanded ...
- t=0.744s ok
+ t=0.655s ok
 InvarGenT:6:Invariants:31:binary plus asserted ...
- t=0.861s ok
+ t=0.772s ok
 InvarGenT:6:Invariants:32:binary plus with test ...
- t=0.848s ok
+ t=0.717s ok
 InvarGenT:6:Invariants:33:flatten_pairs ...
  t=0.013s ok
 InvarGenT:6:Invariants:34:escape castle ...
- t=0.126s ok
+ t=0.098s ok
 InvarGenT:6:Invariants:35:easy nested universal ...
- t=0.024s ok
+ t=0.018s ok
 InvarGenT:6:Invariants:36:equational nested universal ...
- t=1.575s ok
+ t=0.655s ok
 InvarGenT:6:Invariants:37:double nested universal ...
- t=0.043s ok
+ t=0.030s ok
 InvarGenT:6:Invariants:38:find castle ...
- t=0.017s ok
+ t=0.015s ok
 InvarGenT:6:Invariants:39:find castle big ...
- t=0.034s ok
+ t=0.031s ok
 InvarGenT:6:Invariants:40:search castle shortcut ...
- t=0.021s ok
-InvarGenT:6:Invariants:41:search castle distance ...
- t=0.037s ok
-InvarGenT:6:Invariants:42:search castle distance A/B ...
- t=0.053s ok
-InvarGenT:6:Invariants:43:castle not existential ...
- t=0.010s ok
-InvarGenT:6:Invariants:44:castle nested not existential ...
- t=0.017s ok
-InvarGenT:6:Invariants:45:castle nested existential factored ...
  t=0.019s ok
+InvarGenT:6:Invariants:41:search castle distance ...
+ t=0.030s ok
+InvarGenT:6:Invariants:42:search castle distance A/B ...
+ t=0.050s ok
+InvarGenT:6:Invariants:43:castle not existential ...
+ t=0.011s ok
+InvarGenT:6:Invariants:44:castle nested not existential ...
+ t=0.015s ok
+InvarGenT:6:Invariants:45:castle nested existential factored ...
+ t=0.018s ok
 InvarGenT:6:Invariants:46:castle nested existential ...
- t=0.021s ok
+ t=0.020s ok
 InvarGenT:6:Invariants:47:existential by hand ...
- t=0.017s ok
+ t=0.016s ok
 InvarGenT:6:Invariants:48:existential with param ...
- t=0.067s ok
+ t=0.049s ok
 InvarGenT:6:Invariants:49:universal option ...
  t=0.005s ok
 InvarGenT:6:Invariants:50:existential option ...
- t=0.019s ok
+ t=0.016s ok
 InvarGenT:6:Invariants:51:not existential option ...
- t=0.035s ok
+ t=0.022s ok
 InvarGenT:6:Invariants:52:non-num map not existential poly ...
- t=0.034s ok
+ t=0.023s ok
 InvarGenT:6:Invariants:53:non-num map not existential mono ...
- t=0.012s ok
+ t=0.013s ok
 InvarGenT:6:Invariants:54:map not existential mono ...
- t=0.012s ok
+ t=0.014s ok
 InvarGenT:6:Invariants:55:map not existential poly ...
- t=0.053s ok
+ t=0.037s ok
 InvarGenT:6:Invariants:56:map not existential instance ...
  t=0.024s ok
 InvarGenT:6:Invariants:57:filter mono ...
- t=0.101s ok
+ t=0.100s ok
 InvarGenT:6:Invariants:58:filter Bar ...
- t=0.126s ok
+ t=0.119s ok
 InvarGenT:6:Invariants:59:filter poly ...
- t=0.278s ok
+ t=0.178s ok
 InvarGenT:6:Invariants:60:poly filter map ...
- t=0.403s ok
+ t=0.228s ok
 InvarGenT:6:Invariants:61:binary upper bound-wrong ...
- t=1.044s ok
+ t=0.893s ok
 InvarGenT:6:Invariants:62:binary upper bound expanded ...
- t=1.512s ok
+ t=1.249s ok
 InvarGenT:6:Invariants:63:nested recursion simple eval ...
- t=0.011s ok
+ t=0.010s ok
 InvarGenT:6:Invariants:64:nested recursion eval ...
- t=0.096s ok
+ t=0.059s ok
 InvarGenT:6:Invariants:65:mutual recursion simple calc ...
- t=0.072s ok
+ t=0.063s ok
 InvarGenT:6:Invariants:66:mutual recursion medium calc ...
- t=0.120s ok
+ t=0.094s ok
 InvarGenT:6:Invariants:67:mutual recursion calc ...
- t=0.570s ok
+ t=0.419s ok
 InvarGenT:6:Invariants:68:local defs simple ...
  t=0.004s ok
 InvarGenT:6:Invariants:69:local recursion simple ...
- t=0.015s ok
+ t=0.011s ok
 InvarGenT:6:Invariants:70:nonrec simple ...
- t=0.000s ok
+ t=0.001s ok
 InvarGenT:6:Invariants:71:binomial heap--rank ...
  t=0.002s ok
 InvarGenT:6:Invariants:72:binomial heap--link ...
  t=0.021s ok
 InvarGenT:6:Invariants:73:unary minimum expanded ...
- t=0.212s ok
-InvarGenT:6:Invariants:74:unary minimum asserted 1 ...
- t=0.275s ok
-InvarGenT:6:Invariants:75:unary minimum asserted 2 ...
- t=0.273s ok
-InvarGenT:6:Invariants:76:unary minimum asserted 3 ...
- t=0.427s ok
-InvarGenT:6:Invariants:77:list zip prefix expanded ...
- t=0.648s ok
-InvarGenT:6:Invariants:78:unary maximum expanded ...
- t=0.075s ok
-InvarGenT:6:Invariants:79:list map2 with postfix expanded ...
  t=0.207s ok
+InvarGenT:6:Invariants:74:unary minimum asserted 1 ...
+ t=0.276s ok
+InvarGenT:6:Invariants:75:unary minimum asserted 2 ...
+ t=0.274s ok
+InvarGenT:6:Invariants:76:unary minimum asserted 3 ...
+ t=0.431s ok
+InvarGenT:6:Invariants:77:list zip prefix expanded ...
+ t=0.381s ok
+InvarGenT:6:Invariants:78:unary maximum expanded ...
+ t=0.073s ok
+InvarGenT:6:Invariants:79:list map2 with postfix expanded ...
+ t=0.136s ok
 InvarGenT:6:Invariants:80:list filter-zip prefix ...
- t=1.070s ok
+ t=0.582s ok
 InvarGenT:6:Invariants:81:list filter-map2 with postfix ...
- t=0.961s ok
+ t=0.615s ok
 InvarGenT:6:Invariants:82:list filter-map2 with filter postfix mono ...
- t=1.159s ok
+ t=0.930s ok
 InvarGenT:6:Invariants:83:non-num no postcond list filter-map2 with filter postfix ...
- t=0.223s ok
+ t=0.103s ok
 InvarGenT:6:Invariants:84:non-num list filter-map2 with filter postfix ...
- t=1.533s ok
+ t=0.653s ok
 InvarGenT:6:Invariants:85:list filter-map2 with filter postfix ...
- t=6.263s ok
+ t=2.492s ok
 InvarGenT:6:Invariants:86:list map2 with filter postfix ...
- t=5.046s ok
+ t=2.106s ok
 InvarGenT:6:Invariants:87:avl_tree--height ...
  t=0.005s ok
 InvarGenT:6:Invariants:88:avl_tree--create ...
- t=0.100s ok
+ t=0.085s ok
 InvarGenT:6:Invariants:89:avl_tree--create2 ...
- t=0.106s ok
+ t=0.089s ok
 InvarGenT:6:Invariants:90:avl_tree--singleton ...
  t=0.004s ok
 InvarGenT:6:Invariants:91:avl_tree--min_binding ...
- t=0.031s ok
+ t=0.037s ok
 InvarGenT:6:Invariants:92:avl_tree--rotr-simple ...
- t=3.266s ok
+ t=3.111s ok
 InvarGenT:6:Invariants:93:avl_tree--rotr-simple2 ...
- t=1.515s ok
+ t=1.440s ok
 InvarGenT:6:Invariants:94:avl_tree--rotr-simple3 ...
- t=1.647s ok
+ t=1.569s ok
 InvarGenT:6:Invariants:95:avl_tree--rotr ...
- t=1.170s ok
+ t=1.072s ok
 InvarGenT:6:Invariants:96:avl_tree--rotl-simple ...
- t=3.276s ok
+ t=3.075s ok
 InvarGenT:6:Invariants:97:avl_tree--rotl-simple2 ...
- t=1.124s ok
+ t=1.086s ok
 InvarGenT:6:Invariants:98:avl_tree--rotl ...
- t=1.179s ok
+ t=1.081s ok
 InvarGenT:6:Invariants:99:avl_tree--add-simple ...
- t=0.690s ok
+ t=0.452s ok
 InvarGenT:6:Invariants:100:avl_tree--add-simple2 ...
- t=0.604s ok
+ t=0.432s ok
 InvarGenT:6:Invariants:101:avl_tree--add ...
- t=1.060s ok
+ t=0.690s ok
 InvarGenT:6:Invariants:102:avl_tree--add2 ...
- t=0.960s ok
+ t=0.687s ok
 InvarGenT:6:Invariants:103:avl_tree--add-harder ...
- t=0.928s ok
+ t=0.625s ok
 InvarGenT:6:Invariants:104:avl_tree--remove_min_binding-simple ...
- t=0.853s ok
+ t=0.327s ok
 InvarGenT:6:Invariants:105:avl_tree--remove_min_binding ...
- t=2.367s ok
+ t=0.659s ok
 InvarGenT:6:Invariants:106:avl_tree--remove_min_binding-harder ...
- t=2.210s ok
+ t=0.587s ok
 InvarGenT:6:Invariants:107:avl_tree--merge-simple ...
- t=1.029s ok
+ t=1.016s ok
 InvarGenT:6:Invariants:108:avl_tree--merge ...
- t=1.802s ok
+ t=1.694s ok
 InvarGenT:6:Invariants:109:avl_tree--merge2 ...
- t=1.286s ok
+ t=1.206s ok
 InvarGenT:6:Invariants:110:avl_tree--merge3 ...
 TODO
 InvarGenT:6:Invariants:111:avl_tree--merge4 ...
- t=1.055s ok
+ t=0.932s ok
 InvarGenT:6:Invariants:112:avl_tree--remove-simple ...
- t=0.467s ok
+ t=0.332s ok
 InvarGenT:6:Invariants:113:avl_tree--remove ...
- t=0.637s ok
+ t=0.431s ok
 InvarGenT:6:Invariants:114:avl_tree--remove2 ...
- t=0.640s ok
+ t=0.439s ok
 InvarGenT:6:Invariants:115:avl_tree--remove-harder ...
- t=0.579s ok
+ t=0.380s ok
 InvarGenT:7:InvarGenT:0:simple eval ...
 InvarGenT: Generated file ./examples/simple_eval.gadti
 InvarGenT: Generated file ./examples/simple_eval.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/simple_eval.ml" exited with code 0
- t=0.012s ok
+ t=0.010s ok
 InvarGenT:7:InvarGenT:1:eval ...
 InvarGenT: Generated file ./examples/eval.gadti
 InvarGenT: Generated file ./examples/eval.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/eval.ml" exited with code 0
- t=0.091s ok
+ t=0.053s ok
 InvarGenT:7:InvarGenT:2:simple when ...
 InvarGenT: Generated file ./examples/simple_when.gadti
 InvarGenT: Generated file ./examples/simple_when.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/simple_when.ml" exited with code 0
- t=0.005s ok
+ t=0.006s ok
 InvarGenT:7:InvarGenT:3:equal1_wrong ...
 InvarGenT: Generated file ./examples/equal1_wrong.gadti
 InvarGenT: Generated file ./examples/equal1_wrong.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/equal1_wrong.ml" exited with code 0
- t=0.225s ok
+ t=0.139s ok
 InvarGenT:7:InvarGenT:4:equal_test ...
 InvarGenT: Generated file ./examples/equal_test.gadti
 InvarGenT: Generated file ./examples/equal_test.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/equal_test.ml" exited with code 0
- t=0.408s ok
+ t=0.251s ok
 InvarGenT:7:InvarGenT:5:equal_assert ...
 InvarGenT: Generated file ./examples/equal_assert.gadti
 InvarGenT: Generated file ./examples/equal_assert.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/equal_assert.ml" exited with code 0
- t=1.317s ok
+ t=2.141s ok
 InvarGenT:7:InvarGenT:6:binary_plus ...
 InvarGenT: Generated file ./examples/binary_plus.gadti
 InvarGenT: Generated file ./examples/binary_plus.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/binary_plus.ml" exited with code 0
- t=0.749s ok
+ t=0.657s ok
 InvarGenT:7:InvarGenT:7:binary_plus-harder ...
 TODO
 InvarGenT:7:InvarGenT:8:flatten_pairs ...
@@ -335,77 +307,77 @@ InvarGenT:7:InvarGenT:9:flatten_quadrs ...
 InvarGenT: Generated file ./examples/flatten_quadrs.gadti
 InvarGenT: Generated file ./examples/flatten_quadrs.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/flatten_quadrs.ml" exited with code 0
- t=0.068s ok
+ t=0.060s ok
 InvarGenT:7:InvarGenT:10:flatten_septs ...
 InvarGenT: Generated file ./examples/flatten_septs.gadti
 InvarGenT: Generated file ./examples/flatten_septs.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/flatten_septs.ml" exited with code 0
- t=0.953s ok
+ t=0.915s ok
 InvarGenT:7:InvarGenT:11:equational_reas ...
 InvarGenT: Generated file ./examples/equational_reas.gadti
 InvarGenT: Generated file ./examples/equational_reas.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/equational_reas.ml" exited with code 0
- t=1.588s ok
+ t=0.658s ok
 InvarGenT:7:InvarGenT:12:filter ...
 InvarGenT: Generated file ./examples/filter.gadti
 InvarGenT: Generated file ./examples/filter.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/filter.ml" exited with code 0
- t=0.286s ok
+ t=0.179s ok
 InvarGenT:7:InvarGenT:13:filter_map ...
 InvarGenT: Generated file ./examples/filter_map.gadti
 InvarGenT: Generated file ./examples/filter_map.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/filter_map.ml" exited with code 0
- t=0.417s ok
+ t=0.232s ok
 InvarGenT:7:InvarGenT:14:binary_upper_bound ...
 InvarGenT: Generated file ./examples/binary_upper_bound.gadti
 InvarGenT: Generated file ./examples/binary_upper_bound.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/binary_upper_bound.ml" exited with code 0
- t=1.532s ok
+ t=1.214s ok
 InvarGenT:7:InvarGenT:15:ex_config_pc ...
 InvarGenT: Generated file ./examples/ex_config_pc.gadti
 InvarGenT: Generated file ./examples/ex_config_pc.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/ex_config_pc.ml" exited with code 0
- t=0.059s ok
+ t=0.049s ok
 InvarGenT:7:InvarGenT:16:mutual_simple_recursion_eval ...
 InvarGenT: Generated file ./examples/mutual_simple_recursion_eval.gadti
 InvarGenT: Generated file ./examples/mutual_simple_recursion_eval.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/mutual_simple_recursion_eval.ml" exited with code 0
- t=0.142s ok
+ t=0.120s ok
 InvarGenT:7:InvarGenT:17:binomial_heap_nonrec ...
 InvarGenT: Generated file ./examples/binomial_heap_nonrec.gadti
 InvarGenT: Generated file ./examples/binomial_heap_nonrec.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/binomial_heap_nonrec.ml" exited with code 0
- t=0.026s ok
+ t=0.025s ok
 InvarGenT:7:InvarGenT:18:mutual_recursion_eval ...
 InvarGenT: Generated file ./examples/mutual_recursion_eval.gadti
 InvarGenT: Generated file ./examples/mutual_recursion_eval.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/mutual_recursion_eval.ml" exited with code 0
- t=0.970s ok
+ t=0.676s ok
 InvarGenT:7:InvarGenT:19:simple eval-annot ...
 InvarGenT: Generated file ./examples/simple_eval.gadti
 InvarGenT: Generated file ./examples/simple_eval.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/simple_eval.ml" exited with code 0
- t=0.021s ok
+ t=0.010s ok
 InvarGenT:7:InvarGenT:20:eval-annot ...
 InvarGenT: Generated file ./examples/eval.gadti
 InvarGenT: Generated file ./examples/eval.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/eval.ml" exited with code 0
- t=0.101s ok
+ t=0.058s ok
 InvarGenT:7:InvarGenT:21:equational_reas-annot ...
 InvarGenT: Generated file ./examples/equational_reas.gadti
 InvarGenT: Generated file ./examples/equational_reas.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/equational_reas.ml" exited with code 0
- t=1.710s ok
+ t=0.715s ok
 InvarGenT:7:InvarGenT:22:mutual_recursion_eval-annot ...
 InvarGenT: Generated file ./examples/mutual_recursion_eval_docs.gadti
 InvarGenT: Generated file ./examples/mutual_recursion_eval_docs.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/mutual_recursion_eval_docs.ml" exited with code 0
- t=0.971s ok
+ t=0.672s ok
 InvarGenT:7:InvarGenT:23:concat_strings-export ...
 InvarGenT: Generated file ./examples/concat_strings.gadti
 InvarGenT: Generated file ./examples/concat_strings.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/concat_strings.ml" exited with code 0
- t=0.013s ok
+ t=0.006s ok
 InvarGenT:7:InvarGenT:24:list-head ...
 InvarGenT: Generated file ./examples/list_head.gadti
 InvarGenT: Generated file ./examples/list_head.ml
@@ -421,22 +393,22 @@ InvarGenT:7:InvarGenT:26:pointwise-refine ...
 InvarGenT: Generated file ./examples/pointwise_refine.gadti
 InvarGenT: Generated file ./examples/pointwise_refine.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/pointwise_refine.ml" exited with code 0
- t=0.013s ok
+ t=0.008s ok
 InvarGenT:7:InvarGenT:27:pointwise-rbtree_rotate ...
 InvarGenT: Generated file ./examples/pointwise_rbtree_rotate.gadti
 InvarGenT: Generated file ./examples/pointwise_rbtree_rotate.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/pointwise_rbtree_rotate.ml" exited with code 0
- t=0.030s ok
+ t=0.019s ok
 InvarGenT:7:InvarGenT:28:pointwise-zip2-simpler1 ...
 InvarGenT: Generated file ./examples/pointwise_zip2_simpler1.gadti
 InvarGenT: Generated file ./examples/pointwise_zip2_simpler1.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/pointwise_zip2_simpler1.ml" exited with code 0
- t=0.013s ok
+ t=0.011s ok
 InvarGenT:7:InvarGenT:29:pointwise-zip2-simpler2 ...
 InvarGenT: Generated file ./examples/pointwise_zip2_simpler2.gadti
 InvarGenT: Generated file ./examples/pointwise_zip2_simpler2.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/pointwise_zip2_simpler2.ml" exited with code 0
- t=0.024s ok
+ t=0.019s ok
 InvarGenT:7:InvarGenT:30:pointwise-zip2-simpler3 ...
 InvarGenT: Generated file ./examples/pointwise_zip2_simpler3.gadti
 InvarGenT: Generated file ./examples/pointwise_zip2_simpler3.ml
@@ -446,60 +418,60 @@ InvarGenT:7:InvarGenT:31:pointwise-zip2-simpler4 ...
 InvarGenT: Generated file ./examples/pointwise_zip2_simpler4.gadti
 InvarGenT: Generated file ./examples/pointwise_zip2_simpler4.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/pointwise_zip2_simpler4.ml" exited with code 0
- t=0.172s ok
+ t=0.124s ok
 InvarGenT:7:InvarGenT:32:pointwise-zip2 ...
 InvarGenT: Generated file ./examples/pointwise_zip2.gadti
 InvarGenT: Generated file ./examples/pointwise_zip2.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/pointwise_zip2.ml" exited with code 0
- t=0.271s ok
+ t=0.186s ok
 InvarGenT:7:InvarGenT:33:pointwise-zip2-harder ...
 InvarGenT: Generated file ./examples/pointwise_zip2_harder.gadti
- t=0.242s ok
+ t=0.162s ok
 InvarGenT:7:InvarGenT:34:pointwise-avl_rotl ...
 InvarGenT: Generated file ./examples/pointwise_avl_rotl.gadti
 InvarGenT: Generated file ./examples/pointwise_avl_rotl.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/pointwise_avl_rotl.ml" exited with code 0
- t=0.030s ok
+ t=0.025s ok
 InvarGenT:7:InvarGenT:35:pointwise-avl_ins ...
 InvarGenT: Generated file ./examples/pointwise_avl_ins.gadti
 InvarGenT: Generated file ./examples/pointwise_avl_ins.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/pointwise_avl_ins.ml" exited with code 0
- t=0.746s ok
+ t=0.408s ok
 InvarGenT:7:InvarGenT:36:pointwise-extract0 ...
 InvarGenT: Generated file ./examples/pointwise_extract0.gadti
 InvarGenT: Generated file ./examples/pointwise_extract0.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/pointwise_extract0.ml" exited with code 0
- t=0.028s ok
+ t=0.015s ok
 InvarGenT:7:InvarGenT:37:pointwise-extract1 ...
 InvarGenT: Generated file ./examples/pointwise_extract1.gadti
 InvarGenT: Generated file ./examples/pointwise_extract1.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/pointwise_extract1.ml" exited with code 0
- t=0.505s ok
+ t=0.066s ok
 InvarGenT:7:InvarGenT:38:pointwise-extract2 ...
 InvarGenT: Generated file ./examples/pointwise_extract2.gadti
 InvarGenT: Generated file ./examples/pointwise_extract2.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/pointwise_extract2.ml" exited with code 0
- t=0.293s ok
+ t=0.036s ok
 InvarGenT:7:InvarGenT:39:pointwise-extract ...
 InvarGenT: Generated file ./examples/pointwise_extract.gadti
 InvarGenT: Generated file ./examples/pointwise_extract.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/pointwise_extract.ml" exited with code 0
- t=0.376s ok
+ t=0.058s ok
 InvarGenT:7:InvarGenT:40:pointwise-run_state ...
 InvarGenT: Generated file ./examples/pointwise_run_state.gadti
 InvarGenT: Generated file ./examples/pointwise_run_state.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/pointwise_run_state.ml" exited with code 0
- t=0.023s ok
+ t=0.013s ok
 InvarGenT:7:InvarGenT:41:non_outsidein-rx ...
 InvarGenT: Generated file ./examples/non_outsidein_rx.gadti
 InvarGenT: Generated file ./examples/non_outsidein_rx.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/non_outsidein_rx.ml" exited with code 0
- t=0.003s ok
+ t=0.002s ok
 InvarGenT:7:InvarGenT:42:non_pointwise-split ...
 InvarGenT: Generated file ./examples/non_pointwise_split.gadti
 InvarGenT: Generated file ./examples/non_pointwise_split.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/non_pointwise_split.ml" exited with code 0
- t=0.004s ok
+ t=0.003s ok
 InvarGenT:7:InvarGenT:43:non_pointwise-avl_small_rec ...
 InvarGenT: Generated file ./examples/non_pointwise_avl_small_rec.gadti
 InvarGenT: Generated file ./examples/non_pointwise_avl_small_rec.ml
@@ -508,7 +480,7 @@ Warning 8: this pattern-matching is not exhaustive.
 Here is an example of a value that is not matched:
 Node (Less, _, _, _)
 InvarGenT: Command "ocamlc -w -25 -c ./examples/non_pointwise_avl_small_rec.ml" exited with code 0
- t=0.014s ok
+ t=0.011s ok
 InvarGenT:7:InvarGenT:44:non_pointwise-avl_small ...
 InvarGenT: Generated file ./examples/non_pointwise_avl_small.gadti
 InvarGenT: Generated file ./examples/non_pointwise_avl_small.ml
@@ -517,7 +489,7 @@ Warning 8: this pattern-matching is not exhaustive.
 Here is an example of a value that is not matched:
 Node (Less, _, _, _)
 InvarGenT: Command "ocamlc -w -25 -c ./examples/non_pointwise_avl_small.ml" exited with code 0
- t=0.016s ok
+ t=0.012s ok
 InvarGenT:7:InvarGenT:45:non_pointwise-avl_rotr ...
 InvarGenT: Generated file ./examples/non_pointwise_avl.gadti
 InvarGenT: Generated file ./examples/non_pointwise_avl.ml
@@ -526,103 +498,103 @@ Warning 8: this pattern-matching is not exhaustive.
 Here is an example of a value that is not matched:
 Node (More, _, _, Leaf)
 InvarGenT: Command "ocamlc -w -25 -c ./examples/non_pointwise_avl.ml" exited with code 0
- t=0.113s ok
+ t=0.090s ok
 InvarGenT:7:InvarGenT:46:avl_delmin-simpler ...
 InvarGenT: Generated file ./examples/avl_delmin_simpler.gadti
 InvarGenT: Generated file ./examples/avl_delmin_simpler.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/avl_delmin_simpler.ml" exited with code 0
- t=0.182s ok
+ t=0.130s ok
 InvarGenT:7:InvarGenT:47:non_pointwise-avl_delmin-modified ...
 InvarGenT: Generated file ./examples/non_pointwise_avl_delmin_modified.gadti
 InvarGenT: Generated file ./examples/non_pointwise_avl_delmin_modified.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/non_pointwise_avl_delmin_modified.ml" exited with code 0
- t=0.282s ok
+ t=0.187s ok
 InvarGenT:7:InvarGenT:48:non_pointwise-avl_delmin ...
 InvarGenT: Generated file ./examples/non_pointwise_avl_delmin.gadti
 InvarGenT: Generated file ./examples/non_pointwise_avl_delmin.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/non_pointwise_avl_delmin.ml" exited with code 0
- t=0.473s ok
+ t=0.307s ok
 InvarGenT:7:InvarGenT:49:non_pointwise-avl_delmin2 ...
 InvarGenT: Generated file ./examples/non_pointwise_avl_delmin2.gadti
 InvarGenT: Generated file ./examples/non_pointwise_avl_delmin2.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/non_pointwise_avl_delmin2.ml" exited with code 0
- t=0.452s ok
+ t=0.306s ok
 InvarGenT:7:InvarGenT:50:non_pointwise-fd_comp ...
 InvarGenT: Generated file ./examples/non_pointwise_fd_comp.gadti
 InvarGenT: Generated file ./examples/non_pointwise_fd_comp.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/non_pointwise_fd_comp.ml" exited with code 0
- t=0.538s ok
+ t=0.175s ok
 InvarGenT:7:InvarGenT:51:non_pointwise-fd_comp2 ...
 InvarGenT: Generated file ./examples/non_pointwise_fd_comp2.gadti
 InvarGenT: Generated file ./examples/non_pointwise_fd_comp2.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/non_pointwise_fd_comp2.ml" exited with code 0
- t=0.106s ok
+ t=0.052s ok
 InvarGenT:7:InvarGenT:52:non_pointwise-fd_comp-harder ...
 TODO
 InvarGenT:7:InvarGenT:53:non_pointwise-zip1-simpler ...
 InvarGenT: Generated file ./examples/non_pointwise_zip1_simpler.gadti
 InvarGenT: Generated file ./examples/non_pointwise_zip1_simpler.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/non_pointwise_zip1_simpler.ml" exited with code 0
- t=0.041s ok
+ t=0.017s ok
 InvarGenT:7:InvarGenT:54:non_pointwise-zip1-simpler2 ...
 InvarGenT: Generated file ./examples/non_pointwise_zip1_simpler2.gadti
 InvarGenT: Generated file ./examples/non_pointwise_zip1_simpler2.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/non_pointwise_zip1_simpler2.ml" exited with code 0
- t=0.047s ok
+ t=0.017s ok
 InvarGenT:7:InvarGenT:55:non_pointwise-zip1-modified ...
 InvarGenT: Generated file ./examples/non_pointwise_zip1_modified.gadti
 InvarGenT: Generated file ./examples/non_pointwise_zip1_modified.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/non_pointwise_zip1_modified.ml" exited with code 0
- t=0.079s ok
+ t=0.031s ok
 InvarGenT:7:InvarGenT:56:non_pointwise-zip1 ...
 InvarGenT: Generated file ./examples/non_pointwise_zip1.gadti
 InvarGenT: Generated file ./examples/non_pointwise_zip1.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/non_pointwise_zip1.ml" exited with code 0
- t=0.133s ok
+ t=0.076s ok
 InvarGenT:7:InvarGenT:57:non_pointwise-leq ...
 InvarGenT: Generated file ./examples/non_pointwise_leq.gadti
 InvarGenT: Generated file ./examples/non_pointwise_leq.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/non_pointwise_leq.ml" exited with code 0
- t=0.013s ok
+ t=0.005s ok
 InvarGenT:7:InvarGenT:58:non_pointwise-run_state ...
 InvarGenT: Generated file ./examples/non_pointwise_run_state.gadti
 InvarGenT: Generated file ./examples/non_pointwise_run_state.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/non_pointwise_run_state.ml" exited with code 0
- t=0.053s ok
+ t=0.025s ok
 InvarGenT:7:InvarGenT:59:non_pointwise-run_state2 ...
 InvarGenT: Generated file ./examples/non_pointwise_run_state2.gadti
 InvarGenT: Generated file ./examples/non_pointwise_run_state2.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/non_pointwise_run_state2.ml" exited with code 0
- t=0.042s ok
+ t=0.023s ok
 InvarGenT:7:InvarGenT:60:avl_tree ...
 InvarGenT: Generated file ./examples/avl_tree.gadti
 InvarGenT: Generated file ./examples/avl_tree.ml
-File "./examples/avl_tree.ml", line 43, characters 4-161:
+File "./examples/avl_tree.ml", line 42, characters 4-161:
 Warning 8: this pattern-matching is not exhaustive.
 Here is an example of a value that is not matched:
 Empty
-File "./examples/avl_tree.ml", line 39, characters 4-322:
+File "./examples/avl_tree.ml", line 38, characters 4-322:
 Warning 8: this pattern-matching is not exhaustive.
 Here is an example of a value that is not matched:
 Empty
-File "./examples/avl_tree.ml", line 59, characters 4-161:
+File "./examples/avl_tree.ml", line 58, characters 4-161:
 Warning 8: this pattern-matching is not exhaustive.
 Here is an example of a value that is not matched:
 Empty
-File "./examples/avl_tree.ml", line 55, characters 4-322:
+File "./examples/avl_tree.ml", line 54, characters 4-322:
 Warning 8: this pattern-matching is not exhaustive.
 Here is an example of a value that is not matched:
 Empty
-File "./examples/avl_tree.ml", line 88, characters 2-101:
+File "./examples/avl_tree.ml", line 87, characters 2-101:
 Warning 8: this pattern-matching is not exhaustive.
 Here is an example of a value that is not matched:
 Empty
-File "./examples/avl_tree.ml", line 95, characters 2-310:
+File "./examples/avl_tree.ml", line 94, characters 2-310:
 Warning 8: this pattern-matching is not exhaustive.
 Here is an example of a value that is not matched:
 Empty
 InvarGenT: Command "ocamlc -w -25 -c ./examples/avl_tree.ml" exited with code 0
- t=7.415s ok
+ t=4.924s ok
 InvarGenT:7:InvarGenT:61:binomial_heap ...
 TODO
 InvarGenT:7:InvarGenT:62:liquid_dotprod-simpler ...
@@ -634,37 +606,37 @@ InvarGenT:7:InvarGenT:63:liquid_dotprod ...
 InvarGenT: Generated file ./examples/liquid_dotprod.gadti
 InvarGenT: Generated file ./examples/liquid_dotprod.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_dotprod.ml" exited with code 0
- t=0.051s ok
+ t=0.049s ok
 InvarGenT:7:InvarGenT:64:liquid_bcopy-simpler ...
 InvarGenT: Generated file ./examples/liquid_bcopy_simpler.gadti
 InvarGenT: Generated file ./examples/liquid_bcopy_simpler.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_bcopy_simpler.ml" exited with code 0
- t=0.027s ok
+ t=0.026s ok
 InvarGenT:7:InvarGenT:65:liquid_bcopy ...
 InvarGenT: Generated file ./examples/liquid_bcopy.gadti
 InvarGenT: Generated file ./examples/liquid_bcopy.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_bcopy.ml" exited with code 0
- t=0.034s ok
+ t=0.032s ok
 InvarGenT:7:InvarGenT:66:liquid_bsearch-simpler ...
 InvarGenT: Generated file ./examples/liquid_bsearch_simpler.gadti
 InvarGenT: Generated file ./examples/liquid_bsearch_simpler.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_bsearch_simpler.ml" exited with code 0
- t=0.096s ok
+ t=0.074s ok
 InvarGenT:7:InvarGenT:67:liquid_bsearch ...
 InvarGenT: Generated file ./examples/liquid_bsearch.gadti
 InvarGenT: Generated file ./examples/liquid_bsearch.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_bsearch.ml" exited with code 0
- t=0.055s ok
+ t=0.044s ok
 InvarGenT:7:InvarGenT:68:liquid_bsearch-harder ...
 InvarGenT: Generated file ./examples/liquid_bsearch_harder.gadti
 InvarGenT: Generated file ./examples/liquid_bsearch_harder.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_bsearch_harder.ml" exited with code 0
- t=0.093s ok
+ t=0.071s ok
 InvarGenT:7:InvarGenT:69:liquid_bsearch2-simpler ...
 InvarGenT: Generated file ./examples/liquid_bsearch2_simpler.gadti
 InvarGenT: Generated file ./examples/liquid_bsearch2_simpler.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_bsearch2_simpler.ml" exited with code 0
- t=0.950s ok
+ t=0.799s ok
 InvarGenT:7:InvarGenT:70:liquid_bsearch2-simpler2 ...
 InvarGenT: Generated file ./examples/liquid_bsearch2_simpler2.gadti
 InvarGenT: Generated file ./examples/liquid_bsearch2_simpler2.ml
@@ -674,158 +646,158 @@ InvarGenT:7:InvarGenT:71:liquid_bsearch2 ...
 InvarGenT: Generated file ./examples/liquid_bsearch2.gadti
 InvarGenT: Generated file ./examples/liquid_bsearch2.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_bsearch2.ml" exited with code 0
- t=0.849s ok
+ t=0.707s ok
 InvarGenT:7:InvarGenT:72:liquid_bsearch2-harder1 ...
 InvarGenT: Generated file ./examples/liquid_bsearch2_harder1.gadti
 InvarGenT: Generated file ./examples/liquid_bsearch2_harder1.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_bsearch2_harder1.ml" exited with code 0
- t=0.845s ok
+ t=0.710s ok
 InvarGenT:7:InvarGenT:73:liquid_bsearch2-harder2 ...
 InvarGenT: Generated file ./examples/liquid_bsearch2_harder2.gadti
 InvarGenT: Generated file ./examples/liquid_bsearch2_harder2.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_bsearch2_harder2.ml" exited with code 0
- t=1.376s ok
+ t=1.122s ok
 InvarGenT:7:InvarGenT:74:liquid_bsearch2-harder3 ...
 InvarGenT: Generated file ./examples/liquid_bsearch2_harder3.gadti
 InvarGenT: Generated file ./examples/liquid_bsearch2_harder3.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_bsearch2_harder3.ml" exited with code 0
- t=1.806s ok
+ t=1.394s ok
 InvarGenT:7:InvarGenT:75:liquid_bsearch2-harder4 ...
 TODO
 InvarGenT:7:InvarGenT:76:liquid_queen-simpler ...
 InvarGenT: Generated file ./examples/liquid_queen_simpler.gadti
 InvarGenT: Generated file ./examples/liquid_queen_simpler.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_queen_simpler.ml" exited with code 0
- t=0.184s ok
+ t=0.168s ok
 InvarGenT:7:InvarGenT:77:liquid_queen ...
 InvarGenT: Generated file ./examples/liquid_queen.gadti
 InvarGenT: Generated file ./examples/liquid_queen.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_queen.ml" exited with code 0
- t=0.480s ok
+ t=0.421s ok
 InvarGenT:7:InvarGenT:78:liquid_isort-simpler1 ...
 InvarGenT: Generated file ./examples/liquid_isort_simpler1.gadti
 InvarGenT: Generated file ./examples/liquid_isort_simpler1.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_isort_simpler1.ml" exited with code 0
- t=0.102s ok
+ t=0.092s ok
 InvarGenT:7:InvarGenT:79:liquid_isort-simpler2 ...
 InvarGenT: Generated file ./examples/liquid_isort_simpler2.gadti
 InvarGenT: Generated file ./examples/liquid_isort_simpler2.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_isort_simpler2.ml" exited with code 0
- t=0.318s ok
+ t=0.252s ok
 InvarGenT:7:InvarGenT:80:liquid_isort-simpler3 ...
 InvarGenT: Generated file ./examples/liquid_isort_simpler3.gadti
 InvarGenT: Generated file ./examples/liquid_isort_simpler3.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_isort_simpler3.ml" exited with code 0
- t=0.154s ok
+ t=0.140s ok
 InvarGenT:7:InvarGenT:81:liquid_isort-simpler ...
 InvarGenT: Generated file ./examples/liquid_isort_simpler.gadti
 InvarGenT: Generated file ./examples/liquid_isort_simpler.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_isort_simpler.ml" exited with code 0
- t=0.164s ok
+ t=0.149s ok
 InvarGenT:7:InvarGenT:82:liquid_isort ...
 InvarGenT: Generated file ./examples/liquid_isort.gadti
 InvarGenT: Generated file ./examples/liquid_isort.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_isort.ml" exited with code 0
- t=0.334s ok
+ t=0.300s ok
 InvarGenT:7:InvarGenT:83:liquid_isort-harder ...
 InvarGenT: Generated file ./examples/liquid_isort_harder.gadti
 InvarGenT: Generated file ./examples/liquid_isort_harder.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_isort_harder.ml" exited with code 0
- t=0.446s ok
+ t=0.372s ok
 InvarGenT:7:InvarGenT:84:liquid_vecswap_simpler ...
 InvarGenT: Generated file ./examples/liquid_vecswap_simpler.gadti
 InvarGenT: Generated file ./examples/liquid_vecswap_simpler.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_vecswap_simpler.ml" exited with code 0
- t=0.325s ok
+ t=0.277s ok
 InvarGenT:7:InvarGenT:85:liquid_vecswap ...
 InvarGenT: Generated file ./examples/liquid_vecswap.gadti
 InvarGenT: Generated file ./examples/liquid_vecswap.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_vecswap.ml" exited with code 0
- t=0.299s ok
+ t=0.267s ok
 InvarGenT:7:InvarGenT:86:liquid_isort-full ...
 InvarGenT: Generated file ./examples/liquid_isort_full.gadti
 InvarGenT: Generated file ./examples/liquid_isort_full.ml
 File "./examples/liquid_isort_full.ml", line 35, characters 12-19:
 Warning 26: unused variable vecswap.
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_isort_full.ml" exited with code 0
- t=1.244s ok
+ t=1.047s ok
 InvarGenT:7:InvarGenT:87:liquid_tower_showposts ...
 InvarGenT: Generated file ./examples/liquid_tower_showposts.gadti
 InvarGenT: Generated file ./examples/liquid_tower_showposts.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_tower_showposts.ml" exited with code 0
- t=0.051s ok
+ t=0.047s ok
 InvarGenT:7:InvarGenT:88:liquid_tower_simpler ...
 InvarGenT: Generated file ./examples/liquid_tower_simpler.gadti
 InvarGenT: Generated file ./examples/liquid_tower_simpler.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_tower_simpler.ml" exited with code 0
- t=0.659s ok
+ t=0.912s ok
 InvarGenT:7:InvarGenT:89:liquid_tower_asserted ...
 InvarGenT: Generated file ./examples/liquid_tower_asserted.gadti
 InvarGenT: Generated file ./examples/liquid_tower_asserted.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_tower_asserted.ml" exited with code 0
- t=4.499s ok
+ t=3.928s ok
 InvarGenT:7:InvarGenT:90:liquid_tower ...
 InvarGenT: Generated file ./examples/liquid_tower.gadti
 InvarGenT: Generated file ./examples/liquid_tower.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_tower.ml" exited with code 0
- t=1.093s ok
+ t=0.835s ok
 InvarGenT:7:InvarGenT:91:liquid_tower_harder ...
 InvarGenT: Generated file ./examples/liquid_tower_harder.gadti
 InvarGenT: Generated file ./examples/liquid_tower_harder.ml
 File "./examples/liquid_tower_harder.ml", line 69, characters 8-10:
 Warning 26: unused variable sz.
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_tower_harder.ml" exited with code 0
- t=7.106s ok
+ t=10.936s ok
 InvarGenT:7:InvarGenT:92:liquid_matmult ...
 InvarGenT: Generated file ./examples/liquid_matmult.gadti
 InvarGenT: Generated file ./examples/liquid_matmult.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_matmult.ml" exited with code 0
- t=0.354s ok
+ t=0.335s ok
 InvarGenT:7:InvarGenT:93:liquid_heapsort-heapify-simpler ...
 InvarGenT: Generated file ./examples/liquid_heapsort_heapify_simpler.gadti
 InvarGenT: Generated file ./examples/liquid_heapsort_heapify_simpler.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_heapsort_heapify_simpler.ml" exited with code 0
- t=2.478s ok
+ t=2.280s ok
 InvarGenT:7:InvarGenT:94:liquid_heapsort-heapify-simpler2 ...
 InvarGenT: Generated file ./examples/liquid_heapsort_heapify_simpler2.gadti
 InvarGenT: Generated file ./examples/liquid_heapsort_heapify_simpler2.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_heapsort_heapify_simpler2.ml" exited with code 0
- t=6.682s ok
+ t=6.464s ok
 InvarGenT:7:InvarGenT:95:liquid_heapsort-heapify-simpler3 ...
 InvarGenT: Generated file ./examples/liquid_heapsort_heapify_simpler3.gadti
 InvarGenT: Generated file ./examples/liquid_heapsort_heapify_simpler3.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_heapsort_heapify_simpler3.ml" exited with code 0
- t=3.611s ok
+ t=3.525s ok
 InvarGenT:7:InvarGenT:96:liquid_heapsort-heapify ...
 InvarGenT: Generated file ./examples/liquid_heapsort_heapify.gadti
 InvarGenT: Generated file ./examples/liquid_heapsort_heapify.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_heapsort_heapify.ml" exited with code 0
- t=2.614s ok
+ t=2.241s ok
 InvarGenT:7:InvarGenT:97:liquid_heapsort-heapsort-simpler ...
 InvarGenT: Generated file ./examples/liquid_heapsort_heapsort_simpler.gadti
 InvarGenT: Generated file ./examples/liquid_heapsort_heapsort_simpler.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_heapsort_heapsort_simpler.ml" exited with code 0
- t=0.053s ok
+ t=0.061s ok
 InvarGenT:7:InvarGenT:98:liquid_heapsort-heapsort ...
 InvarGenT: Generated file ./examples/liquid_heapsort_heapsort.gadti
 InvarGenT: Generated file ./examples/liquid_heapsort_heapsort.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_heapsort_heapsort.ml" exited with code 0
- t=0.076s ok
+ t=0.075s ok
 InvarGenT:7:InvarGenT:99:liquid_heapsort ...
 InvarGenT: Generated file ./examples/liquid_heapsort.gadti
 InvarGenT: Generated file ./examples/liquid_heapsort.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_heapsort.ml" exited with code 0
- t=2.707s ok
+ t=2.342s ok
 InvarGenT:7:InvarGenT:100:liquid_simplex_step_2 ...
 InvarGenT: Generated file ./examples/liquid_simplex_step_2.gadti
 InvarGenT: Generated file ./examples/liquid_simplex_step_2.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_simplex_step_2.ml" exited with code 0
- t=0.238s ok
+ t=0.207s ok
 InvarGenT:7:InvarGenT:101:liquid_simplex_step_2a ...
 InvarGenT: Generated file ./examples/liquid_simplex_step_2a.gadti
 InvarGenT: Generated file ./examples/liquid_simplex_step_2a.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_simplex_step_2a.ml" exited with code 0
- t=0.186s ok
+ t=0.170s ok
 InvarGenT:7:InvarGenT:102:liquid_simplex_step_3 ...
 TODO
 InvarGenT:7:InvarGenT:103:liquid_simplex_step_3a ...
@@ -834,119 +806,119 @@ InvarGenT: Generated file ./examples/liquid_simplex_step_3a.ml
 File "./examples/liquid_simplex_step_3a.ml", line 43, characters 8-9:
 Warning 26: unused variable m.
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_simplex_step_3a.ml" exited with code 0
- t=4.277s ok
+ t=4.047s ok
 InvarGenT:7:InvarGenT:104:liquid_simplex_step_4 ...
 TODO
 InvarGenT:7:InvarGenT:105:liquid_simplex_step_4a ...
 InvarGenT: Generated file ./examples/liquid_simplex_step_4a.gadti
 InvarGenT: Generated file ./examples/liquid_simplex_step_4a.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_simplex_step_4a.ml" exited with code 0
- t=0.580s ok
+ t=0.421s ok
 InvarGenT:7:InvarGenT:106:liquid_simplex_step_5a ...
 InvarGenT: Generated file ./examples/liquid_simplex_step_5a.gadti
 InvarGenT: Generated file ./examples/liquid_simplex_step_5a.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_simplex_step_5a.ml" exited with code 0
- t=5.056s ok
+ t=3.290s ok
 InvarGenT:7:InvarGenT:107:liquid_simplex_step_6a_1 ...
 InvarGenT: Generated file ./examples/liquid_simplex_step_6a_1.gadti
 InvarGenT: Generated file ./examples/liquid_simplex_step_6a_1.ml
 File "./examples/liquid_simplex_step_6a_1.ml", line 59, characters 8-9:
 Warning 26: unused variable m.
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_simplex_step_6a_1.ml" exited with code 0
- t=0.531s ok
+ t=0.505s ok
 InvarGenT:7:InvarGenT:108:liquid_simplex_step_6_2 ...
 InvarGenT: Generated file ./examples/liquid_simplex_step_6_2.gadti
 InvarGenT: Generated file ./examples/liquid_simplex_step_6_2.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_simplex_step_6_2.ml" exited with code 0
- t=0.071s ok
+ t=0.066s ok
 InvarGenT:7:InvarGenT:109:liquid_simplex_step_6a_2 ...
 InvarGenT: Generated file ./examples/liquid_simplex_step_6a_2.gadti
 InvarGenT: Generated file ./examples/liquid_simplex_step_6a_2.ml
 File "./examples/liquid_simplex_step_6a_2.ml", line 59, characters 8-9:
 Warning 26: unused variable m.
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_simplex_step_6a_2.ml" exited with code 0
- t=0.887s ok
+ t=0.824s ok
 InvarGenT:7:InvarGenT:110:liquid_simplex_step_6_3 ...
 InvarGenT: Generated file ./examples/liquid_simplex_step_6_3.gadti
 InvarGenT: Generated file ./examples/liquid_simplex_step_6_3.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_simplex_step_6_3.ml" exited with code 0
- t=0.066s ok
+ t=0.060s ok
 InvarGenT:7:InvarGenT:111:liquid_simplex_step_6a_3 ...
 InvarGenT: Generated file ./examples/liquid_simplex_step_6a_3.gadti
 InvarGenT: Generated file ./examples/liquid_simplex_step_6a_3.ml
 File "./examples/liquid_simplex_step_6a_3.ml", line 67, characters 8-9:
 Warning 26: unused variable n.
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_simplex_step_6a_3.ml" exited with code 0
- t=0.615s ok
+ t=0.580s ok
 InvarGenT:7:InvarGenT:112:liquid_simplex_step_6a ...
 InvarGenT: Generated file ./examples/liquid_simplex_step_6a.gadti
 InvarGenT: Generated file ./examples/liquid_simplex_step_6a.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_simplex_step_6a.ml" exited with code 0
- t=2.536s ok
+ t=2.213s ok
 InvarGenT:7:InvarGenT:113:liquid_simplex_step_7a ...
 InvarGenT: Generated file ./examples/liquid_simplex_step_7a.gadti
 InvarGenT: Generated file ./examples/liquid_simplex_step_7a.ml
 File "./examples/liquid_simplex_step_7a.ml", line 65, characters 8-9:
 Warning 26: unused variable m.
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_simplex_step_7a.ml" exited with code 0
- t=0.212s ok
+ t=0.215s ok
 InvarGenT:7:InvarGenT:114:liquid_simplex ...
 InvarGenT: Generated file ./examples/liquid_simplex.gadti
 InvarGenT: Generated file ./examples/liquid_simplex.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_simplex.ml" exited with code 0
- t=13.215s ok
+ t=8.109s ok
 InvarGenT:7:InvarGenT:115:liquid_simplex-harder ...
 InvarGenT: Generated file ./examples/liquid_simplex_harder.gadti
 InvarGenT: Generated file ./examples/liquid_simplex_harder.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_simplex_harder.ml" exited with code 0
- t=52.970s ok
+ t=31.395s ok
 InvarGenT:7:InvarGenT:116:liquid_gauss_rowSwap ...
 InvarGenT: Generated file ./examples/liquid_gauss_rowSwap.gadti
 InvarGenT: Generated file ./examples/liquid_gauss_rowSwap.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_gauss_rowSwap.ml" exited with code 0
- t=0.022s ok
+ t=0.031s ok
 InvarGenT:7:InvarGenT:117:liquid_gauss_rowElim ...
 InvarGenT: Generated file ./examples/liquid_gauss_rowElim.gadti
 InvarGenT: Generated file ./examples/liquid_gauss_rowElim.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_gauss_rowElim.ml" exited with code 0
- t=0.043s ok
+ t=0.052s ok
 InvarGenT:7:InvarGenT:118:liquid_gauss_rowMax ...
 TODO
 InvarGenT:7:InvarGenT:119:liquid_gauss_rowMax_2 ...
 InvarGenT: Generated file ./examples/liquid_gauss_rowMax_2.gadti
 InvarGenT: Generated file ./examples/liquid_gauss_rowMax_2.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_gauss_rowMax_2.ml" exited with code 0
- t=0.597s ok
+ t=0.463s ok
 InvarGenT:7:InvarGenT:120:liquid_gauss_simpler ...
 InvarGenT: Generated file ./examples/liquid_gauss_simpler.gadti
 InvarGenT: Generated file ./examples/liquid_gauss_simpler.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_gauss_simpler.ml" exited with code 0
- t=4.009s ok
+ t=2.782s ok
 InvarGenT:7:InvarGenT:121:liquid_gauss_simpler_asserted ...
 InvarGenT: Generated file ./examples/liquid_gauss_simpler_asserted.gadti
 InvarGenT: Generated file ./examples/liquid_gauss_simpler_asserted.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_gauss_simpler_asserted.ml" exited with code 0
- t=2.322s ok
+ t=1.953s ok
 InvarGenT:7:InvarGenT:122:liquid_gauss ...
 InvarGenT: Generated file ./examples/liquid_gauss.gadti
 InvarGenT: Generated file ./examples/liquid_gauss.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_gauss.ml" exited with code 0
- t=3.368s ok
+ t=2.665s ok
 InvarGenT:7:InvarGenT:123:liquid_gauss2 ...
 InvarGenT: Generated file ./examples/liquid_gauss2.gadti
 InvarGenT: Generated file ./examples/liquid_gauss2.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_gauss2.ml" exited with code 0
- t=3.281s ok
+ t=1.020s ok
 InvarGenT:7:InvarGenT:124:liquid_gauss_asserted ...
 InvarGenT: Generated file ./examples/liquid_gauss_asserted.gadti
 InvarGenT: Generated file ./examples/liquid_gauss_asserted.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_gauss_asserted.ml" exited with code 0
- t=2.488s ok
+ t=0.962s ok
 InvarGenT:7:InvarGenT:125:liquid_gauss_harder_asserted ...
 InvarGenT: Generated file ./examples/liquid_gauss_harder_asserted.gadti
 InvarGenT: Generated file ./examples/liquid_gauss_harder_asserted.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_gauss_harder_asserted.ml" exited with code 0
- t=3.546s ok
+ t=2.722s ok
 InvarGenT:7:InvarGenT:126:liquid_gauss_harder ...
 TODO
 InvarGenT:7:InvarGenT:127:liquid_fft_ffor ...
@@ -958,28 +930,28 @@ InvarGenT:7:InvarGenT:128:liquid_fft_simpler ...
 InvarGenT: Generated file ./examples/liquid_fft_simpler.gadti
 InvarGenT: Generated file ./examples/liquid_fft_simpler.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_fft_simpler.ml" exited with code 0
- t=35.198s ok
+ t=29.912s ok
 InvarGenT:7:InvarGenT:129:liquid_fft ...
 InvarGenT: Generated file ./examples/liquid_fft.gadti
 InvarGenT: Generated file ./examples/liquid_fft.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_fft.ml" exited with code 0
- t=34.286s ok
+ t=29.564s ok
 InvarGenT:7:InvarGenT:130:liquid_fft_tests ...
 InvarGenT: Generated file ./examples/liquid_fft_tests.gadti
 InvarGenT: Generated file ./examples/liquid_fft_tests.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_fft_tests.ml" exited with code 0
- t=7.321s ok
+ t=6.233s ok
 InvarGenT:7:InvarGenT:131:liquid_fft_full ...
 InvarGenT: Generated file ./examples/liquid_fft_full.gadti
 InvarGenT: Generated file ./examples/liquid_fft_full.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_fft_full.ml" exited with code 0
- t=42.282s ok
+ t=36.416s ok
 InvarGenT:7:InvarGenT:132:liquid_fft_full_asserted ...
 InvarGenT: Generated file ./examples/liquid_fft_full_asserted.gadti
 InvarGenT: Generated file ./examples/liquid_fft_full_asserted.ml
 InvarGenT: Command "ocamlc -w -25 -c ./examples/liquid_fft_full_asserted.ml" exited with code 0
- t=43.453s ok
-Ran: 262 tests in: 396.20 seconds.
+ t=37.541s ok
+Ran: 262 tests in: 311.19 seconds.
 FAILED: Cases: 262 Tried: 262 Errors: 0 Failures: 0 Skip:0 Todo:10
 
-Compilation finished at Tue Mar  3 18:31:38
+Compilation finished at Wed Mar 18 02:31:49

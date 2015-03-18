@@ -38,10 +38,10 @@ external val fl0 : Float
 val snd : ∀a, b. (b, a) → a
 
 val is_neg_aux :
-   ∀i, j, k, n[0 ≤ n ∧ 1 ≤ i ∧ k ≤ j + 1].
+   ∀i, j, k, n[k ≤ j + 1 ∧ 1 ≤ i ∧ 0 ≤ n].
    Matrix (i, j) → Num k → Num n → Bool
 
 val is_neg :
-   ∀i, k, n[1 ≤ k ∧ n ≤ i + 1]. Matrix (k, i) → Num n → Bool
+   ∀i, k, n[n ≤ i + 1 ∧ 1 ≤ k]. Matrix (k, i) → Num n → Bool
 
-val main_step6_test : ∀k, n[1 ≤ n ∧ 1 ≤ k]. Matrix (n, k) → Bool
+val main_step6_test : ∀k, n[1 ≤ k ∧ 1 ≤ n]. Matrix (n, k) → Bool

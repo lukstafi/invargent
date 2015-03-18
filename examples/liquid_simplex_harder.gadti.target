@@ -35,4 +35,4 @@ external val div : Float → Float → Float
 
 external val fl0 : Float
 
-val main_test : ∀k, n[1 ≤ n ∧ 2 ≤ k]. Matrix (n, k) → ()
+val main_test : ∀k, n[2 ≤ k ∧ 1 ≤ n]. Matrix (n, k) → ()

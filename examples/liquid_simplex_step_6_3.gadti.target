@@ -69,5 +69,5 @@ external row_op_aux2 :
    Matrix (i, j) → Num k → Num n → Num m → ()
 
 val row_op_aux3 :
-   ∀i, j, k, m, n[0 ≤ n ∧ 0 ≤ k ∧ 0 ≤ j ∧ k + 1 ≤ m].
+   ∀i, j, k, m, n[k + 1 ≤ m ∧ 0 ≤ j ∧ 0 ≤ k ∧ 0 ≤ n].
    Matrix (j, m) → Num i → Num k → Num n → ()

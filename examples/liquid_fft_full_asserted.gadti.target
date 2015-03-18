@@ -63,7 +63,7 @@ datatype Bounded : num * num
 datacons Index : ∀i, k, n[n ≤ i ∧ i ≤ k].Num i ⟶ Bounded (n, k)
 
 val ffor :
-   ∀i, j, k, n[j ≤ i ∧ k ≤ n].
+   ∀i, j, k, n[k ≤ n ∧ j ≤ i].
    Num n → Num j → (Bounded (k, i) → ()) → ()
 
 external val ref : ∀a. a → Ref a

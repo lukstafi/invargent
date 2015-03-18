@@ -42,5 +42,5 @@ external buildheap :
    ∀k, n, a[k ≤ n ∧ 0 ≤ k]. Num k → Array (a, n) → ()
 
 val heapsort :
-   ∀i, k, n, a[0 ≤ k ∧ k ≤ n ∧ i ≤ n].
+   ∀i, k, n, a[i ≤ n ∧ k ≤ n ∧ 0 ≤ k].
    Num i → Num k → Array (a, n) → ()
