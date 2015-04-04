@@ -17,11 +17,11 @@ val same_with_assertions : bool ref
 (** Breakdown of steps through the main iteration to achieve
     convergence, counting from 0. The iteration:
 
-    * [disj_step.(0)] is 
-    * [disj_step.(1)] is 
-    * [disj_step.(2)] is 
-    * [disj_step.(3)] is 
-    * [disj_step.(4)] is 
+    * [disj_step.(0)] is when inferring any postconditions starts,
+    * [disj_step.(1)] is when inferring numerical postconditions starts,
+    * [disj_step.(2)] is when using only non-rec branches ends,
+    * [disj_step.(3)] is when second-phase abduction starts,
+    * [disj_step.(4)] is when guessing in constraint generation ends,
     * [disj_step.(5)] is when convergence of postconditions is enforced.
  *)
 val disj_step : int array
