@@ -1,0 +1,19 @@
+datatype List : type * num
+datacons LNil : ∀a. List(a, 0)
+datacons LCons : ∀n, a [0≤n]. a * List(a, n) ⟶ List(a, n+1)
+
+datatype Term : num
+datacons Add : ∀n, m [0≤n ∧ 0≤m]. Term n * Term m --> Term (n+m)
+datacons Var : Term 1
+datacons Val : Float --> Term 0
+
+external plusF : Float -> Float -> Float
+
+let rec eval = function
+  | l, Val i -> (l,i)
+  | LNil, Var -> assert false
+  | LCons (x,xs), Var -> (xs, x)
+  | l,Add(t1, t2) ->
+    let (l', i1) = eval (l, t1) in
+    let (l'', i2) = eval (l', t2) in
+    (l'', plusF i1 i2)

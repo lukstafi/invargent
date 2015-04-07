@@ -1,0 +1,19 @@
+datatype List : type * num
+
+datacons LNil : ∀a. List (a, 0)
+
+datacons LCons : ∀n, a[0 ≤ n].a * List (a, n) ⟶ List (a, n + 1)
+
+datatype Term : num
+
+datacons Add : ∀m, n[0 ≤ n ∧ 0 ≤ m].Term n * Term m ⟶ Term (m + n)
+
+datacons Var : Term 1
+
+datacons Val : Float ⟶ Term 0
+
+external plusF : Float → Float → Float
+
+val eval :
+   ∀k, n[0 ≤ n].
+   (List (Float, n + k), Term k) → (List (Float, n), Float)

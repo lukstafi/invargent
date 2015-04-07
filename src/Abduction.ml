@@ -24,7 +24,7 @@ open Defs
 open Terms
 open Aux
 open Joint
-
+(* Also depends on OCaml.ml. *)
 
 let abd_fail_flag = ref false
 let abd_timeout_flag = ref false
@@ -832,7 +832,8 @@ let abd_typ q ~bvs ?(dissociate=false) ~validation ~neg_validate ~discard
         let more_res =
           residuum q more_prem.cnj_typ concl in
         (*[* Format.printf
-          "abd_typ-num:@ prem=%a@ concl=%a@ res_ty=%a@ res_num=%a@\nprem_num=%a@\n%!"
+          "abd_typ-num:@ prem=%a@ concl=%a@ res_ty=%a@ \
+          res_num=%a@\nprem_num=%a@\n%!"
           pr_subst prem.cnj_typ pr_subst concl
           pr_subst more_res.cnj_typ NumDefs.pr_formula more_res.cnj_num
           NumDefs.pr_formula more_prem.cnj_num; *]*)
@@ -1062,7 +1063,8 @@ let abd q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of ~nonparam_vars
      the result, use only sorts other than [Type_sort] as negated
      constraints. *)
   let neg_cns_post =
-    if iter_no < !num_neg_since then []
+    if iter_no < !num_neg_since +
+                   (if !OCaml.drop_assert_false then 0 else 1) then []
     else map_some
         (fun (cnj, loc) ->
            try

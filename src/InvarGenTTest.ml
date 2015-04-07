@@ -19,6 +19,7 @@ let input_file file =
   Buffer.contents buf
 
 let test_case ?(test_annot=false) ?(do_ml=true)
+    ?drop_assert_false
     ?richer_answers ?more_general_num
     ?prefer_guess ?ty_abd_timeout
     ?prefer_bound_to_local ?prefer_bound_to_outer
@@ -38,6 +39,10 @@ let test_case ?(test_annot=false) ?(do_ml=true)
       else (
         (*[* Format.printf "not found f=%s@\n%!" (f^".gadt"); *]*)
         assert false) in
+  let old_drop_assert_false = !OCaml.drop_assert_false in
+  (match drop_assert_false with
+   | None -> ()
+   | Some drop_assert_false -> OCaml.drop_assert_false := drop_assert_false);
   let old_richer_answers = !Abduction.richer_answers in
   (match richer_answers with
    | None -> ()
@@ -118,6 +123,7 @@ let test_case ?(test_annot=false) ?(do_ml=true)
      let msg = Format.flush_str_formatter () in
      Format.printf "@\n%s@\n%!"  msg;
      Printexc.print_backtrace stdout;
+     OCaml.drop_assert_false := old_drop_assert_false;
      Abduction.richer_answers := old_richer_answers;
      NumS.more_general := old_more_general_num;
      Abduction.prefer_guess := old_prefer_guess;
@@ -133,6 +139,7 @@ let test_case ?(test_annot=false) ?(do_ml=true)
      Defs.nodeadcode := old_nodeadcode;
      assert_failure msg
    | exn ->
+     OCaml.drop_assert_false := old_drop_assert_false;
      Abduction.richer_answers := old_richer_answers;
      NumS.more_general := old_more_general_num;
      Abduction.prefer_guess := old_prefer_guess;
@@ -147,6 +154,7 @@ let test_case ?(test_annot=false) ?(do_ml=true)
      NumS.abd_fail_timeout_count := old_num_abd_fail_timeout;
      Defs.nodeadcode := old_nodeadcode;
      raise exn);
+  OCaml.drop_assert_false := old_drop_assert_false;
   Abduction.richer_answers := old_richer_answers;
   NumS.more_general := old_more_general_num;
   Abduction.prefer_guess := old_prefer_guess;
@@ -723,6 +731,11 @@ let tests = "InvarGenT" >::: [
            skip_if !short_tests_only "long test: 69s";
            test_case ~same_with_assertions:true
              "liquid_fft_full_asserted" ());
+      "issue2" >::
+        (fun () ->
+           skip_if !debug "debug";
+           test_case ~test_annot:true ~drop_assert_false:false
+             "issue2" ());
     ]
 
 let () =

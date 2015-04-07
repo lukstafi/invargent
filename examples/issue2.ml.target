@@ -1,0 +1,22 @@
+type num = int
+type _ list =
+  | LNil : (*∀'a.*) ('a (* 0 *)) list
+  | LCons : (*∀'n, 'a[0 ≤ n].*)'a * ('a (* n *)) list ->
+    ('a (* n + 1 *)) list
+type term =
+  | Add : (*∀'m, 'n[0 ≤ n ∧ 0 ≤ m].*)(* n *) term * (* m *) term ->
+    (* m + n *) term
+  | Var : (* 1 *) term
+  | Val : float -> (* 0 *) term
+external plusF : (float -> float -> float) = "plusF"
+let rec eval :
+  (*type k n [0 ≤ n].*) (((float (* n + k *)) list * (* k *) term) ->
+                            ((float (* n *)) list * float)) =
+  ((function (l, Val i) -> (l, i) | (LNil, Var) -> assert false
+    | (LCons (x, xs), Var) -> (xs, x)
+    | (l, Add (t1, t2)) ->
+        let (l', i1) = eval ((l, t1)) in
+        let (l'', i2) = eval ((l', t2)) in (l'', plusF i1 i2)):
+    ((float (* n + k *)) list * (* k *) term) -> ((float (* n *)) list *
+                                                   float))
+
