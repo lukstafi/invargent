@@ -1,4 +1,4 @@
-<TeXmacs|1.0.7.18>
+<TeXmacs|1.99.2>
 
 <style|article>
 
@@ -883,6 +883,12 @@
     <item*|<verbatim|-no_sig>>Do not generate the <verbatim|.gadti> file.
 
     <item*|<verbatim|-no_ml>>Do not generate the <verbatim|.ml> file.
+
+    <item*|<verbatim|-overwrite_ml>>Overwrite the <verbatim|.ml> file if it
+    already exists.
+
+    <item*|<verbatim|-ml_file>>Generate the exported OCaml file under the
+    provided name.
 
     <item*|<verbatim|-no_verif>>Do not call <verbatim|ocamlc -c> on the
     generated <verbatim|.ml> file.

@@ -23,6 +23,7 @@ let solver ~uses_pos_assertions ~new_ex_types ~preserve cn =
   Invariants.solve ~uses_pos_assertions q_ops new_ex_types exty_res_of_chi brs
 
 let process_file ?(do_sig=false) ?(do_ml=false)
+    ?(overwrite_ml=true) ?ml_fname
     ?(verif_ml=true) ?(full_annot=false) fname =
   current_file_name := fname;
   let infer_annot_fun = !Infer.annotating_fun in
@@ -43,14 +44,24 @@ let process_file ?(do_sig=false) ?(do_ml=false)
         (open_out (base^".gadti")) in
     Format.fprintf output "%a@\n%!" pr_signature annot;
     Format.printf "InvarGenT: Generated file %s@\n%!" (base^".gadti"));
-  if do_ml then (
+  let ml_fname =
+    match ml_fname with
+    | None -> base^".ml"
+    | Some fname -> fname in
+  let generate_ml =
+    do_ml && (overwrite_ml || not (Sys.file_exists ml_fname)) in
+  if generate_ml then (
     let output = Format.formatter_of_out_channel
-        (open_out (base^".ml")) in
+        (open_out ml_fname) in
     Format.fprintf output "%a@\n%!"
       (OCaml.pr_ml ~funtys:full_annot ~lettys:full_annot) annot;
-    Format.printf "InvarGenT: Generated file %s@\n%!" (base^".ml"));
+    Format.printf "InvarGenT: Generated file %s@\n%!" ml_fname)
+  else if do_ml then
+    Format.printf
+      "InvarGenT: File %s not generated, use option -overwrite_ml@\n%!"
+      ml_fname;
   if do_ml && verif_ml then
-    let cmd = "ocamlc -w -25 -c "^base^".ml" in
+    let cmd = "ocamlc -w -25 -c "^ml_fname in
     let res = Sys.command cmd in
     Format.printf "InvarGenT: Command \"%s\" exited with code %d@\n%!"
       cmd res;
@@ -75,6 +86,8 @@ let set_lin_thres_scaling v =
 
 let main () =
   let do_ml = ref true
+  and overwrite_ml = ref false
+  and ml_fname = ref ""
   and do_sig = ref true
   and verif_ml = ref true
   and full_annot = ref false in
@@ -91,6 +104,10 @@ let main () =
     "Do not generate the `.gadti` file";
     "-no_ml", Arg.Clear do_ml,
     "Do not generate the `.ml` file";
+    "-overwrite_ml", Arg.Set overwrite_ml,
+    "Overwrite the `.ml` file if it already exists";
+    "-ml_file", Arg.Set_string ml_fname,
+    "Generate the exported OCaml file under the provided name";
     "-no_verif", Arg.Clear verif_ml,
     "Do not call `ocamlc -c` on the generated `.ml` file";
     "-num_is", Arg.Set_string OCaml.num_is,
@@ -206,9 +223,11 @@ let main () =
   let msg = "InvarGenT version "^version^
               ". Usage: "^Sys.argv.(0)^"[OPTIONS] source.gadt" in
   Arg.parse (Arg.align cli) anon_fun msg;
+  let ml_fname = if !ml_fname = "" then None else Some !ml_fname in
   try
     ignore
       (process_file !fname ~do_sig:!do_sig ~do_ml:!do_ml
+         ~overwrite_ml:!overwrite_ml ?ml_fname
          ~verif_ml:!verif_ml ~full_annot:!full_annot)
   with (Report_toplevel _ | Contradiction _ | NoAnswer _) as exn ->
     Format.printf "%a@\n%!" pr_exception exn;
