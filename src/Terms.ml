@@ -33,7 +33,8 @@ let add_cnames l vs =
   List.fold_right CNames.add l vs
 
 let init_types = cnames_of_list
-    [tuple; numtype; CNam "Int"; CNam "Float"; booltype; stringtype]
+    [tuple; numtype; CNam "Int"; CNam "Float"; CNam "Bytes"; CNam "Char";
+     booltype; stringtype; CNam "Array"]
 
 type lc = loc
 

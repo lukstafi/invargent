@@ -736,6 +736,11 @@ let tests = "InvarGenT" >::: [
            skip_if !debug "debug";
            test_case ~test_annot:true ~drop_assert_false:false
              "issue2" ());
+      "compact_array" >::
+        (fun () ->
+           (* skip_if !debug "debug"; *)
+           test_case ~test_annot:true
+             "compact_array" ());
     ]
 
 let () =

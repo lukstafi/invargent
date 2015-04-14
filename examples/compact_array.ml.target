@@ -1,0 +1,27 @@
+type num = int
+(** type _ array = built-in *)
+type _ compact_array =
+  | Array : (*∀'a.*)'a array -> 'a compact_array
+  | Bytes : bytes -> char compact_array
+let array_get : ('a array -> int -> 'a) = fun a b -> Array.get a b
+let array_set : ('a array -> int -> 'a -> unit) =
+  fun a b c -> Array.set a b c
+let array_length : ('a array -> int) = fun a -> Array.length a
+let bytes_get : (bytes -> int -> char) = fun a b -> Bytes.get a b
+let bytes_set : (bytes -> int -> char -> unit) = fun a b c -> Bytes.set a b c
+let bytes_length : (bytes -> int) = fun a -> Bytes.length a
+let of_bytes : (bytes -> char compact_array) = (fun x -> Bytes x)
+let of_array : type a . (a array -> a compact_array) = (fun x -> Array x)
+let length : type a . (a compact_array -> int) =
+  (fun t ->
+    (((match (t: a compact_array) with
+    Array a -> array_length a | Bytes s -> bytes_length s)) : int))
+let get : type a . (a compact_array -> int -> a) =
+  (fun t i ->
+    (((match (t: a compact_array) with
+    Array a -> array_get a i | Bytes s -> bytes_get s i)) : a))
+let set : type a . (a compact_array -> int -> a -> unit) =
+  (fun t i v ->
+    (((match (t: a compact_array) with
+    Array a -> array_set a i v | Bytes s -> bytes_set s i v)) : unit))
+

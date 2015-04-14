@@ -1,0 +1,38 @@
+datatype Array : type
+datatype Compact_array : type
+
+datacons Array : ∀a. Array a ⟶ Compact_array a
+datacons Bytes : ∀a. Bytes ⟶ Compact_array Char
+
+external let array_get :
+  ∀a. Array a → Int → a = "fun a b -> Array.get a b"
+external let array_set :
+  ∀a. Array a → Int → a → () =
+  "fun a b c -> Array.set a b c"
+external let array_length :
+  ∀a. Array a → Int = "fun a -> Array.length a"
+external let bytes_get :
+  Bytes → Int → Char = "fun a b -> Bytes.get a b"
+external let bytes_set :
+  Bytes → Int → Char → () =
+  "fun a b c -> Bytes.set a b c"
+external let bytes_length :
+  Bytes → Int = "fun a -> Bytes.length a"
+
+let of_bytes x = Bytes x
+let of_array x = Array x
+ 
+let length t =
+  match t with
+  | Array a -> array_length a
+  | Bytes s -> bytes_length s
+
+let get t i =
+  match t with
+  | Array a -> array_get a i
+  | Bytes s -> bytes_get s i
+
+let set t i v =
+  match t with
+  | Array a -> array_set a i v
+  | Bytes s -> bytes_set s i v

@@ -1,0 +1,29 @@
+datatype Array : type
+
+datatype Compact_array : type
+
+datacons Array : ∀a.Array a ⟶ Compact_array a
+
+datacons Bytes : Bytes ⟶ Compact_array Char
+
+external val array_get : ∀a. Array a → Int → a
+
+external val array_set : ∀a. Array a → Int → a → ()
+
+external val array_length : ∀a. Array a → Int
+
+external val bytes_get : Bytes → Int → Char
+
+external val bytes_set : Bytes → Int → Char → ()
+
+external val bytes_length : Bytes → Int
+
+val of_bytes : Bytes → Compact_array Char
+
+val of_array : ∀a. Array a → Compact_array a
+
+val length : ∀a. Compact_array a → Int
+
+val get : ∀a. Compact_array a → Int → a
+
+val set : ∀a. Compact_array a → Int → a → ()
