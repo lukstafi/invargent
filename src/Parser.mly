@@ -143,7 +143,8 @@ let expand_if_syntax_bool is_ex cond e1 e2 case1_lc case2_lc lc =
 %}
 
       /* Ocamlyacc Declarations */
-%token LPAREN RPAREN LBRACKET RBRACKET COMMA DOT COLON EQUAL SEMICOLON AND
+%token LPAREN RPAREN LBRACKET RBRACKET COMMA DOT DOTDOT
+%token COLON EQUAL PLUSEQUAL SEMICOLON AND
 %token UNDERSCORE EXCLAMATION LOGAND
 %token LET REC IN ALL EX
 %token <string> UIDENT
@@ -614,7 +615,7 @@ structure_item_raw:
              (List.fold_left VarSet.union (fvs_typ res)
                 (List.map fvs_typ args))) in
         let c_n, c_args, more_phi =
-          extract_datatyp allvs (rhs_loc 7) res in
+          extract_datatyp allvs (rhs_loc 8) res in
         let vs = Aux.unique_sorted (c_args @ vs) in
         let phi = more_phi @ phi in
         Hashtbl.add sigma n (vs, phi, args, c_n, c_args);
@@ -651,10 +652,48 @@ structure_item_raw:
 	  "lacking constructor identifier" 3 }
   | opt_docucomment DATACONS UIDENT error
       { unclosed "datacons" 2 ":" 4 }
+  | opt_docucomment
+    TYPE UIDENT PLUSEQUAL UIDENT COLON opt_constr_intro typ_star_list
+      LONGARROW typ
+      { let n = CNam $5 in
+        if List.length $8 = 1 then Hashtbl.add unary_vals n ();
+        let vs, phi = $7 in
+        let args = List.rev $8 in
+        let res = $10 in
+        let allvs = VarSet.union (vars_of_list vs)
+          (VarSet.union (fvs_formula phi)
+             (List.fold_left VarSet.union (fvs_typ res)
+                (List.map fvs_typ args))) in
+        let c_n, c_args, more_phi =
+          extract_datatyp allvs (rhs_loc 10) res in
+        (if c_n <> CNam $3 then syntax_error
+             "mismatch between declared and actual type of constructor" 3);
+        let vs = Aux.unique_sorted (c_args @ vs) in
+        let phi = more_phi @ phi in
+        Hashtbl.add sigma n (vs, phi, args, c_n, c_args);
+        ValConstr ($1, n, vs, phi, args, c_n, c_args, get_loc ()) }
+  | opt_docucomment TYPE UIDENT PLUSEQUAL UIDENT COLON opt_constr_intro typ
+      { let n = CNam $5 in
+        let vs, phi = $7 in
+        let res = $8 in
+        let allvs = VarSet.union (vars_of_list vs)
+          (VarSet.union (fvs_formula phi) (fvs_typ res)) in
+        let c_n, c_args, more_phi =
+          extract_datatyp allvs (rhs_loc 8) res in
+        let vs = Aux.unique_sorted (c_args @ vs) in
+        (if c_n <> CNam $3 then syntax_error
+             "mismatch between declared and actual type of constructor" 3);
+        let phi = more_phi @ phi in
+        Hashtbl.add sigma n (vs, phi, [], c_n, c_args);
+        ValConstr ($1, n, vs, phi, [], c_n, c_args, get_loc ()) }
   | opt_docucomment DATATYPE UIDENT COLON sort_star_list
       {
         if List.length ($5) = 1 then Hashtbl.add unary_typs ($3) ();
         TypConstr ($1, CNam ($3), List.rev ($5), get_loc ()) }
+  | opt_docucomment TYPE UIDENT EQUAL DOTDOT COLON sort_star_list
+      {
+        if List.length ($7) = 1 then Hashtbl.add unary_typs ($3) ();
+        TypConstr ($1, CNam ($3), List.rev ($7), get_loc ()) }
   | opt_docucomment EXTERNAL TYPE UIDENT COLON sort_star_list EQUAL STRING
       {
         if List.length ($6) = 1 then Hashtbl.add unary_typs ($4) ();
@@ -663,6 +702,8 @@ structure_item_raw:
       { syntax_error
 	  "lacking type identifier" 3 }
   | opt_docucomment DATATYPE UIDENT
+      { TypConstr ($1, CNam $3, [], get_loc ()) }
+  | opt_docucomment TYPE UIDENT EQUAL DOTDOT
       { TypConstr ($1, CNam $3, [], get_loc ()) }
   | opt_docucomment EXTERNAL TYPE UIDENT EQUAL STRING
       { PrimTyp ($1, CNam $4, [], $6, get_loc ()) }

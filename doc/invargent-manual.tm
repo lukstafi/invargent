@@ -692,13 +692,15 @@
   types, type and value constructors, global variables with given type
   \ (external names) or inferred type (definitions).
 
-  <block|<tformat|<cwith|1|1|2|2|cell-halign|l>|<cwith|1|1|1|1|cell-halign|l>|<table|<row|<cell|type
-  constructor>|<cell|<verbatim|datatype List : type * num>>>|<row|<cell|value
-  constructor>|<cell|<verbatim|datacons Cons : all n a. a * List(a,n)
-  --\<gtr\> List(a,n+1)>>>|<row|<cell|>|<cell|<verbatim|datacons Cons :
-  <math|\<forall\>>n,a. a * List(a,n) <math|\<longrightarrow\>>
-  List(a,n+1)>>>|<row|<cell|declaration>|<cell|<verbatim|external foo :
-  <math|\<forall\>>n,a. List(a,n)<math|\<rightarrow\>
+  <block|<tformat|<cwith|1|1|2|2|cell-halign|l>|<cwith|1|1|1|1|cell-halign|l>|<cwith|1|1|1|1|cell-row-span|2>|<cwith|3|3|1|1|cell-row-span|3>|<cwith|6|6|1|1|cell-row-span|2>|<table|<row|<cell|type
+  constructor>|<cell|<verbatim|datatype List : type *
+  num>>>|<row|<cell|>|<cell|<verbatim|type List = .. : type *
+  num>>>|<row|<cell|value constructor>|<cell|<verbatim|datacons Cons : all n
+  a. a * List(a,n) --\<gtr\> List(a,n+1)>>>|<row|<cell|>|<cell|<verbatim|datacons
+  Cons : <math|\<forall\>>n,a. a * List(a,n) <math|\<longrightarrow\>>
+  List(a,n+1)>>>|<row|<cell|>|<cell|<verbatim|type List += Cons : all n a. a
+  * List(a,n) --\<gtr\> List(a,n+1)>>>|<row|<cell|declaration>|<cell|<verbatim|external
+  foo : <math|\<forall\>>n,a. List(a,n)<math|\<rightarrow\>
   \<exists\>>k[k\<less\>=n].List(a,k)="c_foo">>>|<row|<cell|>|<cell|<verbatim|external
   filter : <math|\<forall\>>n,a. List(a,n)<math|\<rightarrow\>
   \<exists\>>k[k\<less\>=n].List(a,k)>>>|<row|<cell|let-declaration>|<cell|<verbatim|external

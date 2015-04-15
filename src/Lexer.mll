@@ -65,6 +65,7 @@ rule token = parse
 		{ INT (int_of_string num) }
   | digit+ as num
 		{ INT (int_of_string num) }
+  | "+="	{ PLUSEQUAL }
   | '+'		{ PLUS }
   | '-'		{ MINUS }
   | '*'		{ STAR }
@@ -75,6 +76,7 @@ rule token = parse
   | ']'		{ RBRACKET }
   | '='		{ EQUAL }
   | ','		{ COMMA }
+  | ".."	{ DOTDOT }
   | '.'		{ DOT }
   | ':'		{ COLON }
   | "function"  { FUNCTION }

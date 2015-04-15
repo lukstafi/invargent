@@ -1,0 +1,21 @@
+type Term = .. : type
+
+external let plus : Int → Int → Int = "(+)"
+external let is_zero : Int → Bool = "(=) 0"
+
+type Term += Lit : Int ⟶ Term Int
+type Term += Plus : Term Int * Term Int ⟶ Term Int
+type Term += IsZero : Term Int ⟶ Term Bool
+type Term += If : ∀a. Term Bool * Term a * Term a ⟶ Term a
+type Term += Pair : ∀a, b. Term a * Term b ⟶ Term (a, b)
+type Term += Fst : ∀a, b. Term (a, b) ⟶ Term a
+type Term += Snd : ∀a, b. Term (a, b) ⟶ Term b
+
+let rec eval = function
+  | Lit i -> i
+  | IsZero x -> is_zero (eval x)
+  | Plus (x, y) -> plus (eval x) (eval y)
+  | If (b, t, e) -> if eval b then eval t else eval e
+  | Pair (x, y) -> eval x, eval y
+  | Fst p -> (match eval p with x, y -> x)
+  | Snd p -> (match eval p with x, y -> y)

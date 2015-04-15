@@ -1,0 +1,21 @@
+datatype Term : type
+
+external val plus : Int → Int → Int
+
+external val is_zero : Int → Bool
+
+datacons Lit : Int ⟶ Term Int
+
+datacons Plus : Term Int * Term Int ⟶ Term Int
+
+datacons IsZero : Term Int ⟶ Term Bool
+
+datacons If : ∀a.Term Bool * Term a * Term a ⟶ Term a
+
+datacons Pair : ∀a, b.Term a * Term b ⟶ Term ((a, b))
+
+datacons Fst : ∀a, b.Term ((a, b)) ⟶ Term a
+
+datacons Snd : ∀a, b.Term ((a, b)) ⟶ Term b
+
+val eval : ∀a. Term a → a
