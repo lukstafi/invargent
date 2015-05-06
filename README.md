@@ -2,7 +2,7 @@ Invariant Generation as Type Inference with GADTs and Existentials.
 
 Some additional information on the project: http://www.ii.uni.wroc.pl/~lukstafi/pmwiki/index.php?n=Infer.Infer
 
-Draft of the thesis on the project: [GADTs for Reconstruction of Invariants and Postconditions](http://www.ii.uni.wroc.pl/~lukstafi/pmwiki/uploads/Infer/lukstafi-phd-thesis.pdf). The thesis is not submitted yet.
+Draft of the thesis on the project: [GADTs for Reconstruction of Invariants and Postconditions](http://www.ii.uni.wroc.pl/~lukstafi/pmwiki/uploads/Infer/lukstafi-phd-thesis.pdf). (Submitted.)
 
 See documentation in the `doc` directory.
 
@@ -16,7 +16,7 @@ sudo cp ./invargent /usr/local/bin/invargent # optionally, install executable
 make clean  # remove the executable and intermediate files
 ```
 
-The order domain is postponed to v2.1. The v2.0 release is focused on improving completeness.
+The order domain is postponed to v2.1. The v2.0 release is focused on improving coverage (i.e. inferring the intended invariants for some cases where before InvarGenT would fail to infer anything).
 
 I decided to implement a new domain / sort. It will be an order domain, with bottom aka. zero element, top element, and successor. $p <= succ p, succ p <= p ==> p = top, p <= q && q <= p ==> p = q$. The subset of named elements (corresponding to the Herbrand model) is a linear order ($zero, succ zero, succ (succ zero), ..., top$), but the domain does not assume linearity. Thus it can be extended with incomparable constants in a future version.
 
