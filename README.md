@@ -2,7 +2,7 @@ Invariant Generation as Type Inference with GADTs and Existentials.
 
 Some additional information on the project: http://www.ii.uni.wroc.pl/~lukstafi/pmwiki/index.php?n=Infer.Infer
 
-Draft of the thesis on the project: [GADTs for Reconstruction of Invariants and Postconditions](http://www.ii.uni.wroc.pl/~lukstafi/pmwiki/uploads/Infer/lukstafi-phd-thesis.pdf). (Submitted.)
+The thesis on the project: [GADTs for Reconstruction of Invariants and Postconditions](http://www.ii.uni.wroc.pl/~lukstafi/pmwiki/uploads/Infer/lukstafi-phd-thesis.pdf). (Submitted.)
 
 See documentation in the `doc` directory.
 
