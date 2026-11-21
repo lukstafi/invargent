@@ -2,9 +2,9 @@ datatype Nat
 datacons Z : Nat
 datacons S : Nat ⟶ Nat
 
-datatype Box : num * num
-datacons B : ∀m, n, k [m≤k ∧ k≤n+1 ∧ k≤m+19]. Num k ⟶ Box (m, n)
-external let step : ∀m, n [m≤n ∧ n≤m+20]. Num m → Num n → Box (m, n) =
+datatype StepResult : num * num
+datacons B : ∀m, n, k [m≤k ∧ k≤n+1 ∧ k≤m+19]. Num k ⟶ StepResult (m, n)
+external let step : ∀m, n [m≤n ∧ n≤m+20]. Num m → Num n → StepResult (m, n) =
   "fun m n -> B (min (n + 1) (m + 19))"
 
 let rec climb m = efunction
