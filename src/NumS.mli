@@ -134,11 +134,10 @@ val prune_redundant :
   initstep:bool ->
   NumDefs.formula -> NumDefs.formula
 
-(** Widen aligned postconditions. Retain common atoms and old linear
-    inequalities implied by the new numeric constraints. Include Fourier
-    consequences and the two inequalities of each solved equation. *)
-(** Optional suppliers give the aligned public variables and a covering
-    list of projected numeric branches. An empty list disables replay. *)
+(** Widen aligned postconditions by retaining old atoms implied by the
+    new summary. Optional suppliers can also prove an atom over the shared
+    interface when every projected branch entails it. An empty list
+    disables this branch check. *)
 val converge :
   Defs.quant_ops -> ?localvs:Defs.VarSet.t -> ?guard:NumDefs.formula ->
   ?suppliers:(Defs.VarSet.t * NumDefs.formula list) ->

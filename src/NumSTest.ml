@@ -55,6 +55,21 @@ let tests = "NumS" >::: [
     check public [] false;
     check VarSet.empty [base; left; right] false);
 
+  "keep a supplier extremum only when every branch proves it" >:: (fun () ->
+    let cap = numeric_formula "n1<=max(n2+19,0)" in
+    let preserve = fvs_formula cap in
+    let target_vs = fvs_formula (numeric_formula "n1=0")
+    and param_bvs = fvs_formula (numeric_formula "n2=0") in
+    let check extra expected =
+      let branches = ["n1=0"; "0<=n1 ∧ n1<=max(n2+19,0)"] @ extra in
+      let _, _, result, _ = disjelim q ~target_vs ~preserve ~param_bvs
+          ~bvs:VarSet.empty ~guess:false ~initstep:false
+          (List.map (fun s -> [], numeric_formula s) branches) in
+      assert_equal ~printer:string_of_bool expected
+        (implies_cnj (satisfiable_exn result) cap) in
+    check [] true;
+    check ["n1=1"] false);
+
   "extrema on ground inputs" >:: (fun () ->
     let goals = List.map (fun (text, holds) -> text, numeric_formula text, holds)
         ["n1 = max(n2,n3)", (fun x y z -> x = max y z);

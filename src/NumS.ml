@@ -2101,7 +2101,7 @@ let abd_simple ~qcmp_v ~cmp_w
     ~bvs ~xbvs ~nonparam_vars ~discard ~validation ~validate
     ~neg_validate:_
     skip (eqs_i, ineqs_i, optis_i, suboptis_i)
-    (opti_lhs, (d_eqn, d_ineqn), (c_eqn, c_ineqn, c_optis, c_suboptis)) =
+    (prem_suboptis, (d_eqn, d_ineqn), (c_eqn, c_ineqn, c_optis, c_suboptis)) =
   let skip = ref skip in
   let counter = ref 0 in
   (* 1 *)
@@ -2426,6 +2426,18 @@ let abd_simple ~qcmp_v ~cmp_w
       let a0 = subst_w_atom ~cmp_v eqs_acc0 a in
       (*[* Format.printf
         "NumS.abd_simple: [%d]@ a0=%a@\n%!" ddepth pr_w_atom a0; *]*)
+      (* If one premise arm already implies its goal arm by a constant
+         offset, abduce the comparison for the remaining pair. *)
+      let try_dominance goal =
+        let g1, g2 = subst_2w ~cmp_v d_eqs0 goal in
+        let match_arms common other p q =
+          if taut_w false (diff ~cmp_v common p) then
+            let bound = diff ~cmp_v other q in
+            try_trans_a (Leq_w (subst_if_qv ~uni_v ~bvs ~cmp_v rev_sb bound)) in
+        List.iter (fun source ->
+          let p1, p2 = subst_2w ~cmp_v d_eqs0 source in
+          match_arms g1 g2 p1 p2; match_arms g1 g2 p2 p1;
+          match_arms g2 g1 p1 p2; match_arms g2 g1 p2 p1) prem_suboptis in
       (match a0 with
        | Leq_w w ->
          let w = subst_if_qv ~uni_v ~bvs ~cmp_v rev_sb w in
@@ -2443,6 +2455,7 @@ let abd_simple ~qcmp_v ~cmp_w
            pr_w_subst eqs_acc0 pr_w_subst rev_sb; *]*)
          List.iter try_trans_ineq cands
        | _ ->
+         (match a0 with Subopti_w pair -> try_dominance pair | _ -> ());
          try_trans_a a0;
          laziter
            (fun tr ->
@@ -2540,9 +2553,9 @@ module NumAbd = struct
   type br_state = t_br_state
   type validation = t_validation
   type discarded = w list * w list * optis * suboptis
-  (** "LHS" variables of opti atoms, premise, conclusion. *)
+  (** Unsplit premise disjunctions, linear premise case, conclusion. *)
   type branch =
-      VarSet.t * (w list * w list) * (w list * w list * optis * suboptis)
+      suboptis * (w list * w list) * (w list * w list * optis * suboptis)
 
   let abd_fail_timeout = abd_fail_timeout_count
   let abd_fail_flag = abd_fail_flag
@@ -2636,16 +2649,6 @@ let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
              (List.length d_optis) (List.length d_suboptis); *]*)
            (* FIXME: [choices] now adds these inequalities, remove *)
            (* let d_ineqn = flat2 d_optis @ d_ineqn in *)
-           let opti_lhs = List.fold_left
-               (fun lhs ((vars1,_,_),(vars2,_,_)) ->
-                  let vs1 = vars_of_list (List.map fst vars1)
-                  and vs2 = vars_of_list (List.map fst vars2) in
-                  let cand = VarSet.inter vs1 vs2 in
-                  let cand = VarSet.filter
-                      (fun v -> Num.sign_num (List.assoc v vars1) =
-                                Num.sign_num (List.assoc v vars2)) cand in
-                  VarSet.union cand lhs)
-               VarSet.empty d_optis in
            let concl = split_flatten ~cmp_v concl in
            let contr_exc = ref None in
            let res = map_some
@@ -2663,7 +2666,7 @@ let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
                     (*[* Format.printf
                       "NumS.abd-split: case@\nd_eqs=%a@\nd_ineqs=%a@\n%!"
                       pr_w_subst d_eqs pr_ineqs d_ineqs; *]*)
-                    Some (nonrec, chi_pos, opti_lhs, d_eqs, d_ineqs,
+                    Some (nonrec, chi_pos, d_suboptis, d_eqs, d_ineqs,
                           (d_opti_eqn @ o_eqn @ d_eqn, o_ineqn @ d_ineqn),
                           concl)
                   with Terms.Contradiction _ as e ->
@@ -2690,7 +2693,7 @@ let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
       (fun obrs ->
          let contr_exc = ref None in
          let res = map_some
-             (fun ((nonrec, chi_pos, opti_lhs,
+             (fun ((nonrec, chi_pos, prem_suboptis,
                     d_eqs, d_ineqs, (d_eqn, d_ineqn),
                     (c_eqn, c_ineqn, c_optis, c_suboptis)) as br) ->
                let br =
@@ -2725,7 +2728,7 @@ let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
                    ignore (solve (* or: ~eqs:d_eqs ~ineqs:d_ineqs *)
                              ~eqn:(g_eqn @ d_eqn) ~ineqn:(g_ineqn @ d_ineqn)
                              ~cmp_v ~cmp_w q.uni_v);
-                   Some (nonrec, chi_pos, opti_lhs, (d_eqn, d_ineqn),
+                   Some (nonrec, chi_pos, prem_suboptis, (d_eqn, d_ineqn),
                          (c_eqn, c_ineqn, c_optis, c_suboptis))
                  with Terms.Contradiction _ as e ->
                    if !nodeadcode then contr_exc := Some e;
@@ -2839,9 +2842,9 @@ let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
     if iter_no > 1 || !early_num_abduction
     then brs, []
     else List.partition
-        (fun (nonrec, chi_pos, opti_lhs, prem, concl) -> nonrec) brs in
+        (fun (nonrec, _, _, _, _) -> nonrec) brs in
   let brs = List.map
-      (fun (_, chi_pos, opti_lhs,  prem, concl) -> opti_lhs, prem, concl)
+      (fun (_, chi_pos, prem_suboptis, prem, concl) -> prem_suboptis, prem, concl)
       brs in
   let brs = List.stable_sort
       (fun (_,(pe1,pi1),_) (_,(pe2,pi2),_) ->
@@ -2854,7 +2857,7 @@ let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
   (*[* Format.printf "NumS.abd: unproc_brs=@\n| %a@\n%!"
     (pr_line_list "| " pr_sep_br)
     (List.map
-       (fun (_, _, opti_lhs,  prem, concl) -> opti_lhs, prem, concl)
+       (fun (_, _, prem_suboptis, prem, concl) -> prem_suboptis, prem, concl)
        unproc_brs);
    *]*)
   let discard =
@@ -3381,7 +3384,7 @@ let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
     else preserve in
   (* Case-split on [optis]. *)
   (* Discard empty disjuncts. *)
-  let polytopes = concat_map
+  let branches = map_some
       (fun (prem, br) ->
          try
            let prem = flatten_formula ~cmp_v prem in
@@ -3396,7 +3399,7 @@ let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
              pr_w_subst eqs pr_ineqs ineqs; *]*)
            (* FIXME: [choices] now adds these inequalities, remove *)
            (* let opti_ineqs = flat2 optis in *)
-           map_some
+           let regions = map_some
              (fun opti_subopti ->
                 try
                   let o_eqn, o_ineqn, _, _ = split_formula opti_subopti in
@@ -3435,10 +3438,12 @@ let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
                     "NumS.disjelim: failed opti_choice=@\n%a@\n%!"
                     pr_w_formula opti_subopti; *]*)
                   None)
-             (choices ~cmp_v ~intro_cho_ineq:true optis suboptis)
-         with Terms.Contradiction _ -> [])
+             (choices ~cmp_v ~intro_cho_ineq:true optis suboptis) in
+           if regions = [] then None else Some (regions, optis, suboptis)
+         with Terms.Contradiction _ -> None)
       brs in
-  let verif_polytopes, polytopes = List.split polytopes in
+  let regions, input_optis, input_suboptis = split3 branches in
+  let verif_polytopes, polytopes = List.split (List.concat regions) in
   let validate common_eqn common_ineqn (w1, w2 as o) =
     (* let g = !guess_from_postcond && guess in *)
     let ineq = diff ~cmp_v w1 w2 in
@@ -3928,6 +3933,37 @@ let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
   let suboptis = list_take !max_subopti_postcond suboptis in
   (*[* Format.printf "NumS.disjelim: filtered suboptis=@\n%a@\n%!"
     pr_suboptis suboptis; *]*)
+  (* A supplier may already state an extremum that the face search missed.
+     Only keep public bounds on the result that hold in every region. *)
+  let summary = lazy (
+    try Some (solve ~eqn:(more_eqn @ common_equations)
+          ~ineqn:(more_ineqn @ ineqn) ~optis ~suboptis ~cmp_v ~cmp_w q.uni_v)
+    with Terms.Contradiction _ -> None) in
+  let supplement limit make_atom existing sources =
+    let rec select room seen = function
+      | [] -> []
+      | _ when room <= 0 -> []
+      | pair :: rest ->
+          let vs = fvs_2w pair in
+          let atom = make_atom pair in
+          if not (VarSet.subset vs preserved) || VarSet.is_empty (VarSet.inter vs target_vs)
+             || List.exists (eq_atom atom) seen then select room seen rest else
+          let eqn, ineqn, opt, sub = split_flatten ~cmp_v [atom] in
+          let holds (eqs, ineqs) =
+            implies_case ~cmp_v ~cmp_w q.uni_v eqs ineqs eqn ineqn opt sub in
+          let redundant () =
+            match Lazy.force summary with
+            | None -> true
+            | Some (eqs, ineqs, opts, subs) ->
+                implies ~cmp_v ~cmp_w q.uni_v eqs ineqs opts subs eqn ineqn opt sub in
+          let seen = atom :: seen in
+          if List.for_all holds polytopes && not (redundant ())
+          then pair :: select (room-1) seen rest
+          else select room seen rest in
+    existing @ select (limit - List.length existing) (List.map make_atom existing)
+        (List.concat sources) in
+  let optis = supplement !max_opti_postcond expand_opti optis input_optis
+  and suboptis = supplement !max_subopti_postcond expand_subopti suboptis input_suboptis in
   List.map (expand_atom true) abd_eqn @
     List.map (expand_atom false) abd_ineqn,
   List.map expand_opti optis @
