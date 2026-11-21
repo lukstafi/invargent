@@ -713,7 +713,7 @@ let prune_redund q_ops ?localvs ?guard ~initstep (vs, cnj) =
 (* Rename the new solution to match variables of the old solution. *)
 (* TODO: ugly, rewrite or provide a medium-level description. *)
 (* FIXME: coordinate with NumS.disjelim_simplify. *)
-let converge q_ops ~initstep ?guard ~check_only
+let converge q_ops ~initstep ?guard ~branches ~check_only
     (vs1, cnj1) (vs2, cnj2) =
   (*[* Format.printf
     "converge: check_only=%b@ vs1=%a@ vs2=%a@\ncnj1=%a@\ncnj2=%a\n%!"
@@ -835,8 +835,15 @@ let converge q_ops ~initstep ?guard ~check_only
   let c_num =
     if check_only
     then NumS.prune_redundant q_ops ~localvs ?guard ~initstep c2_num
-    else NumS.converge q_ops ~localvs ?guard ~initstep
-        c1_num c2_num in
+    else
+      let branches = List.map (fun branch ->
+        NumS.subst_formula renaming (sep_formulas branch).cnj_num) branches in
+      let public_vars types params = VarSet.union (fvs_typ params)
+          (fvs_typ (subst_typ types tdelta)) in
+      let interface = VarSet.inter (public_vars c1_ty tpar_old)
+          (public_vars c2_ty (subst_typ renaming tpar_new)) in
+      NumS.converge q_ops ~localvs ?guard ~suppliers:(interface, branches)
+        ~initstep c1_num c2_num in
   let res = to_formula c2_ty @ NumS.formula_of_sort c_num in
   let res_vs = fvs_formula res in
   let res_pms = map_some (fun v ->
@@ -1306,6 +1313,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
                let _ (* tpar *), ans2 = lift_ex_types q.op i ans2 in
                let rn_sb, tpar, ans2 =
                  converge q.op ~guard
+                   ~branches:(List.map (subst_formula rn_acc) g_brs)
                    ~initstep:!initstep
                    ~check_only:(!initstep || old_initstep ||
                                 iter_no < disj_step.(5))

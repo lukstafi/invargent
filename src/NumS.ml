@@ -1164,19 +1164,21 @@ let solve_aux ~use_quants ?(strict=false)
     | ((v,k)::vars, cst, loc)::ineqn ->
       handle_proj v k vars cst loc ineqn in
   let solved_eqs = varmap_merge eqn eqs in
-  let propagate holds (m, n) =
+  let propagate holds prefer_first (m, n) =
     let m_vars, m_cst, _ as m = subst_w ~cmp_v solved_eqs m
     and n_vars, n_cst, _ as n = subst_w ~cmp_v solved_eqs n in
     if m_vars = [] && holds m_cst || n_vars = [] && holds n_cst then None
     else if m_vars = [] then Some (Right n)
-    else if n_vars = [] || equal_w ~cmp_v m n then Some (Right m)
-    else Some (Left (m, n)) in
+    else if n_vars = [] then Some (Right m)
+    else match diff ~cmp_v m n with
+      | [], d, _ -> Some (Right (if prefer_first d then m else n))
+      | _ -> Some (Left (m, n)) in
   (* Opti supplies both weak inequalities above and requires a zero arm.
      Subopti requires either arm to be nonpositive. *)
   let optis, more_implicits =
-    partition_choice (map_some (propagate (fun c -> c =/ !/0)) optis) in
+    partition_choice (map_some (propagate (fun c -> c =/ !/0) (fun d -> d >=/ !/0)) optis) in
   let suboptis, more_ineqn =
-    partition_choice (map_some (propagate (fun c -> c <=/ !/0)) suboptis) in
+    partition_choice (map_some (propagate (fun c -> c <=/ !/0) (fun d -> d <=/ !/0)) suboptis) in
   (*[* Format.printf "NumS.solve: solving ineqs...@\nineqn=%a@\n%!"
     pr_ineqn ineqn; *]*)
   let ineqs, implicits = proj ineqs (more_implicits @ !eqs_implicits)
@@ -1233,11 +1235,11 @@ let solve_get_eqn ~use_quants ?strict
       pr_state res; *]*)
     res, !all_eqn, !all_ineqn, !all_implicit, !all_quant_viol_cnj
 
-let solve ?(use_quants=Ignore_viol) ?strict
+let solve ?strict
     ?eqs ?ineqs ?eqs' ?optis ?suboptis ?eqn ?ineqn ?cnj ?cnj'
     ~cmp_v ~cmp_w uni_v =
   let res, _, _, implicits, _ =
-    solve_get_eqn ~use_quants ?strict
+    solve_get_eqn ~use_quants:Ignore_viol ?strict
       ?eqs ?ineqs ?eqs' ?optis ?suboptis ?eqn ?ineqn ?cnj ?cnj'
       ~cmp_v ~cmp_w uni_v in
   (*[* if implicits <> []
@@ -1300,6 +1302,38 @@ let implies_case ~cmp_v ~cmp_w uni_v eqs ineqs c_eqn c_ineqn
   && List.for_all
     (fun (w1, w2) -> impossible_strict [opposite w1; opposite w2])
     c_suboptis
+
+(* A remaining disjunction can constrain a rigid index even when its
+   individual affine forms have not become equations or bounds. First
+   discharge consequences of the checked linear constraints. Otherwise
+   keep the whole disjunction as an obligation at its predicate scope. *)
+let solve_scoped ~use_quants ~eqs ~ineqs ~optis ~suboptis ?eqn ?ineqn ?cnj
+    ~cmp_v ~cmp_w uni_v =
+  let (eqs, ineqs, optis, suboptis as state), eqn, ineqn, implicit, viol =
+    solve_get_eqn ~use_quants ~eqs ~ineqs ~optis ~suboptis ?eqn ?ineqn ?cnj
+      ~cmp_v ~cmp_w uni_v in
+  let check is_eq (((vars, _, _), (vars', _, _)) as pair) =
+    match vars @ vars' with
+    | [] -> None
+    | (v, _) :: rest ->
+        let violates = quant_viol uni_v cmp_v in
+        let collect, reject = match use_quants with
+          | Store_viol bvs ->
+              violates ~storeable:true bvs v rest,
+              violates ~storeable:false bvs v rest
+          | Fail_viol bvs -> false, violates ~storeable:false bvs v rest
+          | Ignore_viol -> false, false in
+        if not (collect || reject) then None else
+        let opt, sub, atom = if is_eq then [pair], [], Opti_w pair
+          else [], [pair], Subopti_w pair in
+        if implies_case ~cmp_v ~cmp_w uni_v eqs ineqs [] [] opt sub then None
+        else if collect then Some atom
+        else raise (Terms.Contradiction
+                      (Num_sort, "Quantifier violation (numeric extremum)",
+                       None, w_atom_loc atom)) in
+  let opt_viol = map_some (check true) optis in
+  let sub_viol = map_some (check false) suboptis in
+  state, eqn, ineqn, implicit, viol @ opt_viol @ sub_viol
 
 (* Simultaneous case split on several opti and subopti
    disjunctions. Also include inequalities implied by opti atoms, in
@@ -1788,7 +1822,7 @@ let abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~orig_ren ~b_of_v ~upward_of
            (* [new_eqn, new_ineqn] are used to determine the variables
               contributed to the answer and evaluate the candidate. *)
            let _, new_eqn, new_ineqn, _, new_viol as acc =
-             solve_get_eqn ~use_quants:(Store_viol bvs)
+             solve_scoped ~use_quants:(Store_viol bvs)
                ~eqs:eqs_acc0 ~ineqs:ineqs_acc0
                ~optis:optis_acc ~suboptis:suboptis_acc
                ~ineqn:[w] ~cmp_v ~cmp_w uni_v in
@@ -2341,7 +2375,7 @@ let abd_simple ~qcmp_v ~cmp_w
           (* [new_eqn, new_ineqn] are only used to determine the
              variables contributed to the answer. *)
           let acc =
-            solve_get_eqn ~use_quants:(Fail_viol bvs)
+            solve_scoped ~use_quants:(Fail_viol bvs)
               ~eqs:eqs_acc0 ~ineqs:ineqs_acc0
               ~optis:(optin @ optis_acc) ~suboptis:(suboptin @ suboptis_acc)
               ~eqn ~ineqn ~cmp_v ~cmp_w uni_v in
@@ -3959,7 +3993,7 @@ let simplify q ?(keepvs=VarSet.empty) ?localvs ?(guard=[]) elimvs cnj =
   (*[* Format.printf "NumS.simplify:@\nres=%a@\n%!" pr_formula ans; *]*)
   VarSet.elements vs, ans
 
-let converge q ?localvs ?(guard=[]) ~initstep cnj1 cnj2 =
+let converge q ?localvs ?(guard=[]) ?suppliers ~initstep cnj1 cnj2 =
   (*[* Format.printf
     "NumS.converge: initstep=%b localvs=%a@\ncnj1=@ %a@\ncnj2=@ %a@\n%!"
     initstep pr_vars (match localvs with Some vs->vs|None->VarSet.empty)
@@ -3986,15 +4020,26 @@ let converge q ?localvs ?(guard=[]) ~initstep cnj1 cnj2 =
   let ans1 = concat_map eq2ineq ans1
   and ans2 = concat_map eq2ineq ans2 in
   let new_atoms = cnj2 @ ans2 in
+  (* A coarse generalization can forget a bound shared by all suppliers.
+     Solve their projected branches only if the summary cannot prove it. *)
+  let interface, branch_states = match suppliers with
+    | None -> VarSet.empty, []
+    | Some (interface, branches) ->
+        let branch cnj = lazy (
+          try Some (solve ~cnj ~cmp_v ~cmp_w q.uni_v)
+          with Terms.Contradiction _ -> None) in
+        interface, List.map branch branches in
   let keep atom =
     List.exists (eq_atom atom) new_atoms ||
-    match atom with
-    | Leq _ ->
-        (* A stronger supplier bound can discharge an old caller bound. *)
-        let eqn, ineqn, opti, subopti = split_flatten ~cmp_v [atom] in
-        implies ~cmp_v ~cmp_w q.uni_v eqs2 ineqs2 optis2 suboptis2
-          eqn ineqn opti subopti
-    | _ -> false in
+    let eqn, ineqn, opti, subopti = split_flatten ~cmp_v [atom] in
+    let proves (eqs, ineqs, optis, suboptis) =
+      implies ~cmp_v ~cmp_w q.uni_v eqs ineqs optis suboptis
+        eqn ineqn opti subopti in
+    proves (eqs2, ineqs2, optis2, suboptis2) ||
+    (branch_states <> [] && VarSet.subset (fvs_atom atom) interface &&
+     List.for_all (fun state -> match Lazy.force state with
+       | Some state -> proves state
+       | None -> true) branch_states) in
   let res = List.filter keep (cnj1 @ ans1) in
   let more_guard, res =
     match localvs with
@@ -4081,8 +4126,9 @@ let holds q avs (eqs, ineqs, optis, suboptis : state) cnj : state =
     | _, [] -> -1
     | [], _ -> 1
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
-  solve ~use_quants:(Fail_viol avs)
-      ~eqs ~ineqs ~optis ~suboptis ~cnj ~cmp_v ~cmp_w q.uni_v
+  let state, _, _, _, _ = solve_scoped ~use_quants:(Fail_viol avs)
+      ~eqs ~ineqs ~optis ~suboptis ~cnj ~cmp_v ~cmp_w q.uni_v in
+  state
 
 let abductive_holds q ~bvs (eqs, ineqs, optis, suboptis : state) cnj =
   let cmp_v = make_cmp q in
@@ -4093,7 +4139,7 @@ let abductive_holds q ~bvs (eqs, ineqs, optis, suboptis : state) cnj =
     | [], _ -> 1
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
   let state, _, _, _, quant_viol_cnj =
-    solve_get_eqn ~use_quants:(Store_viol bvs)
+    solve_scoped ~use_quants:(Store_viol bvs)
       ~eqs ~ineqs ~optis ~suboptis ~cnj ~cmp_v ~cmp_w q.uni_v in
   state, expand_formula quant_viol_cnj
 

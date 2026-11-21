@@ -18,7 +18,14 @@ let input_file file =
    with End_of_file -> ());
   Buffer.contents buf
 
-let test_case ?(test_annot=false) ?(do_ml=true)
+let signature_tokens text =
+  let buf = Lexing.from_string text in
+  let rec read acc = match Lexer.token buf with
+    | Parser.EOF -> List.rev acc
+    | token -> read (token :: acc) in
+  read []
+
+let test_case ?(test_annot=false) ?(do_ml=true) ?(cmp_sig=(=))
     ?drop_assert_false
     ?richer_answers ?more_general_num
     ?prefer_guess ?ty_abd_timeout
@@ -106,7 +113,7 @@ let test_case ?(test_annot=false) ?(do_ml=true)
        (*[* Format.printf "test_case: file=%s@\n%!" file; *]*)
        InvarGenT.process_file ~do_sig:true ~do_ml
          ~full_annot:test_annot (file^".gadt") in
-     assert_equal ~printer:(fun x->x)
+     assert_equal ~cmp:cmp_sig ~printer:(fun x->x)
        (input_file (file^".gadti.target"))
        (input_file (file^".gadti"));
      assert_bool "Failed verification of .ml/.mli code"
@@ -196,6 +203,8 @@ let tests = "InvarGenT" >::: [
            skip_if !debug "debug";
            test_case "equal_assert" ());
       "capped climb" >:: test_case "capped_climb";
+      "max-capped climb" >:: test_case "max_capped_climb"
+        ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
       "binary_plus" >::
         (fun () ->
            skip_if !debug "debug";

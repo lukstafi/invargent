@@ -25,6 +25,36 @@ let numeric_formula s =
   sort_formula (Parser.formula Lexer.token (Lexing.from_string s))
 
 let tests = "NumS" >::: [
+  "extremum at a universal result index" >:: (fun () ->
+    let q = {q with uni_v = (fun _ -> true)} in
+    let goal = numeric_formula "n2<=max(n1+20,0)" in
+    let vars = NumDefs.fvs_formula goal in
+    let rejected =
+      try ignore (holds q VarSet.empty empty_state goal); false
+      with Terms.Contradiction _ -> true in
+    assert_bool "the caller bound restricts an arbitrary result" rejected;
+    let _, demand = abductive_holds q ~bvs:vars empty_state goal in
+    assert_bool "Split receives the caller bound"
+      (implies_cnj (satisfiable_exn demand) goal);
+    ignore (holds q VarSet.empty empty_state
+              (numeric_formula "n1<=max(2 n1,0)")));
+
+  "widen against every supplier on the public interface" >:: (fun () ->
+    let old = numeric_formula "n1<=n2 ∧ n2<=max(n1+20,0)" in
+    let summary = numeric_formula "n1<=n2" in
+    let public = NumDefs.fvs_formula old in
+    let check interface branches expected =
+      let result = converge q ~initstep:false
+          ~suppliers:(interface, List.map numeric_formula branches) old summary in
+      assert_equal ~printer:string_of_bool expected
+        (implies_cnj (satisfiable_exn result) old) in
+    let base = "n2=n1" and left = "n2<=n1+19" and right = "n2<=0" in
+    check public [base; left; right] true;
+    check public [base; left; "n2<=n1+21"] false;
+    check public [base; "0<=n1"] false;
+    check public [] false;
+    check VarSet.empty [base; left; right] false);
+
   "extrema on ground inputs" >:: (fun () ->
     let goals = List.map (fun (text, holds) -> text, numeric_formula text, holds)
         ["n1 = max(n2,n3)", (fun x y z -> x = max y z);
