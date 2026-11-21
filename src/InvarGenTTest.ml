@@ -226,6 +226,8 @@ let tests = "InvarGenT" >::: [
            skip_if !debug "debug";
            test_case "equal_assert" ());
       "capped climb" >:: test_case "capped_climb";
+      "cap across two result constructors" >:: test_case "split_shifted_climb"
+        ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
       "shifted cap with a symbolic argument" >:: test_case "shifted_capped_climb"
         ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
       "max-capped climb" >:: test_case "max_capped_climb"

@@ -1,0 +1,25 @@
+datatype Nat
+
+datacons Z : Nat
+
+datacons S : Nat ⟶ Nat
+
+datatype StepResult : num * num
+
+datacons B : ∀k, m, n[0 ≤ k ∧ k ≤ n + 1 ∧ k ≤ m + 19].Num k ⟶
+   StepResult (m, n)
+
+datacons Zero : ∀m, n. StepResult (m, n)
+
+external val step :
+   ∀m, n[0 ≤ n ∧ n≤max (m + 20, 0)].
+   Num m → Num n → StepResult (m, n)
+
+val climb :
+   ∀k, n[k ≤ 1].
+   Num k → Num n → Nat → ∃i[k ≤ i + 1 ∧ 0 ≤ i ∧
+     i≤max (0, n + 19)].Num i
+
+val boundary : ∃n[1 ≤ n + 1 ∧ 0 ≤ n ∧ n≤max (0, -1)].Num n
+
+val descending : ∃n[-3 ≤ n + 1 ∧ 0 ≤ n ∧ n≤max (0, 19)].Num n

@@ -374,7 +374,7 @@ let simplify_dsjelim q initstep ~target ~param_bvs vs ans =
   vs, ans
 
 (* FIXME: introduce existential type variables for escaping parameters *)
-let disjelim q ?target ~bvs ~param_bvs (* ~preserve *) (* ~old_local *)
+let disjelim q ?(previous=[]) ?target ~bvs ~param_bvs (* ~preserve *) (* ~old_local *)
     ~up_of_anchor ~do_num ~guess ~initstep ~residuum brs =
   let target = match target with None -> delta | Some v -> v in
   (* (1) D_i,s *)
@@ -458,7 +458,7 @@ let disjelim q ?target ~bvs ~param_bvs (* ~preserve *) (* ~old_local *)
       let ord_brs = List.map2
           (fun (prem, a) b -> prem, residuum_ord @ a @ b) brs_ord eqs_ord in
       let num_avs, num_abd, num_ans, num_dsj_brs =
-        NumS.disjelim q ~target_vs
+        NumS.disjelim q ~previous ~target_vs
           ~preserve:keep_for_simpl ~bvs ~param_bvs
           ~guess ~initstep num_brs in
       let ord_avs, ord_abd, ord_ans, ord_dsj_brs =

@@ -1216,7 +1216,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
                  (* [usb] is additional abductive the answer. *)
                  let up_of_anchor v = upward_of v anchor in
                  let dissoc, g_abd, (g_vs, g_ans), g_brs =
-                   DisjElim.disjelim q_ops (* ?old_delta *)
+                   DisjElim.disjelim q_ops ~previous:(sep_formulas old_ans).cnj_num
                      ~bvs ~param_bvs (* ~preserve *)
                      ~up_of_anchor
                      ~do_num:(disj_step.(1) <= iter_no)

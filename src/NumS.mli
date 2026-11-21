@@ -108,7 +108,7 @@ val abd :
 
 (** For uniformity, we return an empty list as introduced variables. *)
 val disjelim :
-  Defs.quant_ops -> target_vs:Defs.VarSet.t -> preserve:Defs.VarSet.t ->
+  Defs.quant_ops -> ?previous:NumDefs.formula -> target_vs:Defs.VarSet.t -> preserve:Defs.VarSet.t ->
   bvs:Defs.VarSet.t -> param_bvs:Defs.VarSet.t ->
   guess:bool -> initstep:bool ->
   (NumDefs.formula * NumDefs.formula) list ->

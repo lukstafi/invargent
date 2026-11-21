@@ -3351,7 +3351,7 @@ let ptope_mem ptope w_key w_c =
 
 (* Currently, [initstep] is only used to generate more -- redundant --
    [subopti] atoms. *)
-let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
+let disjelim_aux q ~previous ~target_vs ~preserve ~bvs ~param_bvs
     ~guess ~initstep brs =
   let cmp_v = make_cmp q in
   (* Move preserved variables to the front of parameters but behind
@@ -3962,8 +3962,31 @@ let disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
           else select room seen rest in
     existing @ select (limit - List.length existing) (List.map make_atom existing)
         (List.concat sources) in
+  (* The previous result may contain a constant arm introduced by a use.
+     Transfer only its orientation and threshold. Bind every variable in
+     a proposed disjunction at the definition and replay all suppliers. *)
+  let thresholds = concat_map (function
+    | Subopti_w (left, right) | Opti_w (left, right) ->
+        map_some (function
+          | [_, k], c, _ -> Some (sign_num k, c // abs_num k)
+          | _ -> None) [left; right]
+    | _ -> []) (flatten_formula ~cmp_v previous) in
+  let compare_threshold (sign1, c1) (sign2, c2) =
+    if sign1 = sign2 then compare_num c1 c2 else compare sign1 sign2 in
+  let thresholds = unique_sorted ~cmp:compare_threshold thresholds in
+  let candidates =
+    if thresholds = [] || List.length suboptis >= !max_subopti_postcond then []
+    else
+      let affine_faces = WSet.elements (wset_of_list (List.concat faces)) in
+      concat_map (fun (vars, _, lc as face) -> match vars with
+        | [] | [_] -> []
+        | _ -> concat_map (fun (v, k) ->
+            if not (VarSet.mem v target_vs) then [] else
+            map_some (fun (sign, c) ->
+              if sign_num k = sign then Some (([v, k], abs_num k */ c, lc), face)
+              else None) thresholds) vars) affine_faces in
   let optis = supplement !max_opti_postcond expand_opti optis input_optis
-  and suboptis = supplement !max_subopti_postcond expand_subopti suboptis input_suboptis in
+  and suboptis = supplement !max_subopti_postcond expand_subopti suboptis (input_suboptis @ [candidates]) in
   List.map (expand_atom true) abd_eqn @
     List.map (expand_atom false) abd_ineqn,
   List.map expand_opti optis @
@@ -3978,7 +4001,7 @@ let cleanup ~preserve cnj =
        VarSet.exists (fun p -> VarSet.mem p preserve) (fvs_atom c))
     cnj
 
-let disjelim q ~target_vs ~preserve ~bvs ~param_bvs ~guess ~initstep brs =
+let disjelim q ?(previous=[]) ~target_vs ~preserve ~bvs ~param_bvs ~guess ~initstep brs =
   (*[* Format.printf "NumS.disjelim: preserve=%a #brs=%d@ params=%a@ bvs=%a\
                        @\ninit brs=@\n%a@\n%!"
     pr_vars preserve (List.length brs) pr_vars param_bvs pr_vars bvs
@@ -3987,12 +4010,12 @@ let disjelim q ~target_vs ~preserve ~bvs ~param_bvs ~guess ~initstep brs =
   | [] -> assert false
   | [br] ->
     let abd_cnj, cnj, dsj_brs =
-      disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
+      disjelim_aux q ~previous ~target_vs ~preserve ~bvs ~param_bvs
          ~guess ~initstep [br; br] in
     [], abd_cnj, cleanup ~preserve cnj, dsj_brs
   | _ ->
     let abd_cnj, cnj, dsj_brs =
-      disjelim_aux q ~target_vs ~preserve ~bvs ~param_bvs
+      disjelim_aux q ~previous ~target_vs ~preserve ~bvs ~param_bvs
          ~guess ~initstep brs in
     [], abd_cnj, cleanup ~preserve cnj, dsj_brs
 

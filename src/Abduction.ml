@@ -1130,6 +1130,25 @@ let abd q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of ~nonparam_vars
          *]*)
         raise (NoAnswer (Num_sort, "numerical abduction failed",
                          None, lc)) in
+  (* Different orders of the numeric premise cases can introduce a caller
+     bound before another branch supplies the equations that prove it.
+     Check the complete positive obligations before sending it to Split. *)
+  let ans_num =
+    if neg_brs <> [] || discard.at_num <> [] ||
+       not (List.exists (function NumDefs.Subopti _ -> true | _ -> false) ans_num)
+    then ans_num else
+    let sufficient atoms =
+      let state = NumS.satisfiable_exn atoms in
+      List.for_all (fun (_, _, prem, concl) ->
+        try NumS.implies_cnj (NumS.satisfiable_exn ~state prem) concl
+        with Contradiction _ -> true) brs_num in
+    let rec trim kept = function
+      | [] -> List.rev kept
+      | (NumDefs.Eq _ as a)::rest -> trim (a::kept) rest
+      | a::rest ->
+          if sufficient (List.rev_append kept rest) then trim kept rest
+          else trim (a::kept) rest in
+    trim [] ans_num in
   let ans_typ = to_formula ans_typ in
   let neg_num_res =
     if not !neg_before_abd then neg_num ans_num

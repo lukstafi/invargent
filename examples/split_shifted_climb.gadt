@@ -1,0 +1,17 @@
+datatype Nat
+datacons Z : Nat
+datacons S : Nat ⟶ Nat
+
+datatype StepResult : num * num
+datacons B : ∀m, n, k [0≤k ∧ k≤n+1 ∧ k≤m+19]. Num k ⟶ StepResult (m, n)
+datacons Zero : ∀m, n. StepResult (m, n)
+external let step : ∀m, n [0≤n ∧ n≤max(m+20, 0)]. Num m → Num n → StepResult (m, n) =
+  "fun m n -> assert (0 <= n && n <= max (m+20) 0); if m + 19 <= 0 then Zero else B (min (n+1) (m+19))"
+
+let rec climb d m = efunction
+  | Z -> 0
+  | S t -> let r = climb d (m + d) t in
+           (ematch step m r with B u -> u | Zero -> 0)
+
+let boundary = climb 1 (-20) (S (S Z))
+let descending = climb (-3) 0 (S (S Z))
