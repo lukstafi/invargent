@@ -2424,14 +2424,17 @@ let abd_simple ~qcmp_v ~cmp_w
       let a0 = subst_w_atom ~cmp_v eqs_acc0 a in
       (*[* Format.printf
         "NumS.abd_simple: [%d]@ a0=%a@\n%!" ddepth pr_w_atom a0; *]*)
-      (* If one premise arm already implies its goal arm by a constant
-         offset, abduce the comparison for the remaining pair. *)
+      (* Once one premise arm is covered, the other may imply either
+         goal arm, including the one already used. *)
       let try_dominance goal =
         let g1, g2 = subst_2w ~cmp_v d_eqs0 goal in
         let match_arms common other p q =
           if taut_w false (diff ~cmp_v common p) then
-            let bound = diff ~cmp_v other q in
-            try_trans_a (Leq_w (subst_if_qv ~uni_v ~bvs ~cmp_v rev_sb bound)) in
+            let propose arm =
+              let bound = diff ~cmp_v arm q in
+              try_trans_a (Leq_w (subst_if_qv ~uni_v ~bvs ~cmp_v rev_sb bound)) in
+            propose other;
+            propose common in
         List.iter (fun source ->
           let p1, p2 = subst_2w ~cmp_v d_eqs0 source in
           match_arms g1 g2 p1 p2; match_arms g1 g2 p2 p1;
