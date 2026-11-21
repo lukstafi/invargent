@@ -195,6 +195,7 @@ let tests = "InvarGenT" >::: [
         (fun () ->
            skip_if !debug "debug";
            test_case "equal_assert" ());
+      "capped climb" >:: test_case "capped_climb";
       "binary_plus" >::
         (fun () ->
            skip_if !debug "debug";

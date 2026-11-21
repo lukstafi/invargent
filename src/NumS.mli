@@ -134,9 +134,9 @@ val prune_redundant :
   initstep:bool ->
   NumDefs.formula -> NumDefs.formula
 
-(** Intersect atoms of the formulas, but only after generating
-    consequences via Fourier elimination and turning equations into
-    pairs of inequalities. *)
+(** Widen aligned postconditions. Retain common atoms and old linear
+    inequalities implied by the new linear constraints. Include Fourier
+    consequences and the two inequalities of each solved equation. *)
 val converge :
   Defs.quant_ops -> ?localvs:Defs.VarSet.t -> ?guard:NumDefs.formula ->
   initstep:bool ->

@@ -134,9 +134,9 @@ let main () =
     "-early_num_abduction", Arg.Set NumS.early_num_abduction,
     "Include recursive branches in numerical abduction from the start";
     "-convergence_step", Arg.Int set_convergence_step,
-    "The iteration at which to start truncating postconditions to only \
-     keep atoms present in the previous iteration, to force \
-     convergence (default 8)";
+    "The iteration at which to start widening numeric postconditions. Keep \
+     common atoms and old inequalities implied by the new linear constraints \
+     (default 8)";
     "-early_postcond_abd", Arg.Set Invariants.early_postcond_abd,
     "Include postconditions from recursive calls in abduction from the start";
     "-num_abduction_rotations", Arg.Set_int NumS.abd_rotations,
@@ -189,7 +189,8 @@ let main () =
     "Limit the number of atoms min(a, b) <= x, x <= max(a, b) \
      in (intermediate and final) postconditions (default 4)";
     "-iterations_timeout", Arg.Set_int Invariants.timeout_count,
-    "Limit on main algorithm iterations (default 7)";
+    (Printf.sprintf "Last main algorithm iteration, counting from zero (default %d)"
+       !Invariants.timeout_count);
     "-if_else_no_when", Arg.Clear Terms.parse_if_as_integer,
     "Do not add <when> clause to the <else> branch of an <if> expression \
      with a single inequality as condition.";

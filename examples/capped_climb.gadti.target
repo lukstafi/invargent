@@ -1,0 +1,13 @@
+datatype Nat
+
+datacons Z : Nat
+
+datacons S : Nat ⟶ Nat
+
+datatype Box : num * num
+
+datacons B : ∀k, m, n[m ≤ k ∧ k ≤ n + 1 ∧ k ≤ m + 19].Num k ⟶ Box (m, n)
+
+external val step : ∀m, n[m ≤ n ∧ n ≤ m + 20]. Num m → Num n → Box (m, n)
+
+val climb : ∀n. Num n → Nat → ∃k[k ≤ n + 20 ∧ n ≤ k].Num k

@@ -4021,9 +4021,17 @@ let converge q ?localvs ?(guard=[]) ~initstep cnj1 cnj2 =
     | a -> [a] in
   let ans1 = concat_map eq2ineq ans1
   and ans2 = concat_map eq2ineq ans2 in
-  (* FIXME: Actually, include transitivity! *)
-  (* FIXME: where are equations recovered? *)
-  let res = formula_inter (cnj1 @ ans1) (cnj2 @ ans2) in
+  let new_atoms = cnj2 @ ans2 in
+  let keep atom =
+    List.exists (eq_atom atom) new_atoms ||
+    match atom with
+    | Leq _ ->
+        (* A stronger supplier bound can discharge an old caller bound. *)
+        let eqn, ineqn, opti, subopti = split_flatten ~cmp_v [atom] in
+        implies ~cmp_v ~cmp_w q.uni_v eqs2 ineqs2 optis2 suboptis2
+          eqn ineqn opti subopti
+    | _ -> false in
+  let res = List.filter keep (cnj1 @ ans1) in
   let more_guard, res =
     match localvs with
       | Some localvs when not initstep ->

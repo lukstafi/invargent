@@ -951,8 +951,8 @@
     solution.
 
     <item*|<verbatim|-convergence_step>>The iteration at which to start
-    truncating postconditions by only keeping atoms present in the previous
-    iteration, to force convergence (default 8).
+    widening numerical postconditions (default 8). Keep common atoms and old
+    inequalities implied by the new linear constraints.
 
     <item*|<verbatim|-early_postcond_abd>>Include postconditions from
     recursive calls in abduction from the start. We do not derive
@@ -1089,8 +1089,8 @@
     final postconditions usually have few of these atoms, but a greater
     number is sometimes needed in the intermediate steps of the main loop.
 
-    <item*|<verbatim|-iterations_timeout>>Limit on main algorithm iterations
-    (default 6). Answers found in an iteration of the main algorithm are
+    <item*|<verbatim|-iterations_timeout>>Last main algorithm iteration,
+    counting from zero (default 11). Answers found in an iteration of the main algorithm are
     propagated to use sites in the next iteration. However, for about four
     initial iterations, each iteration turns on additional processing which
     makes better sense with the results from the previous iteration
