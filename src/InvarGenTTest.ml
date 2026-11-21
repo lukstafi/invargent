@@ -178,6 +178,29 @@ let test_case ?(test_annot=false) ?(do_ml=true) ?(cmp_sig=(=))
   Format.printf " t=%.3fs " (Sys.time () -. ntime)
 
 let tests = "InvarGenT" >::: [
+      "signed arguments and arithmetic grouping in exported OCaml" >:: (fun () ->
+        Terms.reset_state (); Infer.reset_state ();
+        let source = "let rec scale x = -2 * (x + -1)\nlet result = scale (-3)" in
+        let program = Parser.program Lexer.token (Lexing.from_string source) in
+        let _, annot = Infer.infer_prog InvarGenT.solver (Infer.normalize_program program) in
+        let old_type = !OCaml.num_is and old_module = !OCaml.num_is_mod in
+        let export (ty, as_module, preamble, expected) =
+          OCaml.num_is := ty; OCaml.num_is_mod := as_module;
+          Format.asprintf "module Test_%s = struct@\n%s@\n%a@\nlet () = assert (result = %s)@\nend@\n"
+            ty preamble (OCaml.pr_ml ~funtys:false ~lettys:false) annot expected in
+        let cases =
+          ["int", false, "", "8"; "float", false, "", "8.";
+           "int64", false, "let int64_of_int = Int64.of_int\nlet add_int64 = Int64.add\nlet mult_int64 = Int64.mul", "8L";
+           "counter", true, "type counter = int64\nmodule Counter = struct let of_int = Int64.of_int let (+) = Int64.add let ( * ) = Int64.mul end", "8L"] in
+        let restore () = OCaml.num_is := old_type; OCaml.num_is_mod := old_module in
+        let scripts = try List.map export cases with exn -> restore (); raise exn in
+        restore ();
+        let file, output = Filename.open_temp_file "invargent_arithmetic" ".ml" in
+        List.iter (output_string output) scripts;
+        close_out output;
+        let status = Sys.command ("ocaml -noinit " ^ Filename.quote file) in
+        Sys.remove file;
+        assert_equal ~printer:string_of_int 0 status);
       "simple eval" >::
         (fun () ->
            skip_if !debug "debug";

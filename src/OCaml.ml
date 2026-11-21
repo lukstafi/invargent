@@ -117,14 +117,22 @@ let rec single_assert_false (_,_,e) =
     | _ -> false
 
 let postprocess elim_extypes e =
+  let named_arithmetic =
+    not !num_is_mod && !num_is <> "int" && !num_is <> "float" in
+  let binary name left right loc =
+    App (App (Var (name ^ !num_is, loc), left, loc), right, loc) in
   let rec aux = function
+    | (Num (_, loc) as n) when named_arithmetic ->
+      App (Var (!num_is ^ "_of_int", loc), n, loc)
     | (Var _ | Num _ | String _) as e -> e
     | Cons (k, args, loc) ->
       Cons (k, List.map aux args, loc)
     | NumAdd (e1, e2, loc) ->
-      NumAdd (aux e1, aux e2, loc)
+      if named_arithmetic then binary "add_" (aux e1) (aux e2) loc
+      else NumAdd (aux e1, aux e2, loc)
     | NumCoef (x, e, loc) ->
-      NumCoef (x, aux e, loc)
+      if named_arithmetic then binary "mult_" (aux (Num (x, loc))) (aux e) loc
+      else NumCoef (x, aux e, loc)
     | App (e1, e2, loc) ->
       App (aux e1, aux e2, loc)
     | Lam (ann, cls, loc) ->
@@ -200,9 +208,7 @@ let pr_expr funtys lettys ppf =
     then
       let num_is = String.capitalize !num_is in
       Some (num_is ^ ".of_int", num_is ^ ".(", "+", "*", ")")
-    else Some
-        (!num_is ^ "_of_int", "add_" ^ !num_is ^ " (",
-         "mult_" ^ !num_is ^ " (", ") (", ")") in
+    else None in
   let export_bool = [true, "true"; false, "false"] in
   let export_runtime_failure = "failwith" in
   let pr_ann =
@@ -448,5 +454,5 @@ let pr_ml ~funtys ~lettys ppf prog =
   (*[* Format.printf "pr_struct: cns key,count=@\n%a@\n%!"
     (pr_sep_list "|" (fun ppf (n,cs) -> fprintf ppf "%s(#=%d) "
                          (cns_str n) (List.length cs))) constrs; *]*)
-  fprintf ppf "type num = int@\n";
+  fprintf ppf "type num = %s@\n" !num_is;
   pr_struct_items ~funtys ~lettys constrs ppf init_types CNames.empty prog

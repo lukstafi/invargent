@@ -917,13 +917,15 @@ type ('a, 'b) pr_expr_annot =
 
 let pr_expr ?export_num ?export_if ?export_bool ?export_progseq
     ?export_runtime_failure pr_ann ppf exp =
+  let int_argument ppf i =
+    if i < 0 then fprintf ppf "(%d)" i else fprintf ppf "%d" i in
   let rec aux ppf = function
     | Var (s, _) -> fprintf ppf "%s" s
     | String (s, _) -> fprintf ppf "\"%s\"" s
     | Num (i, _) ->
       (match export_num with
        | None -> fprintf ppf "%d" i
-       | Some (fname, _, _, _, _) -> fprintf ppf "(%s %d)" fname i)
+       | Some (fname, _, _, _, _) -> fprintf ppf "(%s %a)" fname int_argument i)
     | NumAdd (a, b, _) ->
       (match export_num with
        | None -> fprintf ppf "@[<2>%a@ +@ %a@]" aux a aux b
@@ -931,9 +933,9 @@ let pr_expr ?export_num ?export_if ?export_bool ?export_progseq
          fprintf ppf "@[<2>%s%a@ %s@ %a%s@]" lbr aux a op aux b rbr)
     | NumCoef (x, a, _) ->
       (match export_num with
-       | None -> fprintf ppf "@[<2>%d@ *@ %a@]" x aux a
+       | None -> fprintf ppf "@[<2>%d@ *@ %a@]" x factor a
        | Some (fname, lbr, _, op, rbr) ->
-         fprintf ppf "@[<2>%s%s %d@ %s@ %a%s@]" lbr fname x op aux a rbr)
+         fprintf ppf "@[<2>%s%s %a@ %s@ %a%s@]" lbr fname int_argument x op factor a rbr)
     | Cons (CNam "Tuple", exps, _) ->
       fprintf ppf "@[<2>(%a)@]"
         (pr_sep_list "," aux) exps
@@ -1062,7 +1064,12 @@ let pr_expr ?export_num ?export_if ?export_bool ?export_progseq
     else fprintf ppf "@[<2>%a@ when@ %a@ ->@ %a@]"
         pr_pat pat (pr_sep_list "&&" pr_guard_leq) guards aux exp
 
+  and factor ppf = function
+    | (NumAdd _ | NumCoef _) as e -> fprintf ppf "(%a)" aux e
+    | e -> aux ppf e
+
   and pr_one_expr pr_ann ppf exp = match exp with
+    | Num (i, _) when export_num = None -> int_argument ppf i
     | Var _
     | Num _
     | Cons (_, [], _) -> aux ppf exp
