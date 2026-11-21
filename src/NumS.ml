@@ -2439,6 +2439,30 @@ let abd_simple ~qcmp_v ~cmp_w
           let p1, p2 = subst_2w ~cmp_v d_eqs0 source in
           match_arms g1 g2 p1 p2; match_arms g1 g2 p2 p1;
           match_arms g2 g1 p1 p2; match_arms g2 g1 p2 p1) prem_suboptis in
+      (* Under a known ordering the max demand reduces to its weaker arm.
+         Subtract a premise bound on the payload to expose an independent
+         input condition, e.g. r <= m+d+c and r <= m+L give d <= L-c. *)
+      let try_input_bound goal =
+        let goal = subst_2w ~cmp_v b_eqs goal in
+        match direct_opti goal with
+        | None -> ()
+        | Some (_, _, _, g1, g2) ->
+            let goal_vars = fvs_2w goal in
+            let premises = unsolve b_ineqs in
+            let try_arm g other =
+              let bounds = map_some (fun w ->
+                let bound = diff ~cmp_v g w in
+                let vs = fvs_w bound in
+                if not (VarSet.is_empty vs) &&
+                   VarSet.is_empty (VarSet.inter vs goal_vars)
+                then Some bound else None) premises in
+              if bounds <> [] &&
+                 implies ~cmp_v ~cmp_w uni_v b_eqs b_ineqs b_optis b_suboptis
+                   [] [diff ~cmp_v g other] [] [] then
+                List.iter (fun bound ->
+                  try_trans_a (Leq_w
+                    (subst_if_qv ~uni_v ~bvs ~cmp_v rev_sb bound))) bounds in
+            try_arm g1 g2; try_arm g2 g1 in
       (match a0 with
        | Leq_w w ->
          let w = subst_if_qv ~uni_v ~bvs ~cmp_v rev_sb w in
@@ -2456,7 +2480,9 @@ let abd_simple ~qcmp_v ~cmp_w
            pr_w_subst eqs_acc0 pr_w_subst rev_sb; *]*)
          List.iter try_trans_ineq cands
        | _ ->
-         (match a0 with Subopti_w pair -> try_dominance pair | _ -> ());
+         (match a0 with
+          | Subopti_w pair -> try_dominance pair; try_input_bound pair
+          | _ -> ());
          try_trans_a a0;
          laziter
            (fun tr ->
