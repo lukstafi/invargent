@@ -21,7 +21,68 @@ let uni_v v = v=VNam (Type_sort, "tx")
 let q = {cmp_v; uni_v; same_as = (fun _ _ -> ());
          upward_of = (fun _ _ -> false)}
 
+let numeric_formula s =
+  sort_formula (Parser.formula Lexer.token (Lexing.from_string s))
+
 let tests = "NumS" >::: [
+  "extrema on ground inputs" >:: (fun () ->
+    let goals = List.map (fun (text, holds) -> text, numeric_formula text, holds)
+        ["n1 = max(n2,n3)", (fun x y z -> x = max y z);
+         "n1 = min(n2,n3)", (fun x y z -> x = min y z);
+         "n1 <= max(n2,n3)", (fun x y z -> x <= max y z);
+         "min(n2,n3) <= n1", (fun x y z -> min y z <= x)] in
+    for x = -2 to 2 do
+      for y = -2 to 2 do
+        for z = -2 to 2 do
+          let given = Printf.sprintf "n1=%d ∧ n2=%d ∧ n3=%d" x y z in
+          let st = satisfiable_exn (numeric_formula given) in
+          List.iter (fun (text, goal, holds) ->
+            assert_equal ~msg:(given ^ " implies " ^ text) ~printer:string_of_bool
+              (holds x y z) (implies_cnj st goal)) goals
+        done
+      done
+    done);
+
+  "extrema under substitutions" >:: (fun () ->
+    let feasible batches =
+      try
+        ignore (List.fold_left (fun state batch ->
+          satisfiable_exn ~state (numeric_formula batch)) empty_state batches);
+        true
+      with Terms.Contradiction _ -> false in
+    let values = "n1=0 ∧ n2=2 ∧ n3=1" in
+    List.iter (fun (atom, expected) ->
+      List.iter (fun batches ->
+        assert_equal ~msg:(String.concat " then " batches) ~printer:string_of_bool
+          expected (feasible batches))
+        [[values ^ " ∧ " ^ atom]; [values;atom]; [atom;values]])
+      ["min(n1,n2)<=n3", true; "n3<=max(n1,n2)", true;
+       "n1+1<=max(n1,n1)", false; "min(n2,n3)<=n1", false;
+       "n1=min(n1,n2)", true; "n1=max(n1,n2)", false]);
+
+  "an early counterexample among many extrema" >:: (fun () ->
+    let rec constraints n acc =
+      if n = 0 then acc else
+        let atom = Printf.sprintf "min(n%d,n%d)<=n%d" (3*n) (3*n+1) (3*n+2) in
+        constraints (n-1) (atom :: acc) in
+    let st = satisfiable_exn (numeric_formula (String.concat " ∧ " (constraints 30 []))) in
+    assert_bool "the independent n1 is unrestricted"
+      (not (implies_cnj st (numeric_formula "n1<=0"))));
+
+  "extrema across alternatives" >:: (fun () ->
+    List.iter (fun (given, goal, expected) ->
+      let st = satisfiable_exn (numeric_formula given) in
+      assert_equal ~msg:(given ^ " implies " ^ goal) ~printer:string_of_bool
+        expected (implies_cnj st (numeric_formula goal)))
+      ["min(n1,n2) <= n3 ∧ n3+1 <= n2", "n1 <= n3", true;
+       "min(n1,n2) <= n3", "n1 <= n3", false;
+       "n1+n2=0 ∧ n3=0", "min(n1,n2) <= n3", true;
+       "n1+n2=0 ∧ n3=0", "n3 <= max(n1,n2)", true;
+       "n1+n2=0 ∧ n3= -1", "min(n1,n2) <= n3", false;
+       "n1<=n3 ∧ n2<=n3", "n3=max(n1,n2)", false;
+       "n1=0 ∧ n1+n2<=2 n3 ∧ n2=max(n3,n1)", "n2=n1+n3", true;
+       "n1<=n2 ∧ n2<=n3 ∧ n3<=n1 ∧ n4<=n1 ∧ n2<=n4", "n4=n3", true;
+       "n1<=n2 ∧ n2<=n3 ∧ n1<=n3", "n1=n3", false]);
 
   "convex hull: basic cst" >::
     (fun () ->

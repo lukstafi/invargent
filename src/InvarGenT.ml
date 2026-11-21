@@ -135,7 +135,7 @@ let main () =
     "Include recursive branches in numerical abduction from the start";
     "-convergence_step", Arg.Int set_convergence_step,
     "The iteration at which to start widening numeric postconditions. Keep \
-     common atoms and old inequalities implied by the new linear constraints \
+     common atoms and old inequalities implied by the new numeric constraints \
      (default 8)";
     "-early_postcond_abd", Arg.Set Invariants.early_postcond_abd,
     "Include postconditions from recursive calls in abduction from the start";

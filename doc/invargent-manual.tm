@@ -952,7 +952,7 @@
 
     <item*|<verbatim|-convergence_step>>The iteration at which to start
     widening numerical postconditions (default 8). Keep common atoms and old
-    inequalities implied by the new linear constraints.
+    inequalities implied by the new numeric constraints.
 
     <item*|<verbatim|-early_postcond_abd>>Include postconditions from
     recursive calls in abduction from the start. We do not derive

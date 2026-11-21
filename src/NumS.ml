@@ -1163,25 +1163,20 @@ let solve_aux ~use_quants ?(strict=false)
                 Some (Terms.num t1, Terms.num t2), loc))
     | ((v,k)::vars, cst, loc)::ineqn ->
       handle_proj v k vars cst loc ineqn in
-  let propagate (m, n) =
-    let (m_vars, m_cst, _ as m) = subst_w ~cmp_v eqn m
-    and (n_vars, n_cst, _ as n) = subst_w ~cmp_v eqn n in
-    if m_vars=[] && m_cst =/ !/0 || n_vars=[] && n_cst =/ !/0
-    then None
-    (* Possible contradiction will be recognized from the implicit
-       equality on next iteration. *)
-    else if m_vars=[] && m_cst <>/ !/0 then Some (Right n)
-    else if n_vars=[] && n_cst <>/ !/0 then Some (Right m)
-    else if equal_w ~cmp_v m n then Some (Right m)
+  let solved_eqs = varmap_merge eqn eqs in
+  let propagate holds (m, n) =
+    let m_vars, m_cst, _ as m = subst_w ~cmp_v solved_eqs m
+    and n_vars, n_cst, _ as n = subst_w ~cmp_v solved_eqs n in
+    if m_vars = [] && holds m_cst || n_vars = [] && holds n_cst then None
+    else if m_vars = [] then Some (Right n)
+    else if n_vars = [] || equal_w ~cmp_v m n then Some (Right m)
     else Some (Left (m, n)) in
-  (*[* Format.printf "NumS.solve: solving optis...@\n%!"; *]*)
+  (* Opti supplies both weak inequalities above and requires a zero arm.
+     Subopti requires either arm to be nonpositive. *)
   let optis, more_implicits =
-    if VarMap.is_empty eqn then optis, []
-    else partition_choice (map_some propagate optis) in
-  (*[* Format.printf "NumS.solve: solving suboptis...@\n%!"; *]*)
+    partition_choice (map_some (propagate (fun c -> c =/ !/0)) optis) in
   let suboptis, more_ineqn =
-    if VarMap.is_empty eqn then suboptis, []
-    else partition_choice (map_some propagate suboptis) in
+    partition_choice (map_some (propagate (fun c -> c <=/ !/0)) suboptis) in
   (*[* Format.printf "NumS.solve: solving ineqs...@\nineqn=%a@\n%!"
     pr_ineqn ineqn; *]*)
   let ineqs, implicits = proj ineqs (more_implicits @ !eqs_implicits)
@@ -1189,8 +1184,7 @@ let solve_aux ~use_quants ?(strict=false)
   (*[* Format.printf "NumS.solve: done@\nineqs=@ %a@\n%!"
     pr_ineqs ineqs; *]*)
   
-  (varmap_merge eqn eqs, ineqs,
-   optis, suboptis), eqn0, ineqn0, WSet.elements (wset_of_list implicits),
+  (solved_eqs, ineqs, optis, suboptis), eqn0, ineqn0, WSet.elements (wset_of_list implicits),
   !quant_viol_cnj
 
 type num_solution = w_subst * ineqs * optis * suboptis
@@ -1273,104 +1267,74 @@ let implies_case ~cmp_v ~cmp_w uni_v eqs ineqs c_eqn c_ineqn
     c_optis c_suboptis =
   (*[* Format.printf "implies_case: prem=@ %a@\nconcl=@ %a@\n%!"
     pr_ans (eqs, ineqs) pr_eqnineqn (c_eqn, c_ineqn); *]*)
-  List.for_all
-    (fun w ->
-       match subst_w ~cmp_v eqs w with
-       | [], cst, _ -> cst =/ !/0
-       | w' ->
-         (*[* Format.printf "implies: false eq w=%a@ w'=%a@\n%!"
-           pr_w w pr_w w'; *]*)
-         false)
-    c_eqn
+  let impossible_strict ws =
+    try
+      ignore (solve ~strict:true ~eqs ~ineqs ~ineqn:ws ~cmp_v ~cmp_w uni_v);
+      false
+    with Terms.Contradiction _ -> true in
+  let opposite = mult !/(-1) in
+  let nonpositive w = impossible_strict [opposite w] in
+  (* Each bound refers only to later variables in the elimination order.
+     Once their forced equalities are known, matching bounds pin this
+     variable to an affine form. Compute them only for unsolved equations. *)
+  let implicit_eqs = lazy (
+    let bounds = List.sort (fun (v, _) (u, _) -> cmp_v u v) (varmap_to_assoc ineqs) in
+    List.fold_left (fun sb (v, (lower, upper)) ->
+      if CombMap.is_empty lower || CombMap.is_empty upper then sb
+      else
+        let forms bounds = List.map (subst_w ~cmp_v sb) (affine_to_ineqn bounds) in
+        let lows = wset_of_list (forms lower) in
+        try VarMap.add v (List.find (fun w -> WSet.mem w lows) (forms upper)) sb
+        with Not_found -> sb) VarMap.empty bounds) in
+  let zero w =
+    match subst_w ~cmp_v eqs w with
+    | [], cst, _ -> cst =/ !/0
+    | w -> zero_p (subst_w ~cmp_v (Lazy.force implicit_eqs) w) in
+  List.for_all zero c_eqn
+  && List.for_all nonpositive c_ineqn
   && List.for_all
     (fun (w1, w2) ->
-       match subst_w ~cmp_v eqs w1, subst_w ~cmp_v eqs w2 with
-       | ([], cst1, _), ([], cst2, _) -> cst1 =/ !/0 || cst2 =/ !/0
-       | ([], cst1, _), _ -> cst1 =/ !/0
-       | _, ([], cst2, _) -> cst2 =/ !/0
-       | w1', w2' ->
-         (*[* Format.printf "implies: false eq w1'=%a@ w2'=%a@\n%!"
-           pr_w w1' pr_w w2'; *]*)
-         false)
+       (* max(w1,w2) = 0: both are nonpositive and cannot both be negative. *)
+       nonpositive w1 && nonpositive w2 && impossible_strict [w1; w2])
     c_optis
   && List.for_all
-    (fun w ->
-       let ineqn = [mult !/(-1) w] in
-       try ignore
-             (solve ~strict:true ~eqs ~ineqs ~ineqn ~cmp_v ~cmp_w uni_v);
-         (*[* Format.printf "implies: false ineq w=%a@\n%!"
-           pr_w w; *]*)        
-         false
-       with Terms.Contradiction _ -> true)
-    c_ineqn
-  && List.for_all
-    (fun (w1, w2) ->
-       try
-         let ineqn = [mult !/(-1) w1] in
-         ignore
-           (solve ~strict:true ~eqs ~ineqs ~ineqn ~cmp_v ~cmp_w uni_v);
-         let ineqn = [mult !/(-1) w2] in
-         ignore
-           (solve ~strict:true ~eqs ~ineqs ~ineqn ~cmp_v ~cmp_w uni_v);
-         (*[* Format.printf "implies: false subopti w1=%a w2=%a@\n%!"
-           pr_w w1 pr_w w2; *]*)        
-         false
-       with Terms.Contradiction _ -> true)
+    (fun (w1, w2) -> impossible_strict [opposite w1; opposite w2])
     c_suboptis
 
 (* Simultaneous case split on several opti and subopti
    disjunctions. Also include inequalities implied by opti atoms, in
    each choice. *)
+let choice_arms ~cmp_v ~intro_cho_ineq optis suboptis =
+  let opti w1 w2 =
+    if intro_cho_ineq
+    then [Eq_w w1; Leq_w w2; Leq_w (diff ~cmp_v w2 w1)]
+    else [Eq_w w1; Leq_w w2] in
+  let subopti w1 w2 =
+    if intro_cho_ineq
+    then [Leq_w w1; Leq_w (diff ~cmp_v w1 w2)]
+    else [Leq_w w1] in
+  let arms f (w1, w2) = [f w1 w2; f w2 w1] in
+  List.map (arms opti) optis @ List.map (arms subopti) suboptis
+
 let choices ~cmp_v ~intro_cho_ineq optis suboptis =
-  (*[* Format.printf "NumS.choices: optis=%d suboptis=%d@\n%!"
-    (List.length optis) (List.length suboptis); *]*)
-  let disjs =
-      List.map
-         (fun (w1,w2) -> [Left (w1, w2); Left (w2, w1)]) optis @
-      List.map
-         (fun (w1,w2) -> [Right (w1, w2); Right (w2, w1)]) suboptis in
-  let res = product disjs in
-  (*[* Format.printf "NumS.choices: optis/suboptis %d cases@\n%!"
-    (List.length res); *]*)  
-  List.map (fun cho ->  
-      let ch_opt, ch_sub = partition_choice cho in
-      concat_map
-        (* The last inequality is deducible, but sometimes doesn't get
-           reconstructed. *)
-          (fun (w1, w2) ->
-            if intro_cho_ineq
-            then [Eq_w w1; Leq_w w2; Leq_w (diff ~cmp_v w2 w1)]
-            else [Eq_w w1; Leq_w w2])
-          ch_opt @
-        concat_map
-          (* As above. *)
-          (fun (w1, w2) ->
-             if intro_cho_ineq
-             then [Leq_w w1; Leq_w (diff ~cmp_v w1 w2)]
-             else [Leq_w w1])
-          ch_sub)
-    res
+  List.map List.concat (product (choice_arms ~cmp_v ~intro_cho_ineq optis suboptis))
 
 let implies ~cmp_v ~cmp_w uni_v eqs ineqs optis suboptis c_eqn c_ineqn
     c_optis c_suboptis =
-  (*[* Format.printf "NumS.implies: prem=@\n%a@\nconcl=@ %a@\n%a;@ %a@\n%!"
-    pr_state (eqs, ineqs, optis, suboptis)
-    pr_eqnineqn (c_eqn, c_ineqn) pr_optis c_optis pr_suboptis c_suboptis; *]*)
-  if c_optis=[] && c_suboptis=[]
-  then
-    implies_case ~cmp_v ~cmp_w uni_v eqs ineqs c_eqn c_ineqn
-      c_optis c_suboptis
-  else List.for_all
-      (fun cho ->
-         let o_eqn, o_ineqn, _, _ = split_formula cho in
-         (* FIXME: do we need try-with here? *)
-         try
-           let eqs, ineqs, _, _ = solve ~eqs ~ineqs
-               ~eqn:o_eqn ~ineqn:o_ineqn ~cmp_v ~cmp_w uni_v in
-           implies_case ~cmp_v ~cmp_w uni_v eqs ineqs c_eqn c_ineqn
-             c_optis c_suboptis
-         with Terms.Contradiction _ -> true)
-      (choices ~cmp_v ~intro_cho_ineq:true optis suboptis)
+  let proves eqs ineqs =
+    implies_case ~cmp_v ~cmp_w uni_v eqs ineqs c_eqn c_ineqn c_optis c_suboptis in
+  let rec check_arms eqs ineqs = function
+    | [] -> proves eqs ineqs
+    | arms :: rest ->
+        List.for_all (fun arm ->
+          let eqn, ineqn, _, _ = split_formula arm in
+          try
+            let eqs, ineqs, _, _ = solve ~eqs ~ineqs ~eqn ~ineqn ~cmp_v ~cmp_w uni_v in
+            check_arms eqs ineqs rest
+          with Terms.Contradiction _ -> true) arms in
+  proves eqs ineqs ||
+  ((optis <> [] || suboptis <> []) &&
+   check_arms eqs ineqs (choice_arms ~cmp_v ~intro_cho_ineq:true optis suboptis))
 
 let implies_discard ~cmp_v ~cmp_w uni_v ~bvs (eqs, ineqs, optis, suboptis)
     (c_eqn, c_ineqn, c_optis, c_suboptis) =
