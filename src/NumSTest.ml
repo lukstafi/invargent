@@ -39,6 +39,33 @@ let tests = "NumS" >::: [
     ignore (holds q VarSet.empty empty_state
               (numeric_formula "n1<=max(2 n1,0)")));
 
+  "pruning keeps bounds that fail on an equality face" >:: (fun () ->
+    let check premise conclusion redundant =
+      let guard = numeric_formula premise and goal = numeric_formula conclusion in
+      let kept = prune_redundant q ~guard ~initstep:false goal in
+      assert_equal ~msg:conclusion ~printer:string_of_bool redundant (kept = []);
+      let entails = try implies_cnj (satisfiable_exn (guard @ kept)) goal
+        with Terms.Contradiction _ -> true in
+      assert_bool "the pruned formula still entails the goal under its guard" entails in
+    check "n1=0" "min(1,2)<=n1" false;
+    check "n1=0" "min(-1,2)<=n1" true;
+    check "n1=max(n2,n3)" "n1+1<=max(n2,n3)" false;
+    check "n1=max(n2,n3)" "n1+1<=max(n2,n3+1)" false;
+    check "n1=max(n2,n3)" "n1<=max(n2+1,n3+1)" true;
+    check "n1=min(n2,n3)" "min(n2,n3)<=n1+ -1" false);
+
+  "initial generalization may forget an extremum that pruning must keep" >:: (fun () ->
+    let f = numeric_formula
+      "n2=min(n1,0) ∧ n2=max(0,n2) ∧ n2=max(0,n1) ∧ n2=min(n2,0) ∧ n2=max(n2,n1)" in
+    let exact = prune_redundant q ~initstep:true f
+    and general = prune_redundant q ~allow_weakening:true ~initstep:true f in
+    assert_bool "exact simplification preserves both equalities"
+      (implies_cnj (satisfiable_exn exact) (numeric_formula "n1=0 ∧ n2=0"));
+    assert_bool "every supplier satisfies the proposed generalization"
+      (implies_cnj (satisfiable_exn f) general);
+    assert_bool "the early summary also admits positive equal arguments"
+      (implies_cnj (satisfiable_exn (numeric_formula "n1=1 ∧ n2=1")) general));
+
   "widen against every supplier on the public interface" >:: (fun () ->
     let old = numeric_formula "n1<=n2 ∧ n2<=max(n1+20,0)" in
     let summary = numeric_formula "n1<=n2" in

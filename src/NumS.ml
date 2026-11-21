@@ -377,8 +377,6 @@ let taut_w iseq (vars, cst, _) =
   vars = [] && ((iseq && cst =/ !/0) || (not iseq && cst <=/ !/0))
 let contr_w iseq (vars, cst, _) =
   vars = [] && ((iseq && cst <>/ !/0) || (not iseq && cst >/ !/0))
-let nonneg_cst_w (vars, cst, _) =
-  vars = [] && (cst >=/ !/0)
 
 (* TODO: a bit wasteful, simply compare. *)
 let equal_w ~cmp_v w1 w2 = zero_p (diff ~cmp_v w1 w2)
@@ -2898,6 +2896,9 @@ let expand_eqineqs eqs ineqs =
 (* [atomic_impl a b] means [a] is stronger than [b], or equal in
    strength unless [a] is [Opti_w] -- prune opti atoms as side effect. *)
 let atomic_impl ~cmp_v a b =
+  (* On the face w = 0, a constant upper bound on w + arm also
+     bounds arm. Either arm suffices for a subopti. *)
+  let on_zero w arm = taut_w false (sum_w ~cmp_v w arm) in
   match a, b with
   | Eq_w w1, Eq_w w2
     -> equal_w ~cmp_v w1 w2
@@ -2928,18 +2929,15 @@ let atomic_impl ~cmp_v a b =
   | Eq_w w1, Subopti_w (w2, w3) ->
     taut_w false (diff ~cmp_v w2 w1) ||
     taut_w false (diff ~cmp_v w3 w1) ||
-    (nonneg_cst_w (sum_w ~cmp_v w1 w2) &&
-     nonneg_cst_w (sum_w ~cmp_v w1 w3))
+    on_zero w1 w2 || on_zero w1 w3
   | Opti_w (w1, w2), Subopti_w (w3, w4) ->
     let res =
       taut_w false (diff ~cmp_v w3 w1) ||
       taut_w false (diff ~cmp_v w4 w1) ||
       taut_w false (diff ~cmp_v w3 w2) ||
       taut_w false (diff ~cmp_v w4 w2) ||
-      (nonneg_cst_w (sum_w ~cmp_v w1 w3) &&
-       nonneg_cst_w (sum_w ~cmp_v w2 w4)) ||
-      (nonneg_cst_w (sum_w ~cmp_v w2 w3) &&
-       nonneg_cst_w (sum_w ~cmp_v w1 w4)) in
+      ((on_zero w1 w3 || on_zero w1 w4) &&
+       (on_zero w2 w3 || on_zero w2 w4)) in
     (*[* Format.printf
       "implies-opt-subopti: w1=%a;@ w1=%a;@ w1=%a;@ w1=%a;@ \
        w3-w1=%a;@ w4-w1=%a;@ w3-w2=%a;@ w4-w2=%a@ res=%b@\n%!"
@@ -3111,6 +3109,8 @@ let keep_nonredund_subopti ~cmp_v ~cmp_w ineqs optis suboptis =
     | (([], _, _), _)::suboptis
     | (_, ([], _, _))::suboptis ->
       loop cho acc implicit drop suboptis
+    | pair::rest when direct_opti pair = None ->
+      loop cho (pair::acc) implicit drop rest
     | (w1, w2 as a)::suboptis ->
       let o_ineqn, dsj_pair = partition_map
           (function
@@ -3187,6 +3187,8 @@ let keep_nonredund_opti ~cmp_v ~cmp_w ineqs optis suboptis =
     | (([], _, _), _)::optis
     | (_, ([], _, _))::optis ->
       loop cho acc implicit drop optis
+    | pair::rest when direct_opti pair = None ->
+      loop cho (pair::acc) implicit drop rest
     | (w1, w2 as a)::optis ->
       let o_ineqn, dsj_pair = partition_map
           (function
@@ -3254,14 +3256,14 @@ let ineqn_of_eqineq_w = concat_map
       | _ -> [])
 
 (* Prune atoms implied by other atoms. *)
-let prune_redund ~cmp_v ~cmp_w guard_cnj cnj =
+let prune_redund ?(allow_weakening=false) ~cmp_v ~cmp_w guard formula =
   (*[* Format.printf "NumS.prune_redund:@\nguard=@ %a@\ncnj=@ %a@\n%!"
     pr_formula guard_cnj pr_formula cnj; *]*)
   (* First prune opti and subopti atoms, to avoid convoluted result
      instead of straightforward inequalities. *)
-  let cnj = split_flatten ~cmp_v cnj in
+  let cnj = split_flatten ~cmp_v formula in
   let g_eqn, g_ineqn, g_optis, g_suboptis as guard_cnj =
-    split_flatten ~cmp_v guard_cnj in
+    split_flatten ~cmp_v guard in
   let cnj = prune_single_redund ~cmp_v
       (cnj_to_w_formula guard_cnj) (cnj_to_w_formula cnj) in
   let eqn, ineqn, optis, suboptis = split_formula cnj in
@@ -3300,8 +3302,9 @@ let prune_redund ~cmp_v ~cmp_w guard_cnj cnj =
         init_ineqs_for_opti optis suboptis in
   let more_eq_ineqn =
     List.sort cmp_w (more_eqn @ List.map (mult !/(-1)) more_eqn) in
-  let ineqs = project ~cmp_v ~cmp_w init_ineqs
-      (more_ineqn @ more_eq_ineqn) in
+  (* The derived inequalities are candidates below, so they cannot also
+     be premises of their own redundancy checks. *)
+  let ineqs = project ~cmp_v ~cmp_w init_ineqs more_eq_ineqn in
   (* FIXME:  ~intro_cho_ineq:true? *)
   let opti_subopti = choices ~cmp_v ~intro_cho_ineq:true
       (g_optis @ optis) (g_suboptis @ suboptis) in
@@ -3318,9 +3321,25 @@ let prune_redund ~cmp_v ~cmp_w guard_cnj cnj =
      [prune_single_redund] at the beginning. *)
   (*[* Format.printf "NumS.prune_redund: result@\nineqn=@ %a@\n%!"
     pr_ineqn ineqn; *]*)
-  cnj_to_num_formula (more_eqn @ eqn, ineqn, optis, suboptis)
+  let candidate = cnj_to_num_formula (more_eqn @ eqn, ineqn, optis, suboptis) in
+  (* The case analysis above proposes a simpler formula. Check its changes
+     under the external guard, with the full disjunctive semantics.
+     Initial supplier generalization only needs the forward implication. *)
+  let has_extremum = List.exists (function Opti _ | Subopti _ -> true | _ -> false) in
+  let entails source target =
+    let missing = List.filter (fun a -> not (List.exists (eq_atom a) source)) target in
+    missing = [] ||
+    let eqn, ineqn, opt, sub = split_flatten ~cmp_v missing in
+    let uni_v _ = false in
+    try
+      let eqs, ineqs, opts, subs = solve ~cnj:(guard @ source) ~cmp_v ~cmp_w uni_v in
+      implies ~cmp_v ~cmp_w uni_v eqs ineqs opts subs eqn ineqn opt sub
+    with Terms.Contradiction _ -> true in
+  if not (has_extremum guard || has_extremum formula) ||
+     (allow_weakening || entails candidate formula) && entails formula candidate
+  then candidate else formula
 
-let prune_redundant q ?localvs ?(guard=[]) ~initstep cnj =
+let prune_redundant q ?(allow_weakening=false) ?localvs ?(guard=[]) ~initstep cnj =
   (*[* Format.printf
     "NumS.prune_redundant: initstep=%b localvs=%a@\ncnj=@ %a@\n%!"
     initstep pr_vars (match localvs with Some vs->vs|None->VarSet.empty)
@@ -3342,7 +3361,7 @@ let prune_redundant q ?localvs ?(guard=[]) ~initstep cnj =
   (*[* Format.printf
     "NumS.prune_redundant: guard=%a@ more_guard=%a@ res=%a@\n%!"
     pr_formula guard pr_formula more_guard pr_formula cnj; *]*)
-  prune_redund ~cmp_v ~cmp_w (more_guard @ guard) cnj
+  prune_redund ~allow_weakening ~cmp_v ~cmp_w (more_guard @ guard) cnj
 
 
 let ptope_mem ptope w_key w_c =

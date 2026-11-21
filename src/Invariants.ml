@@ -834,7 +834,8 @@ let converge q_ops ~initstep ?guard ~branches ~check_only
       (fun cnj -> (sep_formulas cnj).cnj_num) in
   let c_num =
     if check_only
-    then NumS.prune_redundant q_ops ~localvs ?guard ~initstep c2_num
+    then NumS.prune_redundant q_ops ~allow_weakening:initstep
+        ~localvs ?guard ~initstep c2_num
     else
       let branches = List.map (fun branch ->
         NumS.subst_formula renaming (sep_formulas branch).cnj_num) branches in

@@ -125,11 +125,11 @@ val simplify :
   Defs.VarSet.t -> NumDefs.formula -> 
   Defs.var_name list * NumDefs.formula
 
-(** Prune atoms implied by other atoms -- for efficiency, only single
-    other atoms, i.e. "atom-on-atom", are considered. Prefer other
-    atoms over opti atoms. *)
+(** Simplify the local constraints under their guard. In the initial
+    supplier generalization, [allow_weakening] also admits consequences of
+    the supplied formula. Extrema are checked before accepting a change. *)
 val prune_redundant :
-  Defs.quant_ops -> ?localvs:Defs.VarSet.t ->
+  Defs.quant_ops -> ?allow_weakening:bool -> ?localvs:Defs.VarSet.t ->
   ?guard:NumDefs.formula ->
   initstep:bool ->
   NumDefs.formula -> NumDefs.formula
