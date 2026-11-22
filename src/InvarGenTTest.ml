@@ -368,6 +368,8 @@ let tests = "InvarGenT" >::: [
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "interior_interval";
       "two interior forbidden bands constrain one recursive call" >::
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "guarded_interval_bands";
+      "a recursive package chooses its key from the input state" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "state_dependent_interval";
       "both endpoints miss a reachable assertion in the interior" >:: (fun () ->
         let source = "external let sample : Num 0 → ∃j[0≤j ∧ j≤6]. Num j = \"fun _ -> 3\"\n" ^
           "let bad = let r = sample 0 in match r with v when 2 <= v && v <= 4 -> assert false | _ -> True" in

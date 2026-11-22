@@ -78,6 +78,14 @@ val max_subopti_postcond : int ref
 (* TODO: export more knobs, i.e. global reference variables; also add their
    command-line interfaces in [InvarGenT.main]. *)
 
+(** Propose an integer-affine key at recursive uses of a translated scalar
+    interval. The caller must check the proposal against the full program. *)
+val fit_interval_call :
+  index:Defs.var_name -> key:Defs.var_name -> samples:int list ->
+  bands:(int * int) list ->
+  package:(Defs.var_name * Defs.var_name * NumDefs.formula) ->
+  NumDefs.formula -> Defs.loc -> NumDefs.atom option
+
 val num_of : Terms.typ -> NumDefs.term
 val sort_formula : Terms.formula -> NumDefs.formula
 val formula_of_sort : NumDefs.formula -> Terms.formula

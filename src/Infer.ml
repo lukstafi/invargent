@@ -678,7 +678,7 @@ let integer_complement = function
   | _ -> None
 
 type guard_bounds =
-  | Observe_comparisons of bool ref | Prove_complements of bool ref | Probe_boundaries
+  | Observe_comparisons of bool ref | Prove_complements of bool ref | Probe_boundaries of (int * int) list ref
 
 (* A comparison forced on even one package boundary is a poor choice to
    falsify throughout an opening. Use the remaining position to propose a
@@ -695,7 +695,7 @@ let remaining_comparison mode context conditions =
      | _ :: _ :: _, Prove_complements seen ->
        if boundaries <> [] then seen := true;
        None
-     | _ :: _ :: _, Probe_boundaries ->
+     | _ :: _ :: _, Probe_boundaries _ ->
        let probes = map_some (fun eq ->
            try match NumS.satisfiable ~state [eq] with
              | Left _ -> None | Right boundary -> Some boundary
@@ -1062,7 +1062,7 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
            | Observe_comparisons seen ->
              if g_cond <> [] then seen := true;
              Check_with_postconditions None
-           | Prove_complements _ | Probe_boundaries ->
+           | Prove_complements _ | Probe_boundaries _ ->
              Check_with_postconditions (remaining_comparison bounds (Lazy.force context) g_cond))
          else Keep_arm in
        pending := (arm, check) :: !pending
@@ -1121,7 +1121,42 @@ let constr_gen_tests ~erase_bodies ~arities gamma tests =
   List.fold_left cn_and (And []) cns,
   tests, !elim_cells, List.concat preserve
 
-let gen_letrec ~erase_bodies ~nonrec gamma x e sig_cn tb tests =
+(* A failed guard can suggest a forbidden interval for an opened result.
+   The source operands only guide search. Every exclusion is checked again
+   with the original operands and the complete package. *)
+let literal_band = function
+  | PVar (r,_), [(Num (l,_), Var (a,_)); (Var (b,_), Num (u,_))], _
+  | PVar (r,_), [(Var (b,_), Num (u,_)); (Num (l,_), Var (a,_))], _
+    when a = r && b = r && l <= u -> Some (l,u)
+  | _ -> None
+
+let interval_call_key samples signature arrow bands loc =
+  let variable = function
+    | TVar v | Alien (Num_term (NumDefs.Lin (1,1,v))) when var_sort v = Num_sort -> Some v
+    | _ -> None in
+  let numeric phi = (unify ~use_quants:false empty_q phi).cnj_num in
+  match List.rev (collect_argtys arrow) with
+  | TCons ((Extype _ as tag), [actual]) :: args when bands <> [] ->
+    (match variable actual, Hashtbl.find sigma tag with
+     | Some key, (_, post, [TCons (n,[out])], _, [formal]) when n = numtype ->
+       (match variable out with
+        | None -> []
+        | Some result ->
+          let proposals = map_some (function
+              | TCons (name,[arg]) ->
+                (match variable arg with
+                 | Some index when index <> key ->
+                   let states = unique_sorted (assoc_all name samples) in
+                   if List.length states < 2 then None else
+                   NumS.fit_interval_call ~index ~key ~samples:states ~bands
+                     ~package:(formal,result,numeric post) (numeric signature) loc
+                 | _ -> None)
+              | _ -> None) args in
+          NumS.formula_of_sort proposals)
+     | _ -> [])
+  | _ -> []
+
+let gen_letrec ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests =
   (* χ is a predicate on one type variable. A written scheme constrains
      the instances χ can admit, and each recursive use instantiates both. *)
   let anchor = match tb, sig_cn with
@@ -1141,7 +1176,13 @@ let gen_letrec ~erase_bodies ~nonrec gamma x e sig_cn tb tests =
     if nonrec then gamma else (x, def_typ)::gamma in
   let arities = Hashtbl.create 2 in
   Hashtbl.add arities chi_id (lambda_depth e);
-  let (expr_cn, e), elim_cell, preserve = constr_gen_expr_with_arities ~erase_bodies arities gamma e anchor in
+  (* Each recursive occurrence freshens this restriction along with its own
+     instance of the written scheme. The declaration and the clients keep
+     the full parameter range. *)
+  let body_gamma = match call_constraints with
+    | [] -> gamma
+    | extra -> let vs, phi, t = def_typ in (x, (vs, extra @ phi, t)) :: gamma in
+  let (expr_cn, e), elim_cell, preserve = constr_gen_expr_with_arities ~erase_bodies arities body_gamma e anchor in
   let def_cn =
     let body = if signature = [] then expr_cn
       else cn_and (Ex (bvs, A signature)) expr_cn in
@@ -1152,8 +1193,8 @@ let gen_letrec ~erase_bodies ~nonrec gamma x e sig_cn tb tests =
   cn_and def_cn (cn_and (Ex (vars_of_list [a], A [chi_a])) test_cn),
   e, tests, elim_cell::elim_cells, more_preserve @ preserve
 
-let constr_gen_letrec ~erase_bodies ?(nonrec=false) gamma x e sig_cn tb tests =
-  with_live_packages erase_bodies (fun () -> gen_letrec ~erase_bodies ~nonrec gamma x e sig_cn tb tests)
+let constr_gen_letrec ?(call_constraints=[]) ~erase_bodies ?(nonrec=false) gamma x e sig_cn tb tests =
+  with_live_packages erase_bodies (fun () -> gen_letrec ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests)
 
 let constr_gen_let ~erase_bodies gamma p e ta =
   let pcns = constr_gen_pat p ta in
@@ -1410,6 +1451,9 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
       (* Check the package postcondition at each proposed exclusion, with
          the original guard operands and opening witnesses in scope. *)
       let unresolved = List.map fst proposals in
+      (match bounds with
+       | Probe_boundaries bands -> bands := unique_sorted (map_some literal_band unresolved @ !bands)
+       | _ -> ());
       let choices = (if proved = [] then [] else [[]]) @
           (match unresolved with
            | [] -> []
@@ -1424,7 +1468,7 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
           let repeated = match bounds with
             | Observe_comparisons _ -> false
             | Prove_complements _ -> comparisons = []
-            | Probe_boundaries -> comparisons = [] &&
+            | Probe_boundaries _ -> comparisons = [] &&
               not (List.exists (function _, _, AssertFalse _ -> true | _ -> false) checked) in
           if repeated then retry rest else
           try run (Certified_guards (proved, checked, comparisons)) with exn ->
@@ -1438,10 +1482,10 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
               then retry (keep :: rest) else retry rest
             | _ -> raise exn in
       retry choices in
-  let solve_item packages e tests generate =
+  let solve_item ?(propose_call=(fun _ -> [])) packages e tests generate =
     let initial_packages = !all_ex_types in
-    let search bounds =
-      let run (e, tests) = search_item bounds packages (generate e tests) in
+    let search ?(call_constraints=[]) bounds =
+      let run (e, tests) = search_item bounds packages (generate e tests call_constraints) in
       let initial = e, tests in
       NumS.with_affine_retry (fun () ->
         all_ex_types := initial_packages;
@@ -1468,7 +1512,16 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
       let ambiguous = ref false in
       (try
          try search (Prove_complements ambiguous) with
-         | (NoAnswer _ | Contradiction _) when !ambiguous -> search Probe_boundaries
+         | (NoAnswer _ | Contradiction _) when !ambiguous ->
+           let bands = ref [] in
+           (try search (Probe_boundaries bands) with
+            | (NoAnswer _ | Contradiction _) as failed ->
+              let rec try_keys = function
+                | [] -> raise failed
+                | key :: rest ->
+                  try search ~call_constraints:[key] (Observe_comparisons (ref false))
+                  with NoAnswer _ | Contradiction _ -> try_keys rest in
+              try_keys (propose_call !bands))
        with exn ->
          all_ex_types := initial_packages;
          match exn with
@@ -1513,6 +1566,7 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
          more_items := extydec :: extydef :: !more_items)
       new_ex_types;
     !more_items in
+  let constructor_samples = ref [] in
   let items : annot_item list = concat_map
       (function
         | _, TypConstr (docu, n, sorts, lc) ->
@@ -1532,6 +1586,10 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
               (fvs_formula
                  (Eqty (TCons (tuple, args),
                         TCons (tuple, c_args), dummy_loc)::phi)) in
+          (match c_args with
+           | [Alien (Num_term (NumDefs.Cst (x,1)))] ->
+             constructor_samples := (c_n,x) :: !constructor_samples
+           | _ -> ());
           [IValConstr (docu, name, VarSet.elements vs, phi,
                        args, c_n, c_args, lc)]
         | _, PrimVal (docu, x, tsch, ext_def, lc) ->
@@ -1555,9 +1613,12 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
             | LetVal (_, PVar (_, lc), _, _, _) -> Some lc
             | _ -> None in
           let (chi_id, e, tests, elim_cells), new_ex_types, (q, phi_res, sb_chi) =
-            solve_item new_ex_types e tests (fun e tests erase_bodies ->
+            let propose_call bands = match pat_loc, defsig with
+              | None, Some _ -> interval_call_key !constructor_samples sig_cn t bands loc
+              | _ -> [] in
+            solve_item ~propose_call new_ex_types e tests (fun e tests call_constraints erase_bodies ->
                 let chi_id, _, cn, e, tests, elim_cells, preserve =
-                  constr_gen_letrec ~erase_bodies ~nonrec:(pat_loc<>None)
+                  constr_gen_letrec ~call_constraints ~erase_bodies ~nonrec:(pat_loc<>None)
                     !gamma x e sig_cn t tests in
                 let preserve = add_vars preserve
                     (VarSet.union (fvs_typ t) (fvs_formula sig_cn)) in
@@ -1636,7 +1697,7 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
               VarSet.singleton a, [], [], ta
             | Some (vs, phi, t) -> VarSet.empty, vs, phi, t in
           let (bs, exphi, env, p, e, elim_cell, preserve), new_ex_types, (q, phi, sb_chi) =
-            solve_item new_ex_types e [] (fun e _ erase_bodies ->
+            solve_item new_ex_types e [] (fun e _ _ erase_bodies ->
                 let bs, exphi, env, cn, (p, e), elim_cell, preserve =
                   constr_gen_let ~erase_bodies !gamma p e t in
                 let preserve = add_vars preserve
