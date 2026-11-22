@@ -379,6 +379,8 @@ let tests = "InvarGenT" >::: [
         assert_bool "the base result is one" (rejects_source ~integer_target:true (source ^ client)));
       "four states choose a recursive interval across two forbidden bands" >::
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "four_state_interval";
+      "a recursive package chooses a child key from two input indices" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "two_input_interval";
       "both endpoints miss a reachable assertion in the interior" >:: (fun () ->
         let source = "external let sample : Num 0 → ∃j[0≤j ∧ j≤6]. Num j = \"fun _ -> 3\"\n" ^
           "let bad = let r = sample 0 in match r with v when 2 <= v && v <= 4 -> assert false | _ -> True" in

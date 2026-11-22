@@ -1,0 +1,21 @@
+datatype State : num
+
+datacons A : State 0
+
+datacons B : State 1
+
+datatype Nat
+
+datacons Z : Nat
+
+datacons S : Nat ⟶ Nat
+
+external val accept : ∀i[i ≤ 9]. Num i → Bool
+
+val base : ∀k, n. State k → State n → Num (4 n + 4 k + 1)
+
+val run :
+   ∀i, k, n[k ≤ 1 ∧ 4 k ≤ n + 1 ∧ n ≤ 9 ∧ 0 ≤ n + 1 ∧ n ≤ 4 k + 5 ∧ i ≤ 1 ∧
+   4 i + 4 k ≤ n + 1 ∧ 0 ≤ i ∧ n ≤ 4 i + 4 k + 1 ∧ 0 ≤ k ∧
+   min||max (k, -k + 1) ∧ min||max (i, -i + 1)].
+   State i → State k → Nat → ∃l[n ≤ l ∧ l ≤ n + 2].Num l

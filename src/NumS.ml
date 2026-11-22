@@ -4524,31 +4524,35 @@ let intersect_integer_bound (lo, hi) (b, d) =
   else if b >/ !/0 then lo, tighten min_num (floor_num (d // b)) hi
   else if d </ !/0 then raise Not_found else lo, hi
 
-(* Restrict the scalar call parameter at each sampled input, then eliminate
-   the intercept from lo <= slope * input + intercept <= hi. All rounding
-   and the products of source constants use arbitrary-precision numbers. *)
-let sample_interval_keys ~piecewise ~index ~key ~samples ~bands ~package pre loc =
-  let formal, result, post = package in
-  let inequalities x y phi =
-    let row (vars, c, _) =
-      if List.exists (fun (v, _) -> v <> x && v <> y) vars then [] else
+let interval_rows phi =
+  concat_map (function
+      | Leq_w w -> [w]
+      | Eq_w w -> [w; mult !/(-1) w]
+      | Opti_w _ | Subopti_w _ -> []) (flatten_formula ~cmp_v:compare phi)
+
+let two_variable_bounds x y phi =
+  map_some (fun (vars, c, _) ->
+      if List.exists (fun (v, _) -> v <> x && v <> y) vars then None else
       let coef v = try List.assoc v vars with Not_found -> !/0 in
-      [coef x, coef y, minus_num c] in
-    concat_map (function
-        | Leq_w w -> row w
-        | Eq_w w -> row w @ row (mult !/(-1) w)
-        | Opti_w _ | Subopti_w _ -> []) (flatten_formula ~cmp_v:compare phi) in
-  let finite rows = match List.fold_left intersect_integer_bound (None, None) rows with
-    | Some lo, Some hi when lo <=/ hi -> lo, hi
-    | _ -> raise Not_found in
-  (* Bounds on result - formal give a translated interval at every key. *)
-  let offsets = map_some (fun (a, b, d) ->
+      Some (coef x, coef y, minus_num c)) (interval_rows phi)
+
+let finite_integer_bounds rows =
+  match List.fold_left intersect_integer_bound (None, None) rows with
+  | Some lo, Some hi when lo <=/ hi -> lo, hi
+  | _ -> raise Not_found
+
+let package_offsets (formal, result, post) =
+  finite_integer_bounds (map_some (fun (a, b, d) ->
       if a =/ minus_num b then Some (b, d) else None)
-      (inequalities formal result post) in
-  let first, last = finite offsets in
-  let input_rows = inequalities index key pre in
+      (two_variable_bounds formal result post))
+
+(* Restrict the scalar call parameter at each sampled input, then eliminate
+   the intercept from lo <= slope * input + intercept <= hi. *)
+let sample_interval_keys ~piecewise ~index ~key ~samples ~bands ~package pre loc =
+  let first, last = package_offsets package in
+  let input_rows = two_variable_bounds index key pre in
   let at x =
-    let bounds = finite (List.map (fun (a,b,d) -> b, d -/ a */ x) input_rows) in
+    let bounds = finite_integer_bounds (List.map (fun (a,b,d) -> b, d -/ a */ x) input_rows) in
     let avoid intervals (l,u) =
       let left = !/l -/ last -/ !/1 and right = !/u -/ first +/ !/1 in
       concat_map (fun (lo,hi) ->
@@ -4672,6 +4676,67 @@ let fit_interval_calls ?(piecewise=true) ~index ~key ~samples ~bands ~package pr
 let fit_interval_call ~index ~key ~samples ~bands ~package pre loc =
   match fit_interval_calls ~piecewise:false ~index ~key ~samples ~bands ~package pre loc with
   | [[a]] -> Some a | _ -> None
+
+(* Choose the greatest legal key under the written upper bounds, or the
+   least above the lower bounds by reflection. The only observations used
+   in a bound are indices exposed by arguments of the recursive call. *)
+let symbolic_interval_calls ~inputs ~key ~bands ~package pre loc =
+  let cmp_v = compare in
+  let const x = [], x, loc in
+  let var v = [v,!/1], !/0, loc in
+  let fresh () = var (Terms.fresh_num_var ()) in
+  let rows = interval_rows pre in
+  let graph first last sign =
+    let cap (vars,c,_) =
+      let coef = try List.assoc key vars with Not_found -> !/0 in
+      let vars = List.remove_assoc key vars in
+      if coef */ sign <=/ !/0 || List.exists (fun (v,_) -> not (VarSet.mem v inputs)) vars
+      then None else
+      let vars,c,_ = mult (minus_num sign // coef) (vars,c,loc) in
+      if List.for_all (fun (_,a) -> is_integer_num a) vars
+      then Some (vars, floor_num c, loc) else None in
+    let caps = unique_sorted ~cmp:nonq_cmp_w (map_some cap rows) in
+    let forbidden = List.map (fun (l,u) ->
+        let a = !/l -/ last and b = !/u -/ first in
+        if sign =/ !/1 then a,b else minus_num b,minus_num a) bands in
+    (* Stepping below a lower band cannot reenter a band already passed.
+       Coalesce adjacent or overlapping integer bands to shorten the graph. *)
+    let merge acc (a,b) = match acc with
+      | (l,u)::rest when a <=/ u +/ !/1 -> (l,max_num b u)::rest
+      | _ -> (a,b)::acc in
+    let holes = List.fold_left merge [] (List.sort (fun (a,_) (b,_) -> compare_num a b) forbidden) in
+    let extremum minimum out a b =
+      let side x =
+        let vs,c,_ as w = if minimum then diff ~cmp_v out x else diff ~cmp_v x out in
+        (* Negation is used by the term representation as well. *)
+        let fits n = abs_num n <=/ !/max_int in
+        if not (fits c && List.for_all (fun (_,a) -> fits a) vs) then raise Not_found;
+        expand_w w in
+      Opti (side a, side b, loc) in
+    let rec remove x atoms = function
+      | [] -> raise Not_found
+      | (a,b)::rest ->
+        (* The ramp is a-1 at b and b+1 at the next integer. Clipping
+           it between a-1 and x gives x outside [a,b] and a-1 inside. *)
+        let slope = b -/ a +/ !/2 in
+        let floor = const (a -/ !/1) in
+        let ramp = sum_w ~cmp_v floor (mult slope (diff ~cmp_v x (const b))) in
+        let step = fresh () in
+        let out = if rest = [] then mult sign (var key) else fresh () in
+        let atoms = extremum true out x step :: extremum false step floor ramp :: atoms in
+        if rest = [] then List.rev atoms else remove out atoms rest in
+    match caps with
+    | [] -> raise Not_found
+    | first::rest ->
+      let bound,atoms = List.fold_left (fun (x,atoms) upper ->
+          let out = fresh () in out, extremum true out x upper :: atoms) (first,[]) rest in
+      remove bound atoms holes in
+  try
+    let first,last = package_offsets package in
+    map_some (fun sign -> try Some (graph first last sign) with
+        | Not_found -> None
+        | Failure msg when msg = "int_of_big_int" -> None) [!/1; !/(-1)]
+  with Not_found -> []
 
 let implies_cnj (eqs, ineqs, optis, suboptis) cnj =
   let uni_v _ = false in

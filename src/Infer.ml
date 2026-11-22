@@ -1142,16 +1142,18 @@ let interval_call_key samples signature arrow bands loc =
        (match variable out with
         | None -> []
         | Some result ->
-          concat_map (function
-              | TCons (name,[arg]) ->
-                (match variable arg with
-                 | Some index when index <> key ->
-                   let states = unique_sorted (assoc_all name samples) in
-                   List.map NumS.formula_of_sort
-                     (NumS.fit_interval_calls ~index ~key ~samples:states ~bands
-                        ~package:(formal,result,numeric post) (numeric signature) loc)
-                 | _ -> [])
-              | _ -> []) args)
+          let indices = concat_map (function
+              | TCons (name,args) -> map_some (fun arg -> match variable arg with
+                    | Some index when index <> key -> Some (name,index)
+                    | _ -> None) args
+              | _ -> []) args in
+          let package = formal,result,numeric post and pre = numeric signature in
+          let sampled () = concat_map (fun (name,index) ->
+              let states = unique_sorted (assoc_all name samples) in
+              NumS.fit_interval_calls ~index ~key ~samples:states ~bands ~package pre loc) indices in
+          let symbolic () = NumS.symbolic_interval_calls ~inputs:(vars_of_list (List.map snd indices))
+              ~key ~bands ~package pre loc in
+          List.map (fun generate () -> List.map NumS.formula_of_sort (generate ())) [sampled; symbolic])
      | _ -> [])
   | _ -> []
 
@@ -1518,12 +1520,13 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
            let bands = ref [] in
            (try search (Probe_boundaries bands) with
             | (NoAnswer _ | Contradiction _) as failed ->
-              let rec try_keys = function
-                | [] -> raise failed
-                | call_constraints :: rest ->
+              let rec try_keys candidates groups = match candidates, groups with
+                | [], [] -> raise failed
+                | [], next::rest -> try_keys (next ()) rest
+                | call_constraints::rest, _ ->
                   try search ~call_constraints (Observe_comparisons (ref false))
-                  with NoAnswer _ | Contradiction _ -> try_keys rest in
-              try_keys (propose_call !bands))
+                  with NoAnswer _ | Contradiction _ -> try_keys rest groups in
+              try_keys [] (propose_call !bands))
        with exn ->
          all_ex_types := initial_packages;
          match exn with

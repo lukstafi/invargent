@@ -25,6 +25,25 @@ let numeric_formula s =
   sort_formula (Parser.formula Lexer.token (Lexing.from_string s))
 
 let tests = "NumS" >::: [
+  "symbolic interval keys attain the greatest and least admissible values" >:: (fun () ->
+    let var s = VNam (Num_sort,s) in
+    let i = var "i" and j = var "j" and k = var "k" and r = var "l" in
+    let inputs = vars_of_list [i;j] in
+    let package = k,r,numeric_formula "k+2<=l ∧ l<=k+4" in
+    let pre = numeric_formula "i+(-20)<=k ∧ k<=i ∧ k<=j ∧ k<=n" in
+    let bands = [8,9; 4,5; 17,17; 5,6] in
+    let graphs = symbolic_interval_calls ~inputs ~key:k ~bands ~package pre dummy_loc in
+    let high,low = match graphs with [hi;lo] -> hi,lo | _ -> assert_failure "both bounds yield graphs" in
+    let at v x = Eq (Lin (1,1,v),Cst (x,1),dummy_loc) in
+    let safe k = List.for_all (fun (a,b) -> k+4 < a || b < k+2) bands in
+    let rec prev x = if safe x then x else prev (x-1) in
+    let rec next x = if safe x then x else next (x+1) in
+    List.iter (fun (x,y) -> List.iter (fun (graph,expected) ->
+        assert_bool "private precondition variable is absent" (not (VarSet.mem (var "n") (fvs_formula graph)));
+        let state = satisfiable_exn (at i x :: at j y :: graph) in
+        assert_bool "graph forces the extremal safe key" (implies_cnj state [at k expected]))
+      [high,prev (min x y); low,next (x-20)])
+      [3,6; 21,17; 25,14; 33,7; -1,100; 100,-7]);
   "integer envelopes and interpolation obey every sampled interval" >:: (fun () ->
     let var s = VNam (Num_sort,s) in
     let key = var "k" and index = var "i" and result = var "j" in

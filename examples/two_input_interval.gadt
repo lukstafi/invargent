@@ -1,0 +1,20 @@
+datatype State : num
+datacons A : State 0
+datacons B : State 1
+datatype Nat
+datacons Z : Nat
+datacons S : Nat ⟶ Nat
+external let accept : ∀i[i≤9]. Num i → Bool = "fun n -> assert (n <= 9); true"
+
+let base : ∀i,j. State i → State j → Num (4 i + 4 j + 1) =
+  fun a -> function A -> (match a with A -> 1 | B -> 5) | B -> (match a with A -> 5 | B -> 9)
+
+let rec run : ∀i,j,k[0≤i ∧ i≤1 ∧ min(i,1 + -i)≤0 ∧ 0≤j ∧ j≤1 ∧ min(j,1 + -j)≤0
+                     ∧ k≤4 i+4 j+1 ∧ 4 i+4 j+1≤k+2].
+  State i → State j → Nat → ∃l[k≤l ∧ l≤k+2]. Num l = fun a b -> efunction
+  | Z -> base a b
+  | S d -> let prior = run a b d in
+           (match prior with r when 2 <= r && r <= 4 -> True | _ -> base a b)
+test (let aa = (let p = run A A (S Z) in accept p) in
+      let ab = (let p = run A B (S Z) in accept p) in
+      let ba = (let p = run B A (S Z) in accept p) in let p = run B B (S (S Z)) in accept p)
