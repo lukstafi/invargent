@@ -202,6 +202,9 @@ let tests = "InvarGenT" >::: [
         Sys.remove file;
         assert_bool "the written type is inconsistent" rejected;
         assert_equal before (!Infer.annotating_fun, !Infer.annotating_letin));
+      "arithmetic abduction combines independent premise rows" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b)
+          "joint_affine_abduction";
       "GADT match result indices refine inside the branches" >::
         run_example ~full_annot:true "compare_term_indices";
       "repeating a supplier preserves the other upper bound" >::

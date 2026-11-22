@@ -2113,6 +2113,26 @@ let with_affine_retry search =
        | Terms.NoAnswer _ | Terms.Contradiction _ -> raise original
        | Failure msg when msg = "int_of_big_int" -> raise original)
 
+(* A branch substitution sends each candidate affine equation to its
+   residual. Row reduction on the residuals, carrying the original rows,
+   returns a basis of the combinations that vanish on this branch. *)
+let intersect_equations ~cmp_v rows eqs =
+  let rec kernel = function
+    | [] -> []
+    | (row, image)::rest when zero_p image -> row :: kernel rest
+    | (row, (vars, cst, _ as image))::rest ->
+      let coefficient, pivot = match vars with
+        | (v,k)::_ ->
+          (fun (vs, _, _) -> try List.assoc v vs with Not_found -> !/0), k
+        | [] -> (fun (_, c, _) -> c), cst in
+      let eliminate (other, residual as pair) =
+        let k = coefficient residual in
+        if k =/ !/0 then pair else
+          let ratio = k // pivot in
+          diff ~cmp_v other (mult ratio row), diff ~cmp_v residual (mult ratio image) in
+      kernel (List.map eliminate rest) in
+  kernel (List.map (fun row -> row, subst_w ~cmp_v eqs row) rows)
+
 (* The goal is g = 0 and this premise fixes v = x. Each equation
    g + k(v-x) = 0 still proves the goal under the premise. A sibling
    row fixing v = x' and g = y determines k when x' differs from x. *)
@@ -2130,6 +2150,46 @@ let sample_rotations ~cmp_v samples premises goals =
     | _ -> rotations in
   List.fold_left (fun rotations sample ->
       List.fold_left (fit sample) rotations goals) WSet.empty samples
+
+let order_rows order (vars1,_,_) (vars2,_,_) =
+    match vars1, vars2 with
+    | [], [] -> 0
+    | _, [] -> -1
+    | [], _ -> 1
+    | (v1,_)::_, (v2,_)::_ -> order v1 v2
+
+(* Lower a fresh margin below the left side of the required inequality.
+   Eliminating private coordinates first gives public upper bounds on the
+   margin, hence also on the goal (the margin can equal the goal). *)
+let projected_goal_bounds ~cmp_v ~hidden ~eqn ~ineqn ((_,_,loc) as goal) =
+  let margin = Terms.fresh_num_var () in
+  let rank v = if v = margin then 1 else if hidden v then 0 else 2 in
+  let order x y =
+    let k = compare (rank x) (rank y) in if k = 0 then cmp_v x y else k in
+  let reorder = List.map (norm_w ~cmp_v:order) in
+  let below = diff ~cmp_v ([margin,!/1],!/0,loc) goal in
+  let _,bounds,_,_ = solve ~eqn:(reorder eqn) ~ineqn:(reorder (below::ineqn))
+      ~cmp_v:order ~cmp_w:(order_rows order) (fun _ -> false) in
+  try let _, upper = VarMap.find margin bounds in
+    List.map (norm_w ~cmp_v) (affine_to_ineqn upper)
+  with Not_found -> []
+
+(* Extend a goal by any combination of equations true in the current
+   premise. Keep the goal last: elimination only subtracts an earlier
+   row from a later one, so its coefficient stays one if it survives. *)
+let joint_sample_rotations ~cmp_v samples premises goals =
+  let directions = List.map (norm_w ~cmp_v) (unsubst premises) in
+  let fit acc goal =
+    let known = List.filter (fun sb -> let vars,_,_ = subst_w ~cmp_v sb goal in
+        vars = []) samples in
+    if List.length known < 2 || zero_p (subst_w ~cmp_v premises goal) then acc else
+    let rows = List.fold_left (intersect_equations ~cmp_v) (directions @ [goal]) known in
+    List.fold_left (fun acc row ->
+        let vars,_,_ as correction = diff ~cmp_v row goal in
+        if vars <> [] && List.length vars < !abd_prune_at &&
+           zero_p (subst_w ~cmp_v premises correction)
+        then WSet.add correction acc else acc) acc rows in
+  List.fold_left fit WSet.empty goals
 
 (* We currently do not measure satisfiability of negative constraints. *)
 (* TODO: guess equalities between parameters. *)
@@ -2504,7 +2564,7 @@ let abd_simple ~samples ~qcmp_v ~cmp_w
             try_arm g1 g2; try_arm g2 g1 in
       (match a0 with
        | Leq_w w ->
-         let w = subst_if_qv ~uni_v ~bvs ~cmp_v rev_sb w in
+         let (vars,_,_) as w = subst_if_qv ~uni_v ~bvs ~cmp_v rev_sb w in
          let cands =
            abd_cands ~cmp_v ~qcmp_v ~cmp_w ~uni_v ~orig_ren ~b_of_v ~upward_of
              ~bvs ~nonparam_vars
@@ -2517,7 +2577,17 @@ let abd_simple ~samples ~qcmp_v ~cmp_w
            ddepth (List.length cands > 1)
            pr_ineqn (List.map snd cands) pr_w_atom a
            pr_w_subst eqs_acc0 pr_w_subst rev_sb; *]*)
-         List.iter try_trans_ineq cands
+         List.iter try_trans_ineq cands;
+         let hidden v = uni_v v && not (VarSet.mem v bvs) in
+         if List.exists (fun (v,_) -> hidden v) vars
+            && use_affine_fit () then
+           let upper = projected_goal_bounds ~cmp_v ~hidden ~eqn:d_eqn' ~ineqn:d_ineqn' w in
+           (* Either upper bound suffices. Keeping both alternatives can
+              admit callers which no single affine inequality can cover. *)
+           (match upper with
+            | [left; right] -> try_trans_a (Subopti_w (left, right))
+            | _ -> ());
+           List.iter (fun bound -> try_trans_a (Leq_w bound)) upper
        | _ ->
          (match a0 with
           | Subopti_w pair -> try_dominance pair; try_input_bound pair
@@ -2572,11 +2642,14 @@ let abd_simple ~samples ~qcmp_v ~cmp_w
       done;
       if !abd_rotations > 0 && !abd_prune_at > 1 && c_eqn0 <> [] &&
          not (VarMap.is_empty d_eqs0) && use_affine_fit () then (
-        let fitted = sample_rotations ~cmp_v samples d_eqs0 c_eqn0 in
-        if not (WSet.is_empty fitted) then
-          try loop validation (laz_of_list (WSet.elements fitted)) eqs_i ineqs_i optis_i suboptis_i
-              c_eqn0 c_ineqn0 c_optis0 c_suboptis0
-          with Terms.Contradiction _ -> ());
+        let try_fits fit =
+          let fitted = fit ~cmp_v samples d_eqs0 c_eqn0 in
+          if not (WSet.is_empty fitted) then
+            try loop validation (laz_of_list (WSet.elements fitted)) eqs_i ineqs_i optis_i suboptis_i
+                c_eqn0 c_ineqn0 c_optis0 c_suboptis0
+            with Terms.Contradiction _ -> () in
+        try_fits sample_rotations;
+        try_fits joint_sample_rotations);
       None
     with Result (ans_eqs, ans_ineqs, ans_optis, ans_suboptis, validation) ->
       (*[* Format.printf "NumS.abd_simple: result:\
@@ -3633,33 +3706,6 @@ let ptope_mem ptope w_key w_c =
 
 (* Currently, [initstep] is only used to generate more -- redundant --
    [subopti] atoms. *)
-(* A branch substitution sends each candidate affine equation to its
-   residual. Row reduction on the residuals, carrying the original rows,
-   returns a basis of the combinations that vanish on this branch. *)
-let intersect_equations ~cmp_v rows eqs =
-  let rec kernel = function
-    | [] -> []
-    | (row, image)::rest when zero_p image -> row :: kernel rest
-    | (row, (vars, cst, _ as image))::rest ->
-      let coefficient, pivot = match vars with
-        | (v,k)::_ ->
-          (fun (vs, _, _) -> try List.assoc v vs with Not_found -> !/0), k
-        | [] -> (fun (_, c, _) -> c), cst in
-      let eliminate (other, residual as pair) =
-        let k = coefficient residual in
-        if k =/ !/0 then pair else
-          let ratio = k // pivot in
-          diff ~cmp_v other (mult ratio row), diff ~cmp_v residual (mult ratio image) in
-      kernel (List.map eliminate rest) in
-  kernel (List.map (fun row -> row, subst_w ~cmp_v eqs row) rows)
-
-let order_rows order (vars1,_,_) (vars2,_,_) =
-    match vars1, vars2 with
-    | [], [] -> 0
-    | _, [] -> -1
-    | [], _ -> 1
-    | (v1,_)::_, (v2,_)::_ -> order v1 v2
-
 (* A supplier can spend one allowance on different result coordinates.
    Normalize each selected one-coordinate face to coefficient ±1.
    Its inward distance is affine in the result and captured parameters. *)

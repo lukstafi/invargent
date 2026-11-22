@@ -1,0 +1,24 @@
+datatype Axis : num * num
+datacons Origin : Axis (0,0)
+datacons East : Axis (1,0)
+datacons North : Axis (0,1)
+
+let value = function Origin -> 0 | East -> 7 | North -> 11
+
+datatype Bounds : num * num
+datacons Bounded : ∀i,j,k,l[k≤i ∧ l≤j]. Num k * Num l ⟶ Bounds (i,j)
+external let within : ∀i,j[i≤j]. Num i → Num j → Bool =
+  "fun x cap -> assert (x <= cap); true"
+let check = function Bounded (x,y) -> fun cap -> within (x+y) cap
+
+external let verify : ∀i. Num i → Num i → Bool =
+  "fun x y -> assert (x = y); true"
+let axes = (verify (value Origin) 0, verify (value East) 7, verify (value North) 11)
+let boundary = check (Bounded (3,4)) 7
+
+datatype TwoBounds : num * num
+datacons Two : ∀i,j,k,l[k≤i ∧ k≤j ∧ l≤j]. Num k * Num l ⟶ TwoBounds (i,j)
+let check_two = function Two (x,y) -> fun cap -> within (x+y) cap
+external let left : TwoBounds (0,6) = "Two (0,6)"
+external let right : TwoBounds (8,2) = "Two (2,2)"
+let uses = (check_two left 6, check_two right 4)

@@ -1,0 +1,37 @@
+datatype Axis : num * num
+
+datacons Origin : Axis (0, 0)
+
+datacons East : Axis (1, 0)
+
+datacons North : Axis (0, 1)
+
+val value : ∀k, n. Axis (n, k) → Num (7 n + 11 k)
+
+datatype Bounds : num * num
+
+datacons Bounded : ∀i, j, k, l[k ≤ i ∧ l ≤ j].Num k * Num l ⟶ Bounds (i, j)
+
+external val within : ∀i, j[i ≤ j]. Num i → Num j → Bool
+
+val check : ∀i, k, n[i + k ≤ n]. Bounds (k, i) → Num n → Bool
+
+external val verify : ∀i. Num i → Num i → Bool
+
+val axes : (Bool, Bool, Bool)
+
+val boundary : Bool
+
+datatype TwoBounds : num * num
+
+datacons Two : ∀i, j, k, l[k ≤ i ∧ k ≤ j ∧ l ≤ j].Num k * Num l ⟶
+   TwoBounds (i, j)
+
+val check_two :
+   ∀i, k, n[min (2 i, k + i)≤n]. TwoBounds (k, i) → Num n → Bool
+
+external val left : TwoBounds (0, 6)
+
+external val right : TwoBounds (8, 2)
+
+val uses : (Bool, Bool)
