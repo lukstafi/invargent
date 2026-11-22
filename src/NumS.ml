@@ -4133,6 +4133,17 @@ let disjelim_aux q ~previous ~target_vs ~preserve ~bvs ~param_bvs
             (fun (w1, w2 as c) ->
                w_complexity2 bvs w1 + w_complexity2 bvs w2, c)
             suboptis)) in
+  (* While choosing the package parameters, prefer a bound with the same
+     arm that captures fewer indices. Later passes can use both bounds. *)
+  let suboptis = if not guess then suboptis else
+    let with_params = List.map (fun pair ->
+        pair, VarSet.diff (fvs_2w pair) target_vs) suboptis in
+    map_some (fun ((left, right as pair), params) ->
+        let smaller ((a, b), other) =
+          VarSet.subset other params && not (VarSet.equal other params) &&
+          (equal_w ~cmp_v a left || equal_w ~cmp_v b left ||
+           equal_w ~cmp_v a right || equal_w ~cmp_v b right) in
+        if List.exists smaller with_params then None else Some pair) with_params in
   let suboptis = list_take !max_subopti_postcond suboptis in
   (*[* Format.printf "NumS.disjelim: filtered suboptis=@\n%a@\n%!"
     pr_suboptis suboptis; *]*)
