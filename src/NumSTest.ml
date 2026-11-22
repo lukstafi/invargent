@@ -25,6 +25,36 @@ let numeric_formula s =
   sort_formula (Parser.formula Lexer.token (Lexing.from_string s))
 
 let tests = "NumS" >::: [
+  "crossing guard bands preserve the best legal key in either order" >:: (fun () ->
+    let var s = VNam (Num_sort,s) in
+    let i = var "i" and j = var "j" and k = var "k" and r = var "l" in
+    let v x = Lin (1,1,x) and c n = Cst (n,1) in
+    let inputs = vars_of_list [i;j] in
+    let band x = v x, add (v x) (c 3) in
+    let post = numeric_formula "l=k" and pre = numeric_formula "(-10)<=k ∧ k<=5" in
+    let at x n = Eq (v x,c n,dummy_loc) in
+    let graphs = guarded_interval_call ~inputs ~key:k ~result:r ~bands:[band i;band j] ~post pre dummy_loc in
+    let graph = match graphs with [g] -> g | _ -> assert_failure "missing guarded graph" in
+    List.iter (fun (a,b,expected) ->
+        let state = satisfiable_exn (at i a :: at j b :: graph) in
+        assert_bool "greatest safe key, or legal lower endpoint when none is safe"
+          (implies_cnj state [at k expected])) [3,-1,-2; -1,3,-2; 1,9,5; 4,2,1];
+    let blocked = guarded_interval_call ~inputs ~key:k ~result:r ~bands:[c 0,c 6]
+        ~post (numeric_formula "3<=k ∧ k<=5") dummy_loc in
+    (match blocked with
+     | [g] -> assert_bool "impossible avoidance still supplies a legal key"
+         (implies_cnj (satisfiable_exn g) [at k 3])
+     | _ -> assert_failure "missing covered fallback");
+    assert_equal [] (guarded_interval_call ~inputs ~key:k ~result:r ~bands:[c 0,c 0]
+      ~post (numeric_formula "1<=2 k ∧ 2 k<=3") dummy_loc);
+    let post = numeric_formula "k<=l ∧ l<=k+2" and pre = numeric_formula "i+(-2)<=k ∧ k<=i" in
+    let choose pre = guarded_interval_call ~inputs ~key:k ~result:r ~bands:[c 0,c 0] ~post pre dummy_loc in
+    let graph = match choose pre with [g] -> g | _ -> assert_failure "missing endpoint graph" in
+    let half x a = Eq (v x,Cst (a,2),dummy_loc) in
+    List.iter (fun n -> ignore (satisfiable_exn (half i 1 :: half k n :: graph))) [-3;1];
+    let extra = numeric_formula "min(k+1,1 + -k)<=0" in
+    assert_equal [] (guarded_interval_call ~inputs ~key:k ~result:r ~bands:[c 10,c 10]
+      ~post (pre @ extra) dummy_loc));
   "symbolic interval keys attain the greatest and least admissible values" >:: (fun () ->
     let var s = VNam (Num_sort,s) in
     let i = var "i" and j = var "j" and k = var "k" and r = var "l" in

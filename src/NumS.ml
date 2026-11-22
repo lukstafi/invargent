@@ -4752,6 +4752,117 @@ let implies_cnj (eqs, ineqs, optis, suboptis) cnj =
   implies ~cmp_v ~cmp_w uni_v eqs ineqs optis suboptis c_eqn c_ineqn
     c_optis c_suboptis 
 
+(* A guarded graph can select different affine keys across an unbounded
+   change of package width. Keep the key inside the call's permitted interval
+   even where no choice avoids the guard. Such calls still have to be checked. *)
+let guarded_interval_call ?(checks=[]) ~inputs ~key ~result ~bands ~post pre loc =
+  let var v = [v,!/1], !/0, loc in
+  let const c = [],c,loc in
+  let sub a b = diff ~cmp_v:compare a b in
+  let integral (vars,c,_) =
+    is_integer_num c && List.for_all (fun (_,a) -> is_integer_num a) vars in
+  let bounds v shift phi =
+    let row (vars,c,_) =
+      let coef = try List.assoc v vars with Not_found -> !/0 in
+      if coef =/ !/0 then None else
+      let rest = List.remove_assoc v vars,c,loc in
+      let vs,c,_ = sub (mult (minus_num !/1 // coef) rest) shift in
+      if List.for_all (fun (v,_) -> VarSet.mem v inputs) vs
+      then begin
+        (* A fractional endpoint could discard the only integer witness. *)
+        let bound = vs,c,loc in
+        if not (integral bound) then raise Not_found;
+        Some (coef </ !/0, bound)
+      end else None in
+    let lo,hi = List.partition fst (map_some row (interval_rows phi)) in
+    unique_sorted ~cmp:nonq_cmp_w (List.map snd lo), unique_sorted ~cmp:nonq_cmp_w (List.map snd hi) in
+  let term (vs,c,_ as w) =
+    let check n = let j,_ = frac_of_num n in if j = min_int then raise Not_found in
+    check c; List.iter (fun (_,a) -> check a) vs; expand_w w in
+  let atoms = ref [] in
+  let emit a = atoms := a :: !atoms in
+  let fresh () = var (Terms.fresh_num_var ()) in
+  let extreme minimum out a b =
+    let side x = term (if minimum then sub out x else sub x out) in
+    emit (Opti (side a, side b, loc)) in
+  let combine minimum = function
+    | [] -> raise Not_found
+    | first::rest -> List.fold_left (fun a b ->
+        let out = fresh () in extreme minimum out a b; out) first rest in
+  try
+    let lows,highs = bounds key (const !/0) pre
+    and firsts,lasts = bounds result (var key) post in
+    let lower = combine false lows and upper = combine true highs in
+    let first = combine false firsts and last = combine true lasts in
+    let linear t = match flatten ~cmp_v:compare (Leq (t,Cst (0,1),loc)) with
+      | Leq_w w when integral w -> w | _ -> raise Not_found in
+    let bands = List.map (fun (l,u) -> linear l,linear u) bands in
+    let half = !/1 // !/2 in
+    let threshold u = sub (sum_w ~cmp_v:compare u (const half)) first in
+    (* Select lo at a negative test and hi at a positive one. At a
+       rational tie the interval stays inhabited. On integer operands
+       the half-unit tests below never tie. *)
+    let choose out lo hi test =
+      emit (Leq (term lo, term out, loc));
+      emit (Leq (term out, term hi, loc));
+      emit (Subopti (term (mult !/(-1) test), term (sub out lo), loc));
+      emit (Subopti (term test, term (sub hi out), loc)) in
+    let step anchor x (l,u) =
+      let left = sub (sub l last) (const !/1) in
+      let down = fresh () and next = fresh () in
+      extreme true down x left;
+      choose next down x (sub (match anchor with None -> x | Some a -> a) (threshold u));
+      match sub l u with
+      | [],c,_ -> if c <=/ !/0 then next else x
+      | gap ->
+        let out = fresh () in
+        choose out next x (sub gap (const half)); out in
+    (match bands with
+     | [] -> raise Not_found
+     | [_,u] ->
+       (* If the largest legal key cannot pass to the right of this band,
+          any legal key avoiding it on the left can be replaced by the least. *)
+       choose (var key) lower upper (sub upper (threshold u))
+     | ((vars,_,_),_)::_ ->
+       let ordered = List.for_all (fun ((vs,_,_),_) -> compare_comb vs vars = 0) bands in
+       let bands = List.sort (fun (l,_) (m,_) -> nonq_cmp_w m l) bands in
+       (* When every package contains upper+first, its position determines
+          which side of each band a legal opening can use. Otherwise a strict
+          move passes a new left end; at most one full sweep per band suffices. *)
+       let anchor = if ordered then None else
+           let shared = Leq (term (sum_w ~cmp_v:compare upper first),
+                             term (sum_w ~cmp_v:compare lower last),loc) in
+           match satisfiable (pre @ !atoms) with
+           | Right state when implies_cnj state [shared] -> Some upper
+           | _ -> None in
+       let rec sweep n x = if n=0 then x else sweep (n-1) (List.fold_left (step anchor) x bands) in
+       let finish = sweep (if ordered || anchor <> None then 1 else List.length bands) upper in
+       extreme false (var key) lower finish);
+    let graph = List.rev !atoms in
+    (* Other key-dependent constraints may narrow or disconnect the interval.
+       Verify them for the chosen key under the original public premise, whose
+       key has its own fresh name. The graph itself is total by construction. *)
+    let extra = List.filter (fun atom ->
+        if not (VarSet.mem key (NumDefs.fvs_atom atom)) then false else
+        match atom with
+        | Eq _ | Leq _ -> not (VarSet.subset (NumDefs.fvs_atom atom) (VarSet.add key inputs))
+        | _ -> true) pre in
+    let covered = extra = [] ||
+      let rename = VarMap.singleton key (Terms.fresh_num_var ()) in
+      let original = List.map (NumDefs.hvsubst_atom rename) pre in
+      match satisfiable (original @ graph) with
+      | Right state -> implies_cnj state extra | _ -> false in
+    (* Replay openings in the written package before committing to a
+       whole-definition search. No private residual from abduction is available
+       here. A shared policy must justify every proposed exclusion. *)
+    if not covered then [] else if checks = [] then [graph] else
+    let state = satisfiable_exn (pre @ graph @ post) in
+    let r = Lin (1,1,result) in
+    if List.for_all (fun (l,u) -> match satisfiable ~state [Leq (l,r,loc); Leq (r,u,loc)] with
+        | Left _ -> true | Right _ -> false) checks then [graph] else []
+  with Not_found | Terms.Contradiction _ -> []
+     | Failure msg when msg = "int_of_big_int" -> []
+
 let holds q avs (eqs, ineqs, optis, suboptis : state) cnj : state =
   let cmp_v = make_cmp q in
   let cmp_w (vars1,_,_) (vars2,_,_) =

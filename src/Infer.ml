@@ -677,8 +677,10 @@ let integer_complement = function
     Some (NumDefs.Leq (NumDefs.add b (NumDefs.Cst (1,1)), a, loc))
   | _ -> None
 
+type band_endpoint = Literal of int | Bound_value of string * loc
+
 type guard_bounds =
-  | Observe_comparisons of bool ref | Prove_complements of bool ref | Probe_boundaries of (int * int) list ref
+  | Observe_comparisons of bool ref | Prove_complements of bool ref | Probe_boundaries of (band_endpoint * band_endpoint) list ref
 
 (* A comparison forced on even one package boundary is a poor choice to
    falsify throughout an opening. Use the remaining position to propose a
@@ -1124,37 +1126,110 @@ let constr_gen_tests ~erase_bodies ~arities gamma tests =
 (* A failed guard can suggest a forbidden interval for an opened result.
    The source operands only guide search. Every exclusion is checked again
    with the original operands and the complete package. *)
-let literal_band = function
-  | PVar (r,_), [(Num (l,_), Var (a,_)); (Var (b,_), Num (u,_))], _
-  | PVar (r,_), [(Var (b,_), Num (u,_)); (Num (l,_), Var (a,_))], _
-    when a = r && b = r && l <= u -> Some (l,u)
+let guard_band = function
+  | PVar (r,_), [a;b], _ ->
+    let endpoint = function Num (n,_) -> Some (Literal n)
+      | Var (x,lc) when x <> r -> Some (Bound_value (x,lc)) | _ -> None in
+    let order = function (l,Var (x,_)), (Var (y,_),u) when x=r && y=r ->
+      (match endpoint l, endpoint u with
+       | Some (Literal l), Some (Literal u) when l > u -> None
+       | Some l, Some u -> Some (l,u) | _ -> None)
+      | _ -> None in
+    (match order (a,b) with None -> order (b,a) | band -> band)
   | _ -> None
 
-let interval_call_key samples signature arrow bands loc =
+(* Resolve a guard operand at its lexical occurrence. A numeric argument
+   and a local alias of it carry the same observation. An unrelated binder
+   hides the outer value, even when the source uses the same spelling. *)
+let observed_bands arrow body bands =
+  let bindings = Hashtbl.create 8 in
+  let value env = function
+    | Num (n,_) -> Some (NumDefs.Cst (n,1))
+    | Var (x,_) -> (try Some (List.assoc x env) with Not_found -> None)
+    | _ -> None in
+  let rec bind env p index = match p with
+    | PVar (x,_) ->
+      let env = List.remove_assoc x env in
+      (match index with None -> env | Some t -> (x,t)::env)
+    | PAnd (a,b,_) -> bind (bind env a index) b index
+    | PCons (_,ps,_) -> List.fold_left (fun env p -> bind env p None) env ps
+    | One _ | Zero -> env in
+  let rec visit env args expr =
+    let child = visit env [] in
+    match expr with
+    | Var (x,lc) -> (match value env expr with
+        | Some t -> Hashtbl.replace bindings (x,lc) t | None -> ())
+    | Lam (_,arms,_) | ExLam (_,arms,_) ->
+      let input,tail = match args with a::rest -> a,rest | [] -> None,[] in
+      List.iter (fun (p,guards,rhs) ->
+          let env = bind env p input in
+          List.iter (fun (a,b) -> visit env [] a; visit env [] b) guards;
+          visit env tail rhs) arms
+    | Letin (_,p,a,b,_) -> child a; visit (bind env p (value env a)) args b
+    | Letrec (_,_,x,a,b,_) -> let env = List.remove_assoc x env in visit env [] a; visit env args b
+    | App ((Lam _ as fn),a,_) -> visit env (value env a :: args) fn; child a
+    | App (a,b,_) | NumAdd (a,b,_) -> child a; child b
+    | NumCoef (_,a,_) | RuntimeFailure (a,_) -> child a
+    | Cons (_,xs,_) -> List.iter child xs
+    | AssertLeq (a,b,c,_) | AssertEqty (a,b,c,_) -> child a; child b; visit env args c
+    | Num _ | String _ | AssertFalse _ -> () in
+  if List.exists (function Literal _, Literal _ -> false | _ -> true) bands then
+    visit [] (List.map (function TCons (n,[t]) when n=numtype -> Some (NumS.num_of t)
+                       | _ -> None) (arg_types arrow)) body;
+  let resolve = function Literal n -> NumDefs.Cst (n,1)
+    | Bound_value (x,lc) -> Hashtbl.find bindings (x,lc) in
+  map_some (fun (a,b) -> try Some (resolve a,resolve b) with Not_found -> None) bands
+
+let interval_call_key samples signature arrow body bands loc =
   let variable = function
     | TVar v | Alien (Num_term (NumDefs.Lin (1,1,v))) when var_sort v = Num_sort -> Some v
     | _ -> None in
   let numeric phi = (unify ~use_quants:false empty_q phi).cnj_num in
   match List.rev (collect_argtys arrow) with
-  | TCons ((Extype _ as tag), [actual]) :: args when bands <> [] ->
-    (match variable actual, Hashtbl.find sigma tag with
-     | Some key, (_, post, [TCons (n,[out])], _, [formal]) when n = numtype ->
-       (match variable out with
-        | None -> []
-        | Some result ->
-          let indices = concat_map (function
-              | TCons (name,args) -> map_some (fun arg -> match variable arg with
-                    | Some index when index <> key -> Some (name,index)
-                    | _ -> None) args
-              | _ -> []) args in
-          let package = formal,result,numeric post and pre = numeric signature in
-          let sampled () = concat_map (fun (name,index) ->
-              let states = unique_sorted (assoc_all name samples) in
-              NumS.fit_interval_calls ~index ~key ~samples:states ~bands ~package pre loc) indices in
-          let symbolic () = NumS.symbolic_interval_calls ~inputs:(vars_of_list (List.map snd indices))
-              ~key ~bands ~package pre loc in
-          List.map (fun generate () -> List.map NumS.formula_of_sort (generate ())) [sampled; symbolic])
-     | _ -> [])
+  | TCons ((Extype _ as tag), actuals) :: args when bands <> [] ->
+    let scheme = Hashtbl.find sigma tag in
+    let indices = concat_map (function
+        | TCons (name,args) -> map_some (fun arg -> match variable arg with
+              | Some index -> Some (name,index) | None -> None) args
+        | _ -> []) args in
+    let inputs = vars_of_list (List.map snd indices) in
+    let literals = map_some (function Literal l,Literal u -> Some (l,u) | _ -> None) bands in
+    let before = match actuals, scheme with
+      | [actual], (_,post,[TCons (n,[out])],_,[formal]) when n = numtype && literals <> [] ->
+        (match variable actual, variable out with
+         | Some key, Some result ->
+           let package = formal,result,numeric post and pre = numeric signature in
+           let sampled () = concat_map (fun (name,index) ->
+               if index = key then [] else
+               let states = unique_sorted (assoc_all name samples) in
+               NumS.fit_interval_calls ~index ~key ~samples:states ~bands:literals ~package pre loc) indices in
+           let symbolic () = NumS.symbolic_interval_calls ~inputs:(VarSet.remove key inputs)
+               ~key ~bands:literals ~package pre loc in
+           [sampled; symbolic]
+         | _ -> [])
+      | _ -> [] in
+    let observed = lazy (observed_bands arrow body bands) in
+    let guarded band_sets () =
+      let _,post,returns,_,formals = freshen_cns_scheme scheme in
+      match returns with
+      | [TCons (n,[out])] when n = numtype && List.length formals = List.length actuals &&
+          List.for_all (fun t -> typ_sort t = Num_sort) actuals ->
+        (match variable out with
+         | None -> []
+         | Some result ->
+           let sb = varmap_of_assoc (List.map2 (fun v t -> v,(NumS.num_of t,loc)) formals actuals) in
+           let post = NumS.subst_num_formula sb (numeric post) in
+           let fixed = vars_of_map fvs_typ args and checks = Lazy.force observed in
+           concat_map (fun key -> if VarSet.mem key fixed then [] else
+               concat_map (fun bands -> NumS.guarded_interval_call ~inputs ~key ~result ~bands ~checks
+                              ~post (numeric signature) loc) (band_sets checks))
+             (unique_sorted (map_some variable actuals)))
+      | _ -> [] in
+    (* A choice suggested by one arm can suffice for several. Try the small
+       two-endpoint graph before constructing an interior key for all arms. *)
+    let singles = function _::_::_ as bs -> List.map (fun b -> [b]) bs | _ -> [] in
+    List.map (fun generate () -> List.map NumS.formula_of_sort (generate ()))
+      (before @ [guarded singles; guarded (fun bs -> [bs])])
   | _ -> []
 
 let gen_letrec ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests =
@@ -1456,7 +1531,7 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
          the original guard operands and opening witnesses in scope. *)
       let unresolved = List.map fst proposals in
       (match bounds with
-       | Probe_boundaries bands -> bands := unique_sorted (map_some literal_band unresolved @ !bands)
+       | Probe_boundaries bands -> bands := unique_sorted (map_some guard_band unresolved @ !bands)
        | _ -> ());
       let choices = (if proved = [] then [] else [[]]) @
           (match unresolved with
@@ -1619,7 +1694,7 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
             | _ -> None in
           let (chi_id, e, tests, elim_cells), new_ex_types, (q, phi_res, sb_chi) =
             let propose_call bands = match pat_loc, defsig with
-              | None, Some _ -> interval_call_key !constructor_samples sig_cn t bands loc
+              | None, Some _ -> interval_call_key !constructor_samples sig_cn t e bands loc
               | _ -> [] in
             solve_item ~propose_call new_ex_types e tests (fun e tests call_constraints erase_bodies ->
                 let chi_id, _, cn, e, tests, elim_cells, preserve =

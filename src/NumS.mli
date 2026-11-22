@@ -101,6 +101,17 @@ val symbolic_interval_calls :
   package:(Defs.var_name * Defs.var_name * NumDefs.formula) ->
   NumDefs.formula -> Defs.loc -> NumDefs.formula list
 
+(** Select a legal key by guarded affine cases, allowing the interval's
+    lower and upper offsets to depend on observed integer arguments. The graph
+    covers the original key domain even if avoidance is impossible. When
+    [checks] is supplied, require every written opening to miss those bands
+    before returning a proposal. *)
+val guarded_interval_call :
+  ?checks:(NumDefs.term * NumDefs.term) list ->
+  inputs:Defs.VarSet.t -> key:Defs.var_name -> result:Defs.var_name ->
+  bands:(NumDefs.term * NumDefs.term) list -> post:NumDefs.formula ->
+  NumDefs.formula -> Defs.loc -> NumDefs.formula list
+
 val num_of : Terms.typ -> NumDefs.term
 val sort_formula : Terms.formula -> NumDefs.formula
 val formula_of_sort : NumDefs.formula -> Terms.formula

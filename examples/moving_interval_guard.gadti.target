@@ -1,0 +1,26 @@
+datatype State : num
+
+datacons Neg : State -1
+
+datacons Pos : State 1
+
+datatype Nat
+
+datacons Z : Nat
+
+datacons S : Nat ⟶ Nat
+
+external val dec : ∀m. Num m → Num (m + -1)
+
+external val inc : ∀m. Num m → Num (m + 1)
+
+val base : ∀k, n. State k → Num n → Num (n + k)
+
+external val negative : ∀i[i ≤ -1]. Num i → Bool
+
+external val positive : ∀i[1 ≤ i]. Num i → Bool
+
+val run :
+   ∀i, j, k, n[0 ≤ k ∧ n ≤ i + 1 ∧ i ≤ k + n + 1 ∧ j ≤ 1 ∧ i + j ≤ k + n ∧
+   0 ≤ j + 1 ∧ n ≤ i + j ∧ min||max (j + 1, -j + 1)].
+   State j → Num i → Num k → Nat → ∃l[n ≤ l ∧ l ≤ n + k].Num l
