@@ -4752,6 +4752,29 @@ let implies_cnj (eqs, ineqs, optis, suboptis) cnj =
   implies ~cmp_v ~cmp_w uni_v eqs ineqs optis suboptis c_eqn c_ineqn
     c_optis c_suboptis 
 
+(* A countermodel either satisfies an opening's postcondition or violates
+   an admission atom. Each strict violation gets the same positive slack:
+   finitely many positive differences have a positive minimum. *)
+let conditional_satisfiable pre openings =
+  let d = Terms.fresh_num_var () in
+  let gap = Lin (1,1,d) and zero = Cst (0,1) in
+  let positive loc a b = Leq (Add [b;gap],a,loc) in
+  let violations = function
+    | Eq (a,b,lc) -> [[positive lc a b]; [positive lc b a]]
+    | Leq (a,b,lc) -> [[positive lc a b]]
+    | Subopti (a,b,lc) -> [[positive lc a zero; positive lc b zero]]
+    | Opti (a,b,lc) -> [[positive lc a zero]; [positive lc b zero];
+                         [positive lc zero a; positive lc zero b]] in
+  let rec possible state strict = function
+    | [] -> not strict || not (implies_cnj state [Leq (gap,zero,dummy_loc)])
+    | (admits,post)::rest ->
+      let branch strict facts = match satisfiable ~state facts with
+        | Left _ -> false | Right next -> possible next strict rest in
+      branch strict post ||
+      List.exists (fun atom -> not (implies_cnj state [atom]) &&
+          List.exists (branch true) (violations atom)) admits in
+  match satisfiable pre with Left _ -> false | Right state -> possible state false openings
+
 (* Solve a row a*k + t <= 0 for an integral affine endpoint. For the
    complement a*k + t > 0, take the first integer across the boundary. *)
 let integer_key_boundary ~strict ~inputs ~key (vs,c,lc) =

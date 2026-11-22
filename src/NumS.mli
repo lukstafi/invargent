@@ -212,6 +212,11 @@ val satisfiable_exn : ?state:state -> NumDefs.formula -> state
 (* States computed by [satisfiable] should be used, to match the variable
    ordering. *)
 val implies_cnj : state -> NumDefs.formula -> bool
+(** Feasibility of a numeric premise and a finite conjunction of
+    admission => postcondition clauses. Fresh private postcondition
+    witnesses must be distinct for each clause. *)
+val conditional_satisfiable :
+  NumDefs.formula -> (NumDefs.formula * NumDefs.formula) list -> bool
 (** Incremental check whether |= Q.A. Raises [Contradiction]. *)
 val holds :
   Defs.quant_ops -> Defs.VarSet.t ->

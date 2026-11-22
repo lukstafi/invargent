@@ -407,6 +407,14 @@ let tests = "InvarGenT" >::: [
         let source = input_file (example_path "narrowed_result_band" ^ ".gadt") in
         assert_bool "minus two reaches the second guard"
           (rejects_source ~integer_target:true source));
+      "a recursive key can be admitted under the consumer guard" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "switched_result_band";
+      "opposite keys cover the same guard in different states" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "opposite_result_bands";
+      "conditional admission must respect the exported key domain" >:: (fun () ->
+        let source = input_file (example_path "narrowed_guard_key" ^ ".gadt") in
+        assert_bool "the base returns one and the upper key is unavailable"
+          (rejects_source ~integer_target:true source));
       "two result keys cannot license each other in a cycle" >:: (fun () ->
         let source = input_file (example_path "circular_result_keys" ^ ".gadt") in
         assert_bool "the base returns three and reaches the guarded arm"

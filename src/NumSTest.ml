@@ -25,6 +25,24 @@ let numeric_formula s =
   sort_formula (Parser.formula Lexer.token (Lexing.from_string s))
 
 let tests = "NumS" >::: [
+  "conditional openings retain strict fractional countermodels" >:: (fun () ->
+    let possible pre guards =
+      let blocked = numeric_formula "1<=0" in
+      conditional_satisfiable (numeric_formula pre)
+        (List.map (fun guard -> numeric_formula guard,blocked) guards) in
+    assert_bool "some rational is strictly between zero and one half"
+      (possible "0<=i ∧ 2 i<=1" ["i<=0";"1<=2 i"]);
+    assert_bool "at the common boundary an opening is admitted"
+      (not (possible "0<=i ∧ i<=1" ["i<=0";"0<=i"]));
+    assert_bool "a failed equality can have either sign"
+      (possible "2 i=1" ["i=0"] && possible "2 i=(-1)" ["i=0"]);
+    assert_bool "a failed disjunctive inequality violates both sides"
+      (possible "i=1" ["min(i,2 + -i)<=0"] &&
+       not (possible "i=0" ["min(i,2 + -i)<=0"]));
+    List.iter (fun n -> assert_equal (n<>2)
+        (possible ("i=" ^ string_of_int n) ["i=max(1,2)"])) [0;1;2;3];
+    assert_bool "each opening can choose its own private witness"
+      (conditional_satisfiable [] [[],numeric_formula "i=0"; [],numeric_formula "j=1"]));
   "crossing guard bands preserve the best legal key in either order" >:: (fun () ->
     let var s = VNam (Num_sort,s) in
     let i = var "i" and j = var "j" and k = var "k" and r = var "l" in

@@ -679,7 +679,12 @@ let integer_complement = function
 
 type band_endpoint = Literal of int | Bound_value of string * loc
 
-type observed_bands = (band_endpoint * band_endpoint) list ref
+type 'a guard_band = At_least of 'a | At_most of 'a | Between of 'a * 'a
+type observed_bands = band_endpoint guard_band list ref
+
+let map_band f = function
+  | At_least x -> At_least (f x) | At_most x -> At_most (f x)
+  | Between (a,b) -> Between (f a,f b)
 type guard_bounds =
   | Observe_comparisons of bool ref
   | Prove_complements of bool ref * observed_bands
@@ -718,12 +723,16 @@ type guard_erasure =
   | Collect_guards of (source_arm * (unit -> arm_check)) list ref * guard_bounds
   | Certified_guards of source_arm list * source_arm list * (source_arm * int) list
 
+type numeric_band = NumDefs.term guard_band
+type key_use =
+  | Endpoints of NumDefs.term * NumDefs.term
+  | Result_keys of NumDefs.term * var_name * NumS.key_probe list
+  | Exclude_bands of var_name * NumDefs.term list * numeric_band list
+
 type key_query = {
   key : var_name;
-  lower : NumDefs.term;
-  upper : NumDefs.term;
   bounds : NumDefs.formula;
-  target : (var_name * NumS.key_probe list) option
+  use : key_use
 }
 
 type call_policy = Restrict_calls of formula | Open_at_keys of key_query
@@ -731,6 +740,7 @@ type admission = Admitted | Unavailable | Retry_keys of key_query
 
 type replay =
   | Fixed of typ
+  | Outside_bands of cns_name * numeric_band list
   | After_result of cns_name * (typ -> (typ * VarSet.t * formula * cnstrnt) list)
 
 (* Each graph is total and single valued. Only fresh variable renamings are
@@ -746,6 +756,23 @@ let selected_key sb payload probe observed =
   [Eq (v r,observed,dummy_loc);
    Opti (sub low (v mid),sub target (v mid),dummy_loc);
    Opti (sub (v k) high,sub (v k) (v mid),dummy_loc)]
+
+(* At an integer opening, failure of lo <= r <= hi has unit slack on
+   at least one side. Fresh names avoid negating an input coefficient. *)
+let outside_bands loc value bands =
+  let open NumDefs in
+  let alias term =
+    let x = fresh_num_var () in x, Lin (1,1,x), Eq (Lin (1,1,x),term,loc) in
+  let x,r,link = alias value in
+  let side a b = Add [a; Cst (1,1); scale_term (-1) 1 b] in
+  let outside (vs,phi) = function
+    | At_least lo -> vs,Leq (Add [r;Cst (1,1)],lo,loc)::phi
+    | At_most hi -> vs,Leq (Add [hi;Cst (1,1)],r,loc)::phi
+    | Between (lo,hi) ->
+      let i,l,left = alias lo and j,h,right = alias hi in
+      add_vars [i;j] vs, Subopti (side r l,side h r,loc)::left::right::phi in
+  let vars,atoms = List.fold_left outside (VarSet.singleton x,[link]) bands in
+  vars,NumS.formula_of_sort atoms
 
 let constr_gen_expr_with_arities ?paired ~erase_bodies arities gamma e t =
   let erased_packages = ref None in
@@ -1018,6 +1045,12 @@ let constr_gen_expr_with_arities ?paired ~erase_bodies arities gamma e t =
              let bs,entered = match other with
                | Some (Fixed (TCons (tag,_) as second)) when tag=k ->
                  again (bs,entered) second VarSet.empty []
+               | Some (Outside_bands (tag,bands)) when tag=k ->
+                 (match value with
+                  | TCons (n,[r]) when n=numtype ->
+                    let vars,phi = outside_bands loc (NumS.num_of r) bands in
+                    VarSet.union bs vars, phi @ entered
+                  | _ -> bs,entered)
                | Some (After_result (tag,choose)) when tag=k ->
                  List.fold_left (fun context (second,keys,graph,_) ->
                      again context second keys graph) (bs,entered) (choose value)
@@ -1201,15 +1234,20 @@ let constr_gen_tests ~erase_bodies ~arities gamma tests =
    The source operands only guide search. Every exclusion is checked again
    with the original operands and the complete package. *)
 let guard_band = function
-  | PVar (r,_), [a;b], _ ->
-    let endpoint = function Num (n,_) -> Some (Literal n)
-      | Var (x,lc) when x <> r -> Some (Bound_value (x,lc)) | _ -> None in
-    let order = function (l,Var (x,_)), (Var (y,_),u) when x=r && y=r ->
-      (match endpoint l, endpoint u with
-       | Some (Literal l), Some (Literal u) when l > u -> None
-       | Some l, Some u -> Some (l,u) | _ -> None)
-      | _ -> None in
-    (match order (a,b) with None -> order (b,a) | band -> band)
+  | PVar (r,_), guards, _ ->
+    let endpoint = function
+      | Num (n,_) -> Literal n | Var (x,lc) when x<>r -> Bound_value (x,lc)
+      | _ -> raise Not_found in
+    let bound = function
+      | Var (x,_),u when x=r -> At_most (endpoint u)
+      | l,Var (x,_) when x=r -> At_least (endpoint l)
+      | _ -> raise Not_found in
+    (try match List.map bound guards with
+       | [b] -> Some b
+       | [At_least l;At_most u] | [At_most u;At_least l] ->
+         (match l,u with Literal a,Literal b when a>b -> None | _ -> Some (Between (l,u)))
+       | _ -> None
+     with Not_found -> None)
   | _ -> None
 
 (* Resolve a guard operand at its lexical occurrence. A numeric argument
@@ -1247,12 +1285,12 @@ let observed_bands arrow body bands =
     | Cons (_,xs,_) -> List.iter child xs
     | AssertLeq (a,b,c,_) | AssertEqty (a,b,c,_) -> child a; child b; visit env args c
     | Num _ | String _ | AssertFalse _ -> () in
-  if List.exists (function Literal _, Literal _ -> false | _ -> true) bands then
+  if List.exists (function Between (Literal _,Literal _) | At_least (Literal _) | At_most (Literal _) -> false | _ -> true) bands then
     visit [] (List.map (function TCons (n,[t]) when n=numtype -> Some (NumS.num_of t)
                        | _ -> None) (arg_types arrow)) body;
   let resolve = function Literal n -> NumDefs.Cst (n,1)
     | Bound_value (x,lc) -> Hashtbl.find bindings (x,lc) in
-  map_some (fun (a,b) -> try Some (resolve a,resolve b) with Not_found -> None) bands
+  map_some (fun band -> try Some (map_band resolve band) with Not_found -> None) bands
 
 let interval_call_key samples signature arrow body bands loc =
   let variable = function
@@ -1267,7 +1305,7 @@ let interval_call_key samples signature arrow body bands loc =
               | Some index -> Some (name,index) | None -> None) args
         | _ -> []) args in
     let inputs = vars_of_list (List.map snd indices) in
-    let literals = map_some (function Literal l,Literal u -> Some (l,u) | _ -> None) bands in
+    let literals = map_some (function Between (Literal l,Literal u) -> Some (l,u) | _ -> None) bands in
     let before = match actuals, scheme with
       | [actual], (_,post,[TCons (n,[out])],_,[formal]) when n = numtype && literals <> [] ->
         (match variable actual, variable out with
@@ -1301,7 +1339,7 @@ let interval_call_key samples signature arrow body bands loc =
     let guarded band_sets () = match Lazy.force package with
       | None -> []
       | Some (result,post) ->
-        let checks = Lazy.force observed in
+        let checks = map_some (function Between (lo,hi) -> Some (lo,hi) | _ -> None) (Lazy.force observed) in
         concat_map (fun key -> concat_map (fun bands ->
             NumS.guarded_interval_call ~inputs ~key ~result ~bands ~checks
               ~post (numeric signature) loc) (band_sets checks)) keys in
@@ -1312,26 +1350,42 @@ let interval_call_key samples signature arrow body bands loc =
       | _,_,[TCons (n,[_])],_,_ when n=numtype ->
         let pre = numeric signature in
         concat_map (fun key ->
-            match NumS.interval_endpoints ~inputs ~key pre loc with
-            | None -> []
-            | Some (lower,upper,bounds) ->
-              let propose bounds target = Open_at_keys {key;lower;upper;bounds;target} in
-              if strategy=`Endpoints then [propose bounds None] else
-              match Lazy.force package with
-              | None -> []
-              | Some (r,post) ->
-                let probes,graph = if strategy=`Components then
-                    NumS.component_keys ~inputs ~key ~result:r ~post pre loc
-                  else List.map (fun target_value ->
-                      {NumS.target_value;clip_lower=lower;clip_upper=upper})
-                      (NumS.refuting_keys ~inputs ~key ~result:r post),[] in
-                let query probes = propose (bounds @ graph) (Some (r,probes)) in
-                List.map (fun p -> query [p]) probes @
-                (match probes with _::_::_ -> [query probes] | _ -> [])) keys
+            let endpoints = NumS.interval_endpoints ~inputs ~key pre loc in
+            let propose bounds use = Open_at_keys {key;bounds;use} in
+            match strategy,endpoints with
+            | `Endpoints,Some (lo,hi,defs) -> [propose defs (Endpoints (lo,hi))]
+            | `On_guard early,_ ->
+              (* If an input alone controls one side of a domain choice, a
+                 uniform opening can unnecessarily discard that input. *)
+              let conditional = List.exists (function
+                  | NumDefs.Subopti (a,b,_) -> NumDefs.has_var_term key a <> NumDefs.has_var_term key b
+                  | _ -> false) pre in
+              if early <> conditional then [] else
+              let bs = unique_sorted (Lazy.force observed) in
+              (match bs,Lazy.force package with
+               | [],_ | _,None -> []
+               | _,Some (r,post) ->
+                 let ends,defs = match endpoints with None -> [],[] | Some (lo,hi,defs) -> [lo;hi],defs in
+                 let targets = unique_sorted (ends @ NumS.refuting_keys ~inputs ~key ~result:r post) in
+                 List.map (fun bands -> propose defs (Exclude_bands (r,targets,bands))) (bs :: singles bs))
+            | (`Hull | `Components),Some (lower,upper,bounds) ->
+              (match Lazy.force package with
+               | None -> []
+               | Some (r,post) ->
+                 let probes,graph = if strategy=`Components then
+                     NumS.component_keys ~inputs ~key ~result:r ~post pre loc
+                   else List.map (fun target_value ->
+                       {NumS.target_value;clip_lower=lower;clip_upper=upper})
+                       (NumS.refuting_keys ~inputs ~key ~result:r post),[] in
+                 let query probes = propose (bounds @ graph) (Result_keys (lower,r,probes)) in
+                 List.map (fun p -> query [p]) probes @
+                 (match probes with _::_::_ -> [query probes] | _ -> []))
+            | _,None -> []) keys
       | _ -> [] in
+    paired (`On_guard true) ::
     List.map (fun generate () -> List.map (fun phi -> Restrict_calls (NumS.formula_of_sort phi)) (generate ()))
       (before @ [guarded singles; guarded (fun bs -> [bs])]) @
-    [paired `Endpoints; paired `Hull; paired `Components]
+    [paired `Endpoints; paired `Hull; paired `Components; paired (`On_guard false)]
   | _ -> []
 
 let gen_letrec ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests =
@@ -1372,21 +1426,22 @@ let gen_letrec ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests
             hvsubst_formula rename sig_cn in
         arrow,id,required in
       let graph = NumS.formula_of_sort query.bounds in
-      (match query.target with
-       | None ->
+      let tag = match return_type tb with TCons (tag,_) -> tag | _ -> assert false in
+      (match query.use with
+       | Endpoints (lower,upper) ->
          let endpoint term =
            let k = fresh_num_var () in
            let arrow,_,phi = instance VarMap.empty k in
            arrow, Eqty (TVar k,num term,lc)::phi in
-         let first,p = endpoint query.lower and second,q = endpoint query.upper in
+         let first,p = endpoint lower and second,q = endpoint upper in
          let phi = graph @ p @ q in
          let vs = VarSet.elements (fvs_formula phi) in
          gamma,Some (def_typ,(vs,phi,first),fun sb -> Fixed (hvsubst_typ sb (return_type second)))
-       | Some (r,targets) ->
-         let primary = Eqty (TVar query.key,num query.lower,lc) :: chi_b :: signature @ graph in
+       | Exclude_bands (_,_,bands) ->
+         let other sb = Outside_bands (tag,List.map (map_band (NumDefs.hvsubst_term sb)) bands) in
+         gamma,Some (def_typ,def_typ,other)
+       | Result_keys (lower,r,targets) ->
          let terms = concat_map (fun p -> [p.NumS.target_value;p.NumS.clip_lower;p.NumS.clip_upper]) targets in
-         let vs = VarSet.union (fvs_formula primary)
-             (VarSet.remove r (vars_of_map NumDefs.fvs_term terms)) in
          let other sb =
            let choose = function
              | TCons (n,[observed]) when n=numtype ->
@@ -1396,8 +1451,10 @@ let gen_letrec ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests
                    let graph = NumS.formula_of_sort graph in
                    return_type arrow, keys, graph, Ex (VarSet.add id keys,A (graph @ positive))) targets
              | _ -> assert false in
-           match return_type tb with TCons (tag,_) -> After_result (tag,choose) | _ -> assert false in
-         gamma, Some (def_typ,(VarSet.elements vs,primary,tb),other)) in
+           After_result (tag,choose) in
+         let primary = Eqty (TVar query.key,num lower,lc) :: chi_b :: signature @ graph in
+         let vs = VarSet.union (fvs_formula primary) (VarSet.remove r (vars_of_map NumDefs.fvs_term terms)) in
+         gamma,Some (def_typ,(VarSet.elements vs,primary,tb),other)) in
   let (expr_cn, e), elim_cell, preserve =
     constr_gen_expr_with_arities ?paired ~erase_bodies arities body_gamma e anchor in
   let def_cn =
@@ -1683,7 +1740,7 @@ let check_key_admission query signature written inferred loc =
     let original = List.map (fun (a,b) -> eq a b) positions @ actual @ decl @ query.bounds in
     (* Give each changed formal an explicit witness and check the complete
        domain at the new key. Equalities in [bindings] define fresh names. *)
-    let check ?(vacuous=false) k extra =
+    let admission k =
       let replacement = VarMap.singleton query.key k in
       let rename,bindings = List.fold_left (fun (sb,phi) -> function
           | Lin (1,1,x),term when not (VarMap.mem x sb) ->
@@ -1692,25 +1749,48 @@ let check_key_admission query signature written inferred loc =
           | _ -> sb,phi) (VarMap.empty,[]) positions in
       let matches = List.map (fun (a,b) -> eq (hvsubst_term rename a)
           (hvsubst_term replacement b)) positions in
-      entails ~vacuous (original @ extra @ bindings)
-        (matches @ List.map (hvsubst_atom rename) actual @ List.map (hvsubst_atom replacement) decl) in
-    let first = fresh_num_var () in
-    let initial = [eq (v first) query.lower] in
+      bindings,matches @ List.map (hvsubst_atom rename) actual @ List.map (hvsubst_atom replacement) decl in
+    let check ?(vacuous=false) k extra =
+      let bindings,goals = admission k in
+      entails ~vacuous (original @ extra @ bindings) goals in
+    let first,initial = match query.use with
+      | Endpoints (lower,_) | Result_keys (lower,_,_) ->
+        let k = fresh_num_var () in k,[eq (v k) lower]
+      | Exclude_bands _ -> query.key,[] in
     if not (check first initial) then Unavailable else
-    (match query.target with
-     | None ->
+    let opening key =
+      let package = return_type written in
+      let tag = match package with TCons (tag,_) -> tag | _ -> raise Not_found in
+      let at_key = hvsubst_typ (VarMap.singleton query.key key) package in
+      let _,prem,env = envfrag_gen_pat 0 (PCons (tag,[PVar ("x",loc)],loc)) at_key in
+      match env with
+      | [_,TCons (n,[t])] when n=numtype ->
+        NumS.num_of t, (unify ~use_quants:false empty_q prem).cnj_num
+      | _ -> raise Not_found in
+    (match query.use with
+     | Endpoints (_,upper) ->
        let high = fresh_num_var () in
-       if check high [eq (v high) query.upper] then Admitted else Unavailable
-     | Some (r,targets) ->
-       let package = return_type written in
-       let tag = match package with TCons (tag,_) -> tag | _ -> raise Not_found in
-       let opening key =
-         let at_key = hvsubst_typ (VarMap.singleton query.key key) package in
-         let _,prem,env = envfrag_gen_pat 0 (PCons (tag,[PVar ("x",loc)],loc)) at_key in
-         match env with
-         | [_,TCons (n,[t])] when n=numtype ->
-           NumS.num_of t, (unify ~use_quants:false empty_q prem).cnj_num
-         | _ -> raise Not_found in
+       if check high [eq (v high) upper] then Admitted else Unavailable
+     | Exclude_bands (r,targets,bands) ->
+       let observed,opened = opening first in
+       (* A key contributes only where its complete inferred admission
+          holds. Its private witnesses belong to this opening alone. *)
+       let payload = fresh_num_var () in
+       let definitions,clauses = List.fold_left (fun (defs,clauses) target ->
+           let k = fresh_num_var () in
+           let target = hvsubst_term (VarMap.singleton r payload) target in
+           let bindings,admits = admission k and value,post = opening k in
+           eq (v k) target :: bindings @ defs, (admits,eq observed value :: post)::clauses)
+           ([eq (v payload) observed],[]) targets in
+       let facts = definitions @ original @ opened in
+       let refuted band =
+         let inside = match band with
+           | At_least lo -> [Leq (lo,observed,loc)]
+           | At_most hi -> [Leq (observed,hi,loc)]
+           | Between (lo,hi) -> [Leq (lo,observed,loc); Leq (observed,hi,loc)] in
+         not (NumS.conditional_satisfiable (inside @ facts) clauses) in
+       if List.for_all refuted bands then Admitted else Unavailable
+     | Result_keys (lower,r,targets) ->
        let observed,opened = opening first in
        let queries = List.map (fun target ->
            let k,_,graph = selected_key VarMap.empty r target observed in
@@ -1724,7 +1804,7 @@ let check_key_admission query signature written inferred loc =
          let ready,rest = List.partition (fun (_,k,graph) ->
              check ~vacuous:true k (graph @ facts)) pending in
          if rest=[] then Admitted else if ready=[] then
-           (match keep with _::_::_ -> Retry_keys {query with target=Some (r,keep)}
+           (match keep with _::_::_ -> Retry_keys {query with use=Result_keys (lower,r,keep)}
             | _ -> Unavailable)
          else
            let keep = List.rev_append (List.map (fun (t,_,_) -> t) ready) keep in
