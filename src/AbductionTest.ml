@@ -49,6 +49,21 @@ let prepare_brs (brs : Infer.branch list) = List.map
     
 let tests = "Abduction" >::: [
 
+  "discard the same index shape in both term representations" >:: (fun () ->
+    let index = VNam (Num_sort, "i") and order = VNam (Order_sort, "o") in
+    let v = VNam (Type_sort, "a") in
+    let binding leaf = VarMap.singleton v (TCons (CNam "Carrier", [leaf]), dummy_loc) in
+    let offered = TVar index and numeric = num (NumDefs.Lin (1,1,index)) in
+    let ordered = Alien (Order_term (OrderDefs.OVar order)) in
+    let rejected proposal cut =
+      abd_simple q ~without_quant:() ~obvs:VarSet.empty ~bvs:VarSet.empty
+        ~dissociate:true ~validation:[] ~neg_validate:(fun _ -> 0)
+        ~discard:[[], binding cut] 0 ([], VarMap.empty)
+        (sep_formulas [], binding proposal) = None in
+    assert_bool "numeric variable versus arithmetic term" (rejected offered numeric);
+    assert_bool "order variable versus order term" (rejected (TVar order) ordered);
+    assert_bool "different index sorts" (not (rejected offered ordered)));
+
   "validate an input with an indirect type cycle" >:: (fun () ->
     Terms.reset_state ();
     Infer.reset_state ();

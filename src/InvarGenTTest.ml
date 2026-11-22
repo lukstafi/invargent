@@ -354,6 +354,7 @@ let tests = "InvarGenT" >::: [
       "an opaque guard admits a type valid on either outcome" >:: run_example "opaque_guard";
       "a guard inside an opened package excludes both marked calls" >:: run_example "guard_contract";
       "arithmetic can wrap before a constructor match" >:: run_example "guard_overflow";
+      "a local guard helper can keep its inferred index" >:: run_example "local_guard_helper";
       "a constructor index witnesses a guarded call" >:: test_case "guarded_payload";
       "a call reached after opening an earlier return" >:: test_case "ordered_calls";
       "a partial application through two local aliases" >:: test_case "function_alias";

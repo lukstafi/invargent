@@ -94,20 +94,18 @@ let rich_return_type_heur bvs ans cand =
 
 let rich_return_type = ref true
 
-exception Distinct
-let eq_mod_aliens t1 t2 =
-  let rec aux t1 t2 =
-    match t1, t2 with
-    | TVar v1, TVar v2
-      when var_sort v1 <> Type_sort && var_sort v2 <> Type_sort -> ()
-    | TVar v1, TVar v2
-      when v1 = v2 -> ()
-    | TCons (f, args1), TCons (g, args2) when f=g ->
-      List.iter2 aux args1 args2
-    | Fun (a1, r1), Fun (a2, r2) -> aux a1 a2; aux r1 r2
-    | Alien _, Alien _ -> ()
-    | _ -> raise Distinct in
-  try aux t1 t2; true with Distinct -> false
+(* On a dissociated pass only the sort of an alien index is visible.
+   Reinstating a numeric term can change its representation from TVar to
+   Alien between the proposal and its discard. *)
+let rec eq_mod_aliens left right =
+  let sort = typ_sort left in
+  if sort <> Type_sort then sort = typ_sort right else
+  match left, right with
+  | TVar v, TVar w -> v = w
+  | TCons (f, xs), TCons (g, ys) ->
+    f = g && List.length xs = List.length ys && List.for_all2 eq_mod_aliens xs ys
+  | Fun (a,b), Fun (c,d) -> eq_mod_aliens a c && eq_mod_aliens b d
+  | _ -> false
 
 let implies_cnj mod_aliens ans c_ans =
   VarMap.for_all (fun v (t,_) ->
