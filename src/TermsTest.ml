@@ -11,6 +11,34 @@ open NumDefs
 open Terms
 
 let tests = "Terms" >::: [
+  "quantified bindings respect the prefix after composition" >::
+    (fun () ->
+      let x = VNam (Type_sort, "x") and u = VNam (Type_sort, "u")
+      and z = VNam (Type_sort, "z") in
+      let rank v = if v = x then 0 else if v = u then 1 else 2 in
+      let q = {empty_q with uni_v = (fun v -> v = u);
+               cmp_v = (fun a b -> if a = b then Same_quant
+                        else if rank a < rank b then Left_of else Right_of)} in
+      let eq a b = Eqty (a, b, dummy_loc) in
+      let fx = TVar x and ru = TVar u and fz = TVar z in
+      let box t = TCons (CNam "Box", [t]) in
+      let solve cnj = (unify ~use_quants:true q cnj).cnj_typ in
+      List.iter (fun atom ->
+          let sb = solve [atom] in
+          assert_equal ru (subst_typ sb fz);
+          assert_bool "the universal remains rigid" (not (VarMap.mem u sb)))
+        [eq ru fz; eq fz ru];
+      let reject cnj =
+        try ignore (solve cnj); assert_failure "late universal escaped"
+        with Contradiction (Type_sort, "Quantifier violation", _, _) -> () in
+      List.iter reject [[eq fx ru]; [eq ru fx];
+                        [eq fx (box fz); eq fz ru];
+                        [eq fz ru; eq fx (box fz)]];
+      let partial = solve [eq fx (box fz)] in
+      try ignore (unify ~use_quants:true ~sb:partial q [eq fz ru]);
+          assert_failure "the earlier witness changed when its hole was filled"
+      with Contradiction (Type_sort, "Quantifier violation", _, _) -> ());
+
   "parsing and printing" >::
     (fun () ->
       extype_id := 0;

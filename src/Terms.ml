@@ -451,7 +451,10 @@ let update_one_sb_check do_check f x sx sb =
     VarMap.add x sx
       (VarMap.mapi (fun v (t, loc as st) ->
          if has_var_typ x t
-         then (f v t loc; subst_typ more_sb t, loc)
+         then (
+           let t = subst_typ more_sb t in
+           f v t loc;
+           t, loc)
          else st) sb)
 
 let revert_renaming sb =
@@ -1486,6 +1489,9 @@ let unify ?use_quants ?bvs ?(sb=VarMap.empty) q cnj =
          then raise
              (Contradiction (Type_sort, "Quantifier violation",
                              Some (TVar w, t'), loc)) in
+  let bind sb v t loc =
+    if use_quants then check_quant_viol v t loc;
+    update_one_sb_check use_quants check_quant_viol v (t, loc) sb in
   let new_notex, cnj = sep_unsolved cnj in
   let rec aux sb num_cn ord_cn = function
     | [] -> sb, num_cn, ord_cn
@@ -1524,21 +1530,13 @@ let unify ?use_quants ?bvs ?(sb=VarMap.empty) q cnj =
         when VarSet.mem v (fvs_typ t) ->
         raise (Contradiction (Type_sort, "Occurs check fail",
                               Some (tv, t), loc))
-      | (TVar v, t | t, TVar v)
-        when use_quants && quant_viol q bvs v t ->
-        raise
-          (Contradiction (Type_sort, "Quantifier violation",
-                          Some (TVar v, t), loc))
-      | (TVar v1 as tv1, (TVar v2 as tv2)) ->
-        if q.cmp_v v1 v2 = Left_of
-        then aux (update_one_sb_check use_quants
-                    check_quant_viol v2 (tv1, loc) sb)
-            num_cn ord_cn cnj
-        else aux (update_one_sb_check use_quants
-                    check_quant_viol v1 (tv2, loc) sb) num_cn ord_cn cnj
-      | (TVar v, t | t, TVar v) ->
-        aux (update_one_sb_check use_quants
-                    check_quant_viol v (t, loc) sb) num_cn ord_cn cnj
+      | (TVar v1, TVar v2) ->
+        let v, w = if q.cmp_v v1 v2 = Left_of then v2, v1 else v1, v2 in
+        (* A rigid variable can be the representative of an equality. *)
+        let v, w =
+          if use_quants && quant_viol q bvs v (TVar w) then w, v else v, w in
+        aux (bind sb v (TVar w) loc) num_cn ord_cn cnj
+      | (TVar v, t | t, TVar v) -> aux (bind sb v t loc) num_cn ord_cn cnj
       | (TCons (f, f_args) as t1,
                               (TCons (g, g_args) as t2)) when f=g ->
         let more_cnj =
