@@ -190,6 +190,18 @@ let rejects_source ?integer_target source =
   with Defs.Report_toplevel _ | Terms.Contradiction _ | Terms.NoAnswer _ -> true
 
 let tests = "InvarGenT" >::: [
+      "a failed fully annotated solve restores the annotation settings" >:: (fun () ->
+        let file, channel = Filename.open_temp_file "invargent_annotations" ".gadt" in
+        output_string channel "let bad : Bool = 1";
+        close_out channel;
+        Terms.reset_state (); Infer.reset_state ();
+        let before = !Infer.annotating_fun, !Infer.annotating_letin in
+        let rejected =
+          try ignore (InvarGenT.process_file ~full_annot:true file); false
+          with Defs.Report_toplevel _ | Terms.Contradiction _ | Terms.NoAnswer _ -> true in
+        Sys.remove file;
+        assert_bool "the written type is inconsistent" rejected;
+        assert_equal before (!Infer.annotating_fun, !Infer.annotating_letin));
       "GADT match result indices refine inside the branches" >::
         run_example ~full_annot:true "compare_term_indices";
       "repeating a supplier preserves the other upper bound" >::

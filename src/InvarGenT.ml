@@ -30,22 +30,30 @@ let process_file ?(do_sig=false) ?(do_ml=false)
   current_file_name := fname;
   let infer_annot_fun = !Infer.annotating_fun in
   let infer_annot_letin = !Infer.annotating_letin in
+  let file = open_in fname in
+  let parsed =
+    try Parser.program Lexer.token (Lexing.from_channel file)
+    with exn -> close_in_noerr file; raise exn in
+  close_in file;
+  let restore_annotations () =
+    Infer.annotating_fun := infer_annot_fun;
+    Infer.annotating_letin := infer_annot_letin in
   Infer.annotating_fun := infer_annot_fun || full_annot;
   Infer.annotating_letin := infer_annot_letin || full_annot;
-  let file = open_in fname in
-  let prog = (Infer.normalize_program % Parser.program Lexer.token)
-      (Lexing.from_channel file) in
-  (*[* Format.printf "process_file:@\n%a@\n%!" pr_program
-    (List.map snd prog); *]*)
-  let env, annot = Infer.infer_prog ~integer_target:(!OCaml.num_is = "int")
-      ~check_excluded:solve_checked solver prog in
-  Infer.annotating_fun := infer_annot_fun;
-  Infer.annotating_letin := infer_annot_letin;
+  let _, annot =
+    try Infer.infer_prog ~integer_target:(!OCaml.num_is = "int")
+          ~check_excluded:solve_checked solver (Infer.normalize_program parsed)
+    with exn -> restore_annotations (); raise exn in
+  restore_annotations ();
+  let write_file path printer =
+    let channel = open_out path in
+    let output = Format.formatter_of_out_channel channel in
+    (try Format.fprintf output "%a@\n%!" printer annot
+     with exn -> close_out_noerr channel; raise exn);
+    close_out channel in
   let base = Filename.chop_extension fname in
   if do_sig then (
-    let output = Format.formatter_of_out_channel
-        (open_out (base^".gadti")) in
-    Format.fprintf output "%a@\n%!" pr_signature annot;
+    write_file (base^".gadti") pr_signature;
     Format.printf "InvarGenT: Generated file %s@\n%!" (base^".gadti"));
   let ml_fname =
     match ml_fname with
@@ -53,12 +61,7 @@ let process_file ?(do_sig=false) ?(do_ml=false)
     | Some fname -> fname in
   let generate_ml =
     do_ml && (overwrite_ml || not (Sys.file_exists ml_fname)) in
-  let write_ml ~funtys ~lettys =
-    let channel = open_out ml_fname in
-    let output = Format.formatter_of_out_channel channel in
-    (try Format.fprintf output "%a@\n%!" (OCaml.pr_ml ~funtys ~lettys) annot
-     with exn -> close_out_noerr channel; raise exn);
-    close_out channel in
+  let write_ml ~funtys ~lettys = write_file ml_fname (OCaml.pr_ml ~funtys ~lettys) in
   if generate_ml then (
     write_ml ~funtys:full_annot ~lettys:full_annot;
     Format.printf "InvarGenT: Generated file %s@\n%!" ml_fname)
@@ -237,8 +240,8 @@ let main () =
     | _ -> ()
   with (Report_toplevel _ | Contradiction _ | NoAnswer _) as exn ->
     Format.printf "%a@\n%!" pr_exception exn;
-    if !Defs.deadcode_flag then Format.printf
-        "Perhaps do not pass the -no_dead_code flag.@\n%!";
+    if !Defs.deadcode_flag && !Defs.nodeadcode then Format.printf
+        "To allow unreachable branches, try -allow_dead_code.@\n%!";
     if !Abduction.abd_timeout_flag then Format.printf
         "Perhaps increase the -term_abduction_timeout parameter.@\n%!";
     if !Abduction.abd_fail_flag then Format.printf
