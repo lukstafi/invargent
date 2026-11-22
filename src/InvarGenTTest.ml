@@ -187,6 +187,7 @@ let tests = "InvarGenT" >::: [
       "repeating a supplier preserves the other upper bound" >::
         test_case "choice_arms"
           ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
+      "one witness for three equal result indices" >:: test_case "equal_triple";
       "separate existential indices after the first unequal pair" >::
         test_case "separating_pair"
           ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);

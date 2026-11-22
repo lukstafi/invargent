@@ -1,0 +1,13 @@
+datatype Switch
+
+datacons A : Switch
+
+datacons B : Switch
+
+external val same : ∀n. (Num n, Num n, Num n) → Bool
+
+val triple : Switch → ∃n[0 ≤ n ∧ n ≤ 1].(Num n, Num n, Num n)
+
+val at_a : Bool
+
+val at_b : Bool

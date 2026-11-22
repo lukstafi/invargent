@@ -1,0 +1,10 @@
+datatype Switch
+datacons A : Switch
+datacons B : Switch
+
+external let same : ∀n. (Num n, Num n, Num n) → Bool =
+  "fun (x,y,z) -> assert (x=y && y=z); true"
+
+let triple = efunction A -> (0,0,0) | B -> (1,1,1)
+let at_a = let xyz = triple A in same xyz
+let at_b = let xyz = triple B in same xyz

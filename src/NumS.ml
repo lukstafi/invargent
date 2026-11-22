@@ -630,47 +630,33 @@ let extract_v_subst v (vars, cst, loc) =
   let j, vars = pop_assoc v vars in
   v, mult (!/(-1) // j) (vars, cst, loc)
 
-let expand_subst ~keep ~bvs eqs =
-  let sb, sb' =
-    List.split
-      (List.map
-         (fun (v, (vars, cst, loc as w) as sw) ->
-            let w' = (v, !/(-1))::vars, cst, loc in
-            (*[* Format.printf "expand_subst: v=%s w=%a@ norm=%a@\n%!"
-              (var_str v) pr_w w pr_w
-              (norm_by_lcd ((v, !/(-1))::vars, cst, loc)); *]*)
-            if not (VarSet.mem v bvs) then (v, (expand_w w, loc)), sw
-            else match expand_sides
-                         (norm_by_lcd ((v, !/(-1))::vars, cst, loc)) with
-            | Lin (1, 1, v), t when not (VarSet.mem v keep) ->
-              (*[* Format.printf
-                "expand_subst: [1] v=%s t=%a@\n%!" (var_str v) pr_term t; *]*)
-              (v, (t, loc)), extract_v_subst v w'
-            | t, Lin (1, 1, v) when not (VarSet.mem v keep) ->
-              (*[* Format.printf
-                "expand_subst: [2] v=%s t=%a@\n%!" (var_str v) pr_term t; *]*)
-              (v, (t, loc)), extract_v_subst v w'
-            | _ when not (VarSet.mem v keep) ->
-              (*[* Format.printf
-                "expand_subst: [3] v=%s t=%a@\n%!" (var_str v)
-                pr_term (expand_w w); *]*)
-              (v, (expand_w w, loc)), sw
-            | _ ->
-              (*[* Format.printf
-                "expand_subst: [3] orig_v=%s orig_t=%a@\n%!" (var_str v)
-                pr_term (expand_w w); *]*)
-              let keep_vars, cands = List.partition
-                  (fun (v, _) -> VarSet.mem v keep) vars in
-              match cands with
-              | [] -> (v, (expand_w w, loc)), sw
-              | (v, j)::vars ->
-                let w = mult (!/1 // j) (vars @ cands, cst, loc) in
-                (*[* Format.printf
-                  "expand_subst: [3] v=%s t=%a@\n%!" (var_str v)
-                  pr_term (expand_w w); *]*)
-                (v, (expand_w w, loc)), extract_v_subst v w')
-         (varmap_to_assoc eqs)) in
-  varmap_of_assoc sb, varmap_of_assoc sb'
+(* Prefer a single variable on a positive side, e.g. [height = child+1].
+   A change of pivot is a row operation on the whole solved system. *)
+let expand_subst ~cmp_v ~keep ~bvs eqs =
+  let change_pivot pivot (vars, cst, loc) current =
+    (* Equal names already have the representative selected by the solver.
+       Flipping an alias can rename a repeated result index on every pass. *)
+    let alias = match vars with
+      | [_, coef] -> coef =/ !/1 && cst =/ !/0
+      | _ -> false in
+    if alias || not (VarSet.mem pivot bvs) then current else
+    let equation = (pivot, !/(-1)) :: vars, cst, loc in
+    let free v = not (VarMap.mem v current || VarSet.mem v keep) in
+    let repivot v =
+      let terms, constant, loc = VarMap.find pivot current in
+      if not (List.mem_assoc v terms) then current else
+      let row = (pivot, !/(-1)) :: terms, constant, loc in
+      let _, rhs = extract_v_subst v row in
+      let rhs = norm_w ~cmp_v rhs in
+      let others = VarMap.map (subst_one ~cmp_v (v, rhs))
+          (VarMap.remove pivot current) in
+      VarMap.add v rhs others in
+    match expand_sides (norm_by_lcd equation) with
+    | Lin (1, 1, v), _ when free v -> repivot v
+    | _, Lin (1, 1, v) when free v -> repivot v
+    | _ -> current in
+  let rows = VarMap.fold change_pivot eqs eqs in
+  VarMap.map (fun (_, _, lc as w) -> expand_w w, lc) rows, rows
 
 let expand_formula = List.map
     (function
@@ -4659,7 +4645,9 @@ let separate_subst_aux q ~no_csts ~keep ~bvs ~apply cnj =
     else [], varmap_to_assoc eqs in
   let c_eqn =
     collect ~cmp_k:Num.compare_num c_eqn in
-  let leq (v1, _) (v2, _) = cmp_v v1 v2 >= 0 in
+  let leq (v1, _) (v2, _) =
+    if VarSet.mem v1 keep = VarSet.mem v2 keep then cmp_v v1 v2 >= 0
+    else VarSet.mem v2 keep in
   let c_eqs =
     concat_map
       (fun (cst, vars) ->
@@ -4671,24 +4659,18 @@ let separate_subst_aux q ~no_csts ~keep ~bvs ~apply cnj =
            vars
          @ [ov, ([], cst, olc)])
       c_eqn in
-  let c_eqs = List.map
-      (function
-        | v1, ((v2, k)::vars, cst, lc)
-          when VarSet.mem v1 keep && not (VarSet.mem v2 keep) ->
-          v2, mult (!/(-1) // k) ((v1, !/(-1))::vars, cst, lc)
-        | sv -> sv)
-      c_eqs in
-  let eqs, more_eqs = List.partition
-      (fun (v,_) -> not (VarSet.mem v keep)) (c_eqs @ eqs) in
-  let eqs = varmap_of_assoc eqs in
-  let sb, eqs = expand_subst ~keep ~bvs eqs in
+  let rows = c_eqs @ eqs in
+  let eqs, retained = List.partition (fun (v, _) -> not (VarSet.mem v keep)) rows in
+  let sb, eqs = expand_subst ~cmp_v ~keep ~bvs (varmap_of_assoc eqs) in
+  let more = List.map (fun (v, (_, _, lc as w)) ->
+      Eq (Lin (1, 1, v), expand_w w, lc)) retained in
   (*[* Format.printf
     "NumS.separate_subst: no_csts=%b@ eq-keys=%a@ sb=%a@\n%!"
     no_csts pr_vars (varmap_domain eqs)
     pr_num_subst sb; *]*)
   if not apply
   then
-    sb, List.filter (function Eq _ -> false | _ -> true) cnj
+    sb, more @ List.filter (function Eq _ -> false | _ -> true) cnj
   else
     let _, ineqn, optis, suboptis = split_flatten ~cmp_v cnj in
     (* FIXME: drop [keep] variables before substituting? *)
@@ -4701,11 +4683,6 @@ let separate_subst_aux q ~no_csts ~keep ~bvs ~apply cnj =
     let phi_num = cnj_to_num_formula ([], ineqn, optis, suboptis) in
     (*[* Format.printf "NumS.separate_subst: bvs=%a@ phi=%a@\n%!"
       pr_vars bvs pr_formula phi_num; *]*)
-    let more_sb, _ =
-      expand_subst ~keep ~bvs (varmap_of_assoc more_eqs) in
-    let more = List.map
-        (fun (v,(t,lc)) -> Eq (Lin (1,1,v), t, lc))
-        (varmap_to_assoc more_sb) in
     sb, more @ phi_num
          
 (* TODO: move to VarMap-based solutions? *)

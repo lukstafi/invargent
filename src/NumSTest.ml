@@ -25,6 +25,18 @@ let numeric_formula s =
   sort_formula (Parser.formula Lexer.token (Lexing.from_string s))
 
 let tests = "NumS" >::: [
+  "a change of pivot preserves the other equations" >:: (fun () ->
+    let input = numeric_formula "n1=n2+n3 ∧ n1=n4+n5 ∧ n2<=n5" in
+    let all = fvs_formula input in
+    List.iter (fun keep -> List.iter (fun apply ->
+      let _, sb, residual = separate_subst q ~keep ~bvs:all ~apply input in
+      let output = VarMap.fold (fun v t phi -> Eq (Lin (1,1,v), t, dummy_loc) :: phi)
+          sb residual in
+      assert_bool "retained equations and bindings imply the original constraints"
+        (implies_cnj (satisfiable_exn output) input);
+      assert_bool "the separated constraints accept every original solution"
+        (implies_cnj (satisfiable_exn input) output)) [false; true])
+      [VarSet.empty; fvs_formula (numeric_formula "n1=n3"); all]);
   "combine branch equations across two result indices" >:: (fun () ->
     let graph = numeric_formula "n2=n1+n3" in
     let targets = fvs_formula (numeric_formula "n1=n2") in

@@ -611,31 +611,8 @@ let simplify q_ops ~bvs ?keepvs ?guard ?initstep (vs, cnj) =
   let num_sb, num_nsb, num_ans =
     NumS.separate_subst q ~keep:(VarSet.diff keepvs' vs) ~bvs
       ~no_csts:true ~apply:true num_ans in
-  (*let num_sb, more_num_ans =
-    match keepvs with
-    | None ->
-      List.partition
-        (fun (v,_) -> true (* VarSet.mem v vs || not (VarSet.mem v bvs) *))
-        num_sb
-    | Some keepvs ->
-      List.partition (fun (v,_) -> not (VarSet.mem v keepvs)) num_sb in
-  let num_ans = NumS.sort_of_subst more_num_ans @ num_ans in*)
-  (* We "cheat": eliminate variables introduced later, so that
-     convergence check has easier job (i.e. just syntactic). *)
-  let num_sb = List.map
-      (function
-        | v, (TVar v2, lc) when v < v2 -> v2, (TVar v, lc)
-        | v, (Alien (Num_term (NumDefs.Lin (1, 1, v2))), lc) when v < v2 ->
-          v2, (TVar v, lc)
-        | sv -> sv)
-      (varmap_to_assoc num_sb)
-  and num_nsb = List.map
-      (function
-        | v, NumDefs.Lin (1, 1, v2) when v < v2 -> v2, NumDefs.Lin (1, 1, v)
-        | sv -> sv)                  
-      (varmap_to_assoc num_nsb) in
-  let num_sb = varmap_of_assoc num_sb
-  and num_nsb = varmap_of_assoc num_nsb in
+  (* Keep the same representative in the result type and its side constraints.
+     In particular a local alias must not replace a captured parameter. *)
   (*[* Format.printf "simplify:@\nnum_sb=%a@\nnum_ans0=%a@\n%!"
     pr_subst num_sb NumDefs.pr_formula num_ans; *]*)
   let num_ans = List.map (NumDefs.nsubst_atom num_nsb) num_ans in
