@@ -1,0 +1,23 @@
+datatype Gate : num
+
+datacons Live : Gate (1/2)
+
+datacons Zero : Gate 0
+
+datacons Unit : Gate 1
+
+val accept : Gate (1/2) → Bool
+
+val half : Bool
+
+datatype PairGate : num * num
+
+datacons PairLive : ∀i. PairGate (i, -i)
+
+datacons Low : ∀i, j[i ≤ 0 ∧ j ≤ 0]. PairGate (i, j)
+
+datacons Edge : ∀i, j[i ≤ 0]. PairGate (i, j)
+
+val keep : ∀k, n[1 ≤ n]. PairGate (n, k) → Bool
+
+val pair : Bool

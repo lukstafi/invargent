@@ -220,6 +220,19 @@ let tests = "InvarGenT" >::: [
         ignore (infer_source (code ^ "let ok = f 1"));
         assert_bool "the inferred guard must reach the caller"
           (rejects_source (code ^ "let bad = f 0")));
+      "hidden constructor indices have a joint witness at the call" >:: (fun () ->
+        let code = "datatype Gate : num * num\n" ^
+          "datacons Bad : ∀i,j[min|max(i,j)]. Gate (i,j)\n" in
+        let call guard = code ^ "external let require : ∀i,j[" ^ guard ^
+          "]. Gate (i,j) → Bool = \"fun _ -> true\"\nlet result = require Bad" in
+        ignore (infer_source (call "i≤-1 ∧ j≤0"));
+        assert_bool "max(i,j)=0 excludes two strictly negative arguments"
+          (rejects_source (call "i≤-1 ∧ j≤-1"));
+        let f = code ^ "datacons Live : Gate ((-1/2),(-1/3))\n" ^
+          "let accept = function Live -> True | Bad -> assert false\n" in
+        ignore (infer_source (f ^ "let ok = accept Live"));
+        assert_bool "the inferred domain must exclude the erased branch at use"
+          (rejects_source (f ^ "let bad = accept Bad")));
       "recursive uses satisfy the written guard" >:: (fun () ->
         let code = "let rec f : ∀i[1≤i]. Num i → Num 0 = fun x -> " in
         ignore (infer_source (code ^ "f (x+1)"));
@@ -422,6 +435,9 @@ let tests = "InvarGenT" >::: [
           "moving_native_menu";
       "the argument and recursive result are jointly integral" >::
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "joint_native_guard";
+      "negative guards share their choices across the live branches" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b)
+          "coherent_negative_guards";
       "an integer package excludes a fractional intersection of two bands" >::
         test_case ~num_abd_timeout:40 ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b)
           "lattice_guard";

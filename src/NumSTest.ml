@@ -91,6 +91,20 @@ let tests = "NumS" >::: [
       (not (possible [i;l] "2 l+2 i=5"));
     assert_bool "the whole affine index is integral, its parameter can be fractional"
       (possible ~integer_result:l [Lin (2,1,v "i")] "2 i=1 ∧ l=2"));
+  "negative guard proposals preserve a witness in each live branch" >:: (fun () ->
+    let check required forbidden =
+      let live = List.map (fun s -> satisfiable_exn (numeric_formula s)) required in
+      let bad = List.map (fun s -> numeric_formula s,dummy_loc) forbidden in
+      let answer = negation_elim q ~bvs:VarSet.empty ~verif_cns:live bad in
+      List.iter (fun state -> assert_bool "a positive witness survives the entire answer"
+          (match satisfiable ~state answer with Right _ -> true | Left _ -> false)) live;
+      List.iter (fun (cnj,_) -> assert_bool "the answer excludes each forbidden cell"
+          (match satisfiable (answer @ cnj) with Left _ -> true | Right _ -> false)) bad in
+    check ["0≤i ∧ i≤1"] ["i≤0";"1≤i"];
+    check ["2 i=1";"4 i=3"] ["i=0";"i=1"];
+    check ["i+j=0"] ["i≤0 ∧ j≤0";"i≤0"];
+    check ["2 i= -1 ∧ 3 j= -1"] ["min|max(i,j)"];
+    check ["3 i=1 ∧ 4 j=1"] ["min||max(i,j)"]);
   "native equations must have a simultaneous integral solution" >:: (fun () ->
     let term name = Lin (1,1,VNam (Num_sort,name)) in
     let possible pre =

@@ -5396,7 +5396,7 @@ let negation_elim q ~bvs ~verif_cns neg_cns =
       (VarMap.filter (fun v _ -> uni_v v) rev_sb) in
   (* The formula will be conjoined to the branches. Note that the
           branch will be non-recursive.  *)
-  let res = concat_map
+  let public = List.map
       (fun (cnj, loc) ->
          let rev_sb = revert cnj in
          let cnj = List.map (nsubst_atom rev_sb) cnj in
@@ -5405,7 +5405,8 @@ let negation_elim q ~bvs ~verif_cns neg_cns =
            pr_nsubst rev_sb pr_formula cnj; *]*)
          let guard_cnj, cnj = List.partition
              (fun a -> VarSet.exists uni_v (fvs_atom a)) cnj in
-         let cnj = prune_redund ~cmp_v ~cmp_w guard_cnj cnj in
+         prune_redund ~cmp_v ~cmp_w guard_cnj cnj, loc) neg_cns in
+  let res = concat_map (fun (cnj,loc) ->
          let d, _, _ = List.fold_left
              (fun (sel, selN, selS as acc) c ->
                 (*[* Format.printf "NumS.negation_elim: try c=@ %a@\n%!"
@@ -5458,11 +5459,45 @@ let negation_elim q ~bvs ~verif_cns neg_cns =
              ([], List.length verif_cns, 0) cnj in
          (*[* Format.printf "NumS.negation_elim: selected d=@ %a@\n%!"
            pr_formula d; *]*)
-         d)
-      neg_cns in
+         d) public in
   (*[* Format.printf "NumS.negation_elim:@\nres=@ %a@\n%!"
     pr_formula res; *]*)
-  res
+  (* A fixed unit gap can eliminate a live fractional instance, and two
+     independently chosen sides can eliminate it only in conjunction.
+     Retry with one strict separating alternative per forbidden branch. *)
+  let excludes formula = List.for_all (fun (bad,_) ->
+      match satisfiable (formula @ bad) with Left _ -> true | Right _ -> false) neg_cns in
+  if neg_cns = [] || verif_cns = [] || (validated_num res = 0 && excludes res) then res else
+  let gap = Terms.fresh_num_var () in
+  let epsilon = Lin (1,1,gap) and zero = Cst (0,1) in
+  let positive loc a b = Leq (Add [b;epsilon],a,loc) in
+  let nonpositive = [Leq (epsilon,zero,dummy_loc)] in
+  let choices = List.map (fun (cnj,loc) ->
+      concat_map (fun a -> atom_violations (fun _ -> positive loc) a) cnj) public in
+  let rec specialize chosen denominator =
+    let subst = VarMap.singleton gap (Cst (1,denominator)) in
+    let formula = List.map (nsubst_atom subst) chosen in
+    if validated_num formula = 0 then
+      (if excludes formula then Some formula else None)
+    else if denominator = max_int then None
+    else specialize chosen (if denominator > max_int / 2 then max_int else 2 * denominator) in
+  let fuel = ref !abd_timeout_count in
+  let rec choose states chosen = function
+    | [] -> specialize chosen 1
+    | alternatives::rest ->
+      find_map (fun side ->
+          if !fuel <= 0 then None else (
+            decr fuel;
+            try
+              let extend state =
+                let next = satisfiable_exn ~state side in
+                if implies_cnj next nonpositive then raise Not_found;
+                next in
+              choose (List.map extend states) (List.rev_append side chosen) rest
+            with Terms.Contradiction _ | Not_found -> None)) alternatives in
+  try match choose verif_cns [] choices with
+    | Some formula -> formula | None -> res
+  with Failure msg when msg = "int_of_big_int" -> res
 
 type subst = (term * loc) VarMap.t
 

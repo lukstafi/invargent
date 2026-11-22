@@ -1,0 +1,13 @@
+datatype Gate : num
+datacons Live : ∀i[2 i=1]. Gate i
+datacons Zero : Gate 0
+datacons Unit : Gate 1
+let accept = function Live -> True | Zero -> assert false | Unit -> assert false
+let half = accept Live
+
+datatype PairGate : num * num
+datacons PairLive : ∀i,j[i+j=0]. PairGate (i,j)
+datacons Low : ∀i,j[i≤0 ∧ j≤0]. PairGate (i,j)
+datacons Edge : ∀i,j[i≤0]. PairGate (i,j)
+let keep = function PairLive -> True | Low -> assert false | Edge -> assert false
+let pair = keep PairLive

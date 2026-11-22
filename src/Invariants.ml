@@ -2050,12 +2050,16 @@ let solve_constraints check_only q_ops new_ex_types exty_res_chi brs =
   match result with
   | Aux.Left (_, e) -> raise e
   | Aux.Right (_, ans_res, rol, sol) ->
+    (* Hidden indices in an inferred binding must have a joint witness
+       before projection. An inconsistent residual also makes every
+       assert-false guard appear unreachable. *)
+    let residual_state = satisfiable q empty_state ans_res in
     (*[* Format.printf "solve: checking assert false@\n%!"; *]*)
     List.iter (fun (cnj, loc) ->
         let reachable =
           try
             let guard = sb_formula_pred q false rol sol cnj in
-            ignore (satisfiable q empty_state (ans_res @ guard));
+            ignore (satisfiable q residual_state guard);
             true
           with Contradiction _ -> false in
         if reachable then raise (Contradiction
