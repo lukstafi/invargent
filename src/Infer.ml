@@ -499,6 +499,15 @@ let impossible_guard prem env guards =
 
 let guard_atom = function Eqty _ | Terms.A (Num_atom _) -> true | _ -> false
 
+let rec refined_pattern = function
+  | PCons (k, args, _) ->
+    let constrains_index = match k with
+      | Extype _ | CNam "Tuple" -> false
+      | CNam _ -> let _, phi, _, _, _ = Hashtbl.find sigma k in List.exists guard_atom phi in
+    constrains_index || List.exists refined_pattern args
+  | PAnd (a, b, _) -> refined_pattern a || refined_pattern b
+  | Zero | One _ | PVar _ -> false
+
 (* A local recursive definition checks every member of its input predicate.
    Project its mandatory equations onto the arrow. A constructor-only premise
    may be used once the accumulated equations already entail it. The summary
@@ -576,11 +585,12 @@ let excludes_return contracts observations comparisons =
   with Contradiction _ -> false
      | Failure msg when msg = "int_of_big_int" -> false
 
-type source_guard = (uexpr * uexpr) list
+type source_arm = (unit, unit) clause
+type arm_check = Already_excluded | Check_with_postconditions | Keep_arm
 type guard_erasure =
   | Keep_bodies | Direct_guards
-  | Collect_guards of (source_guard * (unit -> bool)) list ref
-  | Certified_guards of source_guard list
+  | Collect_guards of (source_arm * (unit -> arm_check)) list ref
+  | Certified_guards of source_arm list * source_arm list
 
 let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
   let erased_packages = ref None in
@@ -851,7 +861,7 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
       Ex (vars_of_list [a0], cn_and cn_ex cn),
       e
 
-  and aux_cl_in scope ?(shadowed=false) count gamma t1 t2 (p, guards, e) =
+  and aux_cl_in scope ?(shadowed=false) count gamma t1 t2 ((p, guards, e) as arm) =
     let is_neg = single_assert_false e in
     let t3 = if is_neg then TVar (fresh_typ_var ()) else t1 in
     let guarded_neg = is_neg && guards <> [] in
@@ -867,10 +877,12 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
     let body_scope = if not collecting || guards = [] then pattern_scope else
         lazy (let evaluation, tests = !returned in Evaluated (And [evaluation; A tests])) :: pattern_scope in
     let body () = aux_in body_scope gamma' t2 e in
-    let eligible = guards <> [] && not is_neg && not !force_nodeadcode &&
-      !erased_packages = None && erase_bodies <> Keep_bodies in
-    let erase = eligible && (impossible_guard prem env guards ||
-        match erase_bodies with Certified_guards proved -> List.memq guards proved | _ -> false) in
+    let eligible = not is_neg && not !force_nodeadcode && !erased_packages = None &&
+      erase_bodies <> Keep_bodies && (guards <> [] || count = 0 && refined_pattern p) in
+    let proved, require_false = match erase_bodies with
+      | Certified_guards (proved, checked) -> List.memq arm proved, List.memq arm checked
+      | _ -> false, false in
+    let erase = eligible && (proved || require_false || impossible_guard prem env guards) in
     let concl, e =
       if not erase then body () else (
         (* Still diagnose unbound names and malformed constructors in the
@@ -886,7 +898,8 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
         preserve := old_preserve;
         elim_extype := old_elims;
         uses_pos_assertions := old_assertions;
-        A [], AssertFalse (expr_loc e)) in
+        let obligation = if require_false then [CFalse (expr_loc e)] else [] in
+        A obligation, AssertFalse (expr_loc e)) in
     let neg_prem =
       if is_neg && not guarded_neg
       then [Eqty (t1, t3, dummy_loc)]
@@ -907,9 +920,13 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
     returned := g_concl, g_cond;
     (match erase_bodies with
      | Collect_guards pending when eligible && not erase ->
-       let dead () = excludes_return contracts
-           (Evaluated g_concl :: List.map Lazy.force pattern_scope) g_cond in
-       pending := (guards, dead) :: !pending
+       let check () =
+         let seen = List.map Lazy.force pattern_scope in
+         if guards <> [] && excludes_return contracts (Evaluated g_concl :: seen) g_cond
+         then Already_excluded
+         else if List.exists (function Entered_let (_, _, _, _ :: _) -> true | _ -> false) seen
+         then Check_with_postconditions else Keep_arm in
+       pending := (arm, check) :: !pending
      | _ -> ());
     let cn = impl prem
         (cn_and g_concl (impl (neg_prem @ g_cond) concl)) in
@@ -1001,6 +1018,9 @@ let constr_gen_let ~erase_bodies gamma p e ta =
 type solution =
   quant_ops * Terms.formula *
     (int * (Defs.var_name list * Terms.formula)) list
+
+type solver = uses_pos_assertions:bool -> new_ex_types:(int * loc) list ->
+  preserve:VarSet.t -> cnstrnt -> solution
 
 type program = ((int * Defs.loc) list * Terms.struct_item) list
 
@@ -1223,13 +1243,17 @@ let prepare_scheme phi res =
   let vs = fvs_formula phi in
   VarSet.union vs rvs, phi
 
-let infer_prog ?(integer_target=false) solver prog =
+let infer_prog ?(integer_target=false) ?check_excluded solver prog =
   let check_guards = integer_target && not !force_nodeadcode && can_erase_guarded_bodies prog in
   let solve_item packages generate =
     let run mode =
       uses_pos_assertions := false;
       let cn, preserve, data = generate mode in
       let packages = live_packages packages in
+      let solver = match mode, check_excluded with
+        | Certified_guards (_, (_ :: _ as checked)), Some check ->
+          check (List.map (fun (_, _, body) -> expr_loc body) checked)
+        | _ -> solver in
       let solution = solver ~uses_pos_assertions:!uses_pos_assertions
           ~new_ex_types:packages ~preserve cn in
       data, packages, solution in
@@ -1238,12 +1262,33 @@ let infer_prog ?(integer_target=false) solver prog =
     try run (Collect_guards pending) with
     | (NoAnswer (_, msg, _, _) | Contradiction (_, msg, _, _)) as original
       when msg <> "Answers do not converge" ->
-      let proved = map_some (fun (guard, dead) -> if dead () then Some guard else None) !pending in
-      if proved = [] then raise original;
-      let before = !all_ex_types in
-      (try run (Certified_guards proved) with exn ->
-         all_ex_types := before;
-         match exn with NoAnswer _ | Contradiction _ -> raise original | _ -> raise exn) in
+      let proved, unresolved = List.fold_right (fun (arm, check) (proved, rest) ->
+          match check () with
+          | Already_excluded -> arm :: proved, rest
+          | Check_with_postconditions -> proved, arm :: rest
+          | Keep_arm -> proved, rest) !pending ([], []) in
+      (* Check the package postcondition at each proposed exclusion, with
+         the original guard operands and opening witnesses in scope. *)
+      let choices = (if proved = [] then [] else [[]]) @
+          (match unresolved with
+           | [] -> []
+           | [_] -> [unresolved]
+           | _ -> unresolved :: List.map (fun guard -> [guard]) unresolved) in
+      let rec retry = function
+        | [] -> raise original
+        | checked :: rest ->
+          let before = !all_ex_types in
+          try run (Certified_guards (proved, checked)) with exn ->
+            all_ex_types := before;
+            match exn with
+            | NoAnswer (_, _, _, loc) | Contradiction (_, _, _, loc) ->
+              (* When the solver identifies one of our negative goals, put
+                 its original body back and keep checking the other goals. *)
+              let keep = List.filter (fun (_, _, e) -> expr_loc e <> loc) checked in
+              if List.length keep > 1 && List.length keep < List.length checked
+              then retry (keep :: rest) else retry rest
+            | _ -> raise exn in
+      retry choices in
   let ntime = ref (Sys.time ()) in
   let start_time = !ntime in
   let gamma = ref builtin_gamma in

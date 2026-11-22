@@ -48,6 +48,8 @@ type program = ((int * Defs.loc) list * Terms.struct_item) list
 type solution =
   Defs.quant_ops * Terms.formula *
     (int * (Defs.var_name list * Terms.formula)) list
+type solver = uses_pos_assertions:bool -> new_ex_types:(int * Defs.loc) list ->
+  preserve:Defs.VarSet.t -> cnstrnt -> solution
 val infer_prog_mockup :
   program -> (int * Defs.loc) list * Defs.VarSet.t * cnstrnt
 
@@ -55,11 +57,11 @@ val infer_prog_mockup :
 val uses_pos_assertions : bool ref
 (** With [integer_target=true] the annotations may erase bodies proved
     unreachable under native integer comparisons. Use those annotations only
-    with the integer backend. The default preserves target independence. *)
+    with the integer backend. The default preserves target independence.
+    [check_excluded locs] may defer negative goals at those locations until
+    its final check. Both solvers must establish all negative clauses. *)
 val infer_prog :
-  ?integer_target:bool ->
-  (uses_pos_assertions:bool -> new_ex_types:(int * Defs.loc) list ->
-   preserve:Defs.VarSet.t -> cnstrnt -> solution) ->
+  ?integer_target:bool -> ?check_excluded:(Defs.loc list -> solver) -> solver ->
   program ->
   (string * Terms.typ_scheme) list * Terms.annot_item list
 

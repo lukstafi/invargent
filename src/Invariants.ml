@@ -896,7 +896,7 @@ let call_input_samples q branches sites =
           (domains v conclusion)
       | _ -> []) branches
 
-let solve_constraints q_ops new_ex_types exty_res_chi brs =
+let solve_constraints check_only q_ops new_ex_types exty_res_chi brs =
   (* DEBUG *)
   (*[* List.iter
     (fun (prem,concl) ->
@@ -969,6 +969,10 @@ let solve_constraints q_ops new_ex_types exty_res_chi brs =
       neg_brs in
   (*[* Format.printf "solve: neg_cns=@ %a@\n%!" Infer.pr_rbrs
     (List.map (fun (cnj,_) -> cnj, []) neg_cns); *]*)
+  (* An inferred exclusion tests the current solution. Asking abduction
+     to make a live branch impossible can restart on a fresh local index.
+     All exclusions are checked together with the final residual below. *)
+  let search_negatives = List.filter (fun (_, loc) -> not (List.mem loc check_only)) neg_cns in
   let negchi_locs = Hashtbl.create 8 in
   let alphasK = Hashtbl.create 8 in
   let chi_rec = Hashtbl.create 2 in
@@ -1424,7 +1428,7 @@ let solve_constraints q_ops new_ex_types exty_res_chi brs =
     (* 7a *)
     let neg_cns1 = List.map
         (fun (prem,loc) -> sb_formula_pred q false g_rol sol1 prem, loc)
-        neg_cns in
+        search_negatives in
     let bvs = bparams iter_no in
     let recbvs = q.get_recbvs () in
     let nonparam_vars =
@@ -2112,9 +2116,9 @@ let solve_constraints q_ops new_ex_types exty_res_chi brs =
     (*[* Format.printf "solve: returning@\n%!"; *]*)
     q.op, ans_res, sol
 
-let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
+let solve ?(check_only=[]) ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
   timeout_flag := false;
-  let run () = solve_constraints q_ops new_ex_types exty_res_chi brs in
+  let run () = solve_constraints check_only q_ops new_ex_types exty_res_chi brs in
   if not uses_pos_assertions || !same_with_assertions then run () else
   let reward = !NumS.reward_constrn and prefer = !NumS.prefer_bound_to_local in
   let restore () =

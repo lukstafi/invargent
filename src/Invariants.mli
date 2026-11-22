@@ -35,7 +35,7 @@ val forced_call_guard : Defs.quant_ops -> (Terms.formula * Terms.formula) list -
   Terms.formula -> bool
 
 val solve :
-  uses_pos_assertions:bool ->
+  ?check_only:Defs.loc list -> uses_pos_assertions:bool ->
   Defs.quant_ops -> (int * Defs.loc) list -> (int, int) Hashtbl.t ->
   (Terms.formula * Terms.formula) list ->
   Defs.quant_ops * Terms.formula * chi_subst

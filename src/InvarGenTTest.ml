@@ -178,14 +178,15 @@ let run_example name () =
   let file = example_path name ^ ".ml" in
   assert_equal ~printer:string_of_int 0 (Sys.command ("ocaml -noinit " ^ Filename.quote file))
 
-let infer_source source =
+let infer_source ?(integer_target=false) source =
   Terms.reset_state ();
   Infer.reset_state ();
   let program = Parser.program Lexer.token (Lexing.from_string source) in
-  Infer.infer_prog InvarGenT.solver (Infer.normalize_program program)
+  Infer.infer_prog ~integer_target ~check_excluded:InvarGenT.solve_checked
+    InvarGenT.solver (Infer.normalize_program program)
 
-let rejects_source source =
-  try ignore (infer_source source); false
+let rejects_source ?integer_target source =
+  try ignore (infer_source ?integer_target source); false
   with Defs.Report_toplevel _ | Terms.Contradiction _ | Terms.NoAnswer _ -> true
 
 let tests = "InvarGenT" >::: [
@@ -356,6 +357,14 @@ let tests = "InvarGenT" >::: [
       "arithmetic can wrap before a constructor match" >:: run_example "guard_overflow";
       "a local guard helper can keep its inferred index" >:: run_example "local_guard_helper";
       "a local recursive definition supplies a necessary guard contract" >:: run_example "local_guard_pair";
+      "one package relation excludes two arms and preserves the live arm" >::
+        run_example "local_packed_guards";
+      "a reachable package result must pass the final exclusion check" >:: (fun () ->
+        let source = "datatype Nat\ndatacons Z : Nat\ndatacons S : Nat ⟶ Nat\n" ^
+          "external let expects_nat : Nat → Bool = \"fun _ -> true\"\n" ^
+          "let bad = let rec relay n = efunction Z -> n | S d -> relay n d in " ^
+          "let r = relay 1 (S Z) in (match r with k when 1 <= k -> expects_nat k | _ -> True)" in
+        assert_bool "the guarded value is a number" (rejects_source ~integer_target:true source));
       "a constructor index witnesses a guarded call" >:: test_case "guarded_payload";
       "a call reached after opening an earlier return" >:: test_case "ordered_calls";
       "a partial application through two local aliases" >:: test_case "function_alias";
