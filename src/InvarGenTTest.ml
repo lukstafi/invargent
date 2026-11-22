@@ -415,6 +415,8 @@ let tests = "InvarGenT" >::: [
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "tied_result_keys";
       "only a fractional payload could reach the native guard" >::
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "fractional_guard_result";
+      "recursive suppliers share an allowance across three result indices" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "shared_result_allowance";
       "an odd width requires a fractional phantom index" >::
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "scaled_result_key";
       "all typings keep the actual recursive argument fixed" >:: (fun () ->

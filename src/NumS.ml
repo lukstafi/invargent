@@ -3653,6 +3653,76 @@ let intersect_equations ~cmp_v rows eqs =
       kernel (List.map eliminate rest) in
   kernel (List.map (fun row -> row, subst_w ~cmp_v eqs row) rows)
 
+let order_rows order (vars1,_,_) (vars2,_,_) =
+    match vars1, vars2 with
+    | [], [] -> 0
+    | _, [] -> -1
+    | [], _ -> 1
+    | (v1,_)::_, (v2,_)::_ -> order v1 v2
+
+(* A supplier can spend one allowance on different result coordinates.
+   Normalize each selected one-coordinate face to coefficient ±1.
+   Its inward distance is affine in the result and captured parameters. *)
+let aggregate_result_caps ~cmp_v ~uni_v ~result_indices ~param_bvs polytopes faces =
+  if VarSet.cardinal result_indices < 2 then [] else
+  let distance v =
+    let bounds = map_some (fun (vars,_,_ as row) ->
+        if not (VarSet.subset (VarSet.remove v (fvs_w row)) param_bvs) then None
+        else try
+          let a = List.assoc v vars in
+          Some (mult (minus_num (!/1 // abs_num a)) row)
+        with Not_found -> None) faces in
+    match bounds with
+    | [] -> None | [w] -> Some w
+    | _ ->
+      (* The coordinate may have both a near and a far endpoint. The
+         face shared by the other suppliers identifies the common origin
+         of the axis segments. Ties supply no preferred direction. *)
+      let score w = List.fold_left (fun n (eqs,_) ->
+          if zero_p (subst_w ~cmp_v eqs w) then n+1 else n) 0 polytopes in
+      match List.sort (fun (n,_) (m,_) -> compare m n)
+              (List.map (fun w -> score w,w) bounds) with
+      | (n,w)::(m,_)::_ when n>m -> Some w
+      | _ -> None in
+  match map_some distance (VarSet.elements result_indices) with
+  | first::second::rest when use_affine_fit () ->
+    (* Eliminate the supplier coordinates before the value of the
+       objective. The projected interval has constant endpoints. *)
+    let value = Terms.fresh_num_var () in
+    let last a b = match a=value, b=value with
+      | true,false -> 1 | false,true -> -1 | _ -> cmp_v a b in
+    let maximum direction =
+      let definition = diff ~cmp_v:last ([value,!/1],!/0,dummy_loc) direction in
+      let upper (eqs,ineqs) = match subst_w ~cmp_v eqs direction with
+        | [],c,_ -> c
+        | _ ->
+          let solved,bounds,_,_ = solve ~eqn:(definition :: unsubst eqs)
+              ~ineqn:(unsolve ineqs) ~cmp_v:last ~cmp_w:(order_rows last) uni_v in
+          if VarMap.mem value solved then
+            match VarMap.find value solved with [],c,_ -> c | _ -> raise Not_found
+          else fst (CombMap.find [] (snd (VarMap.find value bounds))) in
+      try match List.map upper polytopes with
+        | [] -> None | u::us -> Some (List.fold_left max_num u us)
+      with Not_found -> None in
+    let cap_sum = function
+      | a::b::others ->
+        let total = List.fold_left (sum_w ~cmp_v) a (b::others) in
+        map_opt (maximum total) (fun endpoint -> diff ~cmp_v total ([],endpoint,dummy_loc))
+      | _ -> None in
+    let distances = first::second::rest in
+    let caps = match cap_sum distances with None -> [] | Some w -> [w] in
+    (* Measuring each distance in units of its own finite range recovers
+       the same simplex face after rescaling separate coordinates. *)
+    let scaled = map_some (fun w -> match maximum w with
+        | Some u when u >/ !/0 -> Some (u, mult (!/1 // u) w)
+        | _ -> None) distances in
+    (match scaled with
+     | (u,_)::others when List.length scaled <> List.length distances ||
+           List.exists (fun (v,_) -> u <>/ v) others ->
+       (match cap_sum (List.map snd scaled) with None -> caps | Some w -> caps @ [w])
+     | _ -> caps)
+  | _ -> []
+
 let disjelim_aux q ~previous ~target_vs ~preserve ~bvs ~param_bvs
     ~guess ~initstep brs =
   let cmp_v = make_cmp q in
@@ -3671,12 +3741,7 @@ let disjelim_aux q ~previous ~target_vs ~preserve ~bvs ~param_bvs
     else if not (v1p || v1b) && (v2p || v2b) then -1
     (* not (v1p || v1b) && not (v2p || v2b) -> else branch *)
     else cmp_v v1 v2 in
-  let cmp_w (vars1,cst1,_) (vars2,cst2,_) =
-    match vars1, vars2 with
-    | [], [] -> 0
-    | _, [] -> -1
-    | [], _ -> 1
-    | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
+  let cmp_w = order_rows cmp_v in
   (*[* Format.printf
     "NumS.disjelim_aux:@ target_vs=%a@ preserve=%a@ initstep=%b@\n%!"
     pr_vars target_vs pr_vars preserve initstep; *]*)
@@ -4030,6 +4095,10 @@ let disjelim_aux q ~previous ~target_vs ~preserve ~bvs ~param_bvs
       else nonredundant (face::p1) p2
     | [] -> p1 in
   let ineqn = nonredundant [] ineqn in
+  let ineqn = List.fold_left (fun known cap ->
+      if check false cap && not (check_redund cap known)
+      then nonredundant [] (cap::known) else known) ineqn
+      (aggregate_result_caps ~cmp_v ~uni_v:q.uni_v ~result_indices ~param_bvs polytopes ineqn) in
   (*[* Format.printf "NumS.disjelim: nonredundant@\nineqn=%a@\n%!"
     pr_ineqn ineqn; *]*)
   (* Generating opti atoms. *)

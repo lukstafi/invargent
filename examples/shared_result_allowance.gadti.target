@@ -1,0 +1,20 @@
+datatype Nat
+
+datacons Z : Nat
+
+datacons A : Nat ⟶ Nat
+
+datacons B : Nat ⟶ Nat
+
+external val total :
+   ∀i, j, k, l, m, n[n + l + m ≤ 1 + k + i + j].
+   (Num i, Num j, Num k) → (Num l, Num m, Num n) → Bool
+
+external val inputs : Num 0 → ∃i, j, k.(Num i, Num j, Num k)
+
+external val seed : Num 0 → ∃n[0 ≤ n ∧ n ≤ 1].Num n
+
+val run :
+   ∀i, k, n.
+   Num i → Num k → Num n → Nat → ∃j, m, l[i ≤ j ∧ n ≤ l ∧
+     k ≤ m ∧ j + m + l ≤ n + k + i + 1].(Num j, Num m, Num l)

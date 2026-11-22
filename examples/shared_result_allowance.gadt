@@ -1,0 +1,17 @@
+datatype Nat
+datacons Z : Nat
+datacons A : Nat ⟶ Nat
+datacons B : Nat ⟶ Nat
+
+external let total : ∀i,j,k,l,m,n[l+m+n≤i+j+k+1]. (Num i, Num j, Num k) → (Num l, Num m, Num n) → Bool =
+  "fun (x,y,z) (a,b,c) -> let delta = a+b+c-x-y-z in print_int delta; print_newline (); delta <= 1"
+
+external let inputs : Num 0 → ∃i,j,k. (Num i, Num j, Num k) = "fun _ -> (3,5,7)"
+
+external let seed : Num 0 → ∃n[0≤n ∧ n≤1]. Num n = "fun _ -> 1"
+
+let rec run x y z = efunction
+  | Z -> let t = seed 0 in (x,y,z+t)
+  | A d -> let (a,b,c) = run x y z d in (x+b+(-1*y), y, z)
+  | B d -> let (a,b,c) = run x y z d in (x, y+c+(-1*z), z)
+test (let (x,y,z) = inputs 0 in let value = run x y z (A (B Z)) in total (x,y,z) value)
