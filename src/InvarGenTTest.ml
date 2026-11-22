@@ -25,6 +25,10 @@ let signature_tokens text =
     | token -> read (token :: acc) in
   read []
 
+let example_path name =
+  let path = "./examples/" ^ name in
+  if Sys.file_exists (path ^ ".gadt") then path else "../examples/" ^ name
+
 let test_case ?(test_annot=false) ?(do_ml=true) ?(cmp_sig=(=))
     ?drop_assert_false
     ?richer_answers ?more_general_num
@@ -37,15 +41,7 @@ let test_case ?(test_annot=false) ?(do_ml=true) ?(cmp_sig=(=))
   let ntime = Sys.time () in
   Terms.reset_state ();
   Infer.reset_state ();
-  let file =
-    let f = "./examples/"^file in
-    if Sys.file_exists (f^".gadt") then f
-    else 
-      let f = "../examples/"^file in
-      if Sys.file_exists (f^".gadt") then f
-      else (
-        (*[* Format.printf "not found f=%s@\n%!" (f^".gadt"); *]*)
-        assert false) in
+  let file = example_path file in
   let old_drop_assert_false = !OCaml.drop_assert_false in
   (match drop_assert_false with
    | None -> ()
@@ -318,6 +314,11 @@ let tests = "InvarGenT" >::: [
       "shared floor indices survive endpoint projection" >::
         test_case "skew_floor"
           ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
+      "a residual between result witnesses goes through inference backtracking" >::
+        (fun () ->
+           let source = input_file (example_path "tagged_floor" ^ ".gadt") in
+           try ignore (infer_source source)
+           with Terms.NoAnswer _ -> ());
       "moving floor and cap" >:: test_case "moving_floor"
         ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
       "cap across two result constructors" >:: test_case "split_shifted_climb"

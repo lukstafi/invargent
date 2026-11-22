@@ -1727,10 +1727,26 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
             g_rol_brs in
       (* 8-9 *)
       (*[* Format.printf "postcond-forced: split@\n%!"; *]*)
-      let ans_res', more_discard', ans_sol' =
+      let residual, _, ans_sol' =
         split false ~avs:[] !postcond_forcing negchi_locs
           ~bvs:recbvs ~cand_bvs:recbvs q in
-      assert (ans_res' = []);
+      (* A supplier can ask for a relation between local result witnesses
+         that Split cannot assign to any input predicate. Keep this choice
+         only if the current residual already establishes that relation. *)
+      let state = lazy (satisfiable q empty_state ans_res) in
+      let unproved = List.filter (fun a ->
+          not (List.exists (eq_atom a) ans_res) &&
+          match a with
+          | A (Num_atom _) -> not (implies q (Lazy.force state) [a])
+          | _ -> true) residual in
+      match unproved with
+      | a :: _ ->
+        let sort = match a with
+          | A (Num_atom _) -> Num_sort | A (Order_atom _) -> Order_sort
+          | _ -> Type_sort in
+        Aux.Left (sort, NoAnswer (sort, "unproved postcondition residual",
+                                  None, formula_loc unproved))
+      | [] ->
       (* 9 *)
       let sol2 = List.map
           (fun (i, (vs, ans)) ->
