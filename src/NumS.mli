@@ -101,6 +101,10 @@ val symbolic_interval_calls :
   package:(Defs.var_name * Defs.var_name * NumDefs.formula) ->
   NumDefs.formula -> Defs.loc -> NumDefs.formula list
 
+(** Propose two extremal keys and the constraints defining their values. *)
+val interval_endpoints : inputs:Defs.VarSet.t -> key:Defs.var_name ->
+  NumDefs.formula -> Defs.loc -> (NumDefs.term * NumDefs.term * NumDefs.formula) option
+
 (** Select a legal key by guarded affine cases, allowing the interval's
     lower and upper offsets to depend on observed integer arguments. The graph
     covers the original key domain even if avoidance is impossible. When

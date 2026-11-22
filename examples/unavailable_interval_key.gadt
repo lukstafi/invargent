@@ -1,0 +1,15 @@
+datatype State : num
+datacons Neg : State (-1)
+datacons Pos : State 1
+datatype Nat
+datacons Z : Nat
+datacons S : Nat ⟶ Nat
+
+let base : ∀i. State i → Num (i+(-1)) = function Neg -> (-2) | Pos -> 0
+
+let rec run : ∀i,k,n[1≤n ∧ (-1)≤i ∧ i≤1 ∧ min(i+1,1 + -i)≤0 ∧ k≤i ∧ i≤k+n].
+  State i → Num n → Nat → ∃l[k≤l ∧ l≤k+n]. Num l = fun s width -> efunction
+  | Z -> base s
+  | S d -> let prior = run s width d in let other = prior in
+           (match prior with r when 0 <= r && r <= 0 -> True | _ -> (match other with q when (-2) <= q && q <= (-2) -> True | _ -> base s))
+let bad = run Neg 2 (S Z)

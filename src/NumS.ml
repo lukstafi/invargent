@@ -4752,6 +4752,32 @@ let implies_cnj (eqs, ineqs, optis, suboptis) cnj =
   implies ~cmp_v ~cmp_w uni_v eqs ineqs optis suboptis c_eqn c_ineqn
     c_optis c_suboptis 
 
+(* Extremal integral affine keys for two typings of the same call. Both
+   instantiations must still satisfy the complete inferred call predicate. *)
+let interval_endpoints ~inputs ~key pre loc =
+  let bound (vs,c,_) =
+    let a = try List.assoc key vs with Not_found -> !/0 in
+    if a =/ !/0 then None else
+    let vs,c,_ = mult (minus_num !/1 // a) (List.remove_assoc key vs,c,loc) in
+    if not (List.for_all (fun (v,n) -> VarSet.mem v inputs && is_integer_num n) vs)
+    then None else
+    let c = if a </ !/0 then ceiling_num c else floor_num c in
+    let safe n = abs_num n <=/ !/max_int in
+    if not (safe c && List.for_all (fun (_,n) -> safe n) vs) then None else
+    Some (a </ !/0, expand_w (vs,c,loc)) in
+  let low,high = List.partition fst (map_some bound (interval_rows pre)) in
+  let extreme minimum = function
+    | [] -> raise Not_found
+    | h::ts -> List.fold_left (fun (x,phi) y ->
+        let r = Lin (1,1,Terms.fresh_num_var ()) in
+        let side t = if minimum then add r (scale_term (-1) 1 t) else add t (scale_term (-1) 1 r) in
+        r, Opti (side x,side y,loc)::phi) (h,[]) ts in
+  try
+    let lower,lo = extreme false (unique_sorted (List.map snd low)) in
+    let upper,hi = extreme true (unique_sorted (List.map snd high)) in
+    if lower = upper then None else Some (lower,upper,lo@hi)
+  with Not_found -> None
+
 (* A guarded graph can select different affine keys across an unbounded
    change of package width. Keep the key inside the call's permitted interval
    even where no choice avoids the guard. Such calls still have to be checked. *)

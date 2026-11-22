@@ -403,13 +403,13 @@ let freshen_cns_scheme (vs, phi, argtys, c_n, c_args) =
   let c_args = List.map (flip List.assoc env) c_args in
   vs, phi, argtys, c_n, c_args
 
+let freshening vs =
+  let env = List.map (fun v -> v, freshen_var v) vs in
+  List.map snd env, varmap_of_assoc env
+
 let freshen_val_scheme (vs, phi, res) =
-  let env = List.map (fun v->v, freshen_var v) vs in
-  let env_sb = varmap_of_assoc env in
-  let res = hvsubst_typ env_sb res in
-  let phi = hvsubst_formula env_sb phi in
-  let vs = List.map snd env in
-  vs, phi, res
+  let vs, renaming = freshening vs in
+  vs, hvsubst_formula renaming phi, hvsubst_typ renaming res
 
 let constr_gen_pat p tau =
   let rec aux tau = function
@@ -679,8 +679,11 @@ let integer_complement = function
 
 type band_endpoint = Literal of int | Bound_value of string * loc
 
+type observed_bands = (band_endpoint * band_endpoint) list ref
 type guard_bounds =
-  | Observe_comparisons of bool ref | Prove_complements of bool ref | Probe_boundaries of (band_endpoint * band_endpoint) list ref
+  | Observe_comparisons of bool ref
+  | Prove_complements of bool ref * observed_bands
+  | Probe_boundaries of observed_bands
 
 (* A comparison forced on even one package boundary is a poor choice to
    falsify throughout an opening. Use the remaining position to propose a
@@ -694,7 +697,7 @@ let remaining_comparison mode context conditions =
         | _ -> None) conditions in
     (match candidates, mode with
      | [(i, _)], _ -> Some i
-     | _ :: _ :: _, Prove_complements seen ->
+     | _ :: _ :: _, Prove_complements (seen,_) ->
        if boundaries <> [] then seen := true;
        None
      | _ :: _ :: _, Probe_boundaries _ ->
@@ -715,7 +718,11 @@ type guard_erasure =
   | Collect_guards of (source_arm * (unit -> arm_check)) list ref * guard_bounds
   | Certified_guards of source_arm list * source_arm list * (source_arm * int) list
 
-let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
+type call_policy =
+  | Restrict_calls of formula
+  | Open_at_endpoints of var_name * NumDefs.term * NumDefs.term * NumDefs.formula
+
+let constr_gen_expr_with_arities ?paired ~erase_bodies arities gamma e t =
   let erased_packages = ref None in
   let contracts = Hashtbl.create 2 in
   let alias_arities = Hashtbl.create 2 in
@@ -733,7 +740,20 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
     | e -> lambda_depth e in
   let elim_extype = ref [] and preserve = ref [] in
   let collecting = match erase_bodies with Collect_guards _ -> true | _ -> false in
-  let rec aux_in scope ?scrutinee gamma t e : cnstrnt * iexpr =
+  (* Only a saturated reference to this recursive binding gets a paired
+     opening. A local binding with the same spelling has its own scheme. *)
+  let rec paired_call gamma depth = function
+    | App (fn,_,_) -> paired_call gamma (depth+1) fn
+    | Var (name,_) ->
+      (match paired with
+       | Some (binding,(vs,phi,arrow),other) when depth = List.length (arg_types arrow) &&
+           (try List.assoc name gamma == binding with Not_found -> false) ->
+         let vs,renaming = freshening vs in
+         Some (vs, hvsubst_formula renaming phi, hvsubst_typ renaming arrow,
+               hvsubst_typ renaming other)
+       | _ -> None)
+    | _ -> None in
+  let rec aux_in scope ?scrutinee ?operator gamma t e : cnstrnt * iexpr =
     let aux = aux_in scope in
     (*[* Format.printf "constr_gen: t=%a e=@\n%a@\n%!"
       pr_ty t pr_uexpr e;
@@ -742,7 +762,9 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
     | Var (x, loc) when not (List.mem_assoc x gamma) ->
       raise (Report_toplevel ("Undefined variable "^x, Some loc))
     | Var (x, loc) as e ->
-      let vs, phi, res = freshen_val_scheme (List.assoc x gamma) in
+      let vs, phi, res = match operator with
+        | None -> freshen_val_scheme (List.assoc x gamma)
+        | Some (phi,res) -> [],phi,res in
       Ex (vars_of_list vs, cn_and (A [Eqty (res, t, loc)]) (A phi)),
       e
     | Num (i, loc) as e ->
@@ -823,7 +845,7 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
           argument := fst value;
           fn, value
         | _ ->
-          let fn = aux gamma (Fun (ta, t)) e1 in
+          let fn = aux_in scope ?operator gamma (Fun (ta, t)) e1 in
           fn, aux gamma ta e2 in
       Ex (VarSet.singleton a,
           cn_and cn1 (cn_and cn2 (A [NotEx (ta, loc)]))),
@@ -922,7 +944,13 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
       (*[* Format.printf "constr_gen-Letin: [%d] starting...@\n%!" count; *]*)
       let a0 = fresh_typ_var () in
       let ta0 = TVar a0 in
-      let cn1, e1 = aux gamma ta0 e1 in
+      let extra_vars, other, (cn1,e1) = match paired with
+        | None -> [],None,aux gamma ta0 e1
+        | Some _ ->
+          (match paired_call gamma 0 e1 with
+           | None -> [],None,aux gamma ta0 e1
+           | Some (vs,phi,arrow,other) ->
+             vs,Some other,aux_in scope ~operator:(phi,arrow) gamma ta0 e1) in
       (*[* Format.printf
         "constr_gen-Letin: [%d] generated ta0=%a@ cn1=%a@\ne1=%a@\n%!"
         count pr_ty ta0 pr_cnstrnt cn1 pr_iexpr e1; *]*)
@@ -948,6 +976,15 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
              let t' = match env with [_, t'] -> t' | _ -> assert false in
              let pcn = constr_gen_pat (PCons (k, [p], loc)) ta0 in
              let entered = Eqty (tb0, t', loc) :: d_prem in
+             let bs,entered = match other with
+               | Some (TCons (tag,_) as second) when tag=k ->
+                 (* Both typings describe the one returned number. Open each
+                    package with its own private witnesses. *)
+                 let fresh,phi,env =
+                   envfrag_gen_pat count (PCons (k,[PVar ("x",loc)],loc)) second in
+                 let value = match env with [_,ty] -> ty | _ -> assert false in
+                 VarSet.union bs fresh, Eqty (tb0,value,loc) :: phi @ entered
+               | _ -> bs,entered in
              if collecting then packages := (k, entered) :: !packages;
              bs, pcn, entered, trigger)
           !all_ex_types in
@@ -962,7 +999,7 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
         "constr_gen-Letin: [%d] t=%a@\ndisjs=@ %a@\n%!%!"
         count pr_ty t (pr_sep_list " ∨" (pr_disj_cnstrnt b0)) disjs;
       *]*)
-      Ex (vars_of_list [a0], cn_and cn1 (Or (b0, disjs, cn2))),
+      Ex (vars_of_list (a0::extra_vars), cn_and cn1 (Or (b0, disjs, cn2))),
       Letin (docu, p, e1, e2, loc)
     | ExLam (ety_id, cls, loc) ->
       (match !erased_packages with
@@ -1057,7 +1094,7 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
          then Already_excluded
          else if List.exists (function Entered_let (_, _, _, _ :: _) -> true | _ -> false) observations
          then (match bounds with
-           | Observe_comparisons seen | Prove_complements seen when asserted_guard ->
+           | Observe_comparisons seen | Prove_complements (seen,_) when asserted_guard ->
              (* Leave source assertions in the ordinary searches. A later
                 replay may use a check-only negative at their original site. *)
              seen := true; Keep_arm
@@ -1228,8 +1265,16 @@ let interval_call_key samples signature arrow body bands loc =
     (* A choice suggested by one arm can suffice for several. Try the small
        two-endpoint graph before constructing an interior key for all arms. *)
     let singles = function _::_::_ as bs -> List.map (fun b -> [b]) bs | _ -> [] in
-    List.map (fun generate () -> List.map NumS.formula_of_sort (generate ()))
-      (before @ [guarded singles; guarded (fun bs -> [bs])])
+    let paired () = match scheme with
+      | _,_,[TCons (n,[_])],_,_ when n=numtype ->
+        let fixed = vars_of_map fvs_typ args in
+        map_some (fun key -> if VarSet.mem key fixed then None else
+            match NumS.interval_endpoints ~inputs ~key (numeric signature) loc with
+            | Some (lo,hi,graph) -> Some (Open_at_endpoints (key,lo,hi,graph))
+            | None -> None) (unique_sorted (map_some variable actuals))
+      | _ -> [] in
+    List.map (fun generate () -> List.map (fun phi -> Restrict_calls (NumS.formula_of_sort phi)) (generate ()))
+      (before @ [guarded singles; guarded (fun bs -> [bs])]) @ [paired]
   | _ -> []
 
 let gen_letrec ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests =
@@ -1255,13 +1300,29 @@ let gen_letrec ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests
   (* Each recursive occurrence freshens this restriction along with its own
      instance of the written scheme. The declaration and the clients keep
      the full parameter range. *)
-  let body_gamma = match call_constraints with
-    | [] -> gamma
-    | extra ->
+  let body_gamma,paired = match call_constraints with
+    | Restrict_calls [] -> gamma,None
+    | Restrict_calls extra ->
       let vs, phi, t = def_typ in
       let local = VarSet.diff (fvs_formula extra) (vars_of_list vs) in
-      (x, (VarSet.elements local @ vs, extra @ phi, t)) :: gamma in
-  let (expr_cn, e), elim_cell, preserve = constr_gen_expr_with_arities ~erase_bodies arities body_gamma e anchor in
+      (x, (VarSet.elements local @ vs, extra @ phi, t)) :: gamma,None
+    | Open_at_endpoints (key,low,high,graph) ->
+      let loc = expr_loc e in
+      let instance endpoint =
+        let k = fresh_num_var () in
+        let renaming = VarMap.singleton key k in
+        let arrow = hvsubst_typ renaming tb and id = TVar (fresh_typ_var ()) in
+        let obligations = PredVarU (chi_id,id,loc) :: Eqty (id,arrow,loc) ::
+            Eqty (TVar k,num endpoint,loc) :: hvsubst_formula renaming sig_cn in
+        arrow,obligations in
+      let first,p = instance low and second,q = instance high in
+      (* Both calls must be admitted by the inferred predicate. Checking only
+         their written bounds can justify erasure for an unavailable key. *)
+      let phi = NumS.formula_of_sort graph @ p @ q in
+      let vs = VarSet.elements (fvs_formula phi) in
+      gamma,Some (def_typ,(vs,phi,first),return_type second) in
+  let (expr_cn, e), elim_cell, preserve =
+    constr_gen_expr_with_arities ?paired ~erase_bodies arities body_gamma e anchor in
   let def_cn =
     let body = if signature = [] then expr_cn
       else cn_and (Ex (bvs, A signature)) expr_cn in
@@ -1272,7 +1333,7 @@ let gen_letrec ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests
   cn_and def_cn (cn_and (Ex (vars_of_list [a], A [chi_a])) test_cn),
   e, tests, elim_cell::elim_cells, more_preserve @ preserve
 
-let constr_gen_letrec ?(call_constraints=[]) ~erase_bodies ?(nonrec=false) gamma x e sig_cn tb tests =
+let constr_gen_letrec ?(call_constraints=Restrict_calls []) ~erase_bodies ?(nonrec=false) gamma x e sig_cn tb tests =
   with_live_packages erase_bodies (fun () -> gen_letrec ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests)
 
 let constr_gen_let ~erase_bodies gamma p e ta =
@@ -1531,7 +1592,7 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
          the original guard operands and opening witnesses in scope. *)
       let unresolved = List.map fst proposals in
       (match bounds with
-       | Probe_boundaries bands -> bands := unique_sorted (map_some guard_band unresolved @ !bands)
+       | Prove_complements (_,bands) | Probe_boundaries bands -> bands := unique_sorted (map_some guard_band unresolved @ !bands)
        | _ -> ());
       let choices = (if proved = [] then [] else [[]]) @
           (match unresolved with
@@ -1563,7 +1624,7 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
       retry choices in
   let solve_item ?(propose_call=(fun _ -> [])) packages e tests generate =
     let initial_packages = !all_ex_types in
-    let search ?(call_constraints=[]) bounds =
+    let search ?(call_constraints=Restrict_calls []) bounds =
       let run (e, tests) = search_item bounds packages (generate e tests call_constraints) in
       let initial = e, tests in
       NumS.with_affine_retry (fun () ->
@@ -1588,20 +1649,23 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
     let seen = ref false in
     try search (Observe_comparisons seen) with
     | (NoAnswer _ | Contradiction _) as original when !seen ->
-      let ambiguous = ref false in
+      let ambiguous = ref false and bands = ref [] in
+      let try_proposals failed =
+        let rec try_keys candidates groups = match candidates, groups with
+          | [], [] -> raise failed
+          | [], next::rest -> try_keys (next ()) rest
+          | call_constraints::rest, _ ->
+            try search ~call_constraints (Observe_comparisons (ref false))
+            with NoAnswer _ | Contradiction _ -> try_keys rest groups in
+        try_keys [] (propose_call !bands) in
       (try
-         try search (Prove_complements ambiguous) with
-         | (NoAnswer _ | Contradiction _) when !ambiguous ->
-           let bands = ref [] in
+         try search (Prove_complements (ambiguous,bands)) with
+         | (NoAnswer _ | Contradiction _) as failed ->
+           (* A failed one-sided comparison can also need a different call
+              typing. Boundary probes resolve ambiguity between comparisons. *)
+           if not !ambiguous then try_proposals failed else
            (try search (Probe_boundaries bands) with
-            | (NoAnswer _ | Contradiction _) as failed ->
-              let rec try_keys candidates groups = match candidates, groups with
-                | [], [] -> raise failed
-                | [], next::rest -> try_keys (next ()) rest
-                | call_constraints::rest, _ ->
-                  try search ~call_constraints (Observe_comparisons (ref false))
-                  with NoAnswer _ | Contradiction _ -> try_keys rest groups in
-              try_keys [] (propose_call !bands))
+            | (NoAnswer _ | Contradiction _) as probed -> try_proposals probed)
        with exn ->
          all_ex_types := initial_packages;
          match exn with

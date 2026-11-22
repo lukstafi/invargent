@@ -385,6 +385,14 @@ let tests = "InvarGenT" >::: [
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "variable_width_interval";
       "a guard can move with an observed input" >::
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "moving_interval_guard";
+      "one recursive opening has independent offset witnesses at two keys" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "erased_interval";
+      "two admitted keys exclude both possible positive results" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "punctured_two_keys";
+      "a second typing must admit the same recursive arguments" >:: (fun () ->
+        let source = input_file (example_path "unavailable_interval_key" ^ ".gadt") in
+        assert_bool "the negative state reaches its guarded arm"
+          (rejects_source ~integer_target:true source));
       "both endpoints miss a reachable assertion in the interior" >:: (fun () ->
         let source = "external let sample : Num 0 → ∃j[0≤j ∧ j≤6]. Num j = \"fun _ -> 3\"\n" ^
           "let bad = let r = sample 0 in match r with v when 2 <= v && v <= 4 -> assert false | _ -> True" in
