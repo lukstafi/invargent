@@ -2841,7 +2841,7 @@ let recover_caller_bound q ~cmp_v ~cmp_w ~bvs ~upward_of ~validate ~calls checks
 
 (* FIXME: eliminate optis from premise, but first try simplifying
    them with both premise and conclusion of a branch. *)
-let abd_branches fixed q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
+let abd_branches fixed_for q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
     ~upward_of ~nonparam_vars
     ~discard ?(iter_no=2) ?caller_checks brs =
   let calls = lazy (map_some (fun (_, uses, prem, _) ->
@@ -2866,6 +2866,7 @@ let abd_branches fixed q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_
            pr_formula prem; *]*)
          let d_eqn, d_ineqn, d_optis, d_suboptis =
            split_flatten ~cmp_v prem in
+         let fixed = fixed_for prem in
          let d_eqn = if VarMap.is_empty fixed then d_eqn else
              let used = fvs_formula prem in
              unsubst (VarMap.filter (fun v _ -> VarSet.mem v used) fixed) @ d_eqn in
@@ -4527,27 +4528,49 @@ let satisfiable ?state cnj =
   try Right (satisfiable_exn ?state cnj)
   with Terms.Contradiction _ as e -> Left e
 
-(* Before splitting a guarded premise, it can help to know a key fixed by
-   an unconditional obligation. Keep the provider rows and all conclusions.
-   Only providers active on this pass may justify an extra premise. *)
+(* A provider whose premise is a subformula of this guard holds here.
+   Requiring fewer premise atoms orders the proofs of all imported facts.
+   Every provider keeps its conclusion, including the unconditional ones. *)
 let abd q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of ~nonparam_vars
     ~discard ?(iter_no=2) ?caller_checks brs =
-  let run fixed = abd_branches fixed q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of
-      ~nonparam_vars ~discard ~iter_no ?caller_checks brs in
-  try run VarMap.empty with Terms.Suspect _ as first ->
-    let given = concat_map (function
-        | ordinary,_,[],concl when ordinary || iter_no>1 || !early_num_abduction -> concl
-        | _ -> []) brs in
-    let used = vars_of_map (fun (_,_,prem,_) -> fvs_formula prem) brs in
-    if given=[] || VarSet.is_empty used then raise first;
-    try
-      let eqs,_,_,_ = satisfiable_exn given in
-      let fixed = VarMap.filter (fun v (vs,_,_) -> vs=[] && VarSet.mem v used) eqs in
-      if VarMap.is_empty fixed then raise first;
-      run fixed
-    with
-    | Terms.Contradiction _ | Terms.Suspect _ -> raise first
-    | Failure msg when msg = "int_of_big_int" -> raise first
+  let run fixed_for = abd_branches fixed_for q ~bvs ~xbvs ?orig_ren ?b_of_v
+      ~upward_of ~nonparam_vars ~discard ~iter_no ?caller_checks brs in
+  try run (fun _ -> VarMap.empty) with Terms.Suspect _ as first ->
+    let attempt f = try Some (f ()) with
+      | Terms.Contradiction _ | Terms.Suspect _ -> None
+      | Failure msg when msg = "int_of_big_int" -> None in
+    let active = List.filter (fun (ordinary,_,_,_) ->
+        ordinary || iter_no > 1 || !early_num_abduction) brs in
+    let given = concat_map (function _,_,[],c -> c | _ -> []) active in
+    let used = vars_of_map (fun (_,_,d,_) -> fvs_formula d) brs in
+    if VarSet.is_empty used then raise first;
+    let constants vars cnj =
+      let eqs,_,_,_ = satisfiable_exn cnj in
+      VarMap.filter (fun v (vs,_,_) -> vs=[] && VarSet.mem v vars) eqs in
+    let global = match attempt (fun () -> constants used given) with
+      | None -> raise first | Some fixed -> fixed in
+    let result = if VarMap.is_empty global then None else
+        attempt (fun () -> run (fun _ -> global)) in
+    match result with Some answer -> answer | None ->
+      let providers = map_some (function
+          | _,_,(_::_ as d),(_::_ as c) -> Some (List.length d,d,c)
+          | _ -> None) active in
+      if providers=[] then raise first;
+      let guards = unique_sorted (List.map (fun (_,_,d,_) -> d) brs) in
+      let local = map_some (fun d ->
+          let size = List.length d in
+          let supplied = concat_map (fun (n,p,c) ->
+              if n < size && subformula p d then c else []) providers in
+          if supplied=[] then None else
+            match attempt (fun () -> constants (fvs_formula d) (given @ d @ supplied)) with
+            | Some fixed when not (VarMap.for_all (fun v _ -> VarMap.mem v global) fixed) ->
+              Some (d,fixed)
+            | _ -> None) guards in
+      if local=[] then raise first;
+      let fixed_for d = try List.assoc d local with Not_found -> global in
+      match attempt (fun () -> run fixed_for) with
+      | Some answer -> answer | None -> raise first
+
 
 let intersect_integer_bound (lo, hi) (b, d) =
   let tighten op x = function None -> Some x | Some y -> Some (op x y) in

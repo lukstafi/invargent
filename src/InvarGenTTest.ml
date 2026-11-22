@@ -422,6 +422,8 @@ let tests = "InvarGenT" >::: [
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "opposite_result_bands";
       "a forced client key exposes the interior guard certificate" >::
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "interior_result_key";
+      "the second client fixes its key under the first opening" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "guarded_client_key";
       "conditional admission must respect the exported key domain" >:: (fun () ->
         let source = input_file (example_path "narrowed_guard_key" ^ ".gadt") in
         assert_bool "the base returns one and the upper key is unavailable"
