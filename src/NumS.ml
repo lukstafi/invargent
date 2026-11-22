@@ -3034,6 +3034,14 @@ let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
          (List.length pe1 + List.length pi1) -
            (List.length pe2 + List.length pi2))
       brs in
+  (* An extremum can use the witness equations in the same conclusion.
+     Establish those equations first, then use them at the same witnesses.
+     Validation still sees the original branch and its liveness obligation. *)
+  let brs = concat_map (fun ((pairs, (prem_eqs, prem_ineqs),
+                              (eqs, ineqs, optis, suboptis)) as branch) ->
+      if eqs = [] || (optis = [] && suboptis = []) then [branch]
+      else [pairs, (prem_eqs, prem_ineqs), (eqs, [], [], []);
+            pairs, (eqs @ prem_eqs, prem_ineqs), ([], ineqs, optis, suboptis)]) brs in
   (*[* Format.printf "NumS.abd: split-brs=@\n| %a@\n%!"
     (pr_line_list "| " pr_sep_br) brs;
    *]*)

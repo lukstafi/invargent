@@ -328,6 +328,12 @@ let tests = "InvarGenT" >::: [
       "recursive callers can use either supplier cap" >::
         test_case "crossing_caps"
           ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
+      "written caller cap at crossing rates" >::
+        test_case "crossing_caps_annotated"
+          ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
+      "a supplier cap depending on twice the rate" >::
+        test_case "double_rate_supplier"
+          ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
       "moving floor and cap" >:: test_case "moving_floor"
         ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
       "cap across two result constructors" >:: test_case "split_shifted_climb"
