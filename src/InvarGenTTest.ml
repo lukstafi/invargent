@@ -315,6 +315,9 @@ let tests = "InvarGenT" >::: [
       "reversing the sign of the floor increment" >::
         test_case "reflected_floor"
           ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
+      "shared floor indices survive endpoint projection" >::
+        test_case "skew_floor"
+          ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
       "moving floor and cap" >:: test_case "moving_floor"
         ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
       "cap across two result constructors" >:: test_case "split_shifted_climb"

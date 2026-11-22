@@ -2702,7 +2702,10 @@ let recover_caller_bound q ~cmp_v ~cmp_w ~bvs ~upward_of ~validate ~calls checks
     let cover p = diff ~cmp_v g1 p, diff ~cmp_v g2 p in
     let covers = [cover p1; cover p2] in
     let inputs = vars_of_map fvs_2w covers in
-    if VarSet.is_empty inputs || not (VarSet.is_empty (VarSet.inter shared inputs)) ||
+    (* A floor can occur on both sides with the same sign and still be an
+       input. Compare opposite bounds only on indices that actually cancel. *)
+    let pivots = VarSet.diff shared inputs in
+    if VarSet.is_empty inputs || VarSet.is_empty pivots ||
        not (Lazy.force needed) then None else
     let pairs = List.fold_left (fun pairs p ->
         if List.exists (equal_2w ~cmp_v p) pairs then pairs else p :: pairs)
@@ -2714,7 +2717,7 @@ let recover_caller_bound q ~cmp_v ~cmp_w ~bvs ~upward_of ~validate ~calls checks
     let lower = List.map (subst_w ~cmp_v sb) supplier_bounds in
     let bounds = concat_map (fun w ->
         let w = subst_w ~cmp_v sb w in
-        if VarSet.is_empty (VarSet.inter shared (fvs_w w)) then [] else
+        if VarSet.is_empty (VarSet.inter pivots (fvs_w w)) then [] else
         map_some (fun endpoint ->
             let d = diff ~cmp_v w endpoint in
             let vs = fvs_w d in
