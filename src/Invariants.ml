@@ -1840,16 +1840,15 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
   | Aux.Right (ans_res, rol, sol) ->
     (*[* Format.printf "solve: checking assert false@\n%!"; *]*)
     List.iter (fun (cnj, loc) ->
-        try
-          let cnj = sb_formula_pred q false rol sol cnj in
-          (* FIXME: rethink. *)
-          ignore (satisfiable q empty_state cnj);
-          raise (Contradiction (
-              (* FIXME *) Type_sort,
-                          "A branch with \"assert false\" is possible",
-                          None, loc))
-        with Contradiction _ -> ()
-      ) neg_cns;
+        let reachable =
+          try
+            let guard = sb_formula_pred q false rol sol cnj in
+            ignore (satisfiable q empty_state (ans_res @ guard));
+            true
+          with Contradiction _ -> false in
+        if reachable then raise (Contradiction
+            (Type_sort, "A branch with \"assert false\" is possible", None, loc)))
+      neg_cns;
     let bvs = bparams !timeout_count in
     (* Push parameters to the right so that they are kept in answers. *)
     let q_op =

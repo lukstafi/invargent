@@ -228,6 +228,19 @@ let tests = "InvarGenT" >::: [
       "partial annotation for both symbolic floor shifts" >::
         test_case "symbolic_floor_hint"
           ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
+      "the final answer independently rules out assert false" >:: (fun () ->
+        let old_check = !Invariants.neg_constrns
+        and old_since = !Abduction.num_neg_since in
+        let restore () = Invariants.neg_constrns := old_check;
+          Abduction.num_neg_since := old_since in
+        Invariants.neg_constrns := false;
+        Abduction.num_neg_since := max_int / 2;
+        (try
+           ignore (infer_source "let f = if 1 <= 0 then assert false else 1");
+           assert_bool "the final guard admits zero"
+             (rejects_source "let f = if 0 <= 0 then assert false else 1")
+         with e -> restore (); raise e);
+        restore ());
       "a guarded assertion constrains the matched argument" >:: (fun () ->
         let guard = "let rec f = function x when x <= 0 -> assert false | x -> x\n" in
         ignore (infer_source (guard ^ "let safe = f 1"));
