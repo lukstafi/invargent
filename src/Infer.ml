@@ -723,14 +723,15 @@ type key_query = {
   lower : NumDefs.term;
   upper : NumDefs.term;
   bounds : NumDefs.formula;
-  target : (var_name * NumDefs.term) option
+  target : (var_name * NumDefs.term list) option
 }
 
 type call_policy = Restrict_calls of formula | Open_at_keys of key_query
+type admission = Admitted | Unavailable | Retry_keys of key_query
 
 type replay =
   | Fixed of typ
-  | After_result of cns_name * (typ -> typ * VarSet.t * formula * cnstrnt)
+  | After_result of cns_name * (typ -> (typ * VarSet.t * formula * cnstrnt) list)
 
 (* Each graph is total and single valued. Only fresh variable renamings are
    applied to the input and payload expressions. *)
@@ -983,12 +984,15 @@ let constr_gen_expr_with_arities ?paired ~erase_bodies arities gamma e t =
       let open_package tag package lc =
         let vs,phi,env = envfrag_gen_pat count (PCons (tag,[PVar ("x",lc)],lc)) package in
         match env with [_,value] -> vs,phi,value | _ -> assert false in
-      (* The positive call obligation may use the first package only. *)
+      (* A single target can also guide abduction from the initial opening.
+         In a family, later admissions can require an earlier postcondition.
+         The exported predicate must certify the whole family before use. *)
       let admission = match other with
         | Some (After_result (tag,choose)) ->
           let witnesses,prem,value = open_package tag ta0 loc in
-          let _,_,_,positive = choose value in
-          All (witnesses,Impl (prem,positive))
+          (match choose value with
+           | [_,_,_,positive] -> All (witnesses,Impl (prem,positive))
+           | _ -> And [])
         | _ -> And [] in
       let packages = ref [] in
       let plain = Eqty (tb0, ta0, loc) in
@@ -1007,16 +1011,16 @@ let constr_gen_expr_with_arities ?paired ~erase_bodies arities gamma e t =
              let bs,d_prem,value = open_package k ta0 loc in
              let pcn = constr_gen_pat (PCons (k, [p], loc)) ta0 in
              let entered = Eqty (tb0,value,loc) :: d_prem in
-             let again package keys graph =
+             let again (bs,entered) package keys graph =
                let fresh,post,second = open_package k package loc in
                VarSet.union bs (VarSet.union keys fresh),
                Eqty (tb0,second,loc) :: graph @ post @ entered in
              let bs,entered = match other with
                | Some (Fixed (TCons (tag,_) as second)) when tag=k ->
-                 again second VarSet.empty []
+                 again (bs,entered) second VarSet.empty []
                | Some (After_result (tag,choose)) when tag=k ->
-                 let second,keys,graph,_ = choose value in
-                 again second keys graph
+                 List.fold_left (fun context (second,keys,graph,_) ->
+                     again context second keys graph) (bs,entered) (choose value)
                | _ -> bs,entered in
              if collecting then packages := (k, entered) :: !packages;
              bs, pcn, entered, trigger)
@@ -1310,8 +1314,10 @@ let interval_call_key samples signature arrow body bands loc =
             let targets = if not dependent then [None] else
               match Lazy.force package with
               | None -> []
-              | Some (r,post) -> List.map (fun t -> Some (r,t))
-                  (NumS.refuting_keys ~inputs ~key ~result:r post) in
+              | Some (r,post) ->
+                let ts = NumS.refuting_keys ~inputs ~key ~result:r post in
+                List.map (fun t -> Some (r,[t])) ts @
+                (match ts with _::_::_ -> [Some (r,ts)] | _ -> []) in
             if targets=[] then [] else
             match NumS.interval_endpoints ~inputs ~key (numeric signature) loc with
             | None -> []
@@ -1370,17 +1376,18 @@ let gen_letrec ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests
          let phi = graph @ p @ q in
          let vs = VarSet.elements (fvs_formula phi) in
          gamma,Some (def_typ,(vs,phi,first),fun sb -> Fixed (hvsubst_typ sb (return_type second)))
-       | Some ((r,target) as choice) ->
+       | Some (r,targets) ->
          let primary = Eqty (TVar query.key,num query.lower,lc) :: chi_b :: signature @ graph in
          let vs = fvs_formula primary |> VarSet.union (NumDefs.fvs_term query.upper) |>
-           VarSet.union (VarSet.remove r (NumDefs.fvs_term target)) in
+           VarSet.union (VarSet.remove r (vars_of_map NumDefs.fvs_term targets)) in
          let other sb =
            let choose = function
              | TCons (n,[observed]) when n=numtype ->
-               let k,keys,graph = selected_key query sb choice (NumS.num_of observed) in
-               let arrow,id,positive = instance sb k in
-               let graph = NumS.formula_of_sort graph in
-               return_type arrow, keys, graph, Ex (VarSet.add id keys,A (graph @ positive))
+               List.map (fun target ->
+                   let k,keys,graph = selected_key query sb (r,target) (NumS.num_of observed) in
+                   let arrow,id,positive = instance sb k in
+                   let graph = NumS.formula_of_sort graph in
+                   return_type arrow, keys, graph, Ex (VarSet.add id keys,A (graph @ positive))) targets
              | _ -> assert false in
            match return_type tb with TCons (tag,_) -> After_result (tag,choose) | _ -> assert false in
          gamma, Some (def_typ,(VarSet.elements vs,primary,tb),other)) in
@@ -1640,11 +1647,11 @@ let recursive_answer bvs loc chi_id (q,residual,predicates) =
       ("Escaping local variables "^String.concat ", " (List.map var_str escaping),Some loc));
   nice_sb,sb_res,sb,(gvs,phi,res)
 
-(* Replay both admissions against the exported predicate. Align the numeric
+(* Replay the key admissions against the exported predicate. Align the numeric
    coordinates of the written and inferred arrows. A bare inferred coordinate
    can take its new value from the corresponding written position. Other
    inferred variables retain their original witnesses. *)
-let admits_key_query query signature written inferred loc =
+let check_key_admission query signature written inferred loc =
   let open NumDefs in
   let eq a b = Eq (a,b,loc) and v x = Lin (1,1,x) in
   let rec align left right = match left,right with
@@ -1660,8 +1667,8 @@ let admits_key_query query signature written inferred loc =
       | Eqty (a,b,lc) when typ_sort a=Num_sort && typ_sort b=Num_sort ->
         Eq (NumS.num_of a,NumS.num_of b,lc)
       | _ -> raise Not_found) phi in
-  let entails pre goals = match NumS.satisfiable pre with
-    | Left _ -> false | Right state -> NumS.implies_cnj state goals in
+  let entails ~vacuous pre goals = match NumS.satisfiable pre with
+    | Left _ -> vacuous | Right state -> NumS.implies_cnj state goals in
   try
     let _,actual,arrow = freshen_val_scheme inferred in
     let decl = numbers signature and actual = numbers actual in
@@ -1669,7 +1676,7 @@ let admits_key_query query signature written inferred loc =
     let original = List.map (fun (a,b) -> eq a b) positions @ actual @ decl @ query.bounds in
     (* Give each changed formal an explicit witness and check the complete
        domain at the new key. Equalities in [bindings] define fresh names. *)
-    let check k extra =
+    let check ?(vacuous=false) k extra =
       let replacement = VarMap.singleton query.key k in
       let rename,bindings = List.fold_left (fun (sb,phi) -> function
           | Lin (1,1,x),term when not (VarMap.mem x sb) ->
@@ -1678,24 +1685,46 @@ let admits_key_query query signature written inferred loc =
           | _ -> sb,phi) (VarMap.empty,[]) positions in
       let matches = List.map (fun (a,b) -> eq (hvsubst_term rename a)
           (hvsubst_term replacement b)) positions in
-      entails (original @ extra @ bindings)
+      entails ~vacuous (original @ extra @ bindings)
         (matches @ List.map (hvsubst_atom rename) actual @ List.map (hvsubst_atom replacement) decl) in
     let first = fresh_num_var () in
     let initial = [eq (v first) query.lower] in
-    check first initial &&
+    if not (check first initial) then Unavailable else
     (match query.target with
-     | None -> let high = fresh_num_var () in check high [eq (v high) query.upper]
-     | Some choice ->
-       let primary = hvsubst_typ (VarMap.singleton query.key first) (return_type written) in
-       let tag = match primary with TCons (tag,_) -> tag | _ -> raise Not_found in
-       let _,prem,env = envfrag_gen_pat 0 (PCons (tag,[PVar ("x",loc)],loc)) primary in
-       let observed = match env with [_,TCons (n,[t])] when n=numtype -> NumS.num_of t
+     | None ->
+       let high = fresh_num_var () in
+       if check high [eq (v high) query.upper] then Admitted else Unavailable
+     | Some (r,targets) ->
+       let package = return_type written in
+       let tag = match package with TCons (tag,_) -> tag | _ -> raise Not_found in
+       let opening key =
+         let at_key = hvsubst_typ (VarMap.singleton query.key key) package in
+         let _,prem,env = envfrag_gen_pat 0 (PCons (tag,[PVar ("x",loc)],loc)) at_key in
+         match env with
+         | [_,TCons (n,[t])] when n=numtype ->
+           NumS.num_of t, (unify ~use_quants:false empty_q prem).cnj_num
          | _ -> raise Not_found in
-       let chosen,_,graph = selected_key query VarMap.empty choice observed in
-       let opened = (unify ~use_quants:false empty_q prem).cnj_num in
-       check chosen (initial @ opened @ graph))
-  with Not_found | Terms.Contradiction _ -> false
-     | Failure msg when msg = "int_of_big_int" -> false
+       let observed,opened = opening first in
+       let queries = List.map (fun target ->
+           let k,_,graph = selected_key query VarMap.empty (r,target) observed in
+           target,k,graph) targets in
+       let extend facts (_,k,graph) =
+         let value,post = opening k in
+         eq observed value :: graph @ post @ facts in
+       (* Only already admitted typings may supply facts for a later round.
+          Fresh openings share their result and retain their private witnesses. *)
+       let rec certify facts keep pending =
+         let ready,rest = List.partition (fun (_,k,graph) ->
+             check ~vacuous:true k (graph @ facts)) pending in
+         if rest=[] then Admitted else if ready=[] then
+           (match keep with _::_::_ -> Retry_keys {query with target=Some (r,keep)}
+            | _ -> Unavailable)
+         else
+           let keep = List.rev_append (List.map (fun (t,_,_) -> t) ready) keep in
+           certify (List.fold_left extend facts ready) keep rest in
+       certify (initial @ opened) [] queries)
+  with Not_found | Terms.Contradiction _ -> Unavailable
+     | Failure msg when msg = "int_of_big_int" -> Unavailable
 
 let infer_prog ?(integer_target=false) ?check_excluded solver prog =
   let check_guards = integer_target && not !force_nodeadcode && can_erase_guarded_bodies prog in
@@ -1755,7 +1784,7 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
               then retry (keep :: rest) else retry rest
             | _ -> raise exn in
       retry choices in
-  let solve_item ?(propose_call=(fun _ -> [])) ?(admitted=(fun _ _ -> true)) packages e tests generate =
+  let solve_item ?(propose_call=(fun _ -> [])) ?(admitted=(fun _ _ -> Admitted)) packages e tests generate =
     let initial_packages = !all_ex_types in
     let search ?(call_constraints=Restrict_calls []) bounds =
       let run (e, tests) = search_item bounds packages (generate e tests call_constraints) in
@@ -1791,13 +1820,18 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
           | call_constraints::rest, _ ->
             let candidate = try Some (search ~call_constraints (Observe_comparisons (ref false)))
               with NoAnswer _ | Contradiction _ -> None in
-            (match candidate with Some answer when admitted call_constraints answer -> answer
-             | Some _ ->
-               (* The solver installs local schemes when it returns a candidate. *)
-               List.iter (fun (tag,scheme) -> Hashtbl.replace sigma tag scheme) saved;
-               all_ex_types := initial_packages;
-               try_keys rest groups
-             | None -> try_keys rest groups) in
+            (match candidate with
+             | None -> try_keys rest groups
+             | Some answer ->
+               match admitted call_constraints answer with
+               | Admitted -> answer
+               | retry ->
+                 (* Restore the schemes installed for this tentative answer.
+                    Every reduced family gets a new solve and admission check. *)
+                 List.iter (fun (tag,scheme) -> Hashtbl.replace sigma tag scheme) saved;
+                 all_ex_types := initial_packages;
+                 let next = match retry with Retry_keys q -> Open_at_keys q :: rest | _ -> rest in
+                 try_keys next groups) in
         try_keys [] (propose_call !bands) in
       (try
          try search (Prove_complements (ambiguous,bands)) with
@@ -1902,12 +1936,12 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
               | None, Some _ -> interval_call_key !constructor_samples sig_cn t e bands loc
               | _ -> [] in
             let admitted policy ((id,_,_,_),_,solution) = match policy with
-              | Restrict_calls _ -> true
+              | Restrict_calls _ -> Admitted
               | Open_at_keys query ->
                 (try
                    let _,_,_,scheme = recursive_answer bvs loc id solution in
-                   admits_key_query query sig_cn t scheme loc
-                 with Report_toplevel _ | NoAnswer _ | Contradiction _ -> false) in
+                   check_key_admission query sig_cn t scheme loc
+                 with Report_toplevel _ | NoAnswer _ | Contradiction _ -> Unavailable) in
             solve_item ~propose_call ~admitted new_ex_types e tests (fun e tests call_constraints erase_bodies ->
                 let chi_id, _, cn, e, tests, elim_cells, preserve =
                   constr_gen_letrec ~call_constraints ~erase_bodies ~nonrec:(pat_loc<>None)

@@ -397,6 +397,14 @@ let tests = "InvarGenT" >::: [
         let source = input_file (example_path "missing_result_key" ^ ".gadt") in
         assert_bool "a base result of two reaches the guarded arm"
           (rejects_source ~integer_target:true source));
+      "one admitted result typing can license the next" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "staged_result_keys";
+      "a useful pair survives an unavailable third result key" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "unused_result_key";
+      "two result keys cannot license each other in a cycle" >:: (fun () ->
+        let source = input_file (example_path "circular_result_keys" ^ ".gadt") in
+        assert_bool "the base returns three and reaches the guarded arm"
+          (rejects_source ~integer_target:true source));
       "a second typing must admit the same recursive arguments" >:: (fun () ->
         let source = input_file (example_path "unavailable_interval_key" ^ ".gadt") in
         assert_bool "the negative state reaches its guarded arm"
