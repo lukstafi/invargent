@@ -1154,11 +1154,21 @@ let abd q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of ~nonparam_vars
       List.for_all (fun (prem, concl) ->
         try NumS.implies_cnj (NumS.satisfiable_exn ~state prem) concl
         with Contradiction _ -> true) checks in
+    (* A private call witness can imply a public input bound even when
+       some public inputs admit no such witness. Split exports the owner's
+       constraints. Check redundancy there before dropping an owned atom. *)
+    let interface_redundant a atoms =
+      let vs = NumDefs.fvs_atom a in
+      List.for_all (fun (_, scope) ->
+          not (VarSet.subset vs scope) ||
+          let local = List.filter (fun a -> VarSet.subset (NumDefs.fvs_atom a) scope) atoms in
+          NumS.implies_cnj (NumS.satisfiable_exn local) [a]) xbvs in
     let rec trim kept = function
       | [] -> List.rev kept
       | (NumDefs.Eq _ as a)::rest -> trim (a::kept) rest
       | a::rest ->
-          if sufficient (List.rev_append kept rest) then trim kept rest
+          let others = List.rev_append kept rest in
+          if interface_redundant a others && sufficient others then trim kept rest
           else trim (a::kept) rest in
     trim [] ans_num in
   let ans_typ = to_formula ans_typ in

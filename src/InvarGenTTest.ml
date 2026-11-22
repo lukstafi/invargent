@@ -370,6 +370,13 @@ let tests = "InvarGenT" >::: [
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "guarded_interval_bands";
       "a recursive package chooses its key from the input state" >::
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "state_dependent_interval";
+      "private witnesses preserve the public interval bound" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "public_interval_bound";
+      "a public package cannot promise a negative result at state zero" >:: (fun () ->
+        let source = input_file (example_path "public_interval_bound" ^ ".gadt") in
+        let client = "\nexternal let negative : ∀i[i≤0]. Num i → Bool = \"fun n -> assert (n <= 0); true\"\n" ^
+          "let broken = let p = run A (-3) Z in negative p" in
+        assert_bool "the base result is one" (rejects_source ~integer_target:true (source ^ client)));
       "both endpoints miss a reachable assertion in the interior" >:: (fun () ->
         let source = "external let sample : Num 0 → ∃j[0≤j ∧ j≤6]. Num j = \"fun _ -> 3\"\n" ^
           "let bad = let r = sample 0 in match r with v when 2 <= v && v <= 4 -> assert false | _ -> True" in
