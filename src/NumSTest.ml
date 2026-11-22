@@ -25,6 +25,31 @@ let numeric_formula s =
   sort_formula (Parser.formula Lexer.token (Lexing.from_string s))
 
 let tests = "NumS" >::: [
+  "integer envelopes and interpolation obey every sampled interval" >:: (fun () ->
+    let var s = VNam (Num_sort,s) in
+    let key = var "k" and index = var "i" and result = var "j" in
+    let package = key,result,numeric_formula "k<=j ∧ j<=k+20" in
+    let pre = numeric_formula "k<=100 i+10 ∧ 100 i+10<=k+20" in
+    let check offsets expect_extremum =
+      let points = List.mapi (fun x d -> x, 100*x+d) offsets in
+      let bands = concat_map (fun (_,k) -> [k-1,k-1; k+21,k+21]) points in
+      let answers = fit_interval_calls ~index ~key ~samples:(List.map fst points) ~package ~bands pre dummy_loc in
+      (* Five strictly concave or convex points need at least three lines.
+         Their extrema have a fresh intermediate, as does the mixed case. *)
+      let is_extremum phi = List.for_all (function Opti _ -> true | _ -> false) phi in
+      let extremes = List.filter is_extremum answers in
+      assert_equal (if expect_extremum then 1 else 0) (List.length extremes);
+      assert_bool "interpolation supplied a graph" (List.exists (fun phi -> not (is_extremum phi)) answers);
+      List.iter (fun graph ->
+          assert_bool "the graph needs a local numeric intermediate"
+            (not (VarSet.is_empty (VarSet.diff (fvs_formula graph) (vars_of_list [index; key]))));
+          List.iter (fun (x,k) ->
+              let at v n = Eq (Lin (1,1,v),Cst (n,1),dummy_loc) in
+              let state = satisfiable_exn (at index x :: graph) in
+              assert_bool "the graph forces the required key" (implies_cnj state [at key k])) points) answers in
+    check [0;5;7;8;8] true;
+    check [0;-5;-7;-8;-8] true;
+    check [0;3;0;3;0] false);
   "a change of pivot preserves the other equations" >:: (fun () ->
     let input = numeric_formula "n1=n2+n3 ∧ n1=n4+n5 ∧ n2<=n5" in
     let all = fvs_formula input in

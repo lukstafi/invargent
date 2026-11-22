@@ -4518,10 +4518,16 @@ let satisfiable ?state cnj =
   try Right (satisfiable_exn ?state cnj)
   with Terms.Contradiction _ as e -> Left e
 
+let intersect_integer_bound (lo, hi) (b, d) =
+  let tighten op x = function None -> Some x | Some y -> Some (op x y) in
+  if b </ !/0 then tighten max_num (ceiling_num (d // b)) lo, hi
+  else if b >/ !/0 then lo, tighten min_num (floor_num (d // b)) hi
+  else if d </ !/0 then raise Not_found else lo, hi
+
 (* Restrict the scalar call parameter at each sampled input, then eliminate
    the intercept from lo <= slope * input + intercept <= hi. All rounding
    and the products of source constants use arbitrary-precision numbers. *)
-let fit_interval_call ~index ~key ~samples ~bands ~package pre loc =
+let sample_interval_keys ~piecewise ~index ~key ~samples ~bands ~package pre loc =
   let formal, result, post = package in
   let inequalities x y phi =
     let row (vars, c, _) =
@@ -4532,56 +4538,140 @@ let fit_interval_call ~index ~key ~samples ~bands ~package pre loc =
         | Leq_w w -> row w
         | Eq_w w -> row w @ row (mult !/(-1) w)
         | Opti_w _ | Subopti_w _ -> []) (flatten_formula ~cmp_v:compare phi) in
-  (* Intersect the integer bounds b*k <= d. *)
-  let tighten op x = function None -> Some x | Some y -> Some (op x y) in
-  let intersect (lo, hi) (b, d) =
-    if b </ !/0 then tighten max_num (ceiling_num (d // b)) lo, hi
-    else if b >/ !/0 then lo, tighten min_num (floor_num (d // b)) hi
-    else if d </ !/0 then raise Not_found else lo, hi in
-  let finite rows = match List.fold_left intersect (None, None) rows with
+  let finite rows = match List.fold_left intersect_integer_bound (None, None) rows with
     | Some lo, Some hi when lo <=/ hi -> lo, hi
     | _ -> raise Not_found in
+  (* Bounds on result - formal give a translated interval at every key. *)
+  let offsets = map_some (fun (a, b, d) ->
+      if a =/ minus_num b then Some (b, d) else None)
+      (inequalities formal result post) in
+  let first, last = finite offsets in
+  let input_rows = inequalities index key pre in
+  let at x =
+    let bounds = finite (List.map (fun (a,b,d) -> b, d -/ a */ x) input_rows) in
+    let avoid intervals (l,u) =
+      let left = !/l -/ last -/ !/1 and right = !/u -/ first +/ !/1 in
+      concat_map (fun (lo,hi) ->
+          (if lo <=/ left then [lo, min_num hi left] else []) @
+          (if right <=/ hi then [max_num lo right, hi] else [])) intervals in
+    match List.fold_left avoid [bounds] bands with
+    | (lo,hi) :: rest when piecewise || rest = [] -> x,lo,hi
+    | _ -> raise Not_found in
+  let sample x =
+    let point = Eq (Lin (1,1,index), Cst (x,1), loc) in
+    match satisfiable (point :: pre) with
+    | Left _ -> None
+    | Right _ -> Some (at (!/x)) in
+  (* A scalar argument may have no indexed constructors. Unary bounds and
+     the arms of a written min/max can still name its observations. *)
+  let samples = if samples <> [] || not piecewise then samples else
+      let endpoints = function
+        | [(v,a)], b, _ when v = index ->
+          let root = minus_num b // a in
+          map_some (fun n -> try Some (int_of_num n) with
+              Failure msg when msg = "int_of_big_int" -> None) [floor_num root; ceiling_num root]
+        | _ -> [] in
+      concat_map (function
+          | Eq_w w | Leq_w w -> endpoints w
+          | Opti_w (a,b) | Subopti_w (a,b) -> endpoints a @ endpoints b)
+        (flatten_formula ~cmp_v:compare pre) in
+  map_some sample (unique_sorted samples)
+
+let fit_interval_calls ?(piecewise=true) ~index ~key ~samples ~bands ~package pre loc =
   try
-    (* Bounds on result - formal give a translated interval at every key. *)
-    let offsets = map_some (fun (a, b, d) ->
-        if a =/ minus_num b then Some (b, d) else None)
-        (inequalities formal result post) in
-    let first, last = finite offsets in
-    let input_rows = inequalities index key pre in
-    let at x =
-      let bounds = finite (List.map (fun (a,b,d) -> b, d -/ a */ x) input_rows) in
-      let avoid intervals (l,u) =
-        let left = !/l -/ last -/ !/1 and right = !/u -/ first +/ !/1 in
-        concat_map (fun (lo,hi) ->
-            (if lo <=/ left then [lo, min_num hi left] else []) @
-            (if right <=/ hi then [max_num lo right, hi] else [])) intervals in
-      match List.fold_left avoid [bounds] bands with
-      | [lo,hi] -> x,lo,hi
-      | _ -> raise Not_found in
-    let sample x =
-      let point = Eq (Lin (1,1,index), Cst (x,1), loc) in
-      match satisfiable (point :: pre) with
-      | Left _ -> None
-      | Right _ -> Some (at (!/x)) in
-    match map_some sample samples with
-    | (first_strip :: _ :: _) as strips ->
-      let lower, upper = List.fold_left (fun bounds (x,lo,_) ->
-          List.fold_left (fun bounds (y,_,hi) ->
-              intersect bounds (y -/ x, hi -/ lo)) bounds strips)
-          (None, None) strips in
+    let rows = sample_interval_keys ~piecewise ~index ~key ~samples ~bands ~package pre loc in
+    let line rows (lower,upper) =
       let slope = match lower, upper with
         | Some a, Some b when a >/ b -> raise Not_found
         | Some a, _ when a >/ !/0 -> a
         | _, Some b when b </ !/0 -> b
         | _ -> !/0 in
       let offset (x,lo,_) = lo -/ slope */ x in
-      let c = List.fold_left (fun c strip -> max_num c (offset strip))
-          (offset first_strip) strips in
-      Some (Eq (Lin (1,1,key), add (Lin (int_of_num slope,1,index))
-                  (Cst (int_of_num c,1)), loc))
-    | _ -> None
-  with Not_found -> None
-     | Failure msg when msg = "int_of_big_int" -> None
+      let intercept = match rows with
+        | first :: rest -> List.fold_left (fun c row -> max_num c (offset row)) (offset first) rest
+        | [] -> raise Not_found in
+      slope, intercept in
+    (* Every line must clear every lower bound. Each additional upper row
+       restricts its slope, even if the line is active on only a prefix. *)
+    let cap rows bounds (y,_,hi) = List.fold_left (fun bounds (x,lo,_) ->
+        intersect_integer_bound bounds (y -/ x, hi -/ lo)) bounds rows in
+    let representable n =
+      let v = int_of_num n in
+      (* Extremum terms are also stored with their sign reversed. *)
+      if v = min_int then raise Not_found else v in
+    let term (m,c) = add (Lin (representable m,1,index)) (Cst (representable c,1)) in
+    let key_term = Lin (1,1,key) in
+    let envelope reflect =
+      let signed a = if reflect then minus_num a else a in
+      let rows = if reflect then List.map (fun (x,l,u) -> x, signed u, signed l) rows else rows in
+      let empty = None, None in
+      let rec cover lines bounds = function
+        | [] -> List.rev (line rows bounds :: lines)
+        | row :: rest ->
+          let next = cap rows bounds row in
+          match next with
+          | Some a, Some b when a >/ b ->
+            let previous = line rows bounds in
+            let start = cap rows empty row in
+            (match start with Some l, Some u when l >/ u -> raise Not_found | _ -> ());
+            cover (previous :: lines) start rest
+          | _ -> cover lines next rest in
+      let lines = cover [] empty rows in
+      let extremum out a b =
+        let side x = if reflect then NumDefs.diff x out else NumDefs.diff out x in
+        Opti (side a, side b, loc) in
+      let rec graph = function
+        | [a;b] -> [extremum key_term a b]
+        | a::b::rest ->
+          let tmp = Lin (1,1,Terms.fresh_num_var ()) in
+          extremum tmp a b :: graph (tmp::rest)
+        | _ -> raise Not_found in
+      graph (List.map (fun (m,c) -> term (signed m,signed c)) lines) in
+    (* Join the sampled lower endpoints with integer slopes. Across a gap
+       of d units use floor(dy/d), then its successor on the last remainder
+       units. A slope change contributes delta * max(0, x - breakpoint). *)
+    let interpolate () =
+      let rec segments = function
+        | (x,lo,_) :: ((y,next,_) :: _ as tail) ->
+          let dx = y -/ x and dy = next -/ lo in
+          let slope = floor_num (dy // dx) in
+          let remainder = dy -/ slope */ dx in
+          let rest = segments tail in
+          (x,slope) :: (if remainder =/ !/0 then rest else (y -/ remainder,slope +/ !/1) :: rest)
+        | _ -> [] in
+      match rows, segments rows with
+      | (_,lo,_) :: _, (x,slope) :: rest ->
+        let initial = term (slope, lo -/ slope */ x) in
+        let _, hinges, sum = List.fold_left (fun (old, hinges, sum) (at, slope) ->
+            if old =/ slope then old, hinges, sum else
+            let step = Terms.fresh_num_var () in
+            let neg_step = Lin (-1,1,step) in
+            let shifted = add neg_step (term (!/1, minus_num at)) in
+            slope, Opti (neg_step, shifted, loc) :: hinges,
+            Lin (representable (slope -/ old),1,step) :: sum)
+            (slope, [], [initial]) rest in
+        Eq (key_term, Add (List.rev sum), loc) :: List.rev hinges
+      | _ -> raise Not_found in
+    let attempt f = try Some (f ()) with Not_found -> None
+      | Failure msg when msg = "int_of_big_int" -> None in
+    match rows with
+    | [] -> []
+    | [_] when not piecewise -> []
+    | _ ->
+      let affine () =
+        let slopes = List.fold_left (cap rows) (None,None) rows in
+        [Eq (key_term, term (line rows slopes), loc)] in
+      (match attempt affine with
+       | Some answer -> [answer]
+       | None when piecewise ->
+         map_some attempt [(fun () -> envelope false); (fun () -> envelope true); interpolate]
+       | None -> [])
+  with Not_found -> []
+     | Failure msg when msg = "int_of_big_int" -> []
+
+let fit_interval_call ~index ~key ~samples ~bands ~package pre loc =
+  match fit_interval_calls ~piecewise:false ~index ~key ~samples ~bands ~package pre loc with
+  | [[a]] -> Some a | _ -> None
 
 let implies_cnj (eqs, ineqs, optis, suboptis) cnj =
   let uni_v _ = false in

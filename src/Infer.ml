@@ -1142,17 +1142,16 @@ let interval_call_key samples signature arrow bands loc =
        (match variable out with
         | None -> []
         | Some result ->
-          let proposals = map_some (function
+          concat_map (function
               | TCons (name,[arg]) ->
                 (match variable arg with
                  | Some index when index <> key ->
                    let states = unique_sorted (assoc_all name samples) in
-                   if List.length states < 2 then None else
-                   NumS.fit_interval_call ~index ~key ~samples:states ~bands
-                     ~package:(formal,result,numeric post) (numeric signature) loc
-                 | _ -> None)
-              | _ -> None) args in
-          NumS.formula_of_sort proposals)
+                   List.map NumS.formula_of_sort
+                     (NumS.fit_interval_calls ~index ~key ~samples:states ~bands
+                        ~package:(formal,result,numeric post) (numeric signature) loc)
+                 | _ -> [])
+              | _ -> []) args)
      | _ -> [])
   | _ -> []
 
@@ -1181,7 +1180,10 @@ let gen_letrec ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests
      the full parameter range. *)
   let body_gamma = match call_constraints with
     | [] -> gamma
-    | extra -> let vs, phi, t = def_typ in (x, (vs, extra @ phi, t)) :: gamma in
+    | extra ->
+      let vs, phi, t = def_typ in
+      let local = VarSet.diff (fvs_formula extra) (vars_of_list vs) in
+      (x, (VarSet.elements local @ vs, extra @ phi, t)) :: gamma in
   let (expr_cn, e), elim_cell, preserve = constr_gen_expr_with_arities ~erase_bodies arities body_gamma e anchor in
   let def_cn =
     let body = if signature = [] then expr_cn
@@ -1518,8 +1520,8 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
             | (NoAnswer _ | Contradiction _) as failed ->
               let rec try_keys = function
                 | [] -> raise failed
-                | key :: rest ->
-                  try search ~call_constraints:[key] (Observe_comparisons (ref false))
+                | call_constraints :: rest ->
+                  try search ~call_constraints (Observe_comparisons (ref false))
                   with NoAnswer _ | Contradiction _ -> try_keys rest in
               try_keys (propose_call !bands))
        with exn ->

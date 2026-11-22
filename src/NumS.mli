@@ -86,6 +86,14 @@ val fit_interval_call :
   package:(Defs.var_name * Defs.var_name * NumDefs.formula) ->
   NumDefs.formula -> Defs.loc -> NumDefs.atom option
 
+(** If a single line fails, [piecewise] also tries minima and maxima of
+    lines and piecewise integer interpolation. Extra variables in each
+    candidate are local to one call. *)
+val fit_interval_calls :
+  ?piecewise:bool -> index:Defs.var_name -> key:Defs.var_name -> samples:int list ->
+  bands:(int * int) list -> package:(Defs.var_name * Defs.var_name * NumDefs.formula) ->
+  NumDefs.formula -> Defs.loc -> NumDefs.formula list
+
 val num_of : Terms.typ -> NumDefs.term
 val sort_formula : Terms.formula -> NumDefs.formula
 val formula_of_sort : NumDefs.formula -> Terms.formula
