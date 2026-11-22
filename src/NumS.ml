@@ -3957,7 +3957,7 @@ let disjelim_aux q ~previous ~target_vs ~preserve ~bvs ~param_bvs
              (fun i eqs ->
                 try
                   let e_cst, e_lc = Hashtbl.find eqs w_key in
-                  if e_cst = w_cst then Some i else None
+                  if e_cst =/ w_cst then Some i else None
                 with Not_found -> None)
              brs_eqs in
          if inds=[] then None

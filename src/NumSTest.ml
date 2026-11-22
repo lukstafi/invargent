@@ -25,6 +25,16 @@ let numeric_formula s =
   sort_formula (Parser.formula Lexer.token (Lexing.from_string s))
 
 let tests = "NumS" >::: [
+  "generalize two rational endpoints" >:: (fun () ->
+    let bounds = numeric_formula "1/2<=n1 ∧ n1<=3/2" in
+    let vs = fvs_formula bounds in
+    let branches = List.map (fun s -> [], numeric_formula s) ["n1=1/2"; "n1=3/2"] in
+    let _, _, result, _ = disjelim q ~target_vs:vs ~preserve:vs
+        ~bvs:VarSet.empty ~param_bvs:VarSet.empty ~guess:false ~initstep:false branches in
+    assert_bool "both endpoints fit the inferred interval"
+      (List.for_all (fun (_, br) -> implies_cnj (satisfiable_exn br) result) branches);
+    assert_bool "inferred interval fits the caller" (implies_cnj (satisfiable_exn result) bounds));
+
   "printed extrema preserve the coefficient of the isolated variable" >:: (fun () ->
     let check source =
       let input = numeric_formula source in
