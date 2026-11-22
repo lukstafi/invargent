@@ -2832,7 +2832,12 @@ let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
              (List.length d_optis) (List.length d_suboptis); *]*)
            (* FIXME: [choices] now adds these inequalities, remove *)
            (* let d_ineqn = flat2 d_optis @ d_ineqn in *)
-           let concl = split_flatten ~cmp_v concl in
+           (* Under this guard an index may already be an affine expression
+              in the caller's arguments. Use that expression in the equations
+              before choosing which bindings to abduce. Keep the unsplit
+              premise here so the same goals apply to every disjunct. *)
+           let eqn, ineqn, optis, suboptis = split_flatten ~cmp_v concl in
+           let concl = List.map (subst_w ~cmp_v d_eqs) eqn, ineqn, optis, suboptis in
            let contr_exc = ref None in
            let res = map_some
                (fun opti_subopti ->

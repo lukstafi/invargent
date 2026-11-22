@@ -314,11 +314,8 @@ let tests = "InvarGenT" >::: [
       "shared floor indices survive endpoint projection" >::
         test_case "skew_floor"
           ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
-      "a residual between result witnesses goes through inference backtracking" >::
-        (fun () ->
-           let source = input_file (example_path "tagged_floor" ^ ".gadt") in
-           try ignore (infer_source source)
-           with Terms.NoAnswer _ -> ());
+      "recover a recursive payload from its affine tag" >:: test_case "tagged_floor"
+        ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
       "a redundant constructor arm preserves recursive inference" >::
         test_case "redundant_supplier"
           ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
