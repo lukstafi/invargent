@@ -188,6 +188,26 @@ let rejects_source source =
   with Defs.Report_toplevel _ | Terms.Contradiction _ | Terms.NoAnswer _ -> true
 
 let tests = "InvarGenT" >::: [
+      "partial annotations can infer stronger guards" >:: (fun () ->
+        let code = "external let positive : ∀i[1≤i]. Num i → Num i = \"fun x -> x\"\n" ^
+          "let f : ∀i. Num i → Num i = fun x -> positive x\n" in
+        ignore (infer_source (code ^ "let ok = f 1"));
+        assert_bool "the inferred guard must reach the caller"
+          (rejects_source (code ^ "let bad = f 0")));
+      "recursive uses satisfy the written guard" >:: (fun () ->
+        let code = "let rec f : ∀i[1≤i]. Num i → Num 0 = fun x -> " in
+        ignore (infer_source (code ^ "f (x+1)"));
+        assert_bool "decrement eventually leaves the declared domain"
+          (rejects_source (code ^ "f (x+ -1)")));
+      "written existential checks each returning branch" >:: (fun () ->
+        let code = "datatype Nat\ndatacons Z : Nat\ndatacons S : Nat ⟶ Nat\n" ^
+          "let f : Nat → ∃n[1≤n]. Num n = efunction Z -> 1 | S _ -> " in
+        ignore (infer_source (code ^ "2"));
+        assert_bool "zero does not inhabit the annotated package"
+          (rejects_source (code ^ "0")));
+      "partial annotation for both symbolic floor shifts" >::
+        test_case "symbolic_floor_hint"
+          ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
       "a guarded assertion constrains the matched argument" >:: (fun () ->
         let guard = "let rec f = function x when x <= 0 -> assert false | x -> x\n" in
         ignore (infer_source (guard ^ "let safe = f 1"));

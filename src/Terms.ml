@@ -1719,11 +1719,22 @@ let () = pr_exty :=
             (List.map2 (fun v t -> v, (t, dummy_loc)) pvs args)
       with Invalid_argument("List.map2") ->
         (* assert false *) VarMap.empty in
-    let phi, ty =
-      if VarMap.is_empty sb then phi, ty
-      else subst_formula sb phi, subst_typ sb ty in
     let evs = VarSet.elements
         (VarSet.diff (vars_of_list vs) (vars_of_list pvs)) in
+    (* Substitution into the body of ∃ must keep its binders distinct from
+       the free names in the supplied parameters, also in the printed text. *)
+    let names vs = VarSet.fold (fun v acc ->
+        VarSet.add (VNam (Num_sort, var_str v)) acc) vs VarSet.empty in
+    let free = names (fvs_typs args) in
+    let reserved = VarSet.union free (names (vars_of_list vs)) in
+    let (_, sb), evs = fold_map (fun (used, sb) v ->
+        if VarSet.mem (VNam (Num_sort, var_str v)) free then
+          let name = var_str (next_var used (var_sort v)) in
+          let w = VNam (var_sort v, name) in
+          (VarSet.add (VNam (Num_sort, name)) used,
+           VarMap.add v (TVar w, dummy_loc) sb), w
+        else (used, sb), v) (reserved, sb) evs in
+    let phi, ty = subst_formula sb phi, subst_typ sb ty in
     let phi = Eqty (ty, ty, dummy_loc)::phi in
     let _, (evs, phi) = nice_ans (evs, phi) in
     let ty, phi = match phi with

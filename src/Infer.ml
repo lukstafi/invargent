@@ -147,23 +147,33 @@ let ex_intro_elim e =
 let fresh_chi_id = ref 0
 let fresh_expr_var_id = ref 0
 
-let normalize_expr e =
+let normalize_with_target ?target e =
   (*[* Format.printf
     "normalize_expr: e=@\n%a@\n%!" pr_uexpr e; *]*)
   let new_ex_types = ref [] in
-  let rec aux k' e =
-    match k', e with
-    | Some k, e when not (ex_intro_elim e) ->
+  let rec aux ?target k' e =
+    match k', target, e with
+    | Some k, _, e when not (ex_intro_elim e) ->
       let lc = expr_loc e in
       Letin (None, PVar ("xcase", lc), aux None e,
              Cons (Extype k, [Var ("xcase", lc)], lc), lc)
-    | _, ((Var _ | Num _ | String _) as x) -> x
-    | _, Cons (k, es, lc) -> Cons (k, List.map (aux None) es, lc)
-    | _, App (e1, e2, lc) -> App (aux k' e1, aux None e2, lc)
-    | _, NumAdd (e1, e2, lc) -> NumAdd (aux None e1, aux None e2, lc)
-    | _, NumCoef (x, e, lc) -> NumCoef (x, aux None e, lc)
-    | _, Lam ((), cls, lc) -> Lam ((), List.map (aux_cl k') cls, lc)
-    | None, ExLam (k, cls, lc) ->
+    | _, _, ((Var _ | Num _ | String _) as x) -> x
+    | _, _, Cons (k, es, lc) -> Cons (k, List.map (aux None) es, lc)
+    | _, _, App (e1, e2, lc) ->
+      let target = match target with
+        | None -> None | Some (depth, id) -> Some (depth + 1, id) in
+      App (aux ?target k' e1, aux None e2, lc)
+    | _, _, NumAdd (e1, e2, lc) -> NumAdd (aux None e1, aux None e2, lc)
+    | _, _, NumCoef (x, e, lc) -> NumCoef (x, aux None e, lc)
+    | _, _, Lam ((), cls, lc) ->
+      let target = match target with
+        | Some (depth, id) when depth > 0 -> Some (depth - 1, id)
+        | _ -> None in
+      Lam ((), List.map (aux_cl ?target k') cls, lc)
+    | None, Some (1, id), ExLam (_, cls, lc) ->
+      (* Each branch must pack a witness of the written existential. *)
+      Lam ((), List.map (aux_cl (Some id)) cls, lc)
+    | None, _, ExLam (k, cls, lc) ->
       let chi_id = incr fresh_chi_id; !fresh_chi_id in
       let ety_cn = Extype k in
       let ex_sch =
@@ -177,22 +187,34 @@ let normalize_expr e =
       new_ex_types := (k, lc) :: !new_ex_types;
       all_ex_types := (k, lc) :: !all_ex_types;
       ExLam (k, List.map (aux_cl (Some k)) cls, lc)
-    | Some _, ExLam (_, cls, lc) ->
+    | Some _, _, ExLam (_, cls, lc) ->
       Lam ((), List.map (aux_cl k') cls, lc)
-    | _, Letrec (docu, ann, x, e1, e2, lc) ->
-      Letrec (docu, ann, x, aux None e1, aux k' e2, lc)
-    | _, Letin (docu, p, e1, e2, lc) ->
-      Letin (docu, p, aux None e1, aux k' e2, lc)
-    | _, (AssertFalse _ as e) -> e
-    | _, RuntimeFailure (e, lc) -> RuntimeFailure (aux None e, lc)
-    | _, AssertLeq (e1, e2, range, lc) ->
-      AssertLeq (e1, e2, aux k' range, lc)
-    | _, AssertEqty (e1, e2, range, lc) ->
-      AssertEqty (e1, e2, aux k' range, lc)
-  and aux_cl k' (p, guards, e) =
+    | _, _, Letrec (docu, ann, x, e1, e2, lc) ->
+      Letrec (docu, ann, x, aux None e1, aux ?target k' e2, lc)
+    | _, _, Letin (docu, p, e1, e2, lc) ->
+      Letin (docu, p, aux None e1, aux ?target k' e2, lc)
+    | _, _, (AssertFalse _ as e) -> e
+    | _, _, RuntimeFailure (e, lc) -> RuntimeFailure (aux None e, lc)
+    | _, _, AssertLeq (e1, e2, range, lc) ->
+      AssertLeq (e1, e2, aux ?target k' range, lc)
+    | _, _, AssertEqty (e1, e2, range, lc) ->
+      AssertEqty (e1, e2, aux ?target k' range, lc)
+  and aux_cl ?target k' (p, guards, e) =
     p, List.map (fun (e1,e2) -> aux None e1, aux None e2) guards,
-    aux k' e in
-  !new_ex_types, aux None e
+    aux ?target k' e in
+  let e = aux ?target None e in
+  !new_ex_types, e
+
+let normalize_expr e = normalize_with_target e
+
+let signature_target = function
+  | None -> None
+  | Some (_, _, ty) ->
+    let rec result depth = function
+      | Fun (_, t) -> result (depth + 1) t
+      | TCons (Extype id, _) -> Some (depth, id)
+      | _ -> None in
+    result 0 ty
 
 let phantom_enumeration = Hashtbl.create 5
 (* Presence of a value [None] means that the datatype is excluded from
@@ -301,7 +323,7 @@ let normalize_item = function
         pr_cns name (pr_sep_list "," pr_cns) enum) phantom_enumeration; *]*)
     [], item
   | LetRecVal (docu, x, e, ty, tes, lc) ->
-    let extys, e = normalize_expr e in
+    let extys, e = normalize_with_target ?target:(signature_target ty) e in
     let extys, tes = fold_map
         (fun extys e ->
            let more_extys, e = normalize_expr e in
@@ -309,7 +331,8 @@ let normalize_item = function
         extys tes in
     extys, LetRecVal (docu, x, e, ty, tes, lc)
   | LetVal (docu, p, e, ty, lc) ->
-    let extys, e = normalize_expr e in
+    let target = match p with PVar _ -> signature_target ty | _ -> None in
+    let extys, e = normalize_with_target ?target e in
     extys, LetVal (docu, p, e, ty, lc)
 
 let normalize_program = List.map normalize_item
@@ -703,17 +726,28 @@ let constr_gen_tests gamma tests =
   tests, !elim_cells, List.concat preserve
 
 let constr_gen_letrec ?(nonrec=false) gamma x e sig_cn tb tests =
+  (* χ is a predicate on one type variable. A written scheme constrains
+     the instances χ can admit, and each recursive use instantiates both. *)
+  let anchor = match tb, sig_cn with
+    | TVar _, [] -> tb
+    | _ -> TVar (fresh_typ_var ()) in
+  let signature =
+    if anchor = tb then [] else Eqty (anchor, tb, expr_loc e) :: sig_cn in
   let a = fresh_typ_var () in
   let chi_id = incr fresh_chi_id; !fresh_chi_id in
-  let chi_b = PredVarU (chi_id, tb, expr_loc e) in
+  let chi_b = PredVarU (chi_id, anchor, expr_loc e) in
   let chi_a = PredVarU (chi_id, TVar a, expr_loc e) in
   let bvs = VarSet.union (fvs_typ tb) (fvs_formula sig_cn) in
-  let def_typ = VarSet.elements bvs, [chi_b], tb in
+  let anchor_vars = fvs_typ anchor in
+  let def_typ =
+    VarSet.elements (VarSet.union bvs anchor_vars), chi_b :: signature, tb in
   let gamma =
     if nonrec then gamma else (x, def_typ)::gamma in
-  let (expr_cn, e), elim_cell, preserve = constr_gen_expr gamma e tb in
+  let (expr_cn, e), elim_cell, preserve = constr_gen_expr gamma e anchor in
   let def_cn =
-    All (bvs, Impl (chi_b::sig_cn, expr_cn)) in
+    let body = if signature = [] then expr_cn
+      else cn_and (Ex (bvs, A signature)) expr_cn in
+    All (anchor_vars, Impl ([chi_b], body)) in
   let test_cn, tests, elim_cells, more_preserve =
     constr_gen_tests gamma tests in
   chi_id, def_typ,
