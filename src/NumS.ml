@@ -2841,7 +2841,7 @@ let recover_caller_bound q ~cmp_v ~cmp_w ~bvs ~upward_of ~validate ~calls checks
 
 (* FIXME: eliminate optis from premise, but first try simplifying
    them with both premise and conclusion of a branch. *)
-let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
+let abd_branches fixed q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
     ~upward_of ~nonparam_vars
     ~discard ?(iter_no=2) ?caller_checks brs =
   let calls = lazy (map_some (fun (_, uses, prem, _) ->
@@ -2866,6 +2866,9 @@ let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
            pr_formula prem; *]*)
          let d_eqn, d_ineqn, d_optis, d_suboptis =
            split_flatten ~cmp_v prem in
+         let d_eqn = if VarMap.is_empty fixed then d_eqn else
+             let used = fvs_formula prem in
+             unsubst (VarMap.filter (fun v _ -> VarSet.mem v used) fixed) @ d_eqn in
          (* We normalize to reduce the number of opti and subopti
             disjunctions. Also recovers implicit equalities
             due to optis. *)
@@ -4523,6 +4526,28 @@ let satisfiable_exn ?state cnj =
 let satisfiable ?state cnj =
   try Right (satisfiable_exn ?state cnj)
   with Terms.Contradiction _ as e -> Left e
+
+(* Before splitting a guarded premise, it can help to know a key fixed by
+   an unconditional obligation. Keep the provider rows and all conclusions.
+   Only providers active on this pass may justify an extra premise. *)
+let abd q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of ~nonparam_vars
+    ~discard ?(iter_no=2) ?caller_checks brs =
+  let run fixed = abd_branches fixed q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of
+      ~nonparam_vars ~discard ~iter_no ?caller_checks brs in
+  try run VarMap.empty with Terms.Suspect _ as first ->
+    let given = concat_map (function
+        | ordinary,_,[],concl when ordinary || iter_no>1 || !early_num_abduction -> concl
+        | _ -> []) brs in
+    let used = vars_of_map (fun (_,_,prem,_) -> fvs_formula prem) brs in
+    if given=[] || VarSet.is_empty used then raise first;
+    try
+      let eqs,_,_,_ = satisfiable_exn given in
+      let fixed = VarMap.filter (fun v (vs,_,_) -> vs=[] && VarSet.mem v used) eqs in
+      if VarMap.is_empty fixed then raise first;
+      run fixed
+    with
+    | Terms.Contradiction _ | Terms.Suspect _ -> raise first
+    | Failure msg when msg = "int_of_big_int" -> raise first
 
 let intersect_integer_bound (lo, hi) (b, d) =
   let tighten op x = function None -> Some x | Some y -> Some (op x y) in
