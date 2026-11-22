@@ -3584,6 +3584,12 @@ let disjelim_aux q ~previous ~target_vs ~preserve ~bvs ~param_bvs
              pr_w_subst eqs pr_ineqs ineqs; *]*)
            (* FIXME: [choices] now adds these inequalities, remove *)
            (* let opti_ineqs = flat2 optis in *)
+           (* Splitting an already established arm can bring irrelevant
+              indices into the result and change later caller abduction. *)
+           let suboptis = List.filter (fun (a, b) ->
+               let holds w =
+                 implies_case ~cmp_v ~cmp_w q.uni_v eqs ineqs [] [w] [] [] in
+               not (holds a || holds b)) suboptis in
            let regions = map_some
              (fun opti_subopti ->
                 try

@@ -319,6 +319,9 @@ let tests = "InvarGenT" >::: [
            let source = input_file (example_path "tagged_floor" ^ ".gadt") in
            try ignore (infer_source source)
            with Terms.NoAnswer _ -> ());
+      "a redundant constructor arm preserves recursive inference" >::
+        test_case "redundant_supplier"
+          ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
       "moving floor and cap" >:: test_case "moving_floor"
         ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
       "cap across two result constructors" >:: test_case "split_shifted_climb"
