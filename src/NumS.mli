@@ -220,6 +220,12 @@ val project_exists : vars:Defs.VarSet.t -> NumDefs.formula -> NumDefs.formula li
     distinct opening. Cells licensing the same opening may share its postcondition. *)
 val conditional_satisfiable :
   NumDefs.formula -> (NumDefs.formula * NumDefs.formula) list -> bool
+(** Feasibility of [pre] and [forall keys. admission => exists witnesses. post]
+    over the rationals. Admissions are a union of cells. The two sets of bound
+    coordinates must be fresh for [pre] and disjoint from one another. *)
+val common_result_possible :
+  keys:Defs.VarSet.t -> witnesses:Defs.VarSet.t ->
+  admissions:NumDefs.formula list -> post:NumDefs.formula -> NumDefs.formula -> bool
 (** Incremental check whether |= Q.A. Raises [Contradiction]. *)
 val holds :
   Defs.quant_ops -> Defs.VarSet.t ->

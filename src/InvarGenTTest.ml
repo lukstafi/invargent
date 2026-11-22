@@ -411,6 +411,13 @@ let tests = "InvarGenT" >::: [
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "switched_result_band";
       "a fresh admission witness can follow the recursive key" >::
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "private_result_key";
+      "visible package indices may have to move together" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "tied_result_keys";
+      "an odd width requires a fractional phantom index" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "scaled_result_key";
+      "all typings keep the actual recursive argument fixed" >:: (fun () ->
+        let source = input_file (example_path "fixed_result_input" ^ ".gadt") in
+        assert_bool "flag one returns one and enters the guard" (rejects_source ~integer_target:true source));
       "opposite keys cover the same guard in different states" >::
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "opposite_result_bands";
       "conditional admission must respect the exported key domain" >:: (fun () ->

@@ -4790,6 +4790,14 @@ let project_exists ~vars phi =
     | _ -> List.map (fun cell -> shared @ cell) (unique_sorted cells)
   with Terms.Contradiction _ -> []
 
+let atom_violations positive =
+  let zero = Cst (0,1) in function
+  | Eq (a,b,lc) -> [[positive lc a b]; [positive lc b a]]
+  | Leq (a,b,lc) -> [[positive lc a b]]
+  | Subopti (a,b,lc) -> [[positive lc a zero; positive lc b zero]]
+  | Opti (a,b,lc) -> [[positive lc a zero]; [positive lc b zero];
+                       [positive lc zero a; positive lc zero b]]
+
 (* A countermodel either satisfies an opening's postcondition or violates
    an admission atom. Each strict violation gets the same positive slack:
    finitely many positive differences have a positive minimum. *)
@@ -4797,12 +4805,7 @@ let conditional_satisfiable pre openings =
   let d = Terms.fresh_num_var () in
   let gap = Lin (1,1,d) and zero = Cst (0,1) in
   let positive loc a b = Leq (Add [b;gap],a,loc) in
-  let violations = function
-    | Eq (a,b,lc) -> [[positive lc a b]; [positive lc b a]]
-    | Leq (a,b,lc) -> [[positive lc a b]]
-    | Subopti (a,b,lc) -> [[positive lc a zero; positive lc b zero]]
-    | Opti (a,b,lc) -> [[positive lc a zero]; [positive lc b zero];
-                         [positive lc zero a; positive lc zero b]] in
+  let violations = atom_violations positive in
   let rec possible state strict = function
     | [] -> not strict || not (implies_cnj state [Leq (gap,zero,dummy_loc)])
     | (admits,post)::rest ->
@@ -4812,6 +4815,45 @@ let conditional_satisfiable pre openings =
       List.exists (fun atom -> not (implies_cnj state [atom]) &&
           List.exists (branch true) (violations atom)) admits in
   match satisfiable pre with Left _ -> false | Right state -> possible state false openings
+
+(* Can an observation satisfy every typing of these arguments?
+   First project the private package witnesses. A refuting tuple is admitted
+   and violates every cell of that projection. Eliminate its coordinates,
+   then look for an observation outside every projected refutation. *)
+let common_result_possible ~keys ~witnesses ~admissions ~post pre =
+  let d = Terms.fresh_num_var () in
+  let gap = Lin (1,1,d) and zero = Cst (0,1) in
+  let nonpositive = [Leq (gap,zero,dummy_loc)] in
+  let extend state facts = match satisfiable ~state facts with
+    | Right next when not (implies_cnj next nonpositive) -> Some next
+    | _ -> None in
+  let positive lc a b = Leq (Add [b;gap],a,lc) in
+  (* At d=0+, u+c*d > 0 means u>=0 when c>0, and u>0 otherwise.
+     Apply the test after projecting the tuple: the admissible positive gaps
+     may tend to zero with the observation. *)
+  let positive_near_zero lc a b =
+    match flatten ~cmp_v:compare (Leq (a,b,lc)) with
+    | Leq_w (vs,c,lc) ->
+      let slope = try List.assoc d vs with Not_found -> !/0 in
+      let bound = expand_w (List.remove_assoc d vs,c,lc) in
+      Leq ((if slope >/ !/0 then zero else gap),bound,lc)
+    | _ -> assert false in
+  let complements positive = concat_map (atom_violations positive) in
+  match satisfiable pre with
+  | Left _ -> false
+  | Right initial ->
+    let failed_posts = List.map (complements positive) (project_exists ~vars:witnesses post) in
+    let rec refute state facts acc = function
+      | [] -> List.rev_append (project_exists ~vars:keys facts) acc
+      | choices::rest -> List.fold_left (fun acc more -> match extend state more with
+          | None -> acc | Some next -> refute next (more @ facts) acc rest) acc choices in
+    let refuted = List.fold_left (fun acc domain -> match extend initial domain with
+        | None -> acc | Some state -> refute state domain acc failed_posts) [] admissions in
+    let rec uncovered state = function
+      | [] -> true
+      | choices::rest -> List.exists (fun facts -> match extend state facts with
+          | None -> false | Some next -> uncovered next rest) choices in
+    uncovered initial (List.map (complements positive_near_zero) (unique_sorted refuted))
 
 (* Solve a row a*k + t <= 0 for an integral affine endpoint. For the
    complement a*k + t > 0, take the first integer across the boundary. *)

@@ -25,6 +25,20 @@ let numeric_formula s =
   sort_formula (Parser.formula Lexer.token (Lexing.from_string s))
 
 let tests = "NumS" >::: [
+  "all typings allow new private witnesses at each tuple" >:: (fun () ->
+    let v name = VNam (Num_sort,name) in
+    let possible pre domains post =
+      common_result_possible ~keys:(vars_of_list [v "j";v "k"])
+        ~witnesses:(VarSet.singleton (v "m"))
+        ~admissions:(List.map numeric_formula domains) ~post:(numeric_formula post) (numeric_formula pre) in
+    assert_bool "choose m separately for each tuple" (possible "0=0" ["0=0"] "2 m=j+k");
+    assert_bool "a fractional key refutes one" (not (possible "l=1" ["0<=2 k ∧ 2 k<=1"] "2 k+l<=1"));
+    let interval = "0<=k ∧ k<=i" in
+    assert_bool "zero survives precisely at the closed boundary"
+      (possible "0<=i ∧ i<=1" [interval] "k<=0");
+    assert_bool "the positive gap can depend on the observation"
+      (not (possible "0<=i ∧ i<=1" [interval;"i=0 ∧ k=2"] "k<=0"));
+    assert_bool "empty admission imposes no package" (possible "i=0" [] "1<=0"));
   "project private admission witnesses onto shared coordinates" >:: (fun () ->
     let hidden = vars_of_list [VNam (Num_sort,"j"); VNam (Num_sort,"l")] in
     let check domain expected =

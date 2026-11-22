@@ -727,7 +727,6 @@ type numeric_band = NumDefs.term guard_band
 type key_use =
   | Endpoints of NumDefs.term * NumDefs.term
   | Result_keys of NumDefs.term * var_name * NumS.key_probe list
-  | Exclude_bands of var_name * NumDefs.term list * numeric_band list
 
 type key_query = {
   key : var_name;
@@ -736,6 +735,7 @@ type key_query = {
 }
 
 type call_policy = Restrict_calls of formula | Open_at_keys of key_query
+                 | Exclude_bands of numeric_band list
 type admission = Admitted | Unavailable | Retry_keys of key_query
 
 type replay =
@@ -1354,20 +1354,6 @@ let interval_call_key samples signature arrow body bands loc =
             let propose bounds use = Open_at_keys {key;bounds;use} in
             match strategy,endpoints with
             | `Endpoints,Some (lo,hi,defs) -> [propose defs (Endpoints (lo,hi))]
-            | `On_guard early,_ ->
-              (* If an input alone controls one side of a domain choice, a
-                 uniform opening can unnecessarily discard that input. *)
-              let conditional = List.exists (function
-                  | NumDefs.Subopti (a,b,_) -> NumDefs.has_var_term key a <> NumDefs.has_var_term key b
-                  | _ -> false) pre in
-              if early <> conditional then [] else
-              let bs = unique_sorted (Lazy.force observed) in
-              (match bs,Lazy.force package with
-               | [],_ | _,None -> []
-               | _,Some (r,post) ->
-                 let ends,defs = match endpoints with None -> [],[] | Some (lo,hi,defs) -> [lo;hi],defs in
-                 let targets = unique_sorted (ends @ NumS.refuting_keys ~inputs ~key ~result:r post) in
-                 List.map (fun bands -> propose defs (Exclude_bands (r,targets,bands))) (bs :: singles bs))
             | (`Hull | `Components),Some (lower,upper,bounds) ->
               (match Lazy.force package with
                | None -> []
@@ -1382,10 +1368,21 @@ let interval_call_key samples signature arrow body bands loc =
                  (match probes with _::_::_ -> [query probes] | _ -> []))
             | _,None -> []) keys
       | _ -> [] in
-    paired (`On_guard true) ::
+    let on_guard early () = match scheme with
+      | _,_,[TCons (n,[_])],_,_ when n=numtype &&
+          List.for_all (fun t -> typ_sort t=Num_sort) actuals ->
+        let pre = numeric signature in
+        let conditional = List.exists (fun key -> List.exists (function
+            | NumDefs.Subopti (a,b,_) -> NumDefs.has_var_term key a <> NumDefs.has_var_term key b
+            | _ -> false) pre) keys in
+        if early <> conditional then [] else
+        (match unique_sorted (Lazy.force observed) with
+         | [] -> [] | bs -> List.map (fun bands -> Exclude_bands bands) (bs :: singles bs))
+      | _ -> [] in
+    on_guard true ::
     List.map (fun generate () -> List.map (fun phi -> Restrict_calls (NumS.formula_of_sort phi)) (generate ()))
       (before @ [guarded singles; guarded (fun bs -> [bs])]) @
-    [paired `Endpoints; paired `Hull; paired `Components; paired (`On_guard false)]
+    [paired `Endpoints; paired `Hull; paired `Components; on_guard false]
   | _ -> []
 
 let gen_letrec ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests =
@@ -1417,6 +1414,10 @@ let gen_letrec ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests
       let vs, phi, t = def_typ in
       let local = VarSet.diff (fvs_formula extra) (vars_of_list vs) in
       (x, (VarSet.elements local @ vs, extra @ phi, t)) :: gamma,None
+    | Exclude_bands bands ->
+      let tag = match return_type tb with TCons (tag,_) -> tag | _ -> assert false in
+      let other sb = Outside_bands (tag,List.map (map_band (NumDefs.hvsubst_term sb)) bands) in
+      gamma,Some (def_typ,def_typ,other)
     | Open_at_keys query ->
       let lc = expr_loc e in
       let instance sb k =
@@ -1437,9 +1438,6 @@ let gen_letrec ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests
          let phi = graph @ p @ q in
          let vs = VarSet.elements (fvs_formula phi) in
          gamma,Some (def_typ,(vs,phi,first),fun sb -> Fixed (hvsubst_typ sb (return_type second)))
-       | Exclude_bands (_,_,bands) ->
-         let other sb = Outside_bands (tag,List.map (map_band (NumDefs.hvsubst_term sb)) bands) in
-         gamma,Some (def_typ,def_typ,other)
        | Result_keys (lower,r,targets) ->
          let terms = concat_map (fun p -> [p.NumS.target_value;p.NumS.clip_lower;p.NumS.clip_upper]) targets in
          let other sb =
@@ -1732,7 +1730,7 @@ let project_call_signature bound signature arrow =
 
 (* A fresh typing must match every numeric position of the arrow. Each scheme
    may choose its own quantified witnesses for that tuple. *)
-let check_key_admission query bound signature written inferred loc =
+let check_key_admission policy bound signature written inferred loc =
   let open NumDefs in
   let eq a b = Eq (a,b,loc) and v x = Lin (1,1,x) in
   let rec align left right = match left,right with
@@ -1746,9 +1744,14 @@ let check_key_admission query bound signature written inferred loc =
   try
     let inferred_bound,actual,arrow = freshen_val_scheme inferred in
     let decl = numeric_admission signature and actual = numeric_admission actual in
-    let positions = align arrow written in
-    let original = List.map (fun (a,b) -> eq a b) positions @ actual @ decl @ query.bounds in
-    let slots = List.map (fun _ -> fresh_num_var ()) positions in
+    let args t = TCons (tuple,arg_types t) in
+    let package = return_type written in
+    let inputs = align (args arrow) (args written) and outputs = align (return_type arrow) package in
+    let positions = inputs @ outputs in
+    let original = List.map (fun (a,b) -> eq a b) positions @ actual @ decl in
+    let input_slots = List.map (fun _ -> fresh_num_var ()) inputs
+    and output_slots = List.map (fun _ -> fresh_num_var ()) outputs in
+    let slots = input_slots @ output_slots in
     let domain bound terms phi =
       let bound = vars_of_list bound in
       let aliases = List.fold_left2 (fun sb term slot -> match term with
@@ -1764,82 +1767,80 @@ let check_key_admission query bound signature written inferred loc =
     let actual_cells = domain inferred_bound inferred_terms actual in
     let written_cells = domain bound written_terms decl in
     let cells = concat_map (fun a -> List.map (fun b -> a @ b) written_cells) actual_cells in
-    let admission k =
-      let replace = hvsubst_term (VarMap.singleton query.key k) in
-      let sb,bindings = List.fold_left2 (fun (sb,phi) slot term -> match replace term with
-          | Lin (1,1,x) -> VarMap.add slot x sb,phi
-          | term -> let x = fresh_num_var () in VarMap.add slot x sb,eq (v x) term :: phi)
-          (VarMap.empty,[]) slots written_terms in
-      bindings,List.map (List.map (hvsubst_atom sb)) cells in
-    let check ?(vacuous=false) k extra =
-      let bindings,goals = admission k in
-      let pre = original @ extra @ bindings in
-      match NumS.satisfiable pre,goals with
-      | Left _,_ -> vacuous
-      | Right state,[goal] -> NumS.implies_cnj state goal
-      | Right _,alternatives ->
-        let impossible = [eq (Cst (0,1)) (Cst (1,1))] in
-        not (NumS.conditional_satisfiable pre
-               (List.map (fun goal -> goal,impossible) alternatives)) in
-    let first,initial = match query.use with
-      | Endpoints (lower,_) | Result_keys (lower,_,_) ->
-        let k = fresh_num_var () in k,[eq (v k) lower]
-      | Exclude_bands _ -> query.key,[] in
-    if not (check first initial) then Unavailable else
-    let opening key =
-      let package = return_type written in
-      let tag = match package with TCons (tag,_) -> tag | _ -> raise Not_found in
-      let at_key = hvsubst_typ (VarMap.singleton query.key key) package in
-      let _,prem,env = envfrag_gen_pat 0 (PCons (tag,[PVar ("x",loc)],loc)) at_key in
+    let tag = match package with TCons (tag,_) -> tag | _ -> raise Not_found in
+    let open_package at =
+      let vars,prem,env = envfrag_gen_pat 0 (PCons (tag,[PVar ("x",loc)],loc)) at in
       match env with
       | [_,TCons (n,[t])] when n=numtype ->
-        NumS.num_of t, (unify ~use_quants:false empty_q prem).cnj_num
+        vars,NumS.num_of t,(unify ~use_quants:false empty_q prem).cnj_num
       | _ -> raise Not_found in
-    (match query.use with
-     | Endpoints (_,upper) ->
-       let high = fresh_num_var () in
-       if check high [eq (v high) upper] then Admitted else Unavailable
-     | Exclude_bands (r,targets,bands) ->
-       let observed,opened = opening first in
-       (* A key contributes only where its complete inferred admission
-          holds. Its private witnesses belong to this opening alone. *)
-       let payload = fresh_num_var () in
-       let definitions,clauses = List.fold_left (fun (defs,clauses) target ->
-           let k = fresh_num_var () in
-           let target = hvsubst_term (VarMap.singleton r payload) target in
-           let bindings,admits = admission k and value,post = opening k in
-           let post = eq observed value :: post in
-           eq (v k) target :: bindings @ defs,
-           List.fold_left (fun clauses cell -> (cell,post)::clauses) clauses admits)
-           ([eq (v payload) observed],[]) targets in
-       let facts = definitions @ original @ opened in
-       let refuted band =
-         let inside = match band with
-           | At_least lo -> [Leq (lo,observed,loc)]
-           | At_most hi -> [Leq (observed,hi,loc)]
-           | Between (lo,hi) -> [Leq (lo,observed,loc); Leq (observed,hi,loc)] in
-         not (NumS.conditional_satisfiable (inside @ facts) clauses) in
-       if List.for_all refuted bands then Admitted else Unavailable
-     | Result_keys (lower,r,targets) ->
-       let observed,opened = opening first in
-       let queries = List.map (fun target ->
-           let k,_,graph = selected_key VarMap.empty r target observed in
-           target,k,graph) targets in
-       let extend facts (_,k,graph) =
-         let value,post = opening k in
-         eq observed value :: graph @ post @ facts in
-       (* Only already admitted typings may supply facts for a later round.
-          Fresh openings share their result and retain their private witnesses. *)
-       let rec certify facts keep pending =
-         let ready,rest = List.partition (fun (_,k,graph) ->
-             check ~vacuous:true k (graph @ facts)) pending in
-         if rest=[] then Admitted else if ready=[] then
-           (match keep with _::_::_ -> Retry_keys {query with use=Result_keys (lower,r,keep)}
-            | _ -> Unavailable)
-         else
-           let keep = List.rev_append (List.map (fun (t,_,_) -> t) ready) keep in
-           certify (List.fold_left extend facts ready) keep rest in
-       certify (initial @ opened) [] queries)
+    match policy with
+    | Restrict_calls _ -> assert false
+    | Exclude_bands bands ->
+      ignore (NumS.satisfiable_exn original);
+      let _,observed,opened = open_package package in
+      let candidate = TCons (tag,List.map (fun slot -> TVar slot) output_slots) in
+      let witnesses,value,post = open_package candidate in
+      let post = eq observed value :: post and keys = vars_of_list output_slots in
+      let same_inputs = List.map2 (fun slot (_,term) -> eq (v slot) term) input_slots inputs in
+      let facts = original @ opened @ same_inputs in
+      let refuted band =
+        let inside = match band with
+          | At_least lo -> [Leq (lo,observed,loc)]
+          | At_most hi -> [Leq (observed,hi,loc)]
+          | Between (lo,hi) -> [Leq (lo,observed,loc); Leq (observed,hi,loc)] in
+        not (NumS.common_result_possible ~keys ~witnesses ~admissions:cells ~post (inside @ facts)) in
+      if List.for_all refuted bands then Admitted else Unavailable
+    | Open_at_keys query ->
+      let original = original @ query.bounds in
+      let admission k =
+        let replace = hvsubst_term (VarMap.singleton query.key k) in
+        let sb,bindings = List.fold_left2 (fun (sb,phi) slot term -> match replace term with
+            | Lin (1,1,x) -> VarMap.add slot x sb,phi
+            | term -> let x = fresh_num_var () in VarMap.add slot x sb,eq (v x) term :: phi)
+            (VarMap.empty,[]) slots written_terms in
+        bindings,List.map (List.map (hvsubst_atom sb)) cells in
+      let check ?(vacuous=false) k extra =
+        let bindings,goals = admission k in
+        let pre = original @ extra @ bindings in
+        match NumS.satisfiable pre,goals with
+        | Left _,_ -> vacuous
+        | Right state,[goal] -> NumS.implies_cnj state goal
+        | Right _,alternatives ->
+          let impossible = [eq (Cst (0,1)) (Cst (1,1))] in
+          not (NumS.conditional_satisfiable pre
+                 (List.map (fun goal -> goal,impossible) alternatives)) in
+      let lower = match query.use with Endpoints (lo,_) | Result_keys (lo,_,_) -> lo in
+      let first = fresh_num_var () in
+      let initial = [eq (v first) lower] in
+      if not (check first initial) then Unavailable else
+      let opening key =
+        let _,value,post = open_package (hvsubst_typ (VarMap.singleton query.key key) package) in
+        value,post in
+      (match query.use with
+       | Endpoints (_,upper) ->
+         let high = fresh_num_var () in
+         if check high [eq (v high) upper] then Admitted else Unavailable
+       | Result_keys (lower,r,targets) ->
+         let observed,opened = opening first in
+         let queries = List.map (fun target ->
+             let k,_,graph = selected_key VarMap.empty r target observed in
+             target,k,graph) targets in
+         let extend facts (_,k,graph) =
+           let value,post = opening k in
+           eq observed value :: graph @ post @ facts in
+         (* Only already admitted typings may supply facts for a later round.
+            Fresh openings share their result and retain their private witnesses. *)
+         let rec certify facts keep pending =
+           let ready,rest = List.partition (fun (_,k,graph) ->
+               check ~vacuous:true k (graph @ facts)) pending in
+           if rest=[] then Admitted else if ready=[] then
+             (match keep with _::_::_ -> Retry_keys {query with use=Result_keys (lower,r,keep)}
+              | _ -> Unavailable)
+           else
+             let keep = List.rev_append (List.map (fun (t,_,_) -> t) ready) keep in
+             certify (List.fold_left extend facts ready) keep rest in
+         certify (initial @ opened) [] queries)
   with Not_found | Terms.Contradiction _ -> Unavailable
      | Failure msg when msg = "int_of_big_int" -> Unavailable
 
@@ -2055,14 +2056,14 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
               | _ -> [] in
             let admitted policy ((id,_,_,_),_,solution) = match policy with
               | Restrict_calls _ -> Admitted
-              | Open_at_keys query ->
+              | Open_at_keys _ | Exclude_bands _ ->
                 (try
                    let _,_,_,scheme = recursive_answer bvs loc id solution in
-                   check_key_admission query bvs sig_cn t scheme loc
+                   check_key_admission policy bvs sig_cn t scheme loc
                  with Report_toplevel _ | NoAnswer _ | Contradiction _ -> Unavailable) in
             solve_item ~propose_call ~admitted new_ex_types e tests (fun e tests call_constraints erase_bodies ->
                 let retry_signature = match call_constraints with
-                  | Open_at_keys _ -> Lazy.force call_signature | Restrict_calls _ -> sig_cn in
+                  | Open_at_keys _ | Exclude_bands _ -> Lazy.force call_signature | Restrict_calls _ -> sig_cn in
                 let chi_id, _, cn, e, tests, elim_cells, preserve =
                   constr_gen_letrec ~call_constraints ~erase_bodies ~nonrec:(pat_loc<>None)
                     !gamma x e retry_signature t tests in

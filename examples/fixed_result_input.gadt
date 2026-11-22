@@ -1,0 +1,10 @@
+datatype Nat
+datacons Z : Nat
+datacons S : Nat ⟶ Nat
+
+external let observe : ∀i. Num i → Bool = "fun v -> print_endline (string_of_int v); v = 0"
+let rec run : ∀i[0≤i ∧ i≤1]. Num i → Nat → ∃l[l=i]. Num l =
+  fun flag -> efunction
+  | Z -> flag
+  | S d -> let prior = run flag d in (match prior with r when 1 <= r -> True | _ -> flag)
+test (let q = run 1 (S Z) in observe q)
