@@ -4144,15 +4144,17 @@ let disjelim_aux q ~previous ~target_vs ~preserve ~bvs ~param_bvs
             suboptis)) in
   (* While choosing the package parameters, prefer a bound with the same
      arm that captures fewer indices. Later passes can use both bounds. *)
+  let with_params pairs = List.map (fun pair ->
+      pair, VarSet.diff (fvs_2w pair) target_vs) pairs in
+  let deferred known (left, right) params =
+    List.exists (fun ((a, b), other) ->
+        VarSet.subset other params && not (VarSet.equal other params) &&
+        (equal_w ~cmp_v a left || equal_w ~cmp_v b left ||
+         equal_w ~cmp_v a right || equal_w ~cmp_v b right)) known in
   let suboptis = if not guess then suboptis else
-    let with_params = List.map (fun pair ->
-        pair, VarSet.diff (fvs_2w pair) target_vs) suboptis in
-    map_some (fun ((left, right as pair), params) ->
-        let smaller ((a, b), other) =
-          VarSet.subset other params && not (VarSet.equal other params) &&
-          (equal_w ~cmp_v a left || equal_w ~cmp_v b left ||
-           equal_w ~cmp_v a right || equal_w ~cmp_v b right) in
-        if List.exists smaller with_params then None else Some pair) with_params in
+    let known = with_params suboptis in
+    map_some (fun (pair, params) ->
+        if deferred known pair params then None else Some pair) known in
   let suboptis = list_take !max_subopti_postcond suboptis in
   (*[* Format.printf "NumS.disjelim: filtered suboptis=@\n%a@\n%!"
     pr_suboptis suboptis; *]*)
@@ -4162,7 +4164,7 @@ let disjelim_aux q ~previous ~target_vs ~preserve ~bvs ~param_bvs
     try Some (solve ~eqn:(more_eqn @ common_equations)
           ~ineqn:(more_ineqn @ ineqn) ~optis ~suboptis ~cmp_v ~cmp_w q.uni_v)
     with Terms.Contradiction _ -> None) in
-  let supplement limit make_atom existing sources =
+  let supplement ?(skip=(fun _ _ -> false)) limit make_atom existing sources =
     let rec select room seen = function
       | [] -> []
       | _ when room <= 0 -> []
@@ -4170,7 +4172,7 @@ let disjelim_aux q ~previous ~target_vs ~preserve ~bvs ~param_bvs
           let vs = fvs_2w pair in
           let atom = make_atom pair in
           if not (VarSet.subset vs preserved) || VarSet.is_empty (VarSet.inter vs target_vs)
-             || List.exists (eq_atom atom) seen then select room seen rest else
+             || List.exists (eq_atom atom) seen || skip pair vs then select room seen rest else
           let eqn, ineqn, opt, sub = split_flatten ~cmp_v [atom] in
           let holds (eqs, ineqs) =
             implies_case ~cmp_v ~cmp_w q.uni_v eqs ineqs eqn ineqn opt sub in
@@ -4208,8 +4210,13 @@ let disjelim_aux q ~previous ~target_vs ~preserve ~bvs ~param_bvs
             map_some (fun (sign, c) ->
               if sign_num k = sign then Some (([v, k], abs_num k */ c, lc), face)
               else None) thresholds) vars) affine_faces in
+  (* A bound deferred by the face search can also occur verbatim in a
+     constructor. Use the same interface preference before filling a slot. *)
+  let known = if guess then with_params suboptis else [] in
+  let skip pair vs = guess && deferred known pair (VarSet.diff vs target_vs) in
   let optis = supplement !max_opti_postcond expand_opti optis input_optis
-  and suboptis = supplement !max_subopti_postcond expand_subopti suboptis (input_suboptis @ [candidates]) in
+  and suboptis = supplement ~skip !max_subopti_postcond expand_subopti suboptis
+      (input_suboptis @ [candidates]) in
   List.map (expand_atom false) (List.concat (eq_guards @ ineq_guards)),
   List.map expand_opti optis @
     List.map expand_subopti suboptis @
