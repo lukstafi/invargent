@@ -989,7 +989,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
     q.chiK_anchor; Format.printf "@\n%!"; *]*)
   let initstep = ref true in
   let fallback_postcond = ref false in
-  let rec loop ?(retry=false) ~jump_at iter_no discard rol1 sol1 ans1_res =
+  let rec loop ?(retry=false) ?supplier_pass ~jump_at iter_no discard rol1 sol1 ans1_res =
     (* A failed postcondition can restart inference from the base cases.
        After the jump, give the restarted approximation time to develop.
        Each such restart gets a longer window, within the overall timeout. *)
@@ -1278,7 +1278,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
                    ~fresh:(VarSet.diff (vars_of_list fresh) fixed)
                    ~guard ~branches ~initstep:!initstep
                    ~check_only:(!initstep || old_initstep ||
-                                iter_no < jump_at)
+                                iter_no < jump_at || supplier_pass = Some iter_no)
                    old lifted in
                let anchor = Hashtbl.find q.chiK_anchor i in
                if vs <> [] then q.add_b_vs_of anchor
@@ -1498,9 +1498,9 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
         if VarMap.is_empty alien_eqs then more_discard
         else subst_formula alien_eqs more_discard in
       (* 11 *)
-      let finish rol2 sol2 =
+      let finish supplier_pass rol2 sol2 =
         (* start fresh at (iter_no+1) *)
-        match loop ~jump_at (iter_no+1)
+        match loop ?supplier_pass ~jump_at (iter_no+1)
                 (if !use_prior_discards then discard else empty_dl)
                 rol2 sol2 ans_res
         with Aux.Right _ as res -> res
@@ -1549,7 +1549,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
                  {discard with at_num=s_discard.at_num::discard.at_num}
                | Order_sort ->
                  {discard with at_ord=s_discard.at_ord::discard.at_ord} in
-             loop ~retry:true ~jump_at iter_no discard rol1 sol1 ans_res in
+             loop ~retry:true ?supplier_pass ~jump_at iter_no discard rol1 sol1 ans_res in
       (* 7-8 *)
       (* Avoid substituting [bvs] -- treat them like leftmost. *)
       let ans_sb, _ =
@@ -1826,7 +1826,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
         Aux.Right (ans_res, rol2, sol2)
         (* Do at least three iterations: 0, 1, 2. *)
       else if iter_no <= 1 && finished
-      then loop ~jump_at (iter_no+1)
+      then loop ?supplier_pass ~jump_at (iter_no+1)
           (if !use_prior_discards then discard else empty_dl)
           rol2 sol1 ans_res
       else if iter_no >= !timeout_count
@@ -1857,7 +1857,16 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
         NumS.reward_constrn := old_reward_constrn;
         NumS.prefer_bound_to_local := old_prefer_bound_to_local;
         raise (NoAnswer (Type_sort, "Answers do not converge", None, loc))
-      else finish rol2 sol2 in
+      else
+        (* Both predicates can repeat while widening renews a caller demand.
+           Give the full supplier summary one pass through caller abduction.
+           Subsequent passes use the ordinary jump and stopping test. *)
+        let supplier_pass =
+          if supplier_pass = None && iter_no >= jump_at && not !initstep &&
+             !unfinished_postcond_flag && finished1 && finished2 && finished3 &&
+             not dissoc_abdsj && not !dropped_from_sol
+          then Some (iter_no+1) else supplier_pass in
+        finish supplier_pass rol2 sol2 in
   match loop ~jump_at:disj_step.(5) 0 empty_dl rolT solT [] with
   | Aux.Left (_, e) -> raise e
   | Aux.Right (ans_res, rol, sol) ->

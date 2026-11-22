@@ -2647,7 +2647,8 @@ let recover_caller_bound q ~cmp_v ~cmp_w ~bvs ~upward_of ~validate ~calls checks
     if pairs = [] then [] else
     try
       let sb, _, _, _ = solve ~eqs ~eqn:peq ~cmp_v ~cmp_w q.uni_v in
-      List.map (fun pair -> sb, bounds, subst_2w ~cmp_v sb pair) pairs
+      let pairs = List.map (subst_2w ~cmp_v sb) pairs in
+      [sb, bounds, pairs]
     with Terms.Contradiction _ -> []) checks in
   let branch state prem =
     let e, i, o, s = state in
@@ -2697,10 +2698,7 @@ let recover_caller_bound q ~cmp_v ~cmp_w ~bvs ~upward_of ~validate ~calls checks
         if zero_p da && fixed db then Some (a, db)
         else if zero_p db && fixed da then Some (b, da)
         else None) (Lazy.force translations) in
-  let project needed remaining shared sb supplier_bounds (g1, g2) (p1, p2) =
-    (* For each supplier endpoint p one caller alternative must cover it. *)
-    let cover p = diff ~cmp_v g1 p, diff ~cmp_v g2 p in
-    let covers = [cover p1; cover p2] in
+  let project needed remaining shared sb supplier_bounds covers =
     let inputs = vars_of_map fvs_2w covers in
     (* A floor can occur on both sides with the same sign and still be an
        input. Compare opposite bounds only on indices that actually cancel. *)
@@ -2741,7 +2739,7 @@ let recover_caller_bound q ~cmp_v ~cmp_w ~bvs ~upward_of ~validate ~calls checks
     | goal::rest ->
         let remaining = List.rev_append kept rest in
         let needed = lazy (not (proves_all (eqs, ineqs, optis, remaining))) in
-        let try_source (sb, lower, (p1, p2 as source)) =
+        let try_source (sb, lower, sources) =
           match direct_opti (subst_2w ~cmp_v sb goal) with
           | None -> None
           | Some (_, shared, _, g1, g2) ->
@@ -2758,10 +2756,35 @@ let recover_caller_bound q ~cmp_v ~cmp_w ~bvs ~upward_of ~validate ~calls checks
                   (try checked remaining bounds [] with Terms.Contradiction _ ->
                     deadcode_flag := old_deadcode; None)
               | _ -> None in
-            match find_map force [g1,g2,p1,p2; g1,g2,p2,p1;
-                                  g2,g1,p1,p2; g2,g1,p2,p1] with
+            let cover p = diff ~cmp_v g1 p, diff ~cmp_v g2 p in
+            let project = project needed remaining shared sb lower in
+            let single (p1,p2) =
+              match find_map force [g1,g2,p1,p2; g1,g2,p2,p1;
+                                    g2,g1,p1,p2; g2,g1,p2,p1] with
+              | Some _ as candidate -> candidate
+              | None -> project [cover p1; cover p2] in
+            (* With bounds max(f,a) and max(f,b) in the same premise,
+               cover f separately. One caller arm need only cover a or b. *)
+            let joint (a,b) (c,d) =
+              let aligned =
+                if equal_w ~cmp_v a c then Some (a,b,d)
+                else if equal_w ~cmp_v a d then Some (a,b,c)
+                else if equal_w ~cmp_v b c then Some (b,a,d)
+                else if equal_w ~cmp_v b d then Some (b,a,c)
+                else None in
+              match aligned with
+              | Some (floor,left,right) when not (equal_w ~cmp_v left right) ->
+                  find_map (fun g -> project [cover floor;
+                      diff ~cmp_v g left, diff ~cmp_v g right]) [g1;g2]
+              | _ -> None in
+            let rec siblings = function
+              | [] -> None
+              | p::ps -> match find_map (joint p) ps with
+                | Some _ as candidate -> candidate
+                | None -> siblings ps in
+            match find_map single sources with
             | Some _ as candidate -> candidate
-            | None -> project needed remaining shared sb lower (g1,g2) source in
+            | None -> siblings sources in
         match find_map try_source sources with
         | Some candidate -> candidate
         | None -> replace (goal::kept) rest in
