@@ -1409,6 +1409,12 @@ let normalize q cn =
   let exty_res_chi = Hashtbl.create 2 in
   (* Existential type compatible with the variable. *)
   let v_exty = Hashtbl.create 8 in
+  (* A function returning a package can itself be passed to a function.
+     NotEx tests the outer constructor of its argument. *)
+  let head_exty = Hashtbl.create 8 in
+  let record_package v i =
+    Hashtbl.replace v_exty v i;
+    Hashtbl.replace head_exty v i in
   let v_chi = Hashtbl.create 8 in
   (* Raises [Contradiction] *)
   let simplify_brs = List.map
@@ -1435,6 +1441,9 @@ let normalize q cn =
                        | _ -> true) concl_so in
            (* 2 *)
            VarMap.iter (fun v (t, _) ->
+               (match t with
+                | TCons (Extype i, _) -> Hashtbl.replace head_exty v i
+                | _ -> ());
                match return_type t with
                | TCons (Extype i, _) when not (Hashtbl.mem v_exty v) ->
                  (*[* Format.printf
@@ -1454,10 +1463,10 @@ let normalize q cn =
                    "dsj-chi-exty: [3] t=%a a=%s i=%d@\n%!"
                    pr_ty t (var_str a) i; *]*)
                  (match return_type t with
-                  | TVar v -> Hashtbl.replace v_exty v i
+                  | TVar v -> record_package v i
                   | _ -> assert false);
                  (match return_type (subst_typ sb t) with
-                  | TVar v -> Hashtbl.replace v_exty v i
+                  | TVar v -> record_package v i
                   | _ -> assert false)
                | _ -> ()) concl;
            (* 4 *)
@@ -1504,7 +1513,7 @@ let normalize q cn =
                   (*[* Format.printf
                     "dsj-chi-exty: [7] b=%s i=%d->j=%d@\n%!"
                     (var_str b) i (Hashtbl.find chi_exty i); *]*)
-                  Hashtbl.replace v_exty b (Hashtbl.find chi_exty i)))
+                  record_package b (Hashtbl.find chi_exty i)))
              v_chi;
            prem,
            (* TODO: keep [sep_formula] *)
@@ -1605,9 +1614,9 @@ let normalize q cn =
                        raise (Contradiction
                                 (Type_sort, "Should not be existential",
                                  Some (t, t), loc))        
-                     | NotEx (TVar v as t, loc) when Hashtbl.mem v_exty v ->
+                     | NotEx (TVar v as t, loc) when Hashtbl.mem head_exty v ->
                        let st =
-                         TCons (Extype (Hashtbl.find v_exty v), []) in
+                         TCons (Extype (Hashtbl.find head_exty v), []) in
                        raise (Contradiction
                                 (Type_sort, "Should not be existential",
                                  Some (t, st), loc))
