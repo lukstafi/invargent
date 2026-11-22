@@ -1946,7 +1946,8 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
   let opens_result_at_caller (_, prem, _) =
     not (List.exists (function PredVarU _ -> true | _ -> false) prem) &&
     List.exists (function PredVarB (i, _, _, _) -> is_rec_exchi i | _ -> false) prem in
-  let result = match start brs with
+  let search brs =
+    match start brs with
     | Aux.Left (Type_sort, _) as err ->
       let callers, producers = List.partition opens_result_at_caller brs in
       let propose call_inputs =
@@ -1989,6 +1990,32 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
          retry samples (List.filter opens_result_at_caller deferred)
            (if samples = [] then previous else propose samples)
        | result, _ -> result)
+    | result -> result in
+  (* A caller may be typeable even without its numeric guard. Try this
+     stronger problem once. Keep the prefix, the constraints on guard
+     evaluation, and the original negative checks. A solution of P => C
+     uses the same witnesses to satisfy (P /\ G) => C. *)
+  let result = match search brs with
+    | Aux.Left (Type_sort, _) as err when not !force_nodeadcode ->
+      let external_premise p =
+        not (List.exists (function PredVarU _ -> true | _ -> false) p) in
+      let numeric = function Terms.A (Num_atom _) -> true | _ -> false in
+      let guarded_calls = map_some (fun (_, p, c) ->
+          let recursive_call = function
+            | PredVarU (i, _, _) -> not (q.is_chiK i)
+            | _ -> false in
+          if external_premise p && List.exists numeric p && List.exists recursive_call c
+          then Some (p, List.filter numeric p) else None) brs in
+      if guarded_calls = [] then err else
+      let strengthen ((role, p, c) as row) =
+        if external_premise p then
+          let removed = concat_map (fun (guard, tests) ->
+              if subformula guard p then tests else []) guarded_calls in
+          role, formula_diff p removed, c
+        else row in
+      (match search (List.map strengthen brs) with
+       | Aux.Right _ as answer -> answer
+       | Aux.Left _ -> err)
     | result -> result in
   match result with
   | Aux.Left (_, e) -> raise e

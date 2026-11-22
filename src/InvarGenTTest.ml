@@ -348,6 +348,10 @@ let tests = "InvarGenT" >::: [
         test_case "unreachable_payload" ();
         let file = example_path "unreachable_payload" ^ ".ml" in
         assert_equal 0 (Sys.command ("ocaml -noinit " ^ Filename.quote file)));
+      "an opaque guard admits a type valid on either outcome" >:: (fun () ->
+        test_case "opaque_guard" ();
+        let file = example_path "opaque_guard" ^ ".ml" in
+        assert_equal 0 (Sys.command ("ocaml -noinit " ^ Filename.quote file)));
       "a constructor index witnesses a guarded call" >:: test_case "guarded_payload";
       "a call reached after opening an earlier return" >:: test_case "ordered_calls";
       "a partial application through two local aliases" >:: test_case "function_alias";
