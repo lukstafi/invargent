@@ -346,6 +346,7 @@ let tests = "InvarGenT" >::: [
       "an impossible maximum excludes a failing branch" >:: test_case "impossible_maximum";
       "a constructor index witnesses a guarded call" >:: test_case "guarded_payload";
       "a call reached after opening an earlier return" >:: test_case "ordered_calls";
+      "a partial application through two local aliases" >:: test_case "function_alias";
       "recover the marked input through a callback" >:: test_case "callback_input";
       "a callback can receive a function with a written existential return" >::
         test_case "written_callback";

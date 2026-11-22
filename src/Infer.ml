@@ -456,7 +456,27 @@ let letin_count = ref 0
 
 let uses_pos_assertions = ref false
 
-let constr_gen_expr gamma e t =
+(* Leading lambdas give a lower bound on the number of arguments needed
+   before a package can be returned. An efunction contributes one arrow. *)
+let rec lambda_depth = function
+  | Lam (_, [_, [], body], _) -> 1 + lambda_depth body
+  | Lam _ | ExLam _ -> 1
+  | _ -> 0
+
+let constr_gen_expr_with_arities arities gamma e t =
+  let alias_arities = Hashtbl.create 2 in
+  let rec known_arrows gamma = function
+    | App (f, _, _) -> max 0 (known_arrows gamma f - 1)
+    | Var (x, _) when List.mem_assoc x gamma ->
+      let _, phi, typ = List.assoc x gamma in
+      let depth = match typ with
+        | TVar v when Hashtbl.mem alias_arities v -> Hashtbl.find alias_arities v
+        | _ -> List.length (arg_types typ) in
+      List.fold_left (fun n -> function
+          | PredVarU (i, arg, _) when arg = typ && Hashtbl.mem arities i ->
+            max n (Hashtbl.find arities i)
+          | _ -> n) depth phi
+    | e -> lambda_depth e in
   let elim_extype = ref [] and preserve = ref [] in
   let rec aux gamma t e : cnstrnt * iexpr =
     (*[* Format.printf "constr_gen: t=%a e=@\n%a@\n%!"
@@ -602,6 +622,7 @@ let constr_gen_expr gamma e t =
       let tb = TVar b in
       let chi_b = PredVarU (chi_id, tb, expr_loc e1) in
       let chi_a = PredVarU (chi_id, TVar a, expr_loc e1) in
+      Hashtbl.replace arities chi_id (lambda_depth e1);
       let gamma = (x, ([b], [chi_b], tb))::gamma in
       let cn1, e1 = aux gamma tb e1 in
       let cn2, e2 = aux gamma t e2 in
@@ -610,6 +631,18 @@ let constr_gen_expr gamma e t =
              Impl ([chi_b], cn1)) in
       cn_and def_cn (cn_and (Ex (vars_of_list [a], A [chi_a])) cn2),
       Letrec (docu, [chi_id], x, e1, e2, loc)
+    | Letin (docu, (PVar (name, _) as p), rhs, body, loc)
+      when !all_ex_types <> [] && known_arrows gamma rhs > 0 ->
+      let a = fresh_typ_var () in
+      let ta = TVar a in
+      Hashtbl.add alias_arities a (known_arrows gamma rhs);
+      (* A variable pattern binds this ordinary value at the same monotype.
+         Keep the binding in scope for every use of the alias. *)
+      let value_cn, rhs = aux gamma ta rhs in
+      let body_cn, body = aux ((name, ([], [], ta)) :: gamma) t body in
+      elim_extype := (p, None) :: !elim_extype;
+      Ex (VarSet.singleton a, cn_and value_cn body_cn),
+      Letin (docu, p, rhs, body, loc)
     | Letin (docu, p, e1, e2, loc) (* as e *) ->
       let count = incr letin_count; !letin_count in
       (*[* Format.printf "constr_gen-Letin: [%d] starting...@\n%!" count; *]*)
@@ -712,12 +745,15 @@ let constr_gen_expr gamma e t =
   let cn = aux gamma t e in
   cn, elim_extype, !preserve
 
-let constr_gen_tests gamma tests =
+let constr_gen_expr gamma e t =
+  constr_gen_expr_with_arities (Hashtbl.create 2) gamma e t
+
+let constr_gen_tests ~arities gamma tests =
   let elim_cells = ref [] in
   let cns, tests, preserve = split3
       (List.map
          (fun e ->
-            let (cn, e), elim_ex, preserve = constr_gen_expr gamma e
+            let (cn, e), elim_ex, preserve = constr_gen_expr_with_arities arities gamma e
                 (TCons (booltype, [])) in
             elim_cells := elim_ex :: !elim_cells;
             cn, e, preserve)
@@ -743,13 +779,15 @@ let constr_gen_letrec ?(nonrec=false) gamma x e sig_cn tb tests =
     VarSet.elements (VarSet.union bvs anchor_vars), chi_b :: signature, tb in
   let gamma =
     if nonrec then gamma else (x, def_typ)::gamma in
-  let (expr_cn, e), elim_cell, preserve = constr_gen_expr gamma e anchor in
+  let arities = Hashtbl.create 2 in
+  Hashtbl.add arities chi_id (lambda_depth e);
+  let (expr_cn, e), elim_cell, preserve = constr_gen_expr_with_arities arities gamma e anchor in
   let def_cn =
     let body = if signature = [] then expr_cn
       else cn_and (Ex (bvs, A signature)) expr_cn in
     All (anchor_vars, Impl ([chi_b], body)) in
   let test_cn, tests, elim_cells, more_preserve =
-    constr_gen_tests gamma tests in
+    constr_gen_tests ~arities gamma tests in
   chi_id, def_typ,
   cn_and def_cn (cn_and (Ex (vars_of_list [a], A [chi_a])) test_cn),
   e, tests, elim_cell::elim_cells, more_preserve @ preserve
