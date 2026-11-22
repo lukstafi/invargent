@@ -25,6 +25,16 @@ let numeric_formula s =
   sort_formula (Parser.formula Lexer.token (Lexing.from_string s))
 
 let tests = "NumS" >::: [
+  "printed extrema preserve the coefficient of the isolated variable" >:: (fun () ->
+    let check source =
+      let input = numeric_formula source in
+      let written = Format.asprintf "%a" NumDefs.pr_formula input in
+      let parsed = numeric_formula written in
+      assert_bool written (implies_cnj (satisfiable_exn input) parsed);
+      assert_bool written (implies_cnj (satisfiable_exn parsed) input) in
+    List.iter check ["3 n1<=max(n2,n3)"; "min(n2,n3)<=2 n1";
+                     "(2/3) n1=min(n2,n3)"; "(-2/3) n1=max(n2,n3)"]);
+
   "extremum at a universal result index" >:: (fun () ->
     let q = {q with uni_v = (fun _ -> true)} in
     let goal = numeric_formula "n2<=max(n1+20,0)" in

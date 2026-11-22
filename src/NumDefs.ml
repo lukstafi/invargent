@@ -210,7 +210,7 @@ let equal_to_cst =
   | _ -> false
 
 (* Simplified, i.e. non-normalizing, detection of directed opti atoms. *)
-let direct_opti t1 t2 =
+let factor_opti t1 t2 =
   let unpack (j,k,v) = Lin (j,k,v) in
   let uncst (j,k) = if j=0 then [] else [Cst (j,k)] in
   let negate = List.map (fun (j,k,v) -> ~-j,k,v) in
@@ -218,17 +218,26 @@ let direct_opti t1 t2 =
   try
     let ts1, cst1 = flatten t1
     and ts2, cst2 = flatten t2 in
-    let (j,k,v as i) = List.find (fun e -> List.mem e ts2) ts1 in
+    let (j,k,v as i) = List.find (fun (j,k,_ as term) ->
+        j <> 0 && k <> 0 && j <> min_int && k <> min_int && List.mem term ts2) ts1 in
     let vs1, ts1 = List.partition ((=) i) ts1
     and vs2, ts2 = List.partition ((=) i) ts2 in
     let ts1 = List.tl vs1 @ ts1 and ts2 = List.tl vs2 @ ts2 in
-    let s = j*k>0 in
+    let s = (j > 0) = (k > 0) in
     let ts1, ts2, cst1, cst2 =
       if not s then ts1, ts2, cst1, cst2
       else negate ts1, negate ts2, negcst cst1, negcst cst2 in
-    Some (v, s, Add (map_append unpack ts1 (uncst cst1)),
+    Some ((abs j, abs k, v), s, Add (map_append unpack ts1 (uncst cst1)),
           Add (map_append unpack ts2 (uncst cst2)))
   with Not_found -> None
+
+let direct_opti t1 t2 =
+  match factor_opti t1 t2 with
+  | None -> None
+  | Some ((j,k,v), sign, left, right) ->
+      let g = gcd j k in
+      let divide = scale_term (k/g) (j/g) in
+      Some (v, sign, divide left, divide right)
 
 let prim_constr_var = function
   | Opti (t1, t2, _)
@@ -250,25 +259,25 @@ let pr_atom ppf = function
   | Leq (t1, t2, _) ->
     fprintf ppf "@[<2>%a@ ≤@ %a@]" pr_term t1 pr_term t2
   | Opti (t1, t2, _) ->
-    (match direct_opti t1 t2 with
+    (match factor_opti t1 t2 with
     | None ->
       fprintf ppf "@[<2>min|max@ (%a,@ %a)@]" pr_term t1 pr_term t2
-    | Some (v, true, t1, t2) ->
-      fprintf ppf "@[<2>%s=min@ (%a,@ %a)@]"(var_str v)
+    | Some ((j,k,v), true, t1, t2) ->
+      fprintf ppf "@[<2>%a=min@ (%a,@ %a)@]" pr_term (Lin (j,k,v))
         pr_term t1 pr_term t2
-    | Some (v, false, t1, t2) ->
-      fprintf ppf "@[<2>%s=max@ (%a,@ %a)@]"(var_str v)
+    | Some ((j,k,v), false, t1, t2) ->
+      fprintf ppf "@[<2>%a=max@ (%a,@ %a)@]" pr_term (Lin (j,k,v))
         pr_term t1 pr_term t2)
   | Subopti (t1, t2, _) ->
-    match direct_opti t1 t2 with
+    match factor_opti t1 t2 with
     | None ->
       fprintf ppf "@[<2>min||max@ (%a,@ %a)@]" pr_term t1 pr_term t2
-    | Some (v, true, t1, t2) ->
-      fprintf ppf "@[<2>%s≤max@ (%a,@ %a)@]"(var_str v)
+    | Some ((j,k,v), true, t1, t2) ->
+      fprintf ppf "@[<2>%a≤max@ (%a,@ %a)@]" pr_term (Lin (j,k,v))
         pr_term t1 pr_term t2
-    | Some (v, false, t1, t2) ->
-      fprintf ppf "@[<2>min@ (%a,@ %a)≤%s@]"
-        pr_term t1 pr_term t2 (var_str v)
+    | Some ((j,k,v), false, t1, t2) ->
+      fprintf ppf "@[<2>min@ (%a,@ %a)≤%a@]"
+        pr_term t1 pr_term t2 pr_term (Lin (j,k,v))
 
 let pr_formula ppf atoms =
   pr_sep_list " ∧" pr_atom ppf atoms
