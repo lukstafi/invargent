@@ -203,6 +203,23 @@ let test_case_fail ?more_general ?more_existential ?no_num_abduction
 
 let tests = "Invariants" >::: [
 
+  "a call must be reached on a play of every legal strategy" >:: (fun () ->
+    let parse s = Parser.formula Lexer.token (Lexing.from_string s) in
+    let x = VarSet.choose (fvs_formula (parse "n1=0")) in
+    let q first_universal =
+      {empty_q with uni_v = (fun v -> (v=x) = first_universal);
+       cmp_v = (fun v w -> if v=w then Same_params else if v=x then Left_of else Right_of)} in
+    let check first facts guard expected =
+      let required = Invariants.forced_call_guard (q first)
+          (List.map (fun (p,c) -> parse p, parse c) facts) in
+      assert_equal ~msg:guard expected (required (parse guard)) in
+    (* An adaptive existential reply can always avoid equality. An
+       earlier existential move can always be matched by a later universal. *)
+    check true [] "n1=n2" false;
+    check false [] "n1=n2" true;
+    check true ["n1<=0", "n2=1"] "n1<=0 ∧ n2=1" true;
+    check true ["n2=1", "n2=1"] "n1<=0 ∧ n2=1" false;
+    check true ["n1<=0", "n2=1"] "n1<=0 ∧ n2=0" false);
   "simple eval" >::
     (fun () ->
       skip_if !debug "debug";

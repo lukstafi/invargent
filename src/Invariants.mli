@@ -29,6 +29,11 @@ val disj_step : int array
 
 type chi_subst = (int * (Defs.var_name list * Terms.formula)) list
 val neg_constrns : bool ref
+(** Sufficient test that every strategy satisfying the supplied clauses
+    reaches the guard on some play of the prefix. *)
+val forced_call_guard : Defs.quant_ops -> (Terms.formula * Terms.formula) list ->
+  Terms.formula -> bool
+
 val solve :
   uses_pos_assertions:bool ->
   Defs.quant_ops -> (int * Defs.loc) list -> (int, int) Hashtbl.t ->

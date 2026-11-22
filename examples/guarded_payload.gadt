@@ -1,0 +1,25 @@
+datatype Marker
+datacons Mark : Marker
+datatype Cargo
+datacons Box : Cargo
+datatype Tag : type * type * type * type
+datacons First : ∀a. a ⟶ Tag (a, Marker, Marker, Marker)
+datacons Second : ∀a. a ⟶ Tag (Marker, a, Marker, Marker)
+datacons Third : ∀a. a ⟶ Tag (Marker, Marker, a, Marker)
+datacons Fourth : ∀a. a ⟶ Tag (Marker, Marker, Marker, a)
+datatype Nat
+datacons Z : Nat
+datacons S : Nat ⟶ Nat
+
+external let same : ∀a. a → a → Bool =
+  "fun a b -> assert (a = b); true"
+
+datatype Seed
+datacons Pick : ∀i. Num i ⟶ Seed
+external let seed : Seed = "Pick 1"
+
+let rec f t = efunction
+  | Z -> let z = (match t with First x -> x | Second x -> x | Third x -> x | Fourth x -> x) in (z,z)
+  | S n -> f t n
+
+test (match seed with Pick n when 1 <= n -> let (x,y) = f (Third Box) (S Z) in same x Box | _ -> True)

@@ -803,32 +803,71 @@ let neg_constrns = ref true
 let empty_disc = {at_typ=[],VarMap.empty; at_num=[]; at_ord=[]; at_so=()}
 let empty_dl = {at_typ=[]; at_num=[]; at_ord=[]; at_so=()}
 
-(* Every call whose guard follows from unconditional facts needs its own
-   instance of the function's input pattern. Compare only the argument
-   prefix present in both arrows. Their result packages may still change. *)
+(* A call can exclude an input pattern if every legal assignment strategy
+   has a play reaching the call. Separate samples can use different plays. *)
+let forced_call_guard (q : quant_ops) branches =
+  let first_order = function Eqty _ | A (Num_atom _) -> true | _ -> false in
+  let facts = map_some (fun (prem, concl) ->
+      let concl = List.filter first_order concl in
+      if concl = [] then None else Some (prem, concl)) branches in
+  let known checked = concat_map (fun (prem, concl) ->
+      if subformula prem checked then concl else []) facts in
+  let unconditional = known [] in
+  let normalize context =
+    let solved = unify ~use_quants:false q context in
+    let keep = VarSet.filter q.uni_v (NumDefs.fvs_formula solved.cnj_num) in
+    let numeric, _, _ = NumS.separate_subst q ~keep ~apply:false solved.cnj_num in
+    fun tests -> subst_formula numeric (subst_formula solved.cnj_typ tests) in
+  let initial = lazy (normalize unconditional) in
+  let numeric a = atom_sort a = Num_sort in
+  let state = lazy (NumS.satisfiable (NumS.sort_formula (List.filter numeric unconditional))) in
+  let entailed guard = List.for_all numeric guard &&
+    match Lazy.force state with
+    | Left _ -> false
+    | Right st -> NumS.implies_cnj st (NumS.sort_formula guard) in
+  let dual = {q with uni_v = (fun v -> not (q.uni_v v))} in
+  fun guard -> guard = [] || entailed guard || List.for_all first_order guard &&
+    try
+      (* A prefix of the guard licenses equations for later tests. Keep its
+         own tests in the obligation before using any of those equations. *)
+      let parents = map_some (fun (prem, _) ->
+          if prem <> [] && subformula prem guard && not (subformula guard prem)
+          then Some prem else None) facts in
+      let parents = List.stable_sort (fun a b -> compare (List.length a) (List.length b)) parents in
+      let checked, tests, rewrite = List.fold_left (fun (checked, tests, rewrite) prem ->
+          let more = formula_diff prem checked in
+          if more = [] then checked, tests, rewrite else
+          let checked = more @ checked in
+          checked, rewrite more @ tests, normalize (checked @ known checked))
+          ([], [], Lazy.force initial) parents in
+      let tests = rewrite (formula_diff guard checked) @ tests in
+      let solved = unify ~use_quants:false q tests in
+      let equations = to_formula solved.cnj_typ @ NumS.num_to_formula solved.cnj_num in
+      if solved.cnj_ord <> [] || solved.cnj_so <> [] then false
+      else if VarSet.for_all q.uni_v (fvs_formula equations) then
+        (* Any joint model of these universal moves occurs on a play. *)
+        is_right (NumS.satisfiable solved.cnj_num)
+      else if VarMap.is_empty solved.cnj_typ && List.for_all (function
+          NumDefs.Eq _ | NumDefs.Leq _ -> true | _ -> false) solved.cnj_num then (
+        (* A strategy under the dual prefix can force the linear tests
+           against any choices of the original existential witnesses. *)
+        ignore (NumS.holds dual VarSet.empty NumS.empty_state solved.cnj_num); true)
+      else false
+    with Contradiction _ -> false
+
 let call_input_samples q branches =
   let domains anchor = map_some (function
       | Eqty (TVar v, (Fun _ as arrow), _)
       | Eqty ((Fun _ as arrow), TVar v, _) when v = anchor ->
         Some (arg_types arrow)
       | _ -> None) in
-  let numeric atom = atom_sort atom = Num_sort in
-  let facts = lazy (
-    let unconditional = concat_map (function
-        | _, [], conclusion -> List.filter numeric conclusion
-        | _ -> []) branches in
-    NumS.satisfiable (NumS.sort_formula unconditional)) in
-  let required guard = guard = [] ||
-    (List.for_all numeric guard &&
-     match Lazy.force facts with
-     | Aux.Right st -> NumS.implies_cnj st (NumS.sort_formula guard)
-     | Aux.Left _ -> false) in
-  let calls = concat_map (function
-      | _, guard, conclusion when required guard -> concat_map (function
+  let required = forced_call_guard q.op (List.map (fun (_, p, c) -> p, c) branches) in
+  let calls = concat_map (fun (_, guard, conclusion) ->
+      let samples = concat_map (function
           | PredVarU (i, TVar v, _) when not (q.is_chiK i) ->
             List.map (fun args -> i, args) (domains v conclusion)
-          | _ -> []) conclusion
-      | _ -> []) branches in
+          | _ -> []) conclusion in
+      if samples <> [] && required guard then samples else []) branches in
   let instance formals actuals =
     let ren = VarSet.fold (fun v sb -> VarMap.add v (freshen_var v) sb)
         (fvs_typs actuals) VarMap.empty in
