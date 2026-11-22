@@ -1141,7 +1141,7 @@ and pr_ty ppf = function
   | TCons (CNam c, []) -> fprintf ppf "%s" c
   | TCons (CNam "Tuple", exps) ->
     fprintf ppf "@[<2>(%a)@]" (pr_sep_list "," pr_ty) exps
-  | TCons (CNam c, [(TVar _ | TCons (_, [])) as ty]) ->
+  | TCons (CNam c, [(TVar _ | TCons (CNam _, [])) as ty]) ->
     fprintf ppf "@[<2>%s@ %a@]" c pr_one_ty ty
   | TCons (CNam c, [Alien t as ty]) when alien_no_parens t ->
     fprintf ppf "@[<2>%s@ %a@]" c pr_one_ty ty
@@ -1754,12 +1754,13 @@ let () = pr_exty :=
       | _ -> assert false in
     (* TODO: "@[<2>∃%d:%a[%a].%a@]" better? *)
     if !show_extypes then fprintf ppf "∃%d:" i else fprintf ppf "∃";
+    (* DOT binds more tightly than ARROW in the source grammar. *)
     if phi = [] then
       fprintf ppf "%a.%a"
-        (pr_sep_list "," pr_tyvar) evs pr_ty ty
+        (pr_sep_list "," pr_tyvar) evs pr_fun_ty ty
     else
       fprintf ppf "%a[%a].%a"
-        (pr_sep_list "," pr_tyvar) evs pr_formula phi pr_ty ty
+        (pr_sep_list "," pr_tyvar) evs pr_formula phi pr_fun_ty ty
 
 (** {2 Globals} *)
 

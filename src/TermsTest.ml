@@ -122,6 +122,32 @@ external filter : ∀n, a. List (a, n) → ∃k[k ≤ n].List (a, k) =
         (Format.flush_str_formatter ());
     );
 
+  "existential signatures round-trip through source annotations" >::
+    (fun () ->
+      let parse ty =
+        reset_state ();
+        let source = "datatype Wrap : type\nexternal witness : " ^ ty in
+        let prog = Parser.program Lexer.token (Lexing.from_string source) in
+        let scheme = match List.rev prog with
+          | PrimVal (_, _, scheme, _, _) :: _ -> scheme
+          | _ -> assert_failure "missing external signature" in
+        let packages = List.map (fun (id, _) ->
+            let vs, phi, payload, _, params = Hashtbl.find sigma (Extype id) in
+            vs, pr_to_str pr_formula phi, payload, params) !all_ex_types in
+        scheme, packages in
+      List.iter (fun ty ->
+          let scheme, packages = parse ty in
+          let printed = pr_to_str pr_typscheme scheme in
+          assert_equal ~msg:printed (scheme, packages) (parse printed))
+        ["∀b. b → ∃a.(a → b)";
+         "∃a.(a → a)";
+         "Wrap (∃a.a)";
+         "∀b. Wrap (∃a.(a → b))";
+         "(∃a.(a → a)) → Wrap (∃b.b)";
+         "∃a[a = Bool].(a → Bool)";
+         "∀b. b → ∃a.(a, Wrap (∃c.(c → a)))"];
+      reset_state ());
+
   "zipper" >::
     (fun () ->
       let t = TCons (CNam "f", [TVar (VNam (Type_sort, "x"));
