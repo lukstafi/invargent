@@ -435,6 +435,8 @@ let tests = "InvarGenT" >::: [
           "moving_native_menu";
       "the argument and recursive result are jointly integral" >::
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "joint_native_guard";
+      "one affine guard separates both live constructors" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "oblique_guard";
       "negative guards share their choices across the live branches" >::
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b)
           "coherent_negative_guards";

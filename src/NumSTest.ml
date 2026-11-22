@@ -103,6 +103,10 @@ let tests = "NumS" >::: [
     check ["0≤i ∧ i≤1"] ["i≤0";"1≤i"];
     check ["2 i=1";"4 i=3"] ["i=0";"i=1"];
     check ["i+j=0"] ["i≤0 ∧ j≤0";"i≤0"];
+    check ["i=1 ∧ j=0"; "i=0 ∧ j=1"] ["i≤0 ∧ j≤0"];
+    check ["i=1 ∧ j=0"; "i=0 ∧ j=1"] ["i≤0 ∧ j≤0"; "1≤i ∧ 1≤j"];
+    check ["i=0 ∧ j≤0"; "i≤0 ∧ j=0"] ["0≤i ∧ 0≤j"];
+    check ["i=3 ∧ j= -4"; "i= -2 ∧ j=3"] ["i≤0 ∧ j≤0"];
     check ["2 i= -1 ∧ 3 j= -1"] ["min|max(i,j)"];
     check ["3 i=1 ∧ 4 j=1"] ["min||max(i,j)"]);
   "native equations must have a simultaneous integral solution" >:: (fun () ->

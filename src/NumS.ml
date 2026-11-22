@@ -4568,24 +4568,26 @@ let formula_of_state (eqs, ineqs, optis, suboptis) =
       Subopti (t1, t2, lc))
     suboptis cnj)
 
+(* Solved numeric states use the unrestricted variable order of make_cmp. *)
+let state_cmp_v v1 v2 = compare v2 v1
+let state_cmp_w (xs,_,_) (ys,_,_) = match xs, ys with
+  | [], [] -> 0 | _, [] -> -1 | [], _ -> 1
+  | (x,_)::_, (y,_)::_ -> state_cmp_v x y
+
+let state_has_case accepts (eqs, bounds, optis, suboptis) =
+  exists_linear_case ~cmp_v:state_cmp_v ~cmp_w:state_cmp_w (fun _ -> false) accepts eqs bounds
+    (choice_arms ~cmp_v:state_cmp_v ~intro_cho_ineq:false optis suboptis)
+
 let satisfiable_case_exn ?state accepts cnj =
   let eqs, ineqs, optis, suboptis = match state with
     | None -> None, None, None, None
     | Some (eqs, ineqs, optis, suboptis) ->
       Some eqs, Some ineqs, Some optis, Some suboptis in
   let uni_v _ = false in
-  (* The same order as in make_cmp *)
-  let cmp_v v1 v2 = compare v2 v1 in
-  let cmp_w (vars1,_,_) (vars2,_,_) =
-    match vars1, vars2 with
-    | [], [] -> 0
-    | _, [] -> -1
-    | [], _ -> 1
-    | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
+  let cmp_v = state_cmp_v and cmp_w = state_cmp_w in
   let eqs, ineqs, optis, suboptis =
     solve ?eqs ?ineqs ?optis ?suboptis ~cnj ~cmp_v ~cmp_w uni_v in
-  if not (exists_linear_case ~cmp_v ~cmp_w uni_v accepts eqs ineqs
-            (choice_arms ~cmp_v ~intro_cho_ineq:false optis suboptis)) then (
+  if not (state_has_case accepts (eqs,ineqs,optis,suboptis)) then (
     let loc = List.fold_left (fun lc ((_, _, a), (_, _, b)) ->
         loc_union lc (loc_union a b)) dummy_loc (optis @ suboptis) in
     raise (Terms.Contradiction (Num_sort, "Incompatible numeric alternatives", None, loc)));
@@ -4863,14 +4865,7 @@ let symbolic_interval_calls ~inputs ~key ~bands ~package pre loc =
 
 let implies_cnj (eqs, ineqs, optis, suboptis) cnj =
   let uni_v _ = false in
-  (* The same order as in make_cmp *)
-  let cmp_v v1 v2 = compare v2 v1 in
-  let cmp_w (vars1,_,_) (vars2,_,_) =
-    match vars1, vars2 with
-    | [], [] -> 0
-    | _, [] -> -1
-    | [], _ -> 1
-    | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
+  let cmp_v = state_cmp_v and cmp_w = state_cmp_w in
   let c_eqn, c_ineqn, c_optis, c_suboptis = split_flatten ~cmp_v cnj in
   implies ~cmp_v ~cmp_w uni_v eqs ineqs optis suboptis c_eqn c_ineqn
     c_optis c_suboptis 
@@ -5362,6 +5357,195 @@ let abductive_holds q ~bvs (eqs, ineqs, optis, suboptis : state) cnj =
       ~eqs ~ineqs ~optis ~suboptis ~cnj ~cmp_v ~cmp_w q.uni_v in
   state, expand_formula quant_viol_cnj
 
+(* For an affine template with the given coefficient columns and constant,
+   eliminate the Farkas multipliers witnessing its validity on a linear cell. *)
+let affine_validity loc columns constant eqs bounds =
+  let add_row nonnegative (private_vars, cols, constant, signs) (vs,c,_) =
+    let u = Terms.fresh_num_var () in
+    let cols = List.fold_left (fun map (v,k) ->
+        let xs,b = try VarMap.find v map with Not_found -> [],!/0 in
+        VarMap.add v ((u,minus_num k)::xs,b) map) cols vs in
+    let signs = if nonnegative then Leq (Cst (0,1), Lin (1,1,u),loc)::signs else signs in
+    VarSet.add u private_vars, cols, (u,minus_num c)::constant, signs in
+  let initial = VarSet.empty, columns, constant, [] in
+  let private_vars, cols, constant, signs = List.fold_left (add_row true)
+      (List.fold_left (add_row false) initial (unsubst eqs)) (unsolve bounds) in
+  let row (xs,b) = expand_w (norm_w ~cmp_v:compare (xs,b,loc)) in
+  let zero = Cst (0,1) in
+  let dual = VarMap.fold (fun _ col facts -> Eq (row col,zero,loc)::facts)
+      cols (Leq (row (constant,!/0),zero,loc)::signs) in
+  match project_exists ~vars:private_vars dual with
+  | [cone] -> cone
+  | _ -> raise Not_found
+
+(* The numeric solver eliminates variables in descending name order.
+   In ascending order every bound can already be evaluated. Choose the
+   value nearest zero in the feasible interval of each coefficient. *)
+let coordinate_interval eqs bounds values v =
+  let eval (vars,c,_) =
+    List.fold_left (fun n (u,k) -> n +/ k */ VarMap.find u values) c vars in
+  if VarMap.mem v eqs then
+    let n = Some (eval (VarMap.find v eqs)) in n,n
+  else
+    let lo,hi = try VarMap.find v bounds with Not_found -> affine_empty,affine_empty in
+    let endpoint combine sides = match affine_map_to_list eval sides with
+      | [] -> None | x::xs -> Some (List.fold_left combine x xs) in
+    endpoint max_num lo, endpoint min_num hi
+
+let nearest_in_interval (lo,hi) x =
+  let x = match lo with None -> x | Some k -> max_num k x in
+  match hi with None -> x | Some k -> min_num k x
+
+(* Valid affine inequalities on a cell form a polyhedral cone in the
+   coefficients of the inequality. Farkas multipliers give its existential
+   description. Project them away before comparing the forbidden and live
+   cells, so a live cell may keep any one of its points. *)
+let separating_guard ~variables ~live ~forbidden ~fuel ~accept loc =
+  let fresh = Terms.fresh_num_var in
+  let normal = VarSet.fold (fun v cols -> VarMap.add v (fresh ()) cols)
+      variables VarMap.empty in
+  let offset = fresh () in
+  let spend () = if !fuel <= 0 then raise Not_found else decr fuel in
+  let validity columns constant eqs bounds =
+    spend (); affine_validity loc columns constant eqs bounds in
+  let columns = VarMap.map (fun a -> [a,!/1],!/0) normal in
+  let case_cones state =
+    let cases = ref [] in
+    let collect eqs bounds =
+      cases := validity columns [offset,!/1] eqs bounds :: !cases; false in
+    (* Returning false asks the visitor to continue through every feasible arm. *)
+    ignore (state_has_case collect state);
+    !cases in
+  let forbidden_cones = concat_map (fun (cnj,_) -> match satisfiable cnj with
+      | Left _ -> [] | Right state -> case_cones state) forbidden in
+  let live_cones = List.map (fun state -> List.concat (case_cones state)) live in
+  let names = List.sort compare (offset :: List.map snd (varmap_to_assoc normal)) in
+  let model (eqs,bounds,_,_) =
+    let assign values v =
+      VarMap.add v (nearest_in_interval (coordinate_interval eqs bounds values v) (!/0)) values in
+    let values = List.fold_left assign VarMap.empty names in
+    let vs = List.map (fun (v,a) -> v,VarMap.find a values) (varmap_to_assoc normal) in
+    expand_w (norm_w ~cmp_v:compare (vs,VarMap.find offset values,loc)) in
+  (* All projected rows are homogeneous. A common rescaling turns finitely
+     many strict violations into weak inequalities with unit margins. *)
+  let violation lc x y = Leq (Add [y; Cst (1,1)],x,lc) in
+  let rec select state = function
+    | [] -> Some (model state)
+    | cone::rest -> find_map (fun atom ->
+        find_map (fun side ->
+            spend ();
+            match satisfiable ~state side with
+            | Left _ -> None | Right next -> select next rest)
+          (atom_violations violation atom)) cone in
+  let full = !fuel in
+  let attempt f = fuel := full; try f () with Not_found -> None in
+  let single cone = select (satisfiable_exn cone) live_cones in
+  match attempt (fun () -> match single (List.concat forbidden_cones) with
+      | None -> None | Some w -> accept [w]) with
+  | Some _ as answer -> answer
+  | None when List.length forbidden_cones <= 1 -> None
+  | None ->
+    let cones = List.map satisfiable_exn forbidden_cones in
+    (* In different cells independently selected normals may preserve
+       different tuples. Fix witnesses first, then solve one linear
+       coefficient system per forbidden cell at the very same points. *)
+    let samples state =
+      let facts = formula_of_state state in
+      let hidden = VarSet.diff (fvs_formula facts) variables in
+      let cases = ref [] in
+      let collect eqs bounds = spend (); cases := (eqs,bounds)::!cases; false in
+      List.iter (fun cell -> match satisfiable cell with
+          | Left _ -> ()
+          | Right st -> ignore (state_has_case collect st))
+        (project_exists ~vars:hidden facts);
+      !cases in
+    (* With the other witnesses fixed, coefficients in each surviving system
+       K already protect them. A new point x is blocked exactly when every
+       (a,c) in K satisfies a.x+c <= 0. Dualize K with coefficient (x,1).
+       The last live cell must miss all of these blocking polyhedra at once. *)
+    let evaluation = VarMap.fold (fun v a cols -> VarMap.add a ([v,!/1],!/0) cols)
+        normal (VarMap.singleton offset ([],!/1)) in
+    let last_point states cells yield =
+      let blocked = List.map (fun (eqs,bounds,_,_) -> validity evaluation [] eqs bounds) states in
+      let slack = fresh () in
+      let e = Lin (1,1,slack) in
+      let positive lc x y = Leq (Add [y;e],x,lc) in
+      let last a b = match a=slack,b=slack with
+        | true,false -> 1 | false,true -> -1 | _ -> state_cmp_v a b in
+      let rec outside state = function
+        | [] ->
+          let eqs,bounds,_,_ = solve ~cnj:(formula_of_state state)
+              ~cmp_v:last ~cmp_w:(order_rows last) (fun _ -> false) in
+          let choose values v x = nearest_in_interval (coordinate_interval eqs bounds values v) x in
+          let gap = choose VarMap.empty slack (!/1) in
+          if gap <=/ !/0 then None else
+          let point = VarSet.fold (fun v values -> VarMap.add v (choose values v (!/0)) values)
+              variables (VarMap.singleton slack gap) in
+          yield point
+        | region::rest -> find_map (fun atom -> find_map (fun side ->
+              spend ();
+              match satisfiable ~state side with
+              | Right next when not (implies_cnj next [Leq (e,Cst (0,1),loc)]) -> outside next rest
+              | _ -> None) (atom_violations positive atom)) region in
+      find_map (fun (eqs,bounds) -> outside (eqs,bounds,[],[]) blocked) cells in
+    let refinable = ref false in
+    let rec fit grid states = function
+      | [] -> accept (List.map model states)
+      | cells::rest ->
+        let at_point point =
+          let vs = VarMap.fold (fun v a xs -> (a,VarMap.find v point)::xs) normal [offset,!/1] in
+          let face = Leq (Cst (1,1),expand_w (norm_w ~cmp_v:compare (vs,!/0,loc)),loc) in
+          try fit grid (List.map (fun st -> satisfiable_exn ~state:st [face]) states) rest
+          with Terms.Contradiction _ -> None in
+        if rest=[] then last_point states cells at_point else
+        let sample (eqs,bounds) =
+          let rec assign values = function
+            | [] -> at_point values
+            | v::vs ->
+              let lo,hi as limits = coordinate_interval eqs bounds values v in
+              (match lo,hi with Some l,Some h when l =/ h -> () | _ -> refinable := true);
+              let middle = match lo,hi with Some l,Some h -> [(l +/ h) // !/2] | _ -> [] in
+              let ends = map_some (fun x -> x) [lo;hi] in
+              let values_at_v = unique_sorted ~cmp:compare_num
+                  (middle @ ends @ List.map (nearest_in_interval limits) grid) in
+              find_map (fun x -> spend (); assign (VarMap.add v x values) vs) values_at_v in
+          assign VarMap.empty (VarSet.elements variables) in
+        find_map sample cells in
+    attempt (fun () ->
+        let faces = List.map (fun cone -> match single cone with
+            | Some form -> form | None -> raise Not_found) forbidden_cones in
+        match accept faces with Some _ as guard -> guard | None ->
+        let degrees cells = List.fold_left (fun n (eqs,_) ->
+            max n (VarSet.fold (fun v count -> if VarMap.mem v eqs then count else count+1)
+                     variables 0)) 0 cells in
+        (* Any point retained in a smaller live region also witnesses a
+           containing one. Apply this only after private indices are projected. *)
+        let subset a b = List.for_all (fun (ae,ab) ->
+            List.exists (fun (be,bb) ->
+                spend (); implies_cnj (ae,ab,[],[]) (expand_eqineqs be bb)) b) a in
+        let required = List.fold_left (fun old st ->
+            let cells = samples st in
+            if List.exists (fun prior -> subset prior cells) old then old
+            else cells :: List.filter (fun prior -> not (subset cells prior)) old) [] live in
+        let cases = List.map (fun c -> degrees c,c) required in
+        let cases = List.map snd (List.stable_sort (fun (a,_) (b,_) -> compare a b) cases) in
+        (* Increasing numerator and denominator bounds eventually include
+           every rational witness tuple. Endpoints and midpoints also work
+           when a coordinate has no small rational in its interval. *)
+        let rec refine height grid =
+          refinable := false;
+          match fit grid cones cases with
+          | Some _ as answer -> answer
+          | None when not !refinable -> None
+          | None ->
+            spend ();
+            let n = height+1 in
+            let rec add k grid = if k > n then grid else
+                let a = !/k // !/n and b = !/n // !/k in
+                add (k+1) (a :: b :: minus_num a :: minus_num b :: grid) in
+            refine n (unique_sorted ~cmp:compare_num (add 1 grid)) in
+        refine 0 [!/0])
+
 let negation_elim q ~bvs ~verif_cns neg_cns =
   (*[* Format.printf "NumS.negation_elim:@\nneg_cns=@ %a@\n%!"
     (pr_line_list "| " pr_formula) (List.map fst neg_cns); *]*)
@@ -5496,8 +5680,19 @@ let negation_elim q ~bvs ~verif_cns neg_cns =
               choose (List.map extend states) (List.rev_append side chosen) rest
             with Terms.Contradiction _ | Not_found -> None)) alternatives in
   try match choose verif_cns [] choices with
-    | Some formula -> formula | None -> res
-  with Failure msg when msg = "int_of_big_int" -> res
+    | Some formula -> formula
+    | None ->
+      let variables = vars_of_map (fun (cnj,_) -> fvs_formula cnj) public in
+      let loc = List.fold_left (fun lc (_,next) -> loc_union lc next) dummy_loc neg_cns in
+      let accept forms =
+        let chosen = List.map (fun w -> Leq (epsilon,w,loc)) forms in
+        let has_margin state = match satisfiable ~state chosen with
+          | Left _ -> false | Right next -> not (implies_cnj next nonpositive) in
+        if List.for_all has_margin verif_cns then specialize chosen 1 else None in
+      (match separating_guard ~variables ~live:verif_cns ~forbidden:neg_cns
+               ~fuel:(ref !abd_timeout_count) ~accept loc with
+       | Some guard -> guard | None -> res)
+  with Not_found -> res | Failure msg when msg = "int_of_big_int" -> res
 
 type subst = (term * loc) VarMap.t
 

@@ -1,0 +1,61 @@
+datatype Gate : num * num
+
+datacons East : Gate (1, 0)
+
+datacons North : Gate (0, 1)
+
+datacons Bad : ∀i, j[i ≤ 0 ∧ j ≤ 0]. Gate (i, j)
+
+val accept : ∀k, n[1 ≤ k + n]. Gate (n, k) → Bool
+
+val east : Bool
+
+val north : Bool
+
+datatype Band : num * num
+
+datacons A : Band (1, 0)
+
+datacons B : Band (0, 1)
+
+datacons Below : ∀i, j[i ≤ 0 ∧ j ≤ 0]. Band (i, j)
+
+datacons Above : ∀i, j[1 ≤ i ∧ 1 ≤ j]. Band (i, j)
+
+val inside : ∀n. Band (n, -n + 1) → Bool
+
+val a : Bool
+
+val b : Bool
+
+datatype Track : num * num
+
+datacons Fixed : Track (3, 3)
+
+datacons Along : ∀n[n ≤ 0 ∧ 0 ≤ n + 1]. Track (n, 2 n)
+
+datacons First : Track (0, -1)
+
+datacons Second : Track (2, 2)
+
+val follow : ∀n. Track (n, (8/7) n + (-3/7)) → Bool
+
+val fixed : Bool
+
+val along : Bool
+
+datatype Slit : num * num
+
+datacons Origin : Slit (0, 0)
+
+datacons Tip : ∀j[0 ≤ j ∧ j ≤ 2]. Slit (2, j)
+
+datacons Shut : Slit (1, 0)
+
+datacons Wall : ∀j[(1/1048576) ≤ j ∧ j ≤ 1]. Slit (1, j)
+
+val pass : ∀k, n[k ≤ (1/2097152) ∧ n ≤ 4194304 k]. Slit (n, k) → Bool
+
+val origin : Bool
+
+val tip : Bool
