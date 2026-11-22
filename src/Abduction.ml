@@ -240,22 +240,17 @@ let connecteds_vs tvs sb =
        then VarSet.add v acc else acc)
     sb tvs
 
-(* FIXME: do we need to check the state of numerical constraints? *)
+(* Even a fresh left-hand side can occur inside an existing binding. *)
 let validate q validation added_vs x t lc =
   List.map
     (fun (br_vs, (state_typ, state_num) as br) ->
-       if not (VarSet.is_empty (VarSet.inter added_vs br_vs))
+       if !verif_all_brs || not (VarSet.is_empty (VarSet.inter added_vs br_vs))
        then
-         try
-           let t', _ = VarMap.find x state_typ in
-           let upd =
-             unify ~use_quants:false ~sb:state_typ q [Eqty (t, t', lc)] in
-           let state_num =
-             NumS.satisfiable_exn ~state:state_num upd.cnj_num in
-           VarSet.union added_vs br_vs, (upd.cnj_typ, state_num)
-         with Not_found ->
-           VarSet.union added_vs br_vs,
-           (VarMap.add x (t, lc) state_typ, state_num)
+         let upd =
+           unify ~use_quants:false ~sb:state_typ q [Eqty (TVar x, t, lc)] in
+         let state_num =
+           NumS.satisfiable_exn ~state:state_num upd.cnj_num in
+         VarSet.union added_vs br_vs, (upd.cnj_typ, state_num)
        else br)
     validation
 

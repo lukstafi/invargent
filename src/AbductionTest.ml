@@ -49,6 +49,13 @@ let prepare_brs (brs : Infer.branch list) = List.map
     
 let tests = "Abduction" >::: [
 
+  "validate an input with an indirect type cycle" >:: (fun () ->
+    Terms.reset_state ();
+    Infer.reset_state ();
+    let sb = (unify ~use_quants:false q (p_formula "ta = (Box tb)")).cnj_typ in
+    let validation = [fvs_sb sb, (sb, NumS.empty_state)] in
+    test_simple "ta = ta" "tb = (Wrap ta)" ~validation 0 "none");
+
   "simple abduction: eval" >::
     (fun () ->
        skip_if !debug "debug";
