@@ -66,6 +66,16 @@ let tests = "NumS" >::: [
       (not (possible "l=1" ["2 k=1"] "l≤k"));
     assert_bool "each half-integral package witness remains legal"
       (possible "l=1" ["k=0";"k=1"] "2 m=k+l"));
+  "an extremum arm can settle the last private witness" >:: (fun () ->
+    let hidden = VarSet.singleton (VNam (Num_sort,"m")) in
+    let cells = project_exists ~vars:hidden
+        (numeric_formula "m=max(0,k) ∧ min(m+j,l)≤0 ∧ min(j + -m,-l)≤0") in
+    assert_equal ~printer:string_of_int 2 (List.length cells);
+    List.iter (fun cell ->
+        assert_equal ~printer:string_of_int 2 (List.length (List.filter
+              (function Subopti _ -> true | _ -> false) cell));
+        assert_bool "the projected witness is private"
+          (VarSet.is_empty (VarSet.inter hidden (fvs_formula cell)))) cells);
   "project private admission witnesses onto shared coordinates" >:: (fun () ->
     let hidden = vars_of_list [VNam (Num_sort,"j"); VNam (Num_sort,"l")] in
     let check domain expected =

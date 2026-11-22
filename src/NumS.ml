@@ -1328,17 +1328,16 @@ let solve_scoped ~use_quants ~eqs ~ineqs ~optis ~suboptis ?eqn ?ineqn ?cnj
 (* Simultaneous case split on several opti and subopti
    disjunctions. Also include inequalities implied by opti atoms, in
    each choice. *)
+let extremum_arms ~cmp_v ~intro_cho_ineq ~exact (u,v) =
+  let choose a b =
+    let rows = if exact then [Eq_w a; Leq_w b] else [Leq_w a] in
+    if not intro_cho_ineq then rows else
+      rows @ [Leq_w (if exact then diff ~cmp_v b a else diff ~cmp_v a b)] in
+  [choose u v; choose v u]
+
 let choice_arms ~cmp_v ~intro_cho_ineq optis suboptis =
-  let opti w1 w2 =
-    if intro_cho_ineq
-    then [Eq_w w1; Leq_w w2; Leq_w (diff ~cmp_v w2 w1)]
-    else [Eq_w w1; Leq_w w2] in
-  let subopti w1 w2 =
-    if intro_cho_ineq
-    then [Leq_w w1; Leq_w (diff ~cmp_v w1 w2)]
-    else [Leq_w w1] in
-  let arms f (w1, w2) = [f w1 w2; f w2 w1] in
-  List.map (arms opti) optis @ List.map (arms subopti) suboptis
+  let arms = extremum_arms ~cmp_v ~intro_cho_ineq in
+  List.map (arms ~exact:true) optis @ List.map (arms ~exact:false) suboptis
 
 let choices ~cmp_v ~intro_cho_ineq optis suboptis =
   List.map List.concat (product (choice_arms ~cmp_v ~intro_cho_ineq optis suboptis))
@@ -4829,16 +4828,29 @@ let project_exists ~vars phi =
     let common_o,branch_o = List.partition independent optis
     and common_s,branch_s = List.partition independent suboptis in
     let shared = shared @ formula_of_state (VarMap.empty,VarMap.empty,common_o,common_s) in
-    let rec visit eqs bounds cells = function
-      | [] -> expand_eqineqs (VarMap.filter visible eqs) (VarMap.filter visible bounds) :: cells
-      | arms::rest -> List.fold_left (fun cells arm -> match cells with
-          | []::_ -> cells
-          | _ ->
-            try
-              let eqs,bounds,_,_ = solve ~eqs ~ineqs:bounds ~cnj':arm ~cmp_v ~cmp_w unrestricted in
-              visit eqs bounds cells rest
-            with Terms.Contradiction _ -> cells) cells arms in
-    let cells = visit eqs bounds [] (choice_arms ~cmp_v ~intro_cho_ineq:false branch_o branch_s) in
+    let rec visit eqs bounds public cells = function
+      | [] ->
+        let linear = expand_eqineqs (VarMap.filter visible eqs) (VarMap.filter visible bounds) in
+        List.rev_append public linear :: cells
+      | (exact,pair)::rest ->
+        (* An earlier arm may have determined the last private coordinate.
+           The residual extremum can then travel intact with this cell. *)
+        let pair = subst_2w ~cmp_v eqs pair in
+        if independent pair then
+          let atom = if exact then expand_opti pair else expand_subopti pair in
+          visit eqs bounds (atom::public) cells rest
+        else
+          List.fold_left (fun cells arm -> match cells with
+              | []::_ -> cells
+              | _ ->
+                try
+                  let eqs,bounds,_,_ = solve ~eqs ~ineqs:bounds ~cnj':arm ~cmp_v ~cmp_w unrestricted in
+                  visit eqs bounds public cells rest
+                with Terms.Contradiction _ -> cells) cells
+            (extremum_arms ~cmp_v ~intro_cho_ineq:false ~exact pair) in
+    let pending = List.map (fun pair -> true,pair) branch_o @
+                  List.map (fun pair -> false,pair) branch_s in
+    let cells = visit eqs bounds [] [] pending in
     match cells with
     | []::_ -> [shared]
     | _ -> List.map (fun cell -> shared @ cell) (unique_sorted cells)
