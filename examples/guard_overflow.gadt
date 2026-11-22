@@ -1,0 +1,10 @@
+datatype Seed
+datacons Pick : ∀i[i≤0]. Num i ⟶ Seed
+datatype Input
+datacons Low : ∀i[i≤0]. Num i ⟶ Input
+external let low : Input = "Low (min_int + 1)"
+let pack : ∀i[i≤0]. Num i → Seed = fun n -> Pick (n+n)
+let seed = (match low with Low n -> pack n)
+let answer = (match seed with Pick n when 1 <= n -> True | _ -> False)
+external let check : Bool → Bool = "fun x -> assert x; x"
+let checked = check answer

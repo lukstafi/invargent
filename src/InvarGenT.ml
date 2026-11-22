@@ -35,7 +35,7 @@ let process_file ?(do_sig=false) ?(do_ml=false)
       (Lexing.from_channel file) in
   (*[* Format.printf "process_file:@\n%a@\n%!" pr_program
     (List.map snd prog); *]*)
-  let env, annot = Infer.infer_prog solver prog in
+  let env, annot = Infer.infer_prog ~integer_target:(!OCaml.num_is = "int") solver prog in
   Infer.annotating_fun := infer_annot_fun;
   Infer.annotating_letin := infer_annot_letin;
   let base = Filename.chop_extension fname in

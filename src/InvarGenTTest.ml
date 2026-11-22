@@ -173,6 +173,11 @@ let test_case ?(test_annot=false) ?(do_ml=true) ?(cmp_sig=(=))
   Defs.nodeadcode := old_nodeadcode;
   Format.printf " t=%.3fs " (Sys.time () -. ntime)
 
+let run_example name () =
+  test_case name ();
+  let file = example_path name ^ ".ml" in
+  assert_equal ~printer:string_of_int 0 (Sys.command ("ocaml -noinit " ^ Filename.quote file))
+
 let infer_source source =
   Terms.reset_state ();
   Infer.reset_state ();
@@ -344,14 +349,10 @@ let tests = "InvarGenT" >::: [
         assert_bool "one conjunctive scheme cannot serve both marked calls"
           (rejects_source (client "Left" "let (a,b) = f (Right Box) Z in let ok = same a Box in same x Box")));
       "an impossible maximum excludes a failing branch" >:: test_case "impossible_maximum";
-      "preserve guard evaluation and erase impossible payload clients" >:: (fun () ->
-        test_case "unreachable_payload" ();
-        let file = example_path "unreachable_payload" ^ ".ml" in
-        assert_equal 0 (Sys.command ("ocaml -noinit " ^ Filename.quote file)));
-      "an opaque guard admits a type valid on either outcome" >:: (fun () ->
-        test_case "opaque_guard" ();
-        let file = example_path "opaque_guard" ^ ".ml" in
-        assert_equal 0 (Sys.command ("ocaml -noinit " ^ Filename.quote file)));
+      "preserve guard evaluation and erase impossible payload clients" >::
+        run_example "unreachable_payload";
+      "an opaque guard admits a type valid on either outcome" >:: run_example "opaque_guard";
+      "arithmetic can wrap before a constructor match" >:: run_example "guard_overflow";
       "a constructor index witnesses a guarded call" >:: test_case "guarded_payload";
       "a call reached after opening an earlier return" >:: test_case "ordered_calls";
       "a partial application through two local aliases" >:: test_case "function_alias";

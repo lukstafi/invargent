@@ -53,7 +53,11 @@ val infer_prog_mockup :
 
 (** Exported only for testing purposes. *)
 val uses_pos_assertions : bool ref
+(** With [integer_target=true] the annotations may erase bodies proved
+    unreachable under native integer comparisons. Use those annotations only
+    with the integer backend. The default preserves target independence. *)
 val infer_prog :
+  ?integer_target:bool ->
   (uses_pos_assertions:bool -> new_ex_types:(int * Defs.loc) list ->
    preserve:Defs.VarSet.t -> cnstrnt -> solution) ->
   program ->

@@ -469,7 +469,7 @@ let rec lambda_depth = function
 let impossible_guard prem env guards =
   let operand = function
     | Var (x, _) when List.mem_assoc x env -> Some (List.assoc x env)
-    | Num (n, _) when Int64.of_float (float_of_int n) = Int64.of_int n ->
+    | Num (n, _) ->
       Some (TCons (numtype, [num (NumDefs.Cst (n,1))]))
     | _ -> None in
   let tests = map_some (fun (left, right) ->
@@ -495,8 +495,9 @@ let impossible_guard prem env guards =
       match NumS.satisfiable (comparisons @ solved.cnj_num) with
       | Left _ -> true | Right _ -> false
     with Contradiction _ | Not_found -> false
+       | Failure msg when msg = "int_of_big_int" -> false
 
-let constr_gen_expr_with_arities arities gamma e t =
+let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
   let erased_packages = ref None in
   let alias_arities = Hashtbl.create 2 in
   let rec known_arrows gamma = function
@@ -752,7 +753,7 @@ let constr_gen_expr_with_arities arities gamma e t =
       count pr_ty t1 pr_ty t2 pr_ty t3 pr_vars bs pr_formula prem; *]*)
     let gamma' = List.map typ_to_sch env @ gamma in
     let concl, e =
-      if guards = [] || is_neg || !force_nodeadcode || !erased_packages <> None ||
+      if not erase_bodies || guards = [] || is_neg || !force_nodeadcode || !erased_packages <> None ||
          not (impossible_guard prem env guards)
       then aux gamma' t2 e else (
         (* Still diagnose unbound names and malformed constructors in the
@@ -810,15 +811,18 @@ let rec with_live_packages generate =
 
 let live_packages packages = List.filter (fun (i, _) -> List.mem_assoc i !all_ex_types) packages
 
-let constr_gen_expr gamma e t =
-  with_live_packages (fun () -> constr_gen_expr_with_arities (Hashtbl.create 2) gamma e t)
+let gen_expr ~erase_bodies gamma e t =
+  with_live_packages (fun () ->
+      constr_gen_expr_with_arities ~erase_bodies (Hashtbl.create 2) gamma e t)
 
-let constr_gen_tests ~arities gamma tests =
+let constr_gen_expr gamma e t = gen_expr ~erase_bodies:false gamma e t
+
+let constr_gen_tests ~erase_bodies ~arities gamma tests =
   let elim_cells = ref [] in
   let cns, tests, preserve = split3
       (List.map
          (fun e ->
-            let (cn, e), elim_ex, preserve = constr_gen_expr_with_arities arities gamma e
+            let (cn, e), elim_ex, preserve = constr_gen_expr_with_arities ~erase_bodies arities gamma e
                 (TCons (booltype, [])) in
             elim_cells := elim_ex :: !elim_cells;
             cn, e, preserve)
@@ -826,7 +830,7 @@ let constr_gen_tests ~arities gamma tests =
   List.fold_left cn_and (And []) cns,
   tests, !elim_cells, List.concat preserve
 
-let gen_letrec ~nonrec gamma x e sig_cn tb tests =
+let gen_letrec ~erase_bodies ~nonrec gamma x e sig_cn tb tests =
   (* χ is a predicate on one type variable. A written scheme constrains
      the instances χ can admit, and each recursive use instantiates both. *)
   let anchor = match tb, sig_cn with
@@ -846,24 +850,24 @@ let gen_letrec ~nonrec gamma x e sig_cn tb tests =
     if nonrec then gamma else (x, def_typ)::gamma in
   let arities = Hashtbl.create 2 in
   Hashtbl.add arities chi_id (lambda_depth e);
-  let (expr_cn, e), elim_cell, preserve = constr_gen_expr_with_arities arities gamma e anchor in
+  let (expr_cn, e), elim_cell, preserve = constr_gen_expr_with_arities ~erase_bodies arities gamma e anchor in
   let def_cn =
     let body = if signature = [] then expr_cn
       else cn_and (Ex (bvs, A signature)) expr_cn in
     All (anchor_vars, Impl ([chi_b], body)) in
   let test_cn, tests, elim_cells, more_preserve =
-    constr_gen_tests ~arities gamma tests in
+    constr_gen_tests ~erase_bodies ~arities gamma tests in
   chi_id, def_typ,
   cn_and def_cn (cn_and (Ex (vars_of_list [a], A [chi_a])) test_cn),
   e, tests, elim_cell::elim_cells, more_preserve @ preserve
 
-let constr_gen_letrec ?(nonrec=false) gamma x e sig_cn tb tests =
-  with_live_packages (fun () -> gen_letrec ~nonrec gamma x e sig_cn tb tests)
+let constr_gen_letrec ~erase_bodies ?(nonrec=false) gamma x e sig_cn tb tests =
+  with_live_packages (fun () -> gen_letrec ~erase_bodies ~nonrec gamma x e sig_cn tb tests)
 
-let constr_gen_let gamma p e ta =
+let constr_gen_let ~erase_bodies gamma p e ta =
   let pcns = constr_gen_pat p ta in
   let bs, exphi, env = envfrag_gen_pat 0 p ta in
-  let (cn, e), elim_cell, preserve = constr_gen_expr gamma e ta in
+  let (cn, e), elim_cell, preserve = gen_expr ~erase_bodies gamma e ta in
   bs, exphi, env, cn_and pcns cn,
   (p, e), elim_cell, preserve
 
@@ -873,7 +877,26 @@ type solution =
 
 type program = ((int * Defs.loc) list * Terms.struct_item) list
 
+(* Native overflow can invalidate the index of a value before it reaches a
+   constructor, including through a call in a later item. Float conversion
+   and custom numeral representations can also change comparisons. *)
+let can_erase_guarded_bodies prog =
+  let rec exact = function
+    | NumAdd _ | NumCoef _ -> false
+    | Var _ | Num _ | String _ | AssertFalse _ -> true
+    | App (a,b,_) | Letrec (_,_,_,a,b,_) | Letin (_,_,a,b,_) -> exact a && exact b
+    | Cons (_,args,_) -> List.for_all exact args
+    | Lam (_,arms,_) | ExLam (_,arms,_) -> List.for_all (fun (_,guards,body) ->
+        exact body && List.for_all (fun (a,b) -> exact a && exact b) guards) arms
+    | RuntimeFailure (e,_) -> exact e
+    | AssertLeq (a,b,e,_) | AssertEqty (a,b,e,_) -> exact a && exact b && exact e in
+  List.for_all (function
+    | _, LetRecVal (_,_,body,_,tests,_) -> exact body && List.for_all exact tests
+    | _, LetVal (_,_,body,_,_) -> exact body
+    | _ -> true) prog
+
 let infer_prog_mockup (prog : program) =
+  let erase_bodies = can_erase_guarded_bodies prog in
   let gamma = ref [] in
   let cns = List.map (function
     | _, TypConstr _ -> [], VarSet.empty, And []
@@ -894,7 +917,7 @@ let infer_prog_mockup (prog : program) =
       let preserve = VarSet.union (fvs_typ t) (fvs_formula sig_cn) in
       let nonrec = match it with LetVal _ -> true | _ -> false in
       let chi_id, typ_sch, cn, e, tests, elim_cells, more_preserve =
-        constr_gen_letrec ~nonrec !gamma x e sig_cn t tests in
+        constr_gen_letrec ~erase_bodies ~nonrec !gamma x e sig_cn t tests in
       gamma := (x, typ_sch) :: !gamma;
       new_ex_types, add_vars more_preserve preserve, cn
     | new_ex_types,
@@ -908,7 +931,7 @@ let infer_prog_mockup (prog : program) =
       let preserve = VarSet.union (fvs_typ t) (fvs_formula sig_cn) in
       let nonrec = match it with LetVal _ -> true | _ -> false in
       let chi_id, typ_sch, cn, e, tests, elim_cells, more_preserve =
-        constr_gen_letrec ~nonrec !gamma x e sig_cn t [] in
+        constr_gen_letrec ~erase_bodies ~nonrec !gamma x e sig_cn t [] in
       gamma := (x, typ_sch) :: !gamma;
       (*[* Format.printf "LetRecVal: mock x=%s@\ncn=%a@\n%!" x
         pr_cnstrnt cn; *]*)
@@ -921,7 +944,7 @@ let infer_prog_mockup (prog : program) =
           VarSet.singleton a, [], [], ta
         | Some (vs, phi, t) -> VarSet.empty, vs, phi, t in
       let bs, exphi, env, cn, cl, elim_cell, preserve =
-        constr_gen_let !gamma p e t in
+        constr_gen_let ~erase_bodies !gamma p e t in
       let preserve = add_vars preserve
         (VarSet.union (fvs_typ t)
            (VarSet.union (fvs_formula sig_cn) (fvs_formula exphi))) in
@@ -1073,7 +1096,8 @@ let prepare_scheme phi res =
   let vs = fvs_formula phi in
   VarSet.union vs rvs, phi
 
-let infer_prog solver prog =
+let infer_prog ?(integer_target=false) solver prog =
+  let erase_bodies = integer_target && can_erase_guarded_bodies prog in
   let ntime = ref (Sys.time ()) in
   let start_time = !ntime in
   let gamma = ref builtin_gamma in
@@ -1155,7 +1179,7 @@ let infer_prog solver prog =
             | _ -> None in
           uses_pos_assertions := false;
           let chi_id, _, cn, e, tests, elim_cells, preserve =
-            constr_gen_letrec ~nonrec:(pat_loc<>None)
+            constr_gen_letrec ~erase_bodies ~nonrec:(pat_loc<>None)
               !gamma x e sig_cn t tests in
           (*[* Format.printf "LetRecVal: x=%s@\ncn=%a@\n%!" x
              pr_cnstrnt cn; *]*)
@@ -1240,7 +1264,7 @@ let infer_prog solver prog =
             | Some (vs, phi, t) -> VarSet.empty, vs, phi, t in
           uses_pos_assertions := false;
           let bs, exphi, env, cn, (p, e), elim_cell, preserve =
-            constr_gen_let !gamma p e t in
+            constr_gen_let ~erase_bodies !gamma p e t in
           (*[* Format.printf "LetVal: p=%a@\ninit_cn=%a@\n%!" pr_pat p
              pr_cnstrnt cn; *]*)
           let preserve = add_vars preserve

@@ -1,0 +1,19 @@
+datatype Seed
+
+datacons Pick : ∀i[i ≤ 0].Num i ⟶ Seed
+
+datatype Input
+
+datacons Low : ∀i[i ≤ 0].Num i ⟶ Input
+
+external val low : Input
+
+val pack : ∀n[n ≤ 0]. Num n → Seed
+
+val seed : Seed
+
+val answer : Bool
+
+external val check : Bool → Bool
+
+val checked : Bool
