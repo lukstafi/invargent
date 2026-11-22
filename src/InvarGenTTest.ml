@@ -343,6 +343,7 @@ let tests = "InvarGenT" >::: [
           (rejects_source (client "Left" "same y Mark"));
         assert_bool "one conjunctive scheme cannot serve both marked calls"
           (rejects_source (client "Left" "let (a,b) = f (Right Box) Z in let ok = same a Box in same x Box")));
+      "instantiate each required call separately" >:: test_case "marked_calls";
       "empty existential binders and OCaml type names" >:: test_case "packed_payload";
       "an affine tag survives a reflected recursive input" >:: test_case "affine_tag"
           ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);

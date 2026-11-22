@@ -892,7 +892,7 @@ type discarded =
    OrderDefs.formula list, unit) sep_sorts
 
 let abd q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of ~nonparam_vars
-    ?(iter_no=2) ?(recover_caller=false) ~discard brs neg_brs =
+    ?(iter_no=2) ?(recover_caller=false) ?(call_inputs=[]) ~discard brs neg_brs =
   let dissociate = iter_no <= 0 in
   (* Do not change the order and no. of branches afterwards. *)
   (*[* Format.printf "abd: iter_no=%d prepare branches@\n%!" iter_no; *]*)
@@ -955,6 +955,10 @@ let abd q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of ~nonparam_vars
            Some (br_vs, (sb_ty, NumS.satisfiable_exn cnj_num))
          with Contradiction _ -> None)
       verif_brs in
+  (* Calls instantiate polymorphic inputs independently. Each call gets
+     a separate consistency check on the candidate. *)
+  let validation = List.map (fun sb -> fvs_sb sb, (sb, NumS.empty_state))
+      call_inputs @ validation in
   (* TODO: could be optimized too. *)
   let neg_validate (vs, ans) =
     (* Returns the number of negative constraints not contradicted by

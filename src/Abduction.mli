@@ -88,6 +88,7 @@ val abd :
   nonparam_vars:Defs.VarSet.t ->
   ?iter_no:int ->
   ?recover_caller:bool ->
+  ?call_inputs:Terms.subst list ->
   discard:discarded ->
   (bool * (int * Terms.hvsubst) list *
      Terms.formula * Terms.formula) list ->

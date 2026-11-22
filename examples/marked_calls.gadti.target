@@ -1,0 +1,27 @@
+datatype Marker
+
+datacons Mark : Marker
+
+datatype Cargo
+
+datacons Box : Cargo
+
+datatype Tag : type * type * type * type
+
+datacons First : ∀a.a ⟶ Tag (a, Marker, Marker, Marker)
+
+datacons Second : ∀a.a ⟶ Tag (Marker, a, Marker, Marker)
+
+datacons Third : ∀a.a ⟶ Tag (Marker, Marker, a, Marker)
+
+datacons Fourth : ∀a.a ⟶ Tag (Marker, Marker, Marker, a)
+
+datatype Nat
+
+datacons Z : Nat
+
+datacons S : Nat ⟶ Nat
+
+external val same : ∀a. a → a → Bool
+
+val f : ∀a. Tag (Marker, Marker, a, Marker) → Nat → ∃.(a, a)

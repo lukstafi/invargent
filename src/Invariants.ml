@@ -826,6 +826,49 @@ let neg_constrns = ref true
 let empty_disc = {at_typ=[],VarMap.empty; at_num=[]; at_ord=[]; at_so=()}
 let empty_dl = {at_typ=[]; at_num=[]; at_ord=[]; at_so=()}
 
+(* Every call whose guard follows from unconditional facts needs its own
+   instance of the function's input pattern. Compare only the argument
+   prefix present in both arrows. Their result packages may still change. *)
+let call_input_samples q branches =
+  let domains anchor = map_some (function
+      | Eqty (TVar v, (Fun _ as arrow), _)
+      | Eqty ((Fun _ as arrow), TVar v, _) when v = anchor ->
+        Some (arg_types arrow)
+      | _ -> None) in
+  let numeric atom = atom_sort atom = Num_sort in
+  let facts = lazy (
+    let unconditional = concat_map (function
+        | _, [], conclusion -> List.filter numeric conclusion
+        | _ -> []) branches in
+    NumS.satisfiable (NumS.sort_formula unconditional)) in
+  let required guard = guard = [] ||
+    (List.for_all numeric guard &&
+     match Lazy.force facts with
+     | Aux.Right st -> NumS.implies_cnj st (NumS.sort_formula guard)
+     | Aux.Left _ -> false) in
+  let calls = concat_map (function
+      | _, guard, conclusion when required guard -> concat_map (function
+          | PredVarU (i, TVar v, _) when not (q.is_chiK i) ->
+            List.map (fun args -> i, args) (domains v conclusion)
+          | _ -> []) conclusion
+      | _ -> []) branches in
+  let instance formals actuals =
+    let ren = VarSet.fold (fun v sb -> VarMap.add v (freshen_var v) sb)
+        (fvs_typs actuals) VarMap.empty in
+    let rec equations fs xs = match fs, xs with
+      | f::fs, x::xs -> Eqty (f, hvsubst_typ ren x, dummy_loc) :: equations fs xs
+      | _ -> [] in
+    try
+      let sample = unify ~use_quants:false q.op (equations formals actuals) in
+      if VarMap.is_empty sample.cnj_typ then None else Some sample.cnj_typ
+    with Contradiction _ -> None in
+  concat_map (function
+      | _, [PredVarU (i, TVar v, _)], conclusion ->
+        concat_map (fun formals -> map_some (fun (j, actuals) ->
+            if i = j then instance formals actuals else None) calls)
+          (domains v conclusion)
+      | _ -> []) branches
+
 let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
   timeout_flag := false;
   let old_reward_constrn = !NumS.reward_constrn in
@@ -994,7 +1037,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
     raise (NoAnswer (Type_sort, "Answers do not converge", None, loc)) in
   let initstep = ref true in
   let fallback_postcond = ref false in
-  let rec loop ~branches ?(retry=false) ?supplier_pass ~jump_at iter_no discard rol1 sol1 ans1_res =
+  let rec loop ~branches ?(call_inputs=[]) ?(retry=false) ?supplier_pass ~jump_at iter_no discard rol1 sol1 ans1_res =
     (* A failed postcondition can restart inference from the base cases.
        After the jump, give the restarted approximation time to develop.
        Each such restart gets a longer window, within the overall timeout. *)
@@ -1439,7 +1482,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
         let cand_bvs, alien_eqs, (vs, ans) =
           (* A failed guess at an earlier approximation can become part of
              a solution after widening. A retry at this pass keeps its cuts. *)
-          Abduction.abd q.op ~bvs ~xbvs ~orig_ren
+          Abduction.abd q.op ~bvs ~xbvs ~orig_ren ~call_inputs
             ~recover_caller:(rol1 <> [] && not retry && not !initstep &&
                              not old_initstep && iter_no >= jump_at)
             ~b_of_v:q.find_b_of_v ~upward_of
@@ -1555,7 +1598,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
                  {discard with at_num=s_discard.at_num::discard.at_num}
                | Order_sort ->
                  {discard with at_ord=s_discard.at_ord::discard.at_ord} in
-             loop ~branches ~retry:true ?supplier_pass ~jump_at iter_no discard rol1 sol1 ans_res in
+             loop ~branches ~call_inputs ~retry:true ?supplier_pass ~jump_at iter_no discard rol1 sol1 ans_res in
       (* 7-8 *)
       (* Avoid substituting [bvs] -- treat them like leftmost. *)
       let ans_sb, _ =
@@ -1870,10 +1913,10 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
              not dissoc_abdsj && not !dropped_from_sol
           then Some (iter_no+1) else supplier_pass in
         finish supplier_pass rol2 sol2 in
-  let start branches =
+  let start ?(call_inputs=[]) branches =
     initstep := true;
     fallback_postcond := false;
-    loop ~branches ~jump_at:disj_step.(5) 0 empty_dl rolT solT [] in
+    loop ~branches ~call_inputs ~jump_at:disj_step.(5) 0 empty_dl rolT solT [] in
   (* An external package opening may demand a type before its captured
      parameters are known. Keep the calls that constrain the input, infer
      a proposal, then restore every opening for the next full pass. *)
@@ -1883,13 +1926,19 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
   let result = match start brs with
     | Aux.Left (Type_sort, _) as err ->
       let callers, producers = List.partition opens_result_at_caller brs in
-      if callers = [] then err else
-      (match start producers with
-       | Aux.Left _ -> err
-       | Aux.Right (pass, _, rol, sol) ->
-         if pass >= !timeout_count then
-           exhausted (formula_loc (concat_map (fun (_, prem, _) -> prem) callers));
-         loop ~branches:brs ~jump_at:disj_step.(5) (pass+1) empty_dl rol sol [])
+      let propose call_inputs =
+        if callers = [] then start ~call_inputs brs else
+        match start ~call_inputs producers with
+        | Aux.Left _ -> err
+        | Aux.Right (pass, _, rol, sol) ->
+          if pass >= !timeout_count then
+            exhausted (formula_loc (concat_map (fun (_, prem, _) -> prem) callers));
+          loop ~branches:brs ~jump_at:disj_step.(5) (pass+1) empty_dl rol sol [] in
+      let previous = if callers = [] then err else propose [] in
+      (match previous with
+       | Aux.Left (Type_sort, _) ->
+         (match call_input_samples q brs with [] -> previous | calls -> propose calls)
+       | _ -> previous)
     | result -> result in
   match result with
   | Aux.Left (_, e) -> raise e
