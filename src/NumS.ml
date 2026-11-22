@@ -2638,15 +2638,16 @@ let fvs_sep_w_formula (c_eqn, c_ineqn, c_optis, c_suboptis) =
 
 (* Once the branch equations are known, compare a supplier's two endpoints
    with the caller's two alternatives. If one endpoint strictly misses an
-   alternative by a constant, the other alternative must cover both. *)
-let recover_caller_bound q ~cmp_v ~cmp_w ~bvs ~upward_of ~validate checks
+   alternative by a constant, the other alternative must cover both. Otherwise project both endpoints and
+   look for input conditions that also hold at recursive calls. *)
+let recover_caller_bound q ~cmp_v ~cmp_w ~bvs ~upward_of ~validate ~calls checks
     (eqs, ineqs, optis, suboptis as answer) =
   let sources = concat_map (fun (prem, _) ->
-    let peq, _, _, pairs = split_flatten ~cmp_v prem in
+    let peq, bounds, _, pairs = split_flatten ~cmp_v prem in
     if pairs = [] then [] else
     try
       let sb, _, _, _ = solve ~eqs ~eqn:peq ~cmp_v ~cmp_w q.uni_v in
-      List.map (fun pair -> sb, subst_2w ~cmp_v sb pair) pairs
+      List.map (fun pair -> sb, bounds, subst_2w ~cmp_v sb pair) pairs
     with Terms.Contradiction _ -> []) checks in
   let branch state prem =
     let e, i, o, s = state in
@@ -2666,20 +2667,78 @@ let recover_caller_bound q ~cmp_v ~cmp_w ~bvs ~upward_of ~validate checks
     match branch state [] with
     | None -> false
     | Some _ -> List.for_all proves checks in
-  let checked remaining bounds =
+  let checked remaining bounds pairs =
     let candidate, new_eqn, new_ineqn, _, _ =
       solve_scoped ~use_quants:(Fail_viol bvs) ~eqs ~ineqs ~optis
-        ~suboptis:remaining ~ineqn:bounds ~cmp_v ~cmp_w q.uni_v in
-    let added = vars_of_map fvs_w (new_eqn @ new_ineqn) in
+        ~suboptis:(pairs @ remaining) ~ineqn:bounds ~cmp_v ~cmp_w q.uni_v in
+    let added = VarSet.union (vars_of_map fvs_w (new_eqn @ new_ineqn @ bounds))
+        (vars_of_map fvs_2w pairs) in
     if crosses_xparams ~cmp_v:q.cmp_v ~bvs (VarSet.inter added bvs)
        || not (proves_all candidate) then None
     else (validate added candidate; Some candidate) in
+  (* Pull an affine guard back through a call. If one arm is stationary
+     and the other changes by a fixed increment, its sign suffices to
+     preserve the disjunction at every depth. *)
+  let translations = lazy (concat_map (fun (uses, prem) ->
+      let peq, _, _, _ = split_flatten ~cmp_v prem in
+      try
+        let sb, _, _, _ = solve ~eqs ~eqn:peq ~cmp_v ~cmp_w q.uni_v in
+        List.map (fun (_, rn) -> rn, sb) uses
+      with Terms.Contradiction _ -> []) (Lazy.force calls)) in
+  let drift_guards (a, b as pair) =
+    map_some (fun (rn, sb) ->
+        let inputs = varmap_domain rn in
+        if not (VarSet.subset (fvs_2w pair) inputs) then None else
+        let change w = diff ~cmp_v (subst_w ~cmp_v sb (rename_w rn w))
+            (subst_w ~cmp_v sb w) in
+        let da = change a and db = change b in
+        let fixed w = not (zero_p w) && VarSet.subset (fvs_w w) inputs &&
+          zero_p (change w) in
+        if zero_p da && fixed db then Some (a, db)
+        else if zero_p db && fixed da then Some (b, da)
+        else None) (Lazy.force translations) in
+  let project needed remaining shared sb supplier_bounds (g1, g2) (p1, p2) =
+    (* For each supplier endpoint p one caller alternative must cover it. *)
+    let cover p = diff ~cmp_v g1 p, diff ~cmp_v g2 p in
+    let covers = [cover p1; cover p2] in
+    let inputs = vars_of_map fvs_2w covers in
+    if VarSet.is_empty inputs || not (VarSet.is_empty (VarSet.inter shared inputs)) ||
+       not (Lazy.force needed) then None else
+    let pairs = List.fold_left (fun pairs p ->
+        if List.exists (equal_2w ~cmp_v p) pairs then pairs else p :: pairs)
+        covers (concat_map drift_guards covers) in
+    let scoped = no_scope_viol_atom ~cmp_v:q.cmp_v ~upward_of ~bvs in
+    if not (List.for_all (fun p -> scoped (Subopti_w p)) pairs) then None else
+    (* Compare parallel bounds on the other end of the result interval.
+       The projected difference may refer only to the same input indices. *)
+    let lower = List.map (subst_w ~cmp_v sb) supplier_bounds in
+    let bounds = concat_map (fun w ->
+        let w = subst_w ~cmp_v sb w in
+        if VarSet.is_empty (VarSet.inter shared (fvs_w w)) then [] else
+        map_some (fun endpoint ->
+            let d = diff ~cmp_v w endpoint in
+            let vs = fvs_w d in
+            if not (VarSet.is_empty vs) && VarSet.subset vs inputs && scoped (Leq_w d)
+            then Some d else None) lower) (unsolve ineqs) in
+    let bounds = WSet.elements (wset_of_list bounds) in
+    let old_deadcode = !deadcode_flag in
+    try
+      (* Reduce a disjunction to one arm only if the whole proposed guard
+         entails it. This can expose a simple cap among several max bounds. *)
+      let eqs, ineqs, opts, subs =
+        solve ~ineqn:bounds ~suboptis:pairs ~cmp_v ~cmp_w q.uni_v in
+      let forced w = implies ~cmp_v ~cmp_w q.uni_v eqs ineqs opts subs [] [w] [] [] in
+      let linear, disj = List.fold_right (fun (a, b as p) (ws, ps) ->
+          if forced a then a::ws, ps else if forced b then b::ws, ps
+          else ws, p::ps) pairs (bounds, []) in
+      checked remaining (WSet.elements (wset_of_list linear)) disj
+    with Terms.Contradiction _ -> deadcode_flag := old_deadcode; None in
   let rec replace kept = function
     | [] -> answer
     | goal::rest ->
         let remaining = List.rev_append kept rest in
         let needed = lazy (not (proves_all (eqs, ineqs, optis, remaining))) in
-        let try_source (sb, (p1, p2)) =
+        let try_source (sb, lower, (p1, p2 as source)) =
           match direct_opti (subst_2w ~cmp_v sb goal) with
           | None -> None
           | Some (_, shared, _, g1, g2) ->
@@ -2693,11 +2752,13 @@ let recover_caller_bound q ~cmp_v ~cmp_w ~bvs ~upward_of ~validate checks
                                            ~upward_of ~bvs) bounds)
                 then None else
                   let old_deadcode = !deadcode_flag in
-                  (try checked remaining bounds with Terms.Contradiction _ ->
+                  (try checked remaining bounds [] with Terms.Contradiction _ ->
                     deadcode_flag := old_deadcode; None)
               | _ -> None in
-            find_map force [g1,g2,p1,p2; g1,g2,p2,p1;
-                            g2,g1,p1,p2; g2,g1,p2,p1] in
+            match find_map force [g1,g2,p1,p2; g1,g2,p2,p1;
+                                  g2,g1,p1,p2; g2,g1,p2,p1] with
+            | Some _ as candidate -> candidate
+            | None -> project needed remaining shared sb lower (g1,g2) source in
         match find_map try_source sources with
         | Some candidate -> candidate
         | None -> replace (goal::kept) rest in
@@ -2708,6 +2769,8 @@ let recover_caller_bound q ~cmp_v ~cmp_w ~bvs ~upward_of ~validate checks
 let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
     ~upward_of ~nonparam_vars
     ~discard ?(iter_no=2) ?caller_checks brs =
+  let calls = lazy (map_some (fun (_, uses, prem, _) ->
+      if uses = [] then None else Some (uses, prem)) brs) in
   abd_timeout_flag := false;
   let cmp_v = make_cmp q in
   let cmp_w (vars1,cst1,_) (vars2,cst2,_) =
@@ -2980,7 +3043,7 @@ let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
       (VarMap.empty, VarMap.empty, [], []) brs in
   let ans = match caller_checks, ans with
     | Some checks, (_, _, _, _::_) ->
-        recover_caller_bound q ~cmp_v ~cmp_w ~bvs ~upward_of ~validate checks ans
+        recover_caller_bound q ~cmp_v ~cmp_w ~bvs ~upward_of ~validate ~calls checks ans
     | _ -> ans in
   [], elim_uni @ ans_to_num_formula ans
 

@@ -1141,11 +1141,33 @@ let abd q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of ~nonparam_vars
     if neg_brs <> [] || discard.at_num <> [] ||
        not (List.exists (function NumDefs.Subopti _ -> true | _ -> false) ans_num)
     then ans_num else
+    (* Removing an input bound can preserve today's result and lose the
+       same bound at a recursive call. Preserve the call obligations
+       already established by the full answer, including empty conclusions. *)
+    let checks =
+      if not recover_caller then List.map (fun (_, _, p, c) -> p, c) brs_num
+      else
+        let full = lazy (NumS.satisfiable_exn ans_num) in
+        List.map (fun (_, uses, prem, concl) ->
+            let at_call (i, rn) =
+              let vars = try List.assoc i xbvs with Not_found -> VarSet.empty in
+              map_some (fun atom ->
+                  let vs = NumDefs.fvs_atom atom in
+                  if VarSet.is_empty vs || not (VarSet.subset vs vars) then None
+                  else Some (NumDefs.hvsubst_atom rn atom)) ans_num in
+            let obligations = concat_map at_call uses in
+            let holds =
+              if obligations = [] then [] else
+              try
+                let state = NumS.satisfiable_exn ~state:(Lazy.force full) prem in
+                List.filter (fun atom -> NumS.implies_cnj state [atom]) obligations
+              with Contradiction _ -> [] in
+            prem, concl @ holds) verif_brs_num in
     let sufficient atoms =
       let state = NumS.satisfiable_exn atoms in
-      List.for_all (fun (_, _, prem, concl) ->
+      List.for_all (fun (prem, concl) ->
         try NumS.implies_cnj (NumS.satisfiable_exn ~state prem) concl
-        with Contradiction _ -> true) brs_num in
+        with Contradiction _ -> true) checks in
     let rec trim kept = function
       | [] -> List.rev kept
       | (NumDefs.Eq _ as a)::rest -> trim (a::kept) rest

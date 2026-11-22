@@ -309,6 +309,9 @@ let tests = "InvarGenT" >::: [
           ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
       "moving floor with an inferred cap increment" >:: test_case "unit_floor_shift"
         ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
+      "two recursive calls require a nonconvex floor guard" >::
+        test_case "moving_floor_calls"
+          ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
       "moving floor and cap" >:: test_case "moving_floor"
         ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
       "cap across two result constructors" >:: test_case "split_shifted_climb"
