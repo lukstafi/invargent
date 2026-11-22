@@ -1177,15 +1177,10 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
                  (try List.length (List.assoc i (Lazy.force g_rol_all))
                   with Not_found -> 0) (var_str anchor); *]*)
                try
-                 (*let old_delta =
-                   try
-                     Some
-                       (find_some
-                          (function
-                            | Eqty (TVar v, t, _) when v = delta -> Some t
-                            | Eqty (t, TVar v, _) when v = delta -> Some t
-                            | _ -> None) old_ans)
-                   with Not_found -> None in*)
+                 let previous_type = find_map (function
+                     | Eqty (TVar v, t, _) when v = delta -> Some t
+                     | Eqty (t, TVar v, _) when v = delta -> Some t
+                     | _ -> None) old_ans in
                  let cnjs =
                    try List.assoc i g_rol
                    with Not_found -> List.assoc i (Lazy.force g_rol_all) in
@@ -1205,7 +1200,8 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
                  (* [usb] is additional abductive the answer. *)
                  let up_of_anchor v = upward_of v anchor in
                  let dissoc, g_abd, (g_vs, g_ans), g_brs =
-                   DisjElim.disjelim q_ops ~previous:(sep_formulas old_ans).cnj_num
+                   DisjElim.disjelim q_ops ?previous_type
+                     ~previous:(sep_formulas old_ans).cnj_num
                      ~bvs ~param_bvs (* ~preserve *)
                      ~up_of_anchor
                      ~do_num:(disj_step.(1) <= iter_no)

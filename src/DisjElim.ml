@@ -287,8 +287,24 @@ let dissociate cnj_typ =
   let res = map_in_subst purge cnj_typ in
   !alien_vs, !alien_eqs, res
 
+(* Keep a bare payload index when another field has been reconstructed from
+   it. Matching constructor positions chooses a basis for the current
+   equations. It introduces no equality with a variable from the old pass. *)
+let rec previous_indices old_ty new_ty indices =
+  let bare_index = function
+    | TVar v when var_sort v = Num_sort -> Some v
+    | Alien (Num_term (NumDefs.Lin (1, 1, v))) -> Some v
+    | _ -> None in
+  match old_ty, new_ty with
+  | TCons (c, xs), TCons (d, ys) when c = d && List.length xs = List.length ys ->
+    List.fold_left2 (fun acc x y -> previous_indices x y acc) indices xs ys
+  | _ ->
+    match bare_index old_ty, bare_index new_ty with
+    | Some _, Some v -> VarSet.add v indices
+    | _ -> indices
+
 (* FIXME: too much mess together with [disjelim] *)
-let simplify_dsjelim q initstep ~target ~param_bvs vs ans =
+let simplify_dsjelim q ?previous_type initstep ~target ~param_bvs vs ans =
   let target_rhs = map_some
       (fun (v,(t,_)) -> if v = target then Some t else None) ans.at_typ in
   let target_vs =
@@ -321,10 +337,16 @@ let simplify_dsjelim q initstep ~target ~param_bvs vs ans =
      let target_vs = VarSet.union keep_more target_vs in *)
   let num_ans = NumS.transitive_cl q ans.at_num in
   let bvs = VarSet.union target_vs param_bvs in
+  let keep = VarSet.diff param_bvs target_vs in
+  let keep = match previous_type, target_rhs with
+    | Some old_ty, [new_ty] ->
+      let locals = VarSet.filter (fun v -> var_sort v = Num_sort)
+          (VarSet.inter (vars_of_list vs) target_vs) in
+      let bare = VarSet.inter locals (previous_indices old_ty new_ty VarSet.empty) in
+      if VarSet.subset locals bare then keep else VarSet.union bare keep
+    | _ -> keep in
   let num_sb, num_nsb, num_ans =
-    (* The target variables should be in the substitution. *)
-    NumS.separate_subst q ~no_csts:true
-      ~keep:(VarSet.diff param_bvs target_vs) ~bvs ~apply:false num_ans in
+    NumS.separate_subst q ~no_csts:true ~keep ~bvs ~apply:false num_ans in
   let non_sb_vs = NumDefs.fvs_formula num_ans in
   (*[* Format.printf "disjelim-simplify:@ non_sb_vs=%a@ num_sb=%a@ \
                        num_ans=%a@\n%!"
@@ -374,7 +396,7 @@ let simplify_dsjelim q initstep ~target ~param_bvs vs ans =
   vs, ans
 
 (* FIXME: introduce existential type variables for escaping parameters *)
-let disjelim q ?(previous=[]) ?target ~bvs ~param_bvs (* ~preserve *) (* ~old_local *)
+let disjelim q ?previous_type ?(previous=[]) ?target ~bvs ~param_bvs (* ~preserve *) (* ~old_local *)
     ~up_of_anchor ~do_num ~guess ~initstep ~residuum brs =
   let target = match target with None -> delta | Some v -> v in
   (* (1) D_i,s *)
@@ -474,7 +496,7 @@ let disjelim q ?(previous=[]) ?target ~bvs ~param_bvs (* ~preserve *) (* ~old_lo
       (* Dooes not simplify redundancy. *)
       dissoc_vs <> [],
       to_formula usb @ NumS.formula_of_sort num_abd,
-      simplify_dsjelim q initstep ~target ~param_bvs
+      simplify_dsjelim q ?previous_type initstep ~target ~param_bvs
         (dissoc_vs @ num_avs @ avs)
         {at_typ=ty_ans; at_num=num_ans; at_ord=ord_ans; at_so=()},
       (* TODO: when need arises, number the origianl branches and
@@ -483,7 +505,7 @@ let disjelim q ?(previous=[]) ?target ~bvs ~param_bvs (* ~preserve *) (* ~old_lo
     else
       dissoc_vs <> [],
       to_formula usb,
-      simplify_dsjelim q initstep ~target ~param_bvs
+      simplify_dsjelim q ?previous_type initstep ~target ~param_bvs
         (dissoc_vs @ avs)
         {at_typ=ty_ans; at_num=[]; at_ord=[]; at_so=()},
       []

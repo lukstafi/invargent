@@ -317,6 +317,8 @@ let tests = "InvarGenT" >::: [
           ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
       "recover a recursive payload from its affine tag" >:: test_case "tagged_floor"
         ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
+      "keep the payload index across signed tag updates" >:: test_case "signed_tag"
+        ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
       "a redundant constructor arm preserves recursive inference" >::
         test_case "redundant_supplier"
           ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);

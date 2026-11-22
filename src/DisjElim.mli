@@ -16,7 +16,8 @@ val more_existential : bool ref
 val drop_csts : bool ref
 
 val disjelim :
-  Defs.quant_ops -> ?previous:NumDefs.formula -> ?target:Defs.var_name ->
+  Defs.quant_ops -> ?previous_type:Terms.typ -> ?previous:NumDefs.formula ->
+  ?target:Defs.var_name ->
   bvs:Defs.VarSet.t -> param_bvs:Defs.VarSet.t ->
   (* preserve:Defs.VarSet.t -> *) up_of_anchor:(Defs.var_name -> bool) ->
   do_num:bool -> guess:bool -> initstep:bool -> residuum:Terms.formula ->
