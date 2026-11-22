@@ -3567,6 +3567,26 @@ let ptope_mem ptope w_key w_c =
 
 (* Currently, [initstep] is only used to generate more -- redundant --
    [subopti] atoms. *)
+(* A branch substitution sends each candidate affine equation to its
+   residual. Row reduction on the residuals, carrying the original rows,
+   returns a basis of the combinations that vanish on this branch. *)
+let intersect_equations ~cmp_v rows eqs =
+  let rec kernel = function
+    | [] -> []
+    | (row, image)::rest when zero_p image -> row :: kernel rest
+    | (row, (vars, cst, _ as image))::rest ->
+      let coefficient, pivot = match vars with
+        | (v,k)::_ ->
+          (fun (vs, _, _) -> try List.assoc v vs with Not_found -> !/0), k
+        | [] -> (fun (_, c, _) -> c), cst in
+      let eliminate (other, residual as pair) =
+        let k = coefficient residual in
+        if k =/ !/0 then pair else
+          let ratio = k // pivot in
+          diff ~cmp_v other (mult ratio row), diff ~cmp_v residual (mult ratio image) in
+      kernel (List.map eliminate rest) in
+  kernel (List.map (fun row -> row, subst_w ~cmp_v eqs row) rows)
+
 let disjelim_aux q ~previous ~target_vs ~preserve ~bvs ~param_bvs
     ~guess ~initstep brs =
   let cmp_v = make_cmp q in
@@ -3779,6 +3799,20 @@ let disjelim_aux q ~previous ~target_vs ~preserve ~bvs ~param_bvs
     match equations with
     | hd::tl -> WSet.elements (List.fold_left WSet.inter hd tl)
     | _ -> [] in
+  (* Two freshly generalized result indices can satisfy a joint equation
+     that no pair of branch presentations writes the same way. Keep the
+     existing common rows and supplement their span on these products. *)
+  let result_indices = VarSet.filter (fun v -> var_sort v = Num_sort)
+      (VarSet.diff target_vs param_bvs) in
+  let common_equations = match polytopes with
+    | (first, _)::rest when VarSet.cardinal result_indices >= 2 ->
+      let rows = List.map (norm_w ~cmp_v) (unsubst first) in
+      let common = List.fold_left (fun rows (eqs, _) ->
+          intersect_equations ~cmp_v rows eqs) rows rest in
+      let known, _, _, _ = solve ~eqn:common_equations ~cmp_v ~cmp_w q.uni_v in
+      common_equations @ List.filter (fun row ->
+          not (zero_p (subst_w ~cmp_v known row))) common
+    | _ -> common_equations in
   (*[* Format.printf
     "NumS.disjelim: polytope-ineqs=@\n%a@\nfaces=@\n%a@\nequations=@\n%a@\n%!"
     (pr_line_list "| " pr_ineqs) (List.map snd polytopes)

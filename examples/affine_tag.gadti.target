@@ -1,0 +1,12 @@
+datatype Nat
+
+datacons Z : Nat
+
+datacons S : Nat ⟶ Nat
+
+external val check : ∀i, j. Num i → (Num j, Num (i + j)) → Bool
+
+val f :
+   ∀n. Num n → Nat → ∃k[k ≤ n + 1 ∧ n ≤ k].(Num k, Num (n + k))
+
+val checked : Bool

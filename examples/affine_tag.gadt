@@ -1,0 +1,15 @@
+datatype Nat
+datacons Z : Nat
+datacons S : Nat ⟶ Nat
+
+external let check : ∀i,j. Num i → (Num j, Num (i+j)) → Bool =
+  "fun p (r,t) -> assert (t = p+r); true"
+
+let rec f p = efunction
+  | Z -> (p, p+p)
+  | S n ->
+    let (r,t) = f (-1*p) n in
+    let good = check (-1*p) (r,t) in
+    (p+1, p+p+1)
+
+let checked = let pair = f 7 (S (S Z)) in check 7 pair

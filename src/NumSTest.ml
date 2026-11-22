@@ -25,6 +25,23 @@ let numeric_formula s =
   sort_formula (Parser.formula Lexer.token (Lexing.from_string s))
 
 let tests = "NumS" >::: [
+  "combine branch equations across two result indices" >:: (fun () ->
+    let graph = numeric_formula "n2=n1+n3" in
+    let targets = fvs_formula (numeric_formula "n1=n2") in
+    let check branches expected =
+      let branches = List.map (fun text -> [], numeric_formula text) branches in
+      let preserve = fvs_formula graph in
+      let _, _, result, _ = disjelim q ~target_vs:targets ~preserve
+          ~bvs:VarSet.empty ~param_bvs:(VarSet.diff preserve targets)
+          ~guess:false ~initstep:false branches in
+      assert_bool "every branch establishes the inferred equations"
+        (List.for_all (fun (_, br) -> implies_cnj (satisfiable_exn br) result) branches);
+      assert_equal expected (implies_cnj (satisfiable_exn result) graph) in
+    let base = "n1=n3 ∧ n2=2 n3" and step = "n1=n3+1 ∧ n2=2 n3+1" in
+    check [base; step] true;
+    check [step; base] true;
+    check [base; step; "n1=n3+2 ∧ n2=2 n3+3"] false);
+
   "generalize two rational endpoints" >:: (fun () ->
     let bounds = numeric_formula "1/2<=n1 ∧ n1<=3/2" in
     let vs = fvs_formula bounds in
