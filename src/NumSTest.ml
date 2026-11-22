@@ -48,6 +48,24 @@ let tests = "NumS" >::: [
     assert_bool "the positive gap can depend on the observation"
       (not (possible "0<=i ∧ i<=1" [interval;"i=0 ∧ k=2"] "k<=0"));
     assert_bool "empty admission imposes no package" (possible "i=0" [] "1<=0"));
+  "only the observed payload must be integral" >:: (fun () ->
+    let v name = VNam (Num_sort,name) in
+    let l = Lin (1,1,v "l") in
+    let possible ?(result=l) pre domains post =
+      common_result_possible ~integer_result:result ~keys:(VarSet.singleton (v "k"))
+        ~witnesses:(VarSet.singleton (v "m"))
+        ~admissions:(List.map numeric_formula domains) ~post:(numeric_formula post)
+        (numeric_formula pre) in
+    let ends = ["k= -1";"k=0 ∧ i=0";"k=0 ∧ i=1"] in
+    let unit = "i=l ∧ 0≤i ∧ i≤1" in
+    assert_bool "the open unit interval contains no integer"
+      (not (possible unit ends "k≤ -1"));
+    assert_bool "doubling the observed coordinate retains the midpoint"
+      (possible ~result:(Lin (2,1,v "l")) unit ends "k≤ -1");
+    assert_bool "an admitted half key excludes one"
+      (not (possible "l=1" ["2 k=1"] "l≤k"));
+    assert_bool "each half-integral package witness remains legal"
+      (possible "l=1" ["k=0";"k=1"] "2 m=k+l"));
   "project private admission witnesses onto shared coordinates" >:: (fun () ->
     let hidden = vars_of_list [VNam (Num_sort,"j"); VNam (Num_sort,"l")] in
     let check domain expected =

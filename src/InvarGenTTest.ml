@@ -413,6 +413,8 @@ let tests = "InvarGenT" >::: [
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "private_result_key";
       "visible package indices may have to move together" >::
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "tied_result_keys";
+      "only a fractional payload could reach the native guard" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "fractional_guard_result";
       "an odd width requires a fractional phantom index" >::
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "scaled_result_key";
       "all typings keep the actual recursive argument fixed" >:: (fun () ->

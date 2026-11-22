@@ -1730,7 +1730,7 @@ let project_call_signature bound signature arrow =
 
 (* A fresh typing must match every numeric position of the arrow. Each scheme
    may choose its own quantified witnesses for that tuple. *)
-let check_key_admission policy bound signature written inferred loc =
+let check_key_admission ~integer_target policy bound signature written inferred loc =
   let open NumDefs in
   let eq a b = Eq (a,b,loc) and v x = Lin (1,1,x) in
   let rec align left right = match left,right with
@@ -1784,12 +1784,14 @@ let check_key_admission policy bound signature written inferred loc =
       let post = eq observed value :: post and keys = vars_of_list output_slots in
       let same_inputs = List.map2 (fun slot (_,term) -> eq (v slot) term) input_slots inputs in
       let facts = original @ opened @ same_inputs in
+      let integer_result = if integer_target then Some observed else None in
       let refuted band =
         let inside = match band with
           | At_least lo -> [Leq (lo,observed,loc)]
           | At_most hi -> [Leq (observed,hi,loc)]
           | Between (lo,hi) -> [Leq (lo,observed,loc); Leq (observed,hi,loc)] in
-        not (NumS.common_result_possible ~keys ~witnesses ~admissions:cells ~post (inside @ facts)) in
+        not (NumS.common_result_possible ?integer_result ~keys ~witnesses
+               ~admissions:cells ~post (inside @ facts)) in
       if List.for_all refuted bands then Admitted else Unavailable
     | Open_at_keys query ->
       let original = original @ query.bounds in
@@ -2059,7 +2061,7 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
               | Open_at_keys _ | Exclude_bands _ ->
                 (try
                    let _,_,_,scheme = recursive_answer bvs loc id solution in
-                   check_key_admission policy bvs sig_cn t scheme loc
+                   check_key_admission ~integer_target policy bvs sig_cn t scheme loc
                  with Report_toplevel _ | NoAnswer _ | Contradiction _ -> Unavailable) in
             solve_item ~propose_call ~admitted new_ex_types e tests (fun e tests call_constraints erase_bodies ->
                 let retry_signature = match call_constraints with

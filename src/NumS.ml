@@ -4870,11 +4870,41 @@ let conditional_satisfiable pre openings =
           List.exists (branch true) (violations atom)) admits in
   match satisfiable pre with Left _ -> false | Right state -> possible state false openings
 
+(* At a final uncovered region the strict inequalities use one positive
+   slack. For a fixed observation, feasibility persists as the slack tends
+   to zero. Project all rational coordinates except the payload and slack.
+   In a row a*r + b*d + c <= 0, the endpoint a*r+c=0 survives iff b<=0. *)
+let integer_observation_possible ~slack value state =
+  let result = Terms.fresh_num_var () in
+  let facts = Eq (Lin (1,1,result), value, dummy_loc) :: formula_of_state state in
+  let hidden = VarSet.remove slack (VarSet.remove result (fvs_formula facts)) in
+  let tighten bounds (vs,c,lc) =
+    let strict = try List.assoc slack vs >/ !/0 with Not_found -> false in
+    let row = List.remove_assoc slack vs,c,lc in
+    let vs,c,_ = if strict then norm_by_lcd row else row in
+    let a = try List.assoc result vs with Not_found -> !/0 in
+    (* After clearing denominators a*r+c is integral. *)
+    let upper = if strict then minus_num c -/ !/1 else minus_num c in
+    match intersect_integer_bound bounds (a,upper) with
+    | Some l,Some h when l >/ h -> raise Not_found
+    | bounds -> bounds in
+  let rec fits bounds rows = try match rows with
+    | [] -> true
+    | Leq_w w :: rest -> fits (tighten bounds w) rest
+    | Eq_w w :: rest -> fits (tighten (tighten bounds w) (mult !/(-1) w)) rest
+    | Subopti_w (a,b) :: rest ->
+      fits bounds (Leq_w a :: rest) || fits bounds (Leq_w b :: rest)
+    | Opti_w (a,b) :: rest ->
+      fits bounds (Eq_w a :: Leq_w b :: rest) || fits bounds (Leq_w a :: Eq_w b :: rest)
+    with Not_found -> false in
+  List.exists (fun cell -> fits (None,None) (flatten_formula ~cmp_v:compare cell))
+    (project_exists ~vars:hidden facts)
+
 (* Can an observation satisfy every typing of these arguments?
    First project the private package witnesses. A refuting tuple is admitted
    and violates every cell of that projection. Eliminate its coordinates,
    then look for an observation outside every projected refutation. *)
-let common_result_possible ~keys ~witnesses ~admissions ~post pre =
+let common_result_possible ?integer_result ~keys ~witnesses ~admissions ~post pre =
   let d = Terms.fresh_num_var () in
   let gap = Lin (1,1,d) and zero = Cst (0,1) in
   let nonpositive = [Leq (gap,zero,dummy_loc)] in
@@ -4905,18 +4935,23 @@ let common_result_possible ~keys ~witnesses ~admissions ~post pre =
     let escape cell = complements positive_near_zero cell in
     (* An outer observation can use arbitrarily small positive slack. If
        its state cannot meet a cell at any positive slack, skip that cell. *)
-    let rec uncovered state = function
-      | [] -> true
+    let rec uncovered accepts state = function
+      | [] -> accepts state
       | cell::rest -> match extend state cell with
-        | None -> uncovered state rest
+        | None -> uncovered accepts state rest
         | Some _ -> List.exists (fun facts -> match extend state facts with
-            | None -> false | Some next -> uncovered next rest) (escape cell) in
+            | None -> false | Some next -> uncovered accepts next rest) (escape cell) in
     (* Stop as soon as one refutation covers the whole guard. Otherwise
        retain the cells for the final joint coverage test. *)
+    let realized state = match integer_result with
+      | None -> true
+      | Some value ->
+        (try integer_observation_possible ~slack:d value state
+         with Failure msg when msg = "int_of_big_int" -> true) in
     let rec collect seen = function
-      | lazy LazNil -> uncovered initial (unique_sorted seen)
+      | lazy LazNil -> uncovered realized initial (unique_sorted seen)
       | lazy (LazCons (cells,tail)) ->
-        List.for_all (fun cell -> uncovered initial [cell]) cells &&
+        List.for_all (fun cell -> uncovered (fun _ -> true) initial [cell]) cells &&
         collect (List.rev_append cells seen) tail in
     collect [] (refutations initial [] (admissions :: failed_posts))
 
