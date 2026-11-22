@@ -139,9 +139,10 @@ val prune_redundant :
 (** Widen aligned postconditions by retaining old atoms implied by the
     new summary. Optional suppliers can also prove an atom over the shared
     interface when every projected branch entails it. An empty list
-    disables this branch check. *)
+    disables this branch check. With [recover_caps], a new bound on that
+    interface can tighten one arm of a retained bound by a constant. *)
 val converge :
-  Defs.quant_ops -> ?localvs:Defs.VarSet.t -> ?guard:NumDefs.formula ->
+  Defs.quant_ops -> ?recover_caps:bool -> ?localvs:Defs.VarSet.t -> ?guard:NumDefs.formula ->
   ?suppliers:(Defs.VarSet.t * NumDefs.formula list) ->
   initstep:bool ->
   NumDefs.formula -> NumDefs.formula -> NumDefs.formula

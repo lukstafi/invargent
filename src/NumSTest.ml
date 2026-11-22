@@ -82,6 +82,20 @@ let tests = "NumS" >::: [
     check public [] false;
     check VarSet.empty [base; left; right] false);
 
+  "a stalled jump narrows the cap on its existing interface" >:: (fun () ->
+    let old = numeric_formula "n1<=max(n2+20,n3)"
+    and tighter = numeric_formula "n1<=max(n3,n2+19)"
+    and other = numeric_formula "n4<=max(n1,n3)" in
+    let check recover_caps interface expected =
+      let result = converge q ~recover_caps ~initstep:false
+          ~suppliers:(interface, []) old (tighter @ other) in
+      let state = satisfiable_exn result in
+      assert_equal ~printer:string_of_bool expected (implies_cnj state tighter);
+      assert_bool "an unrelated witness stays out" (not (implies_cnj state other)) in
+    check false (fvs_formula old) false;
+    check true (fvs_formula old) true;
+    check true VarSet.empty false);
+
   "keep a supplier extremum only when every branch proves it" >:: (fun () ->
     let cap = numeric_formula "n1<=max(n2+19,0)" in
     let preserve = fvs_formula cap in

@@ -4304,7 +4304,7 @@ let simplify q ?(keepvs=VarSet.empty) ?localvs ?(guard=[]) elimvs cnj =
   (*[* Format.printf "NumS.simplify:@\nres=%a@\n%!" pr_formula ans; *]*)
   VarSet.elements vs, ans
 
-let converge q ?localvs ?(guard=[]) ?suppliers ~initstep cnj1 cnj2 =
+let converge q ?(recover_caps=false) ?localvs ?(guard=[]) ?suppliers ~initstep cnj1 cnj2 =
   (*[* Format.printf
     "NumS.converge: initstep=%b localvs=%a@\ncnj1=@ %a@\ncnj2=@ %a@\n%!"
     initstep pr_vars (match localvs with Some vs->vs|None->VarSet.empty)
@@ -4351,7 +4351,21 @@ let converge q ?localvs ?(guard=[]) ?suppliers ~initstep cnj1 cnj2 =
      List.for_all (fun state -> match Lazy.force state with
        | Some state -> proves state
        | None -> true) branch_states) in
-  let res = List.filter keep (cnj1 @ ans1) in
+  let old = List.filter keep (cnj1 @ ans1) in
+  let res = if not recover_caps then old else
+    (* For one pass narrow a retained max bound when the supplier keeps
+       one arm and tightens the other by a constant on the same indices. *)
+    let smaller a b = match diff ~cmp_v a b with
+      | [], c, _ -> c >/ !/0
+      | _ -> false in
+    let narrows (a,b) (c,d) =
+      (equal_w ~cmp_v a c && smaller b d) || (equal_w ~cmp_v a d && smaller b c) ||
+      (equal_w ~cmp_v b c && smaller a d) || (equal_w ~cmp_v b d && smaller a c) in
+    let _, _, _, retained = split_flatten ~cmp_v old in
+    let caps = List.filter (fun pair ->
+        VarSet.subset (fvs_2w pair) interface && List.exists (narrows pair) retained)
+        suboptis2 in
+    List.map expand_subopti caps @ old in
   let more_guard, res =
     match localvs with
       | Some localvs when not initstep ->

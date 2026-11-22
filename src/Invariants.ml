@@ -712,7 +712,7 @@ let prune_redund q_ops ?localvs ?guard ~initstep (vs, cnj) =
 
 (* Rename the new solution to match variables of the old solution. *)
 (* FIXME: coordinate with NumS.disjelim_simplify. *)
-let converge q_ops ~occupied ~fresh ~initstep ?guard ~branches ~check_only
+let converge q_ops ~occupied ~fresh ~initstep ?guard ~branches ~check_only ~recover_caps
     (vs1, cnj1) (vs2, cnj2) =
   (*[* Format.printf
     "converge: check_only=%b@ vs1=%a@ vs2=%a@\ncnj1=%a@\ncnj2=%a\n%!"
@@ -805,7 +805,7 @@ let converge q_ops ~occupied ~fresh ~initstep ?guard ~branches ~check_only
           (fvs_typ (subst_typ types tdelta)) in
       let interface = VarSet.inter (public_vars c1_ty tpar_old)
           (public_vars c2_ty tpar_new) in
-      NumS.converge q_ops ~localvs ?guard ~suppliers:(interface, branches)
+      NumS.converge q_ops ~recover_caps ~localvs ?guard ~suppliers:(interface, branches)
         ~initstep c1_num c2_num in
   let res = to_formula c2_ty @ NumS.formula_of_sort c_num in
   let res_vs = fvs_formula res in
@@ -1277,8 +1277,9 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
                  converge q.op ~occupied:used
                    ~fresh:(VarSet.diff (vars_of_list fresh) fixed)
                    ~guard ~branches ~initstep:!initstep
+                   ~recover_caps:(supplier_pass = Some iter_no)
                    ~check_only:(!initstep || old_initstep ||
-                                iter_no < jump_at || supplier_pass = Some iter_no)
+                                iter_no < jump_at)
                    old lifted in
                let anchor = Hashtbl.find q.chiK_anchor i in
                if vs <> [] then q.add_b_vs_of anchor
@@ -1859,7 +1860,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
         raise (NoAnswer (Type_sort, "Answers do not converge", None, loc))
       else
         (* Both predicates can repeat while widening renews a caller demand.
-           Give the full supplier summary one pass through caller abduction.
+           Try its tighter supplier caps on the existing interface for one pass.
            Subsequent passes use the ordinary jump and stopping test. *)
         let supplier_pass =
           if supplier_pass = None && iter_no >= jump_at && not !initstep &&

@@ -16,7 +16,7 @@ external val step :
    Num i → Num j → Num m → Num n → StepResult (i, j, m, n)
 
 val climb :
-   ∀i, j, k, n[j ≤ 0 ∧ min (0, -i)≤j ∧
-   min (-n + k + -20, 0)≤j ∧ i≤max (-2 j + -2, 1)].
+   ∀i, j, k, n[j ≤ 0 ∧ i≤max (1, -2 j + -2) ∧ min (0, -i)≤j ∧
+   min (-n + k + -20, 0)≤j].
    Num j → Num i → Num k → Num n → Nat → ∃i[k ≤ i ∧
-     i≤max (k, 2 j + n + 22) ∧ i≤max (k, n + 19)].Num i
+     i≤max (k, n + 19) ∧ i≤max (k, 2 j + n + 22)].Num i
