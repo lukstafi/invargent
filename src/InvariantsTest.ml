@@ -2018,7 +2018,7 @@ let rec zip =
     | UCons xs, UCons ys ->
       let zs = zip (xs, ys) in
       UCons zs"
-        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (k, n)].Unary i) ∧
+        [2,"∃n, k. δ = ((Unary n, Unary k) → ∃i[i=min (n, k)].Unary i) ∧
   0 ≤ k ∧ 0 ≤ n"]
     );
 

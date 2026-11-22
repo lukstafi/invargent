@@ -649,13 +649,16 @@ let constr_gen_expr gamma e t =
     let is_neg = single_assert_false e in
     let t3 = if is_neg then TVar (fresh_typ_var ()) else t1 in
     let pcns = constr_gen_pat p t3 in
-    let bs, prem, env = envfrag_gen_pat count p t3 in
+    (* A guarded negative branch tests values from the actual scrutinee.
+       Its pattern can still be checked at a fresh type when it is impossible. *)
+    let guarded_neg = is_neg && guards <> [] in
+    let bs, prem, env = envfrag_gen_pat count p (if guarded_neg then t1 else t3) in
     (*[* Format.printf "constr_gen-aux_cl: [%d] t1=%a@ t2=%a@ t3=%a@ bs=%a@ prem=%a@\n%!"
       count pr_ty t1 pr_ty t2 pr_ty t3 pr_vars bs pr_formula prem; *]*)
     let gamma' = List.map typ_to_sch env @ gamma in
     let concl, e = aux gamma' t2 e in
     let neg_prem =
-      if is_neg
+      if is_neg && not guarded_neg
       then [Eqty (t1, t3, dummy_loc)]
       else [] in
     let (g_as, g_concl, g_cond), guards = fold_map
