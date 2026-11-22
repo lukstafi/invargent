@@ -1368,14 +1368,11 @@ let interval_call_key samples signature arrow body bands loc =
                  (match probes with _::_::_ -> [query probes] | _ -> []))
             | _,None -> []) keys
       | _ -> [] in
+    let conditional = lazy (NumS.has_conditional_key_bound ~keys (numeric signature)) in
     let on_guard early () = match scheme with
       | _,_,[TCons (n,[_])],_,_ when n=numtype &&
           List.for_all (fun t -> typ_sort t=Num_sort) actuals ->
-        let pre = numeric signature in
-        let conditional = List.exists (fun key -> List.exists (function
-            | NumDefs.Subopti (a,b,_) -> NumDefs.has_var_term key a <> NumDefs.has_var_term key b
-            | _ -> false) pre) keys in
-        if early <> conditional then [] else
+        if early <> Lazy.force conditional then [] else
         (match unique_sorted (Lazy.force observed) with
          | [] -> [] | bs -> List.map (fun bands -> Exclude_bands bands) (bs :: singles bs))
       | _ -> [] in

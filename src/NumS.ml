@@ -5091,6 +5091,28 @@ let key_interval ?context ~inputs ~key pre loc =
     Some (lower,upper,lo@hi)
   with Not_found -> None
 
+(* A disjunct may leave a key free. Two opposite rays can also isolate
+   an endpoint: the linear admission forces one arm's term nonnegative,
+   so that arm can hold only at equality. Wider separated intervals can
+   still benefit from the ordinary component probes. *)
+let has_conditional_key_bound ~keys phi =
+  let direction key (vars,_,_) =
+    try sign_num (List.assoc key vars) with Not_found -> 0 in
+  let linear = lazy (satisfiable (List.filter (function Eq _ | Leq _ -> true | _ -> false) phi)) in
+  let boundary t loc = match Lazy.force linear with
+    | Left _ -> false
+    | Right state ->
+      implies_cnj state [Leq (Cst (0,1),t,loc)] &&
+      (match satisfiable ~state [Eq (t,Cst (0,1),loc)] with Right _ -> true | Left _ -> false) in
+  List.exists (function
+      | Subopti (a,b,loc) as atom ->
+        let sides = match flatten ~cmp_v:compare atom with
+          | Subopti_w (u,v) -> List.map (fun k -> direction k u,direction k v) keys
+          | _ -> assert false in
+        List.exists (fun (u,v) -> (u=0) <> (v=0)) sides ||
+        (List.exists (fun (u,v) -> u*v < 0) sides && (boundary a loc || boundary b loc))
+      | _ -> false) phi
+
 let interval_endpoints ~inputs ~key pre loc =
   match key_interval ~inputs ~key pre loc with
   | Some (lo,hi,_) when lo=hi -> None

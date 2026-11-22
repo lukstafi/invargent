@@ -25,6 +25,15 @@ let numeric_formula s =
   sort_formula (Parser.formula Lexer.token (Lexing.from_string s))
 
 let tests = "NumS" >::: [
+  "alternative bounds on a key select the all-typings check" >:: (fun () ->
+    let split s = has_conditional_key_bound ~keys:[VNam (Num_sort,"k")] (numeric_formula s) in
+    assert_bool "the second ray reaches only the exposed corner"
+      (split "i≤1 ∧ k≤1 ∧ min(i+k + -1,2 + -i + -k)≤0");
+    assert_bool "two intervals with interior"
+      (not (split "2≤i ∧ 1≤k ∧ k≤4 i ∧ min(k + -i,3 i+1 + -k)≤0"));
+    assert_bool "one key-free arm after cancellation" (split "min(k + -k + i,2 k)≤0");
+    assert_bool "two upper rays" (not (split "min(k,2/3 k + -i)≤0"));
+    assert_bool "only other coordinates change direction" (not (split "min(k+i,k + -i)≤0")));
   "opposing affine arms can cover the whole line after substitution" >:: (fun () ->
     let residual phi = List.exists (function Subopti _ -> true | _ -> false)
         (formula_of_state (satisfiable_exn (numeric_formula phi))) in

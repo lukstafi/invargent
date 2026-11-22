@@ -1,0 +1,17 @@
+datatype Nat
+datacons Z : Nat
+datacons S : Nat ⟶ Nat
+
+external let observe : ∀i. Num i → Bool = "fun n -> print_int n; print_newline (); true"
+
+external let next : ∀i,j[0≤i ∧ i≤1]. Num i → Num j → Num (2 j + -i) =
+  "fun x r -> if r < min_int/2+1 || r > max_int/2 then failwith \"range\" else 2*r-x"
+
+let rec run : ∀i,k[0≤i ∧ i≤1 ∧ 0≤k ∧ k≤1 ∧ min(i+k + -1,2 + -i + -k)≤0].
+  Num i → Num (i+1) → Nat → ∃l[l≤1 ∧ min(k+l + -1,1 + -k)≤0]. Num l =
+  fun x lo -> efunction
+  | Z -> x
+  | S d -> let prior = run x lo d in
+           (match prior with r when lo <= r -> True | r -> next x r)
+test (let p = run 0 1 (S (S Z)) in let _ = observe p in
+      let q = run 1 2 (S (S Z)) in observe q)

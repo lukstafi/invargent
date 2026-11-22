@@ -1,0 +1,14 @@
+datatype Nat
+
+datacons Z : Nat
+
+datacons S : Nat ⟶ Nat
+
+external val observe : ∀i. Num i → Bool
+
+external val next : ∀i, j[0 ≤ i ∧ i ≤ 1]. Num i → Num j → Num (2 j + -i)
+
+val run :
+   ∀k, n[n ≤ 1 ∧ k ≤ 1 ∧ 0 ≤ k ∧ 0 ≤ n ∧ min||max (k + n + -1, -k + -n + 2)].
+   Num k → Num (k + 1) → Nat → ∃l[l ≤ 1 ∧
+     min||max (0 + -1 + n + l, 0 + 1 + -n)].Num l
