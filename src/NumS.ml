@@ -4849,17 +4849,28 @@ let common_result_possible ~keys ~witnesses ~admissions ~post pre =
   | Left _ -> false
   | Right initial ->
     let failed_posts = List.map (complements positive) (project_exists ~vars:witnesses post) in
-    let rec refute state facts acc = function
-      | [] -> List.rev_append (project_exists ~vars:keys facts) acc
-      | choices::rest -> List.fold_left (fun acc more -> match extend state more with
-          | None -> acc | Some next -> refute next (more @ facts) acc rest) acc choices in
-    let refuted = List.fold_left (fun acc domain -> match extend initial domain with
-        | None -> acc | Some state -> refute state domain acc failed_posts) [] admissions in
+    let rec refutations state facts = function
+      | [] -> lazy (LazCons (project_exists ~vars:keys facts,laznil))
+      | choices::rest -> lazconcat_map (fun more -> match extend state more with
+          | None -> laznil | Some next -> refutations next (more @ facts) rest)
+          (laz_of_list choices) in
+    let escape cell = complements positive_near_zero cell in
+    (* An outer observation can use arbitrarily small positive slack. If
+       its state cannot meet a cell at any positive slack, skip that cell. *)
     let rec uncovered state = function
       | [] -> true
-      | choices::rest -> List.exists (fun facts -> match extend state facts with
-          | None -> false | Some next -> uncovered next rest) choices in
-    uncovered initial (List.map (complements positive_near_zero) (unique_sorted refuted))
+      | cell::rest -> match extend state cell with
+        | None -> uncovered state rest
+        | Some _ -> List.exists (fun facts -> match extend state facts with
+            | None -> false | Some next -> uncovered next rest) (escape cell) in
+    (* Stop as soon as one refutation covers the whole guard. Otherwise
+       retain the cells for the final joint coverage test. *)
+    let rec collect seen = function
+      | lazy LazNil -> uncovered initial (unique_sorted seen)
+      | lazy (LazCons (cells,tail)) ->
+        List.for_all (fun cell -> uncovered initial [cell]) cells &&
+        collect (List.rev_append cells seen) tail in
+    collect [] (refutations initial [] (admissions :: failed_posts))
 
 (* Solve a row a*k + t <= 0 for an integral affine endpoint. For the
    complement a*k + t > 0, take the first integer across the boundary. *)
