@@ -1,0 +1,13 @@
+datatype Nat
+datacons Z : Nat
+datacons S : Nat ⟶ Nat
+
+external let observe : ∀i. Num i → Bool = "fun v -> print_endline (string_of_int v); v >= 0"
+let rec run : ∀k,n[2≤n ∧ 1≤k ∧ k≤4n ∧ min(k + -n,3n+1 + -k)≤0]. Num n → Nat →
+  ∃l[-n≤l ∧ l≤n ∧ min(l+n+2 + -k,k + -n + -l)≤0 ∧ min(l+3n+1 + -k,k+1 + -3n + -l)≤0]. Num l =
+  fun size -> efunction
+  | Z -> 0
+  | S d -> let prior = run size d in
+           (match prior with r when 1 <= r && r <= size -> True
+            | r when r <= (-1) -> True | _ -> 0)
+test (let p = run 4 (S (S Z)) in observe p)

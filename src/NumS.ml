@@ -4768,30 +4768,94 @@ let integer_key_boundary ~strict ~inputs ~key (vs,c,lc) =
   if not (safe c && List.for_all (fun (_,n) -> safe n) vs) then None else
   Some (lower, expand_w (vs,c,lc))
 
-let refuting_keys ~inputs ~key ~result post =
+let refuting_regions ~inputs ~key ~result post =
   let inputs = VarSet.add result inputs in
   let boundary row = match integer_key_boundary ~strict:true ~inputs ~key row with
     | Some (_,t) when VarSet.mem result (fvs_term t) -> Some t
     | _ -> None in
-  unique_sorted (concat_map (function
-      | Subopti_w (a,b) -> map_some boundary [a;b]
-      | _ -> []) (flatten_formula ~cmp_v:compare post))
+  map_some (function
+      | Subopti _ as atom ->
+        (match flatten ~cmp_v:compare atom with
+         | Subopti_w (x,y) ->
+           let targets = unique_sorted (map_some boundary [x;y]) in
+           if targets=[] then None else Some (targets,atom)
+         | _ -> None)
+      | _ -> None) post
+
+let refuting_keys ~inputs ~key ~result post =
+  unique_sorted (concat_map fst (refuting_regions ~inputs ~key ~result post))
 
 (* Extremal integral affine keys for two typings of the same call. *)
-let interval_endpoints ~inputs ~key pre loc =
+let key_interval ?context ~inputs ~key pre loc =
   let low,high = List.partition fst
       (map_some (integer_key_boundary ~strict:false ~inputs ~key) (interval_rows pre)) in
-  let extreme minimum = function
+  let extreme minimum terms =
+    let dominates x y = match context with
+      | None -> false
+      | Some state -> implies_cnj state [if minimum then Leq (x,y,loc) else Leq (y,x,loc)] in
+    let keep best t =
+      if List.exists (fun x -> dominates x t) best then best
+      else t :: List.filter (fun x -> not (dominates t x)) best in
+    match List.rev (List.fold_left keep [] (unique_sorted (List.map snd terms))) with
     | [] -> raise Not_found
     | h::ts -> List.fold_left (fun (x,phi) y ->
         let r = Lin (1,1,Terms.fresh_num_var ()) in
         let side t = if minimum then add r (scale_term (-1) 1 t) else add t (scale_term (-1) 1 r) in
         r, Opti (side x,side y,loc)::phi) (h,[]) ts in
   try
-    let lower,lo = extreme false (unique_sorted (List.map snd low)) in
-    let upper,hi = extreme true (unique_sorted (List.map snd high)) in
-    if lower = upper then None else Some (lower,upper,lo@hi)
+    let lower,lo = extreme false low and upper,hi = extreme true high in
+    Some (lower,upper,lo@hi)
   with Not_found -> None
+
+let interval_endpoints ~inputs ~key pre loc =
+  match key_interval ~inputs ~key pre loc with
+  | Some (lo,hi,_) when lo=hi -> None
+  | interval -> interval
+
+type key_probe = { target_value : term; clip_lower : term; clip_upper : term }
+
+(* Project a refuting target onto each linear component which it can meet.
+   Only total extremum definitions leave this search. Cell premises guide
+   proposal generation and never become assumptions of the typing. *)
+let component_keys ~inputs ~key ~result ~post pre loc =
+  let uses_key atom = VarSet.mem key (fvs_atom atom) in
+  let split = function
+    | Subopti (a,b,lc) as atom when uses_key atom ->
+      let side t = Leq (t,Cst (0,1),lc) in Some ([side a],[side b])
+    | Opti (a,b,lc) as atom when uses_key atom ->
+      let zero = Cst (0,1) in
+      Some ([Eq (a,zero,lc); Leq (b,zero,lc)], [Eq (b,zero,lc); Leq (a,zero,lc)])
+    | _ -> None in
+  let choices = map_some split pre in
+  if choices=[] then [],[] else
+  let regions = refuting_regions ~inputs ~key ~result post in
+  if regions=[] then [],[] else
+  let common = List.filter (fun atom -> split atom=None) pre in
+  let independent = List.filter (fun atom -> not (uses_key atom)) in
+  let possible phi = match satisfiable phi with Left _ -> false | Right _ -> true in
+  let payload = independent post in
+  let rec visit context cell (probes,graphs as found) choices =
+    if not (possible cell) then found else match choices with
+    | (left,right)::rest ->
+      let found = visit context (left @ cell) found rest in
+      visit context (right @ cell) found rest
+    | [] ->
+      (* Discard a band only if its exclusion already holds throughout
+         this cell. Both boundary targets can lie outside a useful cell. *)
+      let hits = match satisfiable (payload @ cell) with
+        | Left _ -> []
+        | Right state -> concat_map (fun (targets,atom) ->
+            if implies_cnj state [atom] then [] else targets) regions in
+      if hits=[] then found else match key_interval ~context ~inputs ~key cell loc with
+      | None -> found
+      | Some (lo,hi,graph) ->
+        let project target_value = {target_value;clip_lower=lo;clip_upper=hi} in
+        List.rev_append (List.map project hits) probes, graph @ graphs in
+  try match satisfiable (independent common) with
+    | Left _ -> [],[]
+    | Right context ->
+      let probes,graphs = visit context common ([],[]) choices in unique_sorted probes,graphs
+  with Failure msg when msg = "int_of_big_int" -> [],[]
 
 (* A guarded graph can select different affine keys across an unbounded
    change of package width. Keep the key inside the call's permitted interval

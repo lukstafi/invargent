@@ -55,6 +55,15 @@ let tests = "NumS" >::: [
     let extra = numeric_formula "min(k+1,1 + -k)<=0" in
     assert_equal [] (guarded_interval_call ~inputs ~key:k ~result:r ~bands:[c 10,c 10]
       ~post (pre @ extra) dummy_loc));
+  "a component inside a forbidden band survives boundary pruning" >:: (fun () ->
+    let key = VNam (Num_sort,"k") and result = VNam (Num_sort,"l") in
+    let pre = numeric_formula "0<=k ∧ k<=11 ∧ min(k,10 + -k)<=0" in
+    let post = numeric_formula "l=0 ∧ min(k + -l + -4,l+16 + -k)<=0" in
+    let probes,defs = component_keys ~inputs:VarSet.empty ~key ~result ~post pre dummy_loc in
+    assert_equal [] defs;
+    assert_equal 2 (List.length probes);
+    List.iter (fun p ->
+        assert_equal (Cst (10,1),Cst (11,1)) (p.clip_lower,p.clip_upper)) probes);
   "symbolic interval keys attain the greatest and least admissible values" >:: (fun () ->
     let var s = VNam (Num_sort,s) in
     let i = var "i" and j = var "j" and k = var "k" and r = var "l" in

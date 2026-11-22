@@ -401,6 +401,12 @@ let tests = "InvarGenT" >::: [
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "staged_result_keys";
       "a useful pair survives an unavailable third result key" >::
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "unused_result_key";
+      "a refuting key stays inside its own admitted interval" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "separated_result_keys";
+      "a written interval can contain a key removed by inference" >:: (fun () ->
+        let source = input_file (example_path "narrowed_result_band" ^ ".gadt") in
+        assert_bool "minus two reaches the second guard"
+          (rejects_source ~integer_target:true source));
       "two result keys cannot license each other in a cycle" >:: (fun () ->
         let source = input_file (example_path "circular_result_keys" ^ ".gadt") in
         assert_bool "the base returns three and reaches the guarded arm"

@@ -723,7 +723,7 @@ type key_query = {
   lower : NumDefs.term;
   upper : NumDefs.term;
   bounds : NumDefs.formula;
-  target : (var_name * NumDefs.term list) option
+  target : (var_name * NumS.key_probe list) option
 }
 
 type call_policy = Restrict_calls of formula | Open_at_keys of key_query
@@ -735,13 +735,13 @@ type replay =
 
 (* Each graph is total and single valued. Only fresh variable renamings are
    applied to the input and payload expressions. *)
-let selected_key query sb (payload,target) observed =
+let selected_key sb payload probe observed =
   let open NumDefs in
   let k = fresh_num_var () and r = fresh_num_var () and mid = fresh_num_var () in
   let v x = Lin (1,1,x) in
   let sub a b = add a (scale_term (-1) 1 b) in
-  let target = hvsubst_term (VarMap.add payload r sb) target in
-  let low = hvsubst_term sb query.lower and high = hvsubst_term sb query.upper in
+  let target = hvsubst_term (VarMap.add payload r sb) probe.NumS.target_value in
+  let low = hvsubst_term sb probe.NumS.clip_lower and high = hvsubst_term sb probe.NumS.clip_upper in
   k, vars_of_list [r;mid;k],
   [Eq (v r,observed,dummy_loc);
    Opti (sub low (v mid),sub target (v mid),dummy_loc);
@@ -1308,24 +1308,30 @@ let interval_call_key samples signature arrow body bands loc =
     (* Try fixed endpoints before choosing a key from the payload of the
        first package. Only a saturated call can use either retry. *)
     let singles = function _::_::_ as bs -> List.map (fun b -> [b]) bs | _ -> [] in
-    let paired dependent () = match scheme with
+    let paired strategy () = match scheme with
       | _,_,[TCons (n,[_])],_,_ when n=numtype ->
+        let pre = numeric signature in
         concat_map (fun key ->
-            let targets = if not dependent then [None] else
+            match NumS.interval_endpoints ~inputs ~key pre loc with
+            | None -> []
+            | Some (lower,upper,bounds) ->
+              let propose bounds target = Open_at_keys {key;lower;upper;bounds;target} in
+              if strategy=`Endpoints then [propose bounds None] else
               match Lazy.force package with
               | None -> []
               | Some (r,post) ->
-                let ts = NumS.refuting_keys ~inputs ~key ~result:r post in
-                List.map (fun t -> Some (r,[t])) ts @
-                (match ts with _::_::_ -> [Some (r,ts)] | _ -> []) in
-            if targets=[] then [] else
-            match NumS.interval_endpoints ~inputs ~key (numeric signature) loc with
-            | None -> []
-            | Some (lower,upper,bounds) -> List.map (fun target ->
-                Open_at_keys {key;lower;upper;bounds;target}) targets) keys
+                let probes,graph = if strategy=`Components then
+                    NumS.component_keys ~inputs ~key ~result:r ~post pre loc
+                  else List.map (fun target_value ->
+                      {NumS.target_value;clip_lower=lower;clip_upper=upper})
+                      (NumS.refuting_keys ~inputs ~key ~result:r post),[] in
+                let query probes = propose (bounds @ graph) (Some (r,probes)) in
+                List.map (fun p -> query [p]) probes @
+                (match probes with _::_::_ -> [query probes] | _ -> [])) keys
       | _ -> [] in
     List.map (fun generate () -> List.map (fun phi -> Restrict_calls (NumS.formula_of_sort phi)) (generate ()))
-      (before @ [guarded singles; guarded (fun bs -> [bs])]) @ [paired false; paired true]
+      (before @ [guarded singles; guarded (fun bs -> [bs])]) @
+    [paired `Endpoints; paired `Hull; paired `Components]
   | _ -> []
 
 let gen_letrec ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests =
@@ -1378,13 +1384,14 @@ let gen_letrec ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests
          gamma,Some (def_typ,(vs,phi,first),fun sb -> Fixed (hvsubst_typ sb (return_type second)))
        | Some (r,targets) ->
          let primary = Eqty (TVar query.key,num query.lower,lc) :: chi_b :: signature @ graph in
-         let vs = fvs_formula primary |> VarSet.union (NumDefs.fvs_term query.upper) |>
-           VarSet.union (VarSet.remove r (vars_of_map NumDefs.fvs_term targets)) in
+         let terms = concat_map (fun p -> [p.NumS.target_value;p.NumS.clip_lower;p.NumS.clip_upper]) targets in
+         let vs = VarSet.union (fvs_formula primary)
+             (VarSet.remove r (vars_of_map NumDefs.fvs_term terms)) in
          let other sb =
            let choose = function
              | TCons (n,[observed]) when n=numtype ->
                List.map (fun target ->
-                   let k,keys,graph = selected_key query sb (r,target) (NumS.num_of observed) in
+                   let k,keys,graph = selected_key sb r target (NumS.num_of observed) in
                    let arrow,id,positive = instance sb k in
                    let graph = NumS.formula_of_sort graph in
                    return_type arrow, keys, graph, Ex (VarSet.add id keys,A (graph @ positive))) targets
@@ -1706,7 +1713,7 @@ let check_key_admission query signature written inferred loc =
          | _ -> raise Not_found in
        let observed,opened = opening first in
        let queries = List.map (fun target ->
-           let k,_,graph = selected_key query VarMap.empty (r,target) observed in
+           let k,_,graph = selected_key VarMap.empty r target observed in
            target,k,graph) targets in
        let extend facts (_,k,graph) =
          let value,post = opening k in

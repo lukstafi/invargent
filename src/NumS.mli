@@ -110,6 +110,14 @@ val interval_endpoints : inputs:Defs.VarSet.t -> key:Defs.var_name ->
 val refuting_keys : inputs:Defs.VarSet.t -> key:Defs.var_name -> result:Defs.var_name ->
   NumDefs.formula -> NumDefs.term list
 
+type key_probe = { target_value : NumDefs.term; clip_lower : NumDefs.term; clip_upper : NumDefs.term }
+
+(** Each proposal gives a target and the endpoints onto which to clip it.
+    The accompanying formula defines fresh extrema from the input indices. *)
+val component_keys : inputs:Defs.VarSet.t -> key:Defs.var_name -> result:Defs.var_name ->
+  post:NumDefs.formula -> NumDefs.formula -> Defs.loc ->
+  key_probe list * NumDefs.formula
+
 (** Select a legal key by guarded affine cases, allowing the interval's
     lower and upper offsets to depend on observed integer arguments. The graph
     covers the original key domain even if avoidance is impossible. When
