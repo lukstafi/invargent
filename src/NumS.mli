@@ -105,6 +105,11 @@ val symbolic_interval_calls :
 val interval_endpoints : inputs:Defs.VarSet.t -> key:Defs.var_name ->
   NumDefs.formula -> Defs.loc -> (NumDefs.term * NumDefs.term * NumDefs.formula) option
 
+(** Candidate keys at the strict boundaries of a disjunctive package
+    inequality, using the observed payload and exposed input indices. *)
+val refuting_keys : inputs:Defs.VarSet.t -> key:Defs.var_name -> result:Defs.var_name ->
+  NumDefs.formula -> NumDefs.term list
+
 (** Select a legal key by guarded affine cases, allowing the interval's
     lower and upper offsets to depend on observed integer arguments. The graph
     covers the original key domain even if avoidance is impossible. When

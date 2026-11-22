@@ -389,6 +389,14 @@ let tests = "InvarGenT" >::: [
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "erased_interval";
       "two admitted keys exclude both possible positive results" >::
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "punctured_two_keys";
+      "a recursive result can supply its own refuting key" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "result_dependent_key";
+      "the refuting key can depend on both the result and the input" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "reflected_result_key";
+      "a reachable result cannot use the missing key to exclude itself" >:: (fun () ->
+        let source = input_file (example_path "missing_result_key" ^ ".gadt") in
+        assert_bool "a base result of two reaches the guarded arm"
+          (rejects_source ~integer_target:true source));
       "a second typing must admit the same recursive arguments" >:: (fun () ->
         let source = input_file (example_path "unavailable_interval_key" ^ ".gadt") in
         assert_bool "the negative state reaches its guarded arm"

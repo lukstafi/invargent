@@ -4752,20 +4752,35 @@ let implies_cnj (eqs, ineqs, optis, suboptis) cnj =
   implies ~cmp_v ~cmp_w uni_v eqs ineqs optis suboptis c_eqn c_ineqn
     c_optis c_suboptis 
 
-(* Extremal integral affine keys for two typings of the same call. Both
-   instantiations must still satisfy the complete inferred call predicate. *)
+(* Solve a row a*k + t <= 0 for an integral affine endpoint. For the
+   complement a*k + t > 0, take the first integer across the boundary. *)
+let integer_key_boundary ~strict ~inputs ~key (vs,c,lc) =
+  let a = try List.assoc key vs with Not_found -> !/0 in
+  if a =/ !/0 then None else
+  let vs,c,_ = mult (minus_num !/1 // a) (List.remove_assoc key vs,c,lc) in
+  if not (List.for_all (fun (v,n) -> VarSet.mem v inputs && is_integer_num n) vs)
+  then None else
+  let lower = if strict then a >/ !/0 else a </ !/0 in
+  let c = match strict,lower with
+    | true,true -> floor_num c +/ !/1 | true,false -> ceiling_num c -/ !/1
+    | false,true -> ceiling_num c | false,false -> floor_num c in
+  let safe n = abs_num n <=/ !/max_int in
+  if not (safe c && List.for_all (fun (_,n) -> safe n) vs) then None else
+  Some (lower, expand_w (vs,c,lc))
+
+let refuting_keys ~inputs ~key ~result post =
+  let inputs = VarSet.add result inputs in
+  let boundary row = match integer_key_boundary ~strict:true ~inputs ~key row with
+    | Some (_,t) when VarSet.mem result (fvs_term t) -> Some t
+    | _ -> None in
+  unique_sorted (concat_map (function
+      | Subopti_w (a,b) -> map_some boundary [a;b]
+      | _ -> []) (flatten_formula ~cmp_v:compare post))
+
+(* Extremal integral affine keys for two typings of the same call. *)
 let interval_endpoints ~inputs ~key pre loc =
-  let bound (vs,c,_) =
-    let a = try List.assoc key vs with Not_found -> !/0 in
-    if a =/ !/0 then None else
-    let vs,c,_ = mult (minus_num !/1 // a) (List.remove_assoc key vs,c,loc) in
-    if not (List.for_all (fun (v,n) -> VarSet.mem v inputs && is_integer_num n) vs)
-    then None else
-    let c = if a </ !/0 then ceiling_num c else floor_num c in
-    let safe n = abs_num n <=/ !/max_int in
-    if not (safe c && List.for_all (fun (_,n) -> safe n) vs) then None else
-    Some (a </ !/0, expand_w (vs,c,loc)) in
-  let low,high = List.partition fst (map_some bound (interval_rows pre)) in
+  let low,high = List.partition fst
+      (map_some (integer_key_boundary ~strict:false ~inputs ~key) (interval_rows pre)) in
   let extreme minimum = function
     | [] -> raise Not_found
     | h::ts -> List.fold_left (fun (x,phi) y ->
