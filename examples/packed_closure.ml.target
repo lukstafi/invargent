@@ -1,0 +1,15 @@
+type num = int
+type switch =
+  | L : switch
+  | R : switch
+type ex1 =
+  | Ex1 : (*∀'a.*)'a -> ex1
+let hide : (switch -> ex1) =
+  (fun s ->
+    (((match (s: switch) with
+    L -> let xcase = (fun x -> x) in Ex1 xcase
+      | R -> let xcase = 0 in Ex1 xcase)) :
+    ex1))
+let left : bool = let Ex1 h = hide L in true
+let right : bool = let Ex1 h = hide R in true
+

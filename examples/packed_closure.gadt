@@ -1,0 +1,6 @@
+datatype Switch
+datacons L : Switch
+datacons R : Switch
+let hide : Switch → ∃a.a = efunction s -> (match s with L -> (fun x -> x) | R -> 0)
+let left = let h = hide L in True
+let right = let h = hide R in True

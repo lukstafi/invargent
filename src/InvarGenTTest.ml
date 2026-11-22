@@ -359,6 +359,9 @@ let tests = "InvarGenT" >::: [
       "a local recursive definition supplies a necessary guard contract" >:: run_example "local_guard_pair";
       "one package relation excludes two arms and preserves the live arm" >::
         run_example "local_packed_guards";
+      "an existential can hide a closure with a free argument type" >::
+        test_case ~test_annot:true "packed_closure";
+      "the state index reaches the package through a tail match" >:: run_example "state_coordinate";
       "a reachable package result must pass the final exclusion check" >:: (fun () ->
         let source = "datatype Nat\ndatacons Z : Nat\ndatacons S : Nat ⟶ Nat\n" ^
           "external let expects_nat : Nat → Bool = \"fun _ -> true\"\n" ^

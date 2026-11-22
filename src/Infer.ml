@@ -147,6 +147,10 @@ let ex_intro_elim e =
 let fresh_chi_id = ref 0
 let fresh_expr_var_id = ref 0
 
+let pack_value k e =
+  let lc = expr_loc e in
+  Letin (None, PVar ("xcase", lc), e, Cons (Extype k, [Var ("xcase", lc)], lc), lc)
+
 let normalize_with_target ?target e =
   (*[* Format.printf
     "normalize_expr: e=@\n%a@\n%!" pr_uexpr e; *]*)
@@ -154,9 +158,7 @@ let normalize_with_target ?target e =
   let rec aux ?target k' e =
     match k', target, e with
     | Some k, _, e when not (ex_intro_elim e) ->
-      let lc = expr_loc e in
-      Letin (None, PVar ("xcase", lc), aux None e,
-             Cons (Extype k, [Var ("xcase", lc)], lc), lc)
+      pack_value k (aux None e)
     | _, _, ((Var _ | Num _ | String _) as x) -> x
     | _, _, Cons (k, es, lc) -> Cons (k, List.map (aux None) es, lc)
     | _, _, App (e1, e2, lc) ->
@@ -206,6 +208,43 @@ let normalize_with_target ?target e =
   !new_ex_types, e
 
 let normalize_expr e = normalize_with_target e
+
+(* Move a generated package introduction into the selected match arm. The
+   same constructor and result parameter are shared across all arms. Each
+   arm gets its own let, since opening decisions are keyed by the pattern. *)
+let branch_packages e tests =
+  let changed = ref false in
+  let rec pack k = function
+    | App (Lam ((), arms, floc), arg, loc) ->
+      changed := true;
+      App (Lam ((), List.map (fun (p, gs, body) -> p, gs, pack k body) arms,
+                floc), arg, loc)
+    | Letin (doc, p, v, body, loc) -> Letin (doc, p, v, pack k body, loc)
+    | Letrec (doc, (), x, v, body, loc) -> Letrec (doc, (), x, v, pack k body, loc)
+    | AssertLeq (a, b, body, loc) -> AssertLeq (a, b, pack k body, loc)
+    | AssertEqty (a, b, body, loc) -> AssertEqty (a, b, pack k body, loc)
+    | (AssertFalse _ | RuntimeFailure _) as e -> e
+    | value -> pack_value k value in
+  let rec visit = function
+    | Letin (None, PVar ("xcase", _), (App (Lam _, _, _) as cases),
+             Cons (Extype k, [Var ("xcase", _)], _), _) ->
+      pack k (visit cases)
+    | Letin (doc, p, a, b, loc) -> Letin (doc, p, visit a, visit b, loc)
+    | Letrec (doc, (), x, a, b, loc) -> Letrec (doc, (), x, visit a, visit b, loc)
+    | Lam ((), arms, loc) -> Lam ((), List.map visit_arm arms, loc)
+    | ExLam (k, arms, loc) -> ExLam (k, List.map visit_arm arms, loc)
+    | App (a, b, loc) -> App (visit a, visit b, loc)
+    | Cons (k, args, loc) -> Cons (k, List.map visit args, loc)
+    | NumAdd (a, b, loc) -> NumAdd (visit a, visit b, loc)
+    | NumCoef (n, a, loc) -> NumCoef (n, visit a, loc)
+    | AssertLeq (a, b, body, loc) -> AssertLeq (visit a, visit b, visit body, loc)
+    | AssertEqty (a, b, body, loc) -> AssertEqty (visit a, visit b, visit body, loc)
+    | RuntimeFailure (msg, loc) -> RuntimeFailure (visit msg, loc)
+    | (Var _ | Num _ | String _ | AssertFalse _) as e -> e
+  and visit_arm (p, gs, body) =
+    p, List.map (fun (a, b) -> visit a, visit b) gs, visit body in
+  let e = visit e and tests = List.map visit tests in
+  if !changed then Some (e, tests) else None
 
 let signature_target = function
   | None -> None
@@ -1174,21 +1213,14 @@ let annotate_expr q res_sb chi_sb nice_sb e : texpr =
           | [p,_,e] -> !annotating_letin && not (single_assert_false e)
           | _ -> !annotating_fun
         then
-          let a1, a2 =
-            try List.find
-                  (fun (a1,a2) -> VarMap.mem a1 res_sb &&
-                                  VarMap.mem a2 res_sb)
-                  ann
-            with Not_found ->
-              (*[* Format.printf "a1s,a2s=%s@\nres_sb=%a@\nnice_sb=%a@\n%!"
-                (String.concat "; "
-                   (List.map (fun (a1,a2)->var_str a1^","^var_str a2)
-                      ann))
-                pr_subst res_sb pr_hvsubst nice_sb; *]*)
-              assert false in
-          let t1 = hvsubst_typ nice_sb (fst (VarMap.find a1 res_sb))
-          and t2 = hvsubst_typ nice_sb (fst (VarMap.find a2 res_sb)) in
-          Some (t1, t2)
+          let a1, a2 = match ann with
+            | [pair] -> pair
+            | _ -> List.find
+                (fun (a, b) -> VarMap.mem a res_sb && VarMap.mem b res_sb) ann in
+          (* An unconstrained representative (e.g. the argument of a packed
+             identity function) is absent from the solved substitution. *)
+          let ann_type a = hvsubst_typ nice_sb (subst_typ res_sb (TVar a)) in
+          Some (ann_type a1, ann_type a2)
         else None in
       evs, Lam (ann, cls, lc)
     | ExLam (k, cls, lc) ->
@@ -1245,7 +1277,7 @@ let prepare_scheme phi res =
 
 let infer_prog ?(integer_target=false) ?check_excluded solver prog =
   let check_guards = integer_target && not !force_nodeadcode && can_erase_guarded_bodies prog in
-  let solve_item packages generate =
+  let search_item packages generate =
     let run mode =
       uses_pos_assertions := false;
       let cn, preserve, data = generate mode in
@@ -1289,6 +1321,22 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
               then retry (keep :: rest) else retry rest
             | _ -> raise exn in
       retry choices in
+  let solve_item packages e tests generate =
+    let initial_packages = !all_ex_types in
+    try search_item packages (generate e tests) with
+    | (NoAnswer (_, msg, _, _) | Contradiction (_, msg, _, _)) as original
+      when msg <> "Answers do not converge" ->
+      match branch_packages e tests with
+      | None -> raise original
+      | Some (e, tests) ->
+        (* Erasure in the first search may have removed a local declaration.
+           Regenerate the alternative with the item's original packages. *)
+        all_ex_types := initial_packages;
+        try search_item packages (generate e tests) with exn ->
+          all_ex_types := initial_packages;
+          match exn with
+          | NoAnswer _ | Contradiction _ -> raise original
+          | _ -> raise exn in
   let ntime = ref (Sys.time ()) in
   let start_time = !ntime in
   let gamma = ref builtin_gamma in
@@ -1369,7 +1417,7 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
             | LetVal (_, PVar (_, lc), _, _, _) -> Some lc
             | _ -> None in
           let (chi_id, e, tests, elim_cells), new_ex_types, (q, phi_res, sb_chi) =
-            solve_item new_ex_types (fun erase_bodies ->
+            solve_item new_ex_types e tests (fun e tests erase_bodies ->
                 let chi_id, _, cn, e, tests, elim_cells, preserve =
                   constr_gen_letrec ~erase_bodies ~nonrec:(pat_loc<>None)
                     !gamma x e sig_cn t tests in
@@ -1450,7 +1498,7 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
               VarSet.singleton a, [], [], ta
             | Some (vs, phi, t) -> VarSet.empty, vs, phi, t in
           let (bs, exphi, env, p, e, elim_cell, preserve), new_ex_types, (q, phi, sb_chi) =
-            solve_item new_ex_types (fun erase_bodies ->
+            solve_item new_ex_types e [] (fun e _ erase_bodies ->
                 let bs, exphi, env, cn, (p, e), elim_cell, preserve =
                   constr_gen_let ~erase_bodies !gamma p e t in
                 let preserve = add_vars preserve

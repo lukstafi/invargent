@@ -1,0 +1,11 @@
+datatype Switch
+
+datacons L : Switch
+
+datacons R : Switch
+
+val hide : Switch → ∃a.a
+
+val left : Bool
+
+val right : Bool
