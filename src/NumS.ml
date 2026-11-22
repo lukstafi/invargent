@@ -4981,11 +4981,39 @@ let integer_observation_possible ~slack value state =
   List.exists (fun cell -> fits (None,None) (flatten_formula ~cmp_v:compare cell))
     (project_exists ~vars:hidden facts)
 
+(* Project onto actual native values before rounding. In a primitive row
+   u+c <= 0, u is an integer linear form. At positive infinitesimal slack
+   a positive slack coefficient makes the inequality strict. Rounding each
+   such side gives a rational relaxation of the joint integer problem. *)
+let integer_tuple_possible ~slack values state =
+  let named = List.map (fun term -> Terms.fresh_num_var (),term) values in
+  let facts = List.map (fun (v,t) -> Eq (Lin (1,1,v),t,dummy_loc)) named
+      @ formula_of_state state in
+  let visible = VarSet.add slack (vars_of_list (List.map fst named)) in
+  let hidden = VarSet.diff (fvs_formula facts) visible in
+  let rounded (vs,c,lc) =
+    let strict = try List.assoc slack vs >/ !/0 with Not_found -> false in
+    let vs,c,_ = norm_by_gcd (norm_by_lcd (List.remove_assoc slack vs,c,lc)) in
+    let c = if strict then floor_num c +/ !/1 else ceiling_num c in
+    expand_w (vs,c,lc) in
+  let leq w = Leq (rounded w,Cst (0,1),dummy_loc) in
+  let neg w = mult !/(-1) w in
+  let sides = function
+    | Leq_w w -> [leq w]
+    | Eq_w w -> [leq w; leq (neg w)]
+    | Subopti_w (a,b) -> [Subopti (rounded a,rounded b,dummy_loc)]
+    | Opti_w (a,b) ->
+      [leq a; leq b; Subopti (rounded (neg a),rounded (neg b),dummy_loc)] in
+  List.exists (fun cell ->
+      let constraints = concat_map sides (flatten_formula ~cmp_v:compare cell) in
+      match satisfiable constraints with Left _ -> false | Right _ -> true)
+    (project_exists ~vars:hidden facts)
+
 (* Can an observation satisfy every typing of these arguments?
    First project the private package witnesses. A refuting tuple is admitted
    and violates every cell of that projection. Eliminate its coordinates,
    then look for an observation outside every projected refutation. *)
-let common_result_possible ?integer_result ~keys ~witnesses ~admissions ~post pre =
+let common_result_possible ?integer_result ?(integer_inputs=[]) ~keys ~witnesses ~admissions ~post pre =
   let d = Terms.fresh_num_var () in
   let gap = Lin (1,1,d) and zero = Cst (0,1) in
   let nonpositive = [Leq (gap,zero,dummy_loc)] in
@@ -5024,10 +5052,13 @@ let common_result_possible ?integer_result ~keys ~witnesses ~admissions ~post pr
             | None -> false | Some next -> uncovered accepts next rest) (escape cell) in
     (* Stop as soon as one refutation covers the whole guard. Otherwise
        retain the cells for the final joint coverage test. *)
-    let realized state = match integer_result with
-      | None -> true
-      | Some value ->
-        (try integer_observation_possible ~slack:d value state
+    let native = match integer_result with
+      | None -> integer_inputs | Some value -> value :: integer_inputs in
+    let realized state = match native with
+      | [] -> true
+      | value :: rest ->
+        (try integer_observation_possible ~slack:d value state &&
+             (rest = [] || integer_tuple_possible ~slack:d native state)
          with Failure msg when msg = "int_of_big_int" -> true) in
     let rec collect seen = function
       | lazy LazNil -> uncovered realized initial (unique_sorted seen)

@@ -1,0 +1,13 @@
+datatype Nat
+datacons Z : Nat
+datacons S : Nat ⟶ Nat
+
+external let observe : ∀i. Num i → Bool = "fun v -> print_endline (string_of_int v); v = 0"
+external let seed : ∀i[0≤i ∧ i≤2]. Num i → ∃l[0≤l ∧ 2 l+2 i≤5 ∧ min(l,5 + -2 i + -2 l)≤0]. Num l = "fun _ -> 0"
+let rec run : ∀i,j,k[0≤i ∧ i≤2 ∧ 0≤k ∧ k≤1]. (Num i, Num j) → Nat →
+  ∃l[0≤l ∧ 2 l+2 i≤5 ∧ min(l,5 + -2 i + -2 l)≤0 ∧ l≤k+3]. Num l =
+  fun (flag,hi) -> efunction
+  | Z -> let seed_value = seed flag in seed_value
+  | S d -> let prior = run (flag,hi) d in
+           (match prior with r when 1 <= r && r <= hi -> True | _ -> 0)
+test (let p = run (2,2) (S (S Z)) in observe p)

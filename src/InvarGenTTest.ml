@@ -417,6 +417,11 @@ let tests = "InvarGenT" >::: [
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "fractional_guard_result";
       "recursive suppliers share an allowance across three result indices" >::
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "shared_result_allowance";
+      "a native argument keeps a separating key available after doubling" >::
+        test_case ~num_abd_timeout:40 ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b)
+          "moving_native_menu";
+      "the argument and recursive result are jointly integral" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "joint_native_guard";
       "the input admits a triangle of indices and one isolated key" >::
         test_case ~num_abd_timeout:40 ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b)
           "limit_result_keys";

@@ -226,10 +226,13 @@ val conditional_satisfiable :
   NumDefs.formula -> (NumDefs.formula * NumDefs.formula) list -> bool
 (** Feasibility of [pre] and [forall keys. admission => exists witnesses. post]
     over the rationals. An optional [integer_result] designates a term of the
-    free observation whose value must be integral. Admissions are a union of cells. The two sets of bound
+    free observation whose value must be integral. With [integer_inputs] the
+    checker also uses necessary joint integer constraints on the actual inputs
+    and result. Admissions are a union of cells. The two sets of bound
     coordinates must be fresh for [pre] and disjoint from one another. *)
 val common_result_possible :
-  ?integer_result:NumDefs.term -> keys:Defs.VarSet.t -> witnesses:Defs.VarSet.t ->
+  ?integer_result:NumDefs.term -> ?integer_inputs:NumDefs.term list ->
+  keys:Defs.VarSet.t -> witnesses:Defs.VarSet.t ->
   admissions:NumDefs.formula list -> post:NumDefs.formula -> NumDefs.formula -> bool
 (** Incremental check whether |= Q.A. Raises [Contradiction]. *)
 val holds :

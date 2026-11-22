@@ -515,12 +515,13 @@ let rec lambda_depth = function
 (* Compare actual values from this pattern. An expression computed using
    native arithmetic, including a call to an inferred successor function,
    can overflow even when its inferred index is an affine term. *)
+let guard_operand env = function
+  | Var (x, _) -> (try Some (List.assoc x env) with Not_found -> None)
+  | Num (n, _) -> Some (TCons (numtype, [num (NumDefs.Cst (n,1))]))
+  | _ -> None
+
 let impossible_guard prem env guards =
-  let operand = function
-    | Var (x, _) when List.mem_assoc x env -> Some (List.assoc x env)
-    | Num (n, _) ->
-      Some (TCons (numtype, [num (NumDefs.Cst (n,1))]))
-    | _ -> None in
+  let operand = guard_operand env in
   let tests = map_some (fun (left, right) ->
       match operand left, operand right with
       | Some a, Some b -> Some (a, b, expr_loc left)
@@ -1255,39 +1256,39 @@ let guard_band = function
    hides the outer value, even when the source uses the same spelling. *)
 let observed_bands arrow body bands =
   let bindings = Hashtbl.create 8 in
-  let value env = function
-    | Num (n,_) -> Some (NumDefs.Cst (n,1))
-    | Var (x,_) -> (try Some (List.assoc x env) with Not_found -> None)
-    | _ -> None in
-  let rec bind env p index = match p with
+  let rec bind env p ty = match p with
     | PVar (x,_) ->
       let env = List.remove_assoc x env in
-      (match index with None -> env | Some t -> (x,t)::env)
-    | PAnd (a,b,_) -> bind (bind env a index) b index
-    | PCons (_,ps,_) -> List.fold_left (fun env p -> bind env p None) env ps
+      (match ty with None -> env | Some t -> (x,t)::env)
+    | PAnd (a,b,_) -> bind (bind env a ty) b ty
+    | PCons (tag,ps,_) ->
+      (match ty with
+       | Some (TCons (n,ts)) when n=tuple && tag=tuple && List.length ps=List.length ts ->
+         List.fold_left2 (fun env p t -> bind env p (Some t)) env ps ts
+       | _ -> List.fold_left (fun env p -> bind env p None) env ps)
     | One _ | Zero -> env in
   let rec visit env args expr =
     let child = visit env [] in
     match expr with
-    | Var (x,lc) -> (match value env expr with
-        | Some t -> Hashtbl.replace bindings (x,lc) t | None -> ())
+    | Var (x,lc) -> (match guard_operand env expr with
+        | Some (TCons (n,[t])) when n=numtype -> Hashtbl.replace bindings (x,lc) (NumS.num_of t)
+        | _ -> ())
     | Lam (_,arms,_) | ExLam (_,arms,_) ->
       let input,tail = match args with a::rest -> a,rest | [] -> None,[] in
       List.iter (fun (p,guards,rhs) ->
           let env = bind env p input in
           List.iter (fun (a,b) -> visit env [] a; visit env [] b) guards;
           visit env tail rhs) arms
-    | Letin (_,p,a,b,_) -> child a; visit (bind env p (value env a)) args b
+    | Letin (_,p,a,b,_) -> child a; visit (bind env p (guard_operand env a)) args b
     | Letrec (_,_,x,a,b,_) -> let env = List.remove_assoc x env in visit env [] a; visit env args b
-    | App ((Lam _ as fn),a,_) -> visit env (value env a :: args) fn; child a
+    | App ((Lam _ as fn),a,_) -> visit env (guard_operand env a :: args) fn; child a
     | App (a,b,_) | NumAdd (a,b,_) -> child a; child b
     | NumCoef (_,a,_) | RuntimeFailure (a,_) -> child a
     | Cons (_,xs,_) -> List.iter child xs
     | AssertLeq (a,b,c,_) | AssertEqty (a,b,c,_) -> child a; child b; visit env args c
     | Num _ | String _ | AssertFalse _ -> () in
   if List.exists (function Between (Literal _,Literal _) | At_least (Literal _) | At_most (Literal _) -> false | _ -> true) bands then
-    visit [] (List.map (function TCons (n,[t]) when n=numtype -> Some (NumS.num_of t)
-                       | _ -> None) (arg_types arrow)) body;
+    visit [] (List.map (fun t -> Some t) (arg_types arrow)) body;
   let resolve = function Literal n -> NumDefs.Cst (n,1)
     | Bound_value (x,lc) -> Hashtbl.find bindings (x,lc) in
   map_some (fun band -> try Some (map_band resolve band) with Not_found -> None) bands
@@ -1782,12 +1783,21 @@ let check_key_admission ~integer_target policy bound signature written inferred 
       let same_inputs = List.map2 (fun slot (_,term) -> eq (v slot) term) input_slots inputs in
       let facts = original @ opened @ same_inputs in
       let integer_result = if integer_target then Some observed else None in
+      (* A paired opening follows a fully applied call. Only an actual Num
+         argument, or a Num component of an actual tuple, supplies a native
+         value here. Numeric parameters inside an abstract type can be phantom. *)
+      let rec native_values = function
+        | TCons (n,[t]) when n=numtype -> [NumS.num_of t]
+        | TCons (n,ts) when n=tuple -> concat_map native_values ts
+        | _ -> [] in
+      let integer_inputs = if integer_target then concat_map native_values (arg_types written)
+        else [] in
       let refuted band =
         let inside = match band with
           | At_least lo -> [Leq (lo,observed,loc)]
           | At_most hi -> [Leq (observed,hi,loc)]
           | Between (lo,hi) -> [Leq (lo,observed,loc); Leq (observed,hi,loc)] in
-        not (NumS.common_result_possible ?integer_result ~keys ~witnesses
+        not (NumS.common_result_possible ?integer_result ~integer_inputs ~keys ~witnesses
                ~admissions:cells ~post (inside @ facts)) in
       if List.for_all refuted bands then Admitted else Unavailable
     | Open_at_keys query ->

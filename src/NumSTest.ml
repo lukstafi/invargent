@@ -75,6 +75,22 @@ let tests = "NumS" >::: [
       (not (possible "l=1" ["2 k=1"] "l≤k"));
     assert_bool "each half-integral package witness remains legal"
       (possible "l=1" ["k=0";"k=1"] "2 m=k+l"));
+  "integrality is joint across native values only" >:: (fun () ->
+    let v name = VNam (Num_sort,name) in
+    let i = Lin (1,1,v "i") and l = Lin (1,1,v "l") in
+    let possible ?integer_result inputs pre =
+      common_result_possible ?integer_result ~integer_inputs:inputs
+        ~keys:(VarSet.singleton (v "k")) ~witnesses:(VarSet.singleton (v "m"))
+        ~admissions:[numeric_formula "2 k=1"] ~post:(numeric_formula "2 m=k+l")
+        (numeric_formula pre) in
+    assert_bool "a result alone can use a fractional input"
+      (possible ~integer_result:l [] "2 l+2 i=5");
+    assert_bool "the primitive integer sum misses a half"
+      (not (possible ~integer_result:l [i] "2 l+2 i=5"));
+    assert_bool "native input constraints also apply without a designated result"
+      (not (possible [i;l] "2 l+2 i=5"));
+    assert_bool "the whole affine index is integral, its parameter can be fractional"
+      (possible ~integer_result:l [Lin (2,1,v "i")] "2 i=1 ∧ l=2"));
   "an extremum arm can settle the last private witness" >:: (fun () ->
     let hidden = VarSet.singleton (VNam (Num_sort,"m")) in
     let cells = project_exists ~vars:hidden
