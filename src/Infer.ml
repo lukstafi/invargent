@@ -497,6 +497,38 @@ let impossible_guard prem env guards =
     with Contradiction _ | Not_found -> false
        | Failure msg when msg = "int_of_big_int" -> false
 
+let guard_atom = function Eqty _ | Terms.A (Num_atom _) -> true | _ -> false
+
+(* A local recursive definition checks every member of its input predicate.
+   Project its mandatory equations onto the arrow. A constructor-only premise
+   may be used once the accumulated equations already entail it. The summary
+   does not depend on any recursive predicate or guarded RHS. *)
+let necessary_contract gamma anchor body =
+  let captured = List.fold_left (fun free (_, (bound, phi, t)) ->
+      let used = VarSet.union (fvs_typ t) (fvs_formula phi) in
+      VarSet.union free (VarSet.diff used (vars_of_list bound))) VarSet.empty gamma in
+  let rec collect (facts, pending as acc) = function
+    | A atoms -> List.rev_append (List.filter guard_atom atoms) facts, pending
+    | And parts -> List.fold_left collect acc parts
+    | Ex (_, part) | Impl ([], part) -> collect acc part
+    | Impl (prem, part) when List.for_all (function Eqty _ -> true | _ -> false) prem ->
+      facts, (prem, part) :: pending
+    | All _ | Or _ | Impl _ -> acc in
+  let rec close (facts, pending) =
+    let solved = unify ~use_quants:false empty_q facts in
+    let apply = subst_typ solved.cnj_typ in
+    let implied = function Eqty (a,b,_) -> apply a = apply b | _ -> false in
+    let ready, rest = List.partition (fun (prem, _) -> List.for_all implied prem) pending in
+    if ready <> [] then close (List.fold_left
+        (fun acc (_, part) -> collect acc part) (facts, rest) ready) else
+    let shared = VarMap.filter (fun v _ -> VarSet.mem v captured) solved.cnj_typ in
+    let arrow = apply anchor and phi = to_formula shared @ NumS.formula_of_sort solved.cnj_num in
+    let vs = VarSet.diff (VarSet.union (fvs_typ arrow) (fvs_formula phi)) captured in
+    Some (VarSet.elements vs, phi, arrow) in
+  try close (collect ([], []) body)
+  with Contradiction _ -> None
+     | Failure msg when msg = "int_of_big_int" -> None
+
 type guard_observation =
   | Evaluated of cnstrnt
   | Entered_let of cnstrnt * typ * atom * (cns_name * formula) list
@@ -504,10 +536,17 @@ type guard_observation =
 (* Keep necessary first-order observations. Existential names are fresh per
    occurrence. A plain let binds the RHS itself. A package supplies its local
    witness only after entry into that let's body. *)
-let excludes_return observations comparisons =
-  let first_order = function Eqty _ | Terms.A (Num_atom _) -> true | _ -> false in
+let excludes_return contracts observations comparisons =
+  let add_atom facts = function
+    | PredVarU (i, t, loc) when Hashtbl.mem contracts i ->
+      (match Lazy.force (Hashtbl.find contracts i) with
+       | None -> facts
+       | Some scheme ->
+         let _, phi, arrow = freshen_val_scheme scheme in
+         Eqty (t, arrow, loc) :: List.rev_append phi facts)
+    | atom -> if guard_atom atom then atom :: facts else facts in
   let rec collect (facts, openings as acc) = function
-    | A atoms -> List.rev_append (List.filter first_order atoms) facts, openings
+    | A atoms -> List.fold_left add_atom facts atoms, openings
     | And parts -> List.fold_left collect acc parts
     | Ex (_, part) | Impl ([], part) -> collect acc part
     | Or (v, (_, A [NotEx (rhs, _)], [Eqty (TVar x, t, _) as link], _) :: _, sub)
@@ -545,6 +584,7 @@ type guard_erasure =
 
 let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
   let erased_packages = ref None in
+  let contracts = Hashtbl.create 2 in
   let alias_arities = Hashtbl.create 2 in
   let rec known_arrows gamma = function
     | App (f, _, _) -> max 0 (known_arrows gamma f - 1)
@@ -724,6 +764,7 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
       Hashtbl.replace arities chi_id (lambda_depth e1);
       let gamma = (x, ([b], [chi_b], tb))::gamma in
       let cn1, e1 = aux gamma tb e1 in
+      if collecting then Hashtbl.add contracts chi_id (lazy (necessary_contract gamma tb cn1));
       let cn2, e2 = aux gamma t e2 in
       let def_cn = 
         All (vars_of_list [b],
@@ -866,7 +907,7 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
     returned := g_concl, g_cond;
     (match erase_bodies with
      | Collect_guards pending when eligible && not erase ->
-       let dead () = excludes_return
+       let dead () = excludes_return contracts
            (Evaluated g_concl :: List.map Lazy.force pattern_scope) g_cond in
        pending := (guards, dead) :: !pending
      | _ -> ());
