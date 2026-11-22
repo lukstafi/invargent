@@ -53,28 +53,28 @@ let process_file ?(do_sig=false) ?(do_ml=false)
     | Some fname -> fname in
   let generate_ml =
     do_ml && (overwrite_ml || not (Sys.file_exists ml_fname)) in
+  let write_ml ~funtys ~lettys =
+    let channel = open_out ml_fname in
+    let output = Format.formatter_of_out_channel channel in
+    (try Format.fprintf output "%a@\n%!" (OCaml.pr_ml ~funtys ~lettys) annot
+     with exn -> close_out_noerr channel; raise exn);
+    close_out channel in
   if generate_ml then (
-    let output = Format.formatter_of_out_channel
-        (open_out ml_fname) in
-    Format.fprintf output "%a@\n%!"
-      (OCaml.pr_ml ~funtys:full_annot ~lettys:full_annot) annot;
+    write_ml ~funtys:full_annot ~lettys:full_annot;
     Format.printf "InvarGenT: Generated file %s@\n%!" ml_fname)
   else if do_ml then
     Format.printf
       "InvarGenT: File %s not generated, use option -overwrite_ml@\n%!"
       ml_fname;
   if do_ml && verif_ml then
-    let cmd = "ocamlc -w -25 -c "^ml_fname in
+    let cmd = "ocamlc -w -25 -c " ^ Filename.quote ml_fname in
     let res = Sys.command cmd in
     Format.printf "InvarGenT: Command \"%s\" exited with code %d@\n%!"
       cmd res;
-    if res = 0 || full_annot || not infer_annot_fun then Some res
+    if res = 0 || full_annot || not infer_annot_fun || not generate_ml then Some res
     else (
-      let output = Format.formatter_of_out_channel
-          (open_out (base^".ml")) in
-      Format.fprintf output "%a@\n%!"
-        (OCaml.pr_ml ~funtys:true ~lettys:!let_in_fallback) annot;
-      Format.printf "InvarGenT: Regenerated file %s@\n%!" (base^".ml");
+      write_ml ~funtys:true ~lettys:!let_in_fallback;
+      Format.printf "InvarGenT: Regenerated file %s@\n%!" ml_fname;
       let res = Sys.command cmd in
       Format.printf "InvarGenT: Command \"%s\" exited with code %d@\n%!"
         cmd res;
@@ -230,10 +230,11 @@ let main () =
   Arg.parse (Arg.align cli) anon_fun msg;
   let ml_fname = if !ml_fname = "" then None else Some !ml_fname in
   try
-    ignore
-      (process_file !fname ~do_sig:!do_sig ~do_ml:!do_ml
+    match process_file !fname ~do_sig:!do_sig ~do_ml:!do_ml
          ~overwrite_ml:!overwrite_ml ?ml_fname
-         ~verif_ml:!verif_ml ~full_annot:!full_annot)
+         ~verif_ml:!verif_ml ~full_annot:!full_annot with
+    | Some status when status <> 0 -> exit status
+    | _ -> ()
   with (Report_toplevel _ | Contradiction _ | NoAnswer _) as exn ->
     Format.printf "%a@\n%!" pr_exception exn;
     if !Defs.deadcode_flag then Format.printf
