@@ -624,7 +624,8 @@ type guard_observation =
 (* Keep necessary first-order observations. Existential names are fresh per
    occurrence. A plain let binds the RHS itself. A package supplies its local
    witness only after entry into that let's body. *)
-let excludes_return contracts observations comparisons =
+let guard_context contracts observations =
+  let boundaries = ref [] in
   let add_atom facts = function
     | PredVarU (i, t, loc) when Hashtbl.mem contracts i ->
       (match Lazy.force (Hashtbl.find contracts i) with
@@ -651,43 +652,62 @@ let excludes_return contracts observations comparisons =
       match subst_typ solved.cnj_typ rhs with
       | TCons (CNam _, _) | Fun _ -> collect (plain :: added, waiting) sub
       | TCons ((Extype _ as tag), _) when List.mem_assoc tag packages ->
-        collect acc (A (List.assoc tag packages))
+        let entered = List.assoc tag packages in
+        List.iter (function
+            | Terms.A (Num_atom (NumDefs.Leq (a, b, loc))) ->
+              boundaries := NumDefs.Eq (a, b, loc) :: !boundaries
+            | _ -> ()) entered;
+        collect acc (A entered)
       | _ -> added, opening :: waiting in
     let added, waiting = List.fold_left open_one ([], []) openings in
     if added <> [] then close (List.rev_append added facts, waiting) else
     match NumS.satisfiable solved.cnj_num with
-    | Left _ -> false
-    | Right state ->
-      (match NumS.satisfiable ~state (sep_formulas comparisons).cnj_num with
-       | Left _ -> true | Right _ -> false) in
+    | Left _ -> None
+    | Right state -> Some (state, !boundaries) in
   try close (List.fold_left observe ([], []) observations)
-  with Contradiction _ -> false
-     | Failure msg when msg = "int_of_big_int" -> false
+  with Contradiction _ -> None
+     | Failure msg when msg = "int_of_big_int" -> None
+
+let excludes_comparisons state comparisons =
+  try match NumS.satisfiable ~state comparisons with Left _ -> true | Right _ -> false
+  with Failure msg when msg = "int_of_big_int" -> false
 
 let integer_complement = function
   | Terms.A (Num_atom (NumDefs.Leq (a, b, loc))) ->
-    Some (Terms.A (Num_atom (NumDefs.Leq (NumDefs.add b (NumDefs.Cst (1,1)), a, loc))))
+    Some (NumDefs.Leq (NumDefs.add b (NumDefs.Cst (1,1)), a, loc))
   | _ -> None
 
-(* Other conjuncts may already follow from evaluating the scrutinee, pattern
-   and guard operands. Record a position so regeneration uses the fresh row. *)
-let remaining_comparison contracts observations conditions =
-  let rec find index candidate = function
-    | [] -> candidate
-    | atom :: rest ->
-      match integer_complement atom with
-      | None -> None
-      | Some neg when excludes_return contracts observations [neg] ->
-        find (index+1) candidate rest
-      | Some _ when candidate = None -> find (index+1) (Some index) rest
-      | Some _ -> None in
-  match conditions with
-  | [_] -> Some 0
-  | _ -> find 0 None conditions
+type guard_bounds =
+  | Observe_comparisons of bool ref | Prove_complements of bool ref | Probe_boundaries
+
+(* A comparison forced on even one package boundary is a poor choice to
+   falsify throughout an opening. Use the remaining position to propose a
+   goal. Only the check on the full package can certify an erased arm. *)
+let remaining_comparison mode context conditions =
+  match conditions, context with
+  | [_], _ -> Some 0
+  | _, Some (state, boundaries) ->
+    let candidates = mapi_some (fun i atom -> match integer_complement atom with
+        | Some neg when not (excludes_comparisons state [neg]) -> Some (i, neg)
+        | _ -> None) conditions in
+    (match candidates, mode with
+     | [(i, _)], _ -> Some i
+     | _ :: _ :: _, Prove_complements seen ->
+       if boundaries <> [] then seen := true;
+       None
+     | _ :: _ :: _, Probe_boundaries ->
+       let probes = map_some (fun eq ->
+           try match NumS.satisfiable ~state [eq] with
+             | Left _ -> None | Right boundary -> Some boundary
+           with Failure msg when msg = "int_of_big_int" -> None) boundaries in
+       (match List.filter (fun (_, neg) ->
+            not (List.exists (fun probe -> excludes_comparisons probe [neg]) probes)) candidates with
+        | [(i, _)] -> Some i | _ -> None)
+     | _ -> None)
+  | _ -> None
 
 type source_arm = (unit, unit) clause
 type arm_check = Already_excluded | Check_with_postconditions of int option | Keep_arm
-type guard_bounds = Observe_comparisons of bool ref | Prove_complements
 type guard_erasure =
   | Keep_bodies | Direct_guards
   | Collect_guards of (source_arm * (unit -> arm_check)) list ref * guard_bounds
@@ -980,6 +1000,11 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
     let body () = aux_in body_scope gamma' t2 e in
     let eligible = not is_neg && not !force_nodeadcode && !erased_packages = None &&
       erase_bodies <> Keep_bodies && (guards <> [] || count = 0 && refined_pattern p) in
+    (* A source assertion keeps its original body and negative obligation.
+       It can use the same comparison goals as a proposed exclusion. *)
+    let asserted_guard = match e with
+      | AssertFalse _ -> guards <> [] && !erased_packages = None
+      | _ -> false in
     let proved, require_false = match erase_bodies with
       | Certified_guards (proved, checked, _) -> List.memq arm proved, List.memq arm checked
       | _ -> false, false in
@@ -1020,17 +1045,25 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
         (VarSet.empty, And [], []) guards in
     returned := g_concl, g_cond;
     (match erase_bodies with
-     | Collect_guards (pending, bounds) when eligible && not erase ->
+     | Collect_guards (pending, bounds) when (eligible && not erase) || asserted_guard ->
        let check () =
          let observations = Evaluated g_concl :: List.map Lazy.force pattern_scope in
-         if guards <> [] && excludes_return contracts observations g_cond
+         let context = lazy (guard_context contracts observations) in
+         if not asserted_guard && guards <> [] && (match Lazy.force context with
+             | Some (state, _) -> excludes_comparisons state (sep_formulas g_cond).cnj_num
+             | None -> false)
          then Already_excluded
          else if List.exists (function Entered_let (_, _, _, _ :: _) -> true | _ -> false) observations
-         then (
-           let comparison = match bounds with
-             | Observe_comparisons seen -> if g_cond <> [] then seen := true; None
-             | Prove_complements -> remaining_comparison contracts observations g_cond in
-           Check_with_postconditions comparison)
+         then (match bounds with
+           | Observe_comparisons seen | Prove_complements seen when asserted_guard ->
+             (* Leave source assertions in the ordinary searches. A later
+                replay may use a check-only negative at their original site. *)
+             seen := true; Keep_arm
+           | Observe_comparisons seen ->
+             if g_cond <> [] then seen := true;
+             Check_with_postconditions None
+           | Prove_complements _ | Probe_boundaries ->
+             Check_with_postconditions (remaining_comparison bounds (Lazy.force context) g_cond))
          else Keep_arm in
        pending := (arm, check) :: !pending
      | _ -> ());
@@ -1040,7 +1073,7 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
         (* Make the failed comparison a conclusion at this opening. All uses
            share its call instance. The original negative remains checked. *)
         (match integer_complement (List.nth g_cond (List.assq arm bounds)) with
-         | Some neg -> cn_and (A [neg]) checked
+         | Some neg -> cn_and (A [Terms.A (Num_atom neg)]) checked
          | None -> checked)
       | _ -> checked in
     let cn = impl prem (cn_and g_concl checked) in
@@ -1388,7 +1421,12 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
           let before = !all_ex_types in
           let comparisons = map_some (fun arm -> match List.assq arm proposals with
               | Some i -> Some (arm, i) | None -> None) checked in
-          if bounds = Prove_complements && comparisons = [] then retry rest else
+          let repeated = match bounds with
+            | Observe_comparisons _ -> false
+            | Prove_complements _ -> comparisons = []
+            | Probe_boundaries -> comparisons = [] &&
+              not (List.exists (function _, _, AssertFalse _ -> true | _ -> false) checked) in
+          if repeated then retry rest else
           try run (Certified_guards (proved, checked, comparisons)) with exn ->
             all_ex_types := before;
             match exn with
@@ -1427,7 +1465,11 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
     let seen = ref false in
     try search (Observe_comparisons seen) with
     | (NoAnswer _ | Contradiction _) as original when !seen ->
-      (try search Prove_complements with exn ->
+      let ambiguous = ref false in
+      (try
+         try search (Prove_complements ambiguous) with
+         | (NoAnswer _ | Contradiction _) when !ambiguous -> search Probe_boundaries
+       with exn ->
          all_ex_types := initial_packages;
          match exn with
          | NoAnswer _ | Contradiction _ -> raise original

@@ -366,6 +366,12 @@ let tests = "InvarGenT" >::: [
       "a scalar package keeps the common affine equation after an offset" >:: run_example "translated_coordinate";
       "two excluded guards need the same interior package parameter" >::
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "interior_interval";
+      "two interior forbidden bands constrain one recursive call" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "guarded_interval_bands";
+      "both endpoints miss a reachable assertion in the interior" >:: (fun () ->
+        let source = "external let sample : Num 0 → ∃j[0≤j ∧ j≤6]. Num j = \"fun _ -> 3\"\n" ^
+          "let bad = let r = sample 0 in match r with v when 2 <= v && v <= 4 -> assert false | _ -> True" in
+        assert_bool "three reaches the guard" (rejects_source ~integer_target:true source));
       "a local match contract carries the observed index into the package" >::
         run_example "observed_coordinate";
       "the state index reaches the package through a tail match" >:: run_example "state_coordinate";
