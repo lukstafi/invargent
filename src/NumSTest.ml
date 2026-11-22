@@ -25,6 +25,15 @@ let numeric_formula s =
   sort_formula (Parser.formula Lexer.token (Lexing.from_string s))
 
 let tests = "NumS" >::: [
+  "opposing affine arms can cover the whole line after substitution" >:: (fun () ->
+    let residual phi = List.exists (function Subopti _ -> true | _ -> false)
+        (formula_of_state (satisfiable_exn (numeric_formula phi))) in
+    assert_bool "positive rescaling and a slack constant cover every index"
+      (not (residual "j=i ∧ min(3 j + -1,-2 i)<=0"));
+    assert_bool "opposite slopes with a gap still restrict the middle"
+      (residual "min(3 i+1,1 + -2 i)<=0");
+    assert_bool "different free directions can both be positive"
+      (residual "min(3 i + j,-2 i)<=0"));
   "all typings allow new private witnesses at each tuple" >:: (fun () ->
     let v name = VNam (Num_sort,name) in
     let possible pre domains post =

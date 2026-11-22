@@ -1163,6 +1163,12 @@ let solve_aux ~use_quants ?(strict=false)
     partition_choice (map_some (propagate (fun c -> c =/ !/0) (fun d -> d >=/ !/0)) optis) in
   let suboptis, more_ineqn =
     partition_choice (map_some (propagate (fun c -> c <=/ !/0) (fun d -> d <=/ !/0)) suboptis) in
+  (* After substitution an extremum can become unconditional. If a positive
+     combination is a nonpositive constant, both arms cannot be positive. *)
+  let suboptis = List.filter (function
+      | (((x,a)::_,_,_ as left),((y,b)::_,_,_ as right)) when x=y && a */ b </ !/0 ->
+        not (taut_w false (sum_w ~cmp_v (mult (minus_num b // a) left) right))
+      | _ -> true) suboptis in
   (*[* Format.printf "NumS.solve: solving ineqs...@\nineqn=%a@\n%!"
     pr_ineqn ineqn; *]*)
   let ineqs, implicits = proj ineqs (more_implicits @ !eqs_implicits)
