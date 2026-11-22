@@ -220,6 +220,20 @@ let tests = "Invariants" >::: [
     check true ["n1<=0", "n2=1"] "n1<=0 ∧ n2=1" true;
     check true ["n2=1", "n2=1"] "n1<=0 ∧ n2=1" false;
     check true ["n1<=0", "n2=1"] "n1<=0 ∧ n2=0" false);
+  "a shared numeric witness must be available in an earlier type" >:: (fun () ->
+    let parse s = Parser.formula Lexer.token (Lexing.from_string s) in
+    let one s = VarSet.choose (fvs_formula (parse s)) in
+    let a = one "a=a" and i = one "n1=0" and j = one "n2=0" in
+    let check order expected =
+      let pos v = List.assoc v order in
+      let cmp_v v w =
+        if v=w then Same_params else if pos v = pos w then Same_quant
+        else if pos v < pos w then Left_of else Right_of in
+      let q = {empty_q with cmp_v; uni_v=(fun v -> v <> i)} in
+      let required = Invariants.forced_call_guard q [] in
+      assert_equal expected (required (parse "a=Num n2 ∧ n2=n1")) in
+    check [a,0; i,1; j,2] false;
+    check [i,0; a,1; j,1] true);
   "simple eval" >::
     (fun () ->
       skip_if !debug "debug";

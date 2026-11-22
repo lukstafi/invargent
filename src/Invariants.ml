@@ -842,17 +842,21 @@ let forced_call_guard (q : quant_ops) branches =
           ([], [], Lazy.force initial) parents in
       let tests = rewrite (formula_diff guard checked) @ tests in
       let solved = unify ~use_quants:false q tests in
-      let equations = to_formula solved.cnj_typ @ NumS.num_to_formula solved.cnj_num in
-      if solved.cnj_ord <> [] || solved.cnj_so <> [] then false
-      else if VarSet.for_all q.uni_v (fvs_formula equations) then
-        (* Any joint model of these universal moves occurs on a play. *)
-        is_right (NumS.satisfiable solved.cnj_num)
-      else if VarMap.is_empty solved.cnj_typ && List.for_all (function
-          NumDefs.Eq _ | NumDefs.Leq _ -> true | _ -> false) solved.cnj_num then (
-        (* A strategy under the dual prefix can force the linear tests
-           against any choices of the original existential witnesses. *)
-        ignore (NumS.holds dual VarSet.empty NumS.empty_state solved.cnj_num); true)
-      else false
+      let indices = NumDefs.fvs_formula solved.cnj_num in
+      let fixed_indices = VarSet.for_all q.uni_v indices in
+      let visible v w = q.cmp_v v w <> Left_of in
+      (* Construct the type at its move in the dual game. A free witness
+         can be fixed in advance unless the numeric strategy needs to choose
+         it later. An opposing move must already be visible. *)
+      let term_witness v (t, _) = q.uni_v v && VarSet.for_all (fun w ->
+          visible v w || q.uni_v w && (fixed_indices || not (VarSet.mem w indices)))
+          (fvs_typ t) in
+      solved.cnj_ord = [] && solved.cnj_so = [] &&
+      VarMap.for_all term_witness solved.cnj_typ &&
+      (if fixed_indices then is_right (NumS.satisfiable solved.cnj_num)
+       else List.for_all (function NumDefs.Eq _ | NumDefs.Leq _ -> true | _ -> false)
+           solved.cnj_num &&
+         (ignore (NumS.holds dual VarSet.empty NumS.empty_state solved.cnj_num); true))
     with Contradiction _ -> false
 
 let call_input_samples q branches sites =
@@ -861,10 +865,19 @@ let call_input_samples q branches sites =
       | Eqty ((Fun _ as arrow), TVar v, _) when v = anchor ->
         Some (arg_types arrow)
       | _ -> None) in
-  let calls = concat_map (fun (_, _, conclusion) ->
+  let calls = concat_map (fun (_, guard, conclusion) ->
+      (* Read the actual arrow on the guarded row, including aliases of an
+         argument and arrows introduced by passing a function as a value. *)
+      let local = lazy (
+        let facts = concat_map (fun (_, p, c) -> if subformula p guard then c else []) branches in
+        let eqs = List.filter (function Eqty _ -> true | _ -> false) (guard @ facts) in
+        (unify ~use_quants:false q.op eqs).cnj_typ) in
       concat_map (function
           | PredVarU (i, TVar v, _) when not (q.is_chiK i) ->
-            List.map (fun args -> i, args) (domains v conclusion)
+            (try match subst_typ (Lazy.force local) (TVar v) with
+               | Fun _ as arrow -> [i, arg_types arrow]
+               | _ -> []
+             with Contradiction _ -> [])
           | _ -> []) conclusion) sites in
   let instance formals actuals =
     let ren = VarSet.fold (fun v sb -> VarMap.add v (freshen_var v) sb)
