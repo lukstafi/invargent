@@ -987,9 +987,14 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
   (*[* Format.printf "chiK_anchor:";
   Hashtbl.iter (fun k v -> Format.printf "@ %d->%s" k (var_str v))
     q.chiK_anchor; Format.printf "@\n%!"; *]*)
+  let exhausted loc =
+    timeout_flag := true;
+    NumS.reward_constrn := old_reward_constrn;
+    NumS.prefer_bound_to_local := old_prefer_bound_to_local;
+    raise (NoAnswer (Type_sort, "Answers do not converge", None, loc)) in
   let initstep = ref true in
   let fallback_postcond = ref false in
-  let rec loop ?(retry=false) ?supplier_pass ~jump_at iter_no discard rol1 sol1 ans1_res =
+  let rec loop ~branches ?(retry=false) ?supplier_pass ~jump_at iter_no discard rol1 sol1 ans1_res =
     (* A failed postcondition can restart inference from the base cases.
        After the jump, give the restarted approximation time to develop.
        Each such restart gets a longer window, within the overall timeout. *)
@@ -1019,7 +1024,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
       else sol1 in
     (*[* Format.printf
       "solve: substituting invariants at step 1@\n%!"; *]*)
-    let brs0 = sb_brs_PredU q sol1 brs in
+    let brs0 = sb_brs_PredU q sol1 branches in
     let get_g_par rol =
       List.map (fun (i, _) ->
           try
@@ -1348,7 +1353,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
             sol1 in
         (*[* Format.printf
           "solve: substituting invariants at step 5@\n%!"; *]*)
-        let brs0 = sb_brs_PredU q sol1 brs in
+        let brs0 = sb_brs_PredU q sol1 branches in
         (*[* Format.printf
           "solve: substituting postconds at step 5@\n%!"; *]*)
         let brs1 = sb_brs_PredB q g_rol g_par brs0 in
@@ -1501,7 +1506,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
       (* 11 *)
       let finish supplier_pass rol2 sol2 =
         (* start fresh at (iter_no+1) *)
-        match loop ?supplier_pass ~jump_at (iter_no+1)
+        match loop ~branches ?supplier_pass ~jump_at (iter_no+1)
                 (if !use_prior_discards then discard else empty_dl)
                 rol2 sol2 ans_res
         with Aux.Right _ as res -> res
@@ -1550,7 +1555,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
                  {discard with at_num=s_discard.at_num::discard.at_num}
                | Order_sort ->
                  {discard with at_ord=s_discard.at_ord::discard.at_ord} in
-             loop ~retry:true ?supplier_pass ~jump_at iter_no discard rol1 sol1 ans_res in
+             loop ~branches ~retry:true ?supplier_pass ~jump_at iter_no discard rol1 sol1 ans_res in
       (* 7-8 *)
       (* Avoid substituting [bvs] -- treat them like leftmost. *)
       let ans_sb, _ =
@@ -1824,10 +1829,10 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
         finished1 finished2 finished3 finished; *]*)
       if not !initstep && finished
       then                              (* final solution *)
-        Aux.Right (ans_res, rol2, sol2)
+        Aux.Right (iter_no, ans_res, rol2, sol2)
         (* Do at least three iterations: 0, 1, 2. *)
       else if iter_no <= 1 && finished
-      then loop ?supplier_pass ~jump_at (iter_no+1)
+      then loop ~branches ?supplier_pass ~jump_at (iter_no+1)
           (if !use_prior_discards then discard else empty_dl)
           rol2 sol1 ans_res
       else if iter_no >= !timeout_count
@@ -1854,10 +1859,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
         let loc = formula_loc
             (!unfinished_postcond @
                unfinished1 @ unfinished2 @ unfinished3) in
-        timeout_flag := true;
-        NumS.reward_constrn := old_reward_constrn;
-        NumS.prefer_bound_to_local := old_prefer_bound_to_local;
-        raise (NoAnswer (Type_sort, "Answers do not converge", None, loc))
+        exhausted loc
       else
         (* Both predicates can repeat while widening renews a caller demand.
            Try its tighter supplier caps on the existing interface for one pass.
@@ -1868,9 +1870,30 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
              not dissoc_abdsj && not !dropped_from_sol
           then Some (iter_no+1) else supplier_pass in
         finish supplier_pass rol2 sol2 in
-  match loop ~jump_at:disj_step.(5) 0 empty_dl rolT solT [] with
+  let start branches =
+    initstep := true;
+    fallback_postcond := false;
+    loop ~branches ~jump_at:disj_step.(5) 0 empty_dl rolT solT [] in
+  (* An external package opening may demand a type before its captured
+     parameters are known. Keep the calls that constrain the input, infer
+     a proposal, then restore every opening for the next full pass. *)
+  let opens_result_at_caller (_, prem, _) =
+    not (List.exists (function PredVarU _ -> true | _ -> false) prem) &&
+    List.exists (function PredVarB (i, _, _, _) -> is_rec_exchi i | _ -> false) prem in
+  let result = match start brs with
+    | Aux.Left (Type_sort, _) as err ->
+      let callers, producers = List.partition opens_result_at_caller brs in
+      if callers = [] then err else
+      (match start producers with
+       | Aux.Left _ -> err
+       | Aux.Right (pass, _, rol, sol) ->
+         if pass >= !timeout_count then
+           exhausted (formula_loc (concat_map (fun (_, prem, _) -> prem) callers));
+         loop ~branches:brs ~jump_at:disj_step.(5) (pass+1) empty_dl rol sol [])
+    | result -> result in
+  match result with
   | Aux.Left (_, e) -> raise e
-  | Aux.Right (ans_res, rol, sol) ->
+  | Aux.Right (_, ans_res, rol, sol) ->
     (*[* Format.printf "solve: checking assert false@\n%!"; *]*)
     List.iter (fun (cnj, loc) ->
         let reachable =

@@ -328,6 +328,21 @@ let tests = "InvarGenT" >::: [
       "recursive callers can use either supplier cap" >::
         test_case "crossing_caps"
           ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
+      "restore caller checks after inferring a recursive package" >:: (fun () ->
+        let body =
+          "datatype Marker\ndatacons Mark : Marker\ndatatype Cargo\ndatacons Box : Cargo\n" ^
+          "datatype Tag : type * type\ndatacons Left : ∀a. a ⟶ Tag (Marker,a)\n" ^
+          "datacons Right : ∀a. a ⟶ Tag (a,Marker)\n" ^
+          "datatype Nat\ndatacons Z : Nat\ndatacons S : Nat ⟶ Nat\n" ^
+          "external let same : ∀a. a → a → Bool = \"fun x y -> x = y\"\n" ^
+          "let rec f t = efunction Z -> let z = (match t with Left x -> x | Right x -> x) in (z,z) " ^
+          "| S n -> f t n\ntest (" in
+        let client tag use = body ^ "let (x,y) = f (" ^ tag ^ " Box) (S Z) in " ^ use ^ ")" in
+        List.iter (fun tag -> ignore (infer_source (client tag "same x Box"))) ["Left"; "Right"];
+        assert_bool "the omitted check needs Cargo = Marker"
+          (rejects_source (client "Left" "same y Mark"));
+        assert_bool "one conjunctive scheme cannot serve both marked calls"
+          (rejects_source (client "Left" "let (a,b) = f (Right Box) Z in let ok = same a Box in same x Box")));
       "empty existential binders and OCaml type names" >:: test_case "packed_payload";
       "an affine tag survives a reflected recursive input" >:: test_case "affine_tag"
           ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);

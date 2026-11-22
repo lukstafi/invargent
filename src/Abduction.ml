@@ -826,23 +826,12 @@ let abd_typ q ~bvs ?(dissociate=false) ~validation ~neg_validate ~discard
     pr_subst ans; *]*)
   let more_in_brs = List.map
     (fun (prem, concl) ->
-      try
-        let more_prem =
-          combine_sbs ~use_quants:false q [prem.cnj_typ; ans] in
-        let more_res =
-          residuum q more_prem.cnj_typ concl in
-        (*[* Format.printf
-          "abd_typ-num:@ prem=%a@ concl=%a@ res_ty=%a@ \
-          res_num=%a@\nprem_num=%a@\n%!"
-          pr_subst prem.cnj_typ pr_subst concl
-          pr_subst more_res.cnj_typ NumDefs.pr_formula more_res.cnj_num
-          NumDefs.pr_formula more_prem.cnj_num; *]*)
-        assert (VarMap.is_empty more_res.cnj_typ);
-        (*let more_concl =
-          combine_sbs ~use_quants:false q
-            [prem.cnj_typ; concl; ans] in*)
-        more_prem, more_res(* more_concl *)
-      with Contradiction _ -> assert false)
+      let more_prem = combine_sbs ~use_quants:false q [prem.cnj_typ; ans] in
+      let more_res = residuum q more_prem.cnj_typ concl in
+      if not (VarMap.is_empty more_res.cnj_typ) then
+        raise (NoAnswer (Type_sort, "unproved type equality", None,
+                         formula_loc (to_formula more_res.cnj_typ)));
+      more_prem, more_res)
     brs in
   cand_bvs, !alien_eqs, vs, ans, more_in_brs
 
