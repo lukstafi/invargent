@@ -173,8 +173,8 @@ let test_case ?(test_annot=false) ?(do_ml=true) ?(cmp_sig=(=))
   Defs.nodeadcode := old_nodeadcode;
   Format.printf " t=%.3fs " (Sys.time () -. ntime)
 
-let run_example name () =
-  test_case name ();
+let run_example ?cmp_sig name () =
+  test_case ?cmp_sig name ();
   let file = example_path name ^ ".ml" in
   assert_equal ~printer:string_of_int 0 (Sys.command ("ocaml -noinit " ^ Filename.quote file))
 
@@ -364,6 +364,8 @@ let tests = "InvarGenT" >::: [
       "incompatible type demands reopen a provisional package" >:: run_example "observed_tag";
       "a failed abduction can fit a scalar index from two branches" >:: run_example "scaled_coordinate";
       "a scalar package keeps the common affine equation after an offset" >:: run_example "translated_coordinate";
+      "two excluded guards need the same interior package parameter" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "interior_interval";
       "a local match contract carries the observed index into the package" >::
         run_example "observed_coordinate";
       "the state index reaches the package through a tail match" >:: run_example "state_coordinate";

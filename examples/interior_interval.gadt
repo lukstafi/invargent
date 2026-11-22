@@ -1,0 +1,13 @@
+datatype State : num
+datacons A : State 0
+datacons B : State 1
+datatype Nat
+datacons Z : Nat
+datacons S : Nat ⟶ Nat
+external let obs : ∀i. Num i → Num i = "fun n -> n"
+external let small : ∀i[i≤2]. Num i → Bool = "fun r -> assert (r <= 2); true"
+let rec run : ∀i,k[k≤i+1 ∧ i+1≤k+2]. State i → Nat → ∃j[k≤j ∧ j≤k+2].Num j = fun state -> efunction
+  | Z -> (let t = (match state with A -> 1 | B -> 2) in obs t)
+  | S d -> (match state with A -> 1 | B -> let prior = run B d in
+               (match prior with r when (-1) <= r && r <= 0 -> True | r when 4 <= r && r <= 5 -> True | _ -> 2))
+test (let ok = (let a = run A (S Z) in small a) in let b = run B (S (S Z)) in small b)

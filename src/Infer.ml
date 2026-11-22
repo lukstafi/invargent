@@ -664,12 +664,34 @@ let excludes_return contracts observations comparisons =
   with Contradiction _ -> false
      | Failure msg when msg = "int_of_big_int" -> false
 
+let integer_complement = function
+  | Terms.A (Num_atom (NumDefs.Leq (a, b, loc))) ->
+    Some (Terms.A (Num_atom (NumDefs.Leq (NumDefs.add b (NumDefs.Cst (1,1)), a, loc))))
+  | _ -> None
+
+(* Other conjuncts may already follow from evaluating the scrutinee, pattern
+   and guard operands. Record a position so regeneration uses the fresh row. *)
+let remaining_comparison contracts observations conditions =
+  let rec find index candidate = function
+    | [] -> candidate
+    | atom :: rest ->
+      match integer_complement atom with
+      | None -> None
+      | Some neg when excludes_return contracts observations [neg] ->
+        find (index+1) candidate rest
+      | Some _ when candidate = None -> find (index+1) (Some index) rest
+      | Some _ -> None in
+  match conditions with
+  | [_] -> Some 0
+  | _ -> find 0 None conditions
+
 type source_arm = (unit, unit) clause
-type arm_check = Already_excluded | Check_with_postconditions | Keep_arm
+type arm_check = Already_excluded | Check_with_postconditions of int option | Keep_arm
+type guard_bounds = Observe_comparisons of bool ref | Prove_complements
 type guard_erasure =
   | Keep_bodies | Direct_guards
-  | Collect_guards of (source_arm * (unit -> arm_check)) list ref
-  | Certified_guards of source_arm list * source_arm list
+  | Collect_guards of (source_arm * (unit -> arm_check)) list ref * guard_bounds
+  | Certified_guards of source_arm list * source_arm list * (source_arm * int) list
 
 let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
   let erased_packages = ref None in
@@ -959,7 +981,7 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
     let eligible = not is_neg && not !force_nodeadcode && !erased_packages = None &&
       erase_bodies <> Keep_bodies && (guards <> [] || count = 0 && refined_pattern p) in
     let proved, require_false = match erase_bodies with
-      | Certified_guards (proved, checked) -> List.memq arm proved, List.memq arm checked
+      | Certified_guards (proved, checked, _) -> List.memq arm proved, List.memq arm checked
       | _ -> false, false in
     let erase = eligible && (proved || require_false || impossible_guard prem env guards) in
     let concl, e =
@@ -998,17 +1020,30 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
         (VarSet.empty, And [], []) guards in
     returned := g_concl, g_cond;
     (match erase_bodies with
-     | Collect_guards pending when eligible && not erase ->
+     | Collect_guards (pending, bounds) when eligible && not erase ->
        let check () =
-         let seen = List.map Lazy.force pattern_scope in
-         if guards <> [] && excludes_return contracts (Evaluated g_concl :: seen) g_cond
+         let observations = Evaluated g_concl :: List.map Lazy.force pattern_scope in
+         if guards <> [] && excludes_return contracts observations g_cond
          then Already_excluded
-         else if List.exists (function Entered_let (_, _, _, _ :: _) -> true | _ -> false) seen
-         then Check_with_postconditions else Keep_arm in
+         else if List.exists (function Entered_let (_, _, _, _ :: _) -> true | _ -> false) observations
+         then (
+           let comparison = match bounds with
+             | Observe_comparisons seen -> if g_cond <> [] then seen := true; None
+             | Prove_complements -> remaining_comparison contracts observations g_cond in
+           Check_with_postconditions comparison)
+         else Keep_arm in
        pending := (arm, check) :: !pending
      | _ -> ());
-    let cn = impl prem
-        (cn_and g_concl (impl (neg_prem @ g_cond) concl)) in
+    let checked = impl (neg_prem @ g_cond) concl in
+    let checked = match erase_bodies with
+      | Certified_guards (_, _, bounds) when List.mem_assq arm bounds ->
+        (* Make the failed comparison a conclusion at this opening. All uses
+           share its call instance. The original negative remains checked. *)
+        (match integer_complement (List.nth g_cond (List.assq arm bounds)) with
+         | Some neg -> cn_and (A [neg]) checked
+         | None -> checked)
+      | _ -> checked in
+    let cn = impl prem (cn_and g_concl checked) in
     let cn = if VarSet.is_empty g_as then cn else Ex (g_as, cn) in
     let cn = if VarSet.is_empty bs then cn else All (bs, cn) in
     (*[* Format.printf "constr_gen-aux_cl: [%d]@\ncn=%a@\n%!"
@@ -1025,11 +1060,11 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
 (* Once a package introduction disappears, regenerate the item's let
    choices so that none can open a package declared only in erased code. *)
 let rec with_live_packages mode generate =
-  let saved = match mode with Collect_guards pending -> !pending | _ -> [] in
+  let saved = match mode with Collect_guards (pending, _) -> !pending | _ -> [] in
   let before = !all_ex_types in
   let result = generate () in
   if before == !all_ex_types then result else (
-    (match mode with Collect_guards pending -> pending := saved | _ -> ());
+    (match mode with Collect_guards (pending, _) -> pending := saved | _ -> ());
     with_live_packages mode generate)
 
 let live_packages packages = List.filter (fun (i, _) -> List.mem_assoc i !all_ex_types) packages
@@ -1317,13 +1352,13 @@ let prepare_scheme phi res =
 
 let infer_prog ?(integer_target=false) ?check_excluded solver prog =
   let check_guards = integer_target && not !force_nodeadcode && can_erase_guarded_bodies prog in
-  let search_item packages generate =
+  let search_item bounds packages generate =
     let run mode =
       uses_pos_assertions := false;
       let cn, preserve, data = generate mode in
       let packages = live_packages packages in
       let solver = match mode, check_excluded with
-        | Certified_guards (_, (_ :: _ as checked)), Some check ->
+        | Certified_guards (_, (_ :: _ as checked), _), Some check ->
           check (List.map (fun (_, _, body) -> expr_loc body) checked)
         | _ -> solver in
       let solution = solver ~uses_pos_assertions:!uses_pos_assertions
@@ -1331,16 +1366,17 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
       data, packages, solution in
     if not check_guards then run Keep_bodies else
     let pending = ref [] in
-    try run (Collect_guards pending) with
+    try run (Collect_guards (pending, bounds)) with
     | (NoAnswer (_, msg, _, _) | Contradiction (_, msg, _, _)) as original
       when msg <> "Answers do not converge" ->
-      let proved, unresolved = List.fold_right (fun (arm, check) (proved, rest) ->
+      let proved, proposals = List.fold_right (fun (arm, check) (proved, rest) ->
           match check () with
           | Already_excluded -> arm :: proved, rest
-          | Check_with_postconditions -> proved, arm :: rest
+          | Check_with_postconditions i -> proved, (arm, i) :: rest
           | Keep_arm -> proved, rest) !pending ([], []) in
       (* Check the package postcondition at each proposed exclusion, with
          the original guard operands and opening witnesses in scope. *)
+      let unresolved = List.map fst proposals in
       let choices = (if proved = [] then [] else [[]]) @
           (match unresolved with
            | [] -> []
@@ -1350,7 +1386,10 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
         | [] -> raise original
         | checked :: rest ->
           let before = !all_ex_types in
-          try run (Certified_guards (proved, checked)) with exn ->
+          let comparisons = map_some (fun arm -> match List.assq arm proposals with
+              | Some i -> Some (arm, i) | None -> None) checked in
+          if bounds = Prove_complements && comparisons = [] then retry rest else
+          try run (Certified_guards (proved, checked, comparisons)) with exn ->
             all_ex_types := before;
             match exn with
             | NoAnswer (_, _, _, loc) | Contradiction (_, _, _, loc) ->
@@ -1363,27 +1402,37 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
       retry choices in
   let solve_item packages e tests generate =
     let initial_packages = !all_ex_types in
-    let run (e, tests) = search_item packages (generate e tests) in
-    let initial = e, tests in
-    NumS.with_affine_retry (fun () ->
-      all_ex_types := initial_packages;
-      try run initial with
-      | (NoAnswer (_, msg, _, _) | Contradiction (_, msg, _, _)) as original ->
-        let rec retry input = function
-          | [] -> raise original
-          | rewrite :: rest ->
-            match rewrite (fst input) (snd input) with
-            | None -> retry input rest
-            | Some candidate ->
-              (* A failed search may have erased a local declaration. *)
-              all_ex_types := initial_packages;
-              try run candidate with exn ->
+    let search bounds =
+      let run (e, tests) = search_item bounds packages (generate e tests) in
+      let initial = e, tests in
+      NumS.with_affine_retry (fun () ->
+        all_ex_types := initial_packages;
+        try run initial with
+        | (NoAnswer (_, msg, _, _) | Contradiction (_, msg, _, _)) as original ->
+          let rec retry input = function
+            | [] -> raise original
+            | rewrite :: rest ->
+              match rewrite (fst input) (snd input) with
+              | None -> retry input rest
+              | Some candidate ->
+                (* A failed search may have erased a local declaration. *)
                 all_ex_types := initial_packages;
-                match exn with
-                | NoAnswer _ | Contradiction _ -> retry candidate rest
-                | _ -> raise exn in
-        let placements = if msg = "Answers do not converge" then [] else [branch_packages] in
-        retry initial (placements @ [name_consumed_matches])) in
+                try run candidate with exn ->
+                  all_ex_types := initial_packages;
+                  match exn with
+                  | NoAnswer _ | Contradiction _ -> retry candidate rest
+                  | _ -> raise exn in
+          let placements = if msg = "Answers do not converge" then [] else [branch_packages] in
+          retry initial (placements @ [name_consumed_matches])) in
+    let seen = ref false in
+    try search (Observe_comparisons seen) with
+    | (NoAnswer _ | Contradiction _) as original when !seen ->
+      (try search Prove_complements with exn ->
+         all_ex_types := initial_packages;
+         match exn with
+         | NoAnswer _ | Contradiction _ -> raise original
+         | Failure msg when msg = "int_of_big_int" -> raise original
+         | _ -> raise exn) in
   let ntime = ref (Sys.time ()) in
   let start_time = !ntime in
   let gamma = ref builtin_gamma in
