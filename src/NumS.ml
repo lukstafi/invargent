@@ -1337,22 +1337,26 @@ let choice_arms ~cmp_v ~intro_cho_ineq optis suboptis =
 let choices ~cmp_v ~intro_cho_ineq optis suboptis =
   List.map List.concat (product (choice_arms ~cmp_v ~intro_cho_ineq optis suboptis))
 
+(* The remaining extremum atoms are disjunctions. Keep all of them in the
+   state returned to callers, but visit only as many linear cases as needed. *)
+let rec exists_linear_case ~cmp_v ~cmp_w uni_v accepts eqs ineqs = function
+  | [] -> accepts eqs ineqs
+  | arms :: rest ->
+    List.exists (fun arm ->
+        let eqn, ineqn, _, _ = split_formula arm in
+        try
+          let eqs, ineqs, _, _ = solve ~eqs ~ineqs ~eqn ~ineqn ~cmp_v ~cmp_w uni_v in
+          exists_linear_case ~cmp_v ~cmp_w uni_v accepts eqs ineqs rest
+        with Terms.Contradiction _ -> false) arms
+
 let implies ~cmp_v ~cmp_w uni_v eqs ineqs optis suboptis c_eqn c_ineqn
     c_optis c_suboptis =
   let proves eqs ineqs =
     implies_case ~cmp_v ~cmp_w uni_v eqs ineqs c_eqn c_ineqn c_optis c_suboptis in
-  let rec check_arms eqs ineqs = function
-    | [] -> proves eqs ineqs
-    | arms :: rest ->
-        List.for_all (fun arm ->
-          let eqn, ineqn, _, _ = split_formula arm in
-          try
-            let eqs, ineqs, _, _ = solve ~eqs ~ineqs ~eqn ~ineqn ~cmp_v ~cmp_w uni_v in
-            check_arms eqs ineqs rest
-          with Terms.Contradiction _ -> true) arms in
   proves eqs ineqs ||
   ((optis <> [] || suboptis <> []) &&
-   check_arms eqs ineqs (choice_arms ~cmp_v ~intro_cho_ineq:true optis suboptis))
+   not (exists_linear_case ~cmp_v ~cmp_w uni_v (fun e i -> not (proves e i))
+          eqs ineqs (choice_arms ~cmp_v ~intro_cho_ineq:true optis suboptis)))
 
 let implies_discard ~cmp_v ~cmp_w uni_v ~bvs (eqs, ineqs, optis, suboptis)
     (c_eqn, c_ineqn, c_optis, c_suboptis) =
@@ -4424,26 +4428,6 @@ let formula_of_state (eqs, ineqs, optis, suboptis) =
       Subopti (t1, t2, lc))
     suboptis cnj)
 
-let satisfiable ?state cnj =
-  let eqs, ineqs, optis, suboptis = match state with
-    | None -> None, None, None, None
-    | Some (eqs, ineqs, optis, suboptis) ->
-      Some eqs, Some ineqs, Some optis, Some suboptis in
-  let uni_v _ = false in
-  (* The same order as in make_cmp *)
-  let cmp_v v1 v2 = compare v2 v1 in
-  let cmp_w (vars1,_,_) (vars2,_,_) =
-    match vars1, vars2 with
-    | [], [] -> 0
-    | _, [] -> -1
-    | [], _ -> 1
-    | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
-  try
-    let eqs, ineqs, optis, suboptis =
-      solve ?eqs ?ineqs ?optis ?suboptis ~cnj ~cmp_v ~cmp_w uni_v in
-    Right (eqs, ineqs, optis, suboptis)
-  with Terms.Contradiction _ as e -> Left e
-
 let satisfiable_exn ?state cnj =
   let eqs, ineqs, optis, suboptis = match state with
     | None -> None, None, None, None
@@ -4460,7 +4444,17 @@ let satisfiable_exn ?state cnj =
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
   let eqs, ineqs, optis, suboptis =
     solve ?eqs ?ineqs ?optis ?suboptis ~cnj ~cmp_v ~cmp_w uni_v in
+  if (optis <> [] || suboptis <> []) &&
+     not (exists_linear_case ~cmp_v ~cmp_w uni_v (fun _ _ -> true) eqs ineqs
+            (choice_arms ~cmp_v ~intro_cho_ineq:false optis suboptis)) then (
+    let loc = List.fold_left (fun lc ((_, _, a), (_, _, b)) ->
+        loc_union lc (loc_union a b)) dummy_loc (optis @ suboptis) in
+    raise (Terms.Contradiction (Num_sort, "Incompatible numeric alternatives", None, loc)));
   eqs, ineqs, optis, suboptis
+
+let satisfiable ?state cnj =
+  try Right (satisfiable_exn ?state cnj)
+  with Terms.Contradiction _ as e -> Left e
 
 let implies_cnj (eqs, ineqs, optis, suboptis) cnj =
   let uni_v _ = false in

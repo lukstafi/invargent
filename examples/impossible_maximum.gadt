@@ -1,0 +1,5 @@
+datatype Seed
+datacons Live : Seed
+datacons Pick : ∀i,j[1≤max(i,j) ∧ i≤0 ∧ j≤0]. (Num i, Num j) ⟶ Seed
+let safe : Seed → Bool = function Live -> True | Pick (x,y) -> assert false
+let at_live = safe Live

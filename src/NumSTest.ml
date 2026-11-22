@@ -212,6 +212,20 @@ let tests = "NumS" >::: [
        "n1+1<=max(n1,n1)", false; "min(n2,n3)<=n1", false;
        "n1=min(n1,n2)", true; "n1=max(n1,n2)", false]);
 
+  "joint feasibility of extremum alternatives" >:: (fun () ->
+    let possible batches = List.fold_left (fun state batch ->
+        match state with
+        | Aux.Left _ -> state
+        | Aux.Right state -> satisfiable ~state (numeric_formula batch))
+        (Aux.Right empty_state) batches |> Aux.is_right in
+    let corners = ["1<=max(n1,n2)"; "1<=max(-n1,n2)";
+                   "1<=max(n1,-n2)"; "1<=max(-n1,-n2)"] in
+    List.iter (fun atoms ->
+        assert_bool "no common choice" (not (possible [String.concat " ∧ " atoms]));
+        assert_bool "incremental, either order" (not (possible atoms || possible (List.rev atoms))))
+      [corners; ["n3=max(n1,n2)"; "n1+1<=n3"; "n2+1<=n3"]];
+    List.iter (fun missing -> assert_bool "any three corners have a witness"
+        (possible (List.filter ((<>) missing) corners))) corners);
   "an early counterexample among many extrema" >:: (fun () ->
     let rec constraints n acc =
       if n = 0 then acc else

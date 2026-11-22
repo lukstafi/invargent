@@ -1,0 +1,10 @@
+datatype Seed
+
+datacons Live : Seed
+
+datacons Pick : ∀i, j[i ≤ 0 ∧ j ≤ 0 ∧
+   min||max (-i + 1, -j + 1)].(Num i, Num j) ⟶ Seed
+
+val safe : Seed → Bool
+
+val at_live : Bool
