@@ -127,11 +127,16 @@ let pr_typsig ppf (vs, phi, ty) =
   if phi<>[] then fprintf ppf "(*%a*)@ " pr_formula phi;
   fprintf ppf "%a@]" pr_ty ty
 
-let rec single_assert_false (_,_,e) =
-  match e with
-    | AssertFalse _ -> true
-    | Lam (_, [cl], loc) -> single_assert_false cl
-    | _ -> false
+(* A guard can run effects before it fails. A branch returning a lambda
+   also succeeds at this point, before the lambda body is evaluated. *)
+let emitted_clauses clauses =
+  if not !drop_assert_false then clauses else
+  let rec keep = function
+    | [] -> []
+    | (_, [], AssertFalse _) :: rest -> keep rest
+    | cl :: rest -> cl :: (if catches_all cl then [] else keep rest) in
+  let kept = keep clauses in
+  if kept = [] then clauses else kept
 
 let postprocess elim_extypes e =
   let named_arithmetic =
@@ -153,10 +158,7 @@ let postprocess elim_extypes e =
     | App (e1, e2, loc) ->
       App (aux e1, aux e2, loc)
     | Lam (ann, cls, loc) ->
-      let cls =
-        if !drop_assert_false
-        then List.filter (not % single_assert_false) cls
-        else cls in
+      let cls = emitted_clauses cls in
       Lam (ann,
            List.map
              (fun (p,guards,e)->
@@ -177,7 +179,7 @@ let postprocess elim_extypes e =
                             aux e1, aux e2, loc)
        with Not_found -> assert false)
     | ExLam (ety_id, cls, loc) ->
-      let cls = List.filter (not % single_assert_false) cls in
+      let cls = emitted_clauses cls in
       ExLam (ety_id,
            List.map
              (fun (p,guards,e)->
@@ -215,6 +217,8 @@ let pr_annot_full lettys ppf = function
   | LetInOpen None | LetInNode None -> ()
 
 
+let ocaml_bools = [true, "true"; false, "false"]
+
 let pr_expr funtys lettys ppf =
   let export_if = "if", "then", "else" in
   let export_progseq = "", ";", "" in
@@ -226,12 +230,11 @@ let pr_expr funtys lettys ppf =
       let num_is = String.capitalize !num_is in
       Some (num_is ^ ".of_int", num_is ^ ".(", "+", "*", ")")
     else None in
-  let export_bool = [true, "true"; false, "false"] in
   let export_runtime_failure = "failwith" in
   let pr_ann =
     if funtys || lettys
     then pr_annot_full lettys else pr_annot_rec in
-  pr_expr ?export_num ~export_if ~export_bool ~export_progseq
+  pr_expr ?export_num ~export_if ~export_bool:ocaml_bools ~export_progseq
     ~export_runtime_failure pr_ann ppf
 
 let pr_rhs_docu ppf = function
@@ -441,7 +444,7 @@ let rec pr_struct_items ~funtys ~lettys constrs ppf defined defining prog =
      | None -> ()
      | Some doc -> fprintf ppf "(**%s*)@\n" doc);
     fprintf ppf "@[<2>let@ %a@ %s: %a%s =@ %a@]@\n"
-      pr_pat p (if vdef then "" else "(*")
+      (pr_export_pat ocaml_bools) p (if vdef then "" else "(*")
       pr_typscheme (tysch, false) (if vdef then "" else "*)")
       (pr_expr funtys lettys) e;
     assert (CNames.is_empty defining);

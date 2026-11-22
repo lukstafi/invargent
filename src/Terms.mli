@@ -373,6 +373,8 @@ val freshen_var : Defs.var_name -> Defs.var_name
 
 (** {2 Printing} *)
 
+val catches_all : ('a, 'b) clause -> bool
+val pr_export_pat : (bool * string) list -> Format.formatter -> pat -> unit
 val pr_pat : Format.formatter -> pat -> unit
 
 type ('a, 'b) pr_expr_annot =

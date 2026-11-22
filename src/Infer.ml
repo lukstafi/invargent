@@ -463,7 +463,41 @@ let rec lambda_depth = function
   | Lam _ | ExLam _ -> 1
   | _ -> 0
 
+(* Compare actual values from this pattern. An expression computed using
+   native arithmetic, including a call to an inferred successor function,
+   can overflow even when its inferred index is an affine term. *)
+let impossible_guard prem env guards =
+  let operand = function
+    | Var (x, _) when List.mem_assoc x env -> Some (List.assoc x env)
+    | Num (n, _) when Int64.of_float (float_of_int n) = Int64.of_int n ->
+      Some (TCons (numtype, [num (NumDefs.Cst (n,1))]))
+    | _ -> None in
+  let tests = map_some (fun (left, right) ->
+      match operand left, operand right with
+      | Some a, Some b -> Some (a, b, expr_loc left)
+      | _ -> None) guards in
+  tests <> [] &&
+    try
+      let solved = unify ~use_quants:false empty_q prem in
+      let used = ref (VarSet.union (fvs_formula prem) (fvs_typs (List.map snd env))) in
+      let indices = Hashtbl.create 2 in
+      let index loc ty = match subst_typ solved.cnj_typ ty with
+        | TCons (name, [t]) when name = numtype -> num_unbox ~t2:ty loc t
+        | TVar v ->
+          if not (Hashtbl.mem indices v) then (
+            let i = next_var !used Num_sort in
+            used := VarSet.add i !used;
+            Hashtbl.add indices v i);
+          NumDefs.Lin (1,1,Hashtbl.find indices v)
+        | _ -> raise Not_found in
+      let comparisons = List.map (fun (a,b,loc) ->
+          NumDefs.Leq (index loc a, index loc b, loc)) tests in
+      match NumS.satisfiable (comparisons @ solved.cnj_num) with
+      | Left _ -> true | Right _ -> false
+    with Contradiction _ | Not_found -> false
+
 let constr_gen_expr_with_arities arities gamma e t =
+  let erased_packages = ref None in
   let alias_arities = Hashtbl.create 2 in
   let rec known_arrows gamma = function
     | App (f, _, _) -> max 0 (known_arrows gamma f - 1)
@@ -566,8 +600,10 @@ let constr_gen_expr_with_arities arities gamma e t =
       let t1 = TVar a1 in
       let a2 = fresh_typ_var () in
       let t2 = TVar a2 in
-      let cns, cls = List.split
-          (List.map (aux_cl 0 gamma t1 t2) cls) in
+      let _, checked = fold_map (fun shadowed cl ->
+          let checked = aux_cl ~shadowed 0 gamma t1 t2 cl in
+          shadowed || catches_all cl, checked) false cls in
+      let cns, cls = List.split checked in
       let cn = List.fold_left cn_and
           (A [Eqty (Fun (t1, t2), t, loc)]) cns in
       if match cls with [_] -> !annotating_letin | _ -> !annotating_fun
@@ -685,6 +721,9 @@ let constr_gen_expr_with_arities arities gamma e t =
       Ex (vars_of_list [a0], cn_and cn1 (Or (b0, disjs, cn2))),
       Letin (docu, p, e1, e2, loc)
     | ExLam (ety_id, cls, loc) ->
+      (match !erased_packages with
+       | Some ids -> ids := ety_id :: !ids
+       | None -> ());
       let a0 = fresh_typ_var () in
       let t0 = TVar a0 in
       let chi_id =
@@ -701,18 +740,35 @@ let constr_gen_expr_with_arities arities gamma e t =
       Ex (vars_of_list [a0], cn_and cn_ex cn),
       e
 
-  and aux_cl count gamma t1 t2 (p, guards, e) =
+  and aux_cl ?(shadowed=false) count gamma t1 t2 (p, guards, e) =
     let is_neg = single_assert_false e in
     let t3 = if is_neg then TVar (fresh_typ_var ()) else t1 in
-    let pcns = constr_gen_pat p t3 in
-    (* A guarded negative branch tests values from the actual scrutinee.
-       Its pattern can still be checked at a fresh type when it is impossible. *)
     let guarded_neg = is_neg && guards <> [] in
-    let bs, prem, env = envfrag_gen_pat count p (if guarded_neg then t1 else t3) in
+    let scrutinee = if guarded_neg then t1 else t3 in
+    let returns_function = match e with Lam _ -> not shadowed | _ -> false in
+    let pcns = constr_gen_pat p (if returns_function then t1 else scrutinee) in
+    let bs, prem, env = envfrag_gen_pat count p scrutinee in
     (*[* Format.printf "constr_gen-aux_cl: [%d] t1=%a@ t2=%a@ t3=%a@ bs=%a@ prem=%a@\n%!"
       count pr_ty t1 pr_ty t2 pr_ty t3 pr_vars bs pr_formula prem; *]*)
     let gamma' = List.map typ_to_sch env @ gamma in
-    let concl, e = aux gamma' t2 e in
+    let concl, e =
+      if guards = [] || is_neg || !force_nodeadcode || !erased_packages <> None ||
+         not (impossible_guard prem env guards)
+      then aux gamma' t2 e else (
+        (* Still diagnose unbound names and malformed constructors in the
+           body. Its local annotations and assertions do not reach the solver. *)
+        let old_preserve = !preserve and old_elims = !elim_extype
+        and old_assertions = !uses_pos_assertions in
+        let ids = ref [] in
+        erased_packages := Some ids;
+        ignore (aux gamma' t2 e);
+        erased_packages := None;
+        if List.exists (fun id -> List.mem_assoc id !all_ex_types) !ids then
+          all_ex_types := List.filter (fun (id, _) -> not (List.mem id !ids)) !all_ex_types;
+        preserve := old_preserve;
+        elim_extype := old_elims;
+        uses_pos_assertions := old_assertions;
+        A [], AssertFalse (expr_loc e)) in
     let neg_prem =
       if is_neg && not guarded_neg
       then [Eqty (t1, t3, dummy_loc)]
@@ -745,8 +801,17 @@ let constr_gen_expr_with_arities arities gamma e t =
   let cn = aux gamma t e in
   cn, elim_extype, !preserve
 
+(* Once a package introduction disappears, regenerate the item's let
+   choices so that none can open a package declared only in erased code. *)
+let rec with_live_packages generate =
+  let before = !all_ex_types in
+  let result = generate () in
+  if before == !all_ex_types then result else with_live_packages generate
+
+let live_packages packages = List.filter (fun (i, _) -> List.mem_assoc i !all_ex_types) packages
+
 let constr_gen_expr gamma e t =
-  constr_gen_expr_with_arities (Hashtbl.create 2) gamma e t
+  with_live_packages (fun () -> constr_gen_expr_with_arities (Hashtbl.create 2) gamma e t)
 
 let constr_gen_tests ~arities gamma tests =
   let elim_cells = ref [] in
@@ -761,7 +826,7 @@ let constr_gen_tests ~arities gamma tests =
   List.fold_left cn_and (And []) cns,
   tests, !elim_cells, List.concat preserve
 
-let constr_gen_letrec ?(nonrec=false) gamma x e sig_cn tb tests =
+let gen_letrec ~nonrec gamma x e sig_cn tb tests =
   (* χ is a predicate on one type variable. A written scheme constrains
      the instances χ can admit, and each recursive use instantiates both. *)
   let anchor = match tb, sig_cn with
@@ -791,6 +856,9 @@ let constr_gen_letrec ?(nonrec=false) gamma x e sig_cn tb tests =
   chi_id, def_typ,
   cn_and def_cn (cn_and (Ex (vars_of_list [a], A [chi_a])) test_cn),
   e, tests, elim_cell::elim_cells, more_preserve @ preserve
+
+let constr_gen_letrec ?(nonrec=false) gamma x e sig_cn tb tests =
+  with_live_packages (fun () -> gen_letrec ~nonrec gamma x e sig_cn tb tests)
 
 let constr_gen_let gamma p e ta =
   let pcns = constr_gen_pat p ta in
@@ -887,7 +955,7 @@ let infer_prog_mockup (prog : program) =
   ) prog in
   List.fold_right
     (fun (extys, pres, cn) (extys_acc, pres_acc, cn_acc) ->
-      extys @ extys_acc, VarSet.union pres pres_acc, cn_and cn cn_acc)
+      live_packages extys @ extys_acc, VarSet.union pres pres_acc, cn_and cn cn_acc)
     cns ([], VarSet.empty, And [])
 
 let annotate_expr q res_sb chi_sb nice_sb e : texpr =
@@ -1093,6 +1161,7 @@ let infer_prog solver prog =
              pr_cnstrnt cn; *]*)
           let preserve = add_vars preserve
               (VarSet.union (fvs_typ t) (fvs_formula sig_cn)) in
+          let new_ex_types = live_packages new_ex_types in
           let q, phi_res, sb_chi =
             solver ~uses_pos_assertions:!uses_pos_assertions
               ~new_ex_types ~preserve cn in
@@ -1184,6 +1253,7 @@ let infer_prog solver prog =
             if VarSet.is_empty avs then cn else Ex (avs, cn) in
           (*[* Format.printf "LetVal: p=%a@\ncn=%a@\n%!" pr_pat p
              pr_cnstrnt cn; *]*)
+          let new_ex_types = live_packages new_ex_types in
           let q, phi, sb_chi = solver
               ~uses_pos_assertions:!uses_pos_assertions
               ~new_ex_types ~preserve cn in

@@ -860,40 +860,55 @@ let all_ex_types = ref []
 
 open Format
 
-let rec pr_pat ppf = function
-  | Zero -> fprintf ppf "%s" "!"
-  | One _ -> fprintf ppf "%s" "_"
-  | PVar (x, _) -> fprintf ppf "%s" x
-  | PAnd (pat1, pat2, _) ->
-      fprintf ppf "@[<2>%a@ as@ %a@]"
-	pr_pat pat1 pr_more_pat pat2
-  | PCons (CNam "Tuple", pats, _) ->
-    fprintf ppf "@[<2>(%a)@]"
-      (pr_sep_list "," ~pr_hd:pr_pat pr_more_pat) pats
-  | PCons (x, [], _) ->
-      fprintf ppf "%s" (cns_str x)
-  | PCons (x, [pat], _) ->
-      fprintf ppf "@[<2>%s@ %a@]" (cns_str x) pr_one_pat pat
-  | PCons (x, pats, _) ->
-      fprintf ppf "@[<2>%s@ (%a)@]" (cns_str x)
-	(pr_sep_list "," ~pr_hd:pr_pat pr_more_pat) pats
+let catches_all = function
+  | (PVar _ | One _), [], _ -> true
+  | _ -> false
 
-and pr_more_pat ppf = function
-  | PAnd _ as p ->
-      fprintf ppf "(%a)" (pr_pat) p
-  | p -> pr_pat ppf p
+let pattern_printers name =
+  let rec pr_pat ppf = function
+    | Zero -> fprintf ppf "%s" "!"
+    | One _ -> fprintf ppf "%s" "_"
+    | PVar (x, _) -> fprintf ppf "%s" x
+    | PAnd (pat1, pat2, _) ->
+        fprintf ppf "@[<2>%a@ as@ %a@]"
+        pr_pat pat1 pr_more_pat pat2
+    | PCons (CNam "Tuple", pats, _) ->
+      fprintf ppf "@[<2>(%a)@]"
+        (pr_sep_list "," ~pr_hd:pr_pat pr_more_pat) pats
+    | PCons (x, [], _) ->
+        fprintf ppf "%s" (name x)
+    | PCons (x, [pat], _) ->
+        fprintf ppf "@[<2>%s@ %a@]" (name x) pr_one_pat pat
+    | PCons (x, pats, _) ->
+        fprintf ppf "@[<2>%s@ (%a)@]" (name x)
+        (pr_sep_list "," ~pr_hd:pr_pat pr_more_pat) pats
 
-and pr_one_pat ppf = function
-  | Zero -> fprintf ppf "%s" "!"
-  | One _ -> fprintf ppf "%s" "_"
-  | PVar (x, _) -> fprintf ppf "%s" x
-  | PCons (CNam "Tuple", pats, _) ->
-    fprintf ppf "@[<2>(%a)@]"
-      (pr_sep_list "," ~pr_hd:pr_pat pr_more_pat) pats
-  | PCons (x, [], _) ->
-      fprintf ppf "%s" (cns_str x)
-  | p -> fprintf ppf "(%a)" pr_pat p
+  and pr_more_pat ppf = function
+    | PAnd _ as p ->
+        fprintf ppf "(%a)" (pr_pat) p
+    | p -> pr_pat ppf p
 
+  and pr_one_pat ppf = function
+    | Zero -> fprintf ppf "%s" "!"
+    | One _ -> fprintf ppf "%s" "_"
+    | PVar (x, _) -> fprintf ppf "%s" x
+    | PCons (CNam "Tuple", pats, _) ->
+      fprintf ppf "@[<2>(%a)@]"
+        (pr_sep_list "," ~pr_hd:pr_pat pr_more_pat) pats
+    | PCons (x, [], _) ->
+        fprintf ppf "%s" (name x)
+    | p -> fprintf ppf "(%a)" pr_pat p in
+  pr_pat, pr_more_pat, pr_one_pat
+
+let pr_pat, pr_more_pat, pr_one_pat = pattern_printers cns_str
+
+let export_cns bools = function
+  | CNam "True" -> (try List.assoc true bools with Not_found -> "true")
+  | CNam "False" -> (try List.assoc false bools with Not_found -> "false")
+  | k -> cns_str k
+
+let pr_export_pat bools =
+  let print, _, _ = pattern_printers (export_cns bools) in print
 
 let collect_lambdas e =
   let rec aux pats = function
@@ -922,6 +937,9 @@ let pr_expr ?export_num ?export_if ?export_bool ?export_progseq
     ?export_runtime_failure pr_ann ppf exp =
   let int_argument ppf i =
     if i < 0 then fprintf ppf "(%d)" i else fprintf ppf "%d" i in
+  let pr_pat, pr_more_pat, pr_one_pat = match export_bool with
+    | None -> pr_pat, pr_more_pat, pr_one_pat
+    | Some bools -> pattern_printers (export_cns bools) in
   let rec aux ppf = function
     | Var (s, _) -> fprintf ppf "%s" s
     | String (s, _) -> fprintf ppf "\"%s\"" s
@@ -942,12 +960,8 @@ let pr_expr ?export_num ?export_if ?export_bool ?export_progseq
     | Cons (CNam "Tuple", exps, _) ->
       fprintf ppf "@[<2>(%a)@]"
         (pr_sep_list "," aux) exps
-    | Cons (CNam "True", [], _) when export_bool <> None ->
-      fprintf ppf "%s" (try List.assoc true (unsome export_bool)
-                        with Not_found -> "true")
-    | Cons (CNam "False", [], _) when export_bool <> None ->
-      fprintf ppf "%s" (try List.assoc false (unsome export_bool)
-                        with Not_found -> "false")
+    | Cons ((CNam "True" | CNam "False") as k, [], _) when export_bool <> None ->
+      pp_print_string ppf (export_cns (unsome export_bool) k)
     | App (App (Var (f, _), e1, _), e2, _) when f = builtin_progseq ->
       let kwd_beg, kwd_mid, kwd_end =
         try unsome export_progseq
@@ -998,7 +1012,7 @@ let pr_expr ?export_num ?export_if ?export_bool ?export_progseq
     | Cons (x, exps, _) ->
       fprintf ppf "@[<2>%s@ (%a)@]" (cns_str x)
         (pr_sep_list "," aux) exps
-    | Lam (_, [_], _) as exp ->
+    | Lam (_, [_, [], _], _) as exp ->
       let pats, expr = collect_lambdas exp in
       fprintf ppf "@[<2>(fun@ %a@ ->@ %a)@]"
         (pr_sep_list "" pr_one_pat) pats

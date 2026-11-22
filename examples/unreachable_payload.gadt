@@ -1,0 +1,37 @@
+datatype Marker
+datacons Mark : Marker
+datatype Cargo
+datacons Box : Cargo
+datatype Tag : type * type * type * type
+datacons First : ∀a. a ⟶ Tag (a, Marker, Marker, Marker)
+datacons Second : ∀a. a ⟶ Tag (Marker, a, Marker, Marker)
+datacons Third : ∀a. a ⟶ Tag (Marker, Marker, a, Marker)
+datacons Fourth : ∀a. a ⟶ Tag (Marker, Marker, Marker, a)
+datatype Nat
+datacons Z : Nat
+datacons S : Nat ⟶ Nat
+
+external let same : ∀a. a → a → Bool =
+  "fun a b -> assert (a = b); true"
+
+datatype Seed
+datacons Pick : ∀i[i≤0]. Num i ⟶ Seed
+external let tick : ∀i. Num i → Num i =
+  "let calls = ref 0 in fun n -> if n = 73 then assert (!calls = 1) else incr calls; n"
+external let seed : Seed = "Pick 0"
+let rec f t = efunction
+  | Z -> let z = (match t with First x -> x | Second x -> x | Third x -> x | Fourth x -> x) in (z,z)
+  | S n -> f t n
+
+test (match seed with Pick n when tick n <= n && 1 <= n -> let unused = efunction x -> x in let ok = (let (x,y) = f (Third Box) (S Z) in same x Box) in let (x,y) = f (First Box) (S Z) in same x Box | _ -> True)
+
+let checked = tick 73
+let later = efunction x -> x
+let later_box = let z = later Box in same z Box
+
+let choose : Bool → Seed → Bool = function
+  | True -> (function Pick n when 1 <= tick n -> assert false)
+  | False -> (fun s -> True)
+let saved = choose True
+let only = function Pick n when 0 <= n -> True
+let at_zero = only (Pick 0)

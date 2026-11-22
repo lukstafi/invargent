@@ -344,6 +344,10 @@ let tests = "InvarGenT" >::: [
         assert_bool "one conjunctive scheme cannot serve both marked calls"
           (rejects_source (client "Left" "let (a,b) = f (Right Box) Z in let ok = same a Box in same x Box")));
       "an impossible maximum excludes a failing branch" >:: test_case "impossible_maximum";
+      "preserve guard evaluation and erase impossible payload clients" >:: (fun () ->
+        test_case "unreachable_payload" ();
+        let file = example_path "unreachable_payload" ^ ".ml" in
+        assert_equal 0 (Sys.command ("ocaml -noinit " ^ Filename.quote file)));
       "a constructor index witnesses a guarded call" >:: test_case "guarded_payload";
       "a call reached after opening an earlier return" >:: test_case "ordered_calls";
       "a partial application through two local aliases" >:: test_case "function_alias";
