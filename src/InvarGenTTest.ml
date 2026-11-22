@@ -345,6 +345,7 @@ let tests = "InvarGenT" >::: [
           (rejects_source (client "Left" "let (a,b) = f (Right Box) Z in let ok = same a Box in same x Box")));
       "an impossible maximum excludes a failing branch" >:: test_case "impossible_maximum";
       "a constructor index witnesses a guarded call" >:: test_case "guarded_payload";
+      "a call reached after opening an earlier return" >:: test_case "ordered_calls";
       "instantiate each required call separately" >:: test_case "marked_calls";
       "empty existential binders and OCaml type names" >:: test_case "packed_payload";
       "an affine tag survives a reflected recursive input" >:: test_case "affine_tag"

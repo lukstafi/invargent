@@ -855,19 +855,17 @@ let forced_call_guard (q : quant_ops) branches =
       else false
     with Contradiction _ -> false
 
-let call_input_samples q branches =
+let call_input_samples q branches sites =
   let domains anchor = map_some (function
       | Eqty (TVar v, (Fun _ as arrow), _)
       | Eqty ((Fun _ as arrow), TVar v, _) when v = anchor ->
         Some (arg_types arrow)
       | _ -> None) in
-  let required = forced_call_guard q.op (List.map (fun (_, p, c) -> p, c) branches) in
-  let calls = concat_map (fun (_, guard, conclusion) ->
-      let samples = concat_map (function
+  let calls = concat_map (fun (_, _, conclusion) ->
+      concat_map (function
           | PredVarU (i, TVar v, _) when not (q.is_chiK i) ->
             List.map (fun args -> i, args) (domains v conclusion)
-          | _ -> []) conclusion in
-      if samples <> [] && required guard then samples else []) branches in
+          | _ -> []) conclusion) sites in
   let instance formals actuals =
     let ren = VarSet.fold (fun v sb -> VarMap.add v (freshen_var v) sb)
         (fvs_typs actuals) VarMap.empty in
@@ -1939,18 +1937,45 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
     | Aux.Left (Type_sort, _) as err ->
       let callers, producers = List.partition opens_result_at_caller brs in
       let propose call_inputs =
-        if callers = [] then start ~call_inputs brs else
+        if callers = [] then start ~call_inputs brs, None else
         match start ~call_inputs producers with
-        | Aux.Left _ -> err
+        | Aux.Left _ -> err, None
         | Aux.Right (pass, _, rol, sol) ->
           if pass >= !timeout_count then
             exhausted (formula_loc (concat_map (fun (_, prem, _) -> prem) callers));
-          loop ~branches:brs ~jump_at:disj_step.(5) (pass+1) empty_dl rol sol [] in
-      let previous = if callers = [] then err else propose [] in
+          loop ~branches:brs ~jump_at:disj_step.(5) (pass+1) empty_dl rol sol [], Some (rol, sol) in
+      let previous = if callers = [] then err, None else propose [] in
       (match previous with
-       | Aux.Left (Type_sort, _) ->
-         (match call_input_samples q brs with [] -> previous | calls -> propose calls)
-       | _ -> previous)
+       | Aux.Left (Type_sort, _), _ ->
+         let sites = List.filter (fun (_, _, c) -> List.exists (function
+             | PredVarU (i, TVar _, _) -> not (q.is_chiK i)
+             | _ -> false) c) brs in
+         let required = forced_call_guard q.op (List.map (fun (_, p, c) -> p, c) brs) in
+         let known, deferred = List.partition (fun (_, p, _) -> required p) sites in
+         let samples = call_input_samples q brs known in
+         let rec retry samples deferred = function
+           | (Aux.Left (Type_sort, _) as failure), Some (rol, sol) when deferred <> [] ->
+             let expand ((_, p, _) as br) = if opens_result_at_caller br
+               then sb_formula_pred q false rol sol p else p in
+             (* Use a rejected proposal only to suggest calls behind a
+                result opening. Give the next search the original arguments
+                and check its result against every original branch. *)
+             let context = map_some (fun ((_, p, c) as br) ->
+                 if List.exists (function PredVarU _ -> true | _ -> false) p then None
+                 else Some (expand br, c @ concat_map (function
+                     | PredVarU _ as pred -> sb_atom_pred q true rol sol pred
+                     | _ -> []) c)) brs in
+             let reachable = forced_call_guard q.op context in
+             let new_sites, rest = List.partition (fun br -> reachable (expand br)) deferred in
+             (match call_input_samples q brs new_sites with
+              | [] -> failure
+              | extra ->
+                let samples = samples @ extra in
+                retry samples rest (propose samples))
+           | result, _ -> result in
+         retry samples (List.filter opens_result_at_caller deferred)
+           (if samples = [] then previous else propose samples)
+       | result, _ -> result)
     | result -> result in
   match result with
   | Aux.Left (_, e) -> raise e
