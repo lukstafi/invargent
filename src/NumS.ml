@@ -2091,27 +2091,40 @@ let validate_incr ~cmp_v ~cmp_w uni_v ~bvs ~xbvs validation a =
    encountered a numeric opportunity replays its search with affine fits. *)
 type affine_search = Ordinary | Observe of bool ref | Recover
 let affine_search = ref Ordinary
+let joint_search = ref Ordinary
 
-let use_affine_fit () = match !affine_search with
+let use_fit mode = match !mode with
   | Ordinary -> false
   | Observe seen -> seen := true; false
   | Recover -> true
 
-let with_affine_retry search =
-  let run mode =
-    let previous = !affine_search in
-    affine_search := mode;
-    try let result = search () in affine_search := previous; result
-    with exn -> affine_search := previous; raise exn in
-  match !affine_search with
+let use_affine_fit () = use_fit affine_search
+
+let run_in_mode setting mode search =
+  let previous = !setting in
+  setting := mode;
+  try let result = search () in setting := previous; result
+  with exn -> setting := previous; raise exn
+
+let with_retry setting search =
+  match !setting with
   | Recover | Observe _ -> search ()
   | Ordinary ->
     let seen = ref false in
-    try run (Observe seen) with
+    try run_in_mode setting (Observe seen) search with
     | (Terms.NoAnswer _ | Terms.Contradiction _) as original when !seen ->
-      (try run Recover with
+      (try run_in_mode setting Recover search with
        | Terms.NoAnswer _ | Terms.Contradiction _ -> raise original
        | Failure msg when msg = "int_of_big_int" -> raise original)
+
+let with_affine_retry search = with_retry affine_search search
+
+(* Affine recovery can run on a tentative call policy. Joint recovery runs
+   outside those policies so an existing successful declaration finishes first. *)
+let with_joint_retry search =
+  with_retry joint_search (fun () -> match !joint_search with
+      | Recover -> run_in_mode affine_search Recover search
+      | Ordinary | Observe _ -> search ())
 
 (* A branch substitution sends each candidate affine equation to its
    residual. Row reduction on the residuals, carrying the original rows,
@@ -2580,7 +2593,7 @@ let abd_simple ~samples ~qcmp_v ~cmp_w
          List.iter try_trans_ineq cands;
          let hidden v = uni_v v && not (VarSet.mem v bvs) in
          if List.exists (fun (v,_) -> hidden v) vars
-            && use_affine_fit () then
+            && use_fit joint_search then
            let upper = projected_goal_bounds ~cmp_v ~hidden ~eqn:d_eqn' ~ineqn:d_ineqn' w in
            (* Either upper bound suffices. Keeping both alternatives can
               admit callers which no single affine inequality can cover. *)
@@ -2649,7 +2662,7 @@ let abd_simple ~samples ~qcmp_v ~cmp_w
                 c_eqn0 c_ineqn0 c_optis0 c_suboptis0
             with Terms.Contradiction _ -> () in
         try_fits sample_rotations;
-        try_fits joint_sample_rotations);
+        if use_fit joint_search then try_fits joint_sample_rotations);
       None
     with Result (ans_eqs, ans_ineqs, ans_optis, ans_suboptis, validation) ->
       (*[* Format.printf "NumS.abd_simple: result:\

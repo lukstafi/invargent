@@ -8,6 +8,8 @@
 
 (** Retry a failed search with fitted scalar equations. *)
 val with_affine_retry : (unit -> 'a) -> 'a
+(** Retry a failed declaration with joint equation fits and projected numeric guards. *)
+val with_joint_retry : (unit -> 'a) -> 'a
 
 (** Try four times as many linear combinations (k,-k,1/k,-1/k). *)
 val abd_rotations : int ref

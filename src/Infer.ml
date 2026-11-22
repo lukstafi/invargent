@@ -1935,45 +1935,46 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
                   | _ -> raise exn in
           let placements = if msg = "Answers do not converge" then [] else [branch_packages] in
           retry initial (placements @ [name_consumed_matches])) in
-    let seen = ref false in
-    try search (Observe_comparisons seen) with
-    | (NoAnswer _ | Contradiction _) as original when !seen ->
-      let ambiguous = ref false and bands = ref [] in
-      let try_proposals failed =
-        let saved = List.map (fun (i,_) -> Extype i, Hashtbl.find sigma (Extype i)) packages in
-        let rec try_keys candidates groups = match candidates, groups with
-          | [], [] -> raise failed
-          | [], next::rest -> try_keys (next ()) rest
-          | call_constraints::rest, _ ->
-            let candidate = try Some (search ~call_constraints (Observe_comparisons (ref false)))
-              with NoAnswer _ | Contradiction _ -> None in
-            (match candidate with
-             | None -> try_keys rest groups
-             | Some answer ->
-               match admitted call_constraints answer with
-               | Admitted -> answer
-               | retry ->
-                 (* Restore the schemes installed for this tentative answer.
-                    Every reduced family gets a new solve and admission check. *)
-                 List.iter (fun (tag,scheme) -> Hashtbl.replace sigma tag scheme) saved;
-                 all_ex_types := initial_packages;
-                 let next = match retry with Retry_keys q -> Open_at_keys q :: rest | _ -> rest in
-                 try_keys next groups) in
-        try_keys [] (propose_call !bands) in
-      (try
-         try search (Prove_complements (ambiguous,bands)) with
-         | (NoAnswer _ | Contradiction _) as failed ->
-           (* A failed one-sided comparison can also need a different call
-              typing. Boundary probes resolve ambiguity between comparisons. *)
-           if not !ambiguous then try_proposals failed else
-           (try search (Probe_boundaries bands) with
-            | (NoAnswer _ | Contradiction _) as probed -> try_proposals probed)
-       with exn ->
-         all_ex_types := initial_packages;
-         match exn with
-         | NoAnswer _ | Contradiction _ -> raise original
-         | Failure msg when msg = "int_of_big_int" -> raise original
-         | _ -> raise exn) in
+    NumS.with_joint_retry (fun () ->
+      let seen = ref false in
+      try search (Observe_comparisons seen) with
+      | (NoAnswer _ | Contradiction _) as original when !seen ->
+        let ambiguous = ref false and bands = ref [] in
+        let try_proposals failed =
+          let saved = List.map (fun (i,_) -> Extype i, Hashtbl.find sigma (Extype i)) packages in
+          let rec try_keys candidates groups = match candidates, groups with
+            | [], [] -> raise failed
+            | [], next::rest -> try_keys (next ()) rest
+            | call_constraints::rest, _ ->
+              let candidate = try Some (search ~call_constraints (Observe_comparisons (ref false)))
+                with NoAnswer _ | Contradiction _ -> None in
+              (match candidate with
+               | None -> try_keys rest groups
+               | Some answer ->
+                 match admitted call_constraints answer with
+                 | Admitted -> answer
+                 | retry ->
+                   (* Restore the schemes installed for this tentative answer.
+                      Every reduced family gets a new solve and admission check. *)
+                   List.iter (fun (tag,scheme) -> Hashtbl.replace sigma tag scheme) saved;
+                   all_ex_types := initial_packages;
+                   let next = match retry with Retry_keys q -> Open_at_keys q :: rest | _ -> rest in
+                   try_keys next groups) in
+          try_keys [] (propose_call !bands) in
+        (try
+           try search (Prove_complements (ambiguous,bands)) with
+           | (NoAnswer _ | Contradiction _) as failed ->
+             (* A failed one-sided comparison can also need a different call
+                typing. Boundary probes resolve ambiguity between comparisons. *)
+             if not !ambiguous then try_proposals failed else
+             (try search (Probe_boundaries bands) with
+              | (NoAnswer _ | Contradiction _) as probed -> try_proposals probed)
+         with exn ->
+           all_ex_types := initial_packages;
+           match exn with
+           | NoAnswer _ | Contradiction _ -> raise original
+           | Failure msg when msg = "int_of_big_int" -> raise original
+           | _ -> raise exn)) in
   let ntime = ref (Sys.time ()) in
   let start_time = !ntime in
   let gamma = ref builtin_gamma in
