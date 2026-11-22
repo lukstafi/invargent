@@ -134,7 +134,8 @@ let main () =
     "-early_num_abduction", Arg.Set NumS.early_num_abduction,
     "Include recursive branches in numerical abduction from the start";
     "-convergence_step", Arg.Int set_convergence_step,
-    "The iteration at which to start widening numeric postconditions. Keep \
+    "First iteration for widening numeric postconditions. After a postcondition \
+     restart past this threshold, allow a longer window before widening. Keep \
      common atoms and old inequalities implied by the new numeric constraints \
      (default 8)";
     "-early_postcond_abd", Arg.Set Invariants.early_postcond_abd,

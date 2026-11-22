@@ -989,7 +989,14 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
     q.chiK_anchor; Format.printf "@\n%!"; *]*)
   let initstep = ref true in
   let fallback_postcond = ref false in
-  let rec loop ?(retry=false) iter_no discard rol1 sol1 ans1_res =
+  let rec loop ?(retry=false) ~jump_at iter_no discard rol1 sol1 ans1_res =
+    (* A failed postcondition can restart inference from the base cases.
+       After the jump, give the restarted approximation time to develop.
+       Each such restart gets a longer window, within the overall timeout. *)
+    let jump_at =
+      if !fallback_postcond && iter_no > jump_at then
+        if iter_no > (max_int - 1) / 2 then max_int else 2 * iter_no + 1
+      else jump_at in
     (* 1 *)
     let dropped_from_sol = ref false in
     let sol1 =
@@ -1271,7 +1278,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
                    ~fresh:(VarSet.diff (vars_of_list fresh) fixed)
                    ~guard ~branches ~initstep:!initstep
                    ~check_only:(!initstep || old_initstep ||
-                                iter_no < disj_step.(5))
+                                iter_no < jump_at)
                    old lifted in
                let anchor = Hashtbl.find q.chiK_anchor i in
                if vs <> [] then q.add_b_vs_of anchor
@@ -1428,7 +1435,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
              a solution after widening. A retry at this pass keeps its cuts. *)
           Abduction.abd q.op ~bvs ~xbvs ~orig_ren
             ~recover_caller:(rol1 <> [] && not retry && not !initstep &&
-                             not old_initstep && iter_no >= disj_step.(5))
+                             not old_initstep && iter_no >= jump_at)
             ~b_of_v:q.find_b_of_v ~upward_of
             ~nonparam_vars ~iter_no
             ~discard brs1 neg_cns1 in
@@ -1493,7 +1500,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
       (* 11 *)
       let finish rol2 sol2 =
         (* start fresh at (iter_no+1) *)
-        match loop (iter_no+1)
+        match loop ~jump_at (iter_no+1)
                 (if !use_prior_discards then discard else empty_dl)
                 rol2 sol2 ans_res
         with Aux.Right _ as res -> res
@@ -1542,7 +1549,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
                  {discard with at_num=s_discard.at_num::discard.at_num}
                | Order_sort ->
                  {discard with at_ord=s_discard.at_ord::discard.at_ord} in
-             loop ~retry:true iter_no discard rol1 sol1 ans_res in
+             loop ~retry:true ~jump_at iter_no discard rol1 sol1 ans_res in
       (* 7-8 *)
       (* Avoid substituting [bvs] -- treat them like leftmost. *)
       let ans_sb, _ =
@@ -1803,7 +1810,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
         Aux.Right (ans_res, rol2, sol2)
         (* Do at least three iterations: 0, 1, 2. *)
       else if iter_no <= 1 && finished
-      then loop (iter_no+1)
+      then loop ~jump_at (iter_no+1)
           (if !use_prior_discards then discard else empty_dl)
           rol2 sol1 ans_res
       else if iter_no >= !timeout_count
@@ -1835,7 +1842,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
         NumS.prefer_bound_to_local := old_prefer_bound_to_local;
         raise (NoAnswer (Type_sort, "Answers do not converge", None, loc))
       else finish rol2 sol2 in
-  match loop 0 empty_dl rolT solT [] with
+  match loop ~jump_at:disj_step.(5) 0 empty_dl rolT solT [] with
   | Aux.Left (_, e) -> raise e
   | Aux.Right (ans_res, rol, sol) ->
     (*[* Format.printf "solve: checking assert false@\n%!"; *]*)

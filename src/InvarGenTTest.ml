@@ -241,6 +241,13 @@ let tests = "InvarGenT" >::: [
              (rejects_source "let f = if 0 <= 0 then assert false else 1")
          with e -> restore (); raise e);
         restore ());
+      "the restarted pair inference gets a fresh widening window" >:: (fun () ->
+        let old = !Invariants.timeout_count in
+        Invariants.timeout_count := 24;
+        (try test_case "capped_pair"
+             ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) ()
+         with e -> Invariants.timeout_count := old; raise e);
+        Invariants.timeout_count := old);
       "a guarded assertion constrains the matched argument" >:: (fun () ->
         let guard = "let rec f = function x when x <= 0 -> assert false | x -> x\n" in
         ignore (infer_source (guard ^ "let safe = f 1"));

@@ -1,0 +1,17 @@
+datatype Nat
+
+datacons Z : Nat
+
+datacons S : Nat ⟶ Nat
+
+datatype Cut : num
+
+datacons C : ∀i, j[j=min (8, i)].Num j ⟶ Cut i
+
+external val sat : ∀i. Num i → Cut i
+
+external val bound : ∀i, j[j ≤ 9]. (Num i, Num j) → Bool
+
+val pair :
+   Nat → ∃n, k[k ≤ n + 1 ∧ 2 k ≤ 3 n ∧
+     n=min (k, 8)].(Num n, Num k)

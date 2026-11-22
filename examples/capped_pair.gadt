@@ -1,0 +1,16 @@
+datatype Nat
+datacons Z : Nat
+datacons S : Nat ⟶ Nat
+
+datatype Cut : num
+datacons C : ∀i,j[j=min(8,i)]. Num j ⟶ Cut i
+external let sat : ∀i. Num i → Cut i = "fun x -> C (min 8 x)"
+
+external let bound : ∀i,j[j≤9]. (Num i, Num j) → Bool =
+  "fun (_,y) -> assert (y <= 9); true"
+
+let rec pair = efunction
+  | Z -> (0,0)
+  | S t -> let (x,y) = pair t in
+           let w = x+1 in let C z = sat w in (z,w)
+test (let xy = pair (S Z) in bound xy)

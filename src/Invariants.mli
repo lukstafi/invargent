@@ -22,7 +22,8 @@ val same_with_assertions : bool ref
     * [disj_step.(2)] is when using only non-rec branches ends,
     * [disj_step.(3)] is when second-phase abduction starts,
     * [disj_step.(4)] is when guessing in constraint generation ends,
-    * [disj_step.(5)] is when convergence of postconditions is enforced.
+    * [disj_step.(5)] is the first widening pass. A postcondition restart after
+      that pass gets a longer window before widening resumes.
  *)
 val disj_step : int array
 
