@@ -1,0 +1,18 @@
+datatype Marker
+datacons Mark : Marker
+datatype Cargo
+datacons Box : Cargo
+datatype Tag : type
+datacons M : Tag Marker
+datacons C : Tag Cargo
+datatype Nat
+datacons Z : Nat
+datacons S : Nat ⟶ Nat
+external let observe : ∀a. a → a = "fun x -> x"
+external let mark : Marker → Bool = "fun _ -> true"
+external let box : Cargo → Bool = "fun _ -> true"
+
+let rec reveal tag = efunction
+  | Z -> let x = (match tag with M -> Mark | C -> Box) in observe x
+  | S d -> reveal tag d
+test (let a = reveal M (S Z) in let ok = mark a in let b = reveal C Z in box b)

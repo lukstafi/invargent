@@ -704,6 +704,10 @@ let retry_witness_names ~occupied ~fresh ~parameters (old_vs, old_phi) (vs, phi)
     if subformula renamed old_phi && subformula old_phi renamed then names else VarMap.empty
   with Not_found -> VarMap.empty
 
+(* Two openings can impose incompatible type equalities on a provisional
+   result. Backtrack to the proposal that joined those openings. *)
+exception Inconsistent_proposal of sort * exn
+
 (* Rename the new solution to match variables of the old solution. *)
 let converge q_ops ~occupied ~fresh ~initstep ?guard ~branches ~check_only ~recover_caps
     (vs1, cnj1) (vs2, cnj2) =
@@ -712,7 +716,8 @@ let converge q_ops ~occupied ~fresh ~initstep ?guard ~branches ~check_only ~reco
     check_only pr_vars (vars_of_list vs1) pr_vars (vars_of_list vs2)
     pr_formula cnj1 pr_formula cnj2; *]*)
   let {cnj_typ=c1_ty; cnj_num=c1_num; cnj_so=c1_so} =
-    unify ~use_quants:false q_ops cnj1 in
+    try unify ~use_quants:false q_ops cnj1 with
+    | Contradiction (sort, _, _, _) as exn -> raise (Inconsistent_proposal (sort, exn)) in
   let {cnj_typ=c2_ty; cnj_num=c2_num; cnj_so=c2_so} =
     unify ~use_quants:false q_ops cnj2 in
   let recover_param c_ty cnj =
@@ -1075,6 +1080,7 @@ let solve_constraints check_only q_ops new_ex_types exty_res_chi brs =
   let initstep = ref true in
   let fallback_postcond = ref false in
   let rec loop ~branches ?(call_inputs=[]) ?retry_proposal ?supplier_pass ~jump_at iter_no discard rol1 sol1 ans1_res =
+    try
     (* A failed postcondition can restart inference from the base cases.
        After the jump, give the restarted approximation time to develop.
        Each such restart gets a longer window, within the overall timeout. *)
@@ -1958,7 +1964,8 @@ let solve_constraints check_only q_ops new_ex_types exty_res_chi brs =
              !unfinished_postcond_flag && finished1 && finished2 && finished3 &&
              not dissoc_abdsj && not !dropped_from_sol
           then Some (iter_no+1) else supplier_pass in
-        finish supplier_pass rol2 sol2 in
+        finish supplier_pass rol2 sol2
+    with Inconsistent_proposal (sort, exn) -> Aux.Left (sort, exn) in
   let start ?(call_inputs=[]) branches =
     initstep := true;
     fallback_postcond := false;

@@ -1,0 +1,27 @@
+datatype Marker
+
+datacons Mark : Marker
+
+datatype Cargo
+
+datacons Box : Cargo
+
+datatype Tag : type
+
+datacons M : Tag Marker
+
+datacons C : Tag Cargo
+
+datatype Nat
+
+datacons Z : Nat
+
+datacons S : Nat ⟶ Nat
+
+external val observe : ∀a. a → a
+
+external val mark : Marker → Bool
+
+external val box : Cargo → Bool
+
+val reveal : ∀a. Tag a → Nat → ∃.a
