@@ -1,0 +1,41 @@
+datatype Marker
+
+datacons Mark : Marker
+
+datatype Cargo
+
+datacons Box : Cargo
+
+datatype Tag : type * type * type * type
+
+datacons First : ∀a.a ⟶ Tag (a, Marker, Marker, Marker)
+
+datacons Second : ∀a.a ⟶ Tag (Marker, a, Marker, Marker)
+
+datacons Third : ∀a.a ⟶ Tag (Marker, Marker, a, Marker)
+
+datacons Fourth : ∀a.a ⟶ Tag (Marker, Marker, Marker, a)
+
+datatype Nat
+
+datacons Z : Nat
+
+datacons S : Nat ⟶ Nat
+
+external val same : ∀a. a → a → Bool
+
+datatype Seed
+
+datacons Pick : ∀i[i ≤ 0].Num i ⟶ Seed
+
+external val observed : ∀i. Num i → Num i
+
+external val seal : ∀i. Num i → ∃j[j ≤ i].Num j
+
+external val seed : Seed
+
+val f : ∀a, b. Tag (a, b, b, b) → Nat → ∃.(a, a)
+
+val checked : Num 73
+
+val later_first : Bool

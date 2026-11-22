@@ -896,15 +896,7 @@ let call_input_samples q branches sites =
           (domains v conclusion)
       | _ -> []) branches
 
-let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
-  timeout_flag := false;
-  let old_reward_constrn = !NumS.reward_constrn in
-  let old_prefer_bound_to_local = !NumS.prefer_bound_to_local in
-  (*[* Format.printf
-    "solve: old_reward_constrn=%d, uses_pos_assertions=%b@\n%!"
-    old_reward_constrn uses_pos_assertions; *]*)
-  if uses_pos_assertions && not !same_with_assertions
-  then (NumS.reward_constrn := -1; NumS.prefer_bound_to_local := true);
+let solve_constraints q_ops new_ex_types exty_res_chi brs =
   (* DEBUG *)
   (*[* List.iter
     (fun (prem,concl) ->
@@ -1059,8 +1051,6 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
     q.chiK_anchor; Format.printf "@\n%!"; *]*)
   let exhausted loc =
     timeout_flag := true;
-    NumS.reward_constrn := old_reward_constrn;
-    NumS.prefer_bound_to_local := old_prefer_bound_to_local;
     raise (NoAnswer (Type_sort, "Answers do not converge", None, loc)) in
   let initstep = ref true in
   let fallback_postcond = ref false in
@@ -2065,7 +2055,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
     (*[* Format.printf "solve: final@\nans_res'=%a@\n%!"
       pr_formula ans_res; *]*)
     let sol = List.map esb_ans sol in
-    List.iter
+    let packages = List.map
       (fun (ex_i, loc) ->
          let _, exphi, ty, _, pvs = Hashtbl.find sigma (Extype ex_i) in
          let ty = match ty with [ty] -> ty | _ -> assert false in
@@ -2117,9 +2107,20 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
            pr_formula rphi pr_formula phi;
          *]*)
          let ety_n = Extype ex_i in
-         Hashtbl.replace sigma ety_n
-           (VarSet.elements allvs, rphi, [rty], ety_n, pvs)) new_ex_types;
-    NumS.reward_constrn := old_reward_constrn;
-    NumS.prefer_bound_to_local := old_prefer_bound_to_local;
+         ety_n, (VarSet.elements allvs, rphi, [rty], ety_n, pvs)) new_ex_types in
+    List.iter (fun (name, scheme) -> Hashtbl.replace sigma name scheme) packages;
     (*[* Format.printf "solve: returning@\n%!"; *]*)
     q.op, ans_res, sol
+
+let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
+  timeout_flag := false;
+  let run () = solve_constraints q_ops new_ex_types exty_res_chi brs in
+  if not uses_pos_assertions || !same_with_assertions then run () else
+  let reward = !NumS.reward_constrn and prefer = !NumS.prefer_bound_to_local in
+  let restore () =
+    NumS.reward_constrn := reward;
+    NumS.prefer_bound_to_local := prefer in
+  NumS.reward_constrn := -1;
+  NumS.prefer_bound_to_local := true;
+  try let result = run () in restore (); result
+  with err -> restore (); raise err

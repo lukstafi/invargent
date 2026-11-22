@@ -202,6 +202,20 @@ let test_case_fail ?more_general ?more_existential ?no_num_abduction
     assert_equal ~printer:(fun x->x) answer (Format.flush_str_formatter ())
 
 let tests = "Invariants" >::: [
+    "failed assertion search restores numeric preferences" >:: (fun () ->
+      let reward = !NumS.reward_constrn and prefer = !NumS.prefer_bound_to_local in
+      let rejected =
+        try
+          ignore (Invariants.solve ~uses_pos_assertions:true empty_q []
+                    (Hashtbl.create 1) [[], [CFalse dummy_loc]]);
+          false
+        with Contradiction _ | NoAnswer _ -> true in
+      let result = !NumS.reward_constrn, !NumS.prefer_bound_to_local in
+      NumS.reward_constrn := reward;
+      NumS.prefer_bound_to_local := prefer;
+      assert_bool "the unconditional negative clause fails" rejected;
+      assert_equal (reward, prefer) result);
+
 
   "a call must be reached on a play of every legal strategy" >:: (fun () ->
     let parse s = Parser.formula Lexer.token (Lexing.from_string s) in

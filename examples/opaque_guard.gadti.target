@@ -35,3 +35,5 @@ external val seed : Seed
 val f : ∀a. Tag (Marker, Marker, a, Marker) → Nat → ∃.(a, a)
 
 val checked : Num 73
+
+val later_third : Bool

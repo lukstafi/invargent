@@ -497,6 +497,52 @@ let impossible_guard prem env guards =
     with Contradiction _ | Not_found -> false
        | Failure msg when msg = "int_of_big_int" -> false
 
+type guard_observation =
+  | Evaluated of cnstrnt
+  | Entered_let of cnstrnt * typ * atom * (cns_name * formula) list
+
+(* Keep necessary first-order observations. Existential names are fresh per
+   occurrence. A plain let binds the RHS itself. A package supplies its local
+   witness only after entry into that let's body. *)
+let excludes_return observations comparisons =
+  let first_order = function Eqty _ | Terms.A (Num_atom _) -> true | _ -> false in
+  let rec collect (facts, openings as acc) = function
+    | A atoms -> List.rev_append (List.filter first_order atoms) facts, openings
+    | And parts -> List.fold_left collect acc parts
+    | Ex (_, part) | Impl ([], part) -> collect acc part
+    | Or (v, (_, A [NotEx (rhs, _)], [Eqty (TVar x, t, _) as link], _) :: _, sub)
+      when x = v && t = rhs -> facts, (rhs, link, [], sub) :: openings
+    | All _ | Or _ | Impl _ -> acc in
+  let observe acc = function
+    | Evaluated cn -> collect acc cn
+    | Entered_let (cn, rhs, plain, packages) ->
+      let facts, openings = collect acc cn in
+      facts, (rhs, plain, packages, A []) :: openings in
+  let rec close (facts, openings) =
+    let solved = unify ~use_quants:false empty_q facts in
+    let open_one ((added, waiting) as acc) ((rhs, plain, packages, sub) as opening) =
+      match subst_typ solved.cnj_typ rhs with
+      | TCons (CNam _, _) | Fun _ -> collect (plain :: added, waiting) sub
+      | TCons ((Extype _ as tag), _) when List.mem_assoc tag packages ->
+        collect acc (A (List.assoc tag packages))
+      | _ -> added, opening :: waiting in
+    let added, waiting = List.fold_left open_one ([], []) openings in
+    if added <> [] then close (List.rev_append added facts, waiting) else
+    match NumS.satisfiable solved.cnj_num with
+    | Left _ -> false
+    | Right state ->
+      (match NumS.satisfiable ~state (sep_formulas comparisons).cnj_num with
+       | Left _ -> true | Right _ -> false) in
+  try close (List.fold_left observe ([], []) observations)
+  with Contradiction _ -> false
+     | Failure msg when msg = "int_of_big_int" -> false
+
+type source_guard = (uexpr * uexpr) list
+type guard_erasure =
+  | Keep_bodies | Direct_guards
+  | Collect_guards of (source_guard * (unit -> bool)) list ref
+  | Certified_guards of source_guard list
+
 let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
   let erased_packages = ref None in
   let alias_arities = Hashtbl.create 2 in
@@ -513,7 +559,9 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
           | _ -> n) depth phi
     | e -> lambda_depth e in
   let elim_extype = ref [] and preserve = ref [] in
-  let rec aux gamma t e : cnstrnt * iexpr =
+  let collecting = match erase_bodies with Collect_guards _ -> true | _ -> false in
+  let rec aux_in scope ?scrutinee gamma t e : cnstrnt * iexpr =
+    let aux = aux_in scope in
     (*[* Format.printf "constr_gen: t=%a e=@\n%a@\n%!"
       pr_ty t pr_uexpr e;
     *]*)
@@ -591,8 +639,19 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
       let ta = TVar a in
       (*[* Format.printf "constr_gen_expr: App=@\n%a@\n%!"
         pr_uexpr e; *]*)
-      let cn1, e1 = aux gamma (Fun (ta, t)) e1 in
-      let cn2, e2 = aux gamma ta e2 in
+      let (cn1, e1), (cn2, e2) = match e1 with
+        | Lam _ when collecting ->
+          (* A literal lambda enters its body after the argument returns.
+             Generate the function first to retain the normal variable order. *)
+          let argument = ref (And []) in
+          let fn = aux_in scope ~scrutinee:(ta, lazy !argument)
+              gamma (Fun (ta, t)) e1 in
+          let value = aux gamma ta e2 in
+          argument := fst value;
+          fn, value
+        | _ ->
+          let fn = aux gamma (Fun (ta, t)) e1 in
+          fn, aux gamma ta e2 in
       Ex (VarSet.singleton a,
           cn_and cn1 (cn_and cn2 (A [NotEx (ta, loc)]))),
       App (e1, e2, loc)
@@ -601,8 +660,11 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
       let t1 = TVar a1 in
       let a2 = fresh_typ_var () in
       let t2 = TVar a2 in
+      let scope = match scrutinee with
+        | None -> scope
+        | Some (actual, facts) -> lazy (Evaluated (And [A [Eqty (t1, actual, loc)]; Lazy.force facts])) :: scope in
       let _, checked = fold_map (fun shadowed cl ->
-          let checked = aux_cl ~shadowed 0 gamma t1 t2 cl in
+          let checked = aux_cl_in scope ~shadowed 0 gamma t1 t2 cl in
           shadowed || catches_all cl, checked) false cls in
       let cns, cls = List.split checked in
       let cn = List.fold_left cn_and
@@ -676,7 +738,8 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
       (* A variable pattern binds this ordinary value at the same monotype.
          Keep the binding in scope for every use of the alias. *)
       let value_cn, rhs = aux gamma ta rhs in
-      let body_cn, body = aux ((name, ([], [], ta)) :: gamma) t body in
+      let body_scope = if collecting then lazy (Evaluated value_cn) :: scope else scope in
+      let body_cn, body = aux_in body_scope ((name, ([], [], ta)) :: gamma) t body in
       elim_extype := (p, None) :: !elim_extype;
       Ex (VarSet.singleton a, cn_and value_cn body_cn),
       Letin (docu, p, rhs, body, loc)
@@ -691,7 +754,11 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
         count pr_ty ta0 pr_cnstrnt cn1 pr_iexpr e1; *]*)
       let b0 = fresh_typ_var () in
       let tb0 = TVar b0 in
-      let cn2, (p, _, e2) = aux_cl count gamma tb0 t (p, [], e2) in
+      let packages = ref [] in
+      let plain = Eqty (tb0, ta0, loc) in
+      let body_scope = if collecting then
+          lazy (Entered_let (cn1, ta0, plain, !packages)) :: scope else scope in
+      let cn2, (p, _, e2) = aux_cl_in body_scope count gamma tb0 t (p, [], e2) in
       (*[* Format.printf
         "constr_gen-Letin: [%d] generated tb0=%a@ cn2=%a@\np2=%a@ e2=%a@\n%!"
         count pr_ty tb0 pr_cnstrnt cn2 pr_pat p pr_iexpr e2; *]*)
@@ -706,12 +773,14 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
                  (PCons (k, [PVar ("x", loc)], loc)) ta0 in
              let t' = match env with [_, t'] -> t' | _ -> assert false in
              let pcn = constr_gen_pat (PCons (k, [p], loc)) ta0 in
-             bs, pcn, Eqty (tb0, t', loc)::d_prem, trigger)
+             let entered = Eqty (tb0, t', loc) :: d_prem in
+             if collecting then packages := (k, entered) :: !packages;
+             bs, pcn, entered, trigger)
           !all_ex_types in
       let altcn = A [NotEx (ta0, loc)] in
       let alttr () = elim_extype := (p, None) :: !elim_extype in
       let disjs =
-        (VarSet.empty, altcn, [Eqty (tb0, ta0, loc)], alttr)::disjs in
+        (VarSet.empty, altcn, [plain], alttr)::disjs in
       (* FIXME: explain in the doc. Change [iexpr] from [int expr]
          to [int list expr]. Exactly one [chi_id] in the list will be
          present in the solution. *)
@@ -741,7 +810,7 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
       Ex (vars_of_list [a0], cn_and cn_ex cn),
       e
 
-  and aux_cl ?(shadowed=false) count gamma t1 t2 (p, guards, e) =
+  and aux_cl_in scope ?(shadowed=false) count gamma t1 t2 (p, guards, e) =
     let is_neg = single_assert_false e in
     let t3 = if is_neg then TVar (fresh_typ_var ()) else t1 in
     let guarded_neg = is_neg && guards <> [] in
@@ -752,17 +821,24 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
     (*[* Format.printf "constr_gen-aux_cl: [%d] t1=%a@ t2=%a@ t3=%a@ bs=%a@ prem=%a@\n%!"
       count pr_ty t1 pr_ty t2 pr_ty t3 pr_vars bs pr_formula prem; *]*)
     let gamma' = List.map typ_to_sch env @ gamma in
+    let returned = ref (And [], []) in
+    let pattern_scope = if collecting then lazy (Evaluated (A prem)) :: scope else scope in
+    let body_scope = if not collecting || guards = [] then pattern_scope else
+        lazy (let evaluation, tests = !returned in Evaluated (And [evaluation; A tests])) :: pattern_scope in
+    let body () = aux_in body_scope gamma' t2 e in
+    let eligible = guards <> [] && not is_neg && not !force_nodeadcode &&
+      !erased_packages = None && erase_bodies <> Keep_bodies in
+    let erase = eligible && (impossible_guard prem env guards ||
+        match erase_bodies with Certified_guards proved -> List.memq guards proved | _ -> false) in
     let concl, e =
-      if not erase_bodies || guards = [] || is_neg || !force_nodeadcode || !erased_packages <> None ||
-         not (impossible_guard prem env guards)
-      then aux gamma' t2 e else (
+      if not erase then body () else (
         (* Still diagnose unbound names and malformed constructors in the
            body. Its local annotations and assertions do not reach the solver. *)
         let old_preserve = !preserve and old_elims = !elim_extype
         and old_assertions = !uses_pos_assertions in
         let ids = ref [] in
         erased_packages := Some ids;
-        ignore (aux gamma' t2 e);
+        ignore (body ());
         erased_packages := None;
         if List.exists (fun id -> List.mem_assoc id !all_ex_types) !ids then
           all_ex_types := List.filter (fun (id, _) -> not (List.mem id !ids)) !all_ex_types;
@@ -774,11 +850,11 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
       if is_neg && not guarded_neg
       then [Eqty (t1, t3, dummy_loc)]
       else [] in
-    let (g_as, g_concl, g_cond), guards = fold_map
+    let (g_as, g_concl, g_cond), checked_guards = fold_map
         (fun (g_as, g_concl, g_cond) (e1,e2) ->
            let a1 = fresh_var Num_sort and a2 = fresh_var Num_sort in
-           let cn1,e1 = aux gamma' (TCons (numtype, [TVar a1])) e1
-           and cn2,e2 = aux gamma' (TCons (numtype, [TVar a2])) e2 in
+           let cn1,e1 = aux_in pattern_scope gamma' (TCons (numtype, [TVar a1])) e1
+           and cn2,e2 = aux_in pattern_scope gamma' (TCons (numtype, [TVar a2])) e2 in
            (add_vars [a1; a2] g_as,
             cn_and (cn_and cn1 cn2) g_concl,
             Terms.A (Num_atom (NumDefs.Leq
@@ -787,6 +863,13 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
                                   dummy_loc))) :: g_cond),
            (e1,e2))
         (VarSet.empty, And [], []) guards in
+    returned := g_concl, g_cond;
+    (match erase_bodies with
+     | Collect_guards pending when eligible && not erase ->
+       let dead () = excludes_return
+           (Evaluated g_concl :: List.map Lazy.force pattern_scope) g_cond in
+       pending := (guards, dead) :: !pending
+     | _ -> ());
     let cn = impl prem
         (cn_and g_concl (impl (neg_prem @ g_cond) concl)) in
     let cn = if VarSet.is_empty g_as then cn else Ex (g_as, cn) in
@@ -797,25 +880,28 @@ let constr_gen_expr_with_arities ~erase_bodies arities gamma e t =
       if is_neg then fvs_typ t3 else VarSet.empty in
     let cn = cn_and pcns cn in
     (if VarSet.is_empty exvs then cn else Ex (exvs, cn)),
-    (p, guards, e) in
+    (p, checked_guards, e) in
 
-  let cn = aux gamma t e in
+  let cn = aux_in [] gamma t e in
   cn, elim_extype, !preserve
 
 (* Once a package introduction disappears, regenerate the item's let
    choices so that none can open a package declared only in erased code. *)
-let rec with_live_packages generate =
+let rec with_live_packages mode generate =
+  let saved = match mode with Collect_guards pending -> !pending | _ -> [] in
   let before = !all_ex_types in
   let result = generate () in
-  if before == !all_ex_types then result else with_live_packages generate
+  if before == !all_ex_types then result else (
+    (match mode with Collect_guards pending -> pending := saved | _ -> ());
+    with_live_packages mode generate)
 
 let live_packages packages = List.filter (fun (i, _) -> List.mem_assoc i !all_ex_types) packages
 
 let gen_expr ~erase_bodies gamma e t =
-  with_live_packages (fun () ->
+  with_live_packages erase_bodies (fun () ->
       constr_gen_expr_with_arities ~erase_bodies (Hashtbl.create 2) gamma e t)
 
-let constr_gen_expr gamma e t = gen_expr ~erase_bodies:false gamma e t
+let constr_gen_expr gamma e t = gen_expr ~erase_bodies:Keep_bodies gamma e t
 
 let constr_gen_tests ~erase_bodies ~arities gamma tests =
   let elim_cells = ref [] in
@@ -862,7 +948,7 @@ let gen_letrec ~erase_bodies ~nonrec gamma x e sig_cn tb tests =
   e, tests, elim_cell::elim_cells, more_preserve @ preserve
 
 let constr_gen_letrec ~erase_bodies ?(nonrec=false) gamma x e sig_cn tb tests =
-  with_live_packages (fun () -> gen_letrec ~erase_bodies ~nonrec gamma x e sig_cn tb tests)
+  with_live_packages erase_bodies (fun () -> gen_letrec ~erase_bodies ~nonrec gamma x e sig_cn tb tests)
 
 let constr_gen_let ~erase_bodies gamma p e ta =
   let pcns = constr_gen_pat p ta in
@@ -896,7 +982,7 @@ let can_erase_guarded_bodies prog =
     | _ -> true) prog
 
 let infer_prog_mockup (prog : program) =
-  let erase_bodies = can_erase_guarded_bodies prog in
+  let erase_bodies = if can_erase_guarded_bodies prog then Direct_guards else Keep_bodies in
   let gamma = ref [] in
   let cns = List.map (function
     | _, TypConstr _ -> [], VarSet.empty, And []
@@ -1097,7 +1183,26 @@ let prepare_scheme phi res =
   VarSet.union vs rvs, phi
 
 let infer_prog ?(integer_target=false) solver prog =
-  let erase_bodies = integer_target && can_erase_guarded_bodies prog in
+  let check_guards = integer_target && not !force_nodeadcode && can_erase_guarded_bodies prog in
+  let solve_item packages generate =
+    let run mode =
+      uses_pos_assertions := false;
+      let cn, preserve, data = generate mode in
+      let packages = live_packages packages in
+      let solution = solver ~uses_pos_assertions:!uses_pos_assertions
+          ~new_ex_types:packages ~preserve cn in
+      data, packages, solution in
+    if not check_guards then run Keep_bodies else
+    let pending = ref [] in
+    try run (Collect_guards pending) with
+    | (NoAnswer (_, msg, _, _) | Contradiction (_, msg, _, _)) as original
+      when msg <> "Answers do not converge" ->
+      let proved = map_some (fun (guard, dead) -> if dead () then Some guard else None) !pending in
+      if proved = [] then raise original;
+      let before = !all_ex_types in
+      (try run (Certified_guards proved) with exn ->
+         all_ex_types := before;
+         match exn with NoAnswer _ | Contradiction _ -> raise original | _ -> raise exn) in
   let ntime = ref (Sys.time ()) in
   let start_time = !ntime in
   let gamma = ref builtin_gamma in
@@ -1177,18 +1282,14 @@ let infer_prog ?(integer_target=false) solver prog =
           let pat_loc = match it with
             | LetVal (_, PVar (_, lc), _, _, _) -> Some lc
             | _ -> None in
-          uses_pos_assertions := false;
-          let chi_id, _, cn, e, tests, elim_cells, preserve =
-            constr_gen_letrec ~erase_bodies ~nonrec:(pat_loc<>None)
-              !gamma x e sig_cn t tests in
-          (*[* Format.printf "LetRecVal: x=%s@\ncn=%a@\n%!" x
-             pr_cnstrnt cn; *]*)
-          let preserve = add_vars preserve
-              (VarSet.union (fvs_typ t) (fvs_formula sig_cn)) in
-          let new_ex_types = live_packages new_ex_types in
-          let q, phi_res, sb_chi =
-            solver ~uses_pos_assertions:!uses_pos_assertions
-              ~new_ex_types ~preserve cn in
+          let (chi_id, e, tests, elim_cells), new_ex_types, (q, phi_res, sb_chi) =
+            solve_item new_ex_types (fun erase_bodies ->
+                let chi_id, _, cn, e, tests, elim_cells, preserve =
+                  constr_gen_letrec ~erase_bodies ~nonrec:(pat_loc<>None)
+                    !gamma x e sig_cn t tests in
+                let preserve = add_vars preserve
+                    (VarSet.union (fvs_typ t) (fvs_formula sig_cn)) in
+                cn, preserve, (chi_id, e, tests, elim_cells)) in
           let elim_extypes = concat_map (!) elim_cells in
           let nice_sb, (vs, phi) =
             try nice_ans (List.assoc chi_id sb_chi)
@@ -1262,25 +1363,17 @@ let infer_prog ?(integer_target=false) solver prog =
               let ta = TVar a in
               VarSet.singleton a, [], [], ta
             | Some (vs, phi, t) -> VarSet.empty, vs, phi, t in
-          uses_pos_assertions := false;
-          let bs, exphi, env, cn, (p, e), elim_cell, preserve =
-            constr_gen_let ~erase_bodies !gamma p e t in
-          (*[* Format.printf "LetVal: p=%a@\ninit_cn=%a@\n%!" pr_pat p
-             pr_cnstrnt cn; *]*)
-          let preserve = add_vars preserve
-              (VarSet.union (fvs_typ t)
-                 (VarSet.union (fvs_formula sig_cn) (fvs_formula exphi))) in
-          let cn = impl sig_cn cn in
-          let cn =
-            if sig_vs <> [] then All (vars_of_list sig_vs, cn) else cn in
-          let cn =
-            if VarSet.is_empty avs then cn else Ex (avs, cn) in
-          (*[* Format.printf "LetVal: p=%a@\ncn=%a@\n%!" pr_pat p
-             pr_cnstrnt cn; *]*)
-          let new_ex_types = live_packages new_ex_types in
-          let q, phi, sb_chi = solver
-              ~uses_pos_assertions:!uses_pos_assertions
-              ~new_ex_types ~preserve cn in
+          let (bs, exphi, env, p, e, elim_cell, preserve), new_ex_types, (q, phi, sb_chi) =
+            solve_item new_ex_types (fun erase_bodies ->
+                let bs, exphi, env, cn, (p, e), elim_cell, preserve =
+                  constr_gen_let ~erase_bodies !gamma p e t in
+                let preserve = add_vars preserve
+                    (VarSet.union (fvs_typ t)
+                       (VarSet.union (fvs_formula sig_cn) (fvs_formula exphi))) in
+                let cn = impl sig_cn cn in
+                let cn = if sig_vs <> [] then All (vars_of_list sig_vs, cn) else cn in
+                let cn = if VarSet.is_empty avs then cn else Ex (avs, cn) in
+                cn, preserve, (bs, exphi, env, p, e, elim_cell, preserve)) in
           let elim_extypes = !elim_cell in
           (*[* Format.printf "Infer: solved.@\n%!"; *]*)
           (*[* Format.printf

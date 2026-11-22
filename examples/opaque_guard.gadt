@@ -25,3 +25,5 @@ let rec f t = efunction
 test (match seed with Pick n when 1 <= observed n -> let (x,y) = f (Third Box) (S Z) in same x Box | _ -> True)
 
 let checked = observed 73
+
+let later_third = let (x,y) = f (Third Box) (S Z) in same x Box

@@ -352,6 +352,7 @@ let tests = "InvarGenT" >::: [
       "preserve guard evaluation and erase impossible payload clients" >::
         run_example "unreachable_payload";
       "an opaque guard admits a type valid on either outcome" >:: run_example "opaque_guard";
+      "a guard inside an opened package excludes both marked calls" >:: run_example "guard_contract";
       "arithmetic can wrap before a constructor match" >:: run_example "guard_overflow";
       "a constructor index witnesses a guarded call" >:: test_case "guarded_payload";
       "a call reached after opening an earlier return" >:: test_case "ordered_calls";
