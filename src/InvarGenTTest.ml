@@ -422,6 +422,9 @@ let tests = "InvarGenT" >::: [
           "moving_native_menu";
       "the argument and recursive result are jointly integral" >::
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "joint_native_guard";
+      "an integer package excludes a fractional intersection of two bands" >::
+        test_case ~num_abd_timeout:40 ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b)
+          "lattice_guard";
       "the input admits a triangle of indices and one isolated key" >::
         test_case ~num_abd_timeout:40 ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b)
           "limit_result_keys";

@@ -1,0 +1,22 @@
+datatype Nat
+
+datacons Z : Nat
+
+datacons S : Nat ⟶ Nat
+
+external val observe : ∀i. Num i → Bool
+
+external val seed :
+   ∀i[0 ≤ i ∧ i ≤ 2].
+   Num i → ∃l[0 ≤ l ∧ min||max (l + 0, 0 + -5 l + 11 + -5 i) ∧
+     min||max (l + 0, 0 + -19 + 5 i + 5 l) ∧
+     min||max (l + 0, 0 + 5 l + -4 + -5 i) ∧
+     min||max (l + 0, 0 + -4 + 5 i + -5 l)].Num l
+
+val run :
+   ∀i, k, n[k ≤ 1 ∧ 0 ≤ k ∧ n ≤ 2 ∧ 0 ≤ n].
+   (Num n, Num i) → Nat → ∃l[0 ≤ l ∧
+     min||max (l + 0, 0 + -5 l + 11 + -5 n) ∧
+     min||max (l + 0, 0 + -19 + 5 n + 5 l) ∧
+     min||max (l + 0, 0 + 5 l + -4 + -5 n) ∧
+     min||max (l + 0, 0 + -4 + 5 n + -5 l) ∧ l ≤ k + 3].Num l

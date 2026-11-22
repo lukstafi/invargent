@@ -4568,7 +4568,7 @@ let formula_of_state (eqs, ineqs, optis, suboptis) =
       Subopti (t1, t2, lc))
     suboptis cnj)
 
-let satisfiable_exn ?state cnj =
+let satisfiable_case_exn ?state accepts cnj =
   let eqs, ineqs, optis, suboptis = match state with
     | None -> None, None, None, None
     | Some (eqs, ineqs, optis, suboptis) ->
@@ -4584,13 +4584,14 @@ let satisfiable_exn ?state cnj =
     | (v1,_)::_, (v2,_)::_ -> cmp_v v1 v2 in
   let eqs, ineqs, optis, suboptis =
     solve ?eqs ?ineqs ?optis ?suboptis ~cnj ~cmp_v ~cmp_w uni_v in
-  if (optis <> [] || suboptis <> []) &&
-     not (exists_linear_case ~cmp_v ~cmp_w uni_v (fun _ _ -> true) eqs ineqs
+  if not (exists_linear_case ~cmp_v ~cmp_w uni_v accepts eqs ineqs
             (choice_arms ~cmp_v ~intro_cho_ineq:false optis suboptis)) then (
     let loc = List.fold_left (fun lc ((_, _, a), (_, _, b)) ->
         loc_union lc (loc_union a b)) dummy_loc (optis @ suboptis) in
     raise (Terms.Contradiction (Num_sort, "Incompatible numeric alternatives", None, loc)));
   eqs, ineqs, optis, suboptis
+
+let satisfiable_exn ?state cnj = satisfiable_case_exn ?state (fun _ _ -> true) cnj
 
 let satisfiable ?state cnj =
   try Right (satisfiable_exn ?state cnj)
@@ -4981,6 +4982,36 @@ let integer_observation_possible ~slack value state =
   List.exists (fun cell -> fits (None,None) (flatten_formula ~cmp_v:compare cell))
     (project_exists ~vars:hidden facts)
 
+(* After projecting to native coordinates, an integer solution of the
+   solved equalities exists iff the target lies in the integer span of
+   their coefficient columns. Euclidean column operations preserve that
+   span. At each row one pivot remains and its coefficient is forced. *)
+let integer_equalities_possible eqs =
+  let equations = unsubst eqs and zero = !/0 in
+  List.for_all (fun (_,c,_) -> c =/ zero) equations ||
+  let rows = Array.of_list (List.map norm_by_lcd equations) in
+  let target = Array.map (fun (_,c,_) -> minus_num c) rows in
+  let subtract column q pivot =
+    Array.mapi (fun i a -> a -/ q */ pivot.(i)) column in
+  let rec spans row columns target =
+    if row = Array.length rows then true else
+    let zeros,nonzeros = List.partition (fun col -> col.(row) =/ zero) columns in
+    match nonzeros with
+    | [] -> target.(row) =/ zero && spans (row+1) zeros target
+    | first :: rest ->
+      let rec reduce a b =
+        if b.(row) =/ zero then a,b else
+        let q = quo_num a.(row) b.(row) in
+        reduce b (subtract a q b) in
+      let pivot,free = List.fold_left (fun (pivot,free) col ->
+          let pivot,col = reduce pivot col in pivot,col::free) (first,zeros) rest in
+      let q = target.(row) // pivot.(row) in
+      is_integer_num q && spans (row+1) free (subtract target q pivot) in
+  let vars = Array.fold_left (fun vars row -> VarSet.union vars (fvs_w row)) VarSet.empty rows in
+  let column v = Array.map (fun (terms,_,_) ->
+      try List.assoc v terms with Not_found -> zero) rows in
+  spans 0 (List.map column (VarSet.elements vars)) target
+
 (* Project onto actual native values before rounding. In a primitive row
    u+c <= 0, u is an integer linear form. At positive infinitesimal slack
    a positive slack coefficient makes the inequality strict. Rounding each
@@ -5006,7 +5037,8 @@ let integer_tuple_possible ~slack values state =
       [leq a; leq b; Subopti (rounded (neg a),rounded (neg b),dummy_loc)] in
   List.exists (fun cell ->
       let constraints = concat_map sides (flatten_formula ~cmp_v:compare cell) in
-      match satisfiable constraints with Left _ -> false | Right _ -> true)
+      try ignore (satisfiable_case_exn (fun eqs _ -> integer_equalities_possible eqs) constraints); true
+      with Terms.Contradiction _ -> false)
     (project_exists ~vars:hidden facts)
 
 (* Can an observation satisfy every typing of these arguments?

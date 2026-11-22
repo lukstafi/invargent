@@ -91,6 +91,22 @@ let tests = "NumS" >::: [
       (not (possible [i;l] "2 l+2 i=5"));
     assert_bool "the whole affine index is integral, its parameter can be fractional"
       (possible ~integer_result:l [Lin (2,1,v "i")] "2 i=1 ∧ l=2"));
+  "native equations must have a simultaneous integral solution" >:: (fun () ->
+    let term name = Lin (1,1,VNam (Num_sort,name)) in
+    let possible pre =
+      common_result_possible ~integer_result:(term "l") ~integer_inputs:[term "i";term "i1"]
+        ~keys:VarSet.empty ~witnesses:VarSet.empty ~admissions:[[]] ~post:[] (numeric_formula pre) in
+    assert_bool "individually attainable rounded rows can have a fractional intersection"
+      (not (possible "1≤5 i+5 l ∧ 5 i+5 l≤9 ∧ -4≤5 i + -5 l ∧ 5 i + -5 l≤4"));
+    assert_bool "a free rational direction need not contain a native tuple"
+      (not (possible "2 i+i1=0 ∧ 2 l+i1=1"));
+    assert_bool "compatible non-unit coefficients preserve a native tuple"
+      (possible "2 i+i1=0 ∧ 2 l+i1=2");
+    let endpoints top =
+      "2 i+i1=0 ∧ 1≤2 l+i1 ∧ 2 l+i1≤" ^ top ^
+      " ∧ min(2 l+i1 + -1," ^ top ^ " + -2 l + -1 i1)≤0" in
+    assert_bool "each alternative has its own equality system" (not (possible (endpoints "3")));
+    assert_bool "one attainable alternative suffices" (possible (endpoints "2")));
   "an extremum arm can settle the last private witness" >:: (fun () ->
     let hidden = VarSet.singleton (VNam (Num_sort,"m")) in
     let cells = project_exists ~vars:hidden
