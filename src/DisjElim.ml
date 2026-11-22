@@ -473,8 +473,7 @@ let disjelim q ?(previous=[]) ?target ~bvs ~param_bvs (* ~preserve *) (* ~old_lo
       (* (4) *)
       (* Dooes not simplify redundancy. *)
       dissoc_vs <> [],
-      to_formula usb
-      (* @ (if initstep then [] else NumS.formula_of_sort num_abd) *),
+      to_formula usb @ NumS.formula_of_sort num_abd,
       simplify_dsjelim q initstep ~target ~param_bvs
         (dissoc_vs @ num_avs @ avs)
         {at_typ=ty_ans; at_num=num_ans; at_ord=ord_ans; at_so=()},

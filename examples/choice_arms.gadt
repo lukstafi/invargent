@@ -1,0 +1,13 @@
+datatype Tag
+datacons A : Tag
+datacons B : Tag
+datacons C : Tag
+
+datatype Choice : num * num
+datacons First : ∀i,j[j+1≤i]. Num i ⟶ Choice (i,j)
+datacons Again : ∀i,j[j+1≤i]. Num i ⟶ Choice (i,j)
+datacons Other : ∀i,j. Num j ⟶ Choice (i,j)
+external let pick : ∀i,j. Num i → Num j → Tag → Choice (i,j) =
+  "fun x y t -> match t with A when y+1 <= x -> First x | B when y+1 <= x -> Again x | _ -> Other y"
+let choose a b = efunction
+ | t -> (ematch pick a b t with First x -> x | Again x -> x | Other y -> y)

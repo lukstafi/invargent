@@ -188,6 +188,9 @@ let rejects_source source =
   with Defs.Report_toplevel _ | Terms.Contradiction _ | Terms.NoAnswer _ -> true
 
 let tests = "InvarGenT" >::: [
+      "repeating a supplier preserves the other upper bound" >::
+        test_case "choice_arms"
+          ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
       "separate existential indices after the first unequal pair" >::
         test_case "separating_pair"
           ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);

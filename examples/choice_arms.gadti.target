@@ -1,0 +1,21 @@
+datatype Tag
+
+datacons A : Tag
+
+datacons B : Tag
+
+datacons C : Tag
+
+datatype Choice : num * num
+
+datacons First : ∀i, j[j + 1 ≤ i].Num i ⟶ Choice (i, j)
+
+datacons Again : ∀i, j[j + 1 ≤ i].Num i ⟶ Choice (i, j)
+
+datacons Other : ∀i, j.Num j ⟶ Choice (i, j)
+
+external val pick : ∀i, j. Num i → Num j → Tag → Choice (i, j)
+
+val choose :
+   ∀k, n.
+   Num k → Num n → Tag → ∃i[n ≤ i ∧ i≤max (n, k)].Num i

@@ -3563,7 +3563,7 @@ let disjelim_aux q ~previous ~target_vs ~preserve ~bvs ~param_bvs
       brs in
   let regions, input_optis, input_suboptis = split3 branches in
   let verif_polytopes, polytopes = List.split (List.concat regions) in
-  let validate common_eqn common_ineqn (w1, w2 as o) =
+  let validate ~equation common_eqn common_ineqn (w1, w2 as o) =
     (* let g = !guess_from_postcond && guess in *)
     let ineq = diff ~cmp_v w1 w2 in
     let n_ineq = mult !/(-1) ineq in
@@ -3611,10 +3611,31 @@ let disjelim_aux q ~previous ~target_vs ~preserve ~bvs ~param_bvs
       "NumS.disjelim-validate: left=%b right=%b ineq=%a@\n%!"
       holds_left holds_right pr_ineqn [ineq];
      *]*)
-    (* If w1 <= w2 and (w1 <= 0 \/ w2 <= 0), then w1 <= 0 *)
+    (* Feasible arm orderings rank candidates. A standalone arm in the
+       result must hold throughout every supplier region. *)
+    let select order arm =
+      let eqn, ineqn = if equation then [arm], [] else [], [arm] in
+      let proves (eqs, ineqs) =
+        implies_case ~cmp_v ~cmp_w q.uni_v eqs ineqs eqn ineqn [] [] in
+      let under_order (eqs, ineqs) =
+        try
+          let eqs, ineqs, _, _ =
+            solve ~eqs ~ineqs ~ineqn:[order] ~cmp_v ~cmp_w q.uni_v in
+          proves (eqs, ineqs)
+        with Terms.Contradiction _ -> false in
+      let params = fvs_w order in
+      if List.for_all proves polytopes then Some (Right ([], arm))
+      else if initstep && VarSet.cardinal params = 1 &&
+          VarSet.subset params param_bvs && VarSet.is_empty (VarSet.inter params target_vs) &&
+          List.for_all under_order polytopes
+      then Some (Right ([order], arm))
+      (* Defer mixed-parameter guesses until the result interface settles. *)
+      else if guess && List.exists (fun w ->
+          VarSet.cardinal (VarSet.diff (fvs_w w) target_vs) > 1) [w1; w2]
+      then None else Some (Left o) in
     if weak_left && weak_right then Some (Left o)
-    else if holds_left then Some (Right (ineq, w1))
-    else if holds_right then Some (Right (n_ineq, w2))
+    else if holds_left then select ineq w1
+    else if holds_right then select n_ineq w2
     else None in
   (* Now restore non-redundancy needed for convex hull algo. *)
   let faces, equations = split_map
@@ -3874,8 +3895,8 @@ let disjelim_aux q ~previous ~target_vs ~preserve ~bvs ~param_bvs
     pr_optis optis; *]*)
   let optis, opt_eqn =
     partition_map_some
-        (validate common_equations ineqn) optis in
-  let abd_eqn, more_eqn = List.split opt_eqn in
+        (validate ~equation:true common_equations ineqn) optis in
+  let eq_guards, more_eqn = List.split opt_eqn in
   (*[* Format.printf "NumS.disjelim: case-filtered optis=@\n%a@\n%!"
     pr_optis optis; *]*)
   let optis =
@@ -4038,10 +4059,10 @@ let disjelim_aux q ~previous ~target_vs ~preserve ~bvs ~param_bvs
     pr_suboptis suboptis; *]*)
   let suboptis, opt_ineqn =
     partition_map_some
-        (validate common_equations ineqn) suboptis in
+        (validate ~equation:false common_equations ineqn) suboptis in
   (*[* Format.printf "NumS.disjelim: case-filtered suboptis=@\n%a@\n%!"
     pr_suboptis suboptis; *]*)  
-  let abd_ineqn, more_ineqn = List.split opt_ineqn in
+  let ineq_guards, more_ineqn = List.split opt_ineqn in
   let suboptis =
     List.map snd
       (List.sort (fun (x, _) (y, _) -> y - x)
@@ -4106,8 +4127,7 @@ let disjelim_aux q ~previous ~target_vs ~preserve ~bvs ~param_bvs
               else None) thresholds) vars) affine_faces in
   let optis = supplement !max_opti_postcond expand_opti optis input_optis
   and suboptis = supplement !max_subopti_postcond expand_subopti suboptis (input_suboptis @ [candidates]) in
-  List.map (expand_atom true) abd_eqn @
-    List.map (expand_atom false) abd_ineqn,
+  List.map (expand_atom false) (List.concat (eq_guards @ ineq_guards)),
   List.map expand_opti optis @
     List.map expand_subopti suboptis @
     List.map (expand_atom true) (more_eqn @ common_equations)
