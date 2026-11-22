@@ -1,0 +1,27 @@
+datatype A
+
+datacons A : A
+
+datatype A'
+
+datacons Mark : A'
+
+datatype B
+
+datacons B : B
+
+datatype Tag : type * type
+
+datacons Left : ∀b.b ⟶ Tag (A, b)
+
+datacons Right : ∀a.a ⟶ Tag (a, A)
+
+datatype Nat
+
+datacons Z : Nat
+
+datacons S : Nat ⟶ Nat
+
+external val same : ∀a. a → a → Bool
+
+val f : ∀a. Tag (A, a) → Nat → ∃.(a, a)

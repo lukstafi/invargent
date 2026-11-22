@@ -328,6 +328,7 @@ let tests = "InvarGenT" >::: [
       "recursive callers can use either supplier cap" >::
         test_case "crossing_caps"
           ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
+      "empty existential binders and OCaml type names" >:: test_case "packed_payload";
       "an affine tag survives a reflected recursive input" >:: test_case "affine_tag"
           ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
       "written caller cap at crossing rates" >::

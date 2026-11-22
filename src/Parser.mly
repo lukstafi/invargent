@@ -506,9 +506,9 @@ simple_pattern_list:
 ;
 
 typ:
-  | EX lident_list DOT typ
+  | EX ex_binders DOT typ
       { existential $2 [] $4 (get_loc ()) }
-  | EX lident_list LBRACKET formula RBRACKET DOT typ
+  | EX ex_binders LBRACKET formula RBRACKET DOT typ
       { existential $2 $4 $7 (get_loc ()) }
   | simple_typ
       { $1 }
@@ -591,6 +591,11 @@ opt_constr_intro:
       { syntax_error "variables or [ expected" 2 }
   | /* empty */
       { [], [] }
+;
+
+ex_binders:
+  | /* empty */ { [] }
+  | lident_list { $1 }
 ;
 
 lident_list:

@@ -17,19 +17,36 @@ open Aux
 
 let altsyn = ref false
 
+(* Locally abstract types and concrete type constructors share OCaml's
+   namespace. Map a, a', ... to the successive available names in that
+   sequence so an escape cannot collide with another binder. *)
+let concrete_names = ref Strings.empty
+
+let local_type_name name =
+  let rec available name =
+    if Strings.mem name !concrete_names then available (name ^ "'") else name in
+  let rec escape name =
+    let n = String.length name in
+    if n > 0 && name.[n-1] = '\'' then
+      available (escape (String.sub name 0 (n-1)) ^ "'")
+    else available name in
+  escape name
+
 (* A neat hack: the [VId] variables should only be those existential
    variables that have not been, and should not be, generalized. *)
 let pr_tyvar ppf v =
   match v with
   | VNam _ ->
     if !altsyn then fprintf ppf "'%s" (var_str v)
-    else fprintf ppf "%s" (var_str v)
+    else if var_sort v = Type_sort then pp_print_string ppf (local_type_name (var_str v))
+    else pp_print_string ppf (var_str v)
   | VId _ ->
     assert (not !altsyn);
     fprintf ppf "_"
 
-let pr_tycns ppf c =
-  fprintf ppf "%s" (String.uncapitalize (cns_str c))
+let type_name c = String.uncapitalize (cns_str c)
+
+let pr_tycns ppf c = pp_print_string ppf (type_name c)
 
 let rec pr_ty ppf = function
   | TVar v -> pr_tyvar ppf v
@@ -444,6 +461,11 @@ let rec pr_struct_items ~funtys ~lettys constrs ppf defined defining prog =
   | [] -> ()
 
 let pr_ml ~funtys ~lettys ppf prog =
+  let types = List.fold_left (fun types -> function
+      | ITypConstr (_, name, _, _) | IPrimTyp (_, name, _, _, _) -> CNames.add name types
+      | _ -> types) init_types prog in
+  concrete_names := CNames.fold (fun name -> Strings.add (type_name name))
+      types (Strings.singleton "unit");
   let constrs, prog = partition_map
       (function
         | IValConstr (docu, name, vs, phi, args, c_n, c_args, _) ->

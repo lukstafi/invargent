@@ -1,0 +1,17 @@
+datatype A
+datacons A : A
+datatype A'
+datacons Mark : A'
+datatype B
+datacons B : B
+datatype Tag : type * type
+datacons Left : ∀b. b ⟶ Tag(A,b)
+datacons Right : ∀a. a ⟶ Tag(a,A)
+datatype Nat
+datacons Z : Nat
+datacons S : Nat ⟶ Nat
+external let same : ∀a. a → a → Bool = "fun a b -> assert (a = b); true"
+let rec f : ∀a. Tag (A,a) → Nat → ∃.(a,a) = fun t -> efunction
+ | Z -> let z = (match t with Left y -> y | Right x -> x) in (z,z)
+ | S n -> f t n
+test (let (x,y) = f (Left B) (S Z) in same x B)
