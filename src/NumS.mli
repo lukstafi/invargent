@@ -6,6 +6,9 @@
     @since Mar 2013
 *)
 
+(** Retry a failed search with fitted scalar equations. *)
+val with_affine_retry : (unit -> 'a) -> 'a
+
 (** Try four times as many linear combinations (k,-k,1/k,-1/k). *)
 val abd_rotations : int ref
 (** Start abduction on all branches rather than only non-recursive. *)

@@ -1365,23 +1365,25 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
     let initial_packages = !all_ex_types in
     let run (e, tests) = search_item packages (generate e tests) in
     let initial = e, tests in
-    try run initial with
-    | (NoAnswer (_, msg, _, _) | Contradiction (_, msg, _, _)) as original ->
-      let rec retry input = function
-        | [] -> raise original
-        | rewrite :: rest ->
-          match rewrite (fst input) (snd input) with
-          | None -> retry input rest
-          | Some candidate ->
-            (* A failed search may have erased a local declaration. *)
-            all_ex_types := initial_packages;
-            try run candidate with exn ->
+    NumS.with_affine_retry (fun () ->
+      all_ex_types := initial_packages;
+      try run initial with
+      | (NoAnswer (_, msg, _, _) | Contradiction (_, msg, _, _)) as original ->
+        let rec retry input = function
+          | [] -> raise original
+          | rewrite :: rest ->
+            match rewrite (fst input) (snd input) with
+            | None -> retry input rest
+            | Some candidate ->
+              (* A failed search may have erased a local declaration. *)
               all_ex_types := initial_packages;
-              match exn with
-              | NoAnswer _ | Contradiction _ -> retry candidate rest
-              | _ -> raise exn in
-      let placements = if msg = "Answers do not converge" then [] else [branch_packages] in
-      retry initial (placements @ [name_consumed_matches]) in
+              try run candidate with exn ->
+                all_ex_types := initial_packages;
+                match exn with
+                | NoAnswer _ | Contradiction _ -> retry candidate rest
+                | _ -> raise exn in
+        let placements = if msg = "Answers do not converge" then [] else [branch_packages] in
+        retry initial (placements @ [name_consumed_matches])) in
   let ntime = ref (Sys.time ()) in
   let start_time = !ntime in
   let gamma = ref builtin_gamma in

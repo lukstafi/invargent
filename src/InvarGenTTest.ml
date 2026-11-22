@@ -362,6 +362,8 @@ let tests = "InvarGenT" >::: [
       "an existential can hide a closure with a free argument type" >::
         test_case ~test_annot:true "packed_closure";
       "incompatible type demands reopen a provisional package" >:: run_example "observed_tag";
+      "a failed abduction can fit a scalar index from two branches" >:: run_example "scaled_coordinate";
+      "a scalar package keeps the common affine equation after an offset" >:: run_example "translated_coordinate";
       "a local match contract carries the observed index into the package" >::
         run_example "observed_coordinate";
       "the state index reaches the package through a tail match" >:: run_example "state_coordinate";

@@ -144,7 +144,7 @@ let main () =
     "-early_postcond_abd", Arg.Set Invariants.early_postcond_abd,
     "Include postconditions from recursive calls in abduction from the start";
     "-num_abduction_rotations", Arg.Set_int NumS.abd_rotations,
-    "Numerical abduction: coefficients from +/- 1/N to +/- N (default 3)";
+    "Numerical abduction: enumerate coefficients from +/- 1/N to +/- N before fitting branch samples (default 3)";
     "-num_prune_at", Arg.Set_int NumS.abd_prune_at,
     "Keep less than N elements in abduction sums (default 6)";
     "-num_abduction_timeout", Arg.Set_int NumS.abd_timeout_count,

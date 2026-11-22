@@ -2082,9 +2082,53 @@ let validate_incr ~cmp_v ~cmp_w uni_v ~bvs ~xbvs validation a =
       validation;
     raise e
 
+(* Keep existing choices for a successful item. Only a failed item that
+   encountered a numeric opportunity replays its search with affine fits. *)
+type affine_search = Ordinary | Observe of bool ref | Recover
+let affine_search = ref Ordinary
+
+let use_affine_fit () = match !affine_search with
+  | Ordinary -> false
+  | Observe seen -> seen := true; false
+  | Recover -> true
+
+let with_affine_retry search =
+  let run mode =
+    let previous = !affine_search in
+    affine_search := mode;
+    try let result = search () in affine_search := previous; result
+    with exn -> affine_search := previous; raise exn in
+  match !affine_search with
+  | Recover | Observe _ -> search ()
+  | Ordinary ->
+    let seen = ref false in
+    try run (Observe seen) with
+    | (Terms.NoAnswer _ | Terms.Contradiction _) as original when !seen ->
+      (try run Recover with
+       | Terms.NoAnswer _ | Terms.Contradiction _ -> raise original
+       | Failure msg when msg = "int_of_big_int" -> raise original)
+
+(* The goal is g = 0 and this premise fixes v = x. Each equation
+   g + k(v-x) = 0 still proves the goal under the premise. A sibling
+   row fixing v = x' and g = y determines k when x' differs from x. *)
+let sample_rotations ~cmp_v samples premises goals =
+  let fit sample rotations goal =
+    match subst_w ~cmp_v sample goal with
+    | [], y, _ when y <>/ !/0 ->
+      VarMap.fold (fun v binding acc ->
+          try match binding, VarMap.find v sample with
+            | ([], x, loc), ([], x', _) when x <>/ x' ->
+              let k = y // (x -/ x') in
+              WSet.add ([v, k], minus_num (k */ x), loc) acc
+            | _ -> acc
+          with Not_found -> acc) premises rotations
+    | _ -> rotations in
+  List.fold_left (fun rotations sample ->
+      List.fold_left (fit sample) rotations goals) WSet.empty samples
+
 (* We currently do not measure satisfiability of negative constraints. *)
 (* TODO: guess equalities between parameters. *)
-let abd_simple ~qcmp_v ~cmp_w
+let abd_simple ~samples ~qcmp_v ~cmp_w
     ~orig_ren ~b_of_v ~upward_of cmp_v uni_v
     ~bvs ~xbvs ~nonparam_vars ~discard ~validation ~validate
     ~neg_validate:_
@@ -2520,7 +2564,15 @@ let abd_simple ~qcmp_v ~cmp_w
             Terms.pr_exception e;
           *]*)
           ()
-      done; None
+      done;
+      if !abd_rotations > 0 && !abd_prune_at > 1 && c_eqn0 <> [] &&
+         not (VarMap.is_empty d_eqs0) && use_affine_fit () then (
+        let fitted = sample_rotations ~cmp_v samples d_eqs0 c_eqn0 in
+        if not (WSet.is_empty fitted) then
+          try loop validation (laz_of_list (WSet.elements fitted)) eqs_i ineqs_i optis_i suboptis_i
+              c_eqn0 c_ineqn0 c_optis0 c_suboptis0
+          with Terms.Contradiction _ -> ());
+      None
     with Result (ans_eqs, ans_ineqs, ans_optis, ans_suboptis, validation) ->
       (*[* Format.printf "NumS.abd_simple: result:\
                            @\neqs=@ %a@\nineqs=@ %a@\n%!"
@@ -2565,7 +2617,8 @@ module NumAbd = struct
     uni_v : (var_name -> bool);
     bvs : VarSet.t;
     xbvs : (int * VarSet.t) list;
-    nonparam_vars : VarSet.t}
+    nonparam_vars : VarSet.t;
+    samples : w_subst list}
   type answer = accu
   type br_state = t_br_state
   type validation = t_validation
@@ -2578,10 +2631,10 @@ module NumAbd = struct
   let abd_fail_flag = abd_fail_flag
 
   let abd_simple
-      {qcmp_v; cmp_w; cmp_v; uni_v; bvs; xbvs; nonparam_vars;
+      {samples; qcmp_v; cmp_w; cmp_v; uni_v; bvs; xbvs; nonparam_vars;
        b_of_v; orig_ren; upward_of}
       ~discard ~validation ~validate ~neg_validate acc br =
-    abd_simple ~qcmp_v ~cmp_w cmp_v ~orig_ren ~b_of_v ~upward_of
+    abd_simple ~samples ~qcmp_v ~cmp_w cmp_v ~orig_ren ~b_of_v ~upward_of
       uni_v ~bvs ~xbvs ~nonparam_vars
       ~discard ~validation ~validate ~neg_validate 0 acc br
 
@@ -2903,11 +2956,18 @@ let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
                            c2_optis @ g_optis, c2_suboptis @ g_suboptis)
                          else g_acc)
                        ([], [], [], []) guard_brs in
-                   ignore (solve (* or: ~eqs:d_eqs ~ineqs:d_ineqs *)
-                             ~eqn:(g_eqn @ d_eqn) ~ineqn:(g_ineqn @ d_ineqn)
-                             ~cmp_v ~cmp_w q.uni_v);
-                   Some (nonrec, chi_pos, prem_suboptis, (d_eqn, d_ineqn),
-                         (c_eqn, c_ineqn, c_optis, c_suboptis))
+                   let eqs, _, _, _ = solve ~eqn:(g_eqn @ d_eqn) ~ineqn:(g_ineqn @ d_ineqn)
+                       ~cmp_v ~cmp_w q.uni_v in
+                   (* Inherit equations from weaker premises when a sibling
+                      constrains its numeric index through a local alias. *)
+                   let sample = match !affine_search with
+                     | Ordinary | Observe _ -> None
+                     | Recover ->
+                       try let point, _, _, _ = solve ~eqs ~eqn:c_eqn ~cmp_v ~cmp_w q.uni_v in
+                         Some point
+                       with Terms.Contradiction _ -> None in
+                   Some ((nonrec, chi_pos, prem_suboptis, (d_eqn, d_ineqn),
+                          (c_eqn, c_ineqn, c_optis, c_suboptis)), sample)
                  with Terms.Contradiction _ as e ->
                    if !nodeadcode then contr_exc := Some e;
                    None in
@@ -2922,9 +2982,11 @@ let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
          else
            let brs_n = List.length res in
            let brs_r = ref brs_n in
-           List.map (fun br -> br, (fvs_br_concl br, brs_r, brs_n, br)) res)
+           List.map (fun (br, sample) ->
+               br, (fvs_br_concl br, brs_r, brs_n, br), sample) res)
       brs in
-  let brs, validate_brs = List.split brs in
+  let brs, validate_brs, samples = split3 brs in
+  let samples = map_some (fun entry -> entry) samples in
   (*[* Format.printf "NumS.abd: brs processing past merging@\n%!"; *]*)
   let validate added_vs (eqs, ineqs, optis, suboptis) =
     let chi_sb = local_split ~cmp_v:q.cmp_v ~bvs ~xbvs
@@ -3066,7 +3128,7 @@ let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
            (List.map (expand_atom true) concl_eqs))
       unproc_brs in
   let ans = JCA.abd
-      {cmp_v; cmp_w; NumAbd.qcmp_v = q.cmp_v; orig_ren; b_of_v;
+      {samples; cmp_v; cmp_w; NumAbd.qcmp_v = q.cmp_v; orig_ren; b_of_v;
        upward_of; uni_v = q.uni_v; bvs; xbvs; nonparam_vars}
       ~discard validation ~validate ~neg_validate
       (VarMap.empty, VarMap.empty, [], []) brs in
@@ -3794,13 +3856,13 @@ let disjelim_aux q ~previous ~target_vs ~preserve ~bvs ~param_bvs
     match equations with
     | hd::tl -> WSet.elements (List.fold_left WSet.inter hd tl)
     | _ -> [] in
-  (* Two freshly generalized result indices can satisfy a joint equation
-     that no pair of branch presentations writes the same way. Keep the
-     existing common rows and supplement their span on these products. *)
+  (* Even a single fresh result can satisfy an affine equation with an
+     input that the suppliers present in different bases. *)
   let result_indices = VarSet.filter (fun v -> var_sort v = Num_sort)
       (VarSet.diff target_vs param_bvs) in
   let common_equations = match polytopes with
-    | (first, _)::rest when VarSet.cardinal result_indices >= 2 ->
+    | (first, _)::rest when VarSet.cardinal result_indices >= 2 ||
+        (not (VarSet.is_empty result_indices) && not (VarSet.is_empty param_bvs) && use_affine_fit ()) ->
       let rows = List.map (norm_w ~cmp_v) (unsubst first) in
       let common = List.fold_left (fun rows (eqs, _) ->
           intersect_equations ~cmp_v rows eqs) rows rest in
