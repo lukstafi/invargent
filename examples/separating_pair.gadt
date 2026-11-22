@@ -1,0 +1,13 @@
+datatype Nat
+datacons Z : Nat
+datacons S : Nat ⟶ Nat
+
+let rec pair = efunction
+  | Z -> (0, 0)
+  | S t -> let (x,y) = pair t in (1, x+1)
+
+external let bounds : ∀i,j[0≤i ∧ j≤2 i ∧ i=min(1,j)]. (Num i, Num j) → Bool =
+  "fun (x,y) -> assert (0 <= x && y <= 2*x && x = min 1 y); true"
+let base = let xy = pair Z in bounds xy
+let one = let xy = pair (S Z) in bounds xy
+let two = let xy = pair (S (S Z)) in bounds xy

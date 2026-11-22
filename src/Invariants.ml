@@ -711,9 +711,8 @@ let prune_redund q_ops ?localvs ?guard ~initstep (vs, cnj) =
   VarSet.elements vs, ans
 
 (* Rename the new solution to match variables of the old solution. *)
-(* TODO: ugly, rewrite or provide a medium-level description. *)
 (* FIXME: coordinate with NumS.disjelim_simplify. *)
-let converge q_ops ~initstep ?guard ~branches ~check_only
+let converge q_ops ~occupied ~fresh ~initstep ?guard ~branches ~check_only
     (vs1, cnj1) (vs2, cnj2) =
   (*[* Format.printf
     "converge: check_only=%b@ vs1=%a@ vs2=%a@\ncnj1=%a@\ncnj2=%a\n%!"
@@ -735,98 +734,61 @@ let converge q_ops ~initstep ?guard ~branches ~check_only
         tpar, lc, VarMap.remove delta' c_ty
       | _ -> assert false
     with Not_found -> TCons (tuple, []), dummy_loc, c_ty in
-  let tpar_old, lc_old, c1_ty = recover_param c1_ty cnj1 in
+  let tpar_old, _, c1_ty = recover_param c1_ty cnj1 in
   let tpar_new, lc_new, c2_ty = recover_param c2_ty cnj2 in
   assert (c1_so = []); assert (c2_so = []);
   (* Recover old variable names. *)
   let pms_old = fvs_typ tpar_old and pms_new = fvs_typ tpar_new in
   let vs_old = VarSet.diff (vars_of_list vs1) pms_old in
-  let vs_new = VarSet.diff (vars_of_list vs2) pms_new in
-  let valid_sb sb =
-    varmap_of_assoc
-      (map_some
-         (function
-           | v1, (TVar v2, _) as sx
-             when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new -> Some sx
-           | v2, (TVar v1, lc)
-             when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
-             Some (v1, (TVar v2, lc))
-           | _ -> None) (varmap_to_assoc sb)) in
-  let cmp (v1,_) (v2,_) = compare v1 v2 in
-  let c1_ty' = (* List.sort cmp *) varmap_to_assoc c1_ty
-  and c2_ty' = (* List.sort cmp *) varmap_to_assoc c2_ty in
-  let cnj_tys = inter_merge cmp
-      (fun (v,(t1,_)) (_,(t2,_)) ->
-         Eqty (t1,t2,dummy_loc)) c1_ty' c2_ty' in
-  let {cnj_typ=renaming; cnj_num=ren_num; cnj_so=_} =
-    unify ~use_quants:false q_ops cnj_tys in
-  (*[* Format.printf "converge: cnj_tys=%a@\nren_num=%a@\nrenaming1=%a@\n%!"
-    pr_formula cnj_tys NumDefs.pr_formula ren_num pr_subst renaming; *]*)
-  let v_notin_vs_num vs =
-    map_some
-      NumDefs.(function
-          | Eq (Lin (j,k,v), t, lc) when not (List.mem v vs) ->
-            let t =
-              if j=1 && k=1 then num t
-              else num (scale_term k j t) in
-            Some (v, (t, lc))
-          | Eq (t, Lin (j,k,v), lc) when not (List.mem v vs) ->
-            let t =
-              if j=1 && k=1 then num t
-              else num (scale_term k j t) in
-            Some (v, (t, lc))
-          | _ -> None) in 
-  let valid_num cnj =
-    varmap_of_assoc
-      (map_some
-         NumDefs.(function
-             | Eq (Lin (j1,k1,v1), Lin (j2,k2,v2), lc)
-               when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
-               let t =
-                 if j1=1 && k1=1 && j2=1 && k2=1 then TVar v2
-                 else num (Lin (j2*k1,k2*j1,v2)) in
-               Some (v1, (t, lc))
-             | Eq (Lin (j2,k2,v2), Lin (j1,k1,v1), lc)
-               when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
-               let t =
-                 if j1=1 && k1=1 && j2=1 && k2=1 then TVar v2
-                 else num (Lin (j2*k1,k2*j1,v2)) in
-               Some (v1, (t, lc))
-             | _ -> None) cnj) in 
-  let valid_cn cnj =
-    varmap_of_assoc
-      (map_some
-         (function
-           | Eqty (TVar v1, (TVar v2 as t), lc)
-             when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
-             Some (v1, (t, lc))
-           | Eqty (TVar v2 as t, TVar v1, lc)
-             when VarSet.mem v2 vs_old && VarSet.mem v1 vs_new ->
-             Some (v1, (t, lc))
-           | _ -> None) cnj) in 
-  let renaming = varmap_merge (valid_num ren_num) (valid_sb renaming) in
-  (*[* Format.printf "converge: renaming2=%a@\n%!" pr_subst renaming; *]*)
-  let c1_nr = List.sort cmp (v_notin_vs_num vs1 c1_num)
-  and c2_nr = List.sort cmp (v_notin_vs_num vs2 c2_num) in
-  let num_ren = inter_merge
-      (fun (v1,_) (v2,_) -> compare v1 v2)
-      (fun (_,(t1,_)) (_,(t2,_)) -> Eqty (t1,t2,dummy_loc))
-      c1_nr c2_nr in
-  let renaming = varmap_merge (valid_cn num_ren) renaming in
-  (*[* Format.printf
-    "converge: pms_old=%a@ pms_new=%a@ vs_old=%a@ vs_new=%a@
-    renaming3=%a@ old c2_ty=%a@ old c2_num=%a@\n%!"
-    pr_vars pms_old pr_vars pms_new pr_vars vs_old pr_vars vs_new
-    pr_subst renaming pr_subst c2_ty NumDefs.pr_formula c2_num; *]*)
-  let c2_ty = subst_sb ~sb:renaming c2_ty
-  and c2_num = NumS.subst_formula renaming c2_num
-  and vs2 = List.map
-      (fun v ->
-         try match VarMap.find v renaming with
-           | TVar v2, _ -> v2 | _ -> assert false
-         with Not_found -> v)
-      vs2 in
-  let vs2 = vars_of_list vs2 in
+  let vs_new = VarSet.diff (VarSet.inter fresh (vars_of_list vs2)) pms_new in
+  (* Matching result positions suggest names for fresh witnesses. Reuse a
+     name only once, and only if it is absent from every incoming supplier.
+     Other positions can still match when one part of the shape changes. *)
+  let coefficient a b = Num.(num_of_int a // num_of_int b) in
+  let pair old_v new_v (used, names as acc) =
+    if VarSet.mem old_v vs_old && VarSet.mem new_v vs_new &&
+       not (VarSet.mem old_v used || VarMap.mem new_v names)
+    then VarSet.add old_v used, VarMap.add new_v old_v names
+    else acc in
+  let rec match_types old_ty new_ty acc =
+    match old_ty, new_ty with
+    | TVar v, TVar w when var_sort v = var_sort w -> pair v w acc
+    | TVar v, Alien (Num_term (NumDefs.Lin (a,b,w)))
+      when var_sort v = Num_sort && a = b -> pair v w acc
+    | Alien (Num_term (NumDefs.Lin (a,b,v))), TVar w
+      when var_sort w = Num_sort && a = b -> pair v w acc
+    | Alien (Num_term (NumDefs.Lin (a,b,v))), Alien (Num_term (NumDefs.Lin (c,d,w)))
+      when a <> 0 && c <> 0 && Num.(coefficient a b =/ coefficient c d) -> pair v w acc
+    | TCons (f, xs), TCons (g, ys) when f = g && List.length xs = List.length ys ->
+      List.fold_left2 (fun acc x y -> match_types x y acc) acc xs ys
+    | Fun (x, y), Fun (x', y') -> match_types y y' (match_types x x' acc)
+    | _ -> acc in
+  let match_bindings compare_values old_map new_map acc =
+    VarMap.fold (fun v value acc ->
+        if VarMap.mem v old_map then compare_values (VarMap.find v old_map) value acc
+        else acc) new_map acc in
+  let acc = match_bindings (fun (t,_) (u,_) -> match_types t u) c1_ty c2_ty
+      (VarSet.union occupied (fvs_formula cnj2), VarMap.empty) in
+  (* If a common outer index equals the same multiple of a local index on
+     both passes, its equations also suggest a correspondence. *)
+  let outer_equations locals atoms =
+    varmap_of_assoc (map_some NumDefs.(function
+      | Eq (Lin (a,b,v), Lin (c,d,w), _) when a <> 0 && c <> 0 ->
+        let ratio = Num.(coefficient c d // coefficient a b) in
+        if VarSet.mem w locals && not (VarSet.mem v locals) then Some (v, (ratio,w))
+        else if VarSet.mem v locals && not (VarSet.mem w locals)
+        then Some (w, (Num.(num_of_int 1 // ratio), v))
+        else None
+      | _ -> None) atoms) in
+  let _, names = match_bindings
+      (fun (a,v) (b,w) acc -> if Num.(a =/ b) then pair v w acc else acc)
+      (outer_equations (vars_of_list vs1) c1_num)
+      (outer_equations (vars_of_list vs2) c2_num) acc in
+  let rename v = try VarMap.find v names with Not_found -> v in
+  let c2_ty = VarMap.fold (fun v (t,loc) sb ->
+      VarMap.add (rename v) (hvsubst_typ names t, loc) sb) c2_ty VarMap.empty in
+  let c2_num = List.map (NumDefs.hvsubst_atom names) c2_num in
+  let vs2 = vars_of_list (List.map rename vs2) in
   let localvs = VarSet.diff vs2 pms_new in
   (*[* Format.printf "converge: initstep=%b localvs=%a@\n%!"
     initstep pr_vars localvs; *]*)
@@ -838,29 +800,23 @@ let converge q_ops ~initstep ?guard ~branches ~check_only
         ~localvs ?guard ~initstep c2_num
     else
       let branches = List.map (fun branch ->
-        NumS.subst_formula renaming (sep_formulas branch).cnj_num) branches in
+        List.map (NumDefs.hvsubst_atom names) (sep_formulas branch).cnj_num) branches in
       let public_vars types params = VarSet.union (fvs_typ params)
           (fvs_typ (subst_typ types tdelta)) in
       let interface = VarSet.inter (public_vars c1_ty tpar_old)
-          (public_vars c2_ty (subst_typ renaming tpar_new)) in
+          (public_vars c2_ty tpar_new) in
       NumS.converge q_ops ~localvs ?guard ~suppliers:(interface, branches)
         ~initstep c1_num c2_num in
   let res = to_formula c2_ty @ NumS.formula_of_sort c_num in
   let res_vs = fvs_formula res in
-  let res_pms = map_some (fun v ->
-      let v = 
-        try match VarMap.find v renaming with
-          | TVar v2, _ -> v2 | _ -> assert false
-        with Not_found -> v in
-      if VarSet.mem v res_vs then Some v else None)
-      (VarSet.elements pms_new) in
+  let res_pms = VarSet.elements (VarSet.inter pms_new res_vs) in
   let res_tpar = TCons
       (tuple, List.map (fun v -> TVar v) res_pms) in
   (*[* Format.printf
     "converge: check_only=%b vs2=%a@\nc2_ty=%a@\nc2_num=%a@\nc_num=%a@\n%!"
     check_only pr_vars vs2
     pr_subst c2_ty NumDefs.pr_formula c2_num NumDefs.pr_formula c_num; *]*)
-  renaming, res_tpar,
+  names, res_tpar,
   (VarSet.elements (VarSet.inter res_vs vs2),
    Eqty (tdelta', res_tpar, lc_new)::res)
 
@@ -1258,7 +1214,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
         *]*)
         (* 4a *)
         (* Collected invariants, for filtering postconditions. *)
-        let lift_ex_types cmp_v i (g_vs, g_ans) =
+        let lift_ex_types i (g_vs, g_ans) =
           (* let keepvs =
              add_vars [delta; delta'] (VarSet.union localvs bvs) in *)
           (*[* Format.printf
@@ -1274,15 +1230,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
             with Not_found -> assert false in
           let pvs, e_vs = VarSet.partition
               (fun v -> upward_of v anchor) fvs in
-          (*[* Format.printf
-            "starting add_b_vs_of anchor=%s@ e_vs=%a@\n%!"
-            (var_str anchor) pr_vars e_vs; *]*)
           let e_vs = VarSet.elements e_vs in
-          if e_vs <> [] then
-            q.add_b_vs_of anchor
-              (varmap_of_assoc (List.map (fun v->v,v) e_vs));
-          (* [e_vs] does not contain [chi_vs] while [fvs] may have
-             eliminated variables. *)
           let pvs = VarSet.diff pvs localvs in
           let pvs = VarSet.elements pvs in
           (* FIXME: ensure universal variables are eliminated? *)
@@ -1302,34 +1250,37 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
             pr_vars (vars_of_list e_vs) pr_formula phi;
           *]*)
           (* FIXME: g_vs should be ignored? *)
-          tpar, (e_vs, phi) in
+          e_vs, phi in
         (* 4b *)
-        let rn_sb, g_rol = rev_fold_map2
-            (fun rn_acc (i, ans1) (j, ans2, g_brs) ->
+        (* Each fresh supplier witness may reuse an unoccupied old binder.
+           A name shared by two packages or used by the surrounding constraints
+           keeps its meaning in both. Reserve targets across the whole pass. *)
+        let context = VarSet.union (fvs_formula guard) (fvs_formula abdsjelim) in
+        let occupied, fixed = List.fold_left
+            (fun (seen, shared) (_, (_, ans), branches) ->
+               let names = VarSet.union (fvs_formula ans)
+                   (vars_of_map fvs_formula branches) in
+               VarSet.union seen names, VarSet.union shared (VarSet.inter seen names))
+            (context, context) g_rol_brs in
+        let _, g_rol = rev_fold_map2
+            (fun used (i, old) (j, (fresh, _ as incoming), branches) ->
                assert (i = j);
-               (*[* Format.printf
-                 "solve.loop-dK: i=%d@\nrn_acc=%a@\n%!" i
-                 pr_subst rn_acc; *]*)
-               let ans2 = map_snd (subst_formula rn_acc) ans2 in
-               let _ (* tpar *), ans2 = lift_ex_types q.op i ans2 in
-               let rn_sb, tpar, ans2 =
-                 converge q.op ~guard
-                   ~branches:(List.map (subst_formula rn_acc) g_brs)
-                   ~initstep:!initstep
+               let lifted = lift_ex_types i incoming in
+               let names, tpar, (vs, _ as result) =
+                 converge q.op ~occupied:used
+                   ~fresh:(VarSet.diff (vars_of_list fresh) fixed)
+                   ~guard ~branches ~initstep:!initstep
                    ~check_only:(!initstep || old_initstep ||
                                 iter_no < disj_step.(5))
-                   ans1 ans2 in
-               (*[* Format.printf "solve.loop-dK: final@ tpar=%a@ ans2=%a@\n%!"
-                 pr_ty tpar pr_ans ans2; *]*)
-               (* No [b] "owns" these formal parameters. Their instances
-                  will be added to [q] by [sb_brs_pred]. *)
-               varmap_merge rn_sb rn_acc, ((i, tpar), (i, ans2, g_brs)))
-            VarMap.empty (List.rev rol1) (List.rev g_rol_brs) in
+                   old lifted in
+               let anchor = Hashtbl.find q.chiK_anchor i in
+               if vs <> [] then q.add_b_vs_of anchor
+                   (varmap_of_assoc (List.map (fun v -> v,v) vs));
+               let branches = List.map (hvsubst_formula names) branches in
+               let used = VarMap.fold (fun _ v acc -> VarSet.add v acc) names used in
+               used, ((i, tpar), (i, result, branches)))
+            occupied (List.rev rol1) (List.rev g_rol_brs) in
         let tpars, g_rol_brs = List.split g_rol in
-        let g_rol_brs = List.map
-            (fun (i, ans2, g_brs) ->
-               let g_brs = List.map (subst_formula rn_sb) g_brs in
-               i, ans2, g_brs) g_rol_brs in
         let g_rol = List.map (fun (i, ans2, _) -> i, ans2) g_rol_brs in
         (* FIXME: recheck this definition of [g_par] *)
         let g_par = get_g_par g_rol in

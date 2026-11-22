@@ -1,0 +1,17 @@
+datatype Nat
+
+datacons Z : Nat
+
+datacons S : Nat ⟶ Nat
+
+val pair :
+   Nat → ∃n, k[0 ≤ n ∧ k ≤ 2 n ∧ n=min (1, k)].(Num n, Num k)
+
+external val bounds :
+   ∀i, j[0 ≤ i ∧ j ≤ 2 i ∧ i=min (1, j)]. (Num i, Num j) → Bool
+
+val base : Bool
+
+val one : Bool
+
+val two : Bool

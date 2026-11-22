@@ -188,6 +188,26 @@ let rejects_source source =
   with Defs.Report_toplevel _ | Terms.Contradiction _ | Terms.NoAnswer _ -> true
 
 let tests = "InvarGenT" >::: [
+      "separate existential indices after the first unequal pair" >::
+        test_case "separating_pair"
+          ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
+      "an equality client needs a shared result index" >:: (fun () ->
+        let program step =
+          "datatype Nat\ndatacons Z : Nat\ndatacons S : Nat ⟶ Nat\n" ^
+          "external let equal : ∀i. (Num i, Num i) → Bool = \"fun (x,y) -> x=y\"\n" ^
+          "let rec pair = efunction Z -> (0,0) | S t -> let (x,y) = pair t in " ^ step ^
+          "\nlet seen = let xy = pair (S (S Z)) in equal xy" in
+        ignore (infer_source (program "(y+1,x+1)"));
+        assert_bool "the second successor returns (1,2)"
+          (rejects_source (program "(1,x+1)")));
+      "a scaled index can become an independent witness" >:: (fun () ->
+        let code = "datatype Nat\ndatacons Z : Nat\ndatacons S : Nat ⟶ Nat\n" ^
+          "datatype Seed\ndatacons V : ∀i. Num i ⟶ Seed\n" ^
+          "external let seed : Seed = \"V 1\"\n" ^
+          "external let band : ∀i,j[2 i≤j]. (Num i, Num j) → Bool = \"fun _ -> true\"\n" ^
+          "let rec pair = efunction Z -> let V z = seed in (z,2*z) " ^
+          "| S t -> let (x,y) = pair t in (x,y+1)\n" in
+        ignore (infer_source (code ^ "let seen = let xy = pair (S Z) in band xy")));
       "partial annotations can infer stronger guards" >:: (fun () ->
         let code = "external let positive : ∀i[1≤i]. Num i → Num i = \"fun x -> x\"\n" ^
           "let f : ∀i. Num i → Num i = fun x -> positive x\n" in
