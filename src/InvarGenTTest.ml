@@ -29,7 +29,7 @@ let example_path name =
   let path = "./examples/" ^ name in
   if Sys.file_exists (path ^ ".gadt") then path else "../examples/" ^ name
 
-let test_case ?(test_annot=false) ?(do_ml=true) ?(cmp_sig=(=))
+let test_case ?(test_annot=false) ?(full_annot=test_annot) ?(do_ml=true) ?(cmp_sig=(=))
     ?drop_assert_false
     ?richer_answers ?more_general_num
     ?prefer_guess ?ty_abd_timeout
@@ -108,7 +108,7 @@ let test_case ?(test_annot=false) ?(do_ml=true) ?(cmp_sig=(=))
      let verif_res =
        (*[* Format.printf "test_case: file=%s@\n%!" file; *]*)
        InvarGenT.process_file ~do_sig:true ~do_ml
-         ~full_annot:test_annot (file^".gadt") in
+         ~full_annot (file^".gadt") in
      assert_equal ~cmp:cmp_sig ~printer:(fun x->x)
        (input_file (file^".gadti.target"))
        (input_file (file^".gadti"));
@@ -173,8 +173,8 @@ let test_case ?(test_annot=false) ?(do_ml=true) ?(cmp_sig=(=))
   Defs.nodeadcode := old_nodeadcode;
   Format.printf " t=%.3fs " (Sys.time () -. ntime)
 
-let run_example ?cmp_sig name () =
-  test_case ?cmp_sig name ();
+let run_example ?cmp_sig ?full_annot name () =
+  test_case ?cmp_sig ?full_annot name ();
   let file = example_path name ^ ".ml" in
   assert_equal ~printer:string_of_int 0 (Sys.command ("ocaml -noinit " ^ Filename.quote file))
 
@@ -190,6 +190,8 @@ let rejects_source ?integer_target source =
   with Defs.Report_toplevel _ | Terms.Contradiction _ | Terms.NoAnswer _ -> true
 
 let tests = "InvarGenT" >::: [
+      "GADT match result indices refine inside the branches" >::
+        run_example ~full_annot:true "compare_term_indices";
       "repeating a supplier preserves the other upper bound" >::
         test_case "choice_arms"
           ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);

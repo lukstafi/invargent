@@ -234,7 +234,13 @@ let pr_expr funtys lettys ppf =
   let pr_ann =
     if funtys || lettys
     then pr_annot_full lettys else pr_annot_rec in
-  pr_expr ?export_num ~export_if ~export_bool:ocaml_bools ~export_progseq
+  (* A wildcard covering a GADT index outside a match is shared by its
+     branches. Inside each branch OCaml can refine the surrounding result type. *)
+  let branch_result_type = function
+    | Some (_, ret) when funtys || lettys ->
+      VarSet.exists (function VId (Type_sort, _) -> true | _ -> false) (fvs_typ ret)
+    | _ -> false in
+  pr_expr ~branch_result_type ?export_num ~export_if ~export_bool:ocaml_bools ~export_progseq
     ~export_runtime_failure pr_ann ppf
 
 let pr_rhs_docu ppf = function

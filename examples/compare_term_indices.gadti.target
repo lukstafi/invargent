@@ -1,0 +1,27 @@
+datatype Base
+
+datatype Step : type
+
+datatype Rep : type
+
+datacons Root : Rep Base
+
+datacons Next : ∀a.Rep a ⟶ Rep (Step a)
+
+datatype Comparison : type * type
+
+datacons Same : ∀b. Comparison (b, b)
+
+datacons Apart : ∀a, b. Comparison (a, b)
+
+val compare : ∀a, b. Rep a → Rep b → Comparison (a, b)
+
+val distinct : ∀a. Rep a → Rep (Step a) → Bool
+
+val unequal : Bool
+
+val equal : Bool
+
+external val check : Bool → Bool
+
+val checked : (Bool, Bool)

@@ -394,6 +394,7 @@ val pr_expr :
   ?export_bool:((bool * string) list) ->
   ?export_progseq:(string * string * string) ->
   ?export_runtime_failure:string ->
+  ?branch_result_type:('b -> bool) ->
   (Format.formatter -> ('a, 'b) pr_expr_annot -> unit) ->
   Format.formatter -> ('a, 'b) expr -> unit
 val pr_uexpr : Format.formatter -> uexpr -> unit

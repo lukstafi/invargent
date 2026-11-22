@@ -934,7 +934,7 @@ type ('a, 'b) pr_expr_annot =
   | LetInNode of 'b
 
 let pr_expr ?export_num ?export_if ?export_bool ?export_progseq
-    ?export_runtime_failure pr_ann ppf exp =
+    ?export_runtime_failure ?(branch_result_type=(fun _ -> false)) pr_ann ppf exp =
   let int_argument ppf i =
     if i < 0 then fprintf ppf "(%d)" i else fprintf ppf "%d" i in
   let pr_pat, pr_more_pat, pr_one_pat = match export_bool with
@@ -1020,11 +1020,11 @@ let pr_expr ?export_num ?export_if ?export_bool ?export_progseq
     | Lam (ann, cs, _) ->
       fprintf ppf "@[<2>%a(function@ %a)%a@]"
         pr_ann (LamOpen ann)
-        (pr_pre_sep_list "| " (pr_clause pr_ann)) cs
+        (pr_pre_sep_list "| " (pr_clause aux)) cs
         pr_ann (LamNode ann)
     | ExLam (_, cs, _) ->
       fprintf ppf "@[<0>(efunction@ %a)@]"
-        (pr_pre_sep_list "| " (pr_clause pr_ann)) cs
+        (pr_pre_sep_list "| " (pr_clause aux)) cs
     | App (Lam (ann, [(v,[],body)], _), def, _) ->
       fprintf ppf "@[<0>let@ @[<4>%a%a%a@] =@ @[<2>%a@]@ in@ @[<0>%a@]@]"
         pr_ann (LetInOpen ann)
@@ -1032,13 +1032,19 @@ let pr_expr ?export_num ?export_if ?export_bool ?export_progseq
         aux def
         aux body
     | App (Lam (ann, cls, _), def, _) ->
+      let per_branch = branch_result_type ann in
+      let outer ppf node = if not per_branch then pr_ann ppf node in
+      let body ppf e =
+        if per_branch then
+          fprintf ppf "%a%a%a" pr_ann (MatchResOpen ann) aux e pr_ann (MatchRes ann)
+        else aux ppf e in
       fprintf ppf "@[<0>%a(match@ @[<4>%a%a%a@] with@ @[<2>%a@])%a@]"
-        pr_ann (MatchResOpen ann)
+        outer (MatchResOpen ann)
         pr_ann (MatchValOpen ann)
         aux def
         pr_ann (MatchVal ann)
-        (pr_pre_sep_list "| " (pr_clause pr_ann)) cls
-        pr_ann (MatchRes ann)
+        (pr_pre_sep_list "| " (pr_clause body)) cls
+        outer (MatchRes ann)
     | App _ as exp ->
       let fargs = collect_apps exp in
       fprintf ppf "@[<2>%a@]"
@@ -1074,12 +1080,12 @@ let pr_expr ?export_num ?export_if ?export_bool ?export_progseq
   and pr_guard_leq ppf (e1, e2) =
     fprintf ppf "@[<2>%a@ <=@ %a@]" aux e1 aux e2
 
-  and pr_clause pr_ann ppf (pat, guards, exp) =
+  and pr_clause body ppf (pat, guards, exp) =
     if guards = []
     then fprintf ppf "@[<2>%a@ ->@ %a@]"
-        pr_pat pat aux exp
+        pr_pat pat body exp
     else fprintf ppf "@[<2>%a@ when@ %a@ ->@ %a@]"
-        pr_pat pat (pr_sep_list "&&" pr_guard_leq) guards aux exp
+        pr_pat pat (pr_sep_list "&&" pr_guard_leq) guards body exp
 
   and factor ppf = function
     | (NumAdd _ | NumCoef _) as e -> fprintf ppf "(%a)" aux e

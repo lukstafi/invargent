@@ -1,0 +1,21 @@
+datatype Base
+datatype Step : type
+datatype Rep : type
+datacons Root : Rep Base
+datacons Next : ∀a. Rep a ⟶ Rep (Step a)
+datatype Comparison : type * type
+datacons Same : ∀a. Comparison (a,a)
+datacons Apart : ∀a,b. Comparison (a,b)
+
+let rec compare : ∀a,b. Rep a → Rep b → Comparison (a,b) = function
+  | Root -> (function Root -> Same | Next _ -> Apart)
+  | Next x -> (function Root -> Apart | Next y ->
+      match compare x y with Same -> Same | Apart -> Apart)
+
+let distinct : ∀a. Rep a → Rep (Step a) → Bool = fun x y ->
+  match compare x y with Same -> assert false | Apart -> True
+
+let unequal = distinct (Next Root) (Next (Next Root))
+let equal = match compare (Next Root) (Next Root) with Same -> True | Apart -> False
+external let check : Bool → Bool = "fun b -> assert b; b"
+let checked = (check unequal, check equal)
