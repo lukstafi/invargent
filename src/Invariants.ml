@@ -687,8 +687,24 @@ let prune_redund q_ops ?localvs ?guard ~initstep (vs, cnj) =
     pr_vars vs pr_subst ty_sb pr_formula ans; *]*)
   VarSet.elements vs, ans
 
+(* Rebuilding the same supplier on a backtrack can allocate new binders.
+   Its previously rejected instances are keyed by those binders at each
+   opening. Reuse them only for an exact variant of the complete proposal. *)
+let retry_witness_names ~occupied ~fresh ~parameters (old_vs, old_phi) (vs, phi) =
+  if List.length old_vs <> List.length vs then VarMap.empty else
+  try
+    let names = List.fold_left2 (fun names v old ->
+        if v = old then names
+        else if var_sort v = var_sort old && VarSet.mem v fresh &&
+                not (VarSet.mem v parameters || VarSet.mem old occupied)
+        then VarMap.add v old names
+        else raise Not_found) VarMap.empty vs old_vs in
+    if VarMap.is_empty names then names else
+    let renamed = hvsubst_formula names phi in
+    if subformula renamed old_phi && subformula old_phi renamed then names else VarMap.empty
+  with Not_found -> VarMap.empty
+
 (* Rename the new solution to match variables of the old solution. *)
-(* FIXME: coordinate with NumS.disjelim_simplify. *)
 let converge q_ops ~occupied ~fresh ~initstep ?guard ~branches ~check_only ~recover_caps
     (vs1, cnj1) (vs2, cnj2) =
   (*[* Format.printf
@@ -1058,7 +1074,7 @@ let solve_constraints check_only q_ops new_ex_types exty_res_chi brs =
     raise (NoAnswer (Type_sort, "Answers do not converge", None, loc)) in
   let initstep = ref true in
   let fallback_postcond = ref false in
-  let rec loop ~branches ?(call_inputs=[]) ?(retry=false) ?supplier_pass ~jump_at iter_no discard rol1 sol1 ans1_res =
+  let rec loop ~branches ?(call_inputs=[]) ?retry_proposal ?supplier_pass ~jump_at iter_no discard rol1 sol1 ans1_res =
     (* A failed postcondition can restart inference from the base cases.
        After the jump, give the restarted approximation time to develop.
        Each such restart gets a longer window, within the overall timeout. *)
@@ -1243,9 +1259,12 @@ let solve_constraints check_only q_ops new_ex_types exty_res_chi brs =
                  (*[* Format.printf "@\n%!"; *]*)
                  (* [usb] is additional abductive the answer. *)
                  let up_of_anchor v = upward_of v anchor in
+                 (* Caller contributions in the stored answer may still
+                    contain equations between two structured types. *)
+                 let previous = NumS.sort_formula (List.rev (List.filter
+                     (fun atom -> atom_sort atom = Num_sort) old_ans)) in
                  let dissoc, g_abd, (g_vs, g_ans), g_brs =
-                   DisjElim.disjelim q_ops ?previous_type
-                     ~previous:(sep_formulas old_ans).cnj_num
+                   DisjElim.disjelim q_ops ?previous_type ~previous
                      ~bvs ~param_bvs (* ~preserve *)
                      ~up_of_anchor
                      ~do_num:(disj_step.(1) <= iter_no)
@@ -1338,14 +1357,24 @@ let solve_constraints check_only q_ops new_ex_types exty_res_chi brs =
             (fun used (i, old) (j, (fresh, _ as incoming), branches) ->
                assert (i = j);
                let lifted = lift_ex_types i incoming in
-               let names, tpar, (vs, _ as result) =
-                 converge q.op ~occupied:used
-                   ~fresh:(VarSet.diff (vars_of_list fresh) fixed)
+               let fresh = VarSet.diff (vars_of_list fresh) fixed in
+               let names, tpar, (vs, phi as result) =
+                 converge q.op ~occupied:used ~fresh
                    ~guard ~branches ~initstep:!initstep
                    ~recover_caps:(supplier_pass = Some iter_no)
                    ~check_only:(!initstep || old_initstep ||
                                 iter_no < jump_at)
                    old lifted in
+               let names, (vs, _ as result) = match retry_proposal with
+                 | None -> names, result
+                 | Some previous ->
+                   let occupied = add_vars (varmap_codom names)
+                       (VarSet.union used (fvs_formula phi)) in
+                   let extra = retry_witness_names ~occupied ~fresh ~parameters:(fvs_typ tpar)
+                       (List.assoc i previous) result in
+                   let rename v = try VarMap.find v extra with Not_found -> v in
+                   varmap_merge (VarMap.map rename names) extra,
+                   (List.map rename vs, hvsubst_formula extra phi) in
                let anchor = Hashtbl.find q.chiK_anchor i in
                if vs <> [] then q.add_b_vs_of anchor
                    (varmap_of_assoc (List.map (fun v -> v,v) vs));
@@ -1500,7 +1529,7 @@ let solve_constraints check_only q_ops new_ex_types exty_res_chi brs =
           (* A failed guess at an earlier approximation can become part of
              a solution after widening. A retry at this pass keeps its cuts. *)
           Abduction.abd q.op ~bvs ~xbvs ~orig_ren ~call_inputs
-            ~recover_caller:(rol1 <> [] && not retry && not !initstep &&
+            ~recover_caller:(rol1 <> [] && retry_proposal = None && not !initstep &&
                              not old_initstep && iter_no >= jump_at)
             ~b_of_v:q.find_b_of_v ~upward_of
             ~nonparam_vars ~iter_no
@@ -1615,7 +1644,7 @@ let solve_constraints check_only q_ops new_ex_types exty_res_chi brs =
                  {discard with at_num=s_discard.at_num::discard.at_num}
                | Order_sort ->
                  {discard with at_ord=s_discard.at_ord::discard.at_ord} in
-             loop ~branches ~call_inputs ~retry:true ?supplier_pass ~jump_at iter_no discard rol1 sol1 ans_res in
+             loop ~branches ~call_inputs ~retry_proposal:g_rol ?supplier_pass ~jump_at iter_no discard rol1 sol1 ans_res in
       (* 7-8 *)
       (* Avoid substituting [bvs] -- treat them like leftmost. *)
       let ans_sb, _ =

@@ -1,0 +1,17 @@
+datatype State : num
+
+datacons A : State 0
+
+datacons B : State 1
+
+datatype Nat
+
+datacons Z : Nat
+
+datacons S : Nat ⟶ Nat
+
+external val obs : ∀i. Num i → Num i
+
+external val small : ∀i[i ≤ 1]. Num i → Bool
+
+val run : ∀n. State n → Nat → ∃.Num n

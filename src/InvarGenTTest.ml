@@ -361,6 +361,8 @@ let tests = "InvarGenT" >::: [
         run_example "local_packed_guards";
       "an existential can hide a closure with a free argument type" >::
         test_case ~test_annot:true "packed_closure";
+      "a local match contract carries the observed index into the package" >::
+        run_example "observed_coordinate";
       "the state index reaches the package through a tail match" >:: run_example "state_coordinate";
       "a reachable package result must pass the final exclusion check" >:: (fun () ->
         let source = "datatype Nat\ndatacons Z : Nat\ndatacons S : Nat ⟶ Nat\n" ^

@@ -209,9 +209,33 @@ let normalize_with_target ?target e =
 
 let normalize_expr e = normalize_with_target e
 
+(* A consumed result is needed by a surrounding expression. Tail lets and
+   assertions pass that demand through. A lambda starts a new result scope. *)
+let rewrite_matches transform e tests =
+  let rec visit consumed expr =
+    let value e = visit true e and tail e = visit consumed e in
+    let expr = match expr with
+      | Letin (doc, p, (Lam _ as fn), b, loc) -> Letin (doc, p, visit false fn, tail b, loc)
+      | Letin (doc, p, a, b, loc) -> Letin (doc, p, value a, tail b, loc)
+      | Letrec (doc, (), x, a, b, loc) -> Letrec (doc, (), x, visit false a, tail b, loc)
+      | Lam ((), arms, loc) -> Lam ((), List.map visit_arm arms, loc)
+      | ExLam (k, arms, loc) -> ExLam (k, List.map visit_arm arms, loc)
+      | App ((Lam _ as fn), arg, loc) -> App (visit false fn, value arg, loc)
+      | App (a, b, loc) -> App (value a, value b, loc)
+      | Cons (k, args, loc) -> Cons (k, List.map value args, loc)
+      | NumAdd (a, b, loc) -> NumAdd (value a, value b, loc)
+      | NumCoef (n, a, loc) -> NumCoef (n, value a, loc)
+      | AssertLeq (a, b, body, loc) -> AssertLeq (value a, value b, tail body, loc)
+      | AssertEqty (a, b, body, loc) -> AssertEqty (value a, value b, tail body, loc)
+      | RuntimeFailure (msg, loc) -> RuntimeFailure (value msg, loc)
+      | (Var _ | Num _ | String _ | AssertFalse _) as e -> e in
+    transform consumed expr
+  and visit_arm (p, gs, body) =
+    p, List.map (fun (a, b) -> visit true a, visit true b) gs, visit false body in
+  visit false e, List.map (visit false) tests
+
 (* Move a generated package introduction into the selected match arm. The
-   same constructor and result parameter are shared across all arms. Each
-   arm gets its own let, since opening decisions are keyed by the pattern. *)
+   constructor is shared. Opening decisions are keyed by the fresh lets. *)
 let branch_packages e tests =
   let changed = ref false in
   let rec pack k = function
@@ -225,26 +249,12 @@ let branch_packages e tests =
     | AssertEqty (a, b, body, loc) -> AssertEqty (a, b, pack k body, loc)
     | (AssertFalse _ | RuntimeFailure _) as e -> e
     | value -> pack_value k value in
-  let rec visit = function
+  let move _ = function
     | Letin (None, PVar ("xcase", _), (App (Lam _, _, _) as cases),
-             Cons (Extype k, [Var ("xcase", _)], _), _) ->
-      pack k (visit cases)
-    | Letin (doc, p, a, b, loc) -> Letin (doc, p, visit a, visit b, loc)
-    | Letrec (doc, (), x, a, b, loc) -> Letrec (doc, (), x, visit a, visit b, loc)
-    | Lam ((), arms, loc) -> Lam ((), List.map visit_arm arms, loc)
-    | ExLam (k, arms, loc) -> ExLam (k, List.map visit_arm arms, loc)
-    | App (a, b, loc) -> App (visit a, visit b, loc)
-    | Cons (k, args, loc) -> Cons (k, List.map visit args, loc)
-    | NumAdd (a, b, loc) -> NumAdd (visit a, visit b, loc)
-    | NumCoef (n, a, loc) -> NumCoef (n, visit a, loc)
-    | AssertLeq (a, b, body, loc) -> AssertLeq (visit a, visit b, visit body, loc)
-    | AssertEqty (a, b, body, loc) -> AssertEqty (visit a, visit b, visit body, loc)
-    | RuntimeFailure (msg, loc) -> RuntimeFailure (visit msg, loc)
-    | (Var _ | Num _ | String _ | AssertFalse _) as e -> e
-  and visit_arm (p, gs, body) =
-    p, List.map (fun (a, b) -> visit a, visit b) gs, visit body in
-  let e = visit e and tests = List.map visit tests in
-  if !changed then Some (e, tests) else None
+             Cons (Extype k, [Var ("xcase", _)], _), _) -> pack k cases
+    | e -> e in
+  let result = rewrite_matches move e tests in
+  if !changed then Some result else None
 
 let signature_target = function
   | None -> None
@@ -546,6 +556,36 @@ let rec refined_pattern = function
     constrains_index || List.exists refined_pattern args
   | PAnd (a, b, _) -> refined_pattern a || refined_pattern b
   | Zero | One _ | PVar _ -> false
+
+(* Give a consumed GADT match its own unary arrow predicate. The ordinary
+   local-definition rule checks every admitted instance in the original
+   lexical environment. The old use instantiates the inferred scheme. *)
+let name_consumed_matches e tests =
+  let used = ref Strings.empty and serial = ref 0 in
+  let rec fresh () =
+    incr serial;
+    let name = "_match_result" ^ string_of_int !serial in
+    if Strings.mem name !used then fresh () else name in
+  let refined = function
+    | Lam ((), arms, _) -> List.exists (fun (p, _, _) -> refined_pattern p) arms
+    | _ -> false in
+  let bind fn loc use =
+    (* Descendants have already been visited, including references that will
+       lie in the scope of the new binder. *)
+    let x = fresh () in
+    Letrec (None, (), x, fn, use (Var (x, expr_loc fn)), loc) in
+  let name consumed = function
+    | Var (x, _) as e -> used := Strings.add x !used; e
+    | App (fn, arg, loc) when consumed && refined fn ->
+      bind fn loc (fun f -> App (f, arg, loc))
+    | Letin (doc, p, fn, body, loc) when refined fn ->
+      (* Keep the original binding monomorphic even if its RHS can now be
+         given a polymorphic contract. *)
+      bind fn loc (fun f -> Letin (doc, p, f, body, loc))
+    | fn when consumed && refined fn -> bind fn (expr_loc fn) (fun f -> f)
+    | e -> e in
+  let result = rewrite_matches name e tests in
+  if !serial = 0 then None else Some result
 
 (* A local recursive definition checks every member of its input predicate.
    Project its mandatory equations onto the arrow. A constructor-only premise
@@ -1323,20 +1363,25 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
       retry choices in
   let solve_item packages e tests generate =
     let initial_packages = !all_ex_types in
-    try search_item packages (generate e tests) with
-    | (NoAnswer (_, msg, _, _) | Contradiction (_, msg, _, _)) as original
-      when msg <> "Answers do not converge" ->
-      match branch_packages e tests with
-      | None -> raise original
-      | Some (e, tests) ->
-        (* Erasure in the first search may have removed a local declaration.
-           Regenerate the alternative with the item's original packages. *)
-        all_ex_types := initial_packages;
-        try search_item packages (generate e tests) with exn ->
-          all_ex_types := initial_packages;
-          match exn with
-          | NoAnswer _ | Contradiction _ -> raise original
-          | _ -> raise exn in
+    let run (e, tests) = search_item packages (generate e tests) in
+    let initial = e, tests in
+    try run initial with
+    | (NoAnswer (_, msg, _, _) | Contradiction (_, msg, _, _)) as original ->
+      let rec retry input = function
+        | [] -> raise original
+        | rewrite :: rest ->
+          match rewrite (fst input) (snd input) with
+          | None -> retry input rest
+          | Some candidate ->
+            (* A failed search may have erased a local declaration. *)
+            all_ex_types := initial_packages;
+            try run candidate with exn ->
+              all_ex_types := initial_packages;
+              match exn with
+              | NoAnswer _ | Contradiction _ -> retry candidate rest
+              | _ -> raise exn in
+      let placements = if msg = "Answers do not converge" then [] else [branch_packages] in
+      retry initial (placements @ [name_consumed_matches]) in
   let ntime = ref (Sys.time ()) in
   let start_time = !ntime in
   let gamma = ref builtin_gamma in
