@@ -908,7 +908,7 @@ type discarded =
    OrderDefs.formula list, unit) sep_sorts
 
 let abd q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of ~nonparam_vars
-    ?(iter_no=2) ~discard brs neg_brs =
+    ?(iter_no=2) ?(recover_caller=false) ~discard brs neg_brs =
   let dissociate = iter_no <= 0 in
   (* Do not change the order and no. of branches afterwards. *)
   (*[* Format.printf "abd: iter_no=%d prepare branches@\n%!" iter_no; *]*)
@@ -1115,7 +1115,11 @@ let abd q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of ~nonparam_vars
     else
       try
         (* [tvs] includes alien variables! *)
-        NumS.abd q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of ~nonparam_vars
+        let caller_checks =
+          if recover_caller && neg_brs=[] then
+            Some (List.map (fun (_, _, prem, concl) -> prem, concl) verif_brs_num)
+          else None in
+        NumS.abd q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of ~nonparam_vars ?caller_checks
           ~discard:discard.at_num ~iter_no
           (* [true] means non-recursive *)
           ((true, [], [], neg_num_res)::brs_num)

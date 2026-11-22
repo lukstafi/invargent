@@ -87,6 +87,7 @@ val abd :
   upward_of:(Defs.var_name -> Defs.var_name -> bool) ->
   nonparam_vars:Defs.VarSet.t ->
   ?iter_no:int ->
+  ?recover_caller:bool ->
   discard:discarded ->
   (bool * (int * Terms.hvsubst) list *
      Terms.formula * Terms.formula) list ->

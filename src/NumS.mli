@@ -91,7 +91,8 @@ val abd_fail_flag : bool ref
 val abd_timeout_flag : bool ref
 (** For uniformity, return an empty list as introduced
     variables. Raise [Contradiction] if constraints are contradictory
-    and [Suspect] if no answer can be found. *)
+    and [Suspect] if no answer can be found. Optional [caller_checks] are the
+    unsplit positive obligations used to validate a recovered input bound. *)
 val abd :
   Defs.quant_ops ->
   bvs:Defs.VarSet.t ->
@@ -102,6 +103,7 @@ val abd :
   nonparam_vars:Defs.VarSet.t ->
   discard:NumDefs.formula list ->
   ?iter_no:int ->
+  ?caller_checks:(NumDefs.formula * NumDefs.formula) list ->
   (bool * (int * Terms.hvsubst) list *
      NumDefs.formula * NumDefs.formula) list ->
   Defs.var_name list * NumDefs.formula

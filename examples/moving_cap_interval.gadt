@@ -1,0 +1,17 @@
+datatype Nat
+datacons Z : Nat
+datacons S : Nat ⟶ Nat
+
+datatype StepResult : num * num * num
+datacons B : ∀j, m, n, k [j≤k ∧ k≤n+1 ∧ k≤m+18]. Num k ⟶ StepResult (j,m,n)
+datacons Floor : ∀j, m, n. StepResult (j,m,n)
+external let step : ∀j, m, n [j≤n ∧ n≤max(m+20,j)]. Num j → Num m → Num n → StepResult (j,m,n) =
+  "fun j m n -> assert (j <= n && n <= max (m+20) j); if m+18 <= j then Floor else B (min (n+1) (m+18))"
+
+let rec climb d j m = efunction
+  | Z -> j
+  | S t -> let r = climb d (j+1) (m+d) t in
+           (ematch step j m r with B u -> u | Floor -> j)
+
+let lower = climb 1 19 0 (S (S Z))
+let upper = climb 2 19 0 (S (S Z))

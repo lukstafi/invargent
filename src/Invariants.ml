@@ -1033,7 +1033,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
     q.chiK_anchor; Format.printf "@\n%!"; *]*)
   let initstep = ref true in
   let fallback_postcond = ref false in
-  let rec loop iter_no discard rol1 sol1 ans1_res =
+  let rec loop ?(retry=false) iter_no discard rol1 sol1 ans1_res =
     (* 1 *)
     let dropped_from_sol = ref false in
     let sol1 =
@@ -1473,7 +1473,11 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
     let answer =
       try
         let cand_bvs, alien_eqs, (vs, ans) =
+          (* A failed guess at an earlier approximation can become part of
+             a solution after widening. A retry at this pass keeps its cuts. *)
           Abduction.abd q.op ~bvs ~xbvs ~orig_ren
+            ~recover_caller:(rol1 <> [] && not retry && not !initstep &&
+                             not old_initstep && iter_no >= disj_step.(5))
             ~b_of_v:q.find_b_of_v ~upward_of
             ~nonparam_vars ~iter_no
             ~discard brs1 neg_cns1 in
@@ -1587,7 +1591,7 @@ let solve ~uses_pos_assertions q_ops new_ex_types exty_res_chi brs =
                  {discard with at_num=s_discard.at_num::discard.at_num}
                | Order_sort ->
                  {discard with at_ord=s_discard.at_ord::discard.at_ord} in
-             loop iter_no discard rol1 sol1 ans_res in
+             loop ~retry:true iter_no discard rol1 sol1 ans_res in
       (* 7-8 *)
       (* Avoid substituting [bvs] -- treat them like leftmost. *)
       let ans_sb, _ =

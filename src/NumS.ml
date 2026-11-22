@@ -2636,11 +2636,78 @@ let fvs_sep_w_formula (c_eqn, c_ineqn, c_optis, c_suboptis) =
     (vars_of_map (vars_of_map fvs_w) [c_eqn; c_ineqn])
     (vars_of_map (vars_of_map fvs_2w) [c_optis; c_suboptis])
 
+(* Once the branch equations are known, compare a supplier's two endpoints
+   with the caller's two alternatives. If one endpoint strictly misses an
+   alternative by a constant, the other alternative must cover both. *)
+let recover_caller_bound q ~cmp_v ~cmp_w ~bvs ~upward_of ~validate checks
+    (eqs, ineqs, optis, suboptis as answer) =
+  let sources = concat_map (fun (prem, _) ->
+    let peq, _, _, pairs = split_flatten ~cmp_v prem in
+    if pairs = [] then [] else
+    try
+      let sb, _, _, _ = solve ~eqs ~eqn:peq ~cmp_v ~cmp_w q.uni_v in
+      List.map (fun pair -> sb, subst_2w ~cmp_v sb pair) pairs
+    with Terms.Contradiction _ -> []) checks in
+  let branch state prem =
+    let e, i, o, s = state in
+    try
+      let e, i, o, s = solve ~eqs:e ~ineqs:i ~optis:o ~suboptis:s ~cnj:prem
+          ~cmp_v ~cmp_w q.uni_v in
+      let entails = implies ~cmp_v ~cmp_w q.uni_v e i o s in
+      (* Disjunctions can hide a contradiction until their arms are split. *)
+      if entails [] [([], !/1, dummy_loc)] [] [] then None else Some entails
+    with Terms.Contradiction _ -> None in
+  let proves_all state =
+    let proves (prem, concl) = match branch state prem with
+      | None -> (match branch answer prem with None -> true | Some _ -> false)
+      | Some entails ->
+        let ce, ci, co, cs = split_flatten ~cmp_v concl in
+        entails ce ci co cs in
+    match branch state [] with
+    | None -> false
+    | Some _ -> List.for_all proves checks in
+  let checked remaining bounds =
+    let candidate, new_eqn, new_ineqn, _, _ =
+      solve_scoped ~use_quants:(Fail_viol bvs) ~eqs ~ineqs ~optis
+        ~suboptis:remaining ~ineqn:bounds ~cmp_v ~cmp_w q.uni_v in
+    let added = vars_of_map fvs_w (new_eqn @ new_ineqn) in
+    if crosses_xparams ~cmp_v:q.cmp_v ~bvs (VarSet.inter added bvs)
+       || not (proves_all candidate) then None
+    else (validate added candidate; Some candidate) in
+  let rec replace kept = function
+    | [] -> answer
+    | goal::rest ->
+        let remaining = List.rev_append kept rest in
+        let needed = lazy (not (proves_all (eqs, ineqs, optis, remaining))) in
+        let try_source (sb, (p1, p2)) =
+          match direct_opti (subst_2w ~cmp_v sb goal) with
+          | None -> None
+          | Some (_, shared, _, g1, g2) ->
+            let force (miss, target, endpoint, other) =
+              match diff ~cmp_v miss endpoint with
+              | [], gap, _ when gap >/ !/0 && Lazy.force needed ->
+                let bounds = [diff ~cmp_v target endpoint; diff ~cmp_v target other] in
+                let vs = vars_of_map fvs_w bounds in
+                if VarSet.is_empty vs || not (VarSet.is_empty (VarSet.inter shared vs))
+                   || not (List.for_all (no_scope_viol ~cmp_v:q.cmp_v
+                                           ~upward_of ~bvs) bounds)
+                then None else
+                  let old_deadcode = !deadcode_flag in
+                  (try checked remaining bounds with Terms.Contradiction _ ->
+                    deadcode_flag := old_deadcode; None)
+              | _ -> None in
+            find_map force [g1,g2,p1,p2; g1,g2,p2,p1;
+                            g2,g1,p1,p2; g2,g1,p2,p1] in
+        match find_map try_source sources with
+        | Some candidate -> candidate
+        | None -> replace (goal::kept) rest in
+  replace [] suboptis
+
 (* FIXME: eliminate optis from premise, but first try simplifying
    them with both premise and conclusion of a branch. *)
 let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
     ~upward_of ~nonparam_vars
-    ~discard ?(iter_no=2) brs =
+    ~discard ?(iter_no=2) ?caller_checks brs =
   abd_timeout_flag := false;
   let cmp_v = make_cmp q in
   let cmp_w (vars1,cst1,_) (vars2,cst2,_) =
@@ -2911,6 +2978,10 @@ let abd q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empty_b_of_v)
        upward_of; uni_v = q.uni_v; bvs; xbvs; nonparam_vars}
       ~discard validation ~validate ~neg_validate
       (VarMap.empty, VarMap.empty, [], []) brs in
+  let ans = match caller_checks, ans with
+    | Some checks, (_, _, _, _::_) ->
+        recover_caller_bound q ~cmp_v ~cmp_w ~bvs ~upward_of ~validate checks ans
+    | _ -> ans in
   [], elim_uni @ ans_to_num_formula ans
 
 

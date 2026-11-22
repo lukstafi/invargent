@@ -226,6 +226,9 @@ let tests = "InvarGenT" >::: [
            skip_if !debug "debug";
            test_case "equal_assert" ());
       "capped climb" >:: test_case "capped_climb";
+      "two admissible cap increments at the floor boundary" >::
+        test_case "moving_cap_interval"
+          ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
       "moving floor with an inferred cap increment" >:: test_case "unit_floor_shift"
         ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b);
       "moving floor and cap" >:: test_case "moving_floor"
