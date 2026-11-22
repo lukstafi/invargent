@@ -25,6 +25,24 @@ let numeric_formula s =
   sort_formula (Parser.formula Lexer.token (Lexing.from_string s))
 
 let tests = "NumS" >::: [
+  "project private admission witnesses onto shared coordinates" >:: (fun () ->
+    let hidden = vars_of_list [VNam (Num_sort,"j"); VNam (Num_sort,"l")] in
+    let check domain expected =
+      let cells = project_exists ~vars:hidden (numeric_formula domain) in
+      let want = numeric_formula expected and impossible = numeric_formula "1<=0" in
+      List.iter (fun cell ->
+          assert_bool "private variables do not escape"
+            (VarSet.is_empty (VarSet.inter hidden (fvs_formula cell)));
+          match satisfiable cell with Left _ -> () | Right state ->
+            assert_bool "an admitted cell respects every restriction" (implies_cnj state want)) cells;
+      assert_bool "the cells cover every legal tuple"
+        (not (conditional_satisfiable want (List.map (fun cell -> cell,impossible) cells))) in
+    check "i<=2 j ∧ 2 j<=k" "i<=k";
+    check "2 j=i ∧ j+j=k" "i=k";
+    check "j+l=i ∧ j + -l=k ∧ 0<=j" "0<=i+k";
+    check "j=k ∧ min(j+1,1 + -j)<=0" "min(k+1,1 + -k)<=0";
+    check "j=max(i,k) ∧ l<=j ∧ j<=l ∧ l<=1" "i<=1 ∧ k<=1";
+    check "j+1<=l ∧ l<=j" "1<=0");
   "conditional openings retain strict fractional countermodels" >:: (fun () ->
     let possible pre guards =
       let blocked = numeric_formula "1<=0" in

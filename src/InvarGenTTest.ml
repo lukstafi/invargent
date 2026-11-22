@@ -409,6 +409,8 @@ let tests = "InvarGenT" >::: [
           (rejects_source ~integer_target:true source));
       "a recursive key can be admitted under the consumer guard" >::
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "switched_result_band";
+      "a fresh admission witness can follow the recursive key" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "private_result_key";
       "opposite keys cover the same guard in different states" >::
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b) "opposite_result_bands";
       "conditional admission must respect the exported key domain" >:: (fun () ->

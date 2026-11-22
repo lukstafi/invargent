@@ -4752,6 +4752,44 @@ let implies_cnj (eqs, ineqs, optis, suboptis) cnj =
   implies ~cmp_v ~cmp_w uni_v eqs ineqs optis suboptis c_eqn c_ineqn
     c_optis c_suboptis 
 
+(* Solve each hidden-dependent linear case with private variables first.
+   The solver has paired every lower bound with every upper bound. Its
+   remaining bounds for a pivot mention only later variables, so a valuation
+   of the retained rows extends in reverse pivot order over the rationals. *)
+let project_exists ~vars phi =
+  let shared,dependent = List.partition (fun atom ->
+      VarSet.is_empty (VarSet.inter vars (fvs_atom atom))) phi in
+  if dependent=[] then [shared] else
+  let cmp_v x y = match VarSet.mem x vars, VarSet.mem y vars with
+    | true,false -> -1 | false,true -> 1 | _ -> compare x y in
+  let cmp_w (xs,_,_) (ys,_,_) = match xs,ys with
+    | [],[] -> 0 | [],_ -> -1 | _,[] -> 1
+    | (x,_)::_,(y,_)::_ -> cmp_v x y in
+  let visible x _ = not (VarSet.mem x vars) in
+  let independent pair = VarSet.is_empty (VarSet.inter vars (fvs_2w pair)) in
+  let unrestricted _ = false in
+  try
+    let eqs,bounds,optis,suboptis = solve ~cnj:dependent ~cmp_v ~cmp_w unrestricted in
+    (* An equation can move a whole extremum onto public coordinates. Keep
+       that atom intact so the projected domain still fits a single scheme. *)
+    let common_o,branch_o = List.partition independent optis
+    and common_s,branch_s = List.partition independent suboptis in
+    let shared = shared @ formula_of_state (VarMap.empty,VarMap.empty,common_o,common_s) in
+    let rec visit eqs bounds cells = function
+      | [] -> expand_eqineqs (VarMap.filter visible eqs) (VarMap.filter visible bounds) :: cells
+      | arms::rest -> List.fold_left (fun cells arm -> match cells with
+          | []::_ -> cells
+          | _ ->
+            try
+              let eqs,bounds,_,_ = solve ~eqs ~ineqs:bounds ~cnj':arm ~cmp_v ~cmp_w unrestricted in
+              visit eqs bounds cells rest
+            with Terms.Contradiction _ -> cells) cells arms in
+    let cells = visit eqs bounds [] (choice_arms ~cmp_v ~intro_cho_ineq:false branch_o branch_s) in
+    match cells with
+    | []::_ -> [shared]
+    | _ -> List.map (fun cell -> shared @ cell) (unique_sorted cells)
+  with Terms.Contradiction _ -> []
+
 (* A countermodel either satisfies an opening's postcondition or violates
    an admission atom. Each strict violation gets the same positive slack:
    finitely many positive differences have a positive minimum. *)

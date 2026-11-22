@@ -1711,11 +1711,28 @@ let recursive_answer bvs loc chi_id (q,residual,predicates) =
       ("Escaping local variables "^String.concat ", " (List.map var_str escaping),Some loc));
   nice_sb,sb_res,sb,(gvs,phi,res)
 
-(* Replay the key admissions against the exported predicate. Align the numeric
-   coordinates of the written and inferred arrows. A bare inferred coordinate
-   can take its new value from the corresponding written position. Other
-   inferred variables retain their original witnesses. *)
-let check_key_admission query signature written inferred loc =
+let numeric_admission phi = List.map (function
+    | Terms.A (Num_atom a) -> a
+    | Eqty (a,b,lc) when typ_sort a=Num_sort && typ_sort b=Num_sort ->
+      NumDefs.Eq (NumS.num_of a,NumS.num_of b,lc)
+    | _ -> raise Not_found) phi
+
+(* A recursive occurrence instantiates the quantified variables of the written
+   scheme. When their projection fits in a scheme predicate, give that domain
+   directly to the abducer. Replay still checks the original signature. *)
+let project_call_signature bound signature arrow =
+  let vars = VarSet.diff (VarSet.inter (vars_of_list bound) (fvs_formula signature))
+      (fvs_typ arrow) in
+  if VarSet.is_empty vars then signature else
+  try match NumS.project_exists ~vars (numeric_admission signature) with
+    | [phi] -> NumS.formula_of_sort phi
+    | _ -> signature
+  with Not_found -> signature
+     | Failure msg when msg = "int_of_big_int" -> signature
+
+(* A fresh typing must match every numeric position of the arrow. Each scheme
+   may choose its own quantified witnesses for that tuple. *)
+let check_key_admission query bound signature written inferred loc =
   let open NumDefs in
   let eq a b = Eq (a,b,loc) and v x = Lin (1,1,x) in
   let rec align left right = match left,right with
@@ -1726,33 +1743,44 @@ let check_key_admission query signature written inferred loc =
       List.concat (List.map2 align xs ys)
     | TVar a,TVar b when var_sort a=var_sort b -> []
     | _ -> raise Not_found in
-  let numbers phi = List.map (function
-      | Terms.A (Num_atom a) -> a
-      | Eqty (a,b,lc) when typ_sort a=Num_sort && typ_sort b=Num_sort ->
-        Eq (NumS.num_of a,NumS.num_of b,lc)
-      | _ -> raise Not_found) phi in
-  let entails ~vacuous pre goals = match NumS.satisfiable pre with
-    | Left _ -> vacuous | Right state -> NumS.implies_cnj state goals in
   try
-    let _,actual,arrow = freshen_val_scheme inferred in
-    let decl = numbers signature and actual = numbers actual in
+    let inferred_bound,actual,arrow = freshen_val_scheme inferred in
+    let decl = numeric_admission signature and actual = numeric_admission actual in
     let positions = align arrow written in
     let original = List.map (fun (a,b) -> eq a b) positions @ actual @ decl @ query.bounds in
-    (* Give each changed formal an explicit witness and check the complete
-       domain at the new key. Equalities in [bindings] define fresh names. *)
+    let slots = List.map (fun _ -> fresh_num_var ()) positions in
+    let domain bound terms phi =
+      let bound = vars_of_list bound in
+      let aliases = List.fold_left2 (fun sb term slot -> match term with
+          | Lin (1,1,x) when VarSet.mem x bound && not (VarMap.mem x sb) ->
+            VarMap.add x slot sb
+          | _ -> sb) VarMap.empty terms slots in
+      let matches = List.fold_left2 (fun phi term slot ->
+          let term = hvsubst_term aliases term in
+          if term=v slot then phi else eq term (v slot) :: phi) [] terms slots in
+      NumS.project_exists ~vars:(VarSet.diff bound (varmap_domain aliases))
+        (matches @ List.map (hvsubst_atom aliases) phi) in
+    let inferred_terms,written_terms = List.split positions in
+    let actual_cells = domain inferred_bound inferred_terms actual in
+    let written_cells = domain bound written_terms decl in
+    let cells = concat_map (fun a -> List.map (fun b -> a @ b) written_cells) actual_cells in
     let admission k =
-      let replacement = VarMap.singleton query.key k in
-      let rename,bindings = List.fold_left (fun (sb,phi) -> function
-          | Lin (1,1,x),term when not (VarMap.mem x sb) ->
-            let fresh = fresh_num_var () in
-            VarMap.add x fresh sb, eq (v fresh) (hvsubst_term replacement term)::phi
-          | _ -> sb,phi) (VarMap.empty,[]) positions in
-      let matches = List.map (fun (a,b) -> eq (hvsubst_term rename a)
-          (hvsubst_term replacement b)) positions in
-      bindings,matches @ List.map (hvsubst_atom rename) actual @ List.map (hvsubst_atom replacement) decl in
+      let replace = hvsubst_term (VarMap.singleton query.key k) in
+      let sb,bindings = List.fold_left2 (fun (sb,phi) slot term -> match replace term with
+          | Lin (1,1,x) -> VarMap.add slot x sb,phi
+          | term -> let x = fresh_num_var () in VarMap.add slot x sb,eq (v x) term :: phi)
+          (VarMap.empty,[]) slots written_terms in
+      bindings,List.map (List.map (hvsubst_atom sb)) cells in
     let check ?(vacuous=false) k extra =
       let bindings,goals = admission k in
-      entails ~vacuous (original @ extra @ bindings) goals in
+      let pre = original @ extra @ bindings in
+      match NumS.satisfiable pre,goals with
+      | Left _,_ -> vacuous
+      | Right state,[goal] -> NumS.implies_cnj state goal
+      | Right _,alternatives ->
+        let impossible = [eq (Cst (0,1)) (Cst (1,1))] in
+        not (NumS.conditional_satisfiable pre
+               (List.map (fun goal -> goal,impossible) alternatives)) in
     let first,initial = match query.use with
       | Endpoints (lower,_) | Result_keys (lower,_,_) ->
         let k = fresh_num_var () in k,[eq (v k) lower]
@@ -1780,7 +1808,9 @@ let check_key_admission query signature written inferred loc =
            let k = fresh_num_var () in
            let target = hvsubst_term (VarMap.singleton r payload) target in
            let bindings,admits = admission k and value,post = opening k in
-           eq (v k) target :: bindings @ defs, (admits,eq observed value :: post)::clauses)
+           let post = eq observed value :: post in
+           eq (v k) target :: bindings @ defs,
+           List.fold_left (fun clauses cell -> (cell,post)::clauses) clauses admits)
            ([eq (v payload) observed],[]) targets in
        let facts = definitions @ original @ opened in
        let refuted band =
@@ -2019,20 +2049,23 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
             | LetVal (_, PVar (_, lc), _, _, _) -> Some lc
             | _ -> None in
           let (chi_id, e, tests, elim_cells), new_ex_types, (q, phi_res, sb_chi) =
+            let call_signature = lazy (project_call_signature bvs sig_cn t) in
             let propose_call bands = match pat_loc, defsig with
-              | None, Some _ -> interval_call_key !constructor_samples sig_cn t e bands loc
+              | None, Some _ -> interval_call_key !constructor_samples (Lazy.force call_signature) t e bands loc
               | _ -> [] in
             let admitted policy ((id,_,_,_),_,solution) = match policy with
               | Restrict_calls _ -> Admitted
               | Open_at_keys query ->
                 (try
                    let _,_,_,scheme = recursive_answer bvs loc id solution in
-                   check_key_admission query sig_cn t scheme loc
+                   check_key_admission query bvs sig_cn t scheme loc
                  with Report_toplevel _ | NoAnswer _ | Contradiction _ -> Unavailable) in
             solve_item ~propose_call ~admitted new_ex_types e tests (fun e tests call_constraints erase_bodies ->
+                let retry_signature = match call_constraints with
+                  | Open_at_keys _ -> Lazy.force call_signature | Restrict_calls _ -> sig_cn in
                 let chi_id, _, cn, e, tests, elim_cells, preserve =
                   constr_gen_letrec ~call_constraints ~erase_bodies ~nonrec:(pat_loc<>None)
-                    !gamma x e sig_cn t tests in
+                    !gamma x e retry_signature t tests in
                 let preserve = add_vars preserve
                     (VarSet.union (fvs_typ t) (fvs_formula sig_cn)) in
                 cn, preserve, (chi_id, e, tests, elim_cells)) in

@@ -212,9 +212,12 @@ val satisfiable_exn : ?state:state -> NumDefs.formula -> state
 (* States computed by [satisfiable] should be used, to match the variable
    ordering. *)
 val implies_cnj : state -> NumDefs.formula -> bool
+(** Existential projection over rational indices. The result is a disjunction
+    of conjunctions. Atoms independent of [vars] retain their original form. *)
+val project_exists : vars:Defs.VarSet.t -> NumDefs.formula -> NumDefs.formula list
 (** Feasibility of a numeric premise and a finite conjunction of
-    admission => postcondition clauses. Fresh private postcondition
-    witnesses must be distinct for each clause. *)
+    admission => postcondition clauses. Use fresh private witnesses for each
+    distinct opening. Cells licensing the same opening may share its postcondition. *)
 val conditional_satisfiable :
   NumDefs.formula -> (NumDefs.formula * NumDefs.formula) list -> bool
 (** Incremental check whether |= Q.A. Raises [Contradiction]. *)
