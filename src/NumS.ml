@@ -5401,10 +5401,48 @@ let replay_cycle ~params ~guard ~fields domain loc =
   with Terms.Contradiction _ -> false
      | Failure msg when msg = "int_of_big_int" -> false
 
+module RateMap = Map.Make (struct type t = num let compare = compare_num end)
+
+let cycle_det (a,b,c) (d,e,f) (g,h,i) =
+  a */ (e */ i -/ f */ h) -/ b */ (d */ i -/ f */ g) +/ c */ (d */ h -/ e */ g)
+
+(* Homogenize each caller and take the section T + lambda = 1. The cone
+   bounds on both measured axes make this a bounded three-dimensional
+   polytope. lambda=0 includes recession directions. A convex norm fits an
+   affine cap on the whole section iff it fits at all its vertices. *)
+let cycle_radial_vertices ~params ~express ~weight demands loc =
+  let public = vars_of_list params and fuel = ref !abd_timeout_count in
+  let vertices demand =
+    let hidden = VarSet.diff (fvs_formula demand) public in
+    let constraints = project_cycle_domain hidden demand loc in
+    let rows = List.map (fun w -> let a,b,t,c = express w in
+        (a,b,c -/ t),minus_num t) constraints in
+    let rows = ((!/0,!/0,!/(-1)),!/0)::((!/0,!/0,!/1),!/1)::rows in
+    let rec pairs f = function [] -> () | h::rest -> List.iter (f h) rest; pairs f rest in
+    let found = ref [] in
+    let rec triples = function
+      | [] -> ()
+      | ((a,b,c),rhs)::rest ->
+        pairs (fun ((d,e,f),rhs2) ((g,h,i),rhs3) ->
+            decr fuel; if !fuel<0 then raise Not_found;
+            let col1 = a,d,g and col2 = b,e,h and col3 = c,f,i in
+            let det = cycle_det col1 col2 col3 in
+            if det <>/ !/0 then (
+              let rhs = rhs,rhs2,rhs3 in
+              let x = cycle_det rhs col2 col3 // det and y = cycle_det col1 rhs col3 // det
+              and z = cycle_det col1 col2 rhs // det in
+              if List.for_all (fun ((a,b,c),k) -> a*/x +/ b*/y +/ c*/z <=/ k) rows then
+                found := (x*/x +/ weight*/y*/y,!/1 -/ z,z)::!found)) rest;
+        triples rest in
+    triples rows;
+    if !found=[] then raise Not_found;
+    !found in
+  concat_map vertices demands
+
 (* Synthesize a folded disk with a conical cap at zero slack and future
    guard caps at positive slack. The proposal is replayed on every field
    and must supply witnesses for each written caller before publication. *)
-let folded_caller_guard ~params ~guard ~fields ~demands loc =
+let planar_cycle_guard ~exact_only ~params ~guard ~fields ~demands loc =
   let cmp_v = state_cmp_v and zero = Cst (0,1) in
   let row xs c = norm_w ~cmp_v (xs,c,loc) in
   let variable v = row [v,!/1] !/0 in
@@ -5412,25 +5450,28 @@ let folded_caller_guard ~params ~guard ~fields ~demands loc =
   let equal w = Eq (expand_w w,zero,loc) in
   let neg w = mult !/(-1) w in
   try
-    if List.length params<>3 || demands=[] then raise Not_found;
+    if List.length params<>3 || (demands=[] && not exact_only) then raise Not_found;
     let maps = cycle_maps params fields loc and guards = cycle_rows guard in
     let callers = List.map cycle_rows demands in
     if not (List.for_all (fun rs -> cycle_point rs<>None &&
         List.for_all (cycle_entails rs loc) guards) callers) then raise Not_found;
     let coordinates (vs,_,_) = match List.map (fun p -> cycle_coefficient p vs) params with
       | [x;y;z] -> x,y,z | _ -> raise Not_found in
-    let det (a,b,c) (d,e,f) (g,h,i) =
-      a */ (e */ i -/ f */ h) -/ b */ (d */ i -/ f */ g) +/ c */ (d */ h -/ e */ g) in
+    let matrix sb = List.map (fun p -> coordinates (VarMap.find p sb)) params in
+    let volume = function [x;y;z] -> abs_num (cycle_det x y z) | _ -> raise Not_found in
+    let neutral_possible = exact_only && List.exists (fun sb -> volume (matrix sb) =/ !/1) maps in
+    let periodic_trace tr = List.exists ((=/) tr) [!/(-2);!/(-1);!/0;!/1;!/2] in
     let plus = sum_w ~cmp_v and minus = diff ~cmp_v in
     let propose sb g =
         (* On a conjugate of (rotation, expanding slack), the determinant
            gives the real rate. The quadratic factor of the characteristic
            polynomial separates the rotating guard from the slack and centre. *)
-        let matrix = List.map (fun p -> coordinates (VarMap.find p sb)) params in
-        let rate,trace = match matrix with [((a,_,_) as x);((_,b,_) as y);((_,_,c) as z)] ->
-            abs_num (det x y z),a +/ b +/ c | _ -> raise Not_found in
+        let rows = matrix sb in
+        let rate = volume rows and trace = match rows with [(a,_,_);(_,b,_);(_,_,c)] ->
+            a +/ b +/ c | _ -> raise Not_found in
         let twice = trace -/ rate in
         if rate <=/ !/1 || abs_num twice >=/ !/2 then raise Not_found;
+        if exact_only && not neutral_possible && not (periodic_trace twice) then raise Not_found;
         let act = subst_w ~cmp_v sb in
         let once = act g in
         let real = plus (minus (act once) (mult twice once)) g in
@@ -5445,32 +5486,77 @@ let folded_caller_guard ~params ~guard ~fields ~demands loc =
         let v = mult (!/1 // scale) (minus (act u) (mult cosine u)) in
         let weight = scale */ scale // sin2 in
         let col1 = coordinates u and col2 = coordinates v and col3 = coordinates slack in
-        let volume = det col1 col2 col3 in
+        let volume = cycle_det col1 col2 col3 in
         if volume =/ !/0 then raise Not_found;
         let express w =
           let column = coordinates w in
-          let a = det column col2 col3 // volume and b = det col1 column col3 // volume
-          and t = det col1 col2 column // volume in
+          let a = cycle_det column col2 col3 // volume and b = cycle_det col1 column col3 // volume
+          and t = cycle_det col1 col2 column // volume in
           match minus w (plus (mult a u) (plus (mult b v) (mult t slack))) with
           | [],c,_ -> a,b,t,c | _ -> raise Not_found in
-        let rates = List.map (fun field ->
+        let actions = List.map (fun field ->
             let image base = express (subst_w ~cmp_v field base) in
             let a,b,t,c = image slack in
-            if a <>/ !/0 || b <>/ !/0 || c <>/ !/0 || t <=/ !/1 then raise Not_found;
+            if a <>/ !/0 || b <>/ !/0 || c <>/ !/0 || t </ !/1 || (not exact_only && t =/ !/1)
+            then raise Not_found;
             let plane w = match image w with a,b,t,c when t =/ !/0 && c =/ !/0 -> a,b
               | _ -> raise Not_found in
             let a,b = plane u and c,d = plane v in
             if a */ a +/ weight */ c */ c <>/ !/1 || b */ b +/ weight */ d */ d <>/ weight ||
                a */ b +/ weight */ c */ d <>/ !/0 then raise Not_found;
-            t) maps in
+            t,(a,b,c,d)) maps in
+        let rates = List.map fst actions in
+        let push growth w queue =
+          let group = try RateMap.find growth queue with Not_found -> [] in
+          RateMap.add growth (w::group) queue in
+        let advance growth w queue =
+          List.fold_left2 (fun q sb r -> push (growth */ r) (subst_w ~cmp_v sb w) q) queue maps rates in
+        if exact_only then (
+          (* At negative slack, repeated use of an expanding field violates
+             g: the measured component stays bounded and the slack diverges.
+             For a finite orbit, the least-growth word at each normal gives
+             its strongest guard on nonnegative slack. *)
+          if List.exists (fun w -> let _,_,t,_ = express w in t >/ !/0) guards then raise Not_found;
+          let neutral = map_some (fun (r,m) -> if r =/ !/1 then Some m else None) actions in
+          let reflections = List.filter (fun (a,b,c,d) -> a*/d -/ b*/c </ !/0) neutral in
+          let moves_forever = List.exists (fun (a,b,c,d) ->
+              a*/d -/ b*/c >/ !/0 && not (periodic_trace (a +/ d))) neutral ||
+            List.exists (fun (a,b,c,d) -> List.exists (fun (e,f,g,h) ->
+                not (periodic_trace (a*/e +/ b*/g +/ c*/f +/ d*/h))) reflections) reflections in
+          if moves_forever then (
+            (* At each fixed slack the neutral rotation bounds the entire
+               plane by the orbit of g. Its only invariant polygon is {0}.
+               Every polyhedral typing must therefore lie on the slack axis. *)
+            let rows = [u;neg u;v;neg v;neg slack] @ guards in
+            if linear_cycle_check ~guard maps [rows] loc
+            then Some (equal u :: equal v :: le (neg slack) :: guard) else None)
+          else
+          let rec close seen rows queue =
+            if RateMap.is_empty queue then
+              let rows = neg slack :: rows in
+              if linear_cycle_check ~guard maps [rows] loc then Some (List.rev_map le rows) else None
+            else
+              let growth,frontier = RateMap.min_binding queue in
+              let add (seen,rows,queue) w =
+                let a,b,t,c = express w in
+                let key = row (List.map2 (fun p k -> p,k) params [a;b;t // growth]) c in
+                if List.exists (equal_w ~cmp_v key) seen then seen,rows,queue else (
+                  (* A finite rational planar isometry group has at most
+                     twelve elements, including its reflections. *)
+                  if List.length seen >= 12 * List.length guards then raise Not_found;
+                  key::seen,w::rows,advance growth w queue) in
+              let seen,rows,queue = List.fold_left add (seen,rows,RateMap.remove growth queue) frontier in
+              close seen rows queue in
+          close [] [] (RateMap.singleton (!/1) guards))
+        else
         let rate = List.fold_left min_num (List.hd rates) (List.tl rates) in
-        let bounds = map_some (fun guard ->
+        let caps = map_some (fun guard ->
             let a,b,t,c = express guard in
             let normal = cycle_sqrt_upper (a */ a +/ b */ b // weight) in
             if normal =/ !/0 then None else (
               if t >/ !/0 || c >/ !/0 then raise Not_found;
-              Some (mult (!/1 // normal) (plus (mult (minus_num t */ rate) slack) (row [] (minus_num c)))))) guards in
-        if bounds=[] then raise Not_found;
+              Some (minus_num c,minus_num t,normal))) guards in
+        if caps=[] then raise Not_found;
         let requested w = List.for_all (fun rs -> cycle_entails rs loc w) callers in
         if not (requested (neg slack)) then raise Not_found;
         let axes = [u;neg u;v;neg v] in
@@ -5478,11 +5564,13 @@ let folded_caller_guard ~params ~guard ~fields ~demands loc =
           if k >/ !/max_int // !/2 then raise Not_found;
           if List.for_all (fun axis -> requested (diff ~cmp_v axis (mult k slack))) axes
           then mult ((!/1 +/ weight) */ k) slack else box (!/2 */ k) in
-        let bounds = box !/1 :: bounds in
+        let cone = box !/1 in
+        let bounds growth = cone :: List.map (fun (c,k,normal) ->
+            mult (!/1 // normal) (plus (mult (k */ growth) slack) (row [] c))) caps in
         let x0 = Terms.fresh_num_var () and y0 = Terms.fresh_num_var () in
         let absolute v w = List.map (fun side -> le (diff ~cmp_v side (variable v))) [w;neg w] in
         let start = guard @ [le (neg slack)] @ absolute x0 u @ absolute y0 v in
-        let rec fold a prevx prevy atoms =
+        let rec fold bounds a prevx prevy atoms =
           let z = weight */ a */ a in
           let c = (!/1 -/ z) // (!/1 +/ z) and s = !/2 */ a // (!/1 +/ z) in
           let i = Terms.fresh_num_var () and j = Terms.fresh_num_var () in
@@ -5497,9 +5585,45 @@ let folded_caller_guard ~params ~guard ~fields ~demands loc =
             let hidden = VarSet.diff (fvs_formula candidate) (vars_of_list params) in
             let eq,leq,_,_ = split_flatten ~cmp_v candidate in
             if List.for_all (fun caller -> cycle_fibres caller hidden eq leq loc) callers
-            then candidate else fold (a // !/2) i j atoms)
-          else fold (a // !/2) i j atoms in
-        Some (fold (!/1 // !/2) x0 y0 (List.rev start))
+            then candidate else fold bounds (a // !/2) i j atoms)
+          else fold bounds (a // !/2) i j atoms in
+        let certificate growth prefix =
+          fold (bounds growth) (!/1 // !/2) x0 y0 (List.rev_append (List.map le prefix) (List.rev start)) in
+        let vertices = try Some (cycle_radial_vertices ~params ~express ~weight demands loc)
+          with Not_found -> None in
+        let fits strict growth points = List.for_all (fun (q,t,z) ->
+            q =/ !/0 || List.for_all (fun (c,k,n) ->
+                let rhs = c */ z +/ k */ growth */ t in
+                let lhs = n */ n */ q and bound = rhs */ rhs in
+                if strict then lhs </ bound else lhs <=/ bound) caps) points in
+        (* Preserve a tight opening on the one-step boundary whenever the
+           rational fold can realize it. Strict radial headroom is sufficient. *)
+        let first = if (match vertices with Some vs -> fits false rate vs | None -> true)
+          then (try Some (certificate rate []) with Failure msg when msg="int_of_big_int" -> None)
+          else None in
+        match first,vertices with Some _,_ | None,None -> first
+        | None,Some points ->
+          let fuel = ref !abd_timeout_count in
+          let extend growth w queue =
+            fuel := !fuel - List.length maps; if !fuel<0 then raise Not_found;
+            advance growth w queue in
+          let rec visit retained extra queue =
+            if RateMap.is_empty queue then (
+              (* Every successor already follows from the retained guards. *)
+              let exact = guard @ (le (neg slack)::List.rev_map le extra) in
+              if linear_cycle_check ~guard maps [cycle_rows exact] loc then Some exact else None)
+            else
+              let growth,frontier = RateMap.min_binding queue in
+              if growth >/ rate && fits true growth points then Some (certificate growth extra) else
+              let queue = RateMap.remove growth queue in
+              let keep (retained,extra,queue) w =
+                if cycle_entails retained loc w then retained,extra,queue
+                else if not (requested w) then raise Not_found
+                else w::retained,w::extra,extend growth w queue in
+              let retained,extra,queue = List.fold_left keep (retained,extra,queue)
+                  (unique_sorted ~cmp:(compare_w ~cmp_v) frontier) in
+              visit retained extra queue in
+          visit (neg slack::guards) [] (List.fold_left (fun q w -> extend !/1 w q) RateMap.empty guards)
     in
     let rec choices = function
       | [] -> None
@@ -5509,11 +5633,31 @@ let folded_caller_guard ~params ~guard ~fields ~demands loc =
         | Some _ as result -> result | None -> choices rest in
     let try_maps sbs = choices (concat_map (fun sb -> List.map (fun g -> sb,g) guards) sbs) in
     (match try_maps maps with Some _ as found -> found | None ->
+       let compose a b = VarMap.map (subst_w ~cmp_v a) b in
        let products = concat_map (fun a -> map_some (fun b -> if a==b then None else
-           Some (VarMap.map (subst_w ~cmp_v a) b)) maps) maps in
-       try_maps products)
+           Some (compose a b)) maps) maps in
+       match try_maps products with Some _ as found -> found | None ->
+       if not neutral_possible then None else
+       (* Two neutral reflections can supply the turn while a third field
+          supplies the expanding direction required to separate the frame. *)
+       let turn sb = match matrix sb with
+         | [((a,_,_) as x);((_,b,_) as y);((_,_,c) as z)] ->
+           cycle_det x y z =/ !/1 && abs_num (a +/ b +/ c -/ !/1) </ !/2
+         | _ -> false in
+       let rotations = List.filter turn products in
+       let rec expanding = function [] -> None | sb::rest ->
+         if volume (matrix sb) <=/ !/1 then expanding rest else
+         match try_maps (List.map (compose sb) rotations) with
+         | Some _ as found -> found | None -> expanding rest in
+       expanding maps)
   with Not_found | Terms.Contradiction _ -> None
      | Failure msg when msg="int_of_big_int" -> None
+
+let exact_planar_cycle_guard ~params ~guard ~fields loc =
+  planar_cycle_guard ~exact_only:true ~params ~guard ~fields ~demands:[] loc
+
+let folded_caller_guard ~params ~guard ~fields ~demands loc =
+  planar_cycle_guard ~exact_only:false ~params ~guard ~fields ~demands loc
 
 (* A guard a.p <= b*t+c with b>0 and c>=0 licenses the cone
    ||p||_infty <= (b/||a||_1)*t. Try both signs of each public coordinate

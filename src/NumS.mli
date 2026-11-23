@@ -240,6 +240,9 @@ val caller_cycle_guard : params:Defs.var_name list -> guard:NumDefs.formula -> f
   demands:NumDefs.formula list -> Defs.loc -> NumDefs.formula option
 (** Recognize a folded scheme that a plain alias can reuse verbatim. *)
 val is_folded_domain : params:Defs.var_name list -> NumDefs.formula -> Defs.loc -> bool
+(** Greatest polyhedral domain for a recovered finite planar group or an infinite group at fixed slack. *)
+val exact_planar_cycle_guard : params:Defs.var_name list -> guard:NumDefs.formula ->
+  fields:NumDefs.term list list -> Defs.loc -> NumDefs.formula option
 (** Construct and check a private folded norm for planar fields with an expanding slack. *)
 val folded_caller_guard : params:Defs.var_name list -> guard:NumDefs.formula -> fields:NumDefs.term list list ->
   demands:NumDefs.formula list -> Defs.loc -> NumDefs.formula option

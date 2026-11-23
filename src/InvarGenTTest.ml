@@ -241,6 +241,17 @@ let tests = "InvarGenT" >::: [
       "folded witnesses cover a point, a box and an unbounded ray through an alias" >::
         run_example ~full_annot:true ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b)
           "inferred_folded_cycle";
+      "recursive guards can require a weighted prefix and a zero-slack face" >::
+        run_example ~full_annot:true ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b)
+          "weighted_prefix_cycle";
+      "a cheaper five-step word can invalidate a costly one-step opening" >:: (fun () ->
+        let source = input_file (example_path "weighted_prefix_cycle" ^ ".gadt") in
+        assert_bool "the fifth forward guard excludes this point"
+          (rejects_source (source ^ "\nlet wrong : Hex (2,2,1) = hex")));
+      "a safe point with an infinite neutral orbit has no polyhedral typing" >:: (fun () ->
+        let source = input_file (example_path "weighted_prefix_cycle" ^ ".gadt") in
+        assert_bool "positive slack still permits infinitely many neutral steps"
+          (rejects_source (source ^ "\nlet wrong : Held (1/4,0,20) = held")));
       "a near-isometric recursive field admits the boundary caller" >:: (fun () ->
         let code = "datatype Probe : num * num * num\n" ^
           "datacons Spin : ∀i,j,k[i≤1+k]. Probe (15/17 i + -8/17 j,8/17 i + 15/17 j,1025/1024 k) ⟶ Probe (i,j,k)\n" ^

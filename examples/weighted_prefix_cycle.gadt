@@ -1,0 +1,16 @@
+datatype Node : num * num * num
+datacons Step : ∀i,j,k[i≤1+k]. Node (7/9 i + -8/9 j,4/9 i + 7/9 j,65/64 k) ⟶ Node (i,j,k)
+let rec node = Step node
+let root : Node (-51/25,0,1) = node
+let ray : ∀i[0≤i]. Node (-26/25 i,0,i+1) = node
+
+datatype Hex : num * num * num
+datacons Fork : ∀i,j,k[i≤1+k]. Hex (1/2 i + -3/2 j,1/2 i + 1/2 j,6/5 k) * Hex (1/2 i + 3/2 j,-1/2 i + 1/2 j,9 k) ⟶ Hex (i,j,k)
+let rec hex = Fork (hex,hex)
+let alias = hex
+let edge : Hex (1,0,0) = alias
+
+datatype Held : num * num * num
+datacons Balance : ∀i,j,k[i≤1+k]. Held (3/5 i + -4/5 j,4/5 i + 3/5 j,k) * Held (i,j,2 k) ⟶ Held (i,j,k)
+let rec held = Balance (held,held)
+let axis : ∀k[0≤k]. Held (0,0,k) = held
