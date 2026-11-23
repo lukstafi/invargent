@@ -1,0 +1,16 @@
+datatype List : type * num
+datacons LNil : ∀a. List(a, 0)
+datacons LCons : ∀n, a [0 ≤ n]. a * List(a, n) ⟶ List(a, n+1)
+
+let view : ∀a,n. List (a,n) → ∃k[k=n ∧ 0≤k]. List (a,k) =
+  efunction LNil as v -> v | LCons (_,_) as v -> v
+
+let rec append =
+  function LNil -> (fun l -> let v = view l in v)
+  | LCons (x, xs) -> (fun l -> let v = view l in LCons (x, append xs v))
+
+let empty : List (Bool,0) = append LNil LNil
+let two : List (Bool,2) = append (LCons (True,LNil)) (LCons (False,LNil))
+external let verify : List (Bool,2) → Bool =
+  "function LCons (true, LCons (false, LNil)) -> true | _ -> assert false"
+let checked = verify two

@@ -1,0 +1,17 @@
+datatype List : type * num
+
+datacons LNil : ∀a. List (a, 0)
+
+datacons LCons : ∀n, a[0 ≤ n].a * List (a, n) ⟶ List (a, n + 1)
+
+val view : ∀n, a. List (a, n) → ∃k[k = n ∧ 0 ≤ k].List (a, k)
+
+val append : ∀k, n, a. List (a, k) → List (a, n) → List (a, n + k)
+
+val empty : List (Bool, 0)
+
+val two : List (Bool, 2)
+
+external val verify : List (Bool, 2) → Bool
+
+val checked : Bool

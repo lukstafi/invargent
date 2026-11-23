@@ -2092,6 +2092,7 @@ let validate_incr ~cmp_v ~cmp_w uni_v ~bvs ~xbvs validation a =
 type affine_search = Ordinary | Observe of bool ref | Recover
 let affine_search = ref Ordinary
 let joint_search = ref Ordinary
+let guard_choice = ref Ordinary
 
 let use_fit mode = match !mode with
   | Ordinary -> false
@@ -2118,6 +2119,13 @@ let with_retry setting search =
        | Failure msg when msg = "int_of_big_int" -> raise original)
 
 let with_affine_retry search = with_retry affine_search search
+
+let observe_guard_choices search =
+  let seen = ref false in
+  let result = run_in_mode guard_choice (Observe seen) search in
+  result, !seen
+
+let with_combined_guards search = run_in_mode guard_choice Recover search
 
 (* Affine recovery can run on a tentative call policy. Joint recovery runs
    outside those policies so an existing successful declaration finishes first. *)
@@ -2590,8 +2598,22 @@ let abd_simple ~samples ~qcmp_v ~cmp_w
            ddepth (List.length cands > 1)
            pr_ineqn (List.map snd cands) pr_w_atom a
            pr_w_subst eqs_acc0 pr_w_subst rev_sb; *]*)
-         List.iter try_trans_ineq cands;
          let hidden v = uni_v v && not (VarSet.mem v bvs) in
+         (match cands with
+          | [_,left; _,right] when List.exists (fun (v,_) -> hidden v) vars
+              && not (equal_w ~cmp_v left right) && use_fit guard_choice ->
+            (* Both rows independently discharge this goal. Replay their
+               disjunction against the same scope and branch obligations. *)
+            let proves_goal arm =
+              try
+                let eqs,ineqs,optis,suboptis = solve ~cmp_v ~cmp_w uni_v
+                    ~eqs:d_eqs0 ~ineqs:d_ineqs0 ~ineqn:[arm] in
+                implies ~cmp_v ~cmp_w uni_v eqs ineqs optis suboptis [] [w] [] []
+              with Terms.Contradiction _ -> true in
+            if proves_goal left && proves_goal right then
+              try_trans_a (Subopti_w (left,right))
+          | _ -> ());
+         List.iter try_trans_ineq cands;
          if List.exists (fun (v,_) -> hidden v) vars
             && use_fit joint_search then
            let upper = projected_goal_bounds ~cmp_v ~hidden ~eqn:d_eqn' ~ineqn:d_ineqn' w in

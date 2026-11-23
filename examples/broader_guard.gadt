@@ -1,0 +1,10 @@
+datatype Bounds : num * num
+datacons Bounded : ∀i,j,k[k≤i ∧ k≤j]. Num k ⟶ Bounds (i,j)
+external let within : ∀i,j[i≤j]. Num i → Num j → Bool =
+  "fun x cap -> assert (x <= cap); true"
+let check = function Bounded x -> fun cap -> within x cap
+
+
+external let left : Bounds (0,6) = "Bounded 0"
+external let right : Bounds (8,2) = "Bounded 2"
+let uses = (check left 0, check right 2)

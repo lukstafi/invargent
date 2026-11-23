@@ -10,6 +10,8 @@
 val with_affine_retry : (unit -> 'a) -> 'a
 (** Retry a failed declaration with joint equation fits and projected numeric guards. *)
 val with_joint_retry : (unit -> 'a) -> 'a
+val observe_guard_choices : (unit -> 'a) -> 'a * bool
+val with_combined_guards : (unit -> 'a) -> 'a
 
 (** Try four times as many linear combinations (k,-k,1/k,-1/k). *)
 val abd_rotations : int ref

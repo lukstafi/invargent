@@ -205,6 +205,12 @@ let tests = "InvarGenT" >::: [
       "arithmetic abduction combines independent premise rows" >::
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b)
           "joint_affine_abduction";
+      "a verified broader guard preserves both caller alternatives" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b)
+          "broader_guard";
+      "an identity view exposes a constructor invariant to append" >::
+        run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b)
+          "constructor_value_view";
       "GADT match result indices refine inside the branches" >::
         run_example ~full_annot:true "compare_term_indices";
       "repeating a supplier preserves the other upper bound" >::

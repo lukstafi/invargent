@@ -1713,6 +1713,41 @@ let numeric_admission phi = List.map (function
       NumDefs.Eq (NumS.num_of a,NumS.num_of b,lc)
     | _ -> raise Not_found) phi
 
+(* A first-order input with constructor heads and bare index variables
+   determines a ground substitution for every hole it exposes. Align those
+   holes bijectively before comparing the two complete public contracts. *)
+let strictly_broader_guard (vs,old_guard,old_ty) (ws,new_guard,new_ty) =
+  let variable = function
+    | TVar v | Alien (Num_term (NumDefs.Lin (1,1,v))) -> Some v
+    | _ -> None in
+  let rec align (forward,backward as maps) a b =
+    match variable a, variable b, a, b with
+    | Some v, Some w, _, _ when var_sort v = var_sort w ->
+      if (VarMap.mem w forward && VarMap.find w forward <> v) ||
+         (VarMap.mem v backward && VarMap.find v backward <> w) then raise Not_found;
+      VarMap.add w v forward, VarMap.add v w backward
+    | _,_,TCons (CNam c,args),TCons (CNam d,other)
+      when c=d && List.length args=List.length other ->
+      List.fold_left2 align maps args other
+    | _,_,Alien (Num_term (NumDefs.Cst _)),_ when a=b -> maps
+    | _ -> raise Not_found in
+  try
+    let a = arg_types old_ty and b = arg_types new_ty in
+    if a=[] || List.length a<>List.length b then false else
+    let forward,backward = List.fold_left2 align (VarMap.empty,VarMap.empty) a b in
+    VarSet.equal (vars_of_list vs) (varmap_domain backward) &&
+    VarSet.equal (vars_of_list ws) (varmap_domain forward) &&
+    VarSet.subset (fvs_formula old_guard) (vars_of_list vs) &&
+    VarSet.subset (fvs_formula new_guard) (vars_of_list ws) &&
+    hvsubst_typ forward (return_type new_ty) = return_type old_ty &&
+    let old = numeric_admission old_guard
+    and fresh = numeric_admission (hvsubst_formula forward new_guard) in
+    match NumS.satisfiable old, NumS.satisfiable fresh with
+    | Right old_state, Right new_state ->
+      NumS.implies_cnj old_state fresh && not (NumS.implies_cnj new_state old)
+    | _ -> false
+  with Not_found | Contradiction _ -> false
+
 (* A recursive occurrence instantiates the quantified variables of the written
    scheme. When their projection fits in a scheme predicate, give that domain
    directly to the abducer. Replay still checks the original signature. *)
@@ -2071,7 +2106,7 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
                    let _,_,_,scheme = recursive_answer bvs loc id solution in
                    check_key_admission ~integer_target policy bvs sig_cn t scheme loc
                  with Report_toplevel _ | NoAnswer _ | Contradiction _ -> Unavailable) in
-            solve_item ~propose_call ~admitted new_ex_types e tests (fun e tests call_constraints erase_bodies ->
+            let search () = solve_item ~propose_call ~admitted new_ex_types e tests (fun e tests call_constraints erase_bodies ->
                 let retry_signature = match call_constraints with
                   | Open_at_keys _ | Exclude_bands _ -> Lazy.force call_signature | Restrict_calls _ -> sig_cn in
                 let chi_id, _, cn, e, tests, elim_cells, preserve =
@@ -2080,6 +2115,24 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
                 let preserve = add_vars preserve
                     (VarSet.union (fvs_typ t) (fvs_formula sig_cn)) in
                 cn, preserve, (chi_id, e, tests, elim_cells)) in
+            if pat_loc=None || defsig<>None || new_ex_types<>[] || lambda_depth e=0 then search () else
+            let initial = !all_ex_types in
+            let ((id,_,_,_),packages,solution as original),seen = NumS.observe_guard_choices search in
+            if not seen || packages<>[] then original else
+            let _,_,_,old_scheme = recursive_answer bvs loc id solution in
+            let _,guard,_ = old_scheme in
+            if guard=[] then original else
+            let saved = !all_ex_types in
+            let keep () = all_ex_types := saved; original in
+            all_ex_types := initial;
+            (try
+               let (id,_,_,_),packages,solution as proposal = NumS.with_combined_guards search in
+               let _,_,_,scheme = recursive_answer bvs loc id solution in
+               if packages=[] && strictly_broader_guard old_scheme scheme then proposal else keep ()
+             with
+             | NoAnswer _ | Contradiction _ | Report_toplevel _ -> keep ()
+             | Failure msg when msg = "int_of_big_int" -> keep ()
+             | exn -> all_ex_types := saved; raise exn) in
           let elim_extypes = concat_map (!) elim_cells in
           let nice_sb,sb_res,sb,typ_sch = recursive_answer bvs loc chi_id (q,phi_res,sb_chi) in
           let e = annotate_expr q sb sb_chi nice_sb e in
