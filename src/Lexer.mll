@@ -26,6 +26,11 @@
   let curr_loc lexbuf =
     {beg_pos = lexbuf.lex_curr_p; end_pos = lexbuf.lex_curr_p}
 
+  let integer lexbuf num =
+    try INT (int_of_string num) with Failure _ ->
+      let loc = {beg_pos=lexeme_start_p lexbuf; end_pos=lexeme_end_p lexbuf} in
+      raise (Report_toplevel ("Numeric literal exceeds the source coefficient range", Some loc))
+
   let char_for_decimal_code lexbuf i =
     let c = 100 * (Char.code(Lexing.lexeme_char lexbuf i) - 48) +
               10 * (Char.code(Lexing.lexeme_char lexbuf (i+1)) - 48) +
@@ -62,9 +67,9 @@ rule token = parse
   | [' ' '\t']	{ token lexbuf }
   | newline     { incr_lineno lexbuf; token lexbuf }
   | ('-' digit+) as num
-		{ INT (int_of_string num) }
+		{ integer lexbuf num }
   | digit+ as num
-		{ INT (int_of_string num) }
+		{ integer lexbuf num }
   | "+="	{ PLUSEQUAL }
   | '+'		{ PLUS }
   | '-'		{ MINUS }

@@ -34,6 +34,14 @@ let syntax_error what where =
     raise (Report_toplevel ("Syntax error: "^what,
 			   Some (rhs_loc where)))
 
+let negate_coefficient j =
+  if j=min_int then raise (Report_toplevel ("Numeric literal exceeds the source coefficient range", Some (get_loc ())));
+  -j
+
+let fraction j k =
+  if k=0 then raise (Report_toplevel ("Zero denominator in a numeric index", Some (get_loc ())));
+  j,k
+
 let name_sort loc v =
   if List.mem v.[0]
       ['a';'b';'c';'r';'s';'t']
@@ -282,11 +290,11 @@ num_atom:
 
 num_coef:
   | INT  { $1, 1 }
-  | MINUS INT { ~- $2, 1 }
-  | INT SLASH INT { $1, $3 }
-  | MINUS INT SLASH INT { ~- $2, $4 }
-  | LPAREN INT SLASH INT RPAREN { $2, $4 }
-  | LPAREN MINUS INT SLASH INT RPAREN { ~- $3, $5 }
+  | MINUS INT { negate_coefficient $2, 1 }
+  | INT SLASH INT { fraction $1 $3 }
+  | MINUS INT SLASH INT { fraction (negate_coefficient $2) $4 }
+  | LPAREN INT SLASH INT RPAREN { fraction $2 $4 }
+  | LPAREN MINUS INT SLASH INT RPAREN { fraction (negate_coefficient $3) $5 }
 
 
 /* Remaining grammar */ 

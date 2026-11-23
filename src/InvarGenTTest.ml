@@ -245,6 +245,19 @@ let tests = "InvarGenT" >::: [
         (* A future inference method may find the written folded certificate. *)
         try ignore (infer_source code) with
         | Terms.NoAnswer (Defs.Num_sort,_,_,lc) -> assert_bool "located numeric failure" (lc<>Defs.dummy_loc));
+      "large index sums cannot wrap to a different singleton type" >:: (fun () ->
+        let c = string_of_int max_int in
+        let source = "external let scale : ∀i. Num i → Num ("^c^" i + "^c^" i) = \"fun _ -> 0\"\n" in
+        assert_bool "two maximal coefficients at one do not give minus two"
+          (rejects_source (source ^ "let wrong : Num (-2) = scale 1"));
+        ignore (infer_source (source ^ "let at_origin : Num 0 = scale 0")));
+      "signed literals and denominators are checked at the source" >:: (fun () ->
+        let literal n = "external let sample : Num ("^n^") = \"0\"" in
+        let lower = string_of_int min_int in
+        List.iter (fun n -> assert_bool n (rejects_source (literal n)))
+          ["- "^lower; String.sub lower 1 (String.length lower-1); "1/0"];
+        ignore (infer_source (literal lower));
+        ignore (infer_source ("external let sample : ∀i[i=min(0,"^lower^")]. Num i = \"0\"")));
       "every rotating field must accept the caller" >:: (fun () ->
         let source = input_file (example_path "caller_cyclic_value" ^ ".gadt") in
         assert_bool "the second field violates the next guard"

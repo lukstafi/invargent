@@ -550,13 +550,13 @@ let expand_w (vars, cst, loc) =
   | [t] -> t
   | ts -> Add ts
 
+let split_signed_vars vars = partition_map (fun (v,c) ->
+    let j,k = frac_of_num (abs_num c) in
+    let term = Lin (j,k,v) in
+    if c >/ !/0 then Left term else Right term) vars
+
 let expand_sides_cst (vars, cst, loc) =
-  let left_vars, right_vars = partition_map
-      (fun (v,c) ->
-         let j, k = frac_of_num c in
-         assert (k > 0);
-         if j>0 then Left (Lin (j, k, v))
-         else Right (Lin ((-1)*j, k, v))) vars in
+  let left_vars, right_vars = split_signed_vars vars in
   let pack vars =
     match List.rev vars with
     | [] -> Cst (0,1)
@@ -565,17 +565,11 @@ let expand_sides_cst (vars, cst, loc) =
   pack left_vars, pack right_vars, cst, loc
 
 let expand_sides (vars, cst, _) =
-  let left_vars, right_vars = partition_map
-      (fun (v,c) ->
-         let j, k = frac_of_num c in
-         assert (k > 0);
-         if j>0 then Left (Lin (j, k, v))
-         else Right (Lin ((-1)*j, k, v))) vars in
+  let left_vars, right_vars = split_signed_vars vars in
   let left_cst, right_cst =
-    let j, k = frac_of_num cst in
-    assert (k > 0);
-    if j>0 then [Cst (j, k)], []
-    else if j<0 then [], [Cst ((-1)*j, k)]
+    let j, k = frac_of_num (abs_num cst) in
+    if cst >/ !/0 then [Cst (j, k)], []
+    else if cst </ !/0 then [], [Cst (j, k)]
     else [], [] in
   let pack cst vars =
     match List.rev (cst @ vars) with
@@ -616,7 +610,11 @@ let unexpand_sides ~cmp_v ((lhs, rhs), lc) =
   diff ~cmp_v (norm_w ~cmp_v (unpack lhs)) (norm_w ~cmp_v (unpack rhs))
 
 let expand_atom equ (_,_,loc as w) =
-  let left, right = expand_sides (norm_by_gcd w) in
+  let row = norm_by_gcd w in
+  let left,right = try expand_sides row with Failure msg when msg="int_of_big_int" ->
+      (* min_int is writable on the left even when its magnitude cannot be
+         written on the right. Keep its original sign. *)
+      expand_w row,Cst (0,1) in
   if equ then Eq (left, right, loc) else Leq (left, right, loc)
 
 (* Internal elimination uses unbounded rationals. A row is already known to

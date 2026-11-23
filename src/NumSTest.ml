@@ -25,6 +25,15 @@ let numeric_formula s =
   sort_formula (Parser.formula Lexer.token (Lexing.from_string s))
 
 let tests = "NumS" >::: [
+  "large source fractions cancel before conversion back to an index" >:: (fun () ->
+    let v = VNam (Num_sort,"i") and m = max_int in
+    assert_equal (Lin (1,1,v)) (scale_term m 2 (Lin (2,m,v)));
+    assert_equal (Lin (1,1,v)) (add (Lin (m-1,m,v)) (Lin (1,m,v)));
+    assert_equal m (denom (Add [Cst (1,m);Cst (1,m)]));
+    let oversized = add (Lin (m,1,v)) (Lin (m,1,v)) in
+    let at_one = satisfiable_exn [Eq (Lin (1,1,v),Cst (1,1),dummy_loc)] in
+    assert_bool "a sum too large for one literal stays positive"
+      (implies_cnj at_one [Leq (Cst (1,1),oversized,dummy_loc)]));
   "an alias can project a private bound outside the source coefficient range" >:: (fun () ->
     let v n = VNam (Num_sort,n) in
     let hidden = vars_of_list [v "j";v "k";v "m";v "n"] in

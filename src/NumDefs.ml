@@ -69,10 +69,37 @@ let formula_inter cnj1 cnj2 =
 let subformula phi1 phi2 =
   List.for_all (fun a1 -> List.exists (eq_atom a1) phi2) phi1
 
+(* Small fractions keep their source spelling. Larger operations use exact
+   rationals before converting the reduced result to source coefficients. *)
+let small_component =
+  let limit = 1 lsl ((Sys.word_size-3)/2) in
+  fun n -> -limit <= n && n <= limit
+
+let source_fraction q =
+  let r = Num.ratio_of_num q in
+  Big_int.int_of_big_int (Ratio.numerator_ratio r),
+  Big_int.int_of_big_int (Ratio.denominator_ratio r)
+
+let rational j k = Num.(div_num (num_of_int j) (num_of_int k))
+
+let add_fraction j k m n =
+  if small_component j && small_component k && small_component m && small_component n
+  then j*n + m*k, k*n
+  else source_fraction (Num.add_num (rational j k) (rational m n))
+
 let scale_term j k t =
+  let times m n =
+    if small_component j && small_component k && small_component m && small_component n
+    then m*j, n*k
+    else source_fraction (Num.mult_num (rational j k) (rational m n)) in
+  let scale make m n =
+    (* The opposite of min_int needs one more unit than max_int. Its sum
+       representation is available even inside a min/max argument. *)
+    if j= -1 && k=1 && m=min_int then Add [make max_int n;make 1 n]
+    else let a,b = times m n in make a b in
   let rec aux = function
-    | Cst (m, n) -> Cst (m*j, n*k)
-    | Lin (m, n, v) -> Lin (m*j, n*k, v)
+    | Cst (m,n) -> scale (fun a b -> Cst (a,b)) m n
+    | Lin (m,n,v) -> scale (fun a b -> Lin (a,b,v)) m n
     | Add cmb -> Add (List.map aux cmb) in
   if j=1 && k=1 then t else aux t
 
@@ -119,7 +146,9 @@ let rec term_size = function
 
 let add t1 t2 =
   match t1, t2 with
-  | Lin (j,m,v1), Lin (k,n,v2) when v1=v2 -> Lin (j*n + k*m, m*n, v1)
+  | Lin (j,m,v1), Lin (k,n,v2) when v1=v2 ->
+    (try let a,b = add_fraction j m k n in Lin (a,b,v1)
+     with Failure msg when msg="int_of_big_int" -> Add [t1;t2])
   | Add ds, Add es -> Add (ds @ es)
   | Add es, t | t, Add es -> Add (t::es)
   | _ -> Add [t1; t2]
@@ -176,7 +205,10 @@ let rec denom = function
   | Cst (_, d) -> d
   | Lin (_, d, _) -> d
   | Add cmb ->
-    List.fold_left lcm 1 (List.map denom cmb)
+    List.fold_left (fun a t ->
+        let b = denom t in
+        if small_component a && small_component b then lcm a b
+        else Big_int.(int_of_big_int (lcm_big_int (big_int_of_int a) (big_int_of_int b)))) 1 cmb
 
 open Format
 
@@ -193,7 +225,7 @@ let rec pr_term ppf = function
 let flatten t =
   let rec flat (vars, (j,k as cst) as acc) = function
     | Add sum -> List.fold_left flat acc sum
-    | Cst (j2,k2) -> vars, (j2*k+j*k2, k*k2)
+    | Cst (j2,k2) -> vars, add_fraction j k j2 k2
     | Lin (j,k,v) -> (j,k,v)::vars, cst in
   flat ([], (0,1)) t
 
@@ -213,8 +245,9 @@ let equal_to_cst =
 let factor_opti t1 t2 =
   let unpack (j,k,v) = Lin (j,k,v) in
   let uncst (j,k) = if j=0 then [] else [Cst (j,k)] in
-  let negate = List.map (fun (j,k,v) -> ~-j,k,v) in
-  let negcst (j,k) = ~-j,k in
+  let negate j = if j=min_int then raise Not_found else -j in
+  let negterms = List.map (fun (j,k,v) -> negate j,k,v) in
+  let negcst (j,k) = negate j,k in
   try
     let ts1, cst1 = flatten t1
     and ts2, cst2 = flatten t2 in
@@ -226,10 +259,11 @@ let factor_opti t1 t2 =
     let s = (j > 0) = (k > 0) in
     let ts1, ts2, cst1, cst2 =
       if not s then ts1, ts2, cst1, cst2
-      else negate ts1, negate ts2, negcst cst1, negcst cst2 in
+      else negterms ts1, negterms ts2, negcst cst1, negcst cst2 in
     Some ((abs j, abs k, v), s, Add (map_append unpack ts1 (uncst cst1)),
           Add (map_append unpack ts2 (uncst cst2)))
   with Not_found -> None
+     | Failure msg when msg="int_of_big_int" -> None
 
 let direct_opti t1 t2 =
   match factor_opti t1 t2 with
@@ -237,7 +271,8 @@ let direct_opti t1 t2 =
   | Some ((j,k,v), sign, left, right) ->
       let g = gcd j k in
       let divide = scale_term (k/g) (j/g) in
-      Some (v, sign, divide left, divide right)
+      (try Some (v, sign, divide left, divide right)
+       with Failure msg when msg="int_of_big_int" -> None)
 
 let prim_constr_var = function
   | Opti (t1, t2, _)
