@@ -238,13 +238,14 @@ let tests = "InvarGenT" >::: [
           "datacons Spin : ∀i,j,k[i≤1+k]. Probe (3/5 i + -4/5 j,4/5 i + 3/5 j,2 k) ⟶ Probe (i,j,k)\n" ^
           "let rec probe = Spin probe\nlet alias = probe\nlet family : ∀n[1/4096≤n]. Probe (1,0,n) = alias" in
         assert_bool "the alias already has the required polymorphic type" (not (rejects_source source)));
-      "a large inferred coefficient leaves a source-level diagnostic" >:: (fun () ->
+      "folded witnesses cover a point, a box and an unbounded ray through an alias" >::
+        run_example ~full_annot:true ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b)
+          "inferred_folded_cycle";
+      "a near-isometric recursive field admits the boundary caller" >:: (fun () ->
         let code = "datatype Probe : num * num * num\n" ^
           "datacons Spin : ∀i,j,k[i≤1+k]. Probe (15/17 i + -8/17 j,8/17 i + 15/17 j,1025/1024 k) ⟶ Probe (i,j,k)\n" ^
           "let rec probe = Spin probe\nlet use : Probe (2,0,1) = probe" in
-        (* A future inference method may find the written folded certificate. *)
-        try ignore (infer_source code) with
-        | Terms.NoAnswer (Defs.Num_sort,_,_,lc) -> assert_bool "located numeric failure" (lc<>Defs.dummy_loc));
+        ignore (infer_source code));
       "large index sums cannot wrap to a different singleton type" >:: (fun () ->
         let c = string_of_int max_int in
         let source = "external let scale : ∀i. Num i → Num ("^c^" i + "^c^" i) = \"fun _ -> 0\"\n" in

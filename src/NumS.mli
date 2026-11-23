@@ -238,6 +238,11 @@ val cycle_alias : premise:NumDefs.formula -> hidden:Defs.VarSet.t -> NumDefs.for
 (** Enlarge a certified cone by exact field preimages until it covers the caller domains. *)
 val caller_cycle_guard : params:Defs.var_name list -> guard:NumDefs.formula -> fields:NumDefs.term list list ->
   demands:NumDefs.formula list -> Defs.loc -> NumDefs.formula option
+(** Recognize a folded scheme that a plain alias can reuse verbatim. *)
+val is_folded_domain : params:Defs.var_name list -> NumDefs.formula -> Defs.loc -> bool
+(** Construct and check a private folded norm for planar fields with an expanding slack. *)
+val folded_caller_guard : params:Defs.var_name list -> guard:NumDefs.formula -> fields:NumDefs.term list list ->
+  demands:NumDefs.formula list -> Defs.loc -> NumDefs.formula option
 (** Private component bounds and field obligations for a checked spectral scheme. *)
 val spectral_cycle_guard : params:Defs.var_name list -> guard:NumDefs.formula ->
   fields:NumDefs.term list list -> Defs.loc -> (NumDefs.formula * NumDefs.formula) option

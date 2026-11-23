@@ -5067,9 +5067,225 @@ let cycle_entails parent loc =
   let cmp_v = state_cmp_v and scale = Terms.fresh_num_var () in
   let lift (vs,c,lc) = norm_w ~cmp_v ((scale,c)::vs,!/0,lc) in
   let cone = ([scale,!/(-1)],!/0,loc)::List.map lift parent in
-  fun row -> List.exists (equal_w ~cmp_v row) parent ||
+  fun ((vars,c,_) as row) -> if vars=[] then c <=/ !/0 else
+    List.exists (equal_w ~cmp_v row) parent ||
     let vs,_,lc = mult !/(-1) (lift row) in
     cycle_point ((vs,!/1,lc)::cone)=None
+
+(* Isolate an index in an affine row. For a negative coefficient an
+   inequality gives a lower bound on this index. *)
+let cycle_bound v (vs,c,lc) =
+  let k = List.assoc v vs in
+  k,mult (!/(-1) // k) (List.remove_assoc v vs,c,lc)
+
+(* Two lower bounds can compute |u| at a fresh witness. Keep the original
+   rows as evidence, including their orientation, regardless of row order. *)
+let cycle_abs v allowed rows =
+  let bounds = map_some (fun row -> try
+      let k,rhs = cycle_bound v row in
+      if k </ !/0 && VarSet.subset (fvs_w rhs) allowed then Some (rhs,row) else None
+    with Not_found -> None) rows in
+  let rec pair = function
+    | [] -> raise Not_found
+    | (u,r)::rest ->
+      let opposite = mult !/(-1) u in
+      try let _,s = List.find (fun (w,_) -> equal_w ~cmp_v:state_cmp_v w opposite) bounds in
+          u,[r;s]
+      with Not_found -> pair rest in
+  pair bounds
+
+(* A written lift can give straight-line definitions for its private
+   indices. Choose a tight absolute value when the caller settles its sign.
+   The remaining rows are verified on the full caller after substitution. *)
+let cycle_opening parent hidden eq leq loc =
+  let cmp_v = state_cmp_v and entails = cycle_entails parent loc in
+  let known = VarSet.diff (List.fold_left (fun vs w -> VarSet.union vs (fvs_w w))
+      VarSet.empty (eq @ leq)) hidden in
+  let rec open_rows pending eq leq =
+    if VarSet.is_empty pending then
+      List.for_all entails (eq @ List.map (mult !/(-1)) eq @ leq)
+    else
+      let from_eq = map_some (fun row -> match VarSet.elements (VarSet.inter pending (fvs_w row)) with
+          | [v] -> Some (v,snd (cycle_bound v row)) | _ -> None) eq in
+      let choices = if from_eq<>[] then from_eq else
+          map_some (fun v -> try
+              let u,_ = cycle_abs v known leq in
+              let neg = mult !/(-1) u in
+              if entails neg then Some (v,u) else if entails u then Some (v,neg) else None
+            with Not_found -> None) (VarSet.elements pending) in
+      if choices=[] then false else
+      let sb = varmap_of_assoc choices in
+      let replace = subst_w ~cmp_v sb in
+      open_rows (VarSet.diff pending (varmap_domain sb)) (List.map replace eq) (List.map replace leq) in
+  open_rows (VarSet.inter hidden (List.fold_left (fun vs w -> VarSet.union vs (fvs_w w))
+      VarSet.empty (eq @ leq))) eq leq
+
+let cycle_coefficient v vs = try List.assoc v vs with Not_found -> !/0
+
+(* The projection of a conjunctive lift is convex. On each line through a
+   caller cell it suffices to open the finite endpoints and lift its unbounded
+   directions into the recession cone. Recurse on endpoint hyperplanes. This
+   checks whole caller families even when a tight witness changes sign. *)
+let cycle_fibres parent hidden eq leq loc =
+  let cmp_v = state_cmp_v and budget = ref !abd_timeout_count in
+  let vars rows = List.fold_left (fun vs w -> VarSet.union vs (fvs_w w)) VarSet.empty rows in
+  let feasible = function [] -> true | rows -> cycle_point rows<>None in
+  let rec cover parent eq leq =
+    if !budget<=0 then false else (
+      decr budget;
+      not (feasible parent) || cycle_opening parent hidden eq leq loc ||
+      let public = VarSet.diff (vars (parent @ eq @ leq)) hidden in
+      if VarSet.is_empty public then false else
+      let pivot v =
+        let lower,upper = List.fold_left (fun (lo,hi) row -> try
+            let k,w = cycle_bound v row in if k </ !/0 then w::lo,hi else lo,w::hi
+          with Not_found -> lo,hi) ([],[]) parent in
+        let unique = unique_sorted ~cmp:(compare_w ~cmp_v) in
+        let lower = unique lower and upper = unique upper in
+        try let fixed = List.find (fun l -> List.exists (equal_w ~cmp_v l) upper) lower in
+            1,v,[fixed],[]
+        with Not_found ->
+          let ends = unique (lower @ upper) in
+          let ends = if ends=[] then [[],!/0,loc] else ends in
+          let rays = (if lower=[] then [!/(-1)] else []) @ (if upper=[] then [!/1] else []) in
+          List.length ends+List.length rays,v,ends,rays in
+      let _,v,ends,rays = List.hd (List.sort (fun (a,_,_,_) (b,_,_,_) -> compare a b)
+          (List.map pivot (VarSet.elements public))) in
+      List.for_all (fun sign ->
+          let at_infinity (vs,_,lc) = List.filter (fun (p,_) -> VarSet.mem p hidden) vs,
+            sign */ cycle_coefficient v vs,lc in
+          cycle_opening [] hidden (List.map at_infinity eq) (List.map at_infinity leq) loc) rays &&
+      List.for_all (fun w ->
+          let replace = subst_w ~cmp_v (VarMap.singleton v w) in
+          cover (List.filter (fun row -> not (taut_ineq row)) (List.map replace parent))
+            (List.map replace eq) (List.map replace leq)) ends) in
+  cover parent eq leq
+
+(* sqrt(n/d) = sqrt(n*d)/d. Return an exact rational root when it exists,
+   or a rational upper bound for use in a sufficient implication. *)
+let cycle_sqrt_upper q =
+  let r = ratio_of_num q in
+  let n = Ratio.numerator_ratio r and d = Ratio.denominator_ratio r in
+  let product = Big_int.mult_big_int n d in
+  let root = Big_int.sqrt_big_int product in
+  let top = if Big_int.eq_big_int (Big_int.mult_big_int root root) product then root
+    else Big_int.succ_big_int root in
+  num_of_big_int top // num_of_big_int d
+
+(* Certify the public guards and a fresh tight opening at each field. The
+   single radius lies below every cap, including where the tightest cap
+   changes. All implications left to the affine solver are rational. *)
+let check_folded_fields ~params ~guard maps base (us,_,_ as u) (vs,_,_ as v) weight caps loc =
+  let cmp_v = state_cmp_v in
+  let neg w = mult !/(-1) w in
+  let r = [Terms.fresh_num_var (),!/1],!/0,loc in
+  let outer = List.map (fun (_,cap) -> diff ~cmp_v r cap) caps @
+              List.map (fun w -> diff ~cmp_v w r) [u;neg u] @ [neg r] @ base in
+  let zero_open = u::neg u::v::neg v::List.map (fun (_,cap) -> neg cap) caps @ base in
+  if cycle_point zero_open=None then false else
+  let entails = cycle_entails outer loc in
+  let columns = List.map (fun p -> p,cycle_coefficient p us,cycle_coefficient p vs) params in
+  let rec pivots = function
+    | [] -> raise Not_found
+    | (i,a,b)::rest ->
+      try let j,c,d = List.find (fun (_,c,d) -> a */ d <>/ b */ c) rest in
+          i,j,a,b,c,d,a */ d -/ b */ c
+      with Not_found -> pivots rest in
+  let i,j,a,b,c,d,det = pivots columns in
+  let components (ws,_,_ as w) =
+    let l = cycle_coefficient i ws and h = cycle_coefficient j ws in
+    let m = (l */ d -/ b */ h) // det and n = (a */ h -/ l */ c) // det in
+    m,n,diff ~cmp_v w (sum_w ~cmp_v (mult m u) (mult n v)) in
+  let inv_scale = cycle_sqrt_upper (!/1 // weight) in
+  let support w = entails w ||
+    let m,n,remainder = components w in
+    let test m n =
+      let rest = diff ~cmp_v w (sum_w ~cmp_v (mult m u) (mult n v)) in
+      entails (sum_w ~cmp_v rest (mult (cycle_sqrt_upper (m */ m +/ n */ n // weight)) r)) in
+    test m n || List.exists (fun (_,cap) ->
+        (* Remove the slack direction of this cap before taking a support
+           in the measured plane. This also works after affine reindexing. *)
+        let a,b,(vs,c,_) = components cap and ws,k,_ = remainder in
+        let factors = map_some (fun (p,d) -> let v = cycle_coefficient p ws in
+            if v =/ !/0 then None else Some (v // d)) vs in
+        let factors = if c =/ !/0 then factors else k // c :: factors in
+        List.exists (fun f -> test (m -/ f */ a) (n -/ f */ b)) factors) caps in
+  List.for_all support (cycle_rows guard) && List.for_all (fun sb ->
+      let sub = subst_w ~cmp_v sb in
+      let a,b,off1 = components (sub u) and c,d,off2 = components (sub v) in
+      let gain2 = max_num (a */ a +/ weight */ c */ c) (b */ b // weight +/ d */ d) +/
+                  inv_scale */ abs_num (a */ b +/ weight */ c */ d) in
+      let gain = cycle_sqrt_upper gain2 in
+      zero_p off1 && zero_p off2 && List.for_all support (List.map sub base) &&
+      List.for_all (fun (s,cap) -> entails (diff ~cmp_v
+          (mult (gain */ (!/1 +/ s */ s // (!/2 */ weight))) r) (sub cap))) caps) maps
+
+(* Match a planar folded norm to the actual rows of a written scheme. A
+   relaxed fold can only increase length. Tight folds preserve length and
+   map the preceding wedge into the next one. All private rows must be
+   accounted for before using this certificate. *)
+let with_folded_domain ~params domain loc check =
+  let cmp_v = state_cmp_v and public = vars_of_list params in
+  let eq,leq,opt,subopt = split_flatten ~cmp_v domain in
+  if opt<>[] || subopt<>[] then raise Not_found;
+  let is_public w = VarSet.subset (fvs_w w) public in
+  let deq,eq = List.partition is_public eq and dleq,leq = List.partition is_public leq in
+  let base = deq @ List.map (mult !/(-1)) deq @ dleq in
+  let hidden = VarSet.diff (fvs_formula domain) public in
+  let starts = map_some (fun v -> try let u,used = cycle_abs v public leq in Some (v,u,used)
+      with Not_found -> None) (VarSet.elements hidden) in
+  let without used rows = List.filter (fun row -> not (List.memq row used)) rows in
+  let finish x y c s weight u v rows =
+    let wedge,terminal = List.partition (fun (vs,_,_) -> cycle_coefficient x vs </ !/0) rows in
+    match wedge,terminal with
+    | [wedge],_::_ ->
+      let cy,(slope,offset,_) = cycle_bound y wedge in
+      let k = match slope with [p,k] when p=x && offset =/ !/0 && cy >/ !/0 -> k
+        | _ -> raise Not_found in
+      let cap row =
+        let cx,(vs,b,lc) = cycle_bound x row in
+        let a = minus_num (cycle_coefficient y vs) in
+        let bound = List.remove_assoc y vs,b,lc in
+        if cx <=/ !/0 || not (is_public bound) || a </ !/0 ||
+           (weight -/ a */ a) */ k >/ !/2 */ a then raise Not_found;
+        a,bound in
+      k */ c >=/ s && check base u v weight (List.map cap terminal)
+    | _ -> false in
+  let rec chain fresh x y previous u v eq leq =
+    match eq,previous with
+    | [],Some (c,s,weight) when VarSet.is_empty fresh -> (try finish x y c s weight u v leq with Not_found -> false)
+    | [],_ -> false
+    | _ -> List.exists (fun ((vs,b,_) as row) ->
+        try
+          let next = match List.filter (fun (p,_) -> p<>x && p<>y) vs with
+            | [p,_] when VarSet.mem p fresh && b =/ !/0 -> p | _ -> raise Not_found in
+          let _,(terms,_,_) = cycle_bound next row in
+          let c = cycle_coefficient x terms and b = cycle_coefficient y terms in
+          if c <=/ !/0 || c >=/ !/1 || b <=/ !/0 then raise Not_found;
+          let s = (!/1 -/ c */ c) // b in
+          let weight = b // s in
+          let fits = match previous with None -> c */ c <=/ b */ s | Some (pc,ps,prior) ->
+              weight =/ prior && ps */ (c */ c -/ b */ s) <=/ !/2 */ pc */ c */ s in
+          if not fits then raise Not_found;
+          let raw = norm_w ~cmp_v ([y,c;x,minus_num s],!/0,loc) in
+          let allowed = vars_of_list [x;y] in
+          List.exists (fun p -> try
+              if p=next then raise Not_found;
+              let w,used = cycle_abs p allowed leq in
+              (equal_w ~cmp_v w raw || equal_w ~cmp_v w (mult !/(-1) raw)) &&
+              chain (VarSet.remove p (VarSet.remove next fresh)) next p (Some (c,s,weight)) u v (without [row] eq) (without used leq)
+            with Not_found -> false) (VarSet.elements fresh)
+        with Not_found -> false) eq in
+  List.exists (fun (x,u,rx) -> List.exists (fun (y,v,ry) -> x<>y &&
+      chain (VarSet.remove y (VarSet.remove x hidden)) x y None u v eq (without (rx @ ry) leq)) starts) starts
+
+let folded_cycle ~params ~guard maps domain loc =
+  with_folded_domain ~params domain loc (fun base u v weight caps ->
+      check_folded_fields ~params ~guard maps base u v weight caps loc)
+
+let is_folded_domain ~params domain loc =
+  try with_folded_domain ~params domain loc (fun _ _ _ _ _ -> true)
+  with Not_found -> false
 
 (* Fourier-Motzkin projection, choosing the pivot with the fewest output
    rows and merging parallel half-spaces at every stage. *)
@@ -5147,8 +5363,9 @@ let cycle_alias ~premise ~hidden opening loc =
   try
     let parent = cycle_rows premise in
     cycle_point parent<>None &&
-    let rows = project_cycle_domain hidden opening loc in
-    List.for_all (cycle_entails parent loc) rows
+    let eq,leq,opt,subopt = split_flatten ~cmp_v:state_cmp_v opening in
+    (opt=[] && subopt=[] && cycle_fibres parent hidden eq leq loc ||
+     List.for_all (cycle_entails parent loc) (project_cycle_domain hidden opening loc))
   with Not_found | Terms.Contradiction _ -> false
      | Failure msg when msg = "int_of_big_int" -> false
 
@@ -5175,6 +5392,7 @@ let replay_cycle ~params ~guard ~fields domain loc =
     let validate cells =
       try linear_cycle_check ~guard maps (List.map cycle_rows cells) loc
       with Not_found -> check cells in
+    (try folded_cycle ~params ~guard maps domain loc with Not_found -> false) ||
     validate [domain] ||
     (* A projected face can have larger coefficients than every source atom.
        Keep it in rational arithmetic when it is used only for this proof. *)
@@ -5182,6 +5400,120 @@ let replay_cycle ~params ~guard ~fields domain loc =
      with Not_found -> validate (project_exists ~vars:hidden domain))
   with Terms.Contradiction _ -> false
      | Failure msg when msg = "int_of_big_int" -> false
+
+(* Synthesize a folded disk with a conical cap at zero slack and future
+   guard caps at positive slack. The proposal is replayed on every field
+   and must supply witnesses for each written caller before publication. *)
+let folded_caller_guard ~params ~guard ~fields ~demands loc =
+  let cmp_v = state_cmp_v and zero = Cst (0,1) in
+  let row xs c = norm_w ~cmp_v (xs,c,loc) in
+  let variable v = row [v,!/1] !/0 in
+  let le w = Leq (expand_w w,zero,loc) in
+  let equal w = Eq (expand_w w,zero,loc) in
+  let neg w = mult !/(-1) w in
+  try
+    if List.length params<>3 || demands=[] then raise Not_found;
+    let maps = cycle_maps params fields loc and guards = cycle_rows guard in
+    let callers = List.map cycle_rows demands in
+    if not (List.for_all (fun rs -> cycle_point rs<>None &&
+        List.for_all (cycle_entails rs loc) guards) callers) then raise Not_found;
+    let coordinates (vs,_,_) = match List.map (fun p -> cycle_coefficient p vs) params with
+      | [x;y;z] -> x,y,z | _ -> raise Not_found in
+    let det (a,b,c) (d,e,f) (g,h,i) =
+      a */ (e */ i -/ f */ h) -/ b */ (d */ i -/ f */ g) +/ c */ (d */ h -/ e */ g) in
+    let plus = sum_w ~cmp_v and minus = diff ~cmp_v in
+    let propose sb g =
+        (* On a conjugate of (rotation, expanding slack), the determinant
+           gives the real rate. The quadratic factor of the characteristic
+           polynomial separates the rotating guard from the slack and centre. *)
+        let matrix = List.map (fun p -> coordinates (VarMap.find p sb)) params in
+        let rate,trace = match matrix with [((a,_,_) as x);((_,b,_) as y);((_,_,c) as z)] ->
+            abs_num (det x y z),a +/ b +/ c | _ -> raise Not_found in
+        let twice = trace -/ rate in
+        if rate <=/ !/1 || abs_num twice >=/ !/2 then raise Not_found;
+        let act = subst_w ~cmp_v sb in
+        let once = act g in
+        let real = plus (minus (act once) (mult twice once)) g in
+        let factor = rate */ rate -/ twice */ rate +/ !/1 in
+        let slack = mult (!/(-1) // ((rate -/ !/1) */ factor)) (minus (act real) real) in
+        let centre = mult (!/1 // (!/2 -/ twice)) (plus real (mult factor slack)) in
+        (match centre with [],_,_ -> () | _ -> raise Not_found);
+        let u = plus (minus g centre) slack in
+        let cosine = twice // !/2 in
+        let sin2 = !/1 -/ cosine */ cosine in
+        let scale = cycle_sqrt_upper sin2 in
+        let v = mult (!/1 // scale) (minus (act u) (mult cosine u)) in
+        let weight = scale */ scale // sin2 in
+        let col1 = coordinates u and col2 = coordinates v and col3 = coordinates slack in
+        let volume = det col1 col2 col3 in
+        if volume =/ !/0 then raise Not_found;
+        let express w =
+          let column = coordinates w in
+          let a = det column col2 col3 // volume and b = det col1 column col3 // volume
+          and t = det col1 col2 column // volume in
+          match minus w (plus (mult a u) (plus (mult b v) (mult t slack))) with
+          | [],c,_ -> a,b,t,c | _ -> raise Not_found in
+        let rates = List.map (fun field ->
+            let image base = express (subst_w ~cmp_v field base) in
+            let a,b,t,c = image slack in
+            if a <>/ !/0 || b <>/ !/0 || c <>/ !/0 || t <=/ !/1 then raise Not_found;
+            let plane w = match image w with a,b,t,c when t =/ !/0 && c =/ !/0 -> a,b
+              | _ -> raise Not_found in
+            let a,b = plane u and c,d = plane v in
+            if a */ a +/ weight */ c */ c <>/ !/1 || b */ b +/ weight */ d */ d <>/ weight ||
+               a */ b +/ weight */ c */ d <>/ !/0 then raise Not_found;
+            t) maps in
+        let rate = List.fold_left min_num (List.hd rates) (List.tl rates) in
+        let bounds = map_some (fun guard ->
+            let a,b,t,c = express guard in
+            let normal = cycle_sqrt_upper (a */ a +/ b */ b // weight) in
+            if normal =/ !/0 then None else (
+              if t >/ !/0 || c >/ !/0 then raise Not_found;
+              Some (mult (!/1 // normal) (plus (mult (minus_num t */ rate) slack) (row [] (minus_num c)))))) guards in
+        if bounds=[] then raise Not_found;
+        let requested w = List.for_all (fun rs -> cycle_entails rs loc w) callers in
+        if not (requested (neg slack)) then raise Not_found;
+        let axes = [u;neg u;v;neg v] in
+        let rec box k =
+          if k >/ !/max_int // !/2 then raise Not_found;
+          if List.for_all (fun axis -> requested (diff ~cmp_v axis (mult k slack))) axes
+          then mult ((!/1 +/ weight) */ k) slack else box (!/2 */ k) in
+        let bounds = box !/1 :: bounds in
+        let x0 = Terms.fresh_num_var () and y0 = Terms.fresh_num_var () in
+        let absolute v w = List.map (fun side -> le (diff ~cmp_v side (variable v))) [w;neg w] in
+        let start = guard @ [le (neg slack)] @ absolute x0 u @ absolute y0 v in
+        let rec fold a prevx prevy atoms =
+          let z = weight */ a */ a in
+          let c = (!/1 -/ z) // (!/1 +/ z) and s = !/2 */ a // (!/1 +/ z) in
+          let i = Terms.fresh_num_var () and j = Terms.fresh_num_var () in
+          let next = equal (row [i,!/1;prevx,minus_num c;prevy,minus_num (weight */ s)] !/0) ::
+                     absolute j (row [prevy,c;prevx,minus_num s] !/0) in
+          let atoms = List.rev_append next atoms in
+          let cap = row [i,!/1;j,weight */ a] !/0 in
+          let terminal = le (row [j,c;i,minus_num s] !/0) ::
+              List.map (fun bound -> le (diff ~cmp_v cap bound)) bounds in
+          let candidate = List.rev_append atoms terminal in
+          if folded_cycle ~params ~guard maps candidate loc then (
+            let hidden = VarSet.diff (fvs_formula candidate) (vars_of_list params) in
+            let eq,leq,_,_ = split_flatten ~cmp_v candidate in
+            if List.for_all (fun caller -> cycle_fibres caller hidden eq leq loc) callers
+            then candidate else fold (a // !/2) i j atoms)
+          else fold (a // !/2) i j atoms in
+        Some (fold (!/1 // !/2) x0 y0 (List.rev start))
+    in
+    let rec choices = function
+      | [] -> None
+      | (sb,g)::rest ->
+        match (try propose sb g with Not_found -> None
+                 | Failure msg when msg="int_of_big_int" -> None) with
+        | Some _ as result -> result | None -> choices rest in
+    let try_maps sbs = choices (concat_map (fun sb -> List.map (fun g -> sb,g) guards) sbs) in
+    (match try_maps maps with Some _ as found -> found | None ->
+       let products = concat_map (fun a -> map_some (fun b -> if a==b then None else
+           Some (VarMap.map (subst_w ~cmp_v a) b)) maps) maps in
+       try_maps products)
+  with Not_found | Terms.Contradiction _ -> None
+     | Failure msg when msg="int_of_big_int" -> None
 
 (* A guard a.p <= b*t+c with b>0 and c>=0 licenses the cone
    ||p||_infty <= (b/||a||_1)*t. Try both signs of each public coordinate

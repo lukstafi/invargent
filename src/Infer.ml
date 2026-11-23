@@ -1851,6 +1851,14 @@ let cycle_callers self name params remaining =
     | _::rest -> scan names acc rest in
   scan (Strings.singleton self) [] remaining
 
+(* A plain alias can reuse a checked lift verbatim. Eliminating its local
+   witnesses again may expand a linear chain into exponentially many rows. *)
+let has_folded_domain (_,phi,result) loc =
+  let public = fvs_typ result in
+  not (VarSet.subset (fvs_formula phi) public) &&
+  (try NumS.is_folded_domain ~params:(VarSet.elements public) (numeric_admission phi) loc
+   with Not_found -> false)
+
 let covers_numeric_alias actual written loc =
   let vs,phi,result = freshen_val_scheme actual in
   let _,premise,expected = freshen_val_scheme written in
@@ -2583,7 +2591,23 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
            let caller = if covered then None else
                match NumS.caller_cycle_guard ~params ~guard ~fields ~demands loc with
                | None -> None | Some extra -> Some ([],extra) in
-           match improve (current,changed) caller,previous with
+           let current,changed = improve (current,changed) caller in
+           let covered = covered || match caller,current with
+             | Some _,Some sch -> covers_cycle_callers name params demands sch loc
+             | _ -> false in
+           let folded = if covered then None else
+               NumS.folded_caller_guard ~params ~guard ~fields ~demands loc in
+           let result = match folded with
+             | None -> current,changed
+             | Some domain ->
+               let phi = NumS.formula_of_sort domain in
+               let vs = VarSet.elements (VarSet.union (fvs_typ ty) (fvs_formula phi)) in
+               let sb,(vs,phi) = nice_ans ~fvs:(fvs_typ ty) (vs,phi) in
+               let proposed = vs,phi,hvsubst_typ sb ty in
+               (match current with
+                | Some earlier when not (covers_numeric_alias proposed earlier loc) -> current,changed
+                | _ -> Some proposed,true) in
+           match result,previous with
            | (Some s,true),_ -> install env s
            | _,Right items -> report_value x (List.assoc x !gamma); items
            | _,Left error -> raise error in
@@ -2599,6 +2623,7 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
         [ILetVal (docu,pat,Var (y,lc),scheme,[x,scheme],[],loc)] in
       (match (try Some (List.assoc y env) with Not_found -> None),written with
        | Some old,Some s when covers_numeric_alias old s loc -> install s
+       | Some old,None when has_folded_domain old loc -> install old
        | Some old,None ->
          let packages = !all_ex_types in
          let reuse () =

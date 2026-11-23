@@ -34,6 +34,19 @@ let tests = "NumS" >::: [
     let at_one = satisfiable_exn [Eq (Lin (1,1,v),Cst (1,1),dummy_loc)] in
     assert_bool "a sum too large for one literal stays positive"
       (implies_cnj at_one [Leq (Cst (1,1),oversized,dummy_loc)]));
+  "a pair of reflections exposes the positive definite form to synthesis" >:: (fun () ->
+    let params = List.map (fun n -> VNam (Num_sort,n)) ["i";"j";"k"] in
+    let field terms = List.map (fun s -> match numeric_formula ("n="^s) with
+        | [Eq (_,term,_)] -> term | _ -> assert false) terms in
+    let fields = List.map field [["i";"-j";"65/64 k"];
+                                 ["7/9 i + 8/9 j";"4/9 i + -7/9 j";"33/32 k"]] in
+    let guard = numeric_formula "i≤1+k" in
+    let demands = List.map numeric_formula ["i=2 ∧ j=0 ∧ k=1";"j=0 ∧ 1≤k ∧ -k≤i ∧ i≤k"] in
+    match folded_caller_guard ~params ~guard ~fields ~demands dummy_loc with
+    | None -> assert_failure "the product rotates the measured plane"
+    | Some domain ->
+      assert_bool "the inferred type closes under each original reflection"
+        (replay_cycle ~params ~guard ~fields domain dummy_loc));
   "an alias can project a private bound outside the source coefficient range" >:: (fun () ->
     let v n = VNam (Num_sort,n) in
     let hidden = vars_of_list [v "j";v "k";v "m";v "n"] in
