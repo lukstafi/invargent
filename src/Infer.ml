@@ -272,11 +272,17 @@ let phantom_enumeration_arg : (cns_name, cns_name list option array) Hashtbl.t
   = Hashtbl.create 15
 
 exception Not_enum
+(* The source guard is already a valid constructor presentation. A solved
+   form can need a coefficient too large for one literal, even when the
+   constructor will only be opened at zero. *)
+let constructor_subst ~apply vs phi =
+  try separate_subst ~bvs:(vars_of_list vs) ~apply empty_q phi
+  with Failure msg when msg="int_of_big_int" -> VarMap.empty,phi
+
 let extract_phantom_enumerations = function
   | TypConstr _ | PrimTyp _ | LetRecVal _ | LetVal _ -> ()
   | ValConstr (_, _, vs, phi, _, name, args, loc) ->
-    let sb, _ =
-      separate_subst ~bvs:(vars_of_list vs) ~apply:false empty_q phi in
+    let sb,_ = constructor_subst ~apply:false vs phi in
     let args =
       Array.map (fun v -> subst_typ sb (TVar v)) (Array.of_list args) in
     let enums =
@@ -2274,8 +2280,7 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
         | _, PrimTyp (docu, n, sorts, expansion, lc) ->
           [IPrimTyp (docu, n, sorts, expansion, lc)]
         | _, ValConstr (docu, name, vs, phi, args, c_n, c_args, lc) ->
-          let sb, phi =
-            separate_subst ~bvs:(vars_of_list vs) ~apply:true empty_q phi in
+          let sb,phi = constructor_subst ~apply:true vs phi in
           (*[* Format.printf "ValConstr: n=%s@ sb=%a@ phi=%a@\n%!"
             (cns_str name) pr_subst sb pr_formula phi; *]*)
           let args = List.map (subst_typ sb) args in

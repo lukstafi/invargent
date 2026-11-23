@@ -252,6 +252,13 @@ let tests = "InvarGenT" >::: [
         assert_bool "two maximal coefficients at one do not give minus two"
           (rejects_source (source ^ "let wrong : Num (-2) = scale 1"));
         ignore (infer_source (source ^ "let at_origin : Num 0 = scale 0")));
+      "a constructor can retain an oversized sum in its written guard" >:: (fun () ->
+        let c = string_of_int max_int in
+        let source = "datatype Input : num\ndatacons One : Input 1\ndatacons Origin : Input 0\n" ^
+          "datatype Output : num\ndatacons Scaled : ∀i. Input i ⟶ Output ("^c^" i + "^c^" i)\n" in
+        ignore (infer_source (source ^ "let at_origin : Output 0 = Scaled Origin"));
+        assert_bool "a constructor result with two maximal coefficients cannot wrap"
+          (rejects_source (source ^ "let wrong : Output (-2) = Scaled One")));
       "signed literals and denominators are checked at the source" >:: (fun () ->
         let literal n = "external let sample : Num ("^n^") = \"0\"" in
         let lower = string_of_int min_int in
