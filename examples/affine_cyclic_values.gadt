@@ -1,0 +1,28 @@
+datatype Scale : num
+datacons Grow : ∀n[n≤0]. Scale (2 n+1) ⟶ Scale n
+let rec forever = Grow forever
+datatype Sum : num * num
+datacons GrowSum : ∀i,j[i+j≤0]. Sum (2 i+1,2 j+1) ⟶ Sum (i,j)
+let rec sum = GrowSum sum
+datatype Axes : num * num
+datacons Split : ∀i,j[i≤0]. Axes (2 j+1,i) * Axes (j,2 i+1) ⟶ Axes (i,j)
+let rec fork = Split (fork,fork)
+datatype Orbit : num * num
+datacons Turn : ∀i,j[i≤1]. Orbit (3/5 i + -4/5 j, 4/5 i + 3/5 j) ⟶ Orbit (i,j)
+let rec ring = Turn ring
+let boundary : Scale (-1) = forever
+let inside : Sum (3,-5) = sum
+let both : Axes (-1,-2) = fork
+let centre : Orbit (0,0) = ring
+
+datatype Mirror : num
+datacons Reflect : ∀n[n≤3]. Mirror (-n) ⟶ Mirror n
+let rec mirror = Reflect mirror
+let left : Mirror (-3) = mirror
+let right : Mirror 3 = mirror
+
+datatype Cross : num * num
+datacons Flip : ∀i,j[i+j≤3]. Cross (-i,-j) ⟶ Cross (i,j)
+let rec cross = Flip cross
+let high : Cross (2,1) = cross
+let low : Cross (-2,-1) = cross

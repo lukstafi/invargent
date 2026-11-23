@@ -1,0 +1,33 @@
+datatype List : type * num
+datacons LNil : ∀a. List(a, 0)
+datacons LCons : ∀n, a [0 ≤ n]. a * List(a, n) ⟶ List(a, n+1)
+
+let rec append =
+  function LNil -> (fun l -> l)
+  | LCons (x, xs) -> (fun l -> LCons (x, append xs l))
+
+let empty : List (Bool,0) = append LNil LNil
+let two : List (Bool,2) = append (LCons (True,LNil)) (LCons (False,LNil))
+external let verify : List (Bool,2) → Bool =
+  "function LCons (true, LCons (false, LNil)) -> true | _ -> assert false"
+let checked = verify two
+
+datatype Packet : num
+datacons Pack : ∀n[0≤n]. Num n ⟶ Packet n
+datatype Cargo : num
+datacons Load : ∀n. Packet n ⟶ Cargo n
+external let consume : ∀n[0≤n]. Cargo n → Bool = "fun _ -> true"
+let unpack = fun x -> consume x
+let loaded = unpack (Load (Pack 0))
+
+datatype Tower : num
+datacons Floor : Tower 0
+datacons Step : ∀n. Tower n ⟶ Tower (n+1)
+let rec spiral = Step spiral
+let observed : Tower (-1) = spiral
+external let closes_cycle : ∀n. Tower n → Bool =
+  "function Step tail as root -> tail == root | Floor -> false"
+let cyclic = closes_cycle observed
+external let nonnegative : ∀n[0≤n]. Tower n → Num n → Bool =
+  "fun _ n -> assert (n >= 0); true"
+let use = fun tower n -> nonnegative tower n

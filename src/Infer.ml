@@ -775,7 +775,65 @@ let outside_bands loc value bands =
   let vars,atoms = List.fold_left outside (VarSet.singleton x,[link]) bands in
   vars,NumS.formula_of_sort atoms
 
-let constr_gen_expr_with_arities ?paired ~erase_bodies arities gamma e t =
+(* None denotes zero, Some i the numeric index at parameter position i.
+   A bound enters a round only after every constructor justifies it from
+   the preceding round's facts about immediate value fields. *)
+let index_bound args loc (left,right) =
+  let term = function
+    | None -> NumDefs.Cst (0,1)
+    | Some i -> NumS.num_of (List.nth args i) in
+  NumDefs.Leq (term left,term right,loc)
+
+let constructor_value_bounds prog =
+  let families = map_some (function
+      | _, TypConstr (_,(CNam _ as name),sorts,_) when List.mem Num_sort sorts ->
+        let rules = map_some (function
+            | _, ValConstr (_,_,_,phi,fields,parent,params,loc) when parent=name ->
+              Some ((sep_formulas phi).cnj_num, fields, List.map (fun v -> TVar v) params,loc)
+            | _ -> None) prog in
+        if rules=[] then None else
+        let positions = None :: map_some (fun (i,s) ->
+            if s=Num_sort then Some (Some i) else None) (List.mapi (fun i s -> i,s) sorts) in
+        let pool = concat_map (fun i -> map_some (fun j ->
+            if i=j then None else Some (i,j)) positions) positions in
+        Some (name,sorts,rules,pool)
+      | _ -> None) prog in
+  let rec close previous =
+    let child loc = function
+      | TCons (name,args) when List.mem_assoc name previous ->
+        List.map (index_bound args loc) (List.assoc name previous)
+      | _ -> [] in
+    let next = List.map (fun (name,_,rules,pool) ->
+        let checks = List.map (fun (guard,fields,args,loc) ->
+            let state = NumS.satisfiable (guard @ concat_map (child loc) fields) in
+            fun bound -> match state with Left _ -> true | Right state ->
+              NumS.implies_cnj state [index_bound args loc bound]) rules in
+        let prior = List.assoc name previous in
+        name, List.filter (fun bound -> List.mem bound prior ||
+            List.for_all (fun check -> check bound) checks) pool)
+        families in
+    if next=previous then next else close next in
+  let proved = close (List.map (fun (name,_,_,_) -> name,[]) families) in
+  map_some (fun (name,sorts,_,_) -> match List.assoc name proved with
+      | [] -> None | bounds -> Some (name,(sorts,bounds))) families
+
+let value_patterns families relevant e arrow =
+  let rec collect args e = match args,e with
+    | TCons (name,params)::rest,Lam (_,arms,_) ->
+      concat_map (fun (pat,_,body) ->
+          let nested = collect rest body in
+          match pat with
+          | PVar (_,loc) when List.mem_assoc name families ->
+            let sorts,bounds = List.assoc name families in
+            if VarSet.is_empty (VarSet.inter relevant
+                (NumDefs.fvs_formula (List.map (index_bound params loc) bounds)))
+            then nested else (pat,(name,sorts,bounds))::nested
+          | _ -> nested) arms
+    | _::rest,Lam (_,arms,_) -> concat_map (fun (_,_,body) -> collect rest body) arms
+    | _ -> [] in
+  collect (arg_types arrow) e
+
+let constr_gen_expr_with_arities ?paired ?(value_patterns=[]) ~erase_bodies arities gamma e t =
   let erased_packages = ref None in
   let contracts = Hashtbl.create 2 in
   let alias_arities = Hashtbl.create 2 in
@@ -1100,6 +1158,19 @@ let constr_gen_expr_with_arities ?paired ~erase_bodies arities gamma e t =
     let returns_function = match e with Lam _ -> not shadowed | _ -> false in
     let pcns = constr_gen_pat p (if returns_function then t1 else scrutinee) in
     let bs, prem, env = envfrag_gen_pat count p scrutinee in
+    let pcns,bs,prem = match (try Some (List.assq p value_patterns) with Not_found -> None) with
+      | None -> pcns,bs,prem
+      | Some (name,sorts,bounds) ->
+        (* Enforce the datatype head in the ordinary pattern constraint.
+           Its indices in the implication are universally quantified exactly
+           as for a constructor pattern. The source binds the original value. *)
+        let instance () =
+          let vs = List.map fresh_var sorts in
+          let args = List.map (fun v -> TVar v) vs in
+          vars_of_list vs, args, Eqty (TCons (name,args),scrutinee,pat_loc p) in
+        let shape,_,required = instance () and vars,args,matched = instance () in
+        let facts = NumS.formula_of_sort (List.map (index_bound args (pat_loc p)) bounds) in
+        cn_and pcns (Ex (shape,A [required])), VarSet.union bs vars, matched :: facts @ prem in
     (*[* Format.printf "constr_gen-aux_cl: [%d] t1=%a@ t2=%a@ t3=%a@ bs=%a@ prem=%a@\n%!"
       count pr_ty t1 pr_ty t2 pr_ty t3 pr_vars bs pr_formula prem; *]*)
     let gamma' = List.map typ_to_sch env @ gamma in
@@ -1383,7 +1454,7 @@ let interval_call_key samples signature arrow body bands loc =
     [paired `Endpoints; paired `Hull; paired `Components; on_guard false]
   | _ -> []
 
-let gen_letrec ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests =
+let gen_letrec ~value_patterns ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests =
   (* χ is a predicate on one type variable. A written scheme constrains
      the instances χ can admit, and each recursive use instantiates both. *)
   let anchor = match tb, sig_cn with
@@ -1452,7 +1523,7 @@ let gen_letrec ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests
          let vs = VarSet.union (fvs_formula primary) (VarSet.remove r (vars_of_map NumDefs.fvs_term terms)) in
          gamma,Some (def_typ,(VarSet.elements vs,primary,tb),other)) in
   let (expr_cn, e), elim_cell, preserve =
-    constr_gen_expr_with_arities ?paired ~erase_bodies arities body_gamma e anchor in
+    constr_gen_expr_with_arities ?paired ~value_patterns ~erase_bodies arities body_gamma e anchor in
   let def_cn =
     let body = if signature = [] then expr_cn
       else cn_and (Ex (bvs, A signature)) expr_cn in
@@ -1463,8 +1534,8 @@ let gen_letrec ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests
   cn_and def_cn (cn_and (Ex (vars_of_list [a], A [chi_a])) test_cn),
   e, tests, elim_cell::elim_cells, more_preserve @ preserve
 
-let constr_gen_letrec ?(call_constraints=Restrict_calls []) ~erase_bodies ?(nonrec=false) gamma x e sig_cn tb tests =
-  with_live_packages erase_bodies (fun () -> gen_letrec ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests)
+let constr_gen_letrec ?(value_patterns=[]) ?(call_constraints=Restrict_calls []) ~erase_bodies ?(nonrec=false) gamma x e sig_cn tb tests =
+  with_live_packages erase_bodies (fun () -> gen_letrec ~value_patterns ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests)
 
 let constr_gen_let ~erase_bodies gamma p e ta =
   let pcns = constr_gen_pat p ta in
@@ -1713,6 +1784,49 @@ let numeric_admission phi = List.map (function
       NumDefs.Eq (NumS.num_of a,NumS.num_of b,lc)
     | _ -> raise Not_found) phi
 
+(* A direct recursive constructor allocates one node. Each recursive field
+   opens that same node at its own indices. Hidden witnesses or other fields
+   require a separate construction. *)
+let recursive_value_signature self = function
+  | Cons (tag,(_::_ as args),loc) when Hashtbl.mem sigma tag && List.for_all (function
+        Var (x,_) -> x=self | _ -> false) args ->
+    let _,phi,fields,name,params = freshen_cns_scheme (Hashtbl.find sigma tag) in
+    let interface = vars_of_list params in
+    if VarSet.cardinal interface<>List.length params || List.length fields<>List.length args ||
+       not (List.for_all (fun v -> var_sort v=Num_sort) params) then None else
+    (try
+       let guard = numeric_admission phi in
+       let fields = List.map (function
+           | TCons (child,ts) when child=name && List.length ts=List.length params &&
+               List.for_all (fun t -> typ_sort t=Num_sort && VarSet.subset (fvs_typ t) interface) ts ->
+             List.map NumS.num_of ts
+           | _ -> raise Not_found) fields in
+       if not (VarSet.subset (NumDefs.fvs_formula guard) interface) then None else
+       match NumS.affine_cycle_guard ~params ~guard ~fields loc with
+       | NumS.Outside_directions -> None
+       | NumS.Empty_cycle -> raise (NoAnswer (Num_sort,
+           "No index satisfies every unfolding of this recursive constructor value",None,loc))
+       | NumS.Cycle_guard domain ->
+         Some (NumS.formula_of_sort domain, TCons (name,List.map (fun v->TVar v) params))
+     with Not_found -> None)
+  | _ -> None
+
+(* The returned value must be instantiable at every index of the proposed
+   cycle domain. A fresh copy of the inferred variables supplies its witnesses. *)
+let covers_cycle (guard,ty) inferred loc =
+  let vs,actual,result = freshen_val_scheme inferred in
+  match ty,result with
+  | TCons (name,params), TCons (other,terms) when name=other &&
+      List.length params=List.length terms && List.for_all (fun t -> typ_sort t=Num_sort) terms ->
+    (try
+       let equalities = List.map2 (fun p t -> NumDefs.Eq (NumS.num_of p,NumS.num_of t,loc))
+           params terms in
+       NumS.common_result_possible ~keys:(fvs_typ ty) ~witnesses:(vars_of_list vs)
+         ~admissions:[numeric_admission guard] ~post:(equalities @ numeric_admission actual) []
+     with Not_found | Contradiction _ -> false
+        | Failure msg when msg = "int_of_big_int" -> false)
+  | _ -> false
+
 (* A first-order input with constructor heads and bare index variables
    determines a ground substitution for every hole it exposes. Align those
    holes bijectively before comparing the two complete public contracts. *)
@@ -1889,6 +2003,8 @@ let check_key_admission ~integer_target policy bound signature written inferred 
      | Failure msg when msg = "int_of_big_int" -> Unavailable
 
 let infer_prog ?(integer_target=false) ?check_excluded solver prog =
+  let value_families = lazy (try constructor_value_bounds prog with
+      Failure msg when msg = "int_of_big_int" -> []) in
   let check_guards = integer_target && not !force_nodeadcode && can_erase_guarded_bodies prog in
   let search_item bounds packages generate =
     let run mode =
@@ -2106,33 +2222,75 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
                    let _,_,_,scheme = recursive_answer bvs loc id solution in
                    check_key_admission ~integer_target policy bvs sig_cn t scheme loc
                  with Report_toplevel _ | NoAnswer _ | Contradiction _ -> Unavailable) in
-            let search () = solve_item ~propose_call ~admitted new_ex_types e tests (fun e tests call_constraints erase_bodies ->
+            let search ?(value_patterns=[]) ?(contract=(sig_cn,t)) () =
+              let sig_cn,t = contract in
+              solve_item ~propose_call ~admitted new_ex_types e tests (fun e tests call_constraints erase_bodies ->
                 let retry_signature = match call_constraints with
                   | Open_at_keys _ | Exclude_bands _ -> Lazy.force call_signature | Restrict_calls _ -> sig_cn in
                 let chi_id, _, cn, e, tests, elim_cells, preserve =
-                  constr_gen_letrec ~call_constraints ~erase_bodies ~nonrec:(pat_loc<>None)
+                  constr_gen_letrec ~value_patterns ~call_constraints ~erase_bodies ~nonrec:(pat_loc<>None)
                     !gamma x e retry_signature t tests in
                 let preserve = add_vars preserve
                     (VarSet.union (fvs_typ t) (fvs_formula sig_cn)) in
                 cn, preserve, (chi_id, e, tests, elim_cells)) in
-            if pat_loc=None || defsig<>None || new_ex_types<>[] || lambda_depth e=0 then search () else
+            if new_ex_types<>[] || signature_target defsig<>None then search () else
+            if lambda_depth e=0 then (
+              let contract = if pat_loc=None && defsig=None then recursive_value_signature x e else None in
+              match contract with
+              | None -> search ()
+              | Some contract ->
+                let saved = !all_ex_types in
+                let proposal =
+                  try
+                    let (id,_,_,_),packages,solution as answer = search ~contract () in
+                    let _,_,_,scheme = recursive_answer bvs loc id solution in
+                    if packages=[] && covers_cycle contract scheme loc then Some answer else None
+                  with NoAnswer _ | Contradiction _ | Report_toplevel _ -> None
+                     | Failure msg when msg = "int_of_big_int" -> None in
+                match proposal with Some ans -> ans | None -> all_ex_types := saved; search ())
+            else
             let initial = !all_ex_types in
-            let ((id,_,_,_),packages,solution as original),seen = NumS.observe_guard_choices search in
-            if not seen || packages<>[] then original else
-            let _,_,_,old_scheme = recursive_answer bvs loc id solution in
-            let _,guard,_ = old_scheme in
+            let hints vars ty = value_patterns (Lazy.force value_families) vars e ty in
+            let original,seen =
+              try
+                if pat_loc=None || defsig<>None then search (),false
+                else NumS.observe_guard_choices (fun () -> search ())
+              with (NoAnswer _ | Contradiction _) as failed ->
+                (match defsig with
+                 | None -> raise failed
+                 | Some (_,_,ty) ->
+                   let patterns = hints (fvs_typ ty) ty in
+                   if patterns=[] then raise failed;
+                   all_ex_types := initial;
+                   try search ~value_patterns:patterns (),false
+                   with NoAnswer _ | Contradiction _ -> raise failed) in
+            let scheme ((id,_,_,_),_,solution) =
+              let _,_,_,sch = recursive_answer bvs loc id solution in sch in
+            let improve current old_scheme trial =
+              let saved = !all_ex_types in
+              let keep () = all_ex_types := saved; current in
+              all_ex_types := initial;
+              try
+                let _,packages,_ as proposal = trial () in
+                if packages=[] && strictly_broader_guard old_scheme (scheme proposal)
+                then proposal else keep ()
+              with
+              | NoAnswer _ | Contradiction _ | Report_toplevel _ -> keep ()
+              | Failure msg when msg = "int_of_big_int" -> keep ()
+              | exn -> all_ex_types := saved; raise exn in
+            let _,packages,_ = original in
+            if packages<>[] then original else
+            let _,guard,_ as old_scheme = scheme original in
             if guard=[] then original else
-            let saved = !all_ex_types in
-            let keep () = all_ex_types := saved; original in
-            all_ex_types := initial;
-            (try
-               let (id,_,_,_),packages,solution as proposal = NumS.with_combined_guards search in
-               let _,_,_,scheme = recursive_answer bvs loc id solution in
-               if packages=[] && strictly_broader_guard old_scheme scheme then proposal else keep ()
-             with
-             | NoAnswer _ | Contradiction _ | Report_toplevel _ -> keep ()
-             | Failure msg when msg = "int_of_big_int" -> keep ()
-             | exn -> all_ex_types := saved; raise exn) in
+            let best = if seen then improve original old_scheme
+                (fun () -> NumS.with_combined_guards (fun () -> search ())) else original in
+            let _,guard,ty as best_scheme = if best==original then old_scheme else scheme best in
+            if guard=[] then best else
+            let patterns = hints (fvs_formula guard) ty in
+            if patterns=[] then best else
+            let trial () = search ~value_patterns:patterns () in
+            improve best best_scheme (if best==original then trial
+                else fun () -> NumS.with_combined_guards trial) in
           let elim_extypes = concat_map (!) elim_cells in
           let nice_sb,sb_res,sb,typ_sch = recursive_answer bvs loc chi_id (q,phi_res,sb_chi) in
           let e = annotate_expr q sb sb_chi nice_sb e in

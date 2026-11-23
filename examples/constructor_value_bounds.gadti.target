@@ -1,0 +1,47 @@
+datatype List : type * num
+
+datacons LNil : ∀a. List (a, 0)
+
+datacons LCons : ∀n, a[0 ≤ n].a * List (a, n) ⟶ List (a, n + 1)
+
+val append : ∀k, n, a. List (a, k) → List (a, n) → List (a, n + k)
+
+val empty : List (Bool, 0)
+
+val two : List (Bool, 2)
+
+external val verify : List (Bool, 2) → Bool
+
+val checked : Bool
+
+datatype Packet : num
+
+datacons Pack : ∀n[0 ≤ n].Num n ⟶ Packet n
+
+datatype Cargo : num
+
+datacons Load : ∀n.Packet n ⟶ Cargo n
+
+external val consume : ∀n[0 ≤ n]. Cargo n → Bool
+
+val unpack : ∀n. Cargo n → Bool
+
+val loaded : Bool
+
+datatype Tower : num
+
+datacons Floor : Tower 0
+
+datacons Step : ∀n.Tower n ⟶ Tower (n + 1)
+
+val spiral : ∀n. Tower n
+
+val observed : Tower -1
+
+external val closes_cycle : ∀n. Tower n → Bool
+
+val cyclic : Bool
+
+external val nonnegative : ∀n[0 ≤ n]. Tower n → Num n → Bool
+
+val use : ∀n[0 ≤ n]. Tower n → Num n → Bool

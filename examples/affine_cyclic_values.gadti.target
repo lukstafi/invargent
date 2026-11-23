@@ -1,0 +1,54 @@
+datatype Scale : num
+
+datacons Grow : ∀n[n ≤ 0].Scale (2 n + 1) ⟶ Scale n
+
+val forever : ∀n[n + 1 ≤ 0]. Scale n
+
+datatype Sum : num * num
+
+datacons GrowSum : ∀i, j[i + j ≤ 0].Sum (2 i + 1, 2 j + 1) ⟶
+   Sum (i, j)
+
+val sum : ∀k, n[k + n + 2 ≤ 0]. Sum (n, k)
+
+datatype Axes : num * num
+
+datacons Split : ∀i, j[i ≤ 0].Axes (2 j + 1, i) * Axes (j, 2 i + 1) ⟶
+   Axes (i, j)
+
+val fork : ∀k, n[k + 1 ≤ 0 ∧ n + 1 ≤ 0]. Axes (n, k)
+
+datatype Orbit : num * num
+
+datacons Turn : ∀i,
+   j[i ≤ 1].Orbit ((3/5) i + (-4/5) j, (4/5) i + (3/5) j) ⟶ Orbit (i, j)
+
+val ring : Orbit (0, 0)
+
+val boundary : Scale -1
+
+val inside : Sum (3, -5)
+
+val both : Axes (-1, -2)
+
+val centre : Orbit (0, 0)
+
+datatype Mirror : num
+
+datacons Reflect : ∀n[n ≤ 3].Mirror (-n) ⟶ Mirror n
+
+val mirror : ∀n[n ≤ 3 ∧ 0 ≤ n + 3]. Mirror n
+
+val left : Mirror -3
+
+val right : Mirror 3
+
+datatype Cross : num * num
+
+datacons Flip : ∀i, j[i + j ≤ 3].Cross (-i, -j) ⟶ Cross (i, j)
+
+val cross : ∀k, n[k + n ≤ 3 ∧ 0 ≤ k + n + 3]. Cross (n, k)
+
+val high : Cross (2, 1)
+
+val low : Cross (-2, -1)

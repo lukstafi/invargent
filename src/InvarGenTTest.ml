@@ -211,6 +211,20 @@ let tests = "InvarGenT" >::: [
       "an identity view exposes a constructor invariant to append" >::
         run_example ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b)
           "constructor_value_view";
+      "finite constructor observations broaden ordinary value bindings" >::
+        run_example ~full_annot:true ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b)
+          "constructor_value_bounds";
+      "affine constructor cycles recover their limiting guards" >::
+        run_example ~full_annot:true ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b)
+          "affine_cyclic_values";
+      "a cyclic or late constructor cannot justify an index guard" >:: (fun () ->
+        let code = input_file (example_path "constructor_value_bounds" ^ ".gadt") in
+        assert_bool "the cyclic tower can have a negative index"
+          (rejects_source (code ^ "\nlet bad = use observed (-1)"));
+        let late = code ^ "\ndatacons Owed : Cargo (-1)\n" in
+        ignore (infer_source (late ^ "let ok = closes_cycle observed"));
+        assert_bool "every constructor of Cargo must justify the weakened guard"
+          (rejects_source (late ^ "let bad = unpack Owed")));
       "GADT match result indices refine inside the branches" >::
         run_example ~full_annot:true "compare_term_indices";
       "repeating a supplier preserves the other upper bound" >::

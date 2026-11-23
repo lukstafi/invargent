@@ -5002,6 +5002,60 @@ let project_exists ~vars phi =
     | _ -> List.map (fun cell -> shared @ cell) (unique_sorted cells)
   with Terms.Contradiction _ -> []
 
+type cycle_domain = Outside_directions | Empty_cycle | Cycle_guard of formula
+
+(* Exact root domain for a recursive constructor whose fields at this same
+   value have affine images of the public index vector. A live guard normal
+   needs one upper bound. Pull it through each field, retaining its positive
+   scale. Projection chooses bounds that prove every recursive instance. *)
+let affine_cycle_guard ~params ~guard ~fields loc =
+  let cmp_v = state_cmp_v and zero = Cst (0,1) in
+  let normalize = function [] -> raise Not_found | (_,k)::_ as vs ->
+    let scale = abs_num k in List.map (fun (v,t) -> v,t // scale) vs,scale in
+  let linear t = match flatten ~cmp_v (Leq (t,zero,loc)) with
+    | Leq_w w -> w | _ -> assert false in
+  try
+    let eq,leq,opt,subopt = split_flatten ~cmp_v guard in
+    if opt<>[] || subopt<>[] then raise Not_found;
+    let rows = eq @ List.map (mult !/(-1)) eq @ leq in
+    let maps = List.map (fun args -> varmap_of_assoc (List.map2 (fun v t ->
+        v,linear t) params args)) fields in
+    let normals rows = map_some (function [],_,_ -> None
+        | vs,_,_ -> Some (fst (normalize vs))) rows in
+    (* The first pullbacks include the opposite oblique normal in a
+       reflection. Further pullbacks must close in the resulting library. *)
+    let basis = normals rows @ concat_map (fun sb -> normals (List.map (subst_w ~cmp_v sb) rows)) maps in
+    let allowed dir = match dir with
+      | [v,_] -> List.mem v params
+      | _ -> List.exists (fun known -> compare_comb dir known=0) basis in
+    let caps = ref CombMap.empty and queue = Queue.create () and obligations = ref [] in
+    let cap dir =
+      if not (allowed dir) then raise Not_found;
+      try CombMap.find dir !caps with Not_found ->
+        let v = Terms.fresh_num_var () in
+        caps := CombMap.add dir v !caps;
+        Queue.add (dir,v) queue; v in
+    let bound (vars,c,_) = match vars with
+      | [] -> expand_cst c
+      | _ -> let dir,scale = normalize vars in
+        expand_w ([cap dir,scale],c,loc) in
+    let require a b = obligations := Leq (a,b,loc) :: !obligations in
+    List.iter (fun row -> require (bound row) zero) rows;
+    while not (Queue.is_empty queue) do
+      let dir,v = Queue.take queue in
+      let face = dir,!/0,loc and upper = Lin (1,1,v) in
+      require (expand_w face) upper;
+      List.iter (fun sb -> require (bound (subst_w ~cmp_v sb face)) upper) maps
+    done;
+    let private_vars = CombMap.fold (fun _ v vs -> VarSet.add v vs) !caps VarSet.empty in
+    match project_exists ~vars:private_vars !obligations with
+    | [] -> Empty_cycle
+    | [domain] -> (match satisfiable domain with
+        | Right _ -> Cycle_guard domain | Left _ -> Empty_cycle)
+    | _ -> Outside_directions
+  with Not_found -> Outside_directions
+     | Failure msg when msg = "int_of_big_int" -> Outside_directions
+
 let atom_violations positive =
   let zero = Cst (0,1) in function
   | Eq (a,b,lc) -> [[positive lc a b]; [positive lc b a]]

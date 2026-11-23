@@ -223,6 +223,13 @@ val implies_cnj : state -> NumDefs.formula -> bool
 (** Existential projection over rational indices. The result is a disjunction
     of conjunctions. Atoms independent of [vars] retain their original form. *)
 val project_exists : vars:Defs.VarSet.t -> NumDefs.formula -> NumDefs.formula list
+type cycle_domain = Outside_directions | Empty_cycle | Cycle_guard of NumDefs.formula
+
+(** A recursive data value with affine field indices. Project a common
+    inductive bound for each live guard direction when its pullbacks fit. *)
+val affine_cycle_guard : params:Defs.var_name list -> guard:NumDefs.formula ->
+  fields:NumDefs.term list list -> Defs.loc -> cycle_domain
+
 (** Feasibility of a numeric premise and a finite conjunction of
     admission => postcondition clauses. Use fresh private witnesses for each
     distinct opening. Cells licensing the same opening may share its postcondition. *)
