@@ -5002,6 +5002,16 @@ let project_exists ~vars phi =
     | _ -> List.map (fun cell -> shared @ cell) (unique_sorted cells)
   with Terms.Contradiction _ -> []
 
+let cycle_rows phi =
+  let eq,leq,opt,subopt = split_flatten ~cmp_v:state_cmp_v phi in
+  if opt<>[] || subopt<>[] then raise Not_found;
+  eq @ List.map (mult !/(-1)) eq @ leq
+
+let cycle_maps params fields loc =
+  let linear t = match flatten ~cmp_v:state_cmp_v (Leq (t,Cst (0,1),loc)) with
+    | Leq_w row -> row | _ -> assert false in
+  List.map (fun args -> varmap_of_assoc (List.map2 (fun v t -> v,linear t) params args)) fields
+
 type cycle_domain = Outside_directions | Empty_cycle | Cycle_guard of formula
 
 (* Exact root domain for a recursive constructor whose fields at this same
@@ -5012,14 +5022,8 @@ let affine_cycle_guard ~params ~guard ~fields loc =
   let cmp_v = state_cmp_v and zero = Cst (0,1) in
   let normalize = function [] -> raise Not_found | (_,k)::_ as vs ->
     let scale = abs_num k in List.map (fun (v,t) -> v,t // scale) vs,scale in
-  let linear t = match flatten ~cmp_v (Leq (t,zero,loc)) with
-    | Leq_w w -> w | _ -> assert false in
   try
-    let eq,leq,opt,subopt = split_flatten ~cmp_v guard in
-    if opt<>[] || subopt<>[] then raise Not_found;
-    let rows = eq @ List.map (mult !/(-1)) eq @ leq in
-    let maps = List.map (fun args -> varmap_of_assoc (List.map2 (fun v t ->
-        v,linear t) params args)) fields in
+    let rows = cycle_rows guard and maps = cycle_maps params fields loc in
     let normals rows = map_some (function [],_,_ -> None
         | vs,_,_ -> Some (fst (normalize vs))) rows in
     (* The first pullbacks include the opposite oblique normal in a
@@ -5055,6 +5059,195 @@ let affine_cycle_guard ~params ~guard ~fields loc =
     | _ -> Outside_directions
   with Not_found -> Outside_directions
      | Failure msg when msg = "int_of_big_int" -> Outside_directions
+
+(* Check a union of convex cells directly against the constructor. A field
+   can use a different cell at its child. Projecting the hidden coordinates
+   lets a child choose its own witnesses. *)
+let replay_cycle ~params ~guard ~fields domain loc =
+  let cmp_v = state_cmp_v in
+  let maps = cycle_maps params fields loc in
+  let check cells =
+    try
+      let children = List.map (fun sb -> List.map (fun cell ->
+          List.map (fun row -> Leq (expand_w (subst_w ~cmp_v sb row),Cst (0,1),loc))
+            (cycle_rows cell)) cells) maps in
+      let feasible = map_some (fun cell -> match satisfiable cell with
+          | Left _ -> None | Right state -> Some state) cells in
+      feasible<>[] && List.for_all (fun state ->
+          implies_cnj state guard && List.for_all (List.exists (implies_cnj state)) children)
+        feasible
+    with Not_found -> false in
+  try
+    check [domain] ||
+    let hidden = VarSet.diff (fvs_formula domain) (vars_of_list params) in
+    not (VarSet.is_empty hidden) && check (project_exists ~vars:hidden domain)
+  with Terms.Contradiction _ -> false
+     | Failure msg when msg = "int_of_big_int" -> false
+
+(* Each component of a guard is an affine function on the public indices.
+   The diagonal entries (and 1 for the constant coordinate) suggest rational
+   eigenvalues. Verify the projections so a change of basis or a Jordan block
+   can only make this proposal unavailable. *)
+let spectral_cycle_guard ~params ~guard ~fields loc =
+  let cmp_v = state_cmp_v in
+  let zero = [],!/0,loc in
+  let same = equal_w ~cmp_v and plus = sum_w ~cmp_v in
+  let term v = Lin (1,1,v) in
+  try
+    let maps = cycle_maps params fields loc in
+    let project parts sb =
+      let eigenvalues = unique_sorted ~cmp:compare_num (!/1 :: List.map (fun v ->
+          let vs,_,_ = VarMap.find v sb in
+          try List.assoc v vs with Not_found -> !/0) params) in
+      concat_map (fun row ->
+          let components = map_some (fun rate ->
+              let component = List.fold_left (fun p other ->
+                  if rate =/ other then p else mult (!/1 // (rate -/ other))
+                    (diff ~cmp_v (subst_w ~cmp_v sb p) (mult other p))) row eigenvalues in
+              if zero_p component then None else
+              if same (subst_w ~cmp_v sb component) (mult rate component)
+              then Some component else raise Not_found) eigenvalues in
+          if not (same row (List.fold_left plus zero components)) then raise Not_found;
+          components) parts in
+    let bounds = ref [] and stability = ref [] in
+    let cap row =
+      let v = Terms.fresh_num_var () in
+      bounds := Leq (expand_w row,term v,loc) :: !bounds;
+      [v,!/1],!/0,loc in
+    let le a b = Leq (expand_w a,expand_w b,loc) in
+    let protect row =
+      let components = List.fold_left project [row] maps in
+      let images component =
+        let slope sb =
+          let image = subst_w ~cmp_v sb component in
+          let vs,c,_ = component and ws,d,_ = image in
+          let rate = match vs with
+            | [] -> d // c
+            | (v,k)::_ -> (try List.assoc v ws with Not_found -> !/0) // k in
+          if not (same image (mult rate component)) then raise Not_found;
+          rate in
+        let rates = List.map slope maps in
+        if List.for_all (fun r -> r =/ !/1) rates then (fun _ _ -> component) else
+          let upper = cap component in
+          let changes_sign = List.exists (fun r -> r </ !/0) rates in
+          let reflected = if changes_sign then cap (mult !/(-1) component) else upper in
+          let protect_face face opposite =
+            if List.exists (fun r -> r >=/ !/0 && r </ !/1) rates then
+              bounds := le zero face :: !bounds;
+            if List.exists (fun r -> r >/ !/1) rates then
+              stability := le face zero :: !stability;
+            List.iter (fun r -> if r </ !/0 then
+                stability := le (mult (abs_num r) opposite) face :: !stability)
+              (unique_sorted ~cmp:compare_num rates) in
+          protect_face upper reflected;
+          if changes_sign then protect_face reflected upper;
+          let rates = Array.of_list rates in
+          fun i j ->
+            let r = rates.(i) */ rates.(j) in
+            if r </ !/0 then mult (abs_num r) reflected else mult r upper in
+      let faces = List.map images components in
+      (* Check the first observation at its actual indices. After two fields
+         only the products of common eigenvalues matter, in either order. *)
+      let rec pairs i = function
+        | [] -> []
+        | _::rest as maps -> List.mapi (fun j _ ->
+            le (List.fold_left (fun sum image -> plus sum (image i (i+j))) zero faces) zero)
+            maps @ pairs (i+1) rest in
+      List.map (fun sb -> le (subst_w ~cmp_v sb row) zero) maps @ pairs 0 maps in
+    let entry = concat_map protect (cycle_rows guard) in
+    let future = !stability @ entry in
+    let domain = guard @ !bounds @ future in
+    (* Check the actual field maps against the complete scheme, keeping its
+       private caps fixed through each recursive occurrence. *)
+    if replay_cycle ~params ~guard ~fields domain loc then Some (!bounds,future) else None
+  with Not_found -> None
+     | Failure msg when msg = "int_of_big_int" -> None
+
+(* The closed convex hull of two nonempty polyhedra: write x=y+(x-y)
+   and scale their constant terms by t and 1-t. Project one coordinate
+   at a time. If an explicit hull becomes large, retain both typings in
+   the extended disjunctive form below. *)
+let cycle_hull ~params left right loc =
+  let cmp_v = state_cmp_v in
+  let prune phi =
+    let rec take kept = function
+      | [] -> List.rev kept
+      | row::rest ->
+        if implies_cnj (satisfiable_exn (List.rev_append kept rest)) [row] then take kept rest
+        else take (row::kept) rest in
+    take [] phi in
+  let left = cycle_rows (prune left) and right = cycle_rows (prune right) in
+  let t = Terms.fresh_num_var () and part = List.map (fun _ -> Terms.fresh_num_var ()) params in
+  let pieces = varmap_of_assoc (List.combine params part) in
+  let lift first (vs,c,lc) =
+    let split = List.map (fun (v,k) -> VarMap.find v pieces, (if first then k else minus_num k)) vs in
+    if first then norm_w ~cmp_v ((t,c)::split,!/0,lc)
+    else norm_w ~cmp_v ((t,minus_num c)::(split @ vs),c,lc) in
+  let needs_scale = List.exists (fun (_,c,_) -> c <>/ !/0) (left @ right) in
+  let initial = List.map (lift true) left @ List.map (lift false) right in
+  let vars,initial = if needs_scale then
+      t::part, ([t,!/(-1)],!/0,loc)::([t,!/1],!/(-1),loc)::initial else part,initial in
+  let limit = List.length initial * List.length initial in
+  let constraints rows =
+    let faces = List.fold_left (fun faces (vs,c,_) -> match vs with
+        | [] -> if c >/ !/0 then raise Not_found else faces
+        | (_,lead)::_ ->
+          let scale = abs_num lead in
+          let dir = List.map (fun (v,k) -> v,k // scale) vs and c = c // scale in
+          let c = try max_num c (CombMap.find dir faces) with Not_found -> c in
+          CombMap.add dir c faces) CombMap.empty rows in
+    CombMap.fold (fun vs c acc -> (vs,c,loc)::acc) faces [] in
+  let rec eliminate rows = function
+    | [] -> List.map (expand_atom false) rows
+    | vars ->
+      let split v =
+        let upper,lower,keep = List.fold_left (fun (u,l,r) ((vs,_,_) as w) ->
+            let k = try List.assoc v vs with Not_found -> !/0 in
+            if k >/ !/0 then mult (!/1 // k) w::u,l,r
+            else if k </ !/0 then u,mult (!/(-1) // k) w::l,r else u,l,w::r)
+            ([],[],[]) rows in
+        List.length upper * List.length lower + List.length keep,v,(upper,lower,keep) in
+      let n,v,(upper,lower,keep) = List.hd (List.sort (fun (a,_,_) (b,_,_) -> compare a b)
+          (List.map split vars)) in
+      if n>limit then raise Not_found;
+      let next = concat_map (fun u -> List.map (sum_w ~cmp_v u) lower) upper in
+      eliminate (constraints (List.rev_append next keep)) (List.filter ((<>) v) vars) in
+  prune (eliminate (constraints initial) vars)
+
+(* The caps have a feasible choice at every public index. A private slack
+   above each branch's violations encodes their union with one minimum.
+   The common reference keeps that minimum printable in source syntax. *)
+let join_cycle_guards ~params ~fields ~old ~guard ~bounds ~future loc =
+  let all = guard @ bounds @ future in
+  let state = satisfiable_exn all in
+  if implies_cnj state old then None else
+  let earlier = satisfiable_exn old in
+  let hidden = VarSet.diff (fvs_formula all) (vars_of_list params) in
+  let public = match project_exists ~vars:hidden all with [p] -> p | _ -> raise Not_found in
+  if implies_cnj earlier public then Some all else
+  let hull = try
+      let hull = cycle_hull ~params old public loc in
+      if implies_cnj earlier hull && implies_cnj state hull && replay_cycle ~params ~guard ~fields hull loc
+      then Some hull else None
+    with Not_found | Terms.Contradiction _ -> None
+       | Failure msg when msg = "int_of_big_int" -> None in
+  match hull with Some _ -> hull | None ->
+  let reference = List.hd params in
+  let branch rows =
+    let s = Terms.fresh_num_var () in
+    let gap = Add [Lin (1,1,s); Lin (-1,1,reference)] in
+    let bound a b = Leq (a,Add [b;gap],loc) in
+    let atoms = concat_map (function
+        | Leq (a,b,_) -> [bound a b]
+        | Eq (a,b,_) -> [bound a b; bound b a]
+        | _ -> raise Not_found) rows in
+    gap,atoms in
+  let common,future = List.partition (fun a -> implies_cnj earlier [a]) future in
+  let shared = guard @ common in
+  let state = satisfiable_exn shared in
+  let old = List.filter (fun a -> not (implies_cnj state [a])) old in
+  let left,l = branch old and right,r = branch future in
+  Some (shared @ bounds @ l @ r @ [Subopti (left,right,loc)])
 
 let atom_violations positive =
   let zero = Cst (0,1) in function

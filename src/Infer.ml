@@ -1787,7 +1787,7 @@ let numeric_admission phi = List.map (function
 (* A direct recursive constructor allocates one node. Each recursive field
    opens that same node at its own indices. Hidden witnesses or other fields
    require a separate construction. *)
-let recursive_value_signature self = function
+let direct_cycle self = function
   | Cons (tag,(_::_ as args),loc) when Hashtbl.mem sigma tag && List.for_all (function
         Var (x,_) -> x=self | _ -> false) args ->
     let _,phi,fields,name,params = freshen_cns_scheme (Hashtbl.find sigma tag) in
@@ -1801,15 +1801,24 @@ let recursive_value_signature self = function
                List.for_all (fun t -> typ_sort t=Num_sort && VarSet.subset (fvs_typ t) interface) ts ->
              List.map NumS.num_of ts
            | _ -> raise Not_found) fields in
-       if not (VarSet.subset (NumDefs.fvs_formula guard) interface) then None else
-       match NumS.affine_cycle_guard ~params ~guard ~fields loc with
-       | NumS.Outside_directions -> None
-       | NumS.Empty_cycle -> raise (NoAnswer (Num_sort,
-           "No index satisfies every unfolding of this recursive constructor value",None,loc))
-       | NumS.Cycle_guard domain ->
-         Some (NumS.formula_of_sort domain, TCons (name,List.map (fun v->TVar v) params))
+       if VarSet.subset (NumDefs.fvs_formula guard) interface
+       then Some (name,params,guard,fields) else None
      with Not_found -> None)
   | _ -> None
+
+let written_cycle name params guard fields scheme loc =
+  let _,phi,result = freshen_val_scheme scheme in
+  match result with
+  | TCons (head,args) when head=name && List.length args=List.length params ->
+    (try
+       let variables = List.map (function
+           | TVar v | Alien (Num_term (NumDefs.Lin (1,1,v))) when var_sort v=Num_sort -> v
+           | _ -> raise Not_found) args in
+       if VarSet.cardinal (vars_of_list variables)<>List.length params then false else
+       let rename = varmap_of_assoc (List.combine variables params) in
+       NumS.replay_cycle ~params ~guard ~fields (numeric_admission (hvsubst_formula rename phi)) loc
+     with Not_found -> false)
+  | _ -> false
 
 (* The returned value must be instantiable at every index of the proposed
    cycle domain. A fresh copy of the inferred variables supplies its witnesses. *)
@@ -1826,6 +1835,24 @@ let covers_cycle (guard,ty) inferred loc =
      with Not_found | Contradiction _ -> false
         | Failure msg when msg = "int_of_big_int" -> false)
   | _ -> false
+
+(* Express the earlier type at the same public tuple before taking the union.
+   Each opening has its own witnesses for the earlier quantified variables. *)
+let join_cycle_scheme ~name ~params ~fields ~guard ~bounds ~future earlier loc =
+  let vs,phi,result = freshen_val_scheme earlier in
+  match result with
+  | TCons (head,args) when head=name && List.length args=List.length params &&
+      List.for_all (fun t -> typ_sort t=Num_sort) args ->
+    (try
+       let opened = List.map2 (fun p t ->
+           NumDefs.Eq (NumDefs.Lin (1,1,p),NumS.num_of t,loc)) params args in
+       match NumS.project_exists ~vars:(vars_of_list vs) (opened @ numeric_admission phi) with
+       | [old] when NumS.implies_cnj (NumS.satisfiable_exn old) guard ->
+         NumS.join_cycle_guards ~params ~fields ~old ~guard ~bounds ~future loc
+       | _ -> None
+     with Not_found | Contradiction _ -> None
+        | Failure msg when msg = "int_of_big_int" -> None)
+  | _ -> None
 
 (* A first-order input with constructor heads and bare index variables
    determines a ground substitution for every hole it exposes. Align those
@@ -2165,8 +2192,13 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
       new_ex_types;
     !more_items in
   let constructor_samples = ref [] in
-  let items : annot_item list = concat_map
-      (function
+  let report_value x scheme =
+    if !inform_toplevel then Format.printf "@[<2>val@ %s :@ %a@]@\n%!" x pr_typscheme scheme;
+    if !inform_toplevel && !time_toplevel then (
+      let time = Sys.time () in
+      Format.printf "(t=%.3fs)@\n" (time -. !ntime);
+      ntime := time) in
+  let infer_item ?(report=true) contract = function
         | _, TypConstr (docu, n, sorts, lc) ->
           [ITypConstr (docu, n, sorts, lc)]
         | _, PrimTyp (docu, n, sorts, expansion, lc) ->
@@ -2235,7 +2267,6 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
                 cn, preserve, (chi_id, e, tests, elim_cells)) in
             if new_ex_types<>[] || signature_target defsig<>None then search () else
             if lambda_depth e=0 then (
-              let contract = if pat_loc=None && defsig=None then recursive_value_signature x e else None in
               match contract with
               | None -> search ()
               | Some contract ->
@@ -2298,14 +2329,7 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
           gamma := (x, typ_sch) :: !gamma;
           let ex_items =
             update_new_ex_types q new_ex_types sb_res sb_chi in
-          if !inform_toplevel
-          then Format.printf
-              "@[<2>val@ %s :@ %a@]@\n%!" x pr_typscheme typ_sch;
-          if !inform_toplevel && !time_toplevel
-          then (
-            let time = Sys.time () in
-            Format.printf "(t=%.3fs)@\n" (time -. !ntime);
-            ntime := time);
+          if report then report_value x typ_sch;
           (match pat_loc with
            | Some lc ->
              ex_items @
@@ -2449,7 +2473,51 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
           gamma := typ_schs @ !gamma;
           ex_items @ List.rev !more_items
           @ [ILetVal (docu, p, e, top_sch, typ_schs, elim_extypes, loc)]
-      ) prog in
+  in
+  let infer source = match source with
+    | [], LetRecVal (docu,x,(Cons (tag,args,lc) as e),written,tests,loc) when signature_target written=None ->
+      let install env scheme =
+        (* direct_cycle has checked that every child is this same binding. *)
+        let body = Cons (tag,List.map (function Var (v,l) -> Var (v,l) | _ -> assert false) args,lc) in
+        gamma := (x,scheme)::env;
+        report_value x scheme;
+        [ILetRecVal (docu,x,body,scheme,[],[],loc)] in
+      (match direct_cycle x e,written with
+       | None,_ -> infer_item None source
+       | Some (name,params,guard,fields),Some scheme ->
+         if tests=[] && written_cycle name params guard fields scheme loc then install !gamma scheme
+         else infer_item None source
+       | Some (name,params,guard,fields),None ->
+         let ty = TCons (name,List.map (fun v -> TVar v) params) in
+         match NumS.affine_cycle_guard ~params ~guard ~fields loc with
+         | NumS.Empty_cycle -> raise (NoAnswer (Num_sort,
+             "No index satisfies every unfolding of this recursive constructor value",None,lc))
+         | NumS.Cycle_guard domain -> infer_item (Some (NumS.formula_of_sort domain,ty)) source
+         | NumS.Outside_directions ->
+         match (if tests=[] then NumS.spectral_cycle_guard ~params ~guard ~fields loc else None) with
+         | None -> infer_item None source
+         | Some (bounds,future) ->
+         let env = !gamma and packages = !all_ex_types in
+         let previous =
+           try Some (infer_item ~report:false None source)
+           with NoAnswer _ | Contradiction _ ->
+             gamma := env; all_ex_types := packages; None in
+         let new_domain = match previous with
+           | None -> Some (guard @ bounds @ future)
+           | Some [ILetRecVal (_,_,_,old,_,_,_)] ->
+             join_cycle_scheme ~name ~params ~fields ~guard ~bounds ~future old loc
+           | Some _ -> None in
+         (match new_domain,previous with
+          | None,Some items -> report_value x (List.assoc x !gamma); items
+          | None,None -> assert false
+          | Some domain,_ ->
+            let phi = NumS.formula_of_sort domain in
+            let vs = VarSet.elements (VarSet.union (fvs_typ ty) (fvs_formula phi)) in
+            let sb,(vs,phi) = nice_ans ~fvs:(fvs_typ ty) (vs,phi) in
+            let scheme = vs,phi,hvsubst_typ sb ty in
+            install env scheme))
+    | _ -> infer_item None source in
+  let items = concat_map infer prog in
   if !time_toplevel
   then Format.printf "@\nTotal time %.3fs@\n" (Sys.time () -. start_time);
   List.rev !gamma, items

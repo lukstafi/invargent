@@ -230,6 +230,16 @@ type cycle_domain = Outside_directions | Empty_cycle | Cycle_guard of NumDefs.fo
 val affine_cycle_guard : params:Defs.var_name list -> guard:NumDefs.formula ->
   fields:NumDefs.term list list -> Defs.loc -> cycle_domain
 
+(** Replay a direct constructor against the cells of a proposed recursive scheme. *)
+val replay_cycle : params:Defs.var_name list -> guard:NumDefs.formula -> fields:NumDefs.term list list ->
+  NumDefs.formula -> Defs.loc -> bool
+(** Private component bounds and field obligations for a checked spectral scheme. *)
+val spectral_cycle_guard : params:Defs.var_name list -> guard:NumDefs.formula ->
+  fields:NumDefs.term list list -> Defs.loc -> (NumDefs.formula * NumDefs.formula) option
+val join_cycle_guards : params:Defs.var_name list -> fields:NumDefs.term list list -> old:NumDefs.formula ->
+  guard:NumDefs.formula -> bounds:NumDefs.formula -> future:NumDefs.formula ->
+  Defs.loc -> NumDefs.formula option
+
 (** Feasibility of a numeric premise and a finite conjunction of
     admission => postcondition clauses. Use fresh private witnesses for each
     distinct opening. Cells licensing the same opening may share its postcondition. *)

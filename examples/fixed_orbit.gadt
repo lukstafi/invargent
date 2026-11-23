@@ -1,0 +1,4 @@
+datatype Fixed : num * num * num * num * num * num * num * num
+datacons Fork : ∀i,j,k,l,m,n,i1,j1[i1≤1+i+l+n]. Fixed (i + j + 1/4 l,1/4 j + 1/8 l,1/4 k + 1/8 m,1/16 l,1/16 m,1/16 n,i1,j1) * Fixed (i + 5/4 j + 25/64 l,1/16 j + 5/128 l,1/4 k + 5/32 m,1/256 l,1/64 m,1/16 n,i1,j1) * Fixed (2 i,2 j,2 k,2 l,2 m,2 n,3/5 i1 + -4/5 j1,4/5 i1 + 3/5 j1) ⟶ Fixed (i,j,k,l,m,n,i1,j1)
+let rec knot : ∀i,j,k,l,m,n,i1,j1[-1 i + -4/3 j + -4/9 l≤-4/9 ∧ -3/2 i + -1 j≤0 ∧ -1 l≤0 ∧ -1 n≤0 ∧ -1/2 i + 2/3 j + -7/9 l + -1 n≤0 ∧ -1/2 i + -2/3 j + -2/9 l + i1≤1 ∧ -1/2 i + -2/3 j + -2/9 l + -1 i1≤1 ∧ -1/2 i + -2/3 j + -2/9 l + j1≤1 ∧ -1/2 i + -2/3 j + -2/9 l + -1 j1≤1 ∧ -1/2 i + -2/3 j + -2/9 l + -2/3 i1 + -2/3 j1≤1 ∧ -1/2 i + -2/3 j + -2/9 l + -2/3 i1 + 2/3 j1≤1 ∧ -1/2 i + -2/3 j + -2/9 l + 2/3 i1 + -2/3 j1≤1 ∧ -1/2 i + -2/3 j + -2/9 l + 2/3 i1 + 2/3 j1≤1]. Fixed (i,j,k,l,m,n,i1,j1) = Fork (knot,knot,knot)
+let at_start : Fixed (0,0,0,1,1,1,1,0) = knot

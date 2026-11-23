@@ -1,0 +1,44 @@
+datatype Orbit : num * num * num * num * num * num
+
+datacons Fork : ∀i, j, k, l, m,
+   n[1 ≤ i + l + n].Orbit ((1/4) l + i + j, (1/4) j + (1/8) l, (1/4) k +
+                        (1/8) m, (1/16) l, (1/16) m, (1/16) n) *
+   Orbit ((25/64) l + i + (5/4) j, (1/16) j + (5/128) l, (1/4) k + (5/32) m,
+     (1/256) l, (1/64) m, (1/16) n)
+   ⟶ Orbit (i, j, k, l, m, n)
+
+val ring :
+   ∀n, k, i, j, m, l, n1, k1, i1[1 ≤ l + n + j ∧ 0 ≤ i1 ∧
+   (4/3) k + (8/9) j ≤ i1 ∧ 0 ≤ k1 ∧ -l ≤ k1 ∧ 0 ≤ n1 ∧
+   (-13/9) j ≤ n1 ∧ -n + -k + (-5/16) j + (-1/16) l + 1 ≤ 0 ∧
+   -n + (-5/4) k + (-101/256) j + (-1/16) l + 1 ≤ 0 ∧
+   -n + (-4/3) k + (-4/9) j + (1/256) n1 + (1/256) k1 + (1/16) i1 + 1 ≤ 0 ∧
+   -n + (-4/3) k + (-4/9) j + (1/4096) n1 + (1/256) k1 + (1/64) i1 + 1 ≤ 0 ∧
+   -n + (-4/3) k + (-4/9) j + (1/65536) n1 + (1/256) k1 + (1/256) i1 + 1 ≤
+     0].
+   Orbit (n, k, i, j, m, l)
+
+datatype Seen
+
+datacons Observe : ∀n[1 ≤ n].Orbit (0, 0, 0, n, n, n) ⟶ Seen
+
+val observed : Seen
+
+val sharp : Orbit (0, 0, 0, (8/3), (8/3), (8/3))
+
+val earlier : Orbit (-3, 3, 0, 3, 0, 1)
+
+datatype Decay : num * num * num
+
+datacons Shrink : ∀i, j,
+   k[i + j + k ≤ 0].Decay ((1/2) i, (1/3) j, (1/5) k) ⟶ Decay (i, j, k)
+
+val decay :
+   ∀n, k, i[n + k + i ≤ 0 ∧ n + i ≤ 0 ∧ (9/4) n + k ≤ 0 ∧
+   n ≤ 0]. Decay (n, k, i)
+
+val first : Decay (-1, 0, 1)
+
+val second : Decay (0, -1, 0)
+
+val middle : Decay ((-1/2), (-1/2), (1/2))
