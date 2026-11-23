@@ -619,6 +619,15 @@ let expand_atom equ (_,_,loc as w) =
   let left, right = expand_sides (norm_by_gcd w) in
   if equ then Eq (left, right, loc) else Leq (left, right, loc)
 
+(* Internal elimination uses unbounded rationals. A row is already known to
+   be contradictory here; attaching printable source terms is optional. *)
+let fail_row message (_,_,loc as row) =
+  let details = try
+      let lhs,rhs = expand_sides (norm_by_gcd row) in
+      Some (Terms.num lhs,Terms.num rhs)
+    with Failure msg when msg="int_of_big_int" -> None in
+  raise (Terms.Contradiction (Num_sort,message,details,loc))
+
 let expand_opti ((_,_,lc1) as w1, (_,_,lc2 as w2)) =
   Opti (expand_w (norm_by_gcd w1), expand_w (norm_by_gcd w2),
         loc_union lc1 lc2)
@@ -979,14 +988,7 @@ let solve_aux ~use_quants ?(strict=false)
              quant_viol uni_v cmp_v ~storeable:false bvs v vars ->
       (*[* Format.printf "NumS.solve: fail--quant viol eq=@ %a@\n%!"
         pr_w ((v, k)::vars, cst, loc); *]*)
-      let t1, t2 =
-        match expand_atom true ((v, k)::vars, cst, loc) with
-        | Eq (t1, t2, _) -> t1, t2
-        | _ -> assert false in
-      raise (Terms.Contradiction
-               (Num_sort,
-                "Quantifier violation (numeric equation)",
-                Some (Terms.num t1, Terms.num t2), loc))
+      fail_row "Quantifier violation (numeric equation)" ((v,k)::vars,cst,loc)
     | ((v, k)::vars, cst, loc)::eqn ->
       let w_sb = v, mult (!/(-1) // k) (vars, cst, loc) in
       let acc = subst_one_sb ~cmp_v w_sb acc in
@@ -1042,14 +1044,7 @@ let solve_aux ~use_quants ?(strict=false)
     then
       let w = (v, !/(-1))::vars, cst, loc in
       if strict then
-        let a = expand_atom false w in
-        (*[* Format.printf "NumS.solve: fail-- strict ineq=@ %a@\n%!"
-          pr_w w; *]*)
-        let t1, t2 = match a with
-          | Leq (t1, t2, _) -> t1, t2 | _ -> assert false in
-        raise (Terms.Contradiction
-                 (Num_sort, "Failed numeric strict inequality",
-                  Some (Terms.num t1, Terms.num t2), loc))
+        fail_row "Failed numeric strict inequality" w
       else Right (norm_w ~cmp_v w)
     else Left (diff ~cmp_v lhs rhs) in
   let rec proj (ineqs : ineqs) implicits ineqn0 =
@@ -1084,14 +1079,7 @@ let solve_aux ~use_quants ?(strict=false)
           when (strict && cst </ !/0) || (not strict && cst <=/ !/0) ->
           false
         | [], cst, loc ->
-          let a = expand_atom false ([v, !/(-1)], cst, loc) in
-          (*[* Format.printf "NumS.solve: fail-- ineq.2=@ %a@\n%!"
-            pr_w ([], cst, loc); *]*)
-          let t1, t2 = match a with
-            | Leq (t1, t2, _) -> t1, t2 | _ -> assert false in
-          raise (Terms.Contradiction
-                   (Num_sort, "Failed numeric inequality",
-                    Some (Terms.num t1, Terms.num t2), loc))
+          fail_row "Failed numeric inequality" ([v,!/(-1)],cst,loc)
         | _ -> true)
         more_ineqn in
       let ineqn =
@@ -1137,14 +1125,7 @@ let solve_aux ~use_quants ?(strict=false)
              quant_viol uni_v cmp_v ~storeable:false bvs v vars ->
         (*[* Format.printf "NumS.solve: fail--quant viol ineq=@ %a@\n%!"
           pr_w ((v, k)::vars, cst, loc); *]*)
-      let t1, t2 =
-        match expand_atom false ((v, k)::vars, cst, loc) with
-        | Leq (t1, t2, _) -> t1, t2
-        | _ -> assert false in
-      raise (Terms.Contradiction
-               (Num_sort,
-                "Quantifier violation (numeric inequality)",
-                Some (Terms.num t1, Terms.num t2), loc))
+      fail_row "Quantifier violation (numeric inequality)" ((v,k)::vars,cst,loc)
     | ((v,k)::vars, cst, loc)::ineqn ->
       handle_proj v k vars cst loc ineqn in
   let solved_eqs = varmap_merge eqn eqs in
@@ -5114,7 +5095,7 @@ let project_cycle_rows ?(reduce=false) vars initial loc =
         else take (r::kept) rest in
     take [] rows in
   let rec eliminate rows = function
-    | [] -> List.map (expand_atom false) rows
+    | [] -> rows
     | vars ->
       let split v =
         let upper,lower,keep = List.fold_left (fun (u,l,r) ((vs,_,_) as w) ->
@@ -5154,8 +5135,7 @@ let project_cycle_domain hidden domain loc =
         (List.map replace inequalities) in
   substitute hidden eq leq
 
-let linear_cycle_check ~guard maps cells loc =
-  let cell_rows = List.map cycle_rows cells in
+let linear_cycle_check ~guard maps cell_rows loc =
   let parents = List.filter (fun rs -> cycle_point rs<>None) cell_rows in
   let children = List.map (fun sb -> List.map (List.map (subst_w ~cmp_v:state_cmp_v sb)) cell_rows) maps in
   parents<>[] && List.for_all (fun parent ->
@@ -5169,7 +5149,7 @@ let cycle_alias ~premise ~hidden opening loc =
   try
     let parent = cycle_rows premise in
     cycle_point parent<>None &&
-    let rows = cycle_rows (project_cycle_domain hidden opening loc) in
+    let rows = project_cycle_domain hidden opening loc in
     List.for_all (cycle_entails parent loc) rows
   with Not_found | Terms.Contradiction _ -> false
      | Failure msg when msg = "int_of_big_int" -> false
@@ -5194,11 +5174,14 @@ let replay_cycle ~params ~guard ~fields domain loc =
   try
     let hidden = VarSet.diff (fvs_formula domain) (vars_of_list params) in
     if VarSet.is_empty hidden then check [domain] else
-    let validate cells = try linear_cycle_check ~guard maps cells loc with Not_found -> check cells in
+    let validate cells =
+      try linear_cycle_check ~guard maps (List.map cycle_rows cells) loc
+      with Not_found -> check cells in
     validate [domain] ||
-    let cells = try [project_cycle_domain hidden domain loc]
-      with Not_found -> project_exists ~vars:hidden domain in
-    validate cells
+    (* A projected face can have larger coefficients than every source atom.
+       Keep it in rational arithmetic when it is used only for this proof. *)
+    (try linear_cycle_check ~guard maps [project_cycle_domain hidden domain loc] loc
+     with Not_found -> validate (project_exists ~vars:hidden domain))
   with Terms.Contradiction _ -> false
      | Failure msg when msg = "int_of_big_int" -> false
 
@@ -5391,7 +5374,7 @@ let cycle_hull ~params left right loc =
   let initial = List.map (lift true) left @ List.map (lift false) right in
   let vars,initial = if needs_scale then
       t::part, ([t,!/(-1)],!/0,loc)::([t,!/1],!/(-1),loc)::initial else part,initial in
-  prune (project_cycle_rows vars initial loc)
+  prune (List.map (expand_atom false) (project_cycle_rows vars initial loc))
 
 (* The caps have a feasible choice at every public index. A private slack
    above each branch's violations encodes their union with one minimum.

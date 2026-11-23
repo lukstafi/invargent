@@ -2150,7 +2150,11 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
   let solve_item ?(propose_call=(fun _ -> [])) ?(admitted=(fun _ _ -> Admitted)) packages e tests generate =
     let initial_packages = !all_ex_types in
     let search ?(call_constraints=Restrict_calls []) bounds =
-      let run (e, tests) = search_item bounds packages (generate e tests call_constraints) in
+      let run (e, tests) =
+        try search_item bounds packages (generate e tests call_constraints)
+        with Failure msg when msg="int_of_big_int" ->
+          raise (NoAnswer (Num_sort,
+              "Numeric inference exceeded the source coefficient range",None,expr_loc e)) in
       let initial = e, tests in
       NumS.with_affine_retry (fun () ->
         all_ex_types := initial_packages;
@@ -2596,10 +2600,14 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
       (match (try Some (List.assoc y env) with Not_found -> None),written with
        | Some old,Some s when covers_numeric_alias old s loc -> install s
        | Some old,None ->
-         (try infer_item None source with Failure msg when msg="int_of_big_int" ->
-            (* Re-eliminating a plain alias can overflow even when its known
-               polymorphic scheme is printable. *)
-            install old)
+         let packages = !all_ex_types in
+         let reuse () =
+            (* The variable already has this scheme, even if re-eliminating
+               its constraints did not produce a printable answer. *)
+            all_ex_types := packages;
+            install old in
+         (try infer_item None source with NoAnswer _ -> reuse ()
+          | Failure msg when msg="int_of_big_int" -> reuse ())
        | _ -> infer_item None source)
     | _ -> infer_item None source in
   let rec infer_items acc = function

@@ -238,6 +238,13 @@ let tests = "InvarGenT" >::: [
           "datacons Spin : ∀i,j,k[i≤1+k]. Probe (3/5 i + -4/5 j,4/5 i + 3/5 j,2 k) ⟶ Probe (i,j,k)\n" ^
           "let rec probe = Spin probe\nlet alias = probe\nlet family : ∀n[1/4096≤n]. Probe (1,0,n) = alias" in
         assert_bool "the alias already has the required polymorphic type" (not (rejects_source source)));
+      "a large inferred coefficient leaves a source-level diagnostic" >:: (fun () ->
+        let code = "datatype Probe : num * num * num\n" ^
+          "datacons Spin : ∀i,j,k[i≤1+k]. Probe (15/17 i + -8/17 j,8/17 i + 15/17 j,1025/1024 k) ⟶ Probe (i,j,k)\n" ^
+          "let rec probe = Spin probe\nlet use : Probe (2,0,1) = probe" in
+        (* A future inference method may find the written folded certificate. *)
+        try ignore (infer_source code) with
+        | Terms.NoAnswer (Defs.Num_sort,_,_,lc) -> assert_bool "located numeric failure" (lc<>Defs.dummy_loc));
       "every rotating field must accept the caller" >:: (fun () ->
         let source = input_file (example_path "caller_cyclic_value" ^ ".gadt") in
         assert_bool "the second field violates the next guard"

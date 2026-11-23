@@ -25,6 +25,20 @@ let numeric_formula s =
   sort_formula (Parser.formula Lexer.token (Lexing.from_string s))
 
 let tests = "NumS" >::: [
+  "an alias can project a private bound outside the source coefficient range" >:: (fun () ->
+    let v n = VNam (Num_sort,n) in
+    let hidden = vars_of_list [v "j";v "k";v "m";v "n"] in
+    let opening = numeric_formula "j=65536 k ∧ k=65536 m ∧ m=65536 n ∧ n=65536 i ∧ l≤j" in
+    let covers s = cycle_alias ~premise:(numeric_formula s) ~hidden opening dummy_loc in
+    assert_bool "a nonnegative diagonal is covered" (covers "0≤i ∧ l=i");
+    assert_bool "the same diagonal at a negative input is outside" (not (covers "i= -1 ∧ l=i")));
+  "a strict contradiction can exceed the printable coefficient range" >:: (fun () ->
+    let state = satisfiable_exn (numeric_formula
+        "j=65536 k ∧ k=65536 m ∧ m=65536 n ∧ n=65536 i ∧ l≤j") in
+    let entails s = implies_cnj state (numeric_formula s) in
+    assert_bool "the original weak bound still holds" (entails "l≤j");
+    assert_bool "the substituted weak bound also holds" (entails "l≤65536 k");
+    assert_bool "the boundary remains attainable" (not (entails "l≤j + -1")));
   "private linear witnesses can change at a recursive field" >:: (fun () ->
     let i = VNam (Num_sort,"i") and j = VNam (Num_sort,"j") in
     let turn n = [Add [Lin (1,1,j);Cst (n,1)];Lin (1,1,i)] in
