@@ -191,8 +191,8 @@ let sb_formula_PredU q posi psb phi =
   concat_map (sb_atom_PredU q posi psb) phi
 
 let sb_brs_PredU q sol brs = List.map
-  (fun (nonrec, prem, concl) ->
-    nonrec,
+  (fun (nonrecursive_branch, prem, concl) ->
+    nonrecursive_branch,
     map_some                            (* chi_pos *)
       (function PredVarU (i,t,_) -> Some (i, t) | _ -> None) concl,
     map_some                            (* chiK_neg *)
@@ -231,8 +231,8 @@ let sb_PredB_par q psb (i, t2) =
   with Not_found -> []
 
 let sb_brs_PredB q rol par brs = List.map
-  (fun (nonrec, chi_pos, chiK_neg, chiK_pos, prem, concl) ->
-    nonrec, chi_pos, chiK_pos,
+  (fun (nonrecursive_branch, chi_pos, chiK_neg, chiK_pos, prem, concl) ->
+    nonrecursive_branch, chi_pos, chiK_pos,
     concat_map (sb_PredB q false rol) chiK_neg @ prem,
     (* This will only substitute the unary chiK predicates. *)
     concat_map (sb_PredB_par q par) chi_pos @
@@ -1140,7 +1140,7 @@ let solve_constraints check_only q_ops new_ex_types exty_res_chi brs =
     let brs1 = sb_brs_PredB q rol1 g_par brs0 in
     (* Collect all relevant constraints together. *)
     let verif_brs = map_some
-        (fun (nonrec, chi_pos, chiK, prem, _) ->
+        (fun (nonrecursive_branch, chi_pos, chiK, prem, _) ->
            let allconcl = concat_map
                (fun (_, _, _, prem2, concl2) ->
                   (*[* Format.printf
@@ -1167,7 +1167,7 @@ let solve_constraints check_only q_ops new_ex_types exty_res_chi brs =
                true in
            if dead_case then None
            else
-             Some (nonrec, chi_pos, chiK, prem, allconcl))
+             Some (nonrecursive_branch, chi_pos, chiK, prem, allconcl))
         brs1 in
     (*[* Format.printf "solve: loop iter_no=%d@\nsol=@ %a@\n%!"
       iter_no pr_chi_subst sol1; *]*)
@@ -1190,8 +1190,8 @@ let solve_constraints check_only q_ops new_ex_types exty_res_chi brs =
         let g_collect broad =
           collect
             (concat_map
-               (fun (nonrec, chi_pos, chiK_pos, prem, concl) ->
-                  if nonrec || broad
+               (fun (nonrecursive_branch, chi_pos, chiK_pos, prem, concl) ->
+                  if nonrecursive_branch || broad
                   then
                     List.map
                       (fun (i,t1,t2,lc) ->
@@ -1484,7 +1484,7 @@ let solve_constraints check_only q_ops new_ex_types exty_res_chi brs =
       else VarSet.diff (bparams 1) bvs in
     (* 6 *)
     let brs1 = List.map
-        (fun (nonrec, chi_pos, _, prem, concl) ->
+        (fun (nonrecursive_branch, chi_pos, _, prem, concl) ->
            let chi_pos = List.map
                (fun (i, t) ->
                   match t with
@@ -1512,7 +1512,7 @@ let solve_constraints check_only q_ops new_ex_types exty_res_chi brs =
                  (fun a->VarSet.is_empty
                      (VarSet.inter (fvs_atom a) early_chiKbs))
                  concl in
-           nonrec, chi_pos, prem, concl) brs1 in
+           nonrecursive_branch, chi_pos, prem, concl) brs1 in
     let brs1 =
       if abdsjelim=[] then brs1
       else (true, [], [], abdsjelim)::brs1 in

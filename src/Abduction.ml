@@ -684,7 +684,7 @@ let abd_simple q ?without_quant ~obvs ~bvs ~dissociate
         unique_sorted
           ~cmp:(fun (v1,(t1,_)) (v2,(t2,_)) ->
               let c = typ_size t2 - typ_size t1 in
-              if c=0 then Pervasives.compare (v1,t1) (v2,t2) else c)
+              if c=0 then Stdlib.compare (v1,t1) (v2,t2) else c)
           init_cand in
       (*[* Format.printf
         "abd_simple: before xcrosses filtering@\ninit=@ %a@\nguess=@ %a@\n%!"
@@ -895,7 +895,7 @@ let abd q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of ~nonparam_vars
   (* Do not change the order and no. of branches afterwards. *)
   (*[* Format.printf "abd: iter_no=%d prepare branches@\n%!" iter_no; *]*)
   let brs_typ, brs_num = List.split
-      (map_some (fun (nonrec, chi_pos, prem, concl) ->
+      (map_some (fun (nonrecursive_branch, chi_pos, prem, concl) ->
            let prems_opt =
              try Some (unify ~use_quants:false q prem)
              with Contradiction _ as e ->
@@ -917,7 +917,7 @@ let abd q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of ~nonparam_vars
                    NumDefs.pr_formula prem.cnj_num
                    NumDefs.pr_formula concl.cnj_num; *]*)
                  Some ((prem, concl.cnj_typ),
-                       (nonrec, chi_pos, prem.cnj_num, concl.cnj_num)))
+                       (nonrecursive_branch, chi_pos, prem.cnj_num, concl.cnj_num)))
            | None -> None)
           brs) in
   (* Negative constraint prior to abduction. *)
@@ -1039,8 +1039,8 @@ let abd q ~bvs ~xbvs ?orig_ren ?b_of_v ~upward_of ~nonparam_vars
   (* Drop the pseudo-branch with term negation. *)
   let more_in_brs = List.tl more_in_brs in
   let verif_brs_num = List.map2
-      (fun (nonrec, chi_pos, prem, concl) (more_p, more_c) ->
-         nonrec, chi_pos, more_p.cnj_num @ prem, more_c.cnj_num @ concl)
+      (fun (nonrecursive_branch, chi_pos, prem, concl) (more_p, more_c) ->
+         nonrecursive_branch, chi_pos, more_p.cnj_num @ prem, more_c.cnj_num @ concl)
       brs_num more_in_brs in
   (* OK, we can change [brs_num] now. *)
   let brs_num = List.filter

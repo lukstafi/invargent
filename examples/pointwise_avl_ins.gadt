@@ -18,7 +18,7 @@ datacons LT : LinOrder
 datacons EQ : LinOrder
 datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
-  "fun x y -> let c=Pervasives.compare x y in
+  "fun x y -> let c=Stdlib.compare x y in
               if c<0 then LT else if c=0 then EQ else GT"
 
 external rotl :

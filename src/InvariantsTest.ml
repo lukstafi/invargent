@@ -114,7 +114,7 @@ let test_case ?more_general ?more_existential
       ignore (Format.flush_str_formatter ());
       Format.fprintf Format.str_formatter "@[<2>∃%a.@ %a@]"
         (pr_sep_list "," pr_tyvar) vs pr_formula ans;
-      assert_equal ~printer:(fun x -> x)
+      assert_equal ~cmp:Aux.equal_modulo_layout ~printer:(fun x -> x)
         result
         (Format.flush_str_formatter ()) in
     List.iter test_sol answers
@@ -151,7 +151,7 @@ let test_nonrec_case ?more_general ?more_existential
       let ty = fst (VarMap.find (VId (Type_sort, v)) res_sb) in
       ignore (Format.flush_str_formatter ());
       Format.fprintf Format.str_formatter "%a" pr_ty ty;
-      assert_equal ~printer:(fun x -> x)
+      assert_equal ~cmp:Aux.equal_modulo_layout ~printer:(fun x -> x)
         result
         (Format.flush_str_formatter ()) in
     List.iter test_sol answers
@@ -199,7 +199,7 @@ let test_case_fail ?more_general ?more_existential ?no_num_abduction
     Abduction.no_num_abduction := old_no_num_abduction;
     Abduction.prefer_guess := old_prefer_guess;
     DisjElim.more_existential := old_more_existential;
-    assert_equal ~printer:(fun x->x) answer (Format.flush_str_formatter ())
+    assert_equal ~cmp:Aux.equal_modulo_layout ~printer:(fun x->x) answer (Format.flush_str_formatter ())
 
 let tests = "Invariants" >::: [
     "failed assertion search restores numeric preferences" >:: (fun () ->
@@ -2743,7 +2743,7 @@ datacons LT : LinOrder
 datacons EQ : LinOrder
 datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
-  \"fun x y -> let c=Pervasives.compare x y in
+  \"fun x y -> let c=Stdlib.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
 external height : ∀a,n. Avl (a, n) → Num n
@@ -2794,7 +2794,7 @@ datacons LT : LinOrder
 datacons EQ : LinOrder
 datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
-  \"fun x y -> let c=Pervasives.compare x y in
+  \"fun x y -> let c=Stdlib.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
 external height : ∀a,n. Avl (a, n) → Num n
@@ -2845,7 +2845,7 @@ datacons LT : LinOrder
 datacons EQ : LinOrder
 datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
-  \"fun x y -> let c=Pervasives.compare x y in
+  \"fun x y -> let c=Stdlib.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
 external height : ∀a,n. Avl (a, n) → Num n
@@ -2896,7 +2896,7 @@ datacons LT : LinOrder
 datacons EQ : LinOrder
 datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
-  \"fun x y -> let c=Pervasives.compare x y in
+  \"fun x y -> let c=Stdlib.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
 external height : ∀a,n. Avl (a, n) → Num n
@@ -2947,7 +2947,7 @@ datacons LT : LinOrder
 datacons EQ : LinOrder
 datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
-  \"fun x y -> let c=Pervasives.compare x y in
+  \"fun x y -> let c=Stdlib.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
 external height : ∀a,n. Avl (a, n) → Num n
@@ -2997,7 +2997,7 @@ datacons LT : LinOrder
 datacons EQ : LinOrder
 datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
-  \"fun x y -> let c=Pervasives.compare x y in
+  \"fun x y -> let c=Stdlib.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
 external height : ∀a,n. Avl (a, n) → Num n
@@ -3043,7 +3043,7 @@ datacons LT : LinOrder
 datacons EQ : LinOrder
 datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
-  \"fun x y -> let c=Pervasives.compare x y in
+  \"fun x y -> let c=Stdlib.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
 external height : ∀a,n. Avl (a, n) → Num n
@@ -3089,7 +3089,7 @@ datacons LT : LinOrder
 datacons EQ : LinOrder
 datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
-  \"fun x y -> let c=Pervasives.compare x y in
+  \"fun x y -> let c=Stdlib.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
 external height : ∀a,n. Avl (a, n) → Num n
@@ -3134,7 +3134,7 @@ datacons LT : LinOrder
 datacons EQ : LinOrder
 datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
-  \"fun x y -> let c=Pervasives.compare x y in
+  \"fun x y -> let c=Stdlib.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
 external height : ∀a,n. Avl (a, n) → Num n
@@ -3188,7 +3188,7 @@ datacons LT : LinOrder
 datacons EQ : LinOrder
 datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
-  \"fun x y -> let c=Pervasives.compare x y in
+  \"fun x y -> let c=Stdlib.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
 external height : ∀a,n. Avl (a, n) → Num n
@@ -3242,7 +3242,7 @@ datacons LT : LinOrder
 datacons EQ : LinOrder
 datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
-  \"fun x y -> let c=Pervasives.compare x y in
+  \"fun x y -> let c=Stdlib.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
 external height : ∀a,n. Avl (a, n) → Num n
@@ -3297,7 +3297,7 @@ datacons LT : LinOrder
 datacons EQ : LinOrder
 datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
-  \"fun x y -> let c=Pervasives.compare x y in
+  \"fun x y -> let c=Stdlib.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
 external height : ∀a,n. Avl (a, n) → Num n
@@ -3350,7 +3350,7 @@ datacons LT : LinOrder
 datacons EQ : LinOrder
 datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
-  \"fun x y -> let c=Pervasives.compare x y in
+  \"fun x y -> let c=Stdlib.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
 external height : ∀a,n. Avl (a, n) → Num n
@@ -3402,7 +3402,7 @@ datacons LT : LinOrder
 datacons EQ : LinOrder
 datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
-  \"fun x y -> let c=Pervasives.compare x y in
+  \"fun x y -> let c=Stdlib.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
 external height : ∀a,n. Avl (a, n) → Num n
@@ -3462,7 +3462,7 @@ datacons LT : LinOrder
 datacons EQ : LinOrder
 datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
-  \"fun x y -> let c=Pervasives.compare x y in
+  \"fun x y -> let c=Stdlib.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
 external height : ∀a,n. Avl (a, n) → Num n
@@ -3522,7 +3522,7 @@ datacons LT : LinOrder
 datacons EQ : LinOrder
 datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
-  \"fun x y -> let c=Pervasives.compare x y in
+  \"fun x y -> let c=Stdlib.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
 external height : ∀a,n. Avl (a, n) → Num n
@@ -3582,7 +3582,7 @@ datacons LT : LinOrder
 datacons EQ : LinOrder
 datacons GT : LinOrder
 external let compare : ∀a. a → a → LinOrder =
-  \"fun x y -> let c=Pervasives.compare x y in
+  \"fun x y -> let c=Stdlib.compare x y in
               if c<0 then LT else if c=0 then EQ else GT\"
 
 external height : ∀a,n. Avl (a, n) → Num n

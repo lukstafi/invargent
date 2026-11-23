@@ -15,7 +15,7 @@ datacons GT : LinOrder
 datacons EQ : LinOrder
 
 external let compare : ∀a. a → a → LinOrder =
-  "fun a b -> let c = Pervasives.compare a b in
+  "fun a b -> let c = Stdlib.compare a b in
               if c < 0 then LE else if c > 0 then GT else EQ"
 external let equal : ∀a. a → a → Bool = "fun a b -> a = b"
 

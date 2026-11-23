@@ -66,7 +66,7 @@ let var_str = function
   | VId (s,i) -> Char.escaped (sort_str s).[0]^string_of_int i
 
 module VarSet =
-    Set.Make (struct type t = var_name let compare = Pervasives.compare end)
+    Set.Make (struct type t = var_name let compare = Stdlib.compare end)
 let vars_of_list l =
   List.fold_right VarSet.add l VarSet.empty
 let add_vars l vs =
@@ -78,7 +78,7 @@ let var_subset vs1 vs2 =
   VarSet.for_all (fun v -> VarSet.mem v vs2) vs1
 
 module VarMap =
-  Map.Make (struct type t = var_name let compare = Pervasives.compare end)
+  Map.Make (struct type t = var_name let compare = Stdlib.compare end)
 let varmap_of_assoc l =
   List.fold_right (uncurry VarMap.add) l VarMap.empty
 let varmap_to_assoc l =

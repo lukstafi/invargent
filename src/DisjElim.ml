@@ -149,7 +149,7 @@ type b = var_name * (typ * loc)
 module EqsSet =
     Set.Make (struct type t = b
                      let compare (v1,(t1,_)) (v2,(t2,_)) =
-                       Pervasives.compare (v1,t1) (v2,t2) end)
+                       Stdlib.compare (v1,t1) (v2,t2) end)
 let eqs_of_list l =
   List.fold_right EqsSet.add l EqsSet.empty
 let eqs_of_varmap l =

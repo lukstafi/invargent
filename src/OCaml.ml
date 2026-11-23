@@ -44,7 +44,7 @@ let pr_tyvar ppf v =
     assert (not !altsyn);
     fprintf ppf "_"
 
-let type_name c = String.uncapitalize (cns_str c)
+let type_name c = String.uncapitalize_ascii (cns_str c)
 
 let pr_tycns ppf c = pp_print_string ppf (type_name c)
 
@@ -227,7 +227,7 @@ let pr_expr funtys lettys ppf =
     else if !num_is = "float" then Some ("float_of_int", "", "+.", "*.", "")
     else if !num_is_mod
     then
-      let num_is = String.capitalize !num_is in
+      let num_is = String.capitalize_ascii !num_is in
       Some (num_is ^ ".of_int", num_is ^ ".(", "+", "*", ")")
     else None in
   let export_runtime_failure = "failwith" in

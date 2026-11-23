@@ -26,7 +26,7 @@ let stringtype = CNam "String"
 let builtin_progseq = "builtin_progseq"
 
 module CNames =
-    Set.Make (struct type t = cns_name let compare = Pervasives.compare end)
+    Set.Make (struct type t = cns_name let compare = Stdlib.compare end)
 let cnames_of_list l =
   List.fold_right CNames.add l CNames.empty
 let add_cnames l vs =

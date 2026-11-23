@@ -395,7 +395,7 @@ let nonq_cmp_w (vars1,cst1,_) (vars2,cst2,_) =
     | _, [] -> -1
     | [], _ -> 1
     | (v1,k1)::vs1, (v2,k2)::vs2 ->
-      let c = Pervasives.compare v1 v2 in
+      let c = Stdlib.compare v1 v2 in
       if c <> 0 then c
       else let c = Num.compare_num k1 k2 in
         if c <> 0 then c
@@ -2947,7 +2947,7 @@ let abd_branches fixed_for q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empt
     (pr_line_list "| " pr_br4) brs;
    *]*)
   let brs = List.map
-      (fun (nonrec, chi_pos, prem, concl) ->
+      (fun (nonrecursive_branch, chi_pos, prem, concl) ->
          (*[* Format.printf "NumS.abd: splitting premise=@\n%a@\n%!"
            pr_formula prem; *]*)
          let d_eqn, d_ineqn, d_optis, d_suboptis =
@@ -2993,7 +2993,7 @@ let abd_branches fixed_for q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empt
                     (*[* Format.printf
                       "NumS.abd-split: case@\nd_eqs=%a@\nd_ineqs=%a@\n%!"
                       pr_w_subst d_eqs pr_ineqs d_ineqs; *]*)
-                    Some (nonrec, chi_pos, d_suboptis, d_eqs, d_ineqs,
+                    Some (nonrecursive_branch, chi_pos, d_suboptis, d_eqs, d_ineqs,
                           (d_opti_eqn @ o_eqn @ d_eqn, o_ineqn @ d_ineqn),
                           concl)
                   with Terms.Contradiction _ as e ->
@@ -3020,7 +3020,7 @@ let abd_branches fixed_for q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empt
       (fun obrs ->
          let contr_exc = ref None in
          let res = map_some
-             (fun ((nonrec, chi_pos, prem_suboptis,
+             (fun ((nonrecursive_branch, chi_pos, prem_suboptis,
                     d_eqs, d_ineqs, (d_eqn, d_ineqn),
                     (c_eqn, c_ineqn, c_optis, c_suboptis)) as br) ->
                let br =
@@ -3062,7 +3062,7 @@ let abd_branches fixed_for q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empt
                        try let point, _, _, _ = solve ~eqs ~eqn:c_eqn ~cmp_v ~cmp_w q.uni_v in
                          Some point
                        with Terms.Contradiction _ -> None in
-                   Some ((nonrec, chi_pos, prem_suboptis, (d_eqn, d_ineqn),
+                   Some ((nonrecursive_branch, chi_pos, prem_suboptis, (d_eqn, d_ineqn),
                           (c_eqn, c_ineqn, c_optis, c_suboptis)), sample)
                  with Terms.Contradiction _ as e ->
                    if !nodeadcode then contr_exc := Some e;
@@ -3178,7 +3178,7 @@ let abd_branches fixed_for q ~bvs ~xbvs ?(orig_ren=empty_renaming) ?(b_of_v=empt
     if iter_no > 1 || !early_num_abduction
     then brs, []
     else List.partition
-        (fun (nonrec, _, _, _, _) -> nonrec) brs in
+        (fun (nonrecursive_branch, _, _, _, _) -> nonrecursive_branch) brs in
   let brs = List.map
       (fun (_, chi_pos, prem_suboptis, prem, concl) -> prem_suboptis, prem, concl)
       brs in
@@ -6964,7 +6964,7 @@ let transitive_cl q cnj =
     (function Eq _ | Leq _ -> None | a -> Some a)
     cnj in
   let eqs = ineq_transitive_cl ~cmp_v eqs in
-  let cmp_v v1 v2 = Pervasives.compare v1 v2 in
+  let cmp_v v1 v2 = Stdlib.compare v1 v2 in
   let ineqs = ineq_transitive_cl ~cmp_v ineqs in
   let cnj = Hashtbl.fold
       (fun (i,j) (cst, lc) cnj ->

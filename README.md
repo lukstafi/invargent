@@ -8,6 +8,8 @@ The thesis on the project: [GADTs for Reconstruction of Invariants and Postcondi
 
 See documentation in the `doc` directory.
 
+Building needs OCaml 4.07 or later (tested on 5.3.0 and 5.5.1) with `ocamlbuild`, `ocamlfind` and the `num` package; the tests also need `ounit2` (`opam install ocamlbuild ocamlfind num ounit2`).
+
 Makefile targets and installation:
 ```
 make main   # build the executable
