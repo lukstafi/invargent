@@ -1,0 +1,18 @@
+datatype Probe : num * num * num
+datacons Spin : ∀i,j,k[i≤1+k]. Probe (3/5 i + -4/5 j,4/5 i + 3/5 j,2 k) ⟶ Probe (i,j,k)
+let rec probe = Spin probe
+let alias = probe
+let mild : Probe (1,0,1/2) = alias
+let family : ∀n[1/16≤n]. Probe (1,0,n) = alias
+let reflected : Probe (-1,0,1/16) = probe
+let origin : Probe (0,0,0) = probe
+
+datatype Branch : num * num * num
+datacons Fork : ∀i,j,k[i≤1+k]. Branch (3/5 i + -4/5 j,4/5 i + 3/5 j,2 k) * Branch (3/5 i + 4/5 j,-4/5 i + 3/5 j,2 k) ⟶ Branch (i,j,k)
+let rec both = Fork (both,both)
+let starts : ∀n[1/4≤n]. Branch (1,0,n) = both
+
+datatype Paused : num * num * num
+datacons Pause : ∀i,j,k[i≤1+k]. Paused (3/5 i + -4/5 j,4/5 i + 3/5 j,2 k) * Paused (4/5 i + -2/5 j,2/5 i + 4/5 j,3/2 k) * Paused (i,j,k) ⟶ Paused (i,j,k)
+let rec paused = Pause (paused,paused,paused)
+let later : ∀n[1/4≤n]. Paused (1,0,n) = paused

@@ -25,6 +25,17 @@ let numeric_formula s =
   sort_formula (Parser.formula Lexer.token (Lexing.from_string s))
 
 let tests = "NumS" >::: [
+  "private linear witnesses can change at a recursive field" >:: (fun () ->
+    let i = VNam (Num_sort,"i") and j = VNam (Num_sort,"j") in
+    let turn n = [Add [Lin (1,1,j);Cst (n,1)];Lin (1,1,i)] in
+    let replay guard fields domain = replay_cycle ~params:[i;j] ~guard:(numeric_formula guard)
+        ~fields (numeric_formula domain) dummy_loc in
+    let strip = "m=i + -j ∧ 0≤m ∧ m≤1" in
+    assert_bool "the child can replace m by 1-m" (replay "j≤i" [turn 1] strip);
+    assert_bool "a second field leaves the strip" (not (replay "j≤i" [turn 1;turn 2] strip));
+    assert_bool "a recession direction violates the public guard" (not (replay "0≤i" [turn 1] strip));
+    assert_bool "an empty opening cannot supply a recursive value"
+      (not (replay "j≤i" [turn 1] (strip ^ " ∧ 2≤m"))));
   "alternative bounds on a key select the all-typings check" >:: (fun () ->
     let split s = has_conditional_key_bound ~keys:[VNam (Num_sort,"k")] (numeric_formula s) in
     assert_bool "the second ray reaches only the exposed corner"

@@ -1820,6 +1820,64 @@ let written_cycle name params guard fields scheme loc =
      with Not_found -> false)
   | _ -> false
 
+(* Written result types at later aliases give demands on this binding. Track
+   ordinary aliases as long as they still refer to it, including shadowing
+   in a nonrecursive right-hand side. These are synthesis hints; the normal
+   type checker still checks each use against the single published scheme. *)
+let cycle_callers self name params remaining =
+  let rec remove names = function
+    | PVar (v,_) -> Strings.remove v names
+    | PAnd (a,b,_) -> remove (remove names a) b
+    | PCons (_,ps,_) -> List.fold_left remove names ps
+    | Zero | One _ -> names in
+  let demand lc scheme =
+    let _,phi,result = freshen_val_scheme scheme in
+    match result with
+    | TCons (head,ts) when head=name && List.length ts=List.length params &&
+        List.for_all (fun t -> typ_sort t=Num_sort) ts ->
+      (try Some (List.map2 (fun v t ->
+           NumDefs.Eq (NumDefs.Lin (1,1,v),NumS.num_of t,lc)) params ts @ numeric_admission phi)
+       with Not_found -> None)
+    | _ -> None in
+  let rec scan names acc rest = if Strings.is_empty names then acc else match rest with
+    | [] -> acc
+    | (_,LetVal (_,PVar (v,_),Var (src,_),written,lc))::rest when Strings.mem src names ->
+      let acc = match written with None -> acc | Some s ->
+          (match demand lc s with None -> acc | Some d -> d::acc) in
+      scan (Strings.add v names) acc rest
+    | (_,LetVal (_,pat,_,_,_))::rest -> scan (remove names pat) acc rest
+    | (_,LetRecVal (_,v,_,_,_,_) | _,PrimVal (_,v,_,_,_))::rest ->
+      scan (Strings.remove v names) acc rest
+    | _::rest -> scan names acc rest in
+  scan (Strings.singleton self) [] remaining
+
+let covers_numeric_alias actual written loc =
+  let vs,phi,result = freshen_val_scheme actual in
+  let _,premise,expected = freshen_val_scheme written in
+  match result,expected with
+  | TCons (name,ts),TCons (head,us) when head=name && List.length ts=List.length us &&
+      List.for_all (fun t -> typ_sort t=Num_sort) (ts @ us) &&
+      not (VarSet.subset (fvs_formula phi) (fvs_typ result)) ->
+    (try
+       let eqs = List.map2 (fun t u -> NumDefs.Eq (NumS.num_of t,NumS.num_of u,loc)) ts us in
+       NumS.cycle_alias ~premise:(numeric_admission premise) ~hidden:(vars_of_list vs)
+         (eqs @ numeric_admission phi) loc
+     with Not_found -> false)
+  | _ -> false
+
+let covers_cycle_callers name params demands scheme loc =
+  let vs,phi,result = freshen_val_scheme scheme in
+  match result with
+  | TCons (head,ts) when head=name && List.length ts=List.length params &&
+      List.for_all (fun t -> typ_sort t=Num_sort) ts ->
+    (try
+       let eqs = List.map2 (fun v t ->
+           NumDefs.Eq (NumDefs.Lin (1,1,v),NumS.num_of t,loc)) params ts in
+       let opening = eqs @ numeric_admission phi and hidden = vars_of_list vs in
+       List.for_all (fun premise -> NumS.cycle_alias ~premise ~hidden opening loc) demands
+     with Not_found -> false)
+  | _ -> false
+
 (* The returned value must be instantiable at every index of the proposed
    cycle domain. A fresh copy of the inferred variables supplies its witnesses. *)
 let covers_cycle (guard,ty) inferred loc =
@@ -2474,7 +2532,7 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
           ex_items @ List.rev !more_items
           @ [ILetVal (docu, p, e, top_sch, typ_schs, elim_extypes, loc)]
   in
-  let infer source = match source with
+  let infer source remaining = match source with
     | [], LetRecVal (docu,x,(Cons (tag,args,lc) as e),written,tests,loc) when signature_target written=None ->
       let install env scheme =
         (* direct_cycle has checked that every child is this same binding. *)
@@ -2494,30 +2552,60 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
              "No index satisfies every unfolding of this recursive constructor value",None,lc))
          | NumS.Cycle_guard domain -> infer_item (Some (NumS.formula_of_sort domain,ty)) source
          | NumS.Outside_directions ->
-         match (if tests=[] then NumS.spectral_cycle_guard ~params ~guard ~fields loc else None) with
-         | None -> infer_item None source
-         | Some (bounds,future) ->
+         if tests<>[] then infer_item None source else
+         let spectral = NumS.spectral_cycle_guard ~params ~guard ~fields loc in
+         let demands = cycle_callers x name params remaining in
+         if spectral=None && demands=[] then infer_item None source else
          let env = !gamma and packages = !all_ex_types in
          let previous =
-           try Some (infer_item ~report:false None source)
-           with NoAnswer _ | Contradiction _ ->
-             gamma := env; all_ex_types := packages; None in
-         let new_domain = match previous with
-           | None -> Some (guard @ bounds @ future)
-           | Some [ILetRecVal (_,_,_,old,_,_,_)] ->
-             join_cycle_scheme ~name ~params ~fields ~guard ~bounds ~future old loc
-           | Some _ -> None in
-         (match new_domain,previous with
-          | None,Some items -> report_value x (List.assoc x !gamma); items
-          | None,None -> assert false
-          | Some domain,_ ->
-            let phi = NumS.formula_of_sort domain in
-            let vs = VarSet.elements (VarSet.union (fvs_typ ty) (fvs_formula phi)) in
-            let sb,(vs,phi) = nice_ans ~fvs:(fvs_typ ty) (vs,phi) in
-            let scheme = vs,phi,hvsubst_typ sb ty in
-            install env scheme))
+           try Right (infer_item ~report:false None source)
+           with (NoAnswer _ | Contradiction _) as error ->
+             gamma := env; all_ex_types := packages; Left error in
+         let publish scheme =
+           let improve ((current,_) as result) = function
+             | None -> result
+             | Some (bounds,future) ->
+               let domain = match current with
+                 | None -> Some (guard @ bounds @ future)
+                 | Some old -> join_cycle_scheme ~name ~params ~fields ~guard ~bounds ~future old loc in
+               match domain with None -> result | Some domain ->
+                 let phi = NumS.formula_of_sort domain in
+                 let vs = VarSet.elements (VarSet.union (fvs_typ ty) (fvs_formula phi)) in
+                 let sb,(vs,phi) = nice_ans ~fvs:(fvs_typ ty) (vs,phi) in
+                 Some (vs,phi,hvsubst_typ sb ty),true in
+           let current,changed = improve (scheme,false) spectral in
+           let covered = demands=[] || match current with None -> false | Some sch ->
+               covers_cycle_callers name params demands sch loc in
+           let caller = if covered then None else
+               match NumS.caller_cycle_guard ~params ~guard ~fields ~demands loc with
+               | None -> None | Some extra -> Some ([],extra) in
+           match improve (current,changed) caller,previous with
+           | (Some s,true),_ -> install env s
+           | _,Right items -> report_value x (List.assoc x !gamma); items
+           | _,Left error -> raise error in
+         (match previous with
+          | Left _ -> publish None
+          | Right [ILetRecVal (_,_,_,old,_,_,_)] -> publish (Some old)
+          | Right items -> report_value x (List.assoc x !gamma); items))
+    | [], LetVal (docu,(PVar (x,_) as pat),Var (y,lc),written,loc) ->
+      let env = !gamma in
+      let install scheme =
+        gamma := (x,scheme)::env;
+        report_value x scheme;
+        [ILetVal (docu,pat,Var (y,lc),scheme,[x,scheme],[],loc)] in
+      (match (try Some (List.assoc y env) with Not_found -> None),written with
+       | Some old,Some s when covers_numeric_alias old s loc -> install s
+       | Some old,None ->
+         (try infer_item None source with Failure msg when msg="int_of_big_int" ->
+            (* Re-eliminating a plain alias can overflow even when its known
+               polymorphic scheme is printable. *)
+            install old)
+       | _ -> infer_item None source)
     | _ -> infer_item None source in
-  let items = concat_map infer prog in
+  let rec infer_items acc = function
+    | [] -> List.rev acc
+    | source::rest -> infer_items (List.rev_append (infer source rest) acc) rest in
+  let items = infer_items [] prog in
   if !time_toplevel
   then Format.printf "@\nTotal time %.3fs@\n" (Sys.time () -. start_time);
   List.rev !gamma, items

@@ -227,6 +227,21 @@ let tests = "InvarGenT" >::: [
         let code = input_file (example_path "spectral_cyclic_value" ^ ".gadt") in
         assert_bool "the first tile requires at least eight thirds"
           (rejects_source (code ^ "\nlet bad : Orbit (0,0,0,5/2,5/2,5/2) = ring")));
+      "later caller families can select a deeper common cyclic scheme" >::
+        run_example ~full_annot:true ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b)
+          "caller_cyclic_value";
+      "private folds can open afresh at the rotating child" >::
+        run_example ~full_annot:true ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b)
+          "folded_cyclic_value";
+      "a plain alias preserves the deep inferred cyclic scheme" >:: (fun () ->
+        let source = "datatype Probe : num * num * num\n" ^
+          "datacons Spin : ∀i,j,k[i≤1+k]. Probe (3/5 i + -4/5 j,4/5 i + 3/5 j,2 k) ⟶ Probe (i,j,k)\n" ^
+          "let rec probe = Spin probe\nlet alias = probe\nlet family : ∀n[1/4096≤n]. Probe (1,0,n) = alias" in
+        assert_bool "the alias already has the required polymorphic type" (not (rejects_source source)));
+      "every rotating field must accept the caller" >:: (fun () ->
+        let source = input_file (example_path "caller_cyclic_value" ^ ".gadt") in
+        assert_bool "the second field violates the next guard"
+          (rejects_source (source ^ "\nlet wrong : Branch (0,3,1/4) = both")));
       "a cyclic or late constructor cannot justify an index guard" >:: (fun () ->
         let code = input_file (example_path "constructor_value_bounds" ^ ".gadt") in
         assert_bool "the cyclic tower can have a negative index"

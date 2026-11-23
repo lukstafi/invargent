@@ -5060,6 +5060,120 @@ let affine_cycle_guard ~params ~guard ~fields loc =
   with Not_found -> Outside_directions
      | Failure msg when msg = "int_of_big_int" -> Outside_directions
 
+(* Incremental feasibility for linear half-spaces in a small public space.
+   If the current feasible point violates a new closed half-space, their
+   intersection is feasible exactly when its boundary contains a feasible
+   point. Substitution on that boundary removes a coordinate. *)
+let cycle_point rows =
+  let eval point (vs,c,_) = List.fold_left (fun r (v,k) ->
+      try r +/ k */ VarMap.find v point with Not_found -> r) c vs in
+  let rec solve rows =
+    let rec add point kept = function
+      | [] -> Some point
+      | row::rest when eval point row <=/ !/0 -> add point (row::kept) rest
+      | ([],_,_)::_ -> None
+      | (((v,k)::vs,c,lc) as row)::rest ->
+        let boundary = mult (!/(-1) // k) (vs,c,lc) in
+        let replace = subst_w ~cmp_v:state_cmp_v (VarMap.singleton v boundary) in
+        match solve (List.rev_map replace kept) with
+        | None -> None
+        | Some p -> add (VarMap.add v (eval p boundary) p) (row::kept) rest in
+    add VarMap.empty [] rows in
+  solve rows
+
+(* A nonempty polyhedron entails a row iff its homogenized cone has no
+   point with violation at least one. A recession violation can be added to
+   any feasible base point. Keep all intermediate coefficients rational. *)
+let cycle_entails parent loc =
+  let cmp_v = state_cmp_v and scale = Terms.fresh_num_var () in
+  let lift (vs,c,lc) = norm_w ~cmp_v ((scale,c)::vs,!/0,lc) in
+  let cone = ([scale,!/(-1)],!/0,loc)::List.map lift parent in
+  fun row -> List.exists (equal_w ~cmp_v row) parent ||
+    let vs,_,lc = mult !/(-1) (lift row) in
+    cycle_point ((vs,!/1,lc)::cone)=None
+
+(* Fourier-Motzkin projection, choosing the pivot with the fewest output
+   rows and merging parallel half-spaces at every stage. *)
+let project_cycle_rows ?(reduce=false) vars initial loc =
+  let cmp_v = state_cmp_v in
+  let limit = List.length initial * List.length initial in
+  let constraints rows =
+    let faces = List.fold_left (fun faces (vs,c,_) -> match vs with
+        | [] -> if c >/ !/0 then raise Not_found else faces
+        | (_,lead)::_ ->
+          let scale = abs_num lead in
+          let dir = List.map (fun (v,k) -> v,k // scale) vs and c = c // scale in
+          let c = try max_num c (CombMap.find dir faces) with Not_found -> c in
+          CombMap.add dir c faces) CombMap.empty rows in
+    CombMap.fold (fun vs c acc -> (vs,c,loc)::acc) faces [] in
+  let discard_implied rows =
+    let rec take kept = function
+      | [] -> List.rev kept
+      | r::rest ->
+        if cycle_entails (List.rev_append kept rest) loc r then take kept rest
+        else take (r::kept) rest in
+    take [] rows in
+  let rec eliminate rows = function
+    | [] -> List.map (expand_atom false) rows
+    | vars ->
+      let split v =
+        let upper,lower,keep = List.fold_left (fun (u,l,r) ((vs,_,_) as w) ->
+            let k = try List.assoc v vs with Not_found -> !/0 in
+            if k >/ !/0 then mult (!/1 // k) w::u,l,r
+            else if k </ !/0 then u,mult (!/(-1) // k) w::l,r else u,l,w::r)
+            ([],[],[]) rows in
+        List.length upper * List.length lower + List.length keep,v,(upper,lower,keep) in
+      let n,v,(upper,lower,keep) = List.hd (List.sort (fun (a,_,_) (b,_,_) -> compare a b)
+          (List.map split vars)) in
+      if n>limit then (
+        if not reduce then raise Not_found;
+        let smaller = discard_implied rows in
+        if List.length smaller=List.length rows then raise Not_found;
+        eliminate smaller vars)
+      else
+      let next = concat_map (fun u -> List.map (sum_w ~cmp_v u) lower) upper in
+      eliminate (constraints (List.rev_append next keep)) (List.filter ((<>) v) vars) in
+  eliminate (constraints initial) vars
+
+let project_cycle_domain hidden domain loc =
+  let cmp_v = state_cmp_v in
+  let eq,leq,opt,subopt = split_flatten ~cmp_v domain in
+  if opt<>[] || subopt<>[] then raise Not_found;
+  let rec substitute hidden equations inequalities =
+    let private_term (vs,_,_) = List.exists (fun (v,_) -> VarSet.mem v hidden) vs in
+    match List.partition private_term equations with
+    | [],public ->
+      project_cycle_rows ~reduce:true (VarSet.elements hidden) (public @ List.map (mult !/(-1)) public @ inequalities) loc
+    | (vs,c,lc)::others,public ->
+      let candidates = List.filter (fun (v,_) -> VarSet.mem v hidden) vs in
+      let v,k = try List.find (fun (_,k) -> abs_num k =/ !/1) candidates
+        with Not_found -> List.hd candidates in
+      let value = mult (!/(-1) // k) (List.remove_assoc v vs,c,lc) in
+      let replace = subst_w ~cmp_v (VarMap.singleton v value) in
+      substitute (VarSet.remove v hidden) (List.rev_append (List.map replace others) public)
+        (List.map replace inequalities) in
+  substitute hidden eq leq
+
+let linear_cycle_check ~guard maps cells loc =
+  let cell_rows = List.map cycle_rows cells in
+  let parents = List.filter (fun rs -> cycle_point rs<>None) cell_rows in
+  let children = List.map (fun sb -> List.map (List.map (subst_w ~cmp_v:state_cmp_v sb)) cell_rows) maps in
+  parents<>[] && List.for_all (fun parent ->
+      let includes = List.for_all (cycle_entails parent loc) in
+      List.for_all (List.exists includes) children && includes (cycle_rows guard)) parents
+
+(* At a plain value alias the caller's public arguments are already known.
+   Substitute those arguments before discarding the source scheme's private
+   coordinates. Equality pivots can remove most of the local variables. *)
+let cycle_alias ~premise ~hidden opening loc =
+  try
+    let parent = cycle_rows premise in
+    cycle_point parent<>None &&
+    let rows = cycle_rows (project_cycle_domain hidden opening loc) in
+    List.for_all (cycle_entails parent loc) rows
+  with Not_found | Terms.Contradiction _ -> false
+     | Failure msg when msg = "int_of_big_int" -> false
+
 (* Check a union of convex cells directly against the constructor. A field
    can use a different cell at its child. Projecting the hidden coordinates
    lets a child choose its own witnesses. *)
@@ -5078,11 +5192,101 @@ let replay_cycle ~params ~guard ~fields domain loc =
         feasible
     with Not_found -> false in
   try
-    check [domain] ||
     let hidden = VarSet.diff (fvs_formula domain) (vars_of_list params) in
-    not (VarSet.is_empty hidden) && check (project_exists ~vars:hidden domain)
+    if VarSet.is_empty hidden then check [domain] else
+    let validate cells = try linear_cycle_check ~guard maps cells loc with Not_found -> check cells in
+    validate [domain] ||
+    let cells = try [project_cycle_domain hidden domain loc]
+      with Not_found -> project_exists ~vars:hidden domain in
+    validate cells
   with Terms.Contradiction _ -> false
      | Failure msg when msg = "int_of_big_int" -> false
+
+(* A guard a.p <= b*t+c with b>0 and c>=0 licenses the cone
+   ||p||_infty <= (b/||a||_1)*t. Try both signs of each public coordinate
+   as t. Only a cone preserved by every actual field is a usable seed. *)
+let caller_cycle_guard ~params ~guard ~fields ~demands loc =
+  let cmp_v = state_cmp_v in
+  let unique = unique_sorted ~cmp:(compare_w ~cmp_v) in
+  let atom w = Leq (expand_w w,Cst (0,1),loc) in
+  try
+    let states = map_some (fun d -> match satisfiable d with
+        | Left _ -> None | Right state -> Some state) demands in
+    if states=[] then raise Not_found;
+    let guards = cycle_rows guard and maps = cycle_maps params fields loc in
+    let covered states rows =
+      let atoms = List.map atom rows in List.filter (fun s -> implies_cnj s atoms) states in
+    let seed t sign =
+      let caps = map_some (fun (vs,c,_) ->
+          let b = try minus_num (sign */ List.assoc t vs) with Not_found -> !/0 in
+          let norm = List.fold_left (fun a (v,k) -> if v=t then a else a +/ abs_num k) !/0 vs in
+          if c >/ !/0 || b </ !/0 || (norm >/ !/0 && b =/ !/0) then raise Not_found;
+          if norm =/ !/0 then None else Some (b // norm)) guards in
+      let radius = match caps with [] -> raise Not_found | r::rs -> List.fold_left min_num r rs in
+      let face v s = norm_w ~cmp_v ([v,s; t,minus_num (sign */ radius)],!/0,loc) in
+      let cone = concat_map (fun v -> if v=t then [] else [face v !/1; face v !/(-1)]) params in
+      if replay_cycle ~params ~guard ~fields (List.map atom cone) loc then Some cone else None in
+    let seeds = concat_map (fun t -> map_some (fun sign ->
+        try seed t sign with Not_found -> None) [!/1;!/(-1)]) params in
+    if seeds=[] then raise Not_found;
+    (* Every convex inductive region already licenses the identity and all
+       convex combinations of its field maps. Remove redundant generators
+       before unfolding; a stuttering field would otherwise pin F(P) to P. *)
+    let identity = varmap_of_assoc (List.map (fun v -> v,([v,!/1],!/0,loc)) params) in
+    let redundant target alternatives =
+      let weights = List.map (fun sb -> Terms.fresh_num_var (),sb) (identity::alternatives) in
+      let weighted coefficient rhs =
+        let row = List.map (fun (w,sb) -> w,coefficient sb) weights in
+        Eq (expand_w (norm_w ~cmp_v (row,minus_num rhs,loc)),Cst (0,1),loc) in
+      let equations = concat_map (fun v ->
+          let constant sb = let _,c,_ = VarMap.find v sb in c in
+          let entry u sb = let vs,_,_ = VarMap.find v sb in
+            try List.assoc u vs with Not_found -> !/0 in
+          weighted constant (constant target) :: List.map (fun u ->
+              weighted (entry u) (entry u target)) params) params in
+      let nonnegative = List.map (fun (w,_) -> Leq (Cst (0,1),Lin (1,1,w),loc)) weights in
+      match satisfiable (weighted (fun _ -> !/1) !/1 :: nonnegative @ equations) with
+      | Left _ -> false | Right _ -> true in
+    let rec extreme kept = function
+      | [] -> kept
+      | sb::rest -> if redundant sb (List.rev_append kept rest) then extreme kept rest
+        else extreme (sb::kept) rest in
+    let maps = extreme [] maps in
+    let pull rows = unique (concat_map (fun sb -> List.map (subst_w ~cmp_v sb) rows) maps) in
+    (* F(P) = guard ∩ pre(P). A verified seed is contained in F(seed).
+       Keep exact guards at each prefix. At equal depths try all seeds before
+       growing the next level, and charge each generated pullback to the
+       existing numerical search budget. *)
+    let fuel = ref !abd_timeout_count in
+    let advance rows =
+      List.iter (fun _ -> fuel := !fuel - List.length rows;
+          if !fuel<0 then raise Not_found) maps;
+      pull rows in
+    let best = ref (0,[]) in
+    let rec search prefix level active tails =
+      let wanted = List.length active in
+      let enough tail =
+        let count = List.length (covered active tail) in
+        if count > fst !best then best := count,List.rev_append prefix tail;
+        count=wanted in
+      if tails<>[] && wanted>0 && not (List.exists enough tails) then
+        let active = covered active level in
+        if List.length active > fst !best then (
+          let tails = map_some (fun tail -> let next = advance tail in
+              if List.length tail=List.length next &&
+                 List.for_all2 (equal_w ~cmp_v) tail next then None else Some next) tails in
+          if tails<>[] then search (List.rev_append level prefix) (advance level) active tails) in
+    (* An excluded later use or an unrepresentable large coefficient should
+       not hide a scheme already found for an earlier caller. *)
+    (try search [] guards states (List.map unique seeds)
+     with Not_found -> () | Failure msg when msg = "int_of_big_int" -> ());
+    let count,rows = !best in
+    if count=0 then None else
+    let extra = List.filter (fun row -> not (List.exists (equal_w ~cmp_v row) guards)) (unique rows) in
+    let extra = List.map atom extra in
+    if replay_cycle ~params ~guard ~fields (guard @ extra) loc then Some extra else None
+  with Not_found | Terms.Contradiction _ -> None
+     | Failure msg when msg = "int_of_big_int" -> None
 
 (* Each component of a guard is an affine function on the public indices.
    The diagonal entries (and 1 for the constant coordinate) suggest rational
@@ -5187,32 +5391,7 @@ let cycle_hull ~params left right loc =
   let initial = List.map (lift true) left @ List.map (lift false) right in
   let vars,initial = if needs_scale then
       t::part, ([t,!/(-1)],!/0,loc)::([t,!/1],!/(-1),loc)::initial else part,initial in
-  let limit = List.length initial * List.length initial in
-  let constraints rows =
-    let faces = List.fold_left (fun faces (vs,c,_) -> match vs with
-        | [] -> if c >/ !/0 then raise Not_found else faces
-        | (_,lead)::_ ->
-          let scale = abs_num lead in
-          let dir = List.map (fun (v,k) -> v,k // scale) vs and c = c // scale in
-          let c = try max_num c (CombMap.find dir faces) with Not_found -> c in
-          CombMap.add dir c faces) CombMap.empty rows in
-    CombMap.fold (fun vs c acc -> (vs,c,loc)::acc) faces [] in
-  let rec eliminate rows = function
-    | [] -> List.map (expand_atom false) rows
-    | vars ->
-      let split v =
-        let upper,lower,keep = List.fold_left (fun (u,l,r) ((vs,_,_) as w) ->
-            let k = try List.assoc v vs with Not_found -> !/0 in
-            if k >/ !/0 then mult (!/1 // k) w::u,l,r
-            else if k </ !/0 then u,mult (!/(-1) // k) w::l,r else u,l,w::r)
-            ([],[],[]) rows in
-        List.length upper * List.length lower + List.length keep,v,(upper,lower,keep) in
-      let n,v,(upper,lower,keep) = List.hd (List.sort (fun (a,_,_) (b,_,_) -> compare a b)
-          (List.map split vars)) in
-      if n>limit then raise Not_found;
-      let next = concat_map (fun u -> List.map (sum_w ~cmp_v u) lower) upper in
-      eliminate (constraints (List.rev_append next keep)) (List.filter ((<>) v) vars) in
-  prune (eliminate (constraints initial) vars)
+  prune (project_cycle_rows vars initial loc)
 
 (* The caps have a feasible choice at every public index. A private slack
    above each branch's violations encodes their union with one minimum.

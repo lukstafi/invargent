@@ -1,0 +1,4 @@
+datatype Probe : num * num * num
+datacons Spin : ∀i,j,k[i≤1+k]. Probe (3/5 i + -4/5 j,4/5 i + 3/5 j,2 k) ⟶ Probe (i,j,k)
+let rec probe : ∀i,j,k,i0,j0,i1,j1,i2,j2,i3,j3[i≤i0 ∧ -i≤i0 ∧ j≤j0 ∧ -j≤j0 ∧ 1/127≤k ∧ i1=3/5 i0 + 4/5 j0 ∧ 3/5 j0 + -4/5 i0≤j1 ∧ 4/5 i0 + -3/5 j0≤j1 ∧ i2=15/17 i1 + 8/17 j1 ∧ 15/17 j1 + -8/17 i1≤j2 ∧ 8/17 i1 + -15/17 j1≤j2 ∧ i3=63/65 i2 + 16/65 j2 ∧ 63/65 j2 + -16/65 i2≤j3 ∧ 16/65 i2 + -63/65 j2≤j3 ∧ j3≤16/63 i3 ∧ i3 + 1/8 j3≤1+k]. Probe (i,j,k) = Spin probe
+let use : ∀k[1/127≤k]. Probe (1,0,k) = probe

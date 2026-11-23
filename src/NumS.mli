@@ -233,6 +233,11 @@ val affine_cycle_guard : params:Defs.var_name list -> guard:NumDefs.formula ->
 (** Replay a direct constructor against the cells of a proposed recursive scheme. *)
 val replay_cycle : params:Defs.var_name list -> guard:NumDefs.formula -> fields:NumDefs.term list list ->
   NumDefs.formula -> Defs.loc -> bool
+(** Check a numeric value alias after identifying the requested public tuple. *)
+val cycle_alias : premise:NumDefs.formula -> hidden:Defs.VarSet.t -> NumDefs.formula -> Defs.loc -> bool
+(** Enlarge a certified cone by exact field preimages until it covers the caller domains. *)
+val caller_cycle_guard : params:Defs.var_name list -> guard:NumDefs.formula -> fields:NumDefs.term list list ->
+  demands:NumDefs.formula list -> Defs.loc -> NumDefs.formula option
 (** Private component bounds and field obligations for a checked spectral scheme. *)
 val spectral_cycle_guard : params:Defs.var_name list -> guard:NumDefs.formula ->
   fields:NumDefs.term list list -> Defs.loc -> (NumDefs.formula * NumDefs.formula) option
