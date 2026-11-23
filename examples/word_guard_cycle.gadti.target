@@ -1,0 +1,31 @@
+datatype Node : num * num * num * num
+
+datacons Step : ∀i, j, k, n[i + k ≤ n + 1 ∧
+   j + 1 ≤ k + n].Node ((3/5) i + (-4/5) j, (4/5) i + (3/5) j, k, 2 n) ⟶
+   Node (i, j, k, n)
+
+val node :
+   ∀n, k, i, j[n + i + -j + -1 ≤ 0 ∧ k + -i + -j + 1 ≤ 0 ∧
+   (4/5) n + (3/5) k + -i + -2 j + 1 ≤ 0 ∧
+   (3/5) n + (-4/5) k + i + -2 j + -1 ≤ 0 ∧
+   (24/25) n + (-7/25) k + -i + -4 j + 1 ≤ 0 ∧
+   (-7/25) n + (-24/25) k + i + -4 j + -1 ≤ 0 ∧
+   (44/125) n + (-117/125) k + -i + -8 j + 1 ≤ 0 ∧
+   (-117/125) n + (-44/125) k + i + -8 j + -1 ≤ 0 ∧
+   (-336/625) n + (-527/625) k + -i + -16 j + 1 ≤ 0]. Node (n, k, i, j)
+
+val needed : Node (1, -1, 1, 1)
+
+datatype Shear : num * num * num
+
+datacons Advance : ∀i, j, k[i ≤ k + 1 ∧ j ≤ 8 k].Shear (i + j, j, 2 k) ⟶
+   Shear (i, j, k)
+
+val shear :
+   ∀n, k, i[-8 i ≤ 0 ∧ n + -i + -1 ≤ 0 ∧ k + -8 i ≤ 0 ∧
+   n + k + -2 i + -1 ≤ 0 ∧ n + 2 k + -4 i + -1 ≤ 0 ∧
+   n + 3 k + -8 i + -1 ≤ 0]. Shear (n, k, i)
+
+val edge : Shear (-9, 6, 1)
+
+val face : ∀k, n[k ≤ 0 ∧ n ≤ 1]. Shear (n, k, 0)

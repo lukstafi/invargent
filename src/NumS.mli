@@ -230,6 +230,10 @@ type cycle_domain = Outside_directions | Empty_cycle | Cycle_guard of NumDefs.fo
 val affine_cycle_guard : params:Defs.var_name list -> guard:NumDefs.formula ->
   fields:NumDefs.term list list -> Defs.loc -> cycle_domain
 
+(** Infer the greatest public domain when a finite frontier of necessary word guards closes. *)
+val word_cycle_guard : params:Defs.var_name list -> guard:NumDefs.formula ->
+  fields:NumDefs.term list list -> Defs.loc -> cycle_domain
+
 (** Replay a direct constructor against the cells of a proposed recursive scheme. *)
 val replay_cycle : params:Defs.var_name list -> guard:NumDefs.formula -> fields:NumDefs.term list list ->
   NumDefs.formula -> Defs.loc -> bool
@@ -243,7 +247,7 @@ val is_folded_domain : params:Defs.var_name list -> NumDefs.formula -> Defs.loc 
 (** Greatest polyhedral domain for a recovered finite planar group or an infinite group at fixed slack. *)
 val exact_planar_cycle_guard : params:Defs.var_name list -> guard:NumDefs.formula ->
   fields:NumDefs.term list list -> Defs.loc -> NumDefs.formula option
-(** Construct and check a private folded norm for planar fields with an expanding slack. *)
+(** Construct a private folded domain for an expanding planar norm or a quadratic guard orbit. *)
 val folded_caller_guard : params:Defs.var_name list -> guard:NumDefs.formula -> fields:NumDefs.term list list ->
   demands:NumDefs.formula list -> Defs.loc -> NumDefs.formula option
 (** Private component bounds and field obligations for a checked spectral scheme. *)

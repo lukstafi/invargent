@@ -2549,9 +2549,9 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
           ex_items @ List.rev !more_items
           @ [ILetVal (docu, p, e, top_sch, typ_schs, elim_extypes, loc)]
   in
-  (* A plain alias can reuse a checked greatest cycle scheme, including
+  (* A plain alias can reuse a checked greatest or folded cycle scheme, including
      through other aliases. Match the scheme itself to respect shadowing. *)
-  let exact_cycle_schemes = ref [] in
+  let reusable_cycle_schemes = ref [] in
   let infer source remaining = match source with
     | [], LetRecVal (docu,x,(Cons (tag,args,lc) as e),written,tests,loc) when signature_target written=None ->
       let install env scheme =
@@ -2567,21 +2567,26 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
          else infer_item None source
        | Some (name,params,guard,fields),None ->
          let ty = TCons (name,List.map (fun v -> TVar v) params) in
+         let empty () = raise (NoAnswer (Num_sort,
+             "No index satisfies every unfolding of this recursive constructor value",None,lc)) in
          match NumS.affine_cycle_guard ~params ~guard ~fields loc with
-         | NumS.Empty_cycle -> raise (NoAnswer (Num_sort,
-             "No index satisfies every unfolding of this recursive constructor value",None,lc))
+         | NumS.Empty_cycle -> empty ()
          | NumS.Cycle_guard domain -> infer_item (Some (NumS.formula_of_sort domain,ty)) source
          | NumS.Outside_directions ->
          if tests<>[] then infer_item None source else
-         match NumS.exact_planar_cycle_guard ~params ~guard ~fields loc with
-         | Some exact ->
+         let exact = match NumS.exact_planar_cycle_guard ~params ~guard ~fields loc with
+           | Some domain -> NumS.Cycle_guard domain
+           | None -> NumS.word_cycle_guard ~params ~guard ~fields loc in
+         match exact with
+         | NumS.Empty_cycle -> empty ()
+         | NumS.Cycle_guard exact ->
            let phi = NumS.formula_of_sort exact in
            let vs = VarSet.elements (VarSet.union (fvs_typ ty) (fvs_formula phi)) in
            let sb,(vs,phi) = nice_ans ~fvs:(fvs_typ ty) (vs,phi) in
            let scheme = vs,phi,hvsubst_typ sb ty in
-           exact_cycle_schemes := scheme :: !exact_cycle_schemes;
+           reusable_cycle_schemes := scheme :: !reusable_cycle_schemes;
            install !gamma scheme
-         | None ->
+         | NumS.Outside_directions ->
          let spectral = NumS.spectral_cycle_guard ~params ~guard ~fields loc in
          let demands = cycle_callers x name params remaining in
          if spectral=None && demands=[] then infer_item None source else
@@ -2623,7 +2628,7 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
                let proposed = vs,phi,hvsubst_typ sb ty in
                (match current with
                 | Some earlier when not (covers_numeric_alias proposed earlier loc) -> current,changed
-                | _ -> Some proposed,true) in
+                | _ -> reusable_cycle_schemes := proposed :: !reusable_cycle_schemes; Some proposed,true) in
            match result,previous with
            | (Some s,true),_ -> install env s
            | _,Right items -> report_value x (List.assoc x !gamma); items
@@ -2640,7 +2645,7 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
         [ILetVal (docu,pat,Var (y,lc),scheme,[x,scheme],[],loc)] in
       (match (try Some (List.assoc y env) with Not_found -> None),written with
        | Some old,Some s when covers_numeric_alias old s loc -> install s
-       | Some old,None when List.memq old !exact_cycle_schemes || has_folded_domain old loc -> install old
+       | Some old,None when List.memq old !reusable_cycle_schemes || has_folded_domain old loc -> install old
        | Some old,None ->
          let packages = !all_ex_types in
          let reuse () =

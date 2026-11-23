@@ -1,0 +1,10 @@
+datatype Node : num * num * num * num
+datacons Step : ∀i,j,k,n[i+k≤1+n ∧ j + -1 k≤-1+n]. Node (3/5 i + -4/5 j,4/5 i + 3/5 j,k,2 n) ⟶ Node (i,j,k,n)
+let rec node = Step node
+let needed : Node (1,-1,1,1) = node
+
+datatype Shear : num * num * num
+datacons Advance : ∀i,j,k[i≤1+k ∧ j≤8 k]. Shear (i+j,j,2 k) ⟶ Shear (i,j,k)
+let rec shear = Advance shear
+let edge : Shear (-9,6,1) = shear
+let face : ∀i,j[i≤1 ∧ j≤0]. Shear (i,j,0) = shear

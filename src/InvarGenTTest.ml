@@ -244,6 +244,22 @@ let tests = "InvarGenT" >::: [
       "recursive guards can require a weighted prefix and a zero-slack face" >::
         run_example ~full_annot:true ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b)
           "weighted_prefix_cycle";
+      "recursive values admit the finite word domain and the limiting shear face" >::
+        run_example ~full_annot:true ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b)
+          "word_guard_cycle";
+      "a caller can violate only the last layer of a recursive guard" >:: (fun () ->
+        let source = input_file (example_path "word_guard_cycle" ^ ".gadt") in
+        assert_bool "the fifth layer excludes the caller"
+          (rejects_source (source ^ "\nlet wrong : Node (-11,-5,-5,1) = node"));
+        assert_bool "the shear fails after three steps"
+          (rejects_source (source ^ "\nlet wrong : Shear (-7,6,1) = shear")));
+      "ten private folds admit a thousand-step quadratic caller" >::
+        run_example ~full_annot:true ~cmp_sig:(fun a b -> signature_tokens a = signature_tokens b)
+          "folded_quadratic_cycle";
+      "the quadratic guard can first fail at step 1024" >:: (fun () ->
+        let source = input_file (example_path "folded_quadratic_cycle" ^ ".gadt") in
+        assert_bool "one less than the square violates the guard at step 1024"
+          (rejects_source (source ^ "\nlet wrong : Curve (1024,1048575) = alias")));
       "a cheaper five-step word can invalidate a costly one-step opening" >:: (fun () ->
         let source = input_file (example_path "weighted_prefix_cycle" ^ ".gadt") in
         assert_bool "the fifth forward guard excludes this point"

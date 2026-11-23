@@ -5043,7 +5043,7 @@ let affine_cycle_guard ~params ~guard ~fields loc =
    If the current feasible point violates a new closed half-space, their
    intersection is feasible exactly when its boundary contains a feasible
    point. Substitution on that boundary removes a coordinate. *)
-let cycle_point rows =
+let cycle_point ?(pivot=(fun () -> ())) rows =
   let eval point (vs,c,_) = List.fold_left (fun r (v,k) ->
       try r +/ k */ VarMap.find v point with Not_found -> r) c vs in
   let rec solve rows =
@@ -5052,6 +5052,7 @@ let cycle_point rows =
       | row::rest when eval point row <=/ !/0 -> add point (row::kept) rest
       | ([],_,_)::_ -> None
       | (((v,k)::vs,c,lc) as row)::rest ->
+        pivot ();
         let boundary = mult (!/(-1) // k) (vs,c,lc) in
         let replace = subst_w ~cmp_v:state_cmp_v (VarMap.singleton v boundary) in
         match solve (List.rev_map replace kept) with
@@ -5063,14 +5064,14 @@ let cycle_point rows =
 (* A nonempty polyhedron entails a row iff its homogenized cone has no
    point with violation at least one. A recession violation can be added to
    any feasible base point. Keep all intermediate coefficients rational. *)
-let cycle_entails parent loc =
+let cycle_entails ?pivot parent loc =
   let cmp_v = state_cmp_v and scale = Terms.fresh_num_var () in
   let lift (vs,c,lc) = norm_w ~cmp_v ((scale,c)::vs,!/0,lc) in
   let cone = ([scale,!/(-1)],!/0,loc)::List.map lift parent in
   fun ((vars,c,_) as row) -> if vars=[] then c <=/ !/0 else
     List.exists (equal_w ~cmp_v row) parent ||
     let vs,_,lc = mult !/(-1) (lift row) in
-    cycle_point ((vs,!/1,lc)::cone)=None
+    cycle_point ?pivot ((vs,!/1,lc)::cone)=None
 
 (* Isolate an index in an affine row. For a negative coefficient an
    inequality gives a lower bound on this index. *)
@@ -5349,12 +5350,75 @@ let project_cycle_domain hidden domain loc =
         (List.map replace inequalities) in
   substitute hidden eq leq
 
-let linear_cycle_check ~guard maps cell_rows loc =
-  let parents = List.filter (fun rs -> cycle_point rs<>None) cell_rows in
+let linear_cycle_check ?pivot ~guard maps cell_rows loc =
+  let parents = List.filter (fun rs -> cycle_point ?pivot rs<>None) cell_rows in
   let children = List.map (fun sb -> List.map (List.map (subst_w ~cmp_v:state_cmp_v sb)) cell_rows) maps in
   parents<>[] && List.for_all (fun parent ->
-      let includes = List.for_all (cycle_entails parent loc) in
+      let includes = List.for_all (cycle_entails ?pivot parent loc) in
       List.for_all (List.exists includes) children && includes (cycle_rows guard)) parents
+
+(* For one required field T, look for a second-order orbit of the guard g.
+   If (T-r)(T-a)g=0 with r>=a>0, safety along T^n implies (T-a)g<=0:
+   divide by r^n when r>a, or by n*r^(n-1) at a repeated root. *)
+let quadratic_cycle_limit sb g =
+  let cmp_v = state_cmp_v in
+  let pull = subst_w ~cmp_v sb and minus = diff ~cmp_v in
+  let coefficient (vs,_,_) = match vs with
+    | (v,_)::_ -> (fun (xs,_,_) -> cycle_coefficient v xs)
+    | [] -> (fun (_,c,_) -> c) in
+  if zero_p g then None else
+  let next = pull g in
+  let after = pull next and first = coefficient g in
+  let u = first next // first g and v = first after // first g in
+  let h = minus next (mult u g) in
+  if zero_p h then None else
+  let second = coefficient h in
+  let k = minus after (mult v g) in
+  let trace = second k // second h in
+  if not (equal_w ~cmp_v k (mult trace h)) then None else
+  let disc = trace */ trace +/ !/4 */ (v -/ trace */ u) in
+  if disc </ !/0 then None else
+  let root = cycle_sqrt_upper disc in
+  let a = (trace -/ root) // !/2 in
+  if root */ root <>/ disc || a <=/ !/0 then None
+  else Some (minus next (mult a g))
+
+(* Each queued row is necessary at the root of the recursive value. Pull
+   it back through every required field. Once the queue is empty, the
+   retained rows form an inductive domain containing every possible typing. *)
+let word_cycle_guard ~params ~guard ~fields loc =
+  let cmp_v = state_cmp_v and fuel = ref !abd_timeout_count in
+  let spend () = decr fuel; if !fuel < 0 then raise Not_found in
+  try
+    let maps = cycle_maps params fields loc and initial = cycle_rows guard in
+    let rec close rows frontier = match frontier with
+      | [] ->
+        if cycle_point ~pivot:spend rows=None then Empty_cycle
+        else if linear_cycle_check ~pivot:spend ~guard maps [rows] loc then
+          Cycle_guard (List.rev_map (fun w -> Leq (expand_w w,Cst (0,1),loc)) rows)
+        else Outside_directions
+      | _ ->
+        let pull (rows,next) row =
+          List.fold_left (fun (rows,next) sb ->
+              spend ();
+              let image = subst_w ~cmp_v sb row in
+              if cycle_entails ~pivot:spend rows loc image then rows,next
+              else image::rows,image::next) (rows,next) maps in
+        let rows,next = List.fold_left pull (rows,[]) frontier in
+        if next<>[] && cycle_point ~pivot:spend rows=None then Empty_cycle
+        else close rows (List.rev next) in
+    (try close initial initial with Not_found ->
+       fuel := !abd_timeout_count;
+       let add rows row = List.fold_left (fun rows sb ->
+           spend ();
+           match quadratic_cycle_limit sb row with
+           | Some limit when not (cycle_entails ~pivot:spend (initial @ rows) loc limit) -> limit::rows
+           | _ -> rows) rows maps in
+       match List.fold_left add [] initial with
+       | [] -> Outside_directions
+       | limits -> let seed = initial @ limits in close seed seed)
+  with Not_found | Terms.Contradiction _ -> Outside_directions
+     | Failure msg when msg="int_of_big_int" -> Outside_directions
 
 (* At a plain value alias the caller's public arguments are already known.
    Substitute those arguments before discarding the source scheme's private
@@ -5368,6 +5432,56 @@ let cycle_alias ~premise ~hidden opening loc =
      List.for_all (cycle_entails parent loc) (project_cycle_domain hidden opening loc))
   with Not_found | Terms.Contradiction _ -> false
      | Failure msg when msg = "int_of_big_int" -> false
+
+(* A constant negative second difference makes every later guard equivalent
+   to x >= 2*k*z-k^2 for k>=0, with z'=z-1 and x'=x-2*z+1. On z<=N it
+   suffices to take k<=N. Reflecting [0,N] about its midpoint halves the
+   number of tangents, using one fresh absolute-value witness per fold. *)
+let quadratic_cycle_coordinates guard maps loc =
+  let cmp_v = state_cmp_v in
+  let sb,g = match maps,cycle_rows guard with
+    | [sb],[g] -> sb,g | _ -> raise Not_found in
+  let delta row = diff ~cmp_v (subst_w ~cmp_v sb row) row in
+  let first = delta g in
+  let accel = match delta first with
+    | [],c,_ when c </ !/0 -> minus_num c | _ -> raise Not_found in
+  sum_w ~cmp_v ([],!/1 // !/2,loc) (mult (!/1 // accel) first), mult (!/(-2) // accel) g
+
+let quadratic_fold witness n z x loc =
+  let minus = diff ~cmp_v:state_cmp_v and plus = sum_w ~cmp_v:state_cmp_v in
+  let scalar c = [],c,loc in
+  let rec fold n z x rows =
+    if n =/ !/1 then mult !/(-1) x :: minus (minus (mult !/2 z) (scalar !/1)) x :: rows
+    else
+      let c = n // !/2 in
+      let d = minus z (scalar c) in
+      let u = witness d in
+      let next = plus (minus x (mult n z)) (scalar (c */ c)) in
+      fold c u next (minus d u :: minus (mult !/(-1) d) u :: rows) in
+  fold n z x [minus z (scalar n)]
+
+(* Recognize the whole written lift up to row order, positive scaling and
+   renaming. Extra constraints could prevent a fresh opening at the child. *)
+let replay_quadratic_fold ~guard maps hidden domain loc =
+  try
+    let z,x = quadratic_cycle_coordinates guard maps loc in
+    let minus = diff ~cmp_v:state_cmp_v and equal = equal_w ~cmp_v:state_cmp_v in
+    let normalize ((vs,c,_) as w) =
+      let first = match vs with (_,k)::_ -> k | [] -> c in
+      if first =/ !/0 then w else mult (!/1 // abs_num first) w in
+    let actual = List.map normalize (cycle_rows domain) in
+    let has rows w = List.exists (equal (normalize w)) rows in
+    let remaining = ref hidden in
+    let witness d =
+      let variable v = [v,!/1],!/0,loc in
+      let v = List.find (fun v -> let u = variable v in
+          has actual (minus d u) && has actual (minus (mult !/(-1) d) u)) (VarSet.elements !remaining) in
+      remaining := VarSet.remove v !remaining;
+      variable v in
+    let n = power_num !/2 (!/(VarSet.cardinal hidden)) in
+    let expected = List.map normalize (quadratic_fold witness n z x loc) in
+    List.for_all (has actual) expected && List.for_all (has expected) actual
+  with Not_found -> false
 
 (* Check a union of convex cells directly against the constructor. A field
    can use a different cell at its child. Projecting the hidden coordinates
@@ -5392,6 +5506,7 @@ let replay_cycle ~params ~guard ~fields domain loc =
     let validate cells =
       try linear_cycle_check ~guard maps (List.map cycle_rows cells) loc
       with Not_found -> check cells in
+    replay_quadratic_fold ~guard maps hidden domain loc ||
     (try folded_cycle ~params ~guard maps domain loc with Not_found -> false) ||
     validate [domain] ||
     (* A projected face can have larger coefficients than every source atom.
@@ -5656,8 +5771,59 @@ let planar_cycle_guard ~exact_only ~params ~guard ~fields ~demands loc =
 let exact_planar_cycle_guard ~params ~guard ~fields loc =
   planar_cycle_guard ~exact_only:true ~params ~guard ~fields ~demands:[] loc
 
+let quadratic_caller_guard ~params ~guard ~fields ~demands loc =
+  let fuel = ref !abd_timeout_count in
+  let spend () = decr fuel; if !fuel<0 then raise Not_found in
+  let cmp_v = state_cmp_v in
+  let atom w = Leq (expand_w w,Cst (0,1),loc) in
+  try
+    let z,x = quadratic_cycle_coordinates guard (cycle_maps params fields loc) loc in
+    let u = Terms.fresh_num_var () and v = Terms.fresh_num_var () in
+    let link i w = Eq (Lin (1,1,i),expand_w w,loc) in
+    let largest = ref !/1 in
+    let caller demand =
+      let relation = link u z :: link v x :: demand in
+      let hidden = VarSet.remove u (VarSet.remove v (fvs_formula relation)) in
+      let rows = List.map (fun (vs,c,_) -> cycle_coefficient u vs,cycle_coefficient v vs,c)
+          (project_cycle_domain hidden relation loc) in
+      (* The axes split even a strip or a whole line into pointed cells.
+         Every vertex lies at a pair of boundaries; rays parallel a boundary.
+         Evaluate the worst integer tangent at a nearest nonnegative integer. *)
+      let boundaries = (!/1,!/0,!/0)::(!/0,!/1,!/0)::rows in
+      let feasible z x = List.for_all (fun (a,b,c) -> a*/z +/ b*/x +/ c <=/ !/0) rows in
+      let ray z x =
+        if (z >/ !/0 || x </ !/0) &&
+           List.for_all (fun (a,b,_) -> a*/z +/ b*/x <=/ !/0) rows then raise Not_found in
+      let found = ref false in
+      let rec pairs = function
+        | [] -> ()
+        | (a,b,c)::rest ->
+          List.iter (fun (d,e,f) ->
+              spend ();
+              let det = a*/e -/ b*/d in
+              if det <>/ !/0 then (
+                let z = (b*/f -/ c*/e) // det and x = (c*/d -/ a*/f) // det in
+                if feasible z x then (
+                  let k = max_num !/0 (floor_num (z +/ !/1 // !/2)) in
+                  if x </ !/2 */ k */ z -/ k */ k then raise Not_found;
+                  found := true;
+                  largest := max_num !largest z))) rest;
+          pairs rest in
+      pairs boundaries;
+      if !found then List.iter (fun (a,b,_) -> ray b (minus_num a); ray (minus_num b) a) boundaries;
+      !found in
+    let live = List.map caller demands in
+    if not (List.mem true live) then raise Not_found;
+    let rec horizon n = if n >=/ !largest then n else (spend (); horizon (!/2 */ n)) in
+    let fresh _ = [Terms.fresh_num_var (),!/1],!/0,loc in
+    Some (List.rev_map atom (quadratic_fold fresh (horizon !/1) z x loc))
+  with Not_found | Terms.Contradiction _ -> None
+     | Failure msg when msg="int_of_big_int" -> None
+
 let folded_caller_guard ~params ~guard ~fields ~demands loc =
-  planar_cycle_guard ~exact_only:false ~params ~guard ~fields ~demands loc
+  match planar_cycle_guard ~exact_only:false ~params ~guard ~fields ~demands loc with
+  | Some _ as result -> result
+  | None -> quadratic_caller_guard ~params ~guard ~fields ~demands loc
 
 (* A guard a.p <= b*t+c with b>0 and c>=0 licenses the cone
    ||p||_infty <= (b/||a||_1)*t. Try both signs of each public coordinate

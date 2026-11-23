@@ -1,0 +1,7 @@
+datatype Curve : num * num
+datacons Step : ∀i,j[0≤j]. Curve (i + -1,j + -2 i + 1) ⟶ Curve (i,j)
+let rec curve = Step curve
+let alias = curve
+let boundary : Curve (1024,1048576) = alias
+let ray : ∀j[1048576≤j]. Curve (1024,j) = alias
+let strip : ∀i,j[i≤4 ∧ 16≤j]. Curve (i,j) = alias
