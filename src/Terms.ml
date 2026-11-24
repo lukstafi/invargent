@@ -26,7 +26,7 @@ let stringtype = CNam "String"
 let builtin_progseq = "builtin_progseq"
 
 module CNames =
-    Set.Make (struct type t = cns_name let compare = Pervasives.compare end)
+    Set.Make (struct type t = cns_name let compare = Stdlib.compare end)
 let cnames_of_list l =
   List.fold_right CNames.add l CNames.empty
 let add_cnames l vs =
@@ -949,7 +949,7 @@ let pr_expr ?export_num ?export_if ?export_bool ?export_progseq
        | Some (fname, _, _, _, _) -> fprintf ppf "(%s %a)" fname int_argument i)
     | NumAdd (a, b, _) ->
       (match export_num with
-       | None -> fprintf ppf "@[<2>%a@ +@ %a@]" aux a aux b
+       | None -> fprintf ppf "@[<2>%a@ +@ %a@]" summand a summand b
        | Some (_, lbr, op, _, rbr) ->
          fprintf ppf "@[<2>%s%a@ %s@ %a%s@]" lbr aux a op aux b rbr)
     | NumCoef (x, a, _) ->
@@ -1087,9 +1087,22 @@ let pr_expr ?export_num ?export_if ?export_bool ?export_progseq
     else fprintf ppf "@[<2>%a@ when@ %a@ ->@ %a@]"
         pr_pat pat (pr_sep_list "&&" pr_guard_leq) guards body exp
 
+  (* An operand that prints as [let], [match], [if] or [fun] would
+     capture the rest of the arithmetic expression. *)
+  and tight = function
+    | Var _ | Num _ | String _ | Cons _ -> true
+    | App ((Lam _ | ExLam _), _, _) -> false
+    | App (f, _, _) -> tight f
+    | _ -> false
+
+  and summand ppf = function
+    | (NumAdd _ | NumCoef _) as e -> aux ppf e
+    | e when tight e -> aux ppf e
+    | e -> fprintf ppf "(%a)" aux e
+
   and factor ppf = function
-    | (NumAdd _ | NumCoef _) as e -> fprintf ppf "(%a)" aux e
-    | e -> aux ppf e
+    | e when tight e -> aux ppf e
+    | e -> fprintf ppf "(%a)" aux e
 
   and pr_one_expr pr_ann ppf exp = match exp with
     | Num (i, _) when export_num = None -> int_argument ppf i

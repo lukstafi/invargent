@@ -29,7 +29,7 @@ let example_path name =
   let path = "./examples/" ^ name in
   if Sys.file_exists (path ^ ".gadt") then path else "../examples/" ^ name
 
-let test_case ?(test_annot=false) ?(full_annot=test_annot) ?(do_ml=true) ?(cmp_sig=(=))
+let test_case ?(test_annot=false) ?(full_annot=test_annot) ?(do_ml=true) ?(cmp_sig=Aux.equal_modulo_layout)
     ?drop_assert_false
     ?richer_answers ?more_general_num
     ?prefer_guess ?ty_abd_timeout
@@ -115,7 +115,7 @@ let test_case ?(test_annot=false) ?(full_annot=test_annot) ?(do_ml=true) ?(cmp_s
      assert_bool "Failed verification of .ml/.mli code"
        (verif_res = None || verif_res = Some 0);
      if test_annot
-     then assert_equal ~printer:(fun x->x)
+     then assert_equal ~cmp:Aux.equal_modulo_layout ~printer:(fun x->x)
          (input_file (file^".ml.target"))
          (input_file (file^".ml"))
    with
@@ -391,7 +391,7 @@ let tests = "InvarGenT" >::: [
           (rejects_source (guard ^ "let unsafe = f 0")));
       "signed arguments and arithmetic grouping in exported OCaml" >:: (fun () ->
         Terms.reset_state (); Infer.reset_state ();
-        let source = "let rec scale x = -2 * (x + -1)\nlet result = scale (-3)" in
+        let source = "let rec scale x = -2 * (x + -1)\nlet result = 2 * (let y = scale (-3) in y) + -8" in
         let program = Parser.program Lexer.token (Lexing.from_string source) in
         let _, annot = Infer.infer_prog InvarGenT.solver (Infer.normalize_program program) in
         let old_type = !OCaml.num_is and old_module = !OCaml.num_is_mod in

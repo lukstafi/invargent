@@ -30,7 +30,7 @@ let ints_of_list nvs =
   add_ints nvs Ints.empty
 
 module Strings =
-    Set.Make (struct type t = string let compare = Pervasives.compare end)
+    Set.Make (struct type t = string let compare = Stdlib.compare end)
 let strings_of_list l =
   List.fold_right Strings.add l Strings.empty
 let add_strings l vs =
@@ -38,7 +38,7 @@ let add_strings l vs =
 
 let order_key l = List.sort (fun (a,_) (b,_) -> compare a b) l
 
-let unique_sorted ?(cmp = Pervasives.compare) l =
+let unique_sorted ?(cmp = Stdlib.compare) l =
   let rec idemp acc = function
     | e1::(e2::_ as tl) when cmp e1 e2 = 0 -> idemp acc tl
     | e::tl -> idemp (e::acc) tl
@@ -50,7 +50,7 @@ let is_unique l =
     | e1::(e2::_) when e1 = e2 -> false
     | e::tl -> idemp tl
     | [] -> true in
-  idemp (List.sort Pervasives.compare l)
+  idemp (List.sort Stdlib.compare l)
 
 let fold_map f acc l =
   let rec aux acc res =
@@ -159,7 +159,7 @@ let array_mapi_some f a =
   else
     let pos = ref 0 in
     while r.(!pos) = None do incr pos done;
-    let res = Array.create !rl (unsome r.(!pos)) in
+    let res = Array.make !rl (unsome r.(!pos)) in
     incr pos;
     for i=1 to !rl -1 do
       while r.(!pos) = None do incr pos done;
@@ -265,7 +265,7 @@ let sorted_diff xs ys =
     | [], _ -> acc
     | xs, [] -> List.rev_append xs acc
     | (x::xs' as xs), (y::ys' as ys) ->
-      let c = Pervasives.compare x y in
+      let c = Stdlib.compare x y in
       if c = 0 then aux acc (xs', ys')
       else if c < 0 then aux (x::acc) (xs', ys)
       else aux acc (xs, ys') in
@@ -537,3 +537,18 @@ let pr_some pr_a ppf = function
 
 let pr_ints ppf ints =
   pr_sep_list "," (fun ppf -> fprintf ppf "%d") ppf (Ints.elements ints)
+
+(** Equality of texts up to runs of whitespace. [Format] breaks
+    lines differently across OCaml releases, so tests comparing printed
+    output use this instead of byte equality. *)
+let equal_modulo_layout a b =
+  let squash s =
+    let buf = Buffer.create (String.length s) in
+    let pending = ref false in
+    String.iter (function
+        | ' ' | '\t' | '\n' | '\r' -> pending := true
+        | c ->
+          if !pending && Buffer.length buf > 0 then Buffer.add_char buf ' ';
+          pending := false; Buffer.add_char buf c) s;
+    Buffer.contents buf in
+  squash a = squash b

@@ -79,20 +79,20 @@ let pr_rbrs ppf brs =
     fprintf ppf "@[<2>%a@ ⟹@ %a@]" pr_formula prem pr_formula concl) ppf brs
 
 let pr_rbrs3 ppf brs =
-  pr_line_list "| " (fun ppf (nonrec, prem,concl) ->
+  pr_line_list "| " (fun ppf (nonrecursive_branch, prem,concl) ->
     fprintf ppf "@[<2>nonrec=%b;@ %a@ ⟹@ %a@]"
-      nonrec pr_formula prem pr_formula concl) ppf brs
+      nonrecursive_branch pr_formula prem pr_formula concl) ppf brs
 
 let pr_rbrs4 ppf brs =
-  pr_line_list "| " (fun ppf (nonrec, chiK_pos, prem,concl) ->
+  pr_line_list "| " (fun ppf (nonrecursive_branch, chiK_pos, prem,concl) ->
     fprintf ppf "@[<2>nonrec=%b; #chiK_pos=%d;@ %a@ ⟹@ %a@]"
-      nonrec (List.length chiK_pos) pr_formula prem pr_formula concl) ppf brs
+      nonrecursive_branch (List.length chiK_pos) pr_formula prem pr_formula concl) ppf brs
 
 let pr_rbrs5 ppf brs =
   (* TODO: print the chiK *)
-  pr_line_list "| " (fun ppf (nonrec, chi_pos, chiK_pos, prem, concl) ->
+  pr_line_list "| " (fun ppf (nonrecursive_branch, chi_pos, chiK_pos, prem, concl) ->
     fprintf ppf "@[<2>nonrec=%b;@ chiK_pos=%a;@ %a@ ⟹@ %a@]"
-      nonrec (pr_sep_list "," Format.pp_print_int)
+      nonrecursive_branch (pr_sep_list "," Format.pp_print_int)
       (List.map (fun (i,_,_,_) -> i) chiK_pos)
       pr_formula prem pr_formula concl) ppf brs
 
@@ -1460,7 +1460,7 @@ let interval_call_key samples signature arrow body bands loc =
     [paired `Endpoints; paired `Hull; paired `Components; on_guard false]
   | _ -> []
 
-let gen_letrec ~value_patterns ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests =
+let gen_letrec ~value_patterns ~call_constraints ~erase_bodies ~nonrecursive_branch gamma x e sig_cn tb tests =
   (* χ is a predicate on one type variable. A written scheme constrains
      the instances χ can admit, and each recursive use instantiates both. *)
   let anchor = match tb, sig_cn with
@@ -1477,7 +1477,7 @@ let gen_letrec ~value_patterns ~call_constraints ~erase_bodies ~nonrec gamma x e
   let def_typ =
     VarSet.elements (VarSet.union bvs anchor_vars), chi_b :: signature, tb in
   let gamma =
-    if nonrec then gamma else (x, def_typ)::gamma in
+    if nonrecursive_branch then gamma else (x, def_typ)::gamma in
   let arities = Hashtbl.create 2 in
   Hashtbl.add arities chi_id (lambda_depth e);
   (* Each recursive occurrence freshens this restriction along with its own
@@ -1540,8 +1540,8 @@ let gen_letrec ~value_patterns ~call_constraints ~erase_bodies ~nonrec gamma x e
   cn_and def_cn (cn_and (Ex (vars_of_list [a], A [chi_a])) test_cn),
   e, tests, elim_cell::elim_cells, more_preserve @ preserve
 
-let constr_gen_letrec ?(value_patterns=[]) ?(call_constraints=Restrict_calls []) ~erase_bodies ?(nonrec=false) gamma x e sig_cn tb tests =
-  with_live_packages erase_bodies (fun () -> gen_letrec ~value_patterns ~call_constraints ~erase_bodies ~nonrec gamma x e sig_cn tb tests)
+let constr_gen_letrec ?(value_patterns=[]) ?(call_constraints=Restrict_calls []) ~erase_bodies ?(nonrecursive_branch=false) gamma x e sig_cn tb tests =
+  with_live_packages erase_bodies (fun () -> gen_letrec ~value_patterns ~call_constraints ~erase_bodies ~nonrecursive_branch gamma x e sig_cn tb tests)
 
 let constr_gen_let ~erase_bodies gamma p e ta =
   let pcns = constr_gen_pat p ta in
@@ -1597,9 +1597,9 @@ let infer_prog_mockup (prog : program) =
           [b], [], tb
         | Some (vs, phi, t) -> vs, phi, t in
       let preserve = VarSet.union (fvs_typ t) (fvs_formula sig_cn) in
-      let nonrec = match it with LetVal _ -> true | _ -> false in
+      let nonrecursive_branch = match it with LetVal _ -> true | _ -> false in
       let chi_id, typ_sch, cn, e, tests, elim_cells, more_preserve =
-        constr_gen_letrec ~erase_bodies ~nonrec !gamma x e sig_cn t tests in
+        constr_gen_letrec ~erase_bodies ~nonrecursive_branch !gamma x e sig_cn t tests in
       gamma := (x, typ_sch) :: !gamma;
       new_ex_types, add_vars more_preserve preserve, cn
     | new_ex_types,
@@ -1611,9 +1611,9 @@ let infer_prog_mockup (prog : program) =
           [b], [], tb
         | Some (vs, phi, t) -> vs, phi, t in
       let preserve = VarSet.union (fvs_typ t) (fvs_formula sig_cn) in
-      let nonrec = match it with LetVal _ -> true | _ -> false in
+      let nonrecursive_branch = match it with LetVal _ -> true | _ -> false in
       let chi_id, typ_sch, cn, e, tests, elim_cells, more_preserve =
-        constr_gen_letrec ~erase_bodies ~nonrec !gamma x e sig_cn t [] in
+        constr_gen_letrec ~erase_bodies ~nonrecursive_branch !gamma x e sig_cn t [] in
       gamma := (x, typ_sch) :: !gamma;
       (*[* Format.printf "LetRecVal: mock x=%s@\ncn=%a@\n%!" x
         pr_cnstrnt cn; *]*)
@@ -2335,7 +2335,7 @@ let infer_prog ?(integer_target=false) ?check_excluded solver prog =
                 let retry_signature = match call_constraints with
                   | Open_at_keys _ | Exclude_bands _ -> Lazy.force call_signature | Restrict_calls _ -> sig_cn in
                 let chi_id, _, cn, e, tests, elim_cells, preserve =
-                  constr_gen_letrec ~value_patterns ~call_constraints ~erase_bodies ~nonrec:(pat_loc<>None)
+                  constr_gen_letrec ~value_patterns ~call_constraints ~erase_bodies ~nonrecursive_branch:(pat_loc<>None)
                     !gamma x e retry_signature t tests in
                 let preserve = add_vars preserve
                     (VarSet.union (fvs_typ t) (fvs_formula sig_cn)) in
@@ -3165,7 +3165,7 @@ let simplify preserve q brs =
     | _ -> false in                         (* FIXME: check other sorts? *)
   let nonred_pr_atom a = not (redundant_atom true a) in
   let nonred_atom a = not (redundant_atom false a) in
-  (* FIXME: should we identify the same nonrec branches as
+  (* FIXME: should we identify the same nonrecursive_branch branches as
      Invariants.solve? *)
   let is_nonrec prem concl =
     not (List.exists (function
@@ -3212,13 +3212,13 @@ let simplify preserve q brs =
         pr_formula cnj1 pr_formula cnj2; *]*)
       res
     with Contradiction _ -> false in
-  let rec meet nonrec prem concl = function
+  let rec meet nonrecursive_branch prem concl = function
     | [] -> raise Not_found
     | (prem2, concl2 as br) :: brs ->
       let nonrec2 = is_nonrec prem2 concl2 in
-      if (nonrec=nonrec2 || !merge_rec_nonrec) && equiv prem prem2
+      if (nonrecursive_branch=nonrec2 || !merge_rec_nonrec) && equiv prem prem2
       then (prem, concl @ concl2) :: brs
-      else br :: meet nonrec prem concl brs in
+      else br :: meet nonrecursive_branch prem concl brs in
   let rec merge acc = function
     | [] -> List.rev acc
     | (prem, concl as br) :: brs ->

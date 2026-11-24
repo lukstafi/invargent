@@ -68,7 +68,7 @@ let rec eval = function
       ignore (Format.flush_str_formatter ());
       pr_program Format.str_formatter prog;
 
-      assert_equal ~printer:(fun x -> x)
+      assert_equal ~cmp:Aux.equal_modulo_layout ~printer:(fun x -> x)
 "datatype Term : type
 
 external let plus : Int → Int → Int = \"(+)\"
@@ -110,7 +110,7 @@ external filter : ∀n, a. List (a, n) → ∃k [k≤n]. List (a, k) = \"filter\
       ignore (Format.flush_str_formatter ());
       pr_program Format.str_formatter prog;
 
-      assert_equal ~printer:(fun x -> x)
+      assert_equal ~cmp:Aux.equal_modulo_layout ~printer:(fun x -> x)
 "datatype List : type * num
 
 datacons LNil : ∀n, a[0 = n]. List (a, n)

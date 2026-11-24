@@ -16,7 +16,7 @@ type linOrder =
   | GT : linOrder
   | EQ : linOrder
 let compare : ('a -> 'a -> linOrder) =
-  fun a b -> let c = Pervasives.compare a b in
+  fun a b -> let c = Stdlib.compare a b in
               if c < 0 then LE else if c > 0 then GT else EQ
 let equal : ('a -> 'a -> bool) = fun a b -> a = b
 let div2 : ((* 2 n *) num -> (* n *) num) = fun x -> x / 2

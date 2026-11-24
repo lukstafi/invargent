@@ -1,12 +1,12 @@
 main:
-	ocamlbuild -lib nums src/InvarGenT.native
+	ocamlbuild -use-ocamlfind -pkg num src/InvarGenT.native
 	cp _build/src/InvarGenT.native invargent
 
 test:
-	ocamlbuild src/Tests.d.byte -lib nums -pkg oUnit --
+	ocamlbuild -use-ocamlfind -pkg num -pkg ounit2 src/Tests.d.byte --
 
 testnative:
-	ocamlbuild src/Tests.native -lib nums -pkg oUnit --
+	ocamlbuild -use-ocamlfind -pkg num -pkg ounit2 src/Tests.native --
 
 docs:
 	ocamlbuild src/InvarGenT.docdir/index.html
