@@ -391,7 +391,7 @@ let tests = "InvarGenT" >::: [
           (rejects_source (guard ^ "let unsafe = f 0")));
       "signed arguments and arithmetic grouping in exported OCaml" >:: (fun () ->
         Terms.reset_state (); Infer.reset_state ();
-        let source = "let rec scale x = -2 * (x + -1)\nlet result = scale (-3)" in
+        let source = "let rec scale x = -2 * (x + -1)\nlet result = 2 * (let y = scale (-3) in y) + -8" in
         let program = Parser.program Lexer.token (Lexing.from_string source) in
         let _, annot = Infer.infer_prog InvarGenT.solver (Infer.normalize_program program) in
         let old_type = !OCaml.num_is and old_module = !OCaml.num_is_mod in
